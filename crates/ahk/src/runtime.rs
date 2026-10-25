@@ -11,6 +11,24 @@
 //! The desktop is whatever implements [`Desktop`]. The real one lives on
 //! the lab box (the `ahk-box` crate); the tests use a fake that records
 //! the calls.
+//!
+//! ## The focus check
+//!
+//! A script that types into the wrong window is worse than a script that
+//! fails, so the language carries the primitives that answer "is the right
+//! thing in front of us?":
+//!
+//! * `MouseGetPos()` -- where the pointer is.
+//! * `PixelGet(x, y)` -- the colour under it.
+//! * `PixelSearch(x1, y1, x2, y2, colour)` -- where that colour is.
+//!
+//! These three work on any desktop, because they are read from the screen
+//! itself. `WinActive(title)` and `WinExist(title)` are the window-level
+//! questions, and they are answered by whatever the desktop can actually
+//! ask: on a Wayland session with no window API, the answer is
+//! *unknown*, and the runtime says so out loud rather than guessing
+//! `false`. A script that cannot answer the question fails; it does not
+//! quietly take the wrong branch.
 
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -31,6 +49,8 @@ pub enum Value {
     Text(String),
     /// A boolean.
     Bool(bool),
+    /// A list of values: what `MouseGetPos` and `PixelSearch` return.
+    List(Vec<Value>),
 }
 
 impl Value {
@@ -41,6 +61,7 @@ impl Value {
             Value::Int(number) => *number != 0,
             Value::Float(number) => *number != 0.0,
             Value::Bool(flag) => *flag,
+            Value::List(items) => !items.is_empty(),
         }
     }
 
@@ -51,6 +72,11 @@ impl Value {
             Value::Float(number) => number.to_string(),
             Value::Text(text) => text.clone(),
             Value::Bool(flag) => flag.to_string(),
+            Value::List(items) => items
+                .iter()
+                .map(|item| item.to_text())
+                .collect::<Vec<String>>()
+                .join(","),
         }
     }
 
@@ -61,6 +87,16 @@ impl Value {
             Value::Float(number) => Some(*number),
             Value::Bool(flag) => Some(if *flag { 1.0 } else { 0.0 }),
             Value::Text(text) => text.trim().parse::<f64>().ok(),
+            Value::List(_) => None,
+        }
+    }
+
+    /// A number as a whole number when it is one.
+    pub fn from_number(number: f64) -> Value {
+        if number.fract() == 0.0 && number.abs() < 9.0e15 {
+            Value::Int(number as i64)
+        } else {
+            Value::Float(number)
         }
     }
 }
@@ -78,6 +114,21 @@ pub struct RuntimeError {
 #[error("the script ran for more than {seconds}s")]
 pub struct Timeout {
     pub seconds: f64,
+}
+
+/// What the desktop could tell us about a window.
+///
+/// The third case is the point: on a session with no window API, the
+/// honest answer is "I do not know", and it has to stay distinct from
+/// "no".
+#[derive(Debug, Clone, PartialEq)]
+pub enum WindowAnswer {
+    /// The window is the active one.
+    Active,
+    /// The window exists and is not the active one.
+    NotActive,
+    /// The desktop cannot tell; the reason says why.
+    Unknown(String),
 }
 
 /// What the runtime needs from the machine it drives.
@@ -99,6 +150,47 @@ pub trait Desktop {
 
     /// The colour of one pixel, as `#rrggbb`.
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String>;
+
+    /// Move the pointer to a screen position.
+    ///
+    /// A desktop that cannot move the pointer says so; the default is an
+    /// error, because a script that believes it moved the pointer and did
+    /// not is a script that types into the wrong window.
+    fn move_pointer(&mut self, _x: i64, _y: i64) -> Result<String, String> {
+        Err("this desktop cannot move the pointer".to_string())
+    }
+
+    /// Where the pointer is, in screen pixels.
+    fn mouse_position(&mut self) -> Result<(i64, i64), String> {
+        Err("this desktop cannot tell where the pointer is".to_string())
+    }
+
+    /// The first pixel of a colour inside a region, if there is one.
+    fn pixel_search(
+        &mut self,
+        _x1: i64,
+        _y1: i64,
+        _x2: i64,
+        _y2: i64,
+        _colour: &str,
+    ) -> Result<Option<(i64, i64)>, String> {
+        Err("this desktop cannot search the screen for a colour".to_string())
+    }
+
+    /// Whether the window with this title is the active one.
+    fn window_active(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+        Err("this desktop cannot tell which window is active".to_string())
+    }
+
+    /// Whether a window with this title exists.
+    fn window_exists(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+        Err("this desktop cannot list the windows".to_string())
+    }
+
+    /// The title of the active window.
+    fn active_window_title(&mut self) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell which window is active".to_string())
+    }
 }
 
 /// What one statement did.
@@ -120,13 +212,24 @@ pub struct Report {
     pub notes: Vec<String>,
     pub error: Option<String>,
     pub error_line: Option<u32>,
+    pub exit_code: Option<i32>,
     pub elapsed_ms: u64,
     pub variables: BTreeMap<String, Value>,
 }
 
+/// The way a script left a block.
 enum Flow {
     Break,
     Continue,
+    Return(Option<Value>),
+    Exit(i32),
+}
+
+/// A function the script defined.
+#[derive(Clone)]
+struct Function {
+    parameters: Vec<String>,
+    body: Vec<Node>,
 }
 
 /// Executes a script.
@@ -138,6 +241,8 @@ pub struct Runtime<'a> {
     desktop: &'a mut dyn Desktop,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
+    scopes: Vec<BTreeMap<String, Value>>,
+    functions: BTreeMap<String, Function>,
     steps: Vec<Step>,
     output: Vec<String>,
     notes: Vec<String>,
@@ -157,6 +262,8 @@ impl<'a> Runtime<'a> {
             desktop,
             timeout,
             variables: BTreeMap::new(),
+            scopes: Vec::new(),
+            functions: BTreeMap::new(),
             steps: Vec::new(),
             output: Vec::new(),
             notes: Vec::new(),
@@ -169,9 +276,15 @@ impl<'a> Runtime<'a> {
     pub fn run(mut self, statements: &[Node]) -> Report {
         let mut error = None;
         let mut error_line = None;
+        let mut exit_code = None;
+        // The functions are collected before the first statement runs, so a
+        // script may call a function it defines further down.
+        self.collect_functions(statements);
         match self.run_block(statements) {
             Ok(()) => {}
             Err(RuntimeFailure::Flow(Flow::Break)) | Err(RuntimeFailure::Flow(Flow::Continue)) => {}
+            Err(RuntimeFailure::Flow(Flow::Return(_))) => {}
+            Err(RuntimeFailure::Flow(Flow::Exit(code))) => exit_code = Some(code),
             Err(RuntimeFailure::Error(failure)) => {
                 error = Some(failure.message);
                 error_line = Some(failure.line);
@@ -187,13 +300,9 @@ impl<'a> Runtime<'a> {
             notes: self.notes,
             error,
             error_line,
+            exit_code,
             elapsed_ms: self.started.elapsed().as_millis() as u64,
-            variables: self
-                .variables
-                .iter()
-                .filter(|(_, value)| matches!(value, Value::Int(_) | Value::Float(_) | Value::Text(_) | Value::Bool(_)))
-                .map(|(name, value)| (name.clone(), value.clone()))
-                .collect(),
+            variables: self.variables.clone(),
         }
     }
 
@@ -201,6 +310,33 @@ impl<'a> Runtime<'a> {
     /// script assumed.
     pub fn note(&mut self, note: impl Into<String>) {
         self.notes.push(note.into());
+    }
+
+    /// Find the functions the script defines, wherever they are.
+    fn collect_functions(&mut self, statements: &[Node]) {
+        for statement in statements {
+            match statement {
+                Node::FunctionDef { name, parameters, body, .. } => {
+                    self.functions.insert(
+                        name.to_lowercase(),
+                        Function { parameters: parameters.clone(), body: body.clone() },
+                    );
+                }
+                Node::If { branches, otherwise, .. } => {
+                    for branch in branches {
+                        self.collect_functions(&branch.body);
+                    }
+                    self.collect_functions(otherwise);
+                }
+                Node::Switch { cases, .. } => {
+                    for case in cases {
+                        self.collect_functions(&case.body);
+                    }
+                }
+                Node::While { body, .. } | Node::Loop { body, .. } => self.collect_functions(body),
+                _ => {}
+            }
+        }
     }
 
     fn run_block(&mut self, statements: &[Node]) -> Result<(), RuntimeFailure> {
@@ -228,7 +364,7 @@ impl<'a> Runtime<'a> {
         match statement {
             Node::Assign { name, op, value, line } => {
                 let value = self.evaluate(value)?;
-                let current = self.variables.get(name).cloned();
+                let current = self.lookup(name);
                 let stored = match op {
                     AssignOp::Set => value,
                     AssignOp::Add => match current {
@@ -248,8 +384,8 @@ impl<'a> Runtime<'a> {
                         value.to_text()
                     )),
                 };
-                self.variables.insert(name.clone(), stored);
-                detail = format!("{name} = {}", self.variables[name].to_text());
+                self.assign(name, stored);
+                detail = format!("{name} = {}", self.lookup(name).map(|v| v.to_text()).unwrap_or_default());
                 let _ = line;
             }
             Node::Send { items, .. } => {
@@ -271,6 +407,11 @@ impl<'a> Runtime<'a> {
                 let x = self.evaluate(x)?.to_number().unwrap_or(0.0) as i64;
                 let y = self.evaluate(y)?.to_number().unwrap_or(0.0) as i64;
                 detail = self.desktop.click(x, y, button)?;
+            }
+            Node::MouseMove { x, y, .. } => {
+                let x = self.evaluate(x)?.to_number().unwrap_or(0.0) as i64;
+                let y = self.evaluate(y)?.to_number().unwrap_or(0.0) as i64;
+                detail = self.desktop.move_pointer(x, y)?;
             }
             Node::Sleep { millis, .. } => {
                 let millis = self.evaluate(millis)?.to_number().unwrap_or(0.0) as u64;
@@ -312,12 +453,44 @@ impl<'a> Runtime<'a> {
                 self.output.push(text.clone());
                 detail = text.chars().take(200).collect();
             }
-            Node::If { condition, then_body, otherwise, .. } => {
-                if self.evaluate(condition)?.truthy() {
-                    self.run_block(then_body)?;
-                } else {
+            Node::Call { name, arguments, line } => {
+                let value = self.call(name, arguments, *line)?;
+                detail = value.to_text();
+            }
+            Node::If { branches, otherwise, .. } => {
+                let mut taken = false;
+                for branch in branches {
+                    if self.evaluate(&branch.condition)?.truthy() {
+                        self.run_block(&branch.body)?;
+                        taken = true;
+                        break;
+                    }
+                }
+                if !taken {
                     self.run_block(otherwise)?;
                 }
+            }
+            Node::Switch { subject, cases, line } => {
+                let value = self.evaluate(subject)?;
+                let mut matched = false;
+                for case in cases {
+                    match &case.value {
+                        Some(expected) => {
+                            let expected = self.evaluate(expected)?;
+                            if values_equal(&value, &expected) {
+                                self.run_block(&case.body)?;
+                                matched = true;
+                                break;
+                            }
+                        }
+                        None => {
+                            self.run_block(&case.body)?;
+                            matched = true;
+                            break;
+                        }
+                    }
+                }
+                let _ = (matched, line);
             }
             Node::While { condition, body, .. } => {
                 let mut iterations = 0usize;
@@ -353,13 +526,30 @@ impl<'a> Runtime<'a> {
             }
             Node::Break { .. } => return Err(RuntimeFailure::Flow(Flow::Break)),
             Node::Continue { .. } => return Err(RuntimeFailure::Flow(Flow::Continue)),
-            Node::Call { .. } | Node::Literal { .. } | Node::Var { .. } | Node::KeyName { .. } => {
+            Node::Return { value, .. } => {
+                let value = match value {
+                    Some(node) => Some(self.evaluate(node)?),
+                    None => None,
+                };
+                return Err(RuntimeFailure::Flow(Flow::Return(value)));
+            }
+            Node::ExitApp { code, .. } => {
+                let code = match code {
+                    Some(node) => self.evaluate(node)?.to_number().unwrap_or(0.0) as i32,
+                    None => 0,
+                };
+                return Err(RuntimeFailure::Flow(Flow::Exit(code)));
+            }
+            Node::FunctionDef { name, .. } => {
+                detail = format!("{name} is defined");
+            }
+            Node::Literal { .. } | Node::Var { .. } | Node::KeyName { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
                     line: statement.line(),
                 }));
             }
-            Node::Unary { .. } | Node::Binary { .. } => {
+            Node::Unary { .. } | Node::Binary { .. } | Node::Index { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
                     line: statement.line(),
@@ -377,22 +567,258 @@ impl<'a> Runtime<'a> {
         Ok(())
     }
 
+    // -- scopes ---------------------------------------------------------------------
+
+    /// The value of a variable, from the innermost scope outwards.
+    fn lookup(&self, name: &str) -> Option<Value> {
+        for scope in self.scopes.iter().rev() {
+            if let Some(value) = scope.get(name) {
+                return Some(value.clone());
+            }
+        }
+        self.variables.get(name).cloned()
+    }
+
+    /// Set a variable: in the innermost scope when there is one, in the
+    /// global one otherwise. A function that assigns a name creates a local
+    /// one, the way AutoHotkey v2 does.
+    fn assign(&mut self, name: &str, value: Value) {
+        match self.scopes.last_mut() {
+            Some(scope) => {
+                scope.insert(name.to_string(), value);
+            }
+            None => {
+                self.variables.insert(name.to_string(), value);
+            }
+        }
+    }
+
+    // -- calls ----------------------------------------------------------------------
+
+    /// Call a function: the one the script defined, or one of the builtins.
+    fn call(&mut self, name: &str, arguments: &[Node], line: u32) -> Result<Value, RuntimeFailure> {
+        if let Some(function) = self.functions.get(name).cloned() {
+            let mut values = Vec::with_capacity(arguments.len());
+            for argument in arguments {
+                values.push(self.evaluate(argument)?);
+            }
+            let mut scope: BTreeMap<String, Value> = BTreeMap::new();
+            for (index, parameter) in function.parameters.iter().enumerate() {
+                scope.insert(parameter.clone(), values.get(index).cloned().unwrap_or(Value::Text(String::new())));
+            }
+            self.scopes.push(scope);
+            let outcome = self.run_block(&function.body);
+            self.scopes.pop();
+            return match outcome {
+                Ok(()) => Ok(Value::Text(String::new())),
+                Err(RuntimeFailure::Flow(Flow::Return(value))) => {
+                    Ok(value.unwrap_or(Value::Text(String::new())))
+                }
+                Err(other) => Err(other),
+            };
+        }
+        let mut values = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            values.push(self.evaluate(argument)?);
+        }
+        self.call_builtin(name, &values, line)
+    }
+
+    /// The functions the language carries.
+    fn call_builtin(
+        &mut self,
+        name: &str,
+        values: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let text_of = |index: usize| values.get(index).map(|v| v.to_text()).unwrap_or_default();
+        let number_of = |index: usize| values.get(index).and_then(|v| v.to_number()).unwrap_or(0.0);
+        let wrong = |what: &str| {
+            RuntimeFailure::Error(RuntimeError { message: format!("{name} {what}"), line })
+        };
+        match name {
+            // -- the screen ------------------------------------------------------------
+            "pixelget" => {
+                if values.len() != 2 {
+                    return Err(wrong("takes x and y"));
+                }
+                let x = number_of(0) as i64;
+                let y = number_of(1) as i64;
+                Ok(Value::Text(self.desktop.pixel(x, y)?))
+            }
+            "pixelsearch" => {
+                if values.len() != 5 {
+                    return Err(wrong("takes x1, y1, x2, y2 and a colour"));
+                }
+                let x1 = number_of(0) as i64;
+                let y1 = number_of(1) as i64;
+                let x2 = number_of(2) as i64;
+                let y2 = number_of(3) as i64;
+                let colour = text_of(4);
+                match self.desktop.pixel_search(x1, y1, x2, y2, &colour)? {
+                    Some((x, y)) => Ok(Value::List(vec![Value::Int(x), Value::Int(y)])),
+                    None => Ok(Value::List(Vec::new())),
+                }
+            }
+            "mousegetpos" => {
+                let (x, y) = self.desktop.mouse_position()?;
+                self.variables.insert("mouse_x".to_string(), Value::Int(x));
+                self.variables.insert("mouse_y".to_string(), Value::Int(y));
+                Ok(Value::List(vec![Value::Int(x), Value::Int(y)]))
+            }
+            "wingettitle" => match self.desktop.active_window_title()? {
+                Some(title) => Ok(Value::Text(title)),
+                None => Ok(Value::Text(String::new())),
+            },
+            "winactive" => {
+                if values.len() != 1 {
+                    return Err(wrong("takes a window title"));
+                }
+                match self.desktop.window_active(&text_of(0))? {
+                    WindowAnswer::Active => Ok(Value::Bool(true)),
+                    WindowAnswer::NotActive => Ok(Value::Bool(false)),
+                    WindowAnswer::Unknown(reason) => Err(RuntimeFailure::Error(RuntimeError {
+                        message: format!("WinActive cannot answer: {reason}"),
+                        line,
+                    })),
+                }
+            }
+            "winexist" => {
+                if values.len() != 1 {
+                    return Err(wrong("takes a window title"));
+                }
+                match self.desktop.window_exists(&text_of(0))? {
+                    WindowAnswer::Active | WindowAnswer::NotActive => Ok(Value::Bool(true)),
+                    WindowAnswer::Unknown(reason) => Err(RuntimeFailure::Error(RuntimeError {
+                        message: format!("WinExist cannot answer: {reason}"),
+                        line,
+                    })),
+                }
+            }
+            // -- the numbers ----------------------------------------------------------
+            "abs" => Ok(Value::from_number(number_of(0).abs())),
+            "sqrt" => {
+                let number = number_of(0);
+                if number < 0.0 {
+                    return Err(wrong("of a negative number"));
+                }
+                Ok(Value::from_number(number.sqrt()))
+            }
+            "mod" => {
+                let divisor = number_of(1);
+                if divisor == 0.0 {
+                    return Err(wrong("by zero"));
+                }
+                Ok(Value::from_number(number_of(0) % divisor))
+            }
+            "floor" => Ok(Value::from_number(number_of(0).floor())),
+            "ceil" => Ok(Value::from_number(number_of(0).ceil())),
+            "round" => {
+                let digits = values.get(1).and_then(|v| v.to_number()).unwrap_or(0.0) as i32;
+                let factor = 10f64.powi(digits);
+                Ok(Value::from_number((number_of(0) * factor).round() / factor))
+            }
+            "min" => Ok(Value::from_number(
+                values.iter().filter_map(|v| v.to_number()).fold(f64::INFINITY, f64::min),
+            )),
+            "max" => Ok(Value::from_number(
+                values.iter().filter_map(|v| v.to_number()).fold(f64::NEG_INFINITY, f64::max),
+            )),
+            // -- the text -------------------------------------------------------------
+            "strlen" | "strlength" => Ok(Value::Int(text_of(0).chars().count() as i64)),
+            "substr" => {
+                // AutoHotkey counts positions from one; this does too.
+                let text: Vec<char> = text_of(0).chars().collect();
+                let start = number_of(1).max(1.0) as usize - 1;
+                let sliced: String = match values.get(2).and_then(|v| v.to_number()) {
+                    Some(length) => text
+                        .iter()
+                        .skip(start)
+                        .take(length.max(0.0) as usize)
+                        .collect(),
+                    None => text.iter().skip(start).collect(),
+                };
+                Ok(Value::Text(sliced))
+            }
+            "strreplace" => {
+                if values.len() < 3 {
+                    return Err(wrong("takes a text, what to look for and what to put there"));
+                }
+                let haystack = text_of(0);
+                let needle = text_of(1);
+                let replacement = text_of(2);
+                if needle.is_empty() {
+                    return Ok(Value::Text(haystack));
+                }
+                Ok(Value::Text(haystack.replace(&needle, &replacement)))
+            }
+            "instr" => {
+                if values.len() < 2 {
+                    return Err(wrong("takes a text and what to look for"));
+                }
+                let haystack = text_of(0);
+                let needle = text_of(1);
+                // AutoHotkey does not distinguish the case here.
+                let position = haystack.to_lowercase().find(&needle.to_lowercase());
+                Ok(match position {
+                    Some(byte) => {
+                        let characters = haystack[..byte].chars().count();
+                        Value::Int(characters as i64 + 1)
+                    }
+                    None => Value::Int(0),
+                })
+            }
+            "trim" => {
+                let text = text_of(0);
+                let characters: Vec<char> = text.chars().collect();
+                let set: Vec<char> = values
+                    .get(1)
+                    .map(|v| v.to_text())
+                    .unwrap_or_else(|| " \t\r\n".to_string())
+                    .chars()
+                    .collect();
+                let mut start = 0usize;
+                let mut end = characters.len();
+                while start < end && set.contains(&characters[start]) {
+                    start += 1;
+                }
+                while end > start && set.contains(&characters[end - 1]) {
+                    end -= 1;
+                }
+                Ok(Value::Text(characters[start..end].iter().collect()))
+            }
+            "upper" => Ok(Value::Text(text_of(0).to_uppercase())),
+            "lower" => Ok(Value::Text(text_of(0).to_lowercase())),
+            "number" => Ok(Value::from_number(number_of(0))),
+            "format" => {
+                if values.is_empty() {
+                    return Err(wrong("takes a pattern"));
+                }
+                Ok(Value::Text(format_pattern(&text_of(0), &values[1..])))
+            }
+            // -- the clock ------------------------------------------------------------
+            "sleep" => {
+                let millis = number_of(0).clamp(0.0, 60_000.0) as u64;
+                std::thread::sleep(Duration::from_millis(millis));
+                Ok(Value::Int(millis as i64))
+            }
+            _ => Err(RuntimeFailure::Error(RuntimeError {
+                message: format!("unknown function {name:?}"),
+                line,
+            })),
+        }
+    }
+
     // -- expressions ---------------------------------------------------------------
 
     fn evaluate(&mut self, node: &Node) -> Result<Value, RuntimeFailure> {
         match node {
             Node::Literal { value, .. } => Ok(match value {
-                LiteralValue::Number(number) => {
-                    if number.fract() == 0.0 && number.abs() < 9.0e15 {
-                        Value::Int(*number as i64)
-                    } else {
-                        Value::Float(*number)
-                    }
-                }
+                LiteralValue::Number(number) => Value::from_number(*number),
                 LiteralValue::Text(text) => Value::Text(text.clone()),
                 LiteralValue::Bool(flag) => Value::Bool(*flag),
             }),
-            Node::Var { name, line } => self.variables.get(name).cloned().ok_or_else(|| {
+            Node::Var { name, line } => self.lookup(name).ok_or_else(|| {
                 RuntimeFailure::Error(RuntimeError {
                     message: format!("the variable {name:?} is not set"),
                     line: *line,
@@ -464,71 +890,52 @@ impl<'a> Runtime<'a> {
                     BinaryOp::And | BinaryOp::Or => unreachable!("handled above"),
                 })
             }
-            Node::Call { name, arguments, line } => {
-                let mut values = Vec::with_capacity(arguments.len());
-                for argument in arguments {
-                    values.push(self.evaluate(argument)?);
-                }
-                match name.as_str() {
-                    "pixelget" => {
-                        if values.len() != 2 {
-                            return Err(RuntimeFailure::Error(RuntimeError {
-                                message: "PixelGet takes x and y".into(),
+            Node::Call { name, arguments, line } => self.call(name, arguments, *line),
+            Node::Index { target, index, line } => {
+                let target = self.evaluate(target)?;
+                let position = self.evaluate(index)?.to_number().unwrap_or(0.0) as i64;
+                // The positions count from one, the way AutoHotkey counts
+                // them.
+                let position = position.max(1) as usize;
+                match target {
+                    Value::List(items) => items.get(position - 1).cloned().ok_or_else(|| {
+                        RuntimeFailure::Error(RuntimeError {
+                            message: format!("the list has no item {position}"),
+                            line: *line,
+                        })
+                    }),
+                    Value::Text(text) => {
+                        let characters: Vec<char> = text.chars().collect();
+                        characters.get(position - 1).map(|c| Value::Text(c.to_string())).ok_or_else(|| {
+                            RuntimeFailure::Error(RuntimeError {
+                                message: format!("the text has no character {position}"),
                                 line: *line,
-                            }));
-                        }
-                        let x = values[0].to_number().unwrap_or(0.0) as i64;
-                        let y = values[1].to_number().unwrap_or(0.0) as i64;
-                        Ok(Value::Text(self.desktop.pixel(x, y)?))
+                            })
+                        })
                     }
-                    "strlen" => {
-                        let text = values.first().map(|v| v.to_text()).unwrap_or_default();
-                        Ok(Value::Int(text.chars().count() as i64))
-                    }
-                    "substr" => {
-                        let text = values.first().map(|v| v.to_text()).unwrap_or_default();
-                        let start = values.get(1).and_then(|v| v.to_number()).unwrap_or(0.0) as usize;
-                        let chars: Vec<char> = text.chars().collect();
-                        let sliced: String = match values.get(2).and_then(|v| v.to_number()) {
-                            Some(length) => chars
-                                .iter()
-                                .skip(start)
-                                .take(length.max(0.0) as usize)
-                                .collect(),
-                            None => chars.iter().skip(start).collect(),
-                        };
-                        Ok(Value::Text(sliced))
-                    }
-                    "upper" => Ok(Value::Text(
-                        values.first().map(|v| v.to_text()).unwrap_or_default().to_uppercase(),
-                    )),
-                    "lower" => Ok(Value::Text(
-                        values.first().map(|v| v.to_text()).unwrap_or_default().to_lowercase(),
-                    )),
-                    "trim" => Ok(Value::Text(
-                        values.first().map(|v| v.to_text()).unwrap_or_default().trim().to_string(),
-                    )),
-                    "number" => Ok(Value::Float(
-                        values.first().and_then(|v| v.to_number()).unwrap_or(0.0),
-                    )),
-                    _ => Err(RuntimeFailure::Error(RuntimeError {
-                        message: format!("unknown function {name:?}"),
+                    other => Err(RuntimeFailure::Error(RuntimeError {
+                        message: format!("{other:?} has no items to pick from"),
                         line: *line,
                     })),
                 }
             }
             Node::Send { .. }
             | Node::Click { .. }
+            | Node::MouseMove { .. }
             | Node::Sleep { .. }
             | Node::Run { .. }
             | Node::PixelGet { .. }
             | Node::Screenshot { .. }
             | Node::Msg { .. }
             | Node::If { .. }
+            | Node::Switch { .. }
             | Node::While { .. }
             | Node::Loop { .. }
             | Node::Break { .. }
             | Node::Continue { .. }
+            | Node::Return { .. }
+            | Node::ExitApp { .. }
+            | Node::FunctionDef { .. }
             | Node::Assign { .. } => Err(RuntimeFailure::Error(RuntimeError {
                 message: "this is a statement, not an expression".into(),
                 line: node.line(),
@@ -554,7 +961,7 @@ impl<'a> Runtime<'a> {
                     let close = index + 1 + offset;
                     let name: String = chars[index + 1..close].iter().collect();
                     if !name.is_empty() {
-                        if let Some(value) = self.variables.get(&name) {
+                        if let Some(value) = self.lookup(&name) {
                             out.push_str(&value.to_text());
                             index = close + 1;
                             continue;
@@ -589,27 +996,82 @@ fn values_equal(left: &Value, right: &Value) -> bool {
     }
 }
 
+/// Put the arguments into a pattern.
+///
+/// The pattern is AutoHotkey's: `{0}` is the first argument, `{1:.2}` is
+/// the second with two decimals.
+fn format_pattern(pattern: &str, arguments: &[Value]) -> String {
+    let mut out = String::with_capacity(pattern.len());
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut index = 0usize;
+    while index < chars.len() {
+        if chars[index] != '{' {
+            out.push(chars[index]);
+            index += 1;
+            continue;
+        }
+        let Some(offset) = chars[index + 1..].iter().position(|c| *c == '}') else {
+            out.push(chars[index]);
+            index += 1;
+            continue;
+        };
+        let close = index + 1 + offset;
+        let inside: String = chars[index + 1..close].iter().collect();
+        let (position, decimals) = match inside.split_once(':') {
+            Some((position, spec)) => {
+                let decimals = spec.trim_start_matches('.').parse::<usize>().unwrap_or(0);
+                (position.trim(), Some(decimals))
+            }
+            None => (inside.trim(), None),
+        };
+        match position.parse::<usize>().ok().and_then(|index| arguments.get(index)) {
+            Some(value) => {
+                match decimals {
+                    Some(decimals) => {
+                        let number = value.to_number().unwrap_or(0.0);
+                        out.push_str(&format!("{number:.decimals$}"));
+                    }
+                    None => out.push_str(&value.to_text()),
+                }
+            }
+            None => {
+                out.push('{');
+                out.push_str(&inside);
+                out.push('}');
+            }
+        }
+        index = close + 1;
+    }
+    out
+}
+
 /// The name a statement is reported under.
 pub fn op_name(statement: &Node) -> &'static str {
     match statement {
         Node::Assign { .. } => "Assign",
         Node::Send { .. } => "Send",
         Node::Click { .. } => "Click",
+        Node::MouseMove { .. } => "MouseMove",
         Node::Sleep { .. } => "Sleep",
         Node::Run { .. } => "Run",
         Node::PixelGet { .. } => "PixelGet",
         Node::Screenshot { .. } => "Screenshot",
         Node::Msg { .. } => "Msg",
         Node::If { .. } => "If",
+        Node::Switch { .. } => "Switch",
         Node::While { .. } => "While",
         Node::Loop { .. } => "Loop",
         Node::Break { .. } => "Break",
         Node::Continue { .. } => "Continue",
+        Node::Return { .. } => "Return",
+        Node::ExitApp { .. } => "ExitApp",
+        Node::FunctionDef { .. } => "FunctionDef",
         Node::Literal { .. } => "Literal",
         Node::Var { .. } => "Var",
         Node::KeyName { .. } => "KeyName",
         Node::Unary { .. } => "Unary",
         Node::Binary { .. } => "Binary",
+        Node::Index { .. } => "Index",
         Node::Call { .. } => "Call",
     }
 }

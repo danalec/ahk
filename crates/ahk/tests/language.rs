@@ -8,7 +8,7 @@
 //! These are a port of the Python tests in `yoko-ahk-mcp`, and the two
 //! implementations have to agree.
 
-use ahk::runtime::{Desktop, Report, Runtime, Value};
+use ahk::runtime::{Desktop, Report, Runtime, Value, WindowAnswer};
 use ahk::{Node, parse};
 use std::time::Duration;
 
@@ -17,6 +17,13 @@ use std::time::Duration;
 struct Fake {
     calls: Vec<(String, String)>,
     pixels: Vec<((i64, i64), String)>,
+    /// Where the pointer is.
+    pointer: (i64, i64),
+    /// The windows the fake knows about, and the one that is active.
+    windows: Vec<String>,
+    active: Option<String>,
+    /// When it is set, the window questions cannot be answered.
+    window_answer_unknown: bool,
 }
 
 impl Fake {
@@ -58,6 +65,52 @@ impl Desktop for Fake {
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
         self.calls.push(("pixel".into(), format!("{x},{y}")));
         Ok(self.pixels.iter().find(|(at, _)| *at == (x, y)).map(|(_, colour)| colour.clone()).unwrap_or_else(|| "#000000".into()))
+    }
+
+    fn move_pointer(&mut self, x: i64, y: i64) -> Result<String, String> {
+        self.pointer = (x, y);
+        self.calls.push(("move".into(), format!("{x},{y}")));
+        Ok(format!("moved to ({x}, {y})"))
+    }
+
+    fn mouse_position(&mut self) -> Result<(i64, i64), String> {
+        Ok(self.pointer)
+    }
+
+    fn pixel_search(
+        &mut self,
+        _x1: i64,
+        _y1: i64,
+        _x2: i64,
+        _y2: i64,
+        colour: &str,
+    ) -> Result<Option<(i64, i64)>, String> {
+        Ok(self.pixels.iter().find(|(_, value)| value == colour).map(|(at, _)| *at))
+    }
+
+    fn window_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
+        if self.window_answer_unknown {
+            return Ok(WindowAnswer::Unknown("this desktop cannot tell".into()));
+        }
+        Ok(match &self.active {
+            Some(active) if active.contains(title) => WindowAnswer::Active,
+            _ => WindowAnswer::NotActive,
+        })
+    }
+
+    fn window_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
+        if self.window_answer_unknown {
+            return Ok(WindowAnswer::Unknown("this desktop cannot list".into()));
+        }
+        Ok(if self.windows.iter().any(|window| window.contains(title)) {
+            WindowAnswer::Active
+        } else {
+            WindowAnswer::NotActive
+        })
+    }
+
+    fn active_window_title(&mut self) -> Result<Option<String>, String> {
+        Ok(self.active.clone())
     }
 }
 
@@ -220,4 +273,202 @@ fn the_statements_of_a_script_keep_their_order() {
     let names: Vec<&str> = statements.iter().map(ahk::runtime::op_name).collect();
     assert_eq!(names, vec!["Assign", "Send", "Sleep"]);
     assert!(matches!(statements[0], Node::Assign { .. }));
+}
+
+// -- the basic syntax -----------------------------------------------------------
+
+#[test]
+fn an_else_if_is_taken_when_the_first_one_is_false() {
+    let (report, desktop) = run(
+        "x := 2\nIf x = 1 {\n  Send \"one\"\n} ElseIf x = 2 {\n  Send \"two\"\n} Else {\n  Send \"other\"\n}",
+    );
+    assert!(report.ok);
+    assert_eq!(desktop.types(), vec!["two"]);
+}
+
+#[test]
+fn an_else_if_chain_takes_only_the_first_branch_that_holds() {
+    let (report, desktop) = run(
+        "x := 5\nIf x = 1 {\n  Send \"one\"\n} ElseIf x = 5 {\n  Send \"two\"\n} ElseIf x = 5 {\n  Send \"three\"\n} Else {\n  Send \"other\"\n}",
+    );
+    assert!(report.ok);
+    assert_eq!(desktop.types(), vec!["two"]);
+}
+
+#[test]
+fn a_switch_runs_the_case_that_matches() {
+    let (report, desktop) = run(
+        "x := 2\nSwitch x {\n  Case 1 {\n    Send \"one\"\n  }\n  Case 2 {\n    Send \"two\"\n  }\n  Default {\n    Send \"other\"\n  }\n}",
+    );
+    assert!(report.ok);
+    assert_eq!(desktop.types(), vec!["two"]);
+}
+
+#[test]
+fn a_switch_without_a_match_runs_the_default() {
+    let (report, desktop) = run(
+        "x := 9\nSwitch x {\n  Case 1 {\n    Send \"one\"\n  }\n  Default {\n    Send \"other\"\n  }\n}",
+    );
+    assert!(report.ok);
+    assert_eq!(desktop.types(), vec!["other"]);
+}
+
+#[test]
+fn a_function_returns_a_value() {
+    let (report, desktop) = run("Add(a, b) {\n  return a + b\n}\ntotal := Add(2, 3)\nSend \"%total%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["5"]);
+}
+
+#[test]
+fn a_function_can_be_called_as_a_statement() {
+    let (report, _desktop) = run("Greet(name) {\n  Msg \"hello %name%\"\n}\nGreet(\"world\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["hello world"]);
+}
+
+#[test]
+fn a_function_may_be_defined_after_the_call() {
+    let (report, desktop) = run("text := Later()\nSend \"%text%\"\nLater() {\n  return \"here\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["here"]);
+}
+
+#[test]
+fn a_return_leaves_the_function_at_once() {
+    let (report, desktop) = run(
+        "text := First()\nSend \"%text%\"\nFirst() {\n  return \"one\"\n  Send \"never\"\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["one"]);
+}
+
+#[test]
+fn a_variable_assigned_inside_a_function_is_local() {
+    let (report, _desktop) = run("x := \"outside\"\nSet() {\n  x := \"inside\"\n}\nSet()\nMsg x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["outside"]);
+}
+
+#[test]
+fn exitapp_ends_the_script_and_carries_a_code() {
+    let (report, desktop) = run("Send \"before\"\nExitApp 3\nSend \"after\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.exit_code, Some(3));
+    assert_eq!(desktop.types(), vec!["before"]);
+}
+
+// -- the focus check ------------------------------------------------------------
+
+#[test]
+fn a_list_can_be_picked_by_its_position() {
+    let (report, _desktop) = run(
+        "pos := MouseGetPos()\nx := pos[1]\ny := pos[2]\nfound := PixelSearch(0, 0, 10, 10, \"#ff8800\")\nfx := found[1]",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(0)));
+    assert_eq!(report.variables.get("fx"), Some(&Value::Int(10)));
+}
+
+#[test]
+fn a_text_can_be_picked_by_its_position() {
+    let (report, _desktop) = run("letter := \"hello\"[2]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("letter"), Some(&Value::Text("e".into())));
+}
+
+#[test]
+fn a_position_that_is_not_there_is_an_error() {
+    let (report, _desktop) = run("letter := \"hello\"[99]");
+    assert!(!report.ok);
+}
+
+#[test]
+fn mouse_get_pos_says_where_the_pointer_is() {
+    let (report, _desktop) = run("MouseMove 120, 340\npos := MouseGetPos()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("mouse_x"), Some(&Value::Int(120)));
+    assert_eq!(report.variables.get("mouse_y"), Some(&Value::Int(340)));
+    assert_eq!(
+        report.variables.get("pos"),
+        Some(&Value::List(vec![Value::Int(120), Value::Int(340)]))
+    );
+}
+
+#[test]
+fn a_pixel_search_finds_the_colour() {
+    let (report, _desktop) = run("found := PixelSearch(0, 0, 100, 100, \"#ff8800\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.variables.get("found"),
+        Some(&Value::List(vec![Value::Int(10), Value::Int(20)]))
+    );
+}
+
+#[test]
+fn a_pixel_search_that_finds_nothing_is_an_empty_list() {
+    let (report, _desktop) = run("found := PixelSearch(0, 0, 100, 100, \"#ffffff\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("found"), Some(&Value::List(Vec::new())));
+}
+
+#[test]
+fn win_active_says_whether_the_window_is_active() {
+    let mut desktop = Fake { active: Some("Steam".into()), ..Default::default() };
+    let statements = parse("active := WinActive(\"Steam\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("active"), Some(&Value::Bool(true)));
+}
+
+#[test]
+fn a_window_question_that_cannot_be_answered_fails_the_script() {
+    let mut desktop = Fake { window_answer_unknown: true, ..Default::default() };
+    let statements = parse("active := WinActive(\"Steam\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+    let error = report.error.unwrap_or_default();
+    assert!(error.contains("cannot answer"), "{error}");
+}
+
+// -- the builtins ---------------------------------------------------------------
+
+#[test]
+fn the_numbers_have_their_functions() {
+    let (report, _desktop) = run(
+        "a := Abs(-3)\nb := Sqrt(16)\nc := Mod(7, 3)\nd := Floor(2.7)\ne := Ceil(2.1)\nf := Round(2.345, 2)\ng := Min(3, 1, 2)\nh := Max(3, 1, 2)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(3)));
+    assert_eq!(report.variables.get("b"), Some(&Value::Int(4)));
+    assert_eq!(report.variables.get("c"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("d"), Some(&Value::Int(2)));
+    assert_eq!(report.variables.get("e"), Some(&Value::Int(3)));
+    assert_eq!(report.variables.get("f"), Some(&Value::Float(2.35)));
+    assert_eq!(report.variables.get("g"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("h"), Some(&Value::Int(3)));
+}
+
+#[test]
+fn the_text_has_its_functions() {
+    let (report, _desktop) = run(
+        "a := StrLen(\"hello\")\nb := SubStr(\"hello\", 2)\nc := StrReplace(\"hello\", \"l\", \"L\")\nd := InStr(\"hello\", \"ll\")\ne := Upper(\"hi\")\nf := Format(\"{0} of {1}\", 2, 3)\ng := Format(\"{0:.2}\", 2.345)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(5)));
+    // AutoHotkey counts the positions from one.
+    assert_eq!(report.variables.get("b"), Some(&Value::Text("ello".into())));
+    assert_eq!(report.variables.get("c"), Some(&Value::Text("heLLo".into())));
+    assert_eq!(report.variables.get("d"), Some(&Value::Int(3)));
+    assert_eq!(report.variables.get("e"), Some(&Value::Text("HI".into())));
+    assert_eq!(report.variables.get("f"), Some(&Value::Text("2 of 3".into())));
+    assert_eq!(report.variables.get("g"), Some(&Value::Text("2.35".into())));
+}
+
+#[test]
+fn a_function_with_the_name_of_a_builtin_wins() {
+    let (report, desktop) = run("Upper(text) {\n  return \"mine\"\n}\nresult := Upper(\"hi\")\nSend \"%result%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["mine"]);
 }

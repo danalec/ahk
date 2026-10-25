@@ -246,6 +246,62 @@ fn character_code(character: &str) -> Option<u16> {
     EVDEV.iter().find(|(name_, _)| *name_ == name).map(|(_, code)| *code)
 }
 
+/// The key that types a character, and whether it needs the shift key.
+///
+/// The layout is the US one, the layout of the keyboard of the lab box.
+/// A character that the layout does not have -- an accented letter, a
+/// currency sign -- has no key here, and the caller is told so instead of
+/// typing something else.
+pub fn character_stroke(character: char) -> Option<(u16, bool)> {
+    let shifted = |name: &str| EVDEV.iter().find(|(key, _)| *key == name).map(|(_, code)| (*code, true));
+    let plain = |name: &str| EVDEV.iter().find(|(key, _)| *key == name).map(|(_, code)| (*code, false));
+    if character.is_ascii_alphabetic() {
+        let name = character.to_ascii_uppercase().to_string();
+        let code = EVDEV.iter().find(|(key, _)| *key == name).map(|(_, code)| *code)?;
+        return Some((code, character.is_ascii_uppercase()));
+    }
+    if character.is_ascii_digit() {
+        let name = character.to_string();
+        return EVDEV.iter().find(|(key, _)| *key == name).map(|(_, code)| (*code, false));
+    }
+    match character {
+        ' ' => plain("SPACE"),
+        '-' => plain("MINUS"),
+        '_' => shifted("MINUS"),
+        '=' => plain("EQUAL"),
+        '+' => shifted("EQUAL"),
+        '[' => plain("LEFTBRACE"),
+        '{' => shifted("LEFTBRACE"),
+        ']' => plain("RIGHTBRACE"),
+        '}' => shifted("RIGHTBRACE"),
+        ';' => plain("SEMICOLON"),
+        ':' => shifted("SEMICOLON"),
+        '\'' => plain("APOSTROPHE"),
+        '"' => shifted("APOSTROPHE"),
+        '`' => plain("GRAVE"),
+        '~' => shifted("GRAVE"),
+        '\\' => plain("BACKSLASH"),
+        '|' => shifted("BACKSLASH"),
+        ',' => plain("COMMA"),
+        '<' => shifted("COMMA"),
+        '.' => plain("DOT"),
+        '>' => shifted("DOT"),
+        '/' => plain("SLASH"),
+        '?' => shifted("SLASH"),
+        '!' => shifted("1"),
+        '@' => shifted("2"),
+        '#' => shifted("3"),
+        '$' => shifted("4"),
+        '%' => shifted("5"),
+        '^' => shifted("6"),
+        '&' => shifted("7"),
+        '*' => shifted("8"),
+        '(' => shifted("9"),
+        ')' => shifted("0"),
+        _ => None,
+    }
+}
+
 /// One key press: the key itself, plus the modifiers held while it is pressed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyStroke {
@@ -326,5 +382,36 @@ mod tests {
     #[test]
     fn an_unknown_name_is_refused() {
         assert!(parse_spec("NoSuchKey").is_err());
+    }
+
+    #[test]
+    fn a_letter_is_its_key() {
+        assert_eq!(character_stroke('a'), Some((30, false)));
+        assert_eq!(character_stroke('u'), Some((22, false)));
+    }
+
+    #[test]
+    fn a_capital_needs_the_shift_key() {
+        assert_eq!(character_stroke('A'), Some((30, true)));
+        assert_eq!(character_stroke('Z'), Some((44, true)));
+    }
+
+    #[test]
+    fn a_digit_is_its_key() {
+        assert_eq!(character_stroke('1'), Some((2, false)));
+        assert_eq!(character_stroke('0'), Some((11, false)));
+    }
+
+    #[test]
+    fn the_shifted_punctuation_is_the_same_key_with_shift() {
+        assert_eq!(character_stroke('!'), Some((2, true)));
+        assert_eq!(character_stroke('?'), Some((53, true)));
+        assert_eq!(character_stroke(' '), Some((57, false)));
+    }
+
+    #[test]
+    fn a_character_the_layout_does_not_have_has_no_key() {
+        assert_eq!(character_stroke('ç'), None);
+        assert_eq!(character_stroke('€'), None);
     }
 }

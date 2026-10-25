@@ -11,11 +11,36 @@
 //! when it did not parse; the report is on stdout either way.
 
 use std::io::Read;
+use std::path::PathBuf;
 use std::time::Duration;
 
-use ahk::runtime::{Report, Runtime};
 use ahk::parse;
+use ahk::runtime::Runtime;
 use ahk_box::LabDesktop;
+
+/// Where the runtime says it is running.
+///
+/// A script that types forever has to be stoppable from outside, and the
+/// only thing that can stop it is the process. The pid file is how the
+/// `ahk_stop` tool finds it -- and how a human finds it, with `cat`.
+fn pid_file() -> PathBuf {
+    let base = std::env::var("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache"));
+    base.join("yoko-ahk").join("run.pid")
+}
+
+fn write_pid_file() {
+    let path = pid_file();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(&path, format!("{}\n", std::process::id()));
+}
+
+fn clear_pid_file() {
+    let _ = std::fs::remove_file(pid_file());
+}
 
 fn main() {
     let mut source = String::new();
@@ -45,6 +70,11 @@ fn main() {
         }
     };
 
+    // From here on, the run can be stopped from outside: the pid file says
+    // which process to kill.
+    write_pid_file();
+    let _guard = PidGuard;
+
     let mut desktop = LabDesktop::new();
     desktop.ensure_session_env();
     let report = Runtime::new(&mut desktop, Duration::from_secs_f64(timeout)).run(&statements);
@@ -56,8 +86,11 @@ fn main() {
     std::process::exit(if report.ok { 0 } else { 1 });
 }
 
-/// The report, for the callers that want it typed.
-#[allow(dead_code)]
-fn typed(report: &Report) -> &Report {
-    report
+/// Removes the pid file when the run ends, however it ends.
+struct PidGuard;
+
+impl Drop for PidGuard {
+    fn drop(&mut self) {
+        clear_pid_file();
+    }
 }

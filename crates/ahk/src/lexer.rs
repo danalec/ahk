@@ -39,6 +39,12 @@ pub struct Token {
 pub const KEYWORDS: &[&str] = &[
     "if",
     "else",
+    "elseif",
+    "switch",
+    "case",
+    "default",
+    "return",
+    "exitapp",
     "while",
     "loop",
     "break",
@@ -46,6 +52,7 @@ pub const KEYWORDS: &[&str] = &[
     "send",
     "sendtext",
     "click",
+    "mousemove",
     "sleep",
     "run",
     "pixelget",
@@ -62,7 +69,7 @@ pub const KEYWORDS: &[&str] = &[
 /// The operators, longest first so that `:=` wins over `:`.
 const OPERATORS: &[&str] = &[
     ":=", "+=", "-=", ".=", "==", "!=", "<=", ">=", "&&", "||", "::", "=", "<", ">", "+", "-", "*", "/",
-    ".", "(", ")", ",", "{", "}", "!",
+    ".", "(", ")", ",", "{", "}", "[", "]", "!", ":",
 ];
 
 /// The script does not parse.

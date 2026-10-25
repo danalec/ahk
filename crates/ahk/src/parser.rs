@@ -5,22 +5,27 @@
 //!
 //! ```text
 //! script    := statement*
-//! statement := assignment | send | click | sleep | run | pixelget
-//!            | screenshot | msg | if | while | loop | break | continue
+//! statement := assignment | send | click | mousemove | sleep | run | pixelget
+//!            | screenshot | msg | if | switch | while | loop | break | continue
+//!            | return | exitapp | function
 //! assignment:= NAME ('=' | ':=' | '+=' | '-=' | '.=') expression
 //! send      := ('Send' | 'SendText') senditem (',' senditem)*
 //! senditem  := STRING | '{' keyname '}' | expression
 //! click     := 'Click' expression (',' expression)? (',' 'button'?)?
-//! if        := 'If' expression '::'? block ('Else' '::'? block)?
+//! mousemove := 'MouseMove' expression ',' expression
+//! if        := 'If' expression '::'? block ('ElseIf' expression '::'? block)* ('Else' '::'? block)?
+//! switch    := 'Switch' expression '::'? '{' case* '}'
+//! case      := 'Case' expression (block | ':' statement*) | 'Default' (block | ':' statement*)
 //! while     := 'While' expression '::'? block
 //! loop      := 'Loop' expression? '::'? block
+//! function  := NAME '(' parameters ')' block
 //! ```
 //!
 //! Expressions are the usual ones: numbers, strings, variables, the
 //! arithmetic and comparison operators, `and`/`or`/`not` (and their
 //! `&&`/`||`/`!` spellings), and the dot for string concatenation.
 
-use crate::ast::{AssignOp, BinaryOp, LiteralValue, Node, UnaryOp};
+use crate::ast::{AssignOp, BinaryOp, Branch, Case, LiteralValue, Node, UnaryOp};
 use crate::lexer::{SyntaxError, Token, TokenKind};
 
 /// Parse a script into statements.
@@ -82,6 +87,15 @@ impl Parser {
         }
     }
 
+    /// Whether the statement ends here: at the end of the line, at the end
+    /// of the script, or at the end of a block.
+    fn at_end_of_statement(&self) -> bool {
+        let token = self.peek();
+        token.kind == TokenKind::Newline
+            || token.kind == TokenKind::Eof
+            || (token.kind == TokenKind::Op && token.value == "}")
+    }
+
     fn error(&self, message: impl Into<String>) -> SyntaxError {
         let token = self.peek();
         SyntaxError { message: message.into(), line: token.line, column: token.column }
@@ -129,6 +143,7 @@ impl Parser {
             let word = token.value.to_lowercase();
             match word.as_str() {
                 "if" => return Ok(vec![self.parse_if()?]),
+                "switch" => return Ok(vec![self.parse_switch()?]),
                 "while" => return Ok(vec![self.parse_while()?]),
                 "loop" => return Ok(vec![self.parse_loop()?]),
                 "break" => {
@@ -141,8 +156,11 @@ impl Parser {
                     self.end_of_statement()?;
                     return Ok(vec![Node::Continue { line: token.line }]);
                 }
+                "return" => return Ok(vec![self.parse_return()?]),
+                "exitapp" => return Ok(vec![self.parse_exitapp()?]),
                 "send" | "sendtext" => return Ok(vec![self.parse_send()?]),
                 "click" => return Ok(vec![self.parse_click()?]),
+                "mousemove" => return Ok(vec![self.parse_mousemove()?]),
                 "sleep" => return Ok(vec![self.parse_sleep()?]),
                 "run" => return Ok(vec![self.parse_run()?]),
                 "pixelget" => return Ok(vec![self.parse_pixelget()?]),
@@ -152,7 +170,7 @@ impl Parser {
             }
         }
         if token.kind == TokenKind::Name {
-            return Ok(vec![self.parse_assignment()?]);
+            return self.parse_name_statement();
         }
         Err(self.error(format!("unexpected {:?}", token.value)))
     }
@@ -181,8 +199,36 @@ impl Parser {
         Ok(())
     }
 
-    fn parse_assignment(&mut self) -> Result<Node, SyntaxError> {
+    /// A statement that starts with a name: an assignment, a call, or the
+    /// definition of a function.
+    fn parse_name_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
         let name_token = self.next();
+        if self.at_op(&["("]) {
+            self.next();
+            let arguments = self.parse_arguments()?;
+            self.expect_op(")")?;
+            if self.at_op(&["{"]) {
+                // `Name(a, b) { }` is a definition; `Name(a, b)` is a call.
+                let parameters = self.parameters_from(&arguments)?;
+                let body = self.parse_block()?;
+                return Ok(vec![Node::FunctionDef {
+                    name: name_token.value,
+                    parameters,
+                    body,
+                    line: name_token.line,
+                }]);
+            }
+            self.end_of_statement()?;
+            return Ok(vec![Node::Call {
+                name: name_token.value.to_lowercase(),
+                arguments,
+                line: name_token.line,
+            }]);
+        }
+        Ok(vec![self.parse_assignment(name_token)?])
+    }
+
+    fn parse_assignment(&mut self, name_token: Token) -> Result<Node, SyntaxError> {
         let operator = self.peek().clone();
         let op = match operator.value.as_str() {
             "=" | ":=" => AssignOp::Set,
@@ -203,24 +249,170 @@ impl Parser {
         Ok(Node::Assign { name: name_token.value, op, value: Box::new(value), line: name_token.line })
     }
 
+    /// The arguments of a call, between the parentheses.
+    fn parse_arguments(&mut self) -> Result<Vec<Node>, SyntaxError> {
+        let mut arguments = Vec::new();
+        if self.at_op(&[")"]) {
+            return Ok(arguments);
+        }
+        loop {
+            arguments.push(self.parse_expression()?);
+            if self.at_op(&[","]) {
+                self.position += 1;
+                continue;
+            }
+            break;
+        }
+        Ok(arguments)
+    }
+
+    /// The parameters of a function, read out of what was parsed as the
+    /// argument list.
+    ///
+    /// A parameter is a name, and it may carry a default: `Name(a, b := 1)`.
+    /// The list was parsed as expressions, so a default shows up as an
+    /// equality whose left side is the name.
+    fn parameters_from(&mut self, arguments: &[Node]) -> Result<Vec<String>, SyntaxError> {
+        let mut parameters = Vec::new();
+        for argument in arguments {
+            match argument {
+                Node::Var { name, .. } => parameters.push(name.clone()),
+                Node::Binary { op: BinaryOp::Equal, left, .. } => match left.as_ref() {
+                    Node::Var { name, .. } => parameters.push(name.clone()),
+                    other => {
+                        return Err(SyntaxError {
+                            message: format!("{other:?} is not a parameter name"),
+                            line: other.line(),
+                            column: 0,
+                        });
+                    }
+                },
+                other => {
+                    return Err(SyntaxError {
+                        message: format!("{other:?} is not a parameter name"),
+                        line: other.line(),
+                        column: 0,
+                    });
+                }
+            }
+        }
+        Ok(parameters)
+    }
+
     fn parse_if(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
+        let mut branches = Vec::new();
         let condition = self.parse_expression()?;
         self.end_of_block()?;
-        let then_body = self.parse_block()?;
+        let body = self.parse_block()?;
+        branches.push(Branch { condition, body });
         let mut otherwise = Vec::new();
-        self.skip_newlines();
-        if self.at_keyword(&["else"]) {
-            self.next();
-            self.end_of_block()?;
-            otherwise = self.parse_block()?;
+        loop {
+            self.skip_newlines();
+            if self.at_keyword(&["elseif"]) {
+                self.next();
+                let condition = self.parse_expression()?;
+                self.end_of_block()?;
+                let body = self.parse_block()?;
+                branches.push(Branch { condition, body });
+                continue;
+            }
+            if self.at_keyword(&["else"]) {
+                self.next();
+                self.end_of_block()?;
+                otherwise = self.parse_block()?;
+            }
+            break;
         }
-        Ok(Node::If {
-            condition: Box::new(condition),
-            then_body,
-            otherwise,
-            line: token.line,
-        })
+        Ok(Node::If { branches, otherwise, line: token.line })
+    }
+
+    fn parse_switch(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let subject = self.parse_expression()?;
+        self.end_of_block()?;
+        self.expect_op("{")?;
+        let mut cases = Vec::new();
+        loop {
+            self.skip_newlines();
+            if self.at_op(&["}"]) {
+                self.position += 1;
+                break;
+            }
+            if self.at_keyword(&["case"]) {
+                self.next();
+                let value = self.parse_expression()?;
+                let body = self.parse_case_body()?;
+                cases.push(Case { value: Some(value), body });
+                continue;
+            }
+            if self.at_keyword(&["default"]) {
+                self.next();
+                let body = self.parse_case_body()?;
+                cases.push(Case { value: None, body });
+                continue;
+            }
+            return Err(self.error("expected Case or Default inside the Switch"));
+        }
+        Ok(Node::Switch { subject: Box::new(subject), cases, line: token.line })
+    }
+
+    /// The body of a case.
+    ///
+    /// AutoHotkey writes it in braces, or after a colon, with the statements
+    /// under it. Both are accepted here.
+    fn parse_case_body(&mut self) -> Result<Vec<Node>, SyntaxError> {
+        if self.at_op(&["{"]) {
+            return self.parse_block();
+        }
+        if self.at_op(&[":"]) {
+            self.position += 1;
+        }
+        let mut body = Vec::new();
+        self.skip_newlines();
+        loop {
+            let token = self.peek().clone();
+            if token.kind == TokenKind::Eof {
+                return Err(SyntaxError {
+                    message: "unterminated switch".into(),
+                    line: token.line,
+                    column: token.column,
+                });
+            }
+            if token.kind == TokenKind::Op && token.value == "}" {
+                break;
+            }
+            if token.kind == TokenKind::Keyword
+                && (token.value.eq_ignore_ascii_case("case") || token.value.eq_ignore_ascii_case("default"))
+            {
+                break;
+            }
+            body.extend(self.parse_statement()?);
+            self.skip_newlines();
+        }
+        Ok(body)
+    }
+
+    fn parse_return(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let value = if self.at_end_of_statement() {
+            None
+        } else {
+            Some(Box::new(self.parse_expression()?))
+        };
+        self.end_of_statement()?;
+        Ok(Node::Return { value, line: token.line })
+    }
+
+    fn parse_exitapp(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let code = if self.at_end_of_statement() {
+            None
+        } else {
+            Some(Box::new(self.parse_expression()?))
+        };
+        self.end_of_statement()?;
+        Ok(Node::ExitApp { code, line: token.line })
     }
 
     fn parse_while(&mut self) -> Result<Node, SyntaxError> {
@@ -293,6 +485,15 @@ impl Parser {
         }
         self.end_of_statement()?;
         Ok(Node::Click { x: Box::new(x), y: Box::new(y), button, line: token.line })
+    }
+
+    fn parse_mousemove(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let x = self.parse_expression()?;
+        self.expect_op(",")?;
+        let y = self.parse_expression()?;
+        self.end_of_statement()?;
+        Ok(Node::MouseMove { x: Box::new(x), y: Box::new(y), line: token.line })
     }
 
     fn parse_sleep(&mut self) -> Result<Node, SyntaxError> {
@@ -485,51 +686,71 @@ impl Parser {
 
     fn parse_primary(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
-        match token.kind {
+        let node = match token.kind {
             TokenKind::Number => {
                 let value = token.value.parse::<f64>().unwrap_or(0.0);
-                Ok(Node::Literal { value: LiteralValue::Number(value), line: token.line })
+                Node::Literal { value: LiteralValue::Number(value), line: token.line }
             }
-            TokenKind::String => Ok(Node::Literal { value: LiteralValue::Text(token.value), line: token.line }),
-            TokenKind::Keyword => match token.value.to_lowercase().as_str() {
-                "true" => Ok(Node::Literal { value: LiteralValue::Bool(true), line: token.line }),
-                "false" => Ok(Node::Literal { value: LiteralValue::Bool(false), line: token.line }),
-                _ => Err(SyntaxError {
-                    message: format!("{:?} is not a value", token.value),
-                    line: token.line,
-                    column: token.column,
-                }),
-            },
+            TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
+            TokenKind::Keyword => {
+                // A keyword that is a function name -- `PixelGet(10, 20)` --
+                // is a call. The words that are values are the two below.
+                if self.at_op(&["("]) {
+                    return self.parse_call(token.value.to_lowercase(), token.line);
+                }
+                match token.value.to_lowercase().as_str() {
+                    "true" => Node::Literal { value: LiteralValue::Bool(true), line: token.line },
+                    "false" => Node::Literal { value: LiteralValue::Bool(false), line: token.line },
+                    _ => {
+                        return Err(SyntaxError {
+                            message: format!("{:?} is not a value", token.value),
+                            line: token.line,
+                            column: token.column,
+                        });
+                    }
+                }
+            }
             TokenKind::Name => {
                 if self.at_op(&["("]) {
-                    self.next();
-                    let mut arguments = Vec::new();
-                    if !self.at_op(&[")"]) {
-                        loop {
-                            arguments.push(self.parse_expression()?);
-                            if self.at_op(&[","]) {
-                                self.position += 1;
-                                continue;
-                            }
-                            break;
-                        }
-                    }
-                    self.expect_op(")")?;
-                    return Ok(Node::Call { name: token.value.to_lowercase(), arguments, line: token.line });
+                    return self.parse_call(token.value.to_lowercase(), token.line);
                 }
-                Ok(Node::Var { name: token.value, line: token.line })
+                Node::Var { name: token.value, line: token.line }
             }
             TokenKind::Op if token.value == "(" => {
                 let node = self.parse_expression()?;
                 self.expect_op(")")?;
-                Ok(node)
+                node
             }
-            _ => Err(SyntaxError {
-                message: format!("unexpected {:?}", token.value),
-                line: token.line,
-                column: token.column,
-            }),
+            _ => {
+                return Err(SyntaxError {
+                    message: format!("unexpected {:?}", token.value),
+                    line: token.line,
+                    column: token.column,
+                });
+            }
+        };
+        self.parse_index(node)
+    }
+
+    /// The `[...]` that may follow a value: `list[1]`, `text[2]`.
+    fn parse_index(&mut self, target: Node) -> Result<Node, SyntaxError> {
+        let mut node = target;
+        while self.at_op(&["["]) {
+            let line = node.line();
+            self.position += 1;
+            let index = self.parse_expression()?;
+            self.expect_op("]")?;
+            node = Node::Index { target: Box::new(node), index: Box::new(index), line };
         }
+        Ok(node)
+    }
+
+    /// A call in an expression: the name, the arguments, the closing paren.
+    fn parse_call(&mut self, name: String, line: u32) -> Result<Node, SyntaxError> {
+        self.expect_op("(")?;
+        let arguments = self.parse_arguments()?;
+        self.expect_op(")")?;
+        Ok(Node::Call { name, arguments, line })
     }
 }
 
@@ -600,5 +821,51 @@ mod tests {
     #[test]
     fn an_unknown_statement_is_an_error() {
         assert!(parse("Nonsense 1").is_err());
+    }
+
+    #[test]
+    fn an_else_if_is_a_branch_of_the_same_if() {
+        let statements = parse("If a {\n} ElseIf b {\n} Else {\n}").expect("parses");
+        let Node::If { branches, otherwise, .. } = &statements[0] else { panic!("an if") };
+        assert_eq!(branches.len(), 2);
+        assert_eq!(otherwise.len(), 0);
+    }
+
+    #[test]
+    fn a_switch_holds_its_cases() {
+        let statements = parse("Switch x {\n  Case 1 {\n    Msg \"one\"\n  }\n  Default {\n    Msg \"other\"\n  }\n}")
+            .expect("parses");
+        let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+        assert_eq!(cases.len(), 2);
+        assert!(cases[1].value.is_none());
+    }
+
+    #[test]
+    fn a_case_can_be_written_with_a_colon() {
+        let statements = parse("Switch x {\n  Case 1:\n    Msg \"one\"\n  Default:\n    Msg \"other\"\n}")
+            .expect("parses");
+        let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+        assert_eq!(cases.len(), 2);
+        assert_eq!(cases[0].body.len(), 1);
+    }
+
+    #[test]
+    fn a_function_definition_is_not_a_call() {
+        let statements = parse("Add(a, b) {\n  return a + b\n}").expect("parses");
+        let Node::FunctionDef { name, parameters, .. } = &statements[0] else { panic!("a definition") };
+        assert_eq!(name, "Add");
+        assert_eq!(parameters, &vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn a_call_in_a_statement_is_a_call() {
+        let statements = parse("DoThing(1, 2)").expect("parses");
+        assert!(matches!(&statements[0], Node::Call { name, arguments, .. } if name == "dothing" && arguments.len() == 2));
+    }
+
+    #[test]
+    fn a_function_with_a_keyword_name_can_be_called() {
+        let statements = parse("x := PixelGet(10, 20)").expect("parses");
+        assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(value.as_ref(), Node::Call { name, .. } if name == "pixelget")));
     }
 }
