@@ -253,13 +253,15 @@ protocol is small enough to speak directly -- newline-delimited JSON-RPC
 dependency, and the other server reuses it: the two answer an agent the
 same way.
 
-`yoko-mcp` (21 tools):
+`yoko-mcp` (32 tools):
 
 - **`discover`** -- what is really on the box: binaries, pids, ports, capture and input tools.
 - **`capture_screen`** -- a frame of the COSMIC Wayland session, via `grim`.
 - **`input_type`** -- text, through the AHK runtime on the box, which drives its own keyboard. With `submit`, a Return is appended.
 - **`input_probe`** -- whether the box can take input at all.
-- **`ui_probe`**, **`ui_capture_region`**, **`ui_capture_full`**, **`ui_get_pixel`**, **`ui_sample_region`**, **`ui_diff`**, **`ui_screensaver_active`**, **`ui_notifications`** -- what is on the screen.
+- **`input_click`**, **`input_multi_click`**, **`input_move`**, **`input_mouse_down`**, **`input_mouse_up`**, **`input_drag`**, **`input_key`**, **`input_hold`** -- the mouse and the keyboard, through the AHK runtime on the box, so the click lands exactly and the chord arrives.
+- **`box_exec`** -- a command on the box, with its exit code, its output and its errors.
+- **`ui_probe`**, **`ui_capture_region`**, **`ui_capture_full`**, **`ui_get_pixel`**, **`ui_sample_region`**, **`ui_diff`**, **`ui_screensaver_active`**, **`ui_notifications`**, **`ui_wait_for_idle`**, **`ui_wait_for_change`** -- what is on the screen.
 - **`sunshine_get_config`**, **`sunshine_set_config`**, **`sunshine_applications`**, **`sunshine_clients_list`**, **`sunshine_unpair_client`**, **`sunshine_restart`** -- the Sunshine API of the box.
 - **`moonlight_version`**, **`moonlight_list_apps`**, **`moonlight_quit`** -- the Moonlight client on this machine.
 
