@@ -252,7 +252,12 @@ pub struct Runtime<'a> {
 
 impl<'a> Runtime<'a> {
     /// The most statements one script may execute.
-    pub const MAX_STEPS: usize = 2000;
+    ///
+    /// The guard rail is for a script that runs away, not for a script
+    /// that types: a thousand characters are a thousand statements, and a
+    /// script that clears a field of a thousand characters is doing its
+    /// job. The timeout is the other bound.
+    pub const MAX_STEPS: usize = 20_000;
     /// The most times a loop body may run.
     pub const MAX_ITERATIONS: usize = 1000;
 
