@@ -1,0 +1,16 @@
+[package]
+name = "ahk-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The lab box as a script target: a uinput keyboard of our own, grim captures, and exact text"
+
+[dependencies]
+ahk = { workspace = true }
+libc = "0.2"
+png = "0.17"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

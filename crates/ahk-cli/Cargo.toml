@@ -1,0 +1,18 @@
+[package]
+name = "ahk-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Run a yoko-ahk script on this machine: the script on stdin, the report on stdout"
+
+[[bin]]
+name = "ahk"
+path = "src/main.rs"
+
+[dependencies]
+ahk = { workspace = true }
+ahk-box = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
