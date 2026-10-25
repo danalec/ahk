@@ -165,7 +165,25 @@ just that it finished.
 - A question that cannot be answered fails, with the reason. It does
   not answer `false`.
 
-## 11. The commands
+## 11. The servers
+
+Two MCP servers, both speaking the protocol over stdio:
+
+- `yoko-ahk-mcp` -- the AHK server: `ahk_run`, `ahk_stop`, `ahk_check`,
+  `ahk_keys`, `ahk_probe`. It runs the scripts **on the box**.
+- `yoko-mcp` -- the lab server: the discovery, the screen, the input, the
+  Sunshine API and the Moonlight client. Thirty-two tools.
+
+Both are registered in the desktop app. `yoko-mcp` is the Rust one:
+the Python server of the same name stays in the `yoko-mcp` repository,
+and its input tools refuse with the reason when the `ydotoald` of the box
+is not running -- which it is not, any more.
+
+The input tools of the Rust server go through the AHK runtime on the
+box, so there is one implementation of "drive the box" and it is the one
+that works there.
+
+## 12. The commands
 
 ```sh
 cargo build --workspace
@@ -181,7 +199,7 @@ ssh 192.168.0.40 'cd ~/yoko-rust && cargo build --release -p ahk-cli'
 printf %s <base64> | base64 -d | ~/yoko-rust/target/release/ahk --timeout=60
 ```
 
-## 12. What is verified, and what is not
+## 13. What is verified, and what is not
 
 Verified on the box on 2026-10-25, with the real `192.168.0.40`:
 
