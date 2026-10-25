@@ -33,13 +33,13 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ahk::keys::{MODIFIERS, resolve_name};
 use ahk::runtime::{Desktop, WindowAnswer};
 
 use crate::keyboard::{ENUMERATION_WAIT, Keyboard, KeyboardError};
-use crate::pointer::{Pointer, PointerError};
+use crate::pointer::{PRESS_SETTLE, Pointer, PointerError};
 
 /// A primitive could not be carried out.
 #[derive(Debug, thiserror::Error)]
@@ -267,33 +267,85 @@ impl Desktop for LabDesktop {
 
     fn press_key(&mut self, name: &str, modifiers: &[String]) -> Result<String, String> {
         let code = resolve_name(name).map_err(|error| error.to_string())?;
-        if !modifiers.is_empty() {
-            // A modifier does not reach the client on this box. Say so
-            // instead of pretending the chord happened.
-            let note = format!(
-                "{}+{name}: the modifier does not reach the client on this box",
-                modifiers.join("+")
-            );
-            self.notes.push(note.clone());
-            return Ok(format!("{note} NOT delivered (modifier unsupported here)"));
+        // The modifiers go down first and up last, around the key.
+        //
+        // They do arrive: measured on the lab box on 2026-10-25, with a
+        // GTK client and a keyboard of our own, ctrl+a selected the text
+        // of the field and the next key replaced it. (The note that
+        // "a modifier never reaches the client" was measured with the
+        // `ydotool` device, whose `key 30:1` is ignored -- a property
+        // of that tool, not of the box.)
+        let modifier_codes: Vec<u16> = modifiers
+            .iter()
+            .map(|modifier| resolve_name(modifier).map_err(|error| error.to_string()))
+            .collect::<Result<Vec<u16>, String>>()?;
+        if modifier_codes.is_empty() {
+            self.keyboard().map_err(|error| error.to_string())?.tap(code).map_err(|error| error.to_string())?;
+            return Ok(format!("pressed {name} (code {code}) through the uinput keyboard"));
         }
-        // Everything goes through the keyboard of our own: an explicit
-        // keydown and keyup, so nothing repeats.
-        self.keyboard().map_err(|error| error.to_string())?.tap(code).map_err(|error| error.to_string())?;
-        Ok(format!("pressed {name} (code {code}) through the uinput keyboard"))
+        self.keyboard()
+            .map_err(|error| error.to_string())?
+            .tap_with_modifiers(code, &modifier_codes)
+            .map_err(|error| error.to_string())?;
+        let names = modifiers.join("+");
+        Ok(format!("pressed {names}+{name} (code {code}) through the uinput keyboard"))
     }
 
-    fn click(&mut self, x: i64, y: i64, button: &str) -> Result<String, String> {
+    fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
         // The absolute pointer is the path that lands where it is aimed:
         // ydotool's device is relative, so its click lands wherever the
         // pointer happened to be.
         let size = self.pointer().map_err(|error| error.to_string())?.size();
-        self.pointer()
-            .map_err(|error| error.to_string())?
-            .click(x, y, button)
-            .map_err(|error| error.to_string())?;
-        Ok(format!("clicked ({x}, {y}) through the absolute pointer (screen {width}x{height})", width = size.0, height = size.1))
+        let count = count.max(1);
+        for index in 0..count {
+            self.pointer()
+                .map_err(|error| error.to_string())?
+                .click(x, y, button)
+                .map_err(|error| error.to_string())?;
+            if index + 1 < count {
+                // The gap between the two clicks of a double click.
+                std::thread::sleep(Duration::from_millis(60));
+            }
+        }
+        let times = if count == 1 { String::new() } else { format!(" {count} times") };
+        Ok(format!(
+            "clicked ({x}, {y}){times} through the absolute pointer (screen {width}x{height})",
+            width = size.0,
+            height = size.1
+        ))
     }
+
+    fn mouse_down(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
+        if let (Some(x), Some(y)) = (x, y) {
+            self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;
+            std::thread::sleep(PRESS_SETTLE);
+        }
+        self.pointer().map_err(|error| error.to_string())?.button_down(button).map_err(|error| error.to_string())?;
+        Ok(format!("the {button} button is down"))
+    }
+
+    fn mouse_up(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
+        if let (Some(x), Some(y)) = (x, y) {
+            self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;
+            std::thread::sleep(PRESS_SETTLE);
+        }
+        self.pointer().map_err(|error| error.to_string())?.button_up(button).map_err(|error| error.to_string())?;
+        Ok(format!("the {button} button is up"))
+    }
+
+    fn key_down(&mut self, name: &str) -> Result<String, String> {
+        let code = resolve_name(name).map_err(|error| error.to_string())?;
+        self.keyboard().map_err(|error| error.to_string())?.down(code).map_err(|error| error.to_string())?;
+        Ok(format!("{name} is down (code {code})"))
+    }
+
+    fn key_up(&mut self, name: &str) -> Result<String, String> {
+        let code = resolve_name(name).map_err(|error| error.to_string())?;
+        self.keyboard().map_err(|error| error.to_string())?.up(code).map_err(|error| error.to_string())?;
+        Ok(format!("{name} is up (code {code})"))
+    }
+
+
 
     fn move_pointer(&mut self, x: i64, y: i64) -> Result<String, String> {
         self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;

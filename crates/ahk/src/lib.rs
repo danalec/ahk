@@ -21,7 +21,7 @@
 //! # impl Desktop for Fake {
 //! #     fn type_text(&mut self, _: &str) -> Result<String, String> { Ok(String::new()) }
 //! #     fn press_key(&mut self, _: &str, _: &[String]) -> Result<String, String> { Ok(String::new()) }
-//! #     fn click(&mut self, _: i64, _: i64, _: &str) -> Result<String, String> { Ok(String::new()) }
+//! #     fn click(&mut self, _: i64, _: i64, _: &str, _: u32) -> Result<String, String> { Ok(String::new()) }
 //! #     fn run(&mut self, _: &str, _: &str) -> Result<(i32, String, String), String> { Ok((0, String::new(), String::new())) }
 //! #     fn capture(&mut self, _: i64, _: i64, _: i64, _: i64, _: &str) -> Result<String, String> { Ok(String::new()) }
 //! #     fn pixel(&mut self, _: i64, _: i64) -> Result<String, String> { Ok("#000000".into()) }

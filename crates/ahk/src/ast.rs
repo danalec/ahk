@@ -93,7 +93,14 @@ pub enum Node {
     /// A variable.
     Var { name: String, line: u32 },
     /// A key inside a `Send`, written `{Name}`.
-    KeyName { name: String, line: u32 },
+    ///
+    /// The modifiers are the ones that came with it: `^` is ctrl, `+` is
+    /// shift, `!` is alt and `#` is the super key.
+    KeyName { name: String, modifiers: Vec<String>, line: u32 },
+    /// `{Name down}`: the key goes down and stays down.
+    KeyDown { name: String, line: u32 },
+    /// `{Name up}`: the key comes back up.
+    KeyUp { name: String, line: u32 },
     /// `not x`, `-x`.
     Unary { op: UnaryOp, operand: Box<Node>, line: u32 },
     /// A binary operation.
@@ -107,7 +114,14 @@ pub enum Node {
     /// `Send "a{Enter}b"`.
     Send { items: Vec<Node>, line: u32 },
     /// `Click 40, 50`.
-    Click { x: Box<Node>, y: Box<Node>, button: String, line: u32 },
+    ///
+    /// The button and the count are expressions, the way AutoHotkey
+    /// writes them: `Click 40, 50, right, 2` is a double right click.
+    Click { x: Box<Node>, y: Box<Node>, button: Box<Node>, count: Box<Node>, line: u32 },
+    /// `MouseDown`, with the button and the place it goes to.
+    MouseDown { x: Option<Box<Node>>, y: Option<Box<Node>>, button: Box<Node>, line: u32 },
+    /// `MouseUp`, with the button and the place it comes up at.
+    MouseUp { x: Option<Box<Node>>, y: Option<Box<Node>>, button: Box<Node>, line: u32 },
     /// `MouseMove 40, 50`.
     MouseMove { x: Box<Node>, y: Box<Node>, line: u32 },
     /// `Sleep 500`.
@@ -156,12 +170,16 @@ impl Node {
             Node::Literal { line, .. }
             | Node::Var { line, .. }
             | Node::KeyName { line, .. }
+            | Node::KeyDown { line, .. }
+            | Node::KeyUp { line, .. }
             | Node::Unary { line, .. }
             | Node::Binary { line, .. }
             | Node::Assign { line, .. }
             | Node::Index { line, .. }
             | Node::Send { line, .. }
             | Node::Click { line, .. }
+            | Node::MouseDown { line, .. }
+            | Node::MouseUp { line, .. }
             | Node::MouseMove { line, .. }
             | Node::Sleep { line, .. }
             | Node::Run { line, .. }

@@ -51,10 +51,27 @@ Run "echo done"
 
 AutoHotkey's, cut down to what a script can do to a Linux desktop.
 
-**Statements.** `Send`, `Click`, `MouseMove`, `Sleep`, `Run`, `PixelGet`,
-`Screenshot`, `Msg`, `If`/`ElseIf`/`Else`, `Switch`/`Case`/`Default`,
-`While`, `Loop`, `Break`, `Continue`, `Return`, `ExitApp`, and the
-assignment operators (`=`, `:=`, `+=`, `-=`, `.=`).
+**Statements.** `Send`, `Click`, `MouseMove`, `MouseDown`, `MouseUp`,
+`Sleep`, `Run`, `PixelGet`, `Screenshot`, `Msg`, `If`/`ElseIf`/`Else`,
+`Switch`/`Case`/`Default`, `While`, `Loop`, `Break`, `Continue`,
+`Return`, `ExitApp`, and the assignment operators (`=`, `:=`, `+=`, `-=`,
+`.=`).
+
+**Keys.** A key is written `{Name}`, and the modifiers are the ones
+AutoHotkey uses: `^` is ctrl, `+` is shift, `!` is alt and `#` is the
+super key. A modifier on its own is a literal character, and so is one
+in braces.
+
+```ahk
+Send "^a"        ; ctrl+a
+Send "+{Tab}"    ; shift+tab
+Send "{+}"        ; a literal plus
+Send "{a down}"   ; the key goes down and stays down
+```
+
+**The mouse.** `Click x, y`, `Click x, y, right`, `Click x, y, 2` for a
+double click, `MouseMove x, y`, `MouseDown` and `MouseUp` to hold a
+button down.
 
 **Functions.** Your own, with a block and a `Return`:
 
@@ -126,7 +143,22 @@ was removed from the disk of that box, the process that was still
 running has died, and `ydotool type` without a daemon writes into a
 socket nobody is listening on and reports nothing. The keyboard of our
 own is there, and it delivers: every character arrives once, in order,
-capitals included (the shift key works; only ctrl and alt do not).
+capitals included.
+
+**The modifiers are delivered too**, and that took a second measurement.
+The first note said they never arrive, and that was true of the device
+the note was measured on: `ydotool key 30:1` does not understand the
+suffix, so the chord was never sent. With a keyboard of our own the
+modifier goes down, the key goes down, the key comes up and the modifier
+comes up -- and the client sees the chord. Measured on 2026-10-25 with a
+GTK client: `ctrl+a` selected the text of a field, and the next key
+replaced it.
+
+```ahk
+Send "^a"        ; ctrl+a
+Send "+{Tab}"    ; shift+tab
+Send "{+}"        ; a literal plus
+```
 
 **`ydotool key` is not used**, and the reason is worth writing down: on
 ydotool 1.x a key *name* is read as zero and does nothing at all (the

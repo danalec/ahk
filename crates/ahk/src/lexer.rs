@@ -53,6 +53,8 @@ pub const KEYWORDS: &[&str] = &[
     "sendtext",
     "click",
     "mousemove",
+    "mousedown",
+    "mouseup",
     "sleep",
     "run",
     "pixelget",

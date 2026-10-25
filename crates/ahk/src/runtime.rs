@@ -140,7 +140,27 @@ pub trait Desktop {
     fn press_key(&mut self, name: &str, modifiers: &[String]) -> Result<String, String>;
 
     /// Click at a screen position.
-    fn click(&mut self, x: i64, y: i64, button: &str) -> Result<String, String>;
+    fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String>;
+
+    /// Put a mouse button down, and leave it down.
+    fn mouse_down(&mut self, _x: Option<i64>, _y: Option<i64>, _button: &str) -> Result<String, String> {
+        Err("this desktop cannot hold a mouse button down".to_string())
+    }
+
+    /// Let a mouse button come up.
+    fn mouse_up(&mut self, _x: Option<i64>, _y: Option<i64>, _button: &str) -> Result<String, String> {
+        Err("this desktop cannot hold a mouse button down".to_string())
+    }
+
+    /// Put a key down, and leave it down.
+    fn key_down(&mut self, _name: &str) -> Result<String, String> {
+        Err("this desktop cannot hold a key down".to_string())
+    }
+
+    /// Let a key come up.
+    fn key_up(&mut self, _name: &str) -> Result<String, String> {
+        Err("this desktop cannot hold a key down".to_string())
+    }
 
     /// Run a command; return its exit code, stdout and stderr.
     fn run(&mut self, command: &str, window: &str) -> Result<(i32, String, String), String>;
@@ -397,8 +417,14 @@ impl<'a> Runtime<'a> {
                 let mut parts = Vec::new();
                 for item in items {
                     match item {
-                        Node::KeyName { name, .. } => {
-                            parts.push(self.desktop.press_key(name, &[])?);
+                        Node::KeyName { name, modifiers, .. } => {
+                            parts.push(self.desktop.press_key(name, modifiers)?);
+                        }
+                        Node::KeyDown { name, .. } => {
+                            parts.push(self.desktop.key_down(name)?);
+                        }
+                        Node::KeyUp { name, .. } => {
+                            parts.push(self.desktop.key_up(name)?);
                         }
                         other => {
                             let value = self.evaluate(other)?;
@@ -408,10 +434,36 @@ impl<'a> Runtime<'a> {
                 }
                 detail = parts.concat().chars().take(200).collect();
             }
-            Node::Click { x, y, button, .. } => {
+            Node::Click { x, y, button, count, .. } => {
                 let x = self.evaluate(x)?.to_number().unwrap_or(0.0) as i64;
                 let y = self.evaluate(y)?.to_number().unwrap_or(0.0) as i64;
-                detail = self.desktop.click(x, y, button)?;
+                let button = self.evaluate(button)?.to_text().to_lowercase();
+                let count = self.evaluate(count)?.to_number().unwrap_or(1.0).max(1.0) as u32;
+                detail = self.desktop.click(x, y, &button, count)?;
+            }
+            Node::MouseDown { x, y, button, .. } => {
+                let x = match x {
+                    Some(node) => Some(self.evaluate(node)?.to_number().unwrap_or(0.0) as i64),
+                    None => None,
+                };
+                let y = match y {
+                    Some(node) => Some(self.evaluate(node)?.to_number().unwrap_or(0.0) as i64),
+                    None => None,
+                };
+                let button = self.evaluate(button)?.to_text().to_lowercase();
+                detail = self.desktop.mouse_down(x, y, &button)?;
+            }
+            Node::MouseUp { x, y, button, .. } => {
+                let x = match x {
+                    Some(node) => Some(self.evaluate(node)?.to_number().unwrap_or(0.0) as i64),
+                    None => None,
+                };
+                let y = match y {
+                    Some(node) => Some(self.evaluate(node)?.to_number().unwrap_or(0.0) as i64),
+                    None => None,
+                };
+                let button = self.evaluate(button)?.to_text().to_lowercase();
+                detail = self.desktop.mouse_up(x, y, &button)?;
             }
             Node::MouseMove { x, y, .. } => {
                 let x = self.evaluate(x)?.to_number().unwrap_or(0.0) as i64;
@@ -551,6 +603,12 @@ impl<'a> Runtime<'a> {
             Node::Literal { .. } | Node::Var { .. } | Node::KeyName { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
+                    line: statement.line(),
+                }));
+            }
+            Node::KeyDown { .. } | Node::KeyUp { .. } => {
+                return Err(RuntimeFailure::Error(RuntimeError {
+                    message: "a key that goes down or up is part of a Send".into(),
                     line: statement.line(),
                 }));
             }
@@ -830,6 +888,8 @@ impl<'a> Runtime<'a> {
                 })
             }),
             Node::KeyName { name, .. } => Ok(Value::Text(format!("{{{name}}}"))),
+            Node::KeyDown { name, .. } => Ok(Value::Text(format!("{{{name} down}}"))),
+            Node::KeyUp { name, .. } => Ok(Value::Text(format!("{{{name} up}}"))),
             Node::Unary { op, operand, .. } => {
                 let value = self.evaluate(operand)?;
                 Ok(match op {
@@ -925,7 +985,7 @@ impl<'a> Runtime<'a> {
                 }
             }
             Node::Send { .. }
-            | Node::Click { .. }
+            | Node::Click { .. } | Node::MouseDown { .. } | Node::MouseUp { .. }
             | Node::MouseMove { .. }
             | Node::Sleep { .. }
             | Node::Run { .. }
@@ -1056,6 +1116,8 @@ pub fn op_name(statement: &Node) -> &'static str {
         Node::Assign { .. } => "Assign",
         Node::Send { .. } => "Send",
         Node::Click { .. } => "Click",
+        Node::MouseDown { .. } => "MouseDown",
+        Node::MouseUp { .. } => "MouseUp",
         Node::MouseMove { .. } => "MouseMove",
         Node::Sleep { .. } => "Sleep",
         Node::Run { .. } => "Run",
@@ -1074,6 +1136,8 @@ pub fn op_name(statement: &Node) -> &'static str {
         Node::Literal { .. } => "Literal",
         Node::Var { .. } => "Var",
         Node::KeyName { .. } => "KeyName",
+        Node::KeyDown { .. } => "KeyDown",
+        Node::KeyUp { .. } => "KeyUp",
         Node::Unary { .. } => "Unary",
         Node::Binary { .. } => "Binary",
         Node::Index { .. } => "Index",

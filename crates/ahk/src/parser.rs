@@ -161,6 +161,8 @@ impl Parser {
                 "send" | "sendtext" => return Ok(vec![self.parse_send()?]),
                 "click" => return Ok(vec![self.parse_click()?]),
                 "mousemove" => return Ok(vec![self.parse_mousemove()?]),
+                "mousedown" => return Ok(vec![self.parse_mouse_button(false)?]),
+                "mouseup" => return Ok(vec![self.parse_mouse_button(true)?]),
                 "sleep" => return Ok(vec![self.parse_sleep()?]),
                 "run" => return Ok(vec![self.parse_run()?]),
                 "pixelget" => return Ok(vec![self.parse_pixelget()?]),
@@ -467,24 +469,94 @@ impl Parser {
                     column: name.column,
                 });
             }
+            // `{a down}` and `{a up}`: the key goes down, or comes up.
+            let key = name.value.clone();
+            let mut state = None;
+            if self.peek().kind == TokenKind::Name {
+                let word = self.next().value.to_lowercase();
+                if word == "down" || word == "up" {
+                    state = Some(word == "down");
+                } else {
+                    return Err(SyntaxError {
+                        message: format!("expected `down` or `up`, found {word:?}"),
+                        line: name.line,
+                        column: name.column,
+                    });
+                }
+            }
             self.expect_op("}")?;
-            return Ok(vec![Node::KeyName { name: name.value, line: token.line }]);
+            return Ok(vec![match state {
+                Some(true) => Node::KeyDown { name: key, line: token.line },
+                Some(false) => Node::KeyUp { name: key, line: token.line },
+                None => Node::KeyName { name: key, modifiers: Vec::new(), line: token.line },
+            }]);
         }
         Ok(vec![self.parse_expression()?])
     }
 
     fn parse_click(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
-        let x = self.parse_expression()?;
+        let x = Box::new(self.parse_expression()?);
         self.expect_op(",")?;
-        let y = self.parse_expression()?;
-        let mut button = "left".to_string();
+        let y = Box::new(self.parse_expression()?);
+        let mut button = Box::new(Node::Literal { value: LiteralValue::Text("left".into()), line: token.line });
+        let mut count = Box::new(Node::Literal { value: LiteralValue::Number(1.0), line: token.line });
         if self.at_op(&[","]) {
             self.position += 1;
-            button = self.next().value.to_lowercase();
+            let third = self.parse_expression()?;
+            if self.at_op(&[","]) {
+                // AutoHotkey's order: the button, then how many clicks.
+                self.position += 1;
+                let fourth = self.parse_expression()?;
+                button = Box::new(button_node(third, token.line));
+                count = Box::new(fourth);
+            } else if matches!(third, Node::Literal { value: LiteralValue::Number(_), .. }) {
+                // Without a fourth argument a number is the count:
+                // `Click 10, 20, 2` is a double click.
+                count = Box::new(third);
+            } else {
+                button = Box::new(button_node(third, token.line));
+            }
         }
         self.end_of_statement()?;
-        Ok(Node::Click { x: Box::new(x), y: Box::new(y), button, line: token.line })
+        Ok(Node::Click { x, y, button, count, line: token.line })
+    }
+
+    fn parse_mouse_button(&mut self, up: bool) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let mut x = None;
+        let mut y = None;
+        let mut button = Box::new(Node::Literal { value: LiteralValue::Text("left".into()), line: token.line });
+        if self.at_op(&[","]) {
+            // `MouseDown 10, 20, right`
+            x = Some(Box::new(self.parse_expression()?));
+            self.expect_op(",")?;
+            y = Some(Box::new(self.parse_expression()?));
+            if self.at_op(&[","]) {
+                self.position += 1;
+                button = Box::new(button_node(self.parse_expression()?, token.line));
+            }
+        } else {
+            let first = self.parse_expression()?;
+            if matches!(first, Node::Literal { value: LiteralValue::Number(_), .. }) {
+                // A number alone is the x, and the y comes next.
+                x = Some(Box::new(first));
+                self.expect_op(",")?;
+                y = Some(Box::new(self.parse_expression()?));
+                if self.at_op(&[","]) {
+                    self.position += 1;
+                    button = Box::new(button_node(self.parse_expression()?, token.line));
+                }
+            } else {
+                button = Box::new(button_node(first, token.line));
+            }
+        }
+        self.end_of_statement()?;
+        if up {
+            Ok(Node::MouseUp { x, y, button, line: token.line })
+        } else {
+            Ok(Node::MouseDown { x, y, button, line: token.line })
+        }
     }
 
     fn parse_mousemove(&mut self) -> Result<Node, SyntaxError> {
@@ -754,25 +826,101 @@ impl Parser {
     }
 }
 
+/// The button of a click, a mouse down or a mouse up.
+///
+/// A button is a word: `Click 10, 20, right`. A word that is not one of
+/// the three buttons is a variable, and the value of that variable is
+/// the name of the button.
+fn button_node(node: Node, line: u32) -> Node {
+    match &node {
+        Node::Var { name, .. }
+            if matches!(name.to_lowercase().as_str(), "left" | "right" | "middle") =>
+        {
+            Node::Literal { value: LiteralValue::Text(name.to_lowercase()), line }
+        }
+        _ => node,
+    }
+}
+
 /// Split a quoted string into its text and key parts.
+///
+/// The string of a `Send` carries the AutoHotkey conventions:
+///
+/// * `{Name}` is a key, and `{Name down}` or `{Name up}` is that key
+///   going down or coming up, on its own.
+/// * `^`, `+`, `!` and `#` before a key are the modifiers: ctrl, shift,
+///   alt and the super key. They apply to the key that comes next, and
+///   to nothing else.
+/// * A modifier on its own is a literal character, and so is one in
+///   braces: `{^}` is a caret.
+///
+/// The text of a `Send` that is not a key is text, and it is typed as
+/// it stands.
 fn split_string(text: &str, line: u32) -> Vec<Node> {
     let mut parts = Vec::new();
     let mut buffer = String::new();
+    let mut modifiers: Vec<String> = Vec::new();
     let chars: Vec<char> = text.chars().collect();
     let mut index = 0usize;
+
+    let modifier_name = |character: char| match character {
+        '^' => Some("ctrl"),
+        '+' => Some("shift"),
+        '!' => Some("alt"),
+        '#' => Some("super"),
+        _ => None,
+    };
+
     while index < chars.len() {
+        // A modifier before the key it belongs to.
+        if let Some(name) = modifier_name(chars[index]) {
+            let next = chars.get(index + 1);
+            let is_literal = match next {
+                None => true,
+                Some(next) => next.is_whitespace(),
+            };
+            if !is_literal {
+                modifiers.push(name.to_string());
+                index += 1;
+                continue;
+            }
+        }
         if chars[index] == '{' {
             if let Some(offset) = chars[index + 1..].iter().position(|c| *c == '}') {
                 let close = index + 1 + offset;
+                let name: String = chars[index + 1..close].iter().collect();
                 if !buffer.is_empty() {
                     parts.push(Node::Literal { value: LiteralValue::Text(std::mem::take(&mut buffer)), line });
                 }
-                let name: String = chars[index + 1..close].iter().collect();
-                parts.push(Node::KeyName { name, line });
+                // `{^}` is a literal character, not a modifier.
+                if name.chars().count() == 1 && modifier_name(name.chars().next().unwrap()).is_some() {
+                    parts.push(Node::Literal { value: LiteralValue::Text(name), line });
+                } else {
+                    let (key, state) = match name.rsplit_once(' ') {
+                        Some((key, "down")) => (key.to_string(), Some(true)),
+                        Some((key, "up")) => (key.to_string(), Some(false)),
+                        _ => (name.clone(), None),
+                    };
+                    match state {
+                        Some(true) => parts.push(Node::KeyDown { name: key, line }),
+                        Some(false) => parts.push(Node::KeyUp { name: key, line }),
+                        None => parts.push(Node::KeyName { name: key, modifiers: std::mem::take(&mut modifiers), line }),
+                    }
+                }
                 index = close + 1;
                 continue;
             }
             buffer.push(chars[index]);
+            index += 1;
+            continue;
+        }
+        // A character with modifiers waiting for it is a key.
+        if !modifiers.is_empty() {
+            parts.push(Node::KeyName {
+                name: chars[index].to_string(),
+                modifiers: std::mem::take(&mut modifiers),
+                line,
+            });
             index += 1;
             continue;
         }

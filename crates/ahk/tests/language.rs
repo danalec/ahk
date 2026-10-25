@@ -42,13 +42,38 @@ impl Desktop for Fake {
         Ok(format!("typed {text:?}"))
     }
 
-    fn press_key(&mut self, name: &str, _modifiers: &[String]) -> Result<String, String> {
-        self.calls.push(("key".into(), name.into()));
-        Ok(format!("pressed {name}"))
+    fn press_key(&mut self, name: &str, modifiers: &[String]) -> Result<String, String> {
+        let mut spelled = modifiers.join("+");
+        if !spelled.is_empty() {
+            spelled.push('+');
+        }
+        spelled.push_str(name);
+        self.calls.push(("key".into(), spelled.clone()));
+        Ok(format!("pressed {spelled}"))
     }
 
-    fn click(&mut self, x: i64, y: i64, button: &str) -> Result<String, String> {
-        self.calls.push(("click".into(), format!("{x},{y},{button}")));
+    fn key_down(&mut self, name: &str) -> Result<String, String> {
+        self.calls.push(("key_down".into(), name.into()));
+        Ok(format!("{name} is down"))
+    }
+
+    fn key_up(&mut self, name: &str) -> Result<String, String> {
+        self.calls.push(("key_up".into(), name.into()));
+        Ok(format!("{name} is up"))
+    }
+
+    fn mouse_down(&mut self, _x: Option<i64>, _y: Option<i64>, button: &str) -> Result<String, String> {
+        self.calls.push(("mouse_down".into(), button.into()));
+        Ok(format!("{button} is down"))
+    }
+
+    fn mouse_up(&mut self, _x: Option<i64>, _y: Option<i64>, button: &str) -> Result<String, String> {
+        self.calls.push(("mouse_up".into(), button.into()));
+        Ok(format!("{button} is up"))
+    }
+
+    fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
+        self.calls.push(("click".into(), format!("{x},{y},{button},{count}")));
         Ok(format!("clicked ({x}, {y})"))
     }
 
@@ -222,7 +247,7 @@ fn a_screenshot_captures_the_region() {
 fn a_click_clicks_at_the_position() {
     let (report, desktop) = run("Click 40, 50");
     assert!(report.ok);
-    assert!(desktop.calls.contains(&("click".into(), "40,50,left".into())));
+    assert!(desktop.calls.contains(&("click".into(), "40,50,left,1".into())));
 }
 
 #[test]
@@ -382,6 +407,75 @@ fn a_text_can_be_picked_by_its_position() {
 fn a_position_that_is_not_there_is_an_error() {
     let (report, _desktop) = run("letter := \"hello\"[99]");
     assert!(!report.ok);
+}
+
+#[test]
+fn a_modifier_before_a_key_is_a_modifier() {
+    let (report, desktop) = run("Send \"^a\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("key".to_string(), "ctrl+a".to_string())]);
+}
+
+#[test]
+fn a_modifier_on_its_own_is_text() {
+    let (report, desktop) = run("Send \"^\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["^"]);
+}
+
+#[test]
+fn a_modifier_in_braces_is_text() {
+    let (report, desktop) = run("Send \"{+}\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["+"]);
+}
+
+#[test]
+fn a_key_that_goes_down_stays_down() {
+    let (report, desktop) = run("Send \"{a down}\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("key_down".to_string(), "a".to_string())]);
+}
+
+#[test]
+fn a_key_that_comes_up_is_told_to() {
+    let (report, desktop) = run("Send \"{a up}\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("key_up".to_string(), "a".to_string())]);
+}
+
+#[test]
+fn a_mouse_button_can_be_held_down() {
+    let (report, desktop) = run("MouseDown right\nMouseUp right");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![
+            ("mouse_down".to_string(), "right".to_string()),
+            ("mouse_up".to_string(), "right".to_string())
+        ]
+    );
+}
+
+#[test]
+fn a_click_can_have_a_count() {
+    let (report, desktop) = run("Click 10, 20, 2");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,left,2".to_string())]);
+}
+
+#[test]
+fn a_click_can_name_the_button_and_the_count() {
+    let (report, desktop) = run("Click 10, 20, right, 3");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,right,3".to_string())]);
+}
+
+#[test]
+fn a_mouse_button_can_be_held_at_a_place() {
+    let (report, desktop) = run("MouseDown 100, 200\nMouseUp 100, 200");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls.len(), 2);
 }
 
 #[test]
