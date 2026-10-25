@@ -168,6 +168,16 @@ impl Keyboard {
     }
 
     fn emit(&mut self, event_type: u16, code: u16, value: i32) -> Result<(), KeyboardError> {
+        self.write(event_type, code, value)?;
+        // The frame has to be closed. Without the SYN_REPORT the event
+        // sits in the compositor's buffer and is never delivered: the
+        // keyboard is alive, the device is enumerated, and nothing the
+        // client sends arrives.
+        self.write(EV_SYN, SYN_REPORT, 0)
+    }
+
+    /// Write one event, without closing the frame.
+    fn write(&mut self, event_type: u16, code: u16, value: i32) -> Result<(), KeyboardError> {
         // struct input_event { struct timeval time; __u16 type; __u16 code; __s32 value; }
         // timeval is two longs on 64-bit Linux, so the struct is 24 bytes.
         let now = std::time::SystemTime::now()
@@ -181,8 +191,7 @@ impl Keyboard {
         event[20..24].copy_from_slice(&value.to_ne_bytes());
         self.file
             .write_all(&event)
-            .map_err(|error| KeyboardError::Ioctl(0, error.to_string()))?;
-        Ok(())
+            .map_err(|error| KeyboardError::Ioctl(0, error.to_string()))
     }
 
     #[cfg(target_os = "linux")]
@@ -199,7 +208,7 @@ impl Keyboard {
         setup[2..4].copy_from_slice(&0x1D6Bu16.to_ne_bytes()); // vendor: the generic one
         setup[4..6].copy_from_slice(&0x0002u16.to_ne_bytes());
         setup[6..8].copy_from_slice(&0x0001u16.to_ne_bytes());
-        let name = b"yoko keyboard";
+        let name = b"yoko keyboard rust";
         setup[8..8 + name.len()].copy_from_slice(name);
         let result = unsafe { libc::ioctl(fd, UI_DEV_SETUP, setup.as_ptr()) };
         if result < 0 {

@@ -187,8 +187,17 @@ impl Desktop for LabDesktop {
             self.notes.push(note.clone());
             return Ok(format!("{note} NOT delivered (modifier unsupported here)"));
         }
+        // A key that a keyboard can *type* goes through the text path: it
+        // is the one path measured to be exact on this box. A newline is a
+        // Return, which is what `ydotool type` does with one.
+        if let Some(character) = typable(name) {
+            let typed = self.type_text(&character)?;
+            return Ok(format!("typed {character:?} ({typed})"));
+        }
+        // The rest goes through the keyboard of our own: an explicit
+        // keydown and keyup, so nothing repeats.
         self.keyboard().map_err(|error| error.to_string())?.tap(code).map_err(|error| error.to_string())?;
-        Ok(format!("pressed {name} (code {code})"))
+        Ok(format!("pressed {name} (code {code}) through the uinput keyboard"))
     }
 
     fn click(&mut self, x: i64, y: i64, button: &str) -> Result<String, String> {
@@ -289,6 +298,29 @@ fn read_pixel(path: &str) -> Result<String, String> {
         }
     };
     Ok(format!("#{red:02x}{green:02x}{blue:02x}"))
+}
+
+/// The character a key name types, when there is one.
+///
+/// `ydotool type` is the one path measured to be exact on this box: every
+/// character arrives once, in order, and a newline arrives as a Return.
+/// So a key that a keyboard can type is typed, and only the keys that
+/// have no character -- Backspace, Escape, the arrows -- need the uinput
+/// device.
+fn typable(name: &str) -> Option<String> {
+    match name.to_lowercase().as_str() {
+        "enter" | "return" => Some("\n".to_string()),
+        "tab" => Some("\t".to_string()),
+        "space" => Some(" ".to_string()),
+        _ => {
+            let mut characters = name.chars();
+            let first = characters.next()?;
+            if characters.next().is_some() || !first.is_alphanumeric() {
+                return None;
+            }
+            Some(first.to_string())
+        }
+    }
 }
 
 /// The modifier names, for the report.
