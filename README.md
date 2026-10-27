@@ -1,7 +1,10 @@
-# ahk-rust
+# ahk
 
 The AutoHotkey language, in Rust: a lexer, an AST, a parser, an
 interpreter, and the key table.
+
+This is the AHK project: the implementation that runs. The Python
+implementation it was ported from is archived in `../archived/ahk-python`.
 
 ```
 crates/ahk/       the language
@@ -37,18 +40,19 @@ calls, so they are about what the language means, not about what the
 desktop does. The box code is checked on the box:
 
 ```sh
-ssh 192.168.0.40 'cd ~/ahk-rust && cargo build --release -p ahk-cli'
+ssh 192.168.0.40 'cd ~/ahk && cargo build --release -p ahk-cli'
 ```
 
 ## The Python is the reference
 
-The Python implementation next door -- `C:\Users\danalec\Documents\src\ahk`
--- is the reference. **The two have to speak the same dialect, with the
-same test cases.** A feature that exists in only one of them is a bug in
-the port, not a difference.
+The Python implementation -- `C:\Users\danalec\Documents\src\archived\ahk-python`
+-- is the reference, and it is archived: it is kept to be read, not to be
+run. **The two have to speak the same dialect, with the same test cases.**
+A feature that exists in only one of them is a bug in the port, not a
+difference.
 
 When the language grows, the same cases go into
-`crates/ahk/tests/language.rs` and into the Python test suite.
+`crates/ahk/tests/language.rs` and into the archived Python test suite.
 
 ## The language
 

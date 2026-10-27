@@ -1,10 +1,13 @@
-# AGENTS.md — working notes for ahk-rust
+# AGENTS.md — working notes for ahk
 
-This repository is the AHK in Rust: the AutoHotkey engine and the box
-primitives. It was split out of `yoko-rust`, which keeps the lab MCP
-server, and it is a port of the Python implementation that lives next
-door (`C:\Users\danalec\Documents\src\ahk`). The two have to agree:
-the Python is the reference, the Rust is the implementation.
+This repository is **the** AHK: the AutoHotkey engine and the box
+primitives, in Rust. It was split out of `yoko-rust`, which keeps the lab
+MCP server, and it is a port of the Python implementation, which now lives
+in the archive (`C:\Users\danalec\Documents\src\archived\ahk-python`).
+
+The Rust is the implementation that runs. The Python is the reference it
+was ported from, and it is kept to be read, not to be run. The two have to
+agree.
 
 The rules below are the ones that are easy to break by accident. Each one
 says what the rule is and why it is there.
@@ -16,11 +19,12 @@ says what the rule is and why it is there.
 | `crates/ahk` | the language: lexer, AST, parser, runtime | freely |
 | `crates/ahk-box` | the box primitives -- runs on the lab box | freely |
 
-**The Python is the reference.** When the language grows, it grows in
-both places, with the same tests: the cases in
-`crates/ahk/tests/language.rs` are the cases of the Python test suite.
-A feature that exists in only one of them is a bug in the port, not a
-difference.
+**The Python is the reference.** It lives in `../archived/ahk-python`
+and it is frozen: it is kept to be read, not to be run. When the language
+grows, it grows here, with the same tests: the cases in
+`crates/ahk/tests/language.rs` are the cases of the archived Python test
+suite. A feature that exists in only one of them is a bug in the port, not
+a difference.
 
 ## 2. The code that touches the box only compiles on the box
 
@@ -29,7 +33,7 @@ node is behind `#[cfg(target_os = "linux")]`.
 
 ```sh
 cargo build --workspace        # on Windows: the box code is not compiled
-ssh 192.168.0.40 'cd ~/ahk-rust && cargo build --release -p ahk-cli'
+ssh 192.168.0.40 'cd ~/ahk && cargo build --release -p ahk-cli'
 ```
 
 **A green Windows build says nothing about the box code.** It was green
@@ -186,20 +190,20 @@ cargo test --workspace
 cargo clippy --workspace --all-targets
 
 # the box, where the box code is compiled and run
-ssh 192.168.0.40 'rm -rf ~/ahk-rust/crates && cd ~/ahk-rust'
-scp -r crates danalec@192.168.0.40:~/ahk-rust/
-ssh 192.168.0.40 'cd ~/ahk-rust && cargo build --release -p ahk-cli'
+ssh 192.168.0.40 'rm -rf ~/ahk/crates && cd ~/ahk'
+scp -r crates danalec@192.168.0.40:~/ahk/
+ssh 192.168.0.40 'cd ~/ahk && cargo build --release -p ahk-cli'
 
 # a script, on the box
-printf %s <base64> | base64 -d | ~/ahk-rust/target/release/ahk --timeout=60
+printf %s <base64> | base64 -d | ~/ahk/target/release/ahk --timeout=60
 ```
 
 ## 13. What is verified, and what is not
 
 Verified on the box on 2026-10-25, with the real `192.168.0.40`:
 
-- `PixelGet 100, 100` reads `#12101b` -- the same colour the Python
-  `yoko-ahk-mcp` reads, and the one the Python `yoko-mcp` README records
+- `PixelGet 100, 100` reads `#12101b` -- the same colour the archived
+  Python AHK reads, and the one the Python `yoko-mcp` README records
   for that pixel of the Orion wallpaper: three implementations, one
   answer.
 - `Send "Teste-Yoko 42!"` types the whole string, capitals and
