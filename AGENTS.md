@@ -1,10 +1,10 @@
-# AGENTS.md — working notes for yoko-rust
+# AGENTS.md — working notes for ahk-rust
 
-This repository is the yoko lab in Rust: the AutoHotkey engine, the box
-primitives, and the two MCP servers. It is a port of two Python
-repositories (`yoko-mcp` and `yoko-ahk-mcp`) that live next door, and
-the two have to agree: the Python is the reference, the Rust is the
-implementation that is being built.
+This repository is the AHK in Rust: the AutoHotkey engine and the box
+primitives. It was split out of `yoko-rust`, which keeps the lab MCP
+server, and it is a port of the Python implementation that lives next
+door (`C:\Users\danalec\Documents\src\ahk`). The two have to agree:
+the Python is the reference, the Rust is the implementation.
 
 The rules below are the ones that are easy to break by accident. Each one
 says what the rule is and why it is there.
@@ -15,11 +15,12 @@ says what the rule is and why it is there.
 |---|---|---|
 | `crates/ahk` | the language: lexer, AST, parser, runtime | freely |
 | `crates/ahk-box` | the box primitives -- runs on the lab box | freely |
-| `crates/yoko-mcp`, `crates/yoko-ahk-mcp` | the MCP servers | freely |
 
 **The Python is the reference.** When the language grows, it grows in
-both places, with the same tests. A feature that exists in only one of
-them is a bug in the port, not a difference.
+both places, with the same tests: the cases in
+`crates/ahk/tests/language.rs` are the cases of the Python test suite.
+A feature that exists in only one of them is a bug in the port, not a
+difference.
 
 ## 2. The code that touches the box only compiles on the box
 
@@ -28,7 +29,7 @@ node is behind `#[cfg(target_os = "linux")]`.
 
 ```sh
 cargo build --workspace        # on Windows: the box code is not compiled
-ssh 192.168.0.40 'cd ~/yoko-rust && cargo build --release -p ahk-cli'
+ssh 192.168.0.40 'cd ~/ahk-rust && cargo build --release -p ahk-cli'
 ```
 
 **A green Windows build says nothing about the box code.** It was green
@@ -123,8 +124,9 @@ A script that types forever has to be stoppable from outside, and the
 only thing that can stop it is the process.
 
 The runtime writes its pid to `~/.cache/yoko-ahk/run.pid` and removes
-it when it ends. The `ahk_stop` tool reads that file, sends `TERM`,
-then `KILL`, then sweeps up whatever is left.
+it when it ends. The `ahk_stop` tool of the lab MCP (in the `yoko-rust`
+repo) reads that file, sends `TERM`, then `KILL`, then sweeps up
+whatever is left.
 
 From a shell, when the MCP itself is stuck and cannot answer:
 
@@ -165,23 +167,16 @@ just that it finished.
 - A question that cannot be answered fails, with the reason. It does
   not answer `false`.
 
-## 11. The servers
+## 11. The servers live next door
 
-Two MCP servers, both speaking the protocol over stdio:
+The MCP servers are not in this repository: they live in `yoko-rust`,
+which keeps `crates/yoko-mcp` -- the discovery, the screen, the input,
+the Sunshine API and the Moonlight client -- and points at this
+repository for the `ahk` crate.
 
-- `yoko-ahk-mcp` -- the AHK server: `ahk_run`, `ahk_stop`, `ahk_check`,
-  `ahk_keys`, `ahk_probe`. It runs the scripts **on the box**.
-- `yoko-mcp` -- the lab server: the discovery, the screen, the input, the
-  Sunshine API and the Moonlight client. Thirty-two tools.
-
-Both are registered in the desktop app. `yoko-mcp` is the Rust one:
-the Python server of the same name stays in the `yoko-mcp` repository,
-and its input tools refuse with the reason when the `ydotoald` of the box
-is not running -- which it is not, any more.
-
-The input tools of the Rust server go through the AHK runtime on the
-box, so there is one implementation of "drive the box" and it is the one
-that works there.
+The input tools of that server go through the AHK runtime on the box,
+so there is one implementation of "drive the box" and it is the one that
+works there.
 
 ## 12. The commands
 
@@ -191,12 +186,12 @@ cargo test --workspace
 cargo clippy --workspace --all-targets
 
 # the box, where the box code is compiled and run
-ssh 192.168.0.40 'rm -rf ~/yoko-rust/crates && cd ~/yoko-rust'
-scp -r crates danalec@192.168.0.40:~/yoko-rust/
-ssh 192.168.0.40 'cd ~/yoko-rust && cargo build --release -p ahk-cli'
+ssh 192.168.0.40 'rm -rf ~/ahk-rust/crates && cd ~/ahk-rust'
+scp -r crates danalec@192.168.0.40:~/ahk-rust/
+ssh 192.168.0.40 'cd ~/ahk-rust && cargo build --release -p ahk-cli'
 
 # a script, on the box
-printf %s <base64> | base64 -d | ~/yoko-rust/target/release/ahk --timeout=60
+printf %s <base64> | base64 -d | ~/ahk-rust/target/release/ahk --timeout=60
 ```
 
 ## 13. What is verified, and what is not
@@ -219,11 +214,5 @@ Verified on the box on 2026-10-25, with the real `192.168.0.40`:
 
 Not verified, and known to be open:
 
-- The `ui_diff` and the `ui_wait_*` tools are exercised against the
-  box, but the *thresholds* were not tuned against a screen that is
-  known to be busy.
-- `moonlight_stream` is not in the port: the Rust server drives the
-  Moonlight client for version, list and quit, and not for the stream
-  itself.
 - The compositor on the box is COSMIC; nothing here was measured on
   GNOME or on X11.
