@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/ahk", "crates/ahk-box", "crates/ahk-cli", "crates/yoko-mcp", "crates/yoko-ahk-mcp"]
+members = ["crates/ahk", "crates/ahk-box", "crates/ahk-cli"]
 
 [workspace.package]
 version = "0.1.0"
@@ -16,6 +16,3 @@ png = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "process"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
