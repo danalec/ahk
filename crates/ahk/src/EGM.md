@@ -125,6 +125,10 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
 The precedence of the operators is the table of `ahk::precedence`, which
 follows the documentation of v2. The kinds of the tokens of the binary
 are not a precedence: they are what the lexer reads.
+
+Two values side by side are one value: that is the implicit
+concatenation of v2, and it binds like the dot. The parser makes it a
+`Concat` as well, so the two ways of writing it are the same node.
 - `Branch { condition: Node, body: Vec<Node> }` -- one branch of an `If`.
 - `Case { value: Option<Node>, body: Vec<Node> }` -- one `Case` of a
   `Switch`; a `None` value is the `Default`.
@@ -173,6 +177,9 @@ The interpreter and everything it reports:
 | `Runtime::note(&mut self, note: impl Into<String>)` | a note for the report |
 | `Runtime::MAX_STEPS` | 20 000: the most statements one script may execute |
 | `Runtime::MAX_ITERATIONS` | 1 000: the most times a loop body may run |
+| `Runtime::MAX_DEPTH` | 1 000: the most nested calls a script may make |
+| `Runtime::MAX_STACK` | 512 KB: how much stack a run may use, when the host does not say |
+| `Runtime::with_stack_budget(bytes)` | the host says how much stack the run may use |
 | `Report` | the whole run: `ok`, `steps`, `output`, `notes`, `error`, `error_line`, `exit_code`, `elapsed_ms`, `variables` |
 | `Step` | one statement: `line`, `op`, `detail`, `ok`, `elapsed_ms` |
 | `RuntimeError { message, line }` | a statement failed |
@@ -187,7 +194,7 @@ The traits the runtime is handed:
 | `Desktop` | the sum of the nine capability traits below: it has no method of its own, and there is no blanket implementation |
 | `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up` have a default that answers with the reason it cannot |
 | `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position` have a default that answers with the reason it cannot |
-| `Screen` | `capture`, `pixel`; `pixel_search` has a default that answers with the reason it cannot |
+| `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
 | `Windows` | `window_active`, `window_exists`; `active_window_title` has a default that answers with the reason it cannot |
 | `Processes` | `run`; `env_get`, `env_set` have a default that answers with the reason it cannot |
 | `Files` | `open_file`, `read_file_at`, `write_file_at`, `file_size`, `close_file`; `list_files`, `working_directory`, `read_file`, `write_file`, `append_file`, `file_exists`, `delete_file`, `create_dir`, `dir_exists` and `dir_delete` have a default that answers with the reason it cannot |

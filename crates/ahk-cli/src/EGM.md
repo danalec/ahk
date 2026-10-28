@@ -52,6 +52,10 @@ with `serde_json`:
 
 - The exit code of the process is 0 when the script finished, 1 when it
   failed, and 2 when it did not parse.
+- The script runs on a thread with a stack of its own: the frames of the
+  tree are heavier than the ones of v2, and the recursion rail of the
+  runtime has to fit in the stack of the run. The report is written down
+  on that thread, because a value of the runtime is not `Send`.
 - A script that cannot be read from stdin gets the reason on stderr
   (`cannot read the script: ...`) and the exit code 2, and no report at all.
 - The code `ExitApp` sets is the `exit_code` of the report and not the exit

@@ -110,9 +110,10 @@ The `Desktop` of the crate is the sum of the nine capability traits of
 `ahk::desktop`, and the box writes the nine of them: `Keyboard`
 (`type_text`, `press_key`, `mouse_down`, `mouse_up`, `key_down`, `key_up`),
 `Pointer` (`click`, `move_pointer`, `mouse_position`), `Screen` (`capture`,
-`pixel`, `pixel_search`), `Windows` (`window_active`, `window_exists`,
-`active_window_title`), `Processes` (`run`), `Files` (the file handles),
-`Clipboard`, `Timers` and `Hotkeys`. The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
+`pixel`, `pixel_search`, `screen_size`), `Windows` (`window_active`,
+`window_exists`, `active_window_title`), `Processes` (`run`), `Files` (the
+file handles, and the whole-file writes), `Clipboard`, `Timers` and
+`Hotkeys`. The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
 
 ## Invariants
 

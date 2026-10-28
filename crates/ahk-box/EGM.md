@@ -55,6 +55,7 @@ Reachable, but not re-exported at the crate root: `ahk_box::pointer::DEVICE_NAME
 - **Calls out to `xprop`** for the window questions, and runs the script's own commands through `sh -c`.
 - **Sleeps**: four seconds after each device creation, 200 ms between a motion and a press, 40 ms per button, 20 ms per key and 20 ms between keys, 60 ms between the two clicks of a double click.
 - **Collects notes** — the places where the box was not what the script assumed — and the runner adds them to the report after the runtime's own notes.
+- **Writes the files the script asks for.** `FileAppend` and the `File` class write through the desktop, and the path is the one the script wrote: a relative path is in the working directory of the run.
 
 ## Verification
 
