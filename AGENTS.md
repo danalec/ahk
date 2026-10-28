@@ -227,6 +227,16 @@ tripped it.
 - `Runtime::MAX_ITERATIONS` -- 1 000 turns through a `While` body: "the
   loop ran more than 1000 times". A counted `Loop` has no iteration guard
   of its own: it is bounded by the step count and by the timeout.
+- `Runtime::MAX_DEPTH` -- 1 000 nested calls. v2.0.19 stops at about 1 105,
+  and it says "Function recursion limit exceeded."; the tree stops at the
+  same place and says the same thing.
+- The stack is the other bound of a recursion. The frames of the tree are
+  heavier than the ones of v2 -- about 50 KB of stack per call in a debug
+  build and about 5 KB in a release build -- so a host with a small stack
+  would run out of it before the depth says so. `Runtime::MAX_STACK` is how
+  much stack a run may use (512 KB, when the host does not say), and
+  `with_stack_budget` is how the host says otherwise. The runner gives its
+  thread 128 MB of stack and says 64 MB.
 - `Sleep` is capped at 60 000 ms, in the statement and in the builtin.
 - The timeout is the other bound: `--timeout=N` on the runner, in seconds,
   60 by default. It is checked before every statement, so a `Sleep` can
@@ -703,6 +713,16 @@ These are the places where they differ:
   name the dialect invents.
 - **The classes.** The archive has no class types; the eleven tables of
   the binary are here now.
+- **The tree has no `for ... in` and no `[]`.** v2 has both: `for x in y`
+  walks the values of `y`, and `[a, b]` is an array of two. The tree has
+  the `Array` class -- `Array(1, 2, 3)` is an array of three -- and the
+  loops of v2 (`Loop Files`, `Loop Reg`, `Loop Read` and `Loop Parse`), and
+  the two forms are not in it.
+- **`yield` is not in the tree.** v2 has it: a function that yields gives a
+  generator, and a class that enumerates one is a generator of its own.
+  The tree has no `yield`, so a class cannot write an `__Enum` that yields.
+  The word is not a name of v2 either -- it is a word of the language -- so
+  the tables of the surface do not carry it.
 
 And these are the places where the two still differ in the box, each one
 a bug in the port until it is measured on the box:
@@ -898,6 +918,27 @@ was measured against the binary of v2.0.19 on 2026-10-28.
   `1 + 2 . 3` is "33" (the addition binds tighter than the
   concatenation), `2 * -3 ** 2` is -18, and `!1 == 1` is 0 (the `!`
   binds tighter than the comparison, while the word `not` binds looser).
+- **Two values side by side are one value.** That is the implicit
+  concatenation of v2, and the dot is not the only way to write it.
+  Measured on the binary on 2026-10-28: `"a" 1 + 2` is "a3" and
+  `1 + 2 "d"` is "3d", so the concatenation binds like the dot, and the dot
+  is looser than the arithmetic.
+
+## 21. The screen, the files and the machine
+
+- **The size of the screen is the desktop's.** `A_ScreenWidth` and
+  `A_ScreenHeight` ask the desktop, and the box answers with the geometry
+  it measures from the compositor. A desktop that cannot tell says so:
+  "this desktop cannot tell how big the screen is".
+- **The box writes the files a script asks for.** `FileAppend` and the
+  `File` class write through the desktop, and the path is the one the
+  script wrote. Measured on the box on 2026-10-28: `FileAppend("hello",
+  "ahk_probe.txt")` writes the file in the working directory of the run,
+  and an absolute path writes where it says.
+- **The machine is not carried.** `A_ComputerName`, `A_UserName`,
+  `A_OsVersion` and the rest are names of v2, and the tree carries the
+  names. The values are not there: the runtime keeps no machine, and it
+  says so.
 
 ## Where to read more
 

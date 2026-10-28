@@ -637,6 +637,12 @@ pub struct Runtime<'a> {
     notes: Vec<String>,
     started_ms: u64,
     steps_taken: usize,
+    /// The calls that are running right now.
+    depth: usize,
+    /// Where the stack was when the runtime was made.
+    stack_base: usize,
+    /// How much stack the run may use.
+    stack_budget: usize,
     /// The timers the script set.
     timers: Vec<Timer>,
     /// The code the script asked to stop with.
@@ -653,6 +659,18 @@ impl<'a> Runtime<'a> {
     pub const MAX_STEPS: usize = 20_000;
     /// The most times a loop body may run.
     pub const MAX_ITERATIONS: usize = 1000;
+    /// The most nested calls a script may make.
+    ///
+    /// v2.0.19 stops at about 1105 nested calls, with "Function recursion
+    /// limit exceeded." The tree stops at the same place.
+    pub const MAX_DEPTH: usize = 1000;
+    /// How much stack a run may use, when the host does not say.
+    ///
+    /// The frames of the tree are heavier than the ones of v2: a debug
+    /// build uses about 50 KB of stack per call and a release build about
+    /// 5 KB. A host with a small stack would run out of it before the
+    /// depth says so, and the run stops when the stack is gone.
+    pub const MAX_STACK: usize = 512 * 1024;
 
     /// A runtime that drives `desktop` for at most `timeout`, measured by
     /// the system clock.
@@ -672,6 +690,9 @@ impl<'a> Runtime<'a> {
             notes: Vec::new(),
             started_ms: 0,
             steps_taken: 0,
+            depth: 0,
+            stack_base: Self::stack_here(),
+            stack_budget: Self::MAX_STACK,
             timers: Vec::new(),
             exit_requested: None,
         }
@@ -703,9 +724,21 @@ impl<'a> Runtime<'a> {
             notes: Vec::new(),
             started_ms,
             steps_taken: 0,
+            depth: 0,
+            stack_base: Self::stack_here(),
+            stack_budget: Self::MAX_STACK,
             timers: Vec::new(),
             exit_requested: None,
         }
+    }
+
+    /// A runtime whose run may use `bytes` of stack.
+    ///
+    /// The host that gives the run a deep stack says so here, and the run
+    /// stops before the stack is gone.
+    pub fn with_stack_budget(mut self, bytes: usize) -> Self {
+        self.stack_budget = bytes;
+        self
     }
 
     /// The milliseconds since the run started.
@@ -1610,9 +1643,11 @@ impl<'a> Runtime<'a> {
             };
             scope.insert(method.parameters[index].name.clone(), array);
         }
+        self.enter_call(line)?;
         self.scopes.push(scope);
         let outcome = self.run_block(&method.body);
         self.scopes.pop();
+        self.leave_call();
         match outcome {
             Ok(()) => Ok(Value::Text(String::new())),
             Err(RuntimeFailure::Flow(Flow::Return(value))) => {
@@ -2186,9 +2221,11 @@ impl<'a> Runtime<'a> {
             };
             scope.insert(function.parameters[index].name.clone(), array);
         }
+        self.enter_call(line)?;
         self.scopes.push(scope);
         let outcome = self.run_block(&function.body);
         self.scopes.pop();
+        self.leave_call();
         match outcome {
             Ok(()) => Ok(Value::Text(String::new())),
             Err(RuntimeFailure::Flow(Flow::Return(value))) => {
@@ -2196,6 +2233,45 @@ impl<'a> Runtime<'a> {
             }
             Err(other) => Err(other),
         }
+    }
+
+    /// The recursion is a rail: a script that calls itself for ever stops
+    /// here, and says so.
+    ///
+    /// There are two bounds. The depth is the one of v2: v2.0.19 stops at
+    /// about 1105 nested calls, with "Function recursion limit exceeded."
+    /// The stack is the other one: the frames of the tree are heavier than
+    /// the ones of v2, and a host with a small stack would run out of it
+    /// before the depth says so.
+    fn enter_call(&mut self, line: u32) -> Result<(), RuntimeFailure> {
+        if self.depth >= Self::MAX_DEPTH || self.stack_used() > self.stack_budget {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "Function recursion limit exceeded.".into(),
+                line,
+            }));
+        }
+        self.depth += 1;
+        Ok(())
+    }
+
+    /// The call is over: the depth goes down.
+    fn leave_call(&mut self) {
+        self.depth = self.depth.saturating_sub(1);
+    }
+
+    /// How much stack the run has used since the runtime was made.
+    fn stack_used(&self) -> usize {
+        self.stack_base.abs_diff(Self::stack_here())
+    }
+
+    /// Where the stack is right now.
+    ///
+    /// The address of a local is the address of the stack: the marker is
+    /// not read, and the compiler is told that it may not fold the address
+    /// away.
+    fn stack_here() -> usize {
+        let marker = 0u8;
+        core::hint::black_box(&marker) as *const u8 as usize
     }
 
     /// The call of a name, with the values of the arguments already

@@ -55,6 +55,9 @@ impl Screen for Fake {
     fn pixel(&mut self, _x: i64, _y: i64) -> Result<String, String> {
         Ok(String::new())
     }
+    fn screen_size(&mut self) -> Result<(i64, i64), String> {
+        Ok((1920, 1080))
+    }
 }
 
 impl Processes for Fake {
@@ -75,6 +78,13 @@ fn a_script_that_asks_for_the_version_is_told_the_version_of_the_dialect() {
     let report = run("MsgBox A_AhkVersion");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2.0.19"]);
+}
+
+#[test]
+fn a_script_that_asks_for_the_size_of_the_screen_is_told_it() {
+    let report = run("MsgBox A_ScreenWidth \", \" A_ScreenHeight");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1920, 1080"]);
 }
 
 #[test]

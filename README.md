@@ -90,6 +90,10 @@ so is a function of the script -- `MyFunc` calls `MyFunc()`.
 The positions count from one, the way AutoHotkey counts them:
 `SubStr("hello", 2)` is `ello`, and `InStr("hello", "ll")` is `3`.
 
+**Values.** Two values side by side are one value, the way v2 joins them:
+`"a" 1 + 2` is "a3". The dot does the same, and the dot is looser than
+the arithmetic.
+
 **Classes.** `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu` and
 `Hotkey` are classes of the runtime, and a script cannot extend them.
 A class type owns its own state and its own names; the base object

@@ -52,6 +52,14 @@ fn clear_pid_file() {
     let _ = std::fs::remove_file(pid_file());
 }
 
+/// How much stack the run of a script gets.
+///
+/// The frames of the tree are heavier than the ones of v2, and a script
+/// that recurses needs a stack that the recursion rail fits in.
+const STACK_BYTES: usize = 128 * 1024 * 1024;
+/// How much of that stack the run may use.
+const STACK_BUDGET: usize = 64 * 1024 * 1024;
+
 fn main() -> std::process::ExitCode {
     let mut source = String::new();
     if let Err(error) = std::io::stdin().read_to_string(&mut source) {
@@ -105,22 +113,42 @@ fn main() -> std::process::ExitCode {
     write_pid_file();
     let _guard = PidGuard;
 
-    let mut desktop = LabDesktop::new();
-    desktop.ensure_session_env();
-    let report = Runtime::new(&mut desktop, Duration::from_secs_f64(timeout)).run(&statements);
-    let mut payload = serde_json::to_value(&report).expect("the report serialises");
-    if let Some(map) = payload.as_object_mut() {
-        // The notes of the runtime come first, and the notes of the box are
-        // added to them: a host that wrote a note of its own keeps it.
-        let mut notes = report.notes.clone();
-        notes.extend(desktop.notes().iter().cloned());
-        map.insert("notes".to_string(), serde_json::json!(notes));
-    }
+    // The script runs on a thread with a stack of its own: the tree's
+    // frames are heavier than the ones of v2, and the recursion rail has
+    // to fit in the stack of the run. The report is written down there,
+    // because a value of the runtime is not `Send` and cannot travel.
+    let handle = std::thread::Builder::new()
+        .stack_size(STACK_BYTES)
+        .spawn(move || {
+            let mut desktop = LabDesktop::new();
+            desktop.ensure_session_env();
+            let report = Runtime::new(&mut desktop, Duration::from_secs_f64(timeout))
+                .with_stack_budget(STACK_BUDGET)
+                .run(&statements);
+            let mut payload = serde_json::to_value(&report).expect("the report serialises");
+            if let Some(map) = payload.as_object_mut() {
+                // The notes of the runtime come first, and the notes of the
+                // box are added to them: a host that wrote a note of its own
+                // keeps it.
+                let mut notes = report.notes.clone();
+                notes.extend(desktop.notes().iter().cloned());
+                map.insert("notes".to_string(), serde_json::json!(notes));
+            }
+            (payload.to_string(), report.ok)
+        })
+        .expect("the thread of the run starts");
+    let (payload, ok) = match handle.join() {
+        Ok(pair) => pair,
+        Err(_) => {
+            eprintln!("the run of the script died");
+            return std::process::ExitCode::from(1);
+        }
+    };
     println!("{payload}");
     // The exit code goes out through the return, and not through
     // `process::exit`: that one leaves without running the destructors, and
     // the guard that removes the pid file is a destructor.
-    std::process::ExitCode::from(if report.ok { 0 } else { 1 })
+    std::process::ExitCode::from(if ok { 0 } else { 1 })
 }
 
 /// The source with the includes put in place of the lines that ask for

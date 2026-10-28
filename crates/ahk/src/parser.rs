@@ -874,6 +874,11 @@ impl Parser {
             }
         } else {
             self.next();
+            // The comma after the kind is optional: v2 takes it and does
+            // not need it.
+            if self.at_op(&[","]) {
+                self.position += 1;
+            }
             if !self.at_op(&["::", "{"]) {
                 loop {
                     arguments.push(self.parse_expression()?);
@@ -923,7 +928,21 @@ impl Parser {
                 continue;
             }
             let Some((op, prec, right_associative)) = self.peek_binary_op() else {
-                return Ok(left);
+                // The implicit concatenation of v2: two values side by side
+                // are one value. It binds like the dot, and the dot is
+                // looser than the arithmetic.
+                if precedence::CONCAT < min || !self.starts_expression() {
+                    return Ok(left);
+                }
+                let right = self.parse_binary(precedence::CONCAT + 1)?;
+                let line = left.line();
+                left = Node::Binary {
+                    op: BinaryOp::Concat,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                    line,
+                };
+                continue;
             };
             if prec < min {
                 return Ok(left);
@@ -984,6 +1003,31 @@ impl Parser {
             return Some((op, prec, right));
         }
         None
+    }
+
+    /// Whether the token that comes next starts a value.
+    ///
+    /// The implicit concatenation of v2 is two values side by side, so the
+    /// parser has to know where a value may begin. The keywords that are
+    /// operators are not among them: `not` is one, and `and` and `or` are
+    /// two.
+    fn starts_expression(&self) -> bool {
+        let token = self.peek();
+        match token.kind {
+            TokenKind::Number | TokenKind::String | TokenKind::Name => true,
+            TokenKind::Keyword => {
+                let word = token.value.to_lowercase();
+                if word == "true" || word == "false" {
+                    return true;
+                }
+                // A call has parentheses after the name.
+                match self.tokens.get(self.position + 1) {
+                    Some(next) => next.kind == TokenKind::Op && next.value == "(",
+                    None => false,
+                }
+            }
+            _ => false,
+        }
     }
 
     /// The operators with one side, and the values.

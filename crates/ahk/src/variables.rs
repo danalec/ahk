@@ -91,6 +91,12 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
         Kind::Date => Some(Err(reason(NO_DATE))),
         Kind::Machine => Some(Err(reason(NO_MACHINE))),
         Kind::Hotkey => Some(Err(reason(NO_HOTKEYS))),
+        Kind::Screen => Some(match rt.desktop().screen_size() {
+            Ok((width, height)) => {
+                Ok(Value::Int(if name == "screenwidth" { width } else { height }))
+            }
+            Err(message) => Err(reason(&message)),
+        }),
     }
 }
 
@@ -137,11 +143,13 @@ fn kind_of(name: &str) -> Option<Kind> {
         | "controldelay" | "cursor" | "desktop" | "desktopcommon" | "detecthiddentext"
         | "detecthiddenwindows" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
         | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments" | "osversion"
-        | "programfiles" | "programs" | "programscommon" | "regview" | "screendpi" | "screenheight"
-        | "screenwidth" | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu"
+        | "programfiles" | "programs" | "programscommon" | "regview" | "screendpi"
+        | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu"
         | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle" | "timeidlekeyboard"
         | "timeidlemouse" | "timeidlephysical" | "titlematchmode" | "titlematchmodespeed" | "traymenu"
         | "username" | "windelay" | "windir" | "workingdir" => Some(Kind::Machine),
+        // -- the screen ---------------------------------------------------------------
+        "screenheight" | "screenwidth" => Some(Kind::Screen),
         // -- the hotkeys ------------------------------------------------------------
         "hotkeyinterval" | "hotkeymodifiertimeout" | "maxhotkeysperinterval" | "priorhotkey"
         | "priorkey" | "thishotkey" | "timesincepriorhotkey" | "timesincethishotkey" => {
@@ -164,6 +172,8 @@ enum Kind {
     Machine,
     /// The hotkey system.
     Hotkey,
+    /// The screen of the desktop.
+    Screen,
 }
 
 /// The value of a built-in variable the runtime knows.
@@ -376,7 +386,14 @@ mod tests {
     fn a_script_that_asks_for_the_machine_is_told_the_runtime_does_not_carry_it() {
         assert_eq!(reason("a_computername"), NO_MACHINE);
         assert_eq!(reason("a_username"), NO_MACHINE);
-        assert_eq!(reason("a_screenwidth"), NO_MACHINE);
+    }
+
+    #[test]
+    fn a_script_that_asks_for_the_size_of_the_screen_is_told_by_the_desktop() {
+        // The screen is not the machine: it is the desktop's, and the tree
+        // asks it.
+        assert_eq!(reason("a_screenwidth"), "this desktop cannot tell how big the screen is");
+        assert_eq!(reason("a_screenheight"), "this desktop cannot tell how big the screen is");
     }
 
     #[test]

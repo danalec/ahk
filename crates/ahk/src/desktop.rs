@@ -84,6 +84,14 @@ pub trait Screen {
     /// The colour of one pixel, as `#rrggbb`.
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String>;
 
+    /// The size of the screen, in pixels.
+    ///
+    /// The width comes first and the height second, the way the two
+    /// variables of v2 ask for them.
+    fn screen_size(&mut self) -> Result<(i64, i64), String> {
+        Err("this desktop cannot tell how big the screen is".to_string())
+    }
+
     /// The first pixel of a colour inside a region, if there is one.
     fn pixel_search(
         &mut self,

@@ -885,6 +885,15 @@ fn a_loop_over_the_files_writes_the_variables_of_v2() {
 }
 
 #[test]
+fn a_loop_over_the_files_takes_the_comma_of_v1_too() {
+    // v2 takes the comma after the kind of the loop, and does not need
+    // it: both forms are the same loop.
+    let (report, desktop) = run("Loop Files, \"*.txt\" {\n  Send \"%A_LoopFileName%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["one.txt", "two.txt"]);
+}
+
+#[test]
 fn a_loop_over_the_files_takes_the_mode_of_v2() {
     let (report, desktop) = run("Loop Files \"*.txt\", \"R\" {\n  Send \"%A_LoopFileName%\"\n}");
     assert!(report.ok, "{:?}", report.error);
@@ -900,6 +909,32 @@ fn a_loop_over_the_files_takes_no_more_than_two_parameters() {
     let (report, _desktop) = run("Loop Files \"*.txt\", \"R\", \"x\" {\n}\n");
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("\"Loop Files\" accepts at most 2 parameters."));
+}
+
+#[test]
+fn a_recursion_that_never_ends_stops_with_the_reason() {
+    // v2.0.19 stops at about 1105 nested calls, with "Function recursion
+    // limit exceeded." The tree stops before its own stack is gone, and
+    // says the same thing.
+    let (report, _desktop) = run("F(k) {\n  return F(k + 1)\n}\nF(1)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Function recursion limit exceeded.")
+    );
+}
+
+#[test]
+fn two_values_side_by_side_are_one_value() {
+    // The implicit concatenation of v2: measured on the binary of
+    // v2.0.19 on 2026-10-28, `"a" 1 + 2` is "a3" and `1 + 2 "d"` is
+    // "3d": the concatenation binds like the dot, and the dot is looser
+    // than the arithmetic.
+    let (report, _desktop) = run("x := \"a\" 1 + 2\ny := \"a\" \"b\" \"c\"\nz := 1 + 2 \"d\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("a3".into())));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("abc".into())));
+    assert_eq!(report.variables.get("z"), Some(&Value::Text("3d".into())));
 }
 
 #[test]

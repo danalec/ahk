@@ -421,6 +421,9 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         Ok(path.to_string_lossy().to_string())
     }
+    fn screen_size(&mut self) -> Result<(i64, i64), String> {
+        LabDesktop::screen_size(self).map_err(|error| error.to_string())
+    }
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
         let path = self.capture(x, y, 1, 1, &format!("ahk-pixel-{}.png", millis()))?;
         let colour = read_pixel(&path)?;
@@ -656,6 +659,22 @@ impl ahk::desktop::Files for LabDesktop {
             lines.pop();
         }
         Ok(lines)
+    }
+    fn write_file(&mut self, path: &str, text: &str) -> Result<String, String> {
+        std::fs::write(path, text)
+            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
+        Ok(text.to_string())
+    }
+    fn append_file(&mut self, path: &str, text: &str) -> Result<String, String> {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
+        file.write_all(text.as_bytes())
+            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
+        Ok(text.to_string())
     }
 }
 
