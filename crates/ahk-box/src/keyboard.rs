@@ -1,6 +1,6 @@
 //! A keyboard of our own, for the keys `ydotool type` cannot express.
 //!
-//! A port of `src/yoko_mcp/keyboard.py` from the Python `yoko-mcp`.
+//! A port of `src/ahk/keyboard.py` from the archived Python implementation.
 //!
 //! `ydotool type` is exact, and it is enough for text: it types every
 //! character once, in order. It cannot press Return, Backspace, Tab,
@@ -90,9 +90,10 @@ pub const KEY_HOLD: Duration = Duration::from_millis(20);
 /// How long the gap between one key and the next is.
 ///
 /// A client coalesces a burst of key events: a hundred backspaces that
-/// arrive back to back are counted as a few. Measured on the lab box, a
-/// composer lost most of a burst of 320 backspaces; with this gap between
-/// the release and the next press, every one of them counts.
+/// arrive back to back are counted as a handful, not as a hundred.
+/// Measured on the lab box on 2026-10-25, a client lost most of a burst of
+/// 320 backspaces; with this gap between the release and the next press,
+/// every one of them counts.
 pub const KEY_GAP: Duration = Duration::from_millis(20);
 
 /// How long the compositor needs to notice a freshly created device.
@@ -251,7 +252,7 @@ impl Keyboard {
         setup[2..4].copy_from_slice(&0x2333u16.to_ne_bytes()); // the ydotool vendor
         setup[4..6].copy_from_slice(&0x6666u16.to_ne_bytes()); // the ydotool product
         setup[6..8].copy_from_slice(&0x0001u16.to_ne_bytes());
-        let name = b"yoko keyboard rust";
+        let name = b"ahk keyboard";
         setup[8..8 + name.len()].copy_from_slice(name);
         let result = unsafe { libc::ioctl(fd, UI_DEV_SETUP, setup.as_ptr()) };
         if result < 0 {

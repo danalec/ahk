@@ -5,12 +5,26 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "The yoko-ahk language: a lexer, an AST, a parser and an interpreter for AutoHotkey-style scripts"
+description = "The ahk language: a lexer, an AST, a parser and an interpreter for AutoHotkey-style scripts"
+
+[features]
+default = ["std"]
+# The hosted platform: the system clock, the system sleep and the standard
+# library. Turn it off and the crate runs on a target with no `std` at all,
+# and the clock -- the time, and the pause -- is the embedder's.
+std = ["serde/std", "thiserror/std"]
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
-thiserror = { workspace = true }
+serde = { version = "1", default-features = false, features = ["derive", "alloc", "rc"] }
+thiserror = { version = "2", default-features = false }
+# The float functions the language needs -- `sqrt`, `floor`, `ceil`, `round`
+# -- live in `std` because they call the platform's libm. `libm` is the same
+# maths in pure Rust, so a target with no `std` answers with the same
+# numbers.
+#
+# The `rc` feature of serde is there for the objects: an object in a
+# script is a reference, and the value that holds it is a reference too.
+libm = "0.2"
 
 [dev-dependencies]
-serde_json = { workspace = true }
+serde_json = { version = "1" }

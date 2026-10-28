@@ -1,0 +1,392 @@
+# ahk/src
+
+The source of the language crate: the public surface and the modules
+behind it. The crate is portable and does no I/O of its own -- a script is
+parsed here and executed against a `Desktop`, which is whatever implements
+it. The real one lives on the lab box (the `ahk-box` crate); the tests use a
+fake that records the calls.
+
+## Overview
+
+The files, in the order the data moves through them:
+
+| File | What it holds |
+| --- | --- |
+| `lib.rs` | the public surface: the modules, and the re-exports of the symbols below |
+| `lexer.rs` | the tokens: `tokenize`, `Token`, `TokenKind`, `SyntaxError` |
+| `ast.rs` | the tree: `Node` and the operators that hang on it |
+| `parser.rs` | the grammar: `parse`, `Parser` |
+| `runtime.rs` | the interpreter: `Runtime`, `Report`, `Step`, `Clock` |
+| `builtins.rs` | the built-in table: every name of v2 the dialect carries |
+| `classes/` | the class types: `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`, `Hotkey` |
+| `desktop.rs` | the capability traits the runtime is handed |
+| `variables.rs` | the built-in variables of v2 |
+| `keys.rs` | the key table: the evdev codes, the aliases and the key specs |
+| `regex.rs` | the regular expressions of `RegExMatch` and `RegExReplace` |
+
+The dependency between them runs one way: `parser.rs` reads `ast.rs` and
+`lexer.rs`, and `runtime.rs` reads `ast.rs`, `builtins.rs`, `classes/`,
+`variables.rs` and `regex.rs`. `ast.rs`, `lexer.rs`, `keys.rs` and `regex.rs`
+depend on
+nothing inside the crate. The key table is the odd one out: the runtime
+hands the desktop the *name* of a key, and turning that name into a code is
+the desktop's work.
+
+## Interface
+
+### The crate surface (`lib.rs`)
+
+`lib.rs` is the whole public surface. It opens the modules and
+re-exports the symbols that a caller is expected to use:
+
+```rust
+pub mod ast;
+pub mod builtins;
+pub mod classes;
+pub mod desktop;
+pub mod keys;
+pub mod lexer;
+pub mod parser;
+pub mod regex;
+pub mod runtime;
+pub mod variables;
+
+pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, UnaryOp};
+pub use desktop::{Desktop, WindowAnswer};
+pub use keys::{KeyStroke, UnknownKey, parse_spec, resolve_name};
+pub use lexer::{SyntaxError, Token, TokenKind, tokenize};
+pub use parser::{Parser, parse, precedence};
+pub use runtime::{Clock, Report, Runtime, RuntimeError, Step, Timeout, Value};
+#[cfg(feature = "std")]
+pub use runtime::SystemClock;
+```
+
+The crate is `#![no_std]` when the `std` feature is off, and it pulls in
+`alloc` for the collections.
+
+### The lexer (`lexer.rs`)
+
+- `tokenize(source: &str) -> Result<Vec<Token>, SyntaxError>` -- the source
+  into its tokens.
+- `Token { kind: TokenKind, value: String, line: u32, column: u32 }` -- one
+  token, with the place it came from.
+- `TokenKind` -- `Name`, `Keyword`, `Number`, `String`, `Op`, `Newline`,
+  `Eof`.
+- `KEYWORDS: &[&str]` -- the words the language gives a meaning to.
+- `SyntaxError { message, line, column }` -- the error the lexer and the
+  parser raise.
+
+### The AST (`ast.rs`)
+
+- `Node` -- one node of the tree. The variants are `Literal`, `Var`,
+  `Unary`, `Binary`, `Ternary`, `Cast`, `Assign`, `Index`, `AssignIndex`,
+  `Call`, `If`, `Switch`, `While`, `Loop`, `Directive`, `Break`, `Continue`,
+  `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`, `Property`
+  and `AssignProperty`. Every variant carries its line.
+
+  The statements that v2 spells as commands -- `Send`, `Click`, `Sleep`,
+  `Run`, `MsgBox` -- are not variants of the tree: they are names of the
+  built-in table, and the runtime calls the table.
+
+  `AssignIndex` is the write of an item -- `obj[key] := value` -- and it is
+  a node of its own, not an assignment to a property. v2.0.19 writes the
+  items of a `Map` and of an `Array`, and it does not write the item of a
+  class of the script: the meta-functions answer for the properties that
+  are not there, and `x[y]` asks only the `__Item`, which reads and never
+  writes.
+- `Node::line(&self) -> u32` -- the line of the node, which is the line the
+  report blames.
+- `LiteralValue` -- `Number(f64)`, `Text(String)`, `Bool(bool)`. The
+  boolean keeps its own kind so that the parser can tell `true` from `1`;
+  v2 has no boolean type, and the runtime folds it into the integer.
+- `UnaryOp` -- `Not`, `NotWord`, `Negate`, `BitwiseNot`, `BitwiseAnd`,
+  `BitwiseOr`, `BitwiseXor`, `Plus`, `Address`, `PreIncrement`,
+  `PostIncrement`, `PreDecrement` and `PostDecrement`. `Address` is the
+  `&` of the reference operator.
+- `BinaryOp` -- the forty operators of v2: `Add`, `Subtract`, `Multiply`,
+  `Divide`, `IntegerDivide`, `Power`, `BitwiseAnd`, `BitwiseOr`,
+  `BitwiseXor`, `ShiftLeft`, `ShiftRight`, `ShiftRightUnsigned`, `Concat`,
+  `Equal`, `NotEqual`, `StrictEqual`, `StrictNotEqual`, `Less`, `Greater`,
+  `LessEqual`, `GreaterEqual`, `RegexMatch`, `And`, `Or`, `Is` and
+  `Coalesce`, and the five that the loop kinds use: `Count`, `Files`,
+  `Reg`, `Read` and `Parse`.
+- `AssignOp` -- `Set` (`=` and `:=`), `Add`, `Subtract`, `Multiply`,
+  `Divide`, `IntegerDivide`, `Concat`, `BitwiseAnd`, `BitwiseOr`,
+  `BitwiseXor`, `ShiftLeft`, `ShiftRight` and `ShiftRightUnsigned`.
+- `LoopKind` -- `Count`, `Files`, `Reg`, `Read` and `Parse`: the kinds of
+  `Loop`.
+- `PropertyDef` -- the definition of a property: its name, the value it
+  starts with, whether it belongs to the class, and its line.
+- `Parameter { name, default, variadic, by_ref }` -- one parameter of a
+  function or of a method: its name, the value it takes when the call does
+  not give it one, whether it takes the rest of the arguments, and whether
+  it is written by reference -- `Name(a, &b)`.
+
+The precedence of the operators is the table of `ahk::precedence`, which
+follows the documentation of v2. The kinds of the tokens of the binary
+are not a precedence: they are what the lexer reads.
+- `Branch { condition: Node, body: Vec<Node> }` -- one branch of an `If`.
+- `Case { value: Option<Node>, body: Vec<Node> }` -- one `Case` of a
+  `Switch`; a `None` value is the `Default`.
+
+### The parser (`parser.rs`)
+
+- `parse(source: &str) -> Result<Vec<Node>, SyntaxError>` -- the whole
+  script, parsed.
+- `Parser::new(tokens: Vec<Token>) -> Parser` -- a parser over tokens the
+  caller already has.
+- `Parser::parse_script(&mut self) -> Result<Vec<Node>, SyntaxError>` -- the
+  statements of the script.
+
+A name at the start of a line, without parentheses, is a call statement:
+the rest of the line is the list of the parameters. Every function may be
+written that way -- a built-in and a function of the script alike -- and
+the answer of the call is thrown away. The names that are neither are
+checked at the end of the parse, because the script may define a
+function further down.
+
+The parameters of a function and of a method are read apart from the
+arguments of a call: the brace that follows the list is what tells a
+definition from a call. A parameter is a name, it may carry a default --
+`Name(a, b := 1)` -- it may be the one that takes the rest of the
+arguments -- `Name(a, rest*)` -- and it may be written by reference --
+`Name(a, &b)`. The marker is in the definition, and the caller passes the
+reference: `Name(&x)`. A parameter written that way is an alias of the
+variable of the caller.
+
+### The runtime (`runtime.rs`)
+
+The interpreter and everything it reports:
+
+| Item | What it is |
+| --- | --- |
+| `Value` | a value a script can hold: `Int(i64)`, `Float(f64)`, `Text(String)`, `List(Vec<Value>)`, `Object(Rc<RefCell<Object>>)`, `Reference(Reference)` -- and no boolean, because v2 has no boolean type |
+| `Scope` | where a variable lives: `Global`, or `Local(depth)`, the place of the scope in the stack |
+| `Reference { name, scope, alias }` | a reference to a variable: its name, its scope, and whether it is an alias of the variable |
+| `TypeName` | the kind of a value: `String`, `Integer`, `Float`, `Object`, `VarRef` -- the names v2 uses in its diagnostics. `Number` and `Class` are there too: no value carries them, and they are what a parameter wants |
+| `Value::truthy`, `Value::to_text`, `Value::to_number` | the three readings of a value |
+| `Value::from_number(f64) -> Value` | a number as a whole number when it is one |
+| `Runtime<'a>` | the run: it holds the desktop, the clock, the variables and the steps |
+| `Runtime::new(desktop, timeout)` | the constructor for a hosted platform, behind the `std` feature |
+| `Runtime::with_clock(desktop, clock, timeout)` | the constructor for a target with no `std` |
+| `Runtime::run(self, statements: &[Node]) -> Report` | the run, and the report of it |
+| `Runtime::note(&mut self, note: impl Into<String>)` | a note for the report |
+| `Runtime::MAX_STEPS` | 20 000: the most statements one script may execute |
+| `Runtime::MAX_ITERATIONS` | 1 000: the most times a loop body may run |
+| `Report` | the whole run: `ok`, `steps`, `output`, `notes`, `error`, `error_line`, `exit_code`, `elapsed_ms`, `variables` |
+| `Step` | one statement: `line`, `op`, `detail`, `ok`, `elapsed_ms` |
+| `RuntimeError { message, line }` | a statement failed |
+| `Timeout { seconds }` | the script ran for longer than the caller allowed |
+| `WindowAnswer` | `Active`, `NotActive`, `Unknown(String)` -- and the third case is the point |
+| `op_name(&Node) -> &'static str` | the name of a statement, for the report |
+
+The traits the runtime is handed:
+
+| Trait | Methods |
+| --- | --- |
+| `Desktop` | the sum of the nine capability traits below: it has no method of its own, and there is no blanket implementation |
+| `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up` have a default that answers with the reason it cannot |
+| `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position` have a default that answers with the reason it cannot |
+| `Screen` | `capture`, `pixel`; `pixel_search` has a default that answers with the reason it cannot |
+| `Windows` | `window_active`, `window_exists`; `active_window_title` has a default that answers with the reason it cannot |
+| `Processes` | `run`; `env_get`, `env_set` have a default that answers with the reason it cannot |
+| `Files` | `open_file`, `read_file_at`, `write_file_at`, `file_size`, `close_file`; `list_files`, `working_directory`, `read_file`, `write_file`, `append_file`, `file_exists`, `delete_file`, `create_dir`, `dir_exists` and `dir_delete` have a default that answers with the reason it cannot |
+| `Clipboard` | `clipboard_read`, `clipboard_write` have a default that answers with the reason it cannot |
+| `Timers` | `takes_over_timers` has a default that answers with the reason it cannot |
+| `Hotkeys` | `register_hotkey`, `unregister_hotkey`, `hotkeys` have a default that answers with the reason it cannot |
+| `Clock` | `now_ms() -> u64` (the milliseconds since an arbitrary origin, never backwards) and `sleep_ms(u64)` (waits at least that long) |
+
+Every implementor writes the nine of them: there is no blanket
+implementation, so a desktop that grows a capability grows with it.
+
+`SystemClock` is the clock of a hosted platform -- the monotonic clock and the
+system sleep. It exists only with the `std` feature.
+
+The built-ins the language carries are the ones of v2.0.19, and the table
+of them is in `builtins.rs`: 243 commands and 103 functions. The names are
+v2's names -- `PixelGetColor`, `MouseGetPos`, `WinGetTitle`, `WinActive`,
+`WinExist`, `Abs`, `Sqrt`, `Mod`, `Floor`, `Ceil`, `Round`, `Min`, `Max`,
+`StrLen`, `SubStr`, `StrReplace`, `InStr`, `Trim`, `StrUpper`, `StrLower`,
+`Format`, `MsgBox`, `Send` -- and there are no aliases. The one name that is
+not a name of v2 is `Screenshot`: the dialect writes a picture of the screen
+to a file, and v2 has no word for it.
+
+A name that is shaped for Windows is in the table too, and the handler
+answers it with the reason: the tree carries the name, and a script that
+asks for one is told the truth about it.
+
+The arity in a row is the arity of the binary, so a call that asks for
+more than the tree can do is taken by the table and refused by the
+handler, with the reason. A parameter is never ignored: a call that
+answers with a wrong value and says nothing is the worst outcome.
+
+The built-in variables of v2 are in `variables.rs`: the ones the runtime
+knows, and the ones the runtime writes where it runs.
+
+### The key table (`keys.rs`)
+
+- `EVDEV: &[(&str, u16)]` -- the key names and their evdev codes.
+- `KEY_ALIASES: &[(&str, &str)]` -- the names that are spelled more than one
+  way.
+- `MODIFIERS: &[(&str, &str)]` -- the modifiers and the key that carries
+  them.
+- `resolve_name(name: &str) -> Result<u16, UnknownKey>` -- the code of a key
+  name.
+- `character_stroke(character: char) -> Option<(u16, bool)>` -- the key a
+  character is typed with, and whether it needs the shift.
+- `parse_spec(spec: &str) -> Result<Vec<KeyStroke>, UnknownKey>` -- a key
+  specification into the strokes it means: `Return`, `ctrl+c`,
+  `ctrl+shift+t`, and `ctrl+c ctrl+c` for two strokes.
+- `KeyStroke { code: u16, modifiers: Vec<String> }` -- one press, and
+  `KeyStroke::describe()` for the report that says what was pressed.
+- `UnknownKey(pub String)` -- the key the table does not have.
+
+### The built-in table (`builtins.rs`)
+
+- `Builtin { name, kind, min, max, variant, handler }` -- one name of the
+  table: the name as v2 spells it, which of the two tables of the binary
+  it came from, the fewest and the most parameters, the byte that picks
+  the flavour of a shared handler, and the handler.
+- `BuiltinKind` -- `Command` or `Function`: the two tables of the binary.
+  The parser does not use them. v2 has no kind of command: the
+  parentheses of a call may be left out when the answer is not needed
+  and the name is at the start of the line, and every function may be
+  written that way.
+- `BUILTINS` -- the table itself: 243 commands and 103 functions.
+- `find(name) -> Option<&'static Builtin>` -- the built-in of that name,
+  whatever the case of the name is.
+- `find_command(name)` -- the same, for a command.
+- `names()` -- the names of the table, as the language spells them.
+- `reference_parameters(name) -> &'static [usize]` -- the places of the
+  parameters that take a reference. The flag of the table of v2 is the
+  place of the first parameter that is written back, and this is that
+  column turned into the places of the parameters.
+- `Wants` -- the type a parameter declares: `Number`, `String`, `Object`, or
+  `Value` for a built-in that takes a value of any kind.
+- `wants(name, index) -> Wants` -- the type of that parameter. The table holds the built-ins whose types were measured on the
+  binary of v2.0.19, and the guard on a reference asks it, so that the
+  message names the type the built-in wanted.
+
+### The class types (`classes/`)
+
+- `names(class) -> Vec<&'static str>` -- the names a class type answers:
+  its methods and its properties.
+- `carries(class, name) -> bool` -- whether a class type answers the name.
+  The case of the name does not matter.
+
+The rest of the module is what the runtime asks of a class: whether a
+name is a class type, the class type as a value, and the construction,
+the calls, the properties and the item of an object of that class.
+
+The classes are `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`
+and `Hotkey`. A script cannot extend them: their state lives in the
+property table of the object under a reserved key, and only the module
+that owns the class touches it. The module is asked before the base
+object, so a class that answers a name itself is taken at its word.
+
+The item of an object of a class type is asked of the module that owns
+the class, and the write of one goes the same way. Only a `Map` and an
+`Array` have a way to write an item: the others answer that they have
+none, and the statement fails with that reason.
+
+### The desktop (`desktop.rs`)
+
+The nine capability traits, and the `Desktop` that is their sum. Every
+implementor writes the nine of them: there is no blanket implementation,
+so a desktop that grows a capability grows with it. Every method that a
+capability does not have has a default that answers with the reason it
+cannot.
+
+### The built-in variables (`variables.rs`)
+
+- `THE_RUNTIME_OWNS` -- the built-in variables the runtime writes where
+  it runs: the loop variables, the line of the statement and the function
+  that runs.
+- `carries(name) -> bool` -- whether the tree carries the built-in
+  variable of that name.
+
+The variables the runtime knows -- the version, the size of a pointer,
+the clock -- are answered by the module. The ones it cannot answer fail
+the statement with the reason.
+
+### The regular expressions (`regex.rs`)
+
+- `Regex` -- a compiled pattern.
+- `Match` -- a match of a pattern in a text: `span()` says where it is,
+  counting from zero, and `text(chars)` says what it holds.
+- `find(text, pattern) -> Result<Option<usize>, String>` -- where the
+  pattern is in the text.
+- `MAX_STEPS` -- 200 000: the most steps the machine of the pattern
+  takes, so that a pattern that cannot stop stops.
+
+The machine is the Pike VM of the language, and it runs without the
+standard library like the rest of the crate.
+
+The pattern of v2 is exact, and the option `(?i)` at its front is what
+takes the case away. That is the one option the engine carries: a pattern
+that asks for another one is refused with the reason.
+
+## Invariants
+
+- **The crate does no I/O of its own.** Nothing here opens a file, starts a
+  process or writes to disk. The script is compiled in memory and executed
+  statement by statement; the source is gone when the turn is over.
+- **The desktop is an interface, not a dependency.** The runtime holds a
+  `&mut dyn Desktop` and calls into it. The real one lives in `ahk-box`; the
+  tests use a fake that records the calls, and that is the only reason the
+  dialect is testable without a box.
+- **The clock is the host's, when the host has no `std`.** `now_ms` never
+  goes backwards and `sleep_ms` waits at least as long as it is asked to. The
+  same clock measures the timeout, the steps and the pause of `Sleep`.
+- **The guard rails are checked before every statement.** The step count
+  goes over `MAX_STEPS` first, and the timeout second, so the message names
+  the statement that would have been the 20 001st. A counted `Loop` has no
+  iteration guard of its own: it is bounded by the step count and by the
+  timeout.
+- **`Sleep` is capped at 60 000 ms**, in the statement and in the builtin.
+- **The timeout knows no line.** It stops the script between two statements,
+  so `error_line` stays null and the message is "the script ran for more than
+  Ns". Every other failure carries the line of the statement that failed.
+- **A question that cannot be answered fails.** `WinActive` and `WinExist`
+  turn `WindowAnswer::Unknown` into an error that says why; they do not
+  answer `false`. `WinGetTitle` is the exception: with no active window it
+  answers an empty string, because there is no window to ask about.
+- **A statement that fails is reported once.** It stops the script and lands
+  in `error` and `error_line`; it is not a step, and `ok` is true on every
+  step that exists.
+- **The functions are collected before the first statement runs**, so a
+  script may call a function it defines further down.
+- **Only `abs`, `min`, `max` and `clamp` are called on an `f64` directly.**
+  They are in `core`. `sqrt`, `floor`, `ceil`, `round` and `fract` go
+  through the helper in `runtime.rs`, which is `libm` under `no_std`, so a
+  target with no `std` answers with the same numbers.
+- **The tree is not in rustfmt's shape, and the formatter is not part of the
+  loop.** The code is written compactly, with a struct variant and a line of
+  logic on one line, and `cargo fmt --all` would rewrite it into something
+  else. Match the code next door.
+
+## Side Effects
+
+- **None of its own.** The crate opens no file, starts no process, writes
+  nothing to disk and touches no network. The `Report` is a value it hands
+  back, not something it puts anywhere.
+- **The calls it makes into the injected `Desktop`.** Typing, clicking,
+  pressing keys, moving the pointer, reading a pixel, searching the screen
+  for a colour, capturing a region, running a command and asking about the
+  windows all go through the `Desktop` the runtime was handed. A desktop
+  that cannot do one of them answers with the reason, and the runtime turns
+  that reason into the `error` of the report.
+- **The pause it asks of the injected `Clock`.** `Sleep` waits on the clock,
+  and the runtime measures the elapsed time of every step and the timeout on
+  that same clock.
+- **The state it keeps while it runs.** The variables, the scopes, the
+  functions, the steps, the output and the notes live in the `Runtime` and
+  come out in the `Report`; nothing survives the run.
+- **The two variables `MouseGetPos` writes as a side effect**: `mouse_x` and
+  `mouse_y`, in the variables of the report.
+
+## Verification
+
+- Run: `cargo test --workspace`
+- Without the standard library: `cargo build -p ahk --no-default-features
+  --target thumbv7em-none-eabihf`

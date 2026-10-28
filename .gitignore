@@ -5,3 +5,9 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 target/
+
+# the review artefacts of the EGM protocol are not part of the tree
+egm-review/
+
+# a run that finds no cache directory of its own used to leave this behind
+.cache/

@@ -1,10 +1,12 @@
 # ahk
 
-The AutoHotkey language, in Rust: a lexer, an AST, a parser, an
-interpreter, and the key table.
+AutoHotkey v2, in Rust: a lexer, an AST, a parser, an interpreter, and
+the key table.
 
-This is the AHK project: the implementation that runs. The Python
-implementation it was ported from is archived in `../archived/ahk-python`.
+The dialect speaks the language of **AutoHotkey v2.0.19**. The tables in
+`crates/ahk/reference/` are read out of the binary of v2.0.19 itself,
+and they are the contract of the port: the names, the classes, the
+directives and the operators are the ones the binary has.
 
 ```
 crates/ahk/       the language
@@ -18,13 +20,16 @@ The parser is portable and does no I/O of its own. The runtime runs
 ## The crates
 
 - **`ahk`** -- the language: the lexer, the AST, the parser, the
-  interpreter and the key table. It does no I/O at all, and it does not
-  know what a desktop is: it runs a script against any implementation of
-  the desktop interface.
+  interpreter, the class types and the key table. It does no I/O at all,
+  and it does not know what a desktop is: it runs a script against any
+  implementation of the desktop interface. It also runs without the
+  standard library: turn the `std` feature off and the crate builds for
+  a target that has no `std` at all, and the host supplies the clock.
 - **`ahk-box`** -- the lab box as a script target: a keyboard of our own
   (uinput), an absolute pointer, and the screen captures (grim). The code
-  that touches the box is behind `#[cfg(target_os = "linux")]`, so a
-  Windows build does not compile it.
+  uinput syscalls are behind `#[cfg(target_os = "linux")]`, so a Windows
+  build leaves them out and the device answers `NotLinux` when it is
+  used. `desktop.rs` is not behind that gate at all.
 - **`ahk-cli`** -- the runner. A script on stdin, a report on stdout. The
   binary is `ahk`, and it is the one that runs on the box.
 
@@ -40,29 +45,74 @@ calls, so they are about what the language means, not about what the
 desktop does. The box code is checked on the box:
 
 ```sh
-ssh 192.168.0.40 'cd ~/ahk && cargo build --release -p ahk-cli'
+ssh danalec@192.168.0.40 'mkdir -p ~/ahk'
+scp -r crates Cargo.toml danalec@192.168.0.40:~/ahk/
+ssh danalec@192.168.0.40 'cd ~/ahk && cargo build --release -p ahk-cli'
 ```
-
-## The Python is the reference
-
-The Python implementation -- `C:\Users\danalec\Documents\src\archived\ahk-python`
--- is the reference, and it is archived: it is kept to be read, not to be
-run. **The two have to speak the same dialect, with the same test cases.**
-A feature that exists in only one of them is a bug in the port, not a
-difference.
-
-When the language grows, the same cases go into
-`crates/ahk/tests/language.rs` and into the archived Python test suite.
 
 ## The language
 
 AutoHotkey's, cut down to what a script can do to a Linux desktop.
 
 **Statements.** `Send`, `Click`, `MouseMove`, `MouseDown`, `MouseUp`,
-`Sleep`, `Run`, `PixelGet`, `Screenshot`, `Msg`, `If`/`ElseIf`/`Else`,
-`Switch`/`Case`/`Default`, `While`, `Loop`, `Break`, `Continue`,
-`Return`, `ExitApp`, and the assignment operators (`=`, `:=`, `+=`, `-=`,
-`.=`).
+`Sleep`, `Run`, `PixelGetColor`, `PixelSearch`, `Screenshot`, `MsgBox`,
+`If`/`ElseIf`/`Else`, `Switch`/`Case`/`Default`, `While`, `Loop`,
+`Break`, `Continue`, `Return`, `Exit`, `ExitApp`, the class definitions,
+and the assignment operators (`:=`, `+=`, `-=`, `*=`, `/=`, `//=`, `.=`,
+`&=`, `|=`, `^=`, `<<=`, `>>=`, `>>>=`).
+
+**Names.** The names are v2's names, and only v2's names: `StrUpper` and
+not `upper`, `PixelGetColor` and not `pixelget`, `MsgBox` and not `msg`.
+There are no aliases. The built-in table of the crate is the list of
+what the dialect carries -- 243 commands and 103 functions -- and every
+name in it is a name of v2.0.19, with one exception: `Screenshot` writes
+a picture of the screen to a file, and v2 has no word for it.
+
+**Functions.** Your own, with a block and a `Return`; and the built-ins,
+which are values: `f := Abs` gives a `Func`, and `f.Call(3)` calls it.
+A parameter may carry a default -- `MyFunc(a, b := 1)` -- or take the
+rest of the arguments -- `MyFunc(a, rest*)` -- and the rest is an
+array.
+
+**References.** A parameter may be written by reference -- `Swap(&Left,
+&Right)` -- and the caller passes a reference -- `Swap(&a, &b)`. The
+parameter is then the variable of the caller, and a write inside the
+function is a write outside it. The built-ins that write back take the
+same: `SplitPath "C:\dir\file.txt", &name, &dir, &ext` fills the
+variables of the caller, and `StrReplace("aaa", "a", "b", true, &count)`
+leaves the number of the swaps in `count`.
+
+**Calls.** The parentheses may be left out when the answer is not needed
+and the name is at the start of the line: the rest of the line is the
+list of the parameters. So `Abs 5` and `Abs(5)` are the same call, and
+so is a function of the script -- `MyFunc` calls `MyFunc()`.
+
+The positions count from one, the way AutoHotkey counts them:
+`SubStr("hello", 2)` is `ello`, and `InStr("hello", "ll")` is `3`.
+
+**Classes.** `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu` and
+`Hotkey` are classes of the runtime, and a script cannot extend them.
+A class type owns its own state and its own names; the base object
+answers the names every object has -- `HasProp`, `HasMethod`,
+`GetMethod`, `HasBase`, `HasOwnProp`, `OwnProps`, `DefineProp`,
+`DeleteProp`, `GetOwnPropDesc`.
+
+**Objects.** Every class has a prototype -- `Alpha.Prototype` -- and the
+base of an instance is the prototype of its class. The `is` operator asks
+whether an object is of a class: `b is Beta` is 1 when `b` is an instance
+of `Beta` or of a class that extends it, and 0 otherwise.
+
+**Directives.** Nineteen of them: `#Include`, `#IncludeAgain`,
+`#DllLoad`, `#NoTrayIcon`, `#SingleInstance`, `#UseHook`,
+`#HotIfTimeout`, `#Hotstring`, `#MaxThreadsPerHotkey`,
+`#MaxThreadsBuffer`, `#MaxThreads`, `#SuspendExempt`,
+`#ClipboardTimeout`, `#WinActivateForce`, `#ErrorStdOut`, `#InputLevel`,
+`#Warn`, `#Requires` and `#HotIf`. A directive that asks for what this
+runtime has not got fails the script with the reason; one that asks for
+what is already the case is accepted.
+
+**Loops.** `Loop` counts, and `Loop Files`, `Loop Reg`, `Loop Read` and
+`Loop Parse` walk what they walk.
 
 **Keys.** A key is written `{Name}`, and the modifiers are the ones
 AutoHotkey uses: `^` is ctrl, `+` is shift, `!` is alt and `#` is the
@@ -74,15 +124,19 @@ Send "^a"        ; ctrl+a
 Send "+{Tab}"    ; shift+tab
 Send "{+}"        ; a literal plus
 Send "{a down}"   ; the key goes down and stays down
+Send "{Raw}text"  ; the text is sent as it is written
+Send "{DEL 4}"    ; the key four times
 ```
 
-**Functions.** Your own, with a block and a `Return`; and the builtins
-`Abs`, `Sqrt`, `Mod`, `Floor`, `Ceil`, `Round`, `Min`, `Max`, `StrLen`,
-`SubStr`, `StrReplace`, `InStr`, `Trim`, `Upper`, `Lower`, `Number`,
-`Format`, `Sleep`.
+**Strings.** A string is text, and a `%name%` inside it is the value of
+the name. The name is read where the string is written, so a string a
+function returns still knows its own parameter. A name that is not set
+is left as it is written.
 
-The positions count from one, the way AutoHotkey counts them:
-`SubStr("hello", 2)` is `ello`, and `InStr("hello", "ll")` is `3`.
+This last one is a dialect feature and not v2's: v2.0.19 does not
+interpolate inside a double-quoted string, and the tree keeps the
+interpolation because the archive had it. The difference is written down
+in `AGENTS.md`.
 
 ## The report
 
@@ -94,7 +148,7 @@ the reason -- it does not answer `false`.
 {
   "ok": true,
   "steps": [
-    {"line": 1, "op": "Msg", "detail": "hello from the box", "ok": true, "elapsed_ms": 0}
+    {"line": 1, "op": "MsgBox", "detail": "hello from the box", "ok": true, "elapsed_ms": 0}
   ],
   "output": ["hello from the box"],
   "notes": [],
@@ -104,6 +158,19 @@ the reason -- it does not answer `false`.
 }
 ```
 
+## The reference tables
+
+`crates/ahk/reference/` holds what the binary of v2.0.19 has:
+
+- `ahk-v2.0.19.surface.tsv` -- every name: its kind, the class a method
+  belongs to, and the address of its handler in the binary.
+- `ahk-v2.0.19.operators.tsv` -- the operators and their token kinds.
+- `ahk-v2.0.19.pending.tsv` -- the names of v2 this tree does not carry
+  yet, and why. The table is empty: the port carries the whole of v2.
+
+The tables are read when the tests are compiled, so a name that moves
+between them breaks the build of a test and not a run of it.
+
 ## Where the rest went
 
 The lab MCP server -- the discovery, the screen, the input, the Sunshine
@@ -111,5 +178,20 @@ API, the Moonlight client -- lives in the `yoko-rust` repository, next
 door. It drives this runtime on the box, so there is one implementation
 of "drive the box" and it is the one that works there.
 
-The working notes of the box -- the devices, the timings, the traps -- are
-in `AGENTS.md`.
+The working notes of the box -- the devices, the timings, the traps --
+are in `AGENTS.md`.
+
+## The archive
+
+The Python implementation -- `../archived/ahk-python` -- is the port
+this tree came from, and it is archived: it is kept to be read, not to
+be run. The two spoke the same dialect before the port to v2, and they
+do not speak it now: the rename to the names of v2 is the point of the
+port, and the archive is frozen at the dialect it had. The archive is
+the record of what the dialect meant before, and this tree is the record
+of what it means now.
+
+## License
+
+Apache 2.0. The text is in `LICENSE`, and the manifests of the crates say
+the same thing, so the crates can be published as they are.

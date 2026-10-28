@@ -1,6 +1,6 @@
 //! An absolute pointer device, for driving a Wayland session exactly.
 //!
-//! A port of `src/yoko_mcp/pointer.py` from the Python `yoko-mcp`.
+//! A port of `src/ahk/pointer.py` from the archived Python implementation.
 //!
 //! ydotool's device is a *relative* mouse with a full keyboard key bitmap
 //! and no `INPUT_PROP_POINTER`. libinput classifies that as a keyboard:
@@ -67,9 +67,16 @@ mod abi {
     pub const UI_SET_KEYBIT: u64 = iow(101, 4);
     pub const UI_SET_ABSBIT: u64 = iow(103, 4);
     pub const UI_SET_PROPBIT: u64 = iow(110, 4);
-    pub const UI_DEV_SETUP: u64 = iow(3, 92);
-    pub const UI_ABS_SETUP: u64 = iow(4, 28);
+    pub const UI_DEV_SETUP: u64 = iow(3, UINPUT_SETUP_SIZE);
+    pub const UI_ABS_SETUP: u64 = iow(4, UINPUT_ABS_SETUP_SIZE);
     pub const UI_DEV_CREATE: u64 = io(1);
+
+    /// `struct uinput_setup`: four __u16, a name of eighty bytes, a __u32.
+    pub const UINPUT_SETUP_SIZE: usize = 4 * 2 + 80 + 4;
+    /// `struct uinput_abs_setup`: a __u16, a filler, six __s32.
+    pub const UINPUT_ABS_SETUP_SIZE: usize = 2 * 2 + 6 * 4;
+    /// `struct input_event`: two longs, two shorts, an int.
+    pub const INPUT_EVENT_SIZE: usize = 2 * 8 + 2 * 2 + 4;
 
     /// `EVIOCGABS(abs)`: the current value of an absolute axis.
     pub const fn eviocgabs(abs: u8) -> u64 {
@@ -110,7 +117,7 @@ pub const PRESS_HOLD: Duration = Duration::from_millis(40);
 ///
 /// The event node of the device is found by it, under
 /// `/sys/class/input/event*/device/name`.
-pub const DEVICE_NAME: &str = "yoko absolute pointer rust";
+pub const DEVICE_NAME: &str = "ahk absolute pointer";
 
 /// How many times the read of the event node is tried.
 ///
@@ -174,8 +181,7 @@ impl Pointer {
 
     /// Put the pointer at an absolute screen position.
     pub fn move_to(&mut self, x: i64, y: i64) -> Result<(), PointerError> {
-        let x = x.clamp(0, (self.width - 1).max(0));
-        let y = y.clamp(0, (self.height - 1).max(0));
+        let (x, y) = clamp_to_screen(x, y, self.width, self.height);
         self.write(abi::EV_ABS, abi::ABS_X, x as i32)?;
         self.write(abi::EV_ABS, abi::ABS_Y, y as i32)?;
         self.sync()?;
@@ -291,7 +297,7 @@ impl Pointer {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default();
-        let mut event = [0u8; 24];
+        let mut event = [0u8; abi::INPUT_EVENT_SIZE];
         event[0..8].copy_from_slice(&(now.as_secs() as i64).to_ne_bytes());
         // The timeval's second field is MICROSECONDS.
         event[8..16].copy_from_slice(&(now.subsec_micros() as i64).to_ne_bytes());
@@ -325,7 +331,7 @@ impl Pointer {
         self.ioctl(abi::UI_SET_PROPBIT, abi::INPUT_PROP_DIRECT as libc::c_int)?;
 
         // struct uinput_setup { struct input_id id; char name[80]; __u32 ff_effects_max; }
-        let mut setup = [0u8; 92];
+        let mut setup = [0u8; abi::UINPUT_SETUP_SIZE];
         setup[0..2].copy_from_slice(&0x03u16.to_ne_bytes()); // BUS_USB
         setup[2..4].copy_from_slice(&0x1D6Bu16.to_ne_bytes()); // the generic vendor
         setup[4..6].copy_from_slice(&0x0002u16.to_ne_bytes());
@@ -342,7 +348,7 @@ impl Pointer {
             (abi::ABS_X, (self.width - 1).max(0) as i32),
             (abi::ABS_Y, (self.height - 1).max(0) as i32),
         ] {
-            let mut abs_setup = [0u8; 28];
+            let mut abs_setup = [0u8; abi::UINPUT_ABS_SETUP_SIZE];
             abs_setup[0..2].copy_from_slice(&code.to_ne_bytes());
             // value, minimum, maximum, fuzz, flat, resolution
             abs_setup[4..8].copy_from_slice(&0i32.to_ne_bytes());
@@ -364,6 +370,14 @@ impl Pointer {
         }
         Ok(())
     }
+}
+
+/// The place a click at (x, y) really lands on.
+///
+/// The clamp is what keeps a stale or silly coordinate from wrapping around
+/// to the far corner of the screen.
+fn clamp_to_screen(x: i64, y: i64, width: i64, height: i64) -> (i64, i64) {
+    (x.clamp(0, (width - 1).max(0)), y.clamp(0, (height - 1).max(0)))
 }
 
 /// The code of a mouse button.
@@ -395,4 +409,116 @@ fn open_uinput() -> Result<File, PointerError> {
         .custom_flags(libc::O_NONBLOCK)
         .open("/dev/uinput")
         .map_err(|error| PointerError::CannotOpen(error.to_string()))
+}
+
+
+#[cfg(test)]
+mod tests {
+    //! The numbers the kernel sees.
+    //!
+    //! The uinput ABI is the part of this module that fails silently: a
+    //! struct laid out in the wrong order, or an ioctl number built with
+    //! `_IO` instead of `_IOW`, gives `EINVAL` from the kernel and nothing
+    //! else -- no traceback pointing at the packing. So the numbers are
+    //! pinned here against the C definitions, and a mistake is caught on
+    //! this machine and not on the box.
+    //!
+    //! The C definitions live in `/usr/include/linux/uinput.h`:
+    //!
+    //! ```c
+    //! #define UI_DEV_CREATE       _IO(UINPUT_IOCTL_BASE, 1)
+    //! #define UI_DEV_SETUP        _IOW(UINPUT_IOCTL_BASE, 3, struct uinput_setup)
+    //! #define UI_ABS_SETUP        _IOW(UINPUT_IOCTL_BASE, 4, struct uinput_abs_setup)
+    //! #define UI_SET_EVBIT        _IOW(UINPUT_IOCTL_BASE, 100, int)
+    //! ```
+    //!
+    //! The archive has one case that has no counterpart here: a closed
+    //! pointer refuses to move. In Rust the type cannot be in that state,
+    //! because it holds the file of the device.
+
+    use super::abi;
+    use super::clamp_to_screen;
+    use super::{Pointer, PointerError};
+
+    /// `_IO('U', nr)`: the direction and the size are both zero.
+    fn io(nr: u8) -> u64 {
+        (abi::UINPUT_IOCTL_BASE as u64) << 8 | nr as u64
+    }
+
+    /// `_IOW('U', nr, size)`: the size is part of the request number.
+    fn iow(nr: u8, size: usize) -> u64 {
+        1u64 << 30 | (size as u64) << 16 | (abi::UINPUT_IOCTL_BASE as u64) << 8 | nr as u64
+    }
+
+    #[test]
+    fn the_dev_create_request_is_io_1() {
+        assert_eq!(abi::UI_DEV_CREATE, io(1));
+    }
+
+    #[test]
+    fn the_setup_request_carries_the_size_of_the_struct() {
+        // `_IO` instead of `_IOW` here is what produced EINVAL on the box:
+        // the request number has to encode the size of the struct it carries.
+        assert_eq!(abi::UI_DEV_SETUP, iow(3, 92));
+        assert_ne!(abi::UI_DEV_SETUP, io(3));
+    }
+
+    #[test]
+    fn the_abs_setup_request_carries_the_size_of_the_struct() {
+        assert_eq!(abi::UI_ABS_SETUP, iow(4, 28));
+        assert_ne!(abi::UI_ABS_SETUP, io(4));
+    }
+
+    #[test]
+    fn the_bit_operations_take_an_int() {
+        for request in [abi::UI_SET_EVBIT, abi::UI_SET_KEYBIT, abi::UI_SET_ABSBIT, abi::UI_SET_PROPBIT] {
+            assert_eq!(request, iow((request & 0xFF) as u8, 4));
+        }
+    }
+
+    #[test]
+    fn the_prop_code_is_a_capability_index() {
+        // `INPUT_PROP_*` are indices, not masks. The kernel shifts the index
+        // into the device's bitmap, so the index 1 -- INPUT_PROP_DIRECT --
+        // shows up as `B: PROP=2`, and the index 2 -- INPUT_PROP_BUTTONPAD
+        // -- as `B: PROP=4`, which is not a pointer at all.
+        assert_eq!(abi::INPUT_PROP_DIRECT, 1);
+    }
+
+    #[test]
+    fn the_structs_are_the_size_the_kernel_expects() {
+        // struct uinput_setup { struct input_id id; char name[80]; __u32
+        // ff_effects_max; }
+        assert_eq!(abi::UINPUT_SETUP_SIZE, 4 * 2 + 80 + 4);
+        // struct uinput_abs_setup { __u16 code; __u16 filler; struct
+        // input_absinfo absinfo; }
+        assert_eq!(abi::UINPUT_ABS_SETUP_SIZE, 2 * 2 + 6 * 4);
+        // struct input_event { struct timeval time; __u16 type; __u16 code;
+        // __s32 value; }
+        assert_eq!(abi::INPUT_EVENT_SIZE, 2 * 8 + 2 * 2 + 4);
+    }
+
+    #[test]
+    fn the_button_codes_and_the_axes_are_the_ones_the_kernel_uses() {
+        assert_eq!(abi::BTN_LEFT, 0x110);
+        assert_eq!(abi::BTN_RIGHT, 0x111);
+        assert_eq!(abi::BTN_MIDDLE, 0x112);
+        assert_eq!(abi::ABS_X, 0);
+        assert_eq!(abi::ABS_Y, 1);
+    }
+
+    #[test]
+    fn the_coordinates_are_clamped_to_the_screen() {
+        assert_eq!(clamp_to_screen(5000, 5000, 1920, 1080), (1919, 1079));
+        assert_eq!(clamp_to_screen(-40, -40, 1920, 1080), (0, 0));
+        assert_eq!(clamp_to_screen(10, 10, 1920, 1080), (10, 10));
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[test]
+    fn it_refuses_off_linux() {
+        let error = Pointer::open(1920, 1080).err().expect("it refuses");
+        assert!(matches!(error, PointerError::NotLinux));
+        assert!(error.to_string().contains("Linux"));
+    }
 }

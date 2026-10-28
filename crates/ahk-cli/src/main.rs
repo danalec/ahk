@@ -11,7 +11,7 @@
 //! when it did not parse; the report is on stdout either way.
 
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use ahk::parse;
@@ -23,11 +23,21 @@ use ahk_box::LabDesktop;
 /// A script that types forever has to be stoppable from outside, and the
 /// only thing that can stop it is the process. The pid file is how the
 /// `ahk_stop` tool finds it -- and how a human finds it, with `cat`.
+///
+/// `XDG_CACHE_HOME` is the first choice, then the cache directory of the
+/// home directory. A host with neither -- a Windows one that nobody
+/// configured -- gets the temporary directory, and never the working
+/// directory: the file has to be where the stop looks for it, and the
+/// working directory changes from one call to the next.
 fn pid_file() -> PathBuf {
-    let base = std::env::var("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache"));
-    base.join("yoko-ahk").join("run.pid")
+    let base = match std::env::var_os("XDG_CACHE_HOME") {
+        Some(base) => PathBuf::from(base),
+        None => match std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+            Some(home) => PathBuf::from(home).join(".cache"),
+            None => std::env::temp_dir(),
+        },
+    };
+    base.join("ahk").join("run.pid")
 }
 
 fn write_pid_file() {
@@ -42,16 +52,36 @@ fn clear_pid_file() {
     let _ = std::fs::remove_file(pid_file());
 }
 
-fn main() {
+fn main() -> std::process::ExitCode {
     let mut source = String::new();
     if let Err(error) = std::io::stdin().read_to_string(&mut source) {
         eprintln!("cannot read the script: {error}");
-        std::process::exit(2);
+        return std::process::ExitCode::from(2);
     }
     let timeout = std::env::args()
         .skip(1)
         .find_map(|argument| argument.strip_prefix("--timeout=").and_then(|value| value.parse::<f64>().ok()))
         .unwrap_or(60.0);
+
+    // The includes are resolved here and not in the language: the
+    // language crate does no I/O, and the runner is the one that has a
+    // disk to read from.
+    let source = match resolve_includes(&source, Path::new("."), &mut Vec::new()) {
+        Ok(source) => source,
+        Err(error) => {
+            let report = serde_json::json!({
+                "ok": false,
+                "error": error,
+                "error_line": 0,
+                "column": 0,
+                "steps": [],
+                "output": [],
+                "notes": [],
+            });
+            println!("{report}");
+            return std::process::ExitCode::from(2);
+        }
+    };
 
     let statements = match parse(&source) {
         Ok(statements) => statements,
@@ -66,7 +96,7 @@ fn main() {
                 "notes": [],
             });
             println!("{report}");
-            std::process::exit(2);
+            return std::process::ExitCode::from(2);
         }
     };
 
@@ -80,10 +110,70 @@ fn main() {
     let report = Runtime::new(&mut desktop, Duration::from_secs_f64(timeout)).run(&statements);
     let mut payload = serde_json::to_value(&report).expect("the report serialises");
     if let Some(map) = payload.as_object_mut() {
-        map.insert("notes".to_string(), serde_json::json!(desktop.notes()));
+        // The notes of the runtime come first, and the notes of the box are
+        // added to them: a host that wrote a note of its own keeps it.
+        let mut notes = report.notes.clone();
+        notes.extend(desktop.notes().iter().cloned());
+        map.insert("notes".to_string(), serde_json::json!(notes));
     }
     println!("{payload}");
-    std::process::exit(if report.ok { 0 } else { 1 });
+    // The exit code goes out through the return, and not through
+    // `process::exit`: that one leaves without running the destructors, and
+    // the guard that removes the pid file is a destructor.
+    std::process::ExitCode::from(if report.ok { 0 } else { 1 })
+}
+
+/// The source with the includes put in place of the lines that ask for
+/// them.
+///
+/// A `#Include "path"` line is replaced by the text of the file, and the
+/// path is taken from the directory of the file that asks for it. An
+/// include that is already in the tree is not put in twice: the second
+/// time it is read it is skipped, the way `#IncludeAgain` says.
+fn resolve_includes(
+    source: &str,
+    base: &Path,
+    seen: &mut Vec<PathBuf>,
+) -> Result<String, String> {
+    let mut out = String::with_capacity(source.len());
+    for line in source.lines() {
+        let trimmed = line.trim();
+        let Some(argument) = trimmed
+            .strip_prefix("#Include")
+            .or_else(|| trimmed.strip_prefix("#include"))
+        else {
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        };
+        let argument = argument.trim();
+        // The path is in quotes, or it is the rest of the line.
+        let path = argument
+            .strip_prefix('"')
+            .and_then(|rest| rest.strip_suffix('"'))
+            .unwrap_or(argument)
+            .trim();
+        if path.is_empty() {
+            return Err("an include needs a path.".to_string());
+        }
+        let path = base.join(path);
+        let path = match path.canonicalize() {
+            Ok(path) => path,
+            Err(_) => return Err(format!("the include \"{path:?}\" cannot be found.")),
+        };
+        if seen.contains(&path) {
+            // The file is already in the tree: it is not put in twice.
+            out.push('\n');
+            continue;
+        }
+        let text = std::fs::read_to_string(&path)
+            .map_err(|error| format!("the include \"{path:?}\" cannot be read: {error}"))?;
+        let directory = path.parent().unwrap_or(Path::new(".")).to_path_buf();
+        seen.push(path);
+        out.push_str(&resolve_includes(&text, &directory, seen)?);
+        out.push('\n');
+    }
+    Ok(out)
 }
 
 /// Removes the pid file when the run ends, however it ends.

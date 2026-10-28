@@ -5,10 +5,14 @@
 //! the desktop does. The desktop part is verified against the real box
 //! separately.
 //!
-//! These are a port of the Python tests in `yoko-ahk-mcp`, and the two
+//! These are a port of the archived Python tests, and the two
 //! implementations have to agree.
 
-use ahk::runtime::{Desktop, Report, Runtime, Value, WindowAnswer};
+use ahk::desktop::{
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+};
+use ahk::desktop::WindowAnswer;
+use ahk::runtime::{Report, Runtime, Value};
 use ahk::{Node, parse};
 use std::time::Duration;
 
@@ -36,12 +40,37 @@ impl Fake {
     }
 }
 
-impl Desktop for Fake {
+impl Desktop for Fake {}
+
+impl Files for Fake {
+    fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
+        self.calls.push(("list_files".into(), format!("{folder}|{pattern}|{mode}")));
+        // The pattern of v2 is the tail of the name: "*.txt" is every
+        // name that ends with ".txt".
+        let wanted = pattern.strip_prefix('*').unwrap_or(pattern);
+        Ok(["/work/one.txt", "/work/two.txt", "/work/notes.log"]
+            .into_iter()
+            .filter(|file| wanted.is_empty() || file.ends_with(wanted))
+            .map(|file| file.to_string())
+            .collect())
+    }
+    fn working_directory(&mut self) -> Result<String, String> {
+        self.calls.push(("working_directory".into(), String::new()));
+        Ok("/work".to_string())
+    }
+}
+
+impl Clipboard for Fake {}
+
+impl Timers for Fake {}
+
+impl Hotkeys for Fake {}
+
+impl Keyboard for Fake {
     fn type_text(&mut self, text: &str) -> Result<String, String> {
         self.calls.push(("type".into(), text.into()));
         Ok(format!("typed {text:?}"))
     }
-
     fn press_key(&mut self, name: &str, modifiers: &[String]) -> Result<String, String> {
         let mut spelled = modifiers.join("+");
         if !spelled.is_empty() {
@@ -51,57 +80,48 @@ impl Desktop for Fake {
         self.calls.push(("key".into(), spelled.clone()));
         Ok(format!("pressed {spelled}"))
     }
-
     fn key_down(&mut self, name: &str) -> Result<String, String> {
         self.calls.push(("key_down".into(), name.into()));
         Ok(format!("{name} is down"))
     }
-
     fn key_up(&mut self, name: &str) -> Result<String, String> {
         self.calls.push(("key_up".into(), name.into()));
         Ok(format!("{name} is up"))
     }
+}
 
+impl Pointer for Fake {
     fn mouse_down(&mut self, _x: Option<i64>, _y: Option<i64>, button: &str) -> Result<String, String> {
         self.calls.push(("mouse_down".into(), button.into()));
         Ok(format!("{button} is down"))
     }
-
     fn mouse_up(&mut self, _x: Option<i64>, _y: Option<i64>, button: &str) -> Result<String, String> {
         self.calls.push(("mouse_up".into(), button.into()));
         Ok(format!("{button} is up"))
     }
-
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
         self.calls.push(("click".into(), format!("{x},{y},{button},{count}")));
         Ok(format!("clicked ({x}, {y})"))
     }
-
-    fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
-        self.calls.push(("run".into(), command.into()));
-        Ok((0, format!("ran {command}\n"), String::new()))
-    }
-
-    fn capture(&mut self, x: i64, y: i64, width: i64, height: i64, filename: &str) -> Result<String, String> {
-        self.calls.push(("capture".into(), format!("{x},{y},{width},{height},{filename}")));
-        Ok(format!("/tmp/{filename}"))
-    }
-
-    fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
-        self.calls.push(("pixel".into(), format!("{x},{y}")));
-        Ok(self.pixels.iter().find(|(at, _)| *at == (x, y)).map(|(_, colour)| colour.clone()).unwrap_or_else(|| "#000000".into()))
-    }
-
     fn move_pointer(&mut self, x: i64, y: i64) -> Result<String, String> {
         self.pointer = (x, y);
         self.calls.push(("move".into(), format!("{x},{y}")));
         Ok(format!("moved to ({x}, {y})"))
     }
-
     fn mouse_position(&mut self) -> Result<(i64, i64), String> {
         Ok(self.pointer)
     }
+}
 
+impl Screen for Fake {
+    fn capture(&mut self, x: i64, y: i64, width: i64, height: i64, filename: &str) -> Result<String, String> {
+        self.calls.push(("capture".into(), format!("{x},{y},{width},{height},{filename}")));
+        Ok(format!("/tmp/{filename}"))
+    }
+    fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
+        self.calls.push(("pixel".into(), format!("{x},{y}")));
+        Ok(self.pixels.iter().find(|(at, _)| *at == (x, y)).map(|(_, colour)| colour.clone()).unwrap_or_else(|| "#000000".into()))
+    }
     fn pixel_search(
         &mut self,
         _x1: i64,
@@ -112,7 +132,9 @@ impl Desktop for Fake {
     ) -> Result<Option<(i64, i64)>, String> {
         Ok(self.pixels.iter().find(|(_, value)| value == colour).map(|(at, _)| *at))
     }
+}
 
+impl Windows for Fake {
     fn window_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
         if self.window_answer_unknown {
             return Ok(WindowAnswer::Unknown("this desktop cannot tell".into()));
@@ -122,7 +144,6 @@ impl Desktop for Fake {
             _ => WindowAnswer::NotActive,
         })
     }
-
     fn window_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
         if self.window_answer_unknown {
             return Ok(WindowAnswer::Unknown("this desktop cannot list".into()));
@@ -133,9 +154,15 @@ impl Desktop for Fake {
             WindowAnswer::NotActive
         })
     }
-
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         Ok(self.active.clone())
+    }
+}
+
+impl Processes for Fake {
+    fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
+        self.calls.push(("run".into(), command.into()));
+        Ok((0, format!("ran {command}\n"), String::new()))
     }
 }
 
@@ -144,6 +171,15 @@ fn run(source: &str) -> (Report, Fake) {
     desktop.pixels.push(((10, 20), "#ff8800".into()));
     let statements = parse(source).expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    (report, desktop)
+}
+
+/// The same, with a timeout of its own.
+fn run_with_timeout(source: &str, timeout: Duration) -> (Report, Fake) {
+    let mut desktop = Fake::default();
+    desktop.pixels.push(((10, 20), "#ff8800".into()));
+    let statements = parse(source).expect("parses");
+    let report = Runtime::new(&mut desktop, timeout).run(&statements);
     (report, desktop)
 }
 
@@ -231,7 +267,7 @@ fn a_run_carries_the_output() {
 
 #[test]
 fn a_pixel_get_reads_the_colour() {
-    let (report, _desktop) = run("PixelGet 10, 20");
+    let (report, _desktop) = run("PixelGetColor 10, 20");
     assert!(report.ok);
     assert_eq!(report.variables.get("pixel"), Some(&Value::Text("#ff8800".into())));
 }
@@ -252,8 +288,288 @@ fn a_click_clicks_at_the_position() {
 
 #[test]
 fn a_msg_is_collected_as_output() {
-    let (report, _desktop) = run("Msg \"the answer\"");
+    let (report, _desktop) = run("MsgBox \"the answer\"");
     assert_eq!(report.output, vec!["the answer"]);
+}
+
+#[test]
+fn a_directive_that_is_already_the_case_is_accepted() {
+    let (report, _desktop) = run("#NoTrayIcon\n#SingleInstance\n#ErrorStdOut\nMsgBox \"ok\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ok"]);
+}
+
+#[test]
+fn a_requires_that_is_met_is_accepted() {
+    let (report, _desktop) = run("#Requires AutoHotkey v2.0.19\nMsgBox \"ok\"");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_requires_that_is_not_met_fails_the_script() {
+    let (report, _desktop) = run("#Requires AutoHotkey v1\nMsgBox \"ok\"");
+    assert!(!report.ok);
+    assert!(report.error.as_deref().unwrap_or("").contains("requires"), "{:?}", report.error);
+}
+
+#[test]
+fn a_directive_this_runtime_does_not_carry_fails_with_the_reason() {
+    let (report, _desktop) = run("#UseHook\nMsgBox \"ok\"");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the hotkeys are not carried by this runtime."));
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_loop_that_parses_a_text_runs_the_body_once_for_each_piece() {
+    let (report, desktop) = run("Loop Parse \"a,b,c\", \",\" {\n  Send \"%A_LoopField%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["a", "b", "c"]);
+}
+
+#[test]
+fn a_loop_that_parses_a_text_counts_the_pieces() {
+    let (report, _desktop) = run("Loop Parse \"a,b\", \",\" {\n  Send \"%A_Index%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    let (report, _desktop) = run("Loop Parse \"a,b\", \",\" {\n  last := A_Index\n}\nSend \"%last%\"");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_loop_over_the_registry_fails_with_the_reason() {
+    let (report, _desktop) = run("Loop Reg \"HKLM\\\\*\" {\n}");
+    assert!(!report.ok);
+    assert!(report.error.as_deref().unwrap_or("").contains("Windows"), "{:?}", report.error);
+}
+
+#[test]
+fn a_string_is_read_where_it_is_written() {
+    // The name is the name of the scope that is writing the string, so
+    // a string a function returns still knows its own parameter.
+    let (report, desktop) = run("Greet(name) {\n  return \"hello %name%\"\n}\nSend Greet(\"world\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["hello world"]);
+}
+
+#[test]
+fn a_property_can_be_in_a_string() {
+    let (report, desktop) = run("class Point {\n  x := 3\n}\np := Point()\nSend \"%p.x%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["3"]);
+}
+
+#[test]
+fn a_builtin_is_a_value() {
+    let (report, desktop) = run("f := Abs\nSend \"%f.Name%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["Abs"]);
+}
+
+#[test]
+fn a_function_in_a_variable_can_be_called() {
+    let (report, desktop) = run("f := Abs\nSend f.Call(3)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["3"]);
+}
+
+#[test]
+fn a_function_knows_how_many_parameters_it_wants() {
+    let (report, desktop) = run("f := Abs\nSend \"%f.MinParams% %f.MaxParams%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1 1"]);
+}
+
+#[test]
+fn a_builtin_is_a_builtin() {
+    let (report, desktop) = run("f := Abs\nSend f.IsBuiltIn()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1"]);
+}
+
+#[test]
+fn an_object_knows_what_it_has() {
+    let (report, desktop) = run(
+        "class Point {\n  x := 3\n  Show() {\n    return \"x\"\n  }\n}\n\
+         p := Point()\n\
+         Send p.HasProp(\"x\") . \" \" . p.HasProp(\"y\") . \" \" . p.HasMethod(\"Show\")",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1 0 1"]);
+}
+
+#[test]
+fn an_object_knows_the_class_it_is_of() {
+    let (report, desktop) = run(
+        "class Base {\n}\nclass Child extends Base {\n}\nc := Child()\n\
+         Send c.HasBase(\"Base\") . \" \" . c.HasBase(\"Other\")",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1 0"]);
+}
+
+#[test]
+fn a_property_can_be_defined_and_taken_away() {
+    let (report, desktop) = run(
+        "class Box {\n}\nb := Box()\nb.DefineProp(\"x\", 7)\ny := b.x\n\
+         z := b.DeleteProp(\"x\")\nSend \"%y% %z%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["7 1"]);
+}
+
+#[test]
+fn an_object_that_is_called_is_asked_through_call() {
+    let (report, desktop) = run(
+        "class Adder {\n  __Call(a, b) {\n    return a + b\n  }\n}\n\
+         add := Adder()\nSend add(2, 3)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["5"]);
+}
+
+#[test]
+fn a_class_has_a_method_and_a_property() {
+    let (report, desktop) = run(
+        "class Point {\n  x := 3\n  Greet() {\n    return \"hello\"\n  }\n}\n\
+         p := Point()\nSend p.Greet()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["hello"]);
+}
+
+#[test]
+fn a_property_of_an_instance_can_be_read() {
+    let (report, _desktop) = run("class Point {\n  x := 3\n}\np := Point()\nSend \"%p.x%\"");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_property_of_an_instance_can_be_written() {
+    let (report, desktop) = run(
+        "class Point {\n  x := 3\n}\np := Point()\np.x := 7\nSend \"%p.x%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["7"]);
+}
+
+#[test]
+fn a_method_sees_the_object_it_was_called_on() {
+    let (report, desktop) = run(
+        "class Point {\n  x := 3\n  Show() {\n    return \"x is %this.x%\"\n  }\n}\n\
+         p := Point()\nSend p.Show()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["x is 3"]);
+}
+
+#[test]
+fn a_class_can_extend_another_one() {
+    let (report, desktop) = run(
+        "class Base {\n  Who() {\n    return \"base\"\n  }\n}\n\
+         class Child extends Base {\n  Who() {\n    return \"child\"\n  }\n}\n\
+         c := Child()\nSend c.Who()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["child"]);
+}
+
+#[test]
+fn a_method_of_the_class_it_extends_is_there() {
+    let (report, desktop) = run(
+        "class Base {\n  Who() {\n    return \"base\"\n  }\n}\n\
+         class Child extends Base {\n}\nc := Child()\nSend c.Who()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["base"]);
+}
+
+#[test]
+fn a_new_may_build_the_object() {
+    let (report, desktop) = run(
+        "class Point {\n  __New(x) {\n    this.x := x\n  }\n  x := 0\n}\n\
+         p := Point(9)\nSend \"%p.x%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["9"]);
+}
+
+#[test]
+fn a_get_is_asked_when_the_property_is_not_there() {
+    let (report, desktop) = run(
+        "class Box {\n  __Get(name) {\n    return \"asked for %name%\"\n  }\n}\n\
+         b := Box()\nSend b.Whatever",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["asked for whatever"]);
+}
+
+#[test]
+fn a_set_is_told_when_the_property_is_written() {
+    let (report, desktop) = run(
+        "class Box {\n  __Set(name, value) {\n    this.seen := name\n  }\n  seen := \"\"\n}\n\
+         b := Box()\nb.thing := 1\nSend b.seen",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["thing"]);
+}
+
+#[test]
+fn a_function_is_a_value() {
+    // The name of a function is the name the script wrote, and not the
+    // name it is looked up by.
+    let (report, desktop) = run("Add(a, b) {\n  return a + b\n}\nf := Add\nSend f.Name");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["Add"]);
+}
+
+#[test]
+fn a_parameter_may_carry_a_default() {
+    let (report, desktop) = run("Add(a, b := 2) {\n  return a + b\n}\nSend Add(1)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["3"]);
+}
+
+#[test]
+fn a_parameter_may_take_the_rest_of_the_arguments() {
+    let (report, desktop) = run("Add(a, rest*) {\n  return a + rest.Length\n}\nSend Add(1, 2, 3)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["3"]);
+}
+
+#[test]
+fn a_call_with_too_few_arguments_fails_with_the_reason() {
+    let (report, _desktop) = run("Add(a, b) {\n  return a + b\n}\nAdd(1)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too few parameters passed to function. Specifically: Add")
+    );
+    assert_eq!(report.error_line, Some(4));
+}
+
+#[test]
+fn a_call_with_too_many_arguments_fails_with_the_reason() {
+    let (report, _desktop) = run("Add(a) {\n  return a\n}\nAdd(1, 2)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too many parameters passed to function. Specifically: Add")
+    );
+    assert_eq!(report.error_line, Some(4));
+}
+
+#[test]
+fn a_function_that_is_held_in_a_variable_can_be_called() {
+    let (report, desktop) = run("Add(a, b) {\n  return a + b\n}\nf := Add\nSend f(2, 3)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["5"]);
+}
+
+#[test]
+fn a_method_that_is_not_there_fails_with_the_reason() {
+    let (report, _desktop) = run("class Point {\n}\np := Point()\np.Nothing()");
+    assert!(!report.ok);
+    assert!(report.error.as_deref().unwrap_or("").contains("not a method"), "{:?}", report.error);
 }
 
 #[test]
@@ -281,6 +597,34 @@ fn an_endless_loop_is_stopped() {
     let (report, _desktop) = run("Loop 100000 {\n  Send \"x\"\n}");
     assert!(!report.ok);
     assert!(report.error.as_deref().unwrap_or("").contains("more than"));
+}
+
+#[test]
+fn a_while_body_runs_at_most_a_thousand_times() {
+    let (report, _desktop) = run("while (true) {\n}");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the loop ran more than 1000 times"));
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_script_runs_at_most_twenty_thousand_statements() {
+    // A counted `Loop` has no guard of its own: the step count is what stops
+    // it, which is why the message is about statements and not about turns.
+    let (report, _desktop) = run("Loop 100000 {\n  Send \"x\"\n}");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the script ran more than 20000 statements"));
+    assert!(report.error_line.is_some());
+}
+
+#[test]
+fn a_script_that_outlives_its_timeout_is_stopped() {
+    let (report, _desktop) = run_with_timeout("Sleep 200\nMsgBox \"late\"", Duration::from_millis(50));
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the script ran for more than 0.05s"));
+    // The timeout is not a statement: it stops the script between two of
+    // them, so it does not know a line, and it says so by leaving it out.
+    assert_eq!(report.error_line, None);
 }
 
 #[test]
@@ -347,7 +691,7 @@ fn a_function_returns_a_value() {
 
 #[test]
 fn a_function_can_be_called_as_a_statement() {
-    let (report, _desktop) = run("Greet(name) {\n  Msg \"hello %name%\"\n}\nGreet(\"world\")");
+    let (report, _desktop) = run("Greet(name) {\n  MsgBox \"hello %name%\"\n}\nGreet(\"world\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["hello world"]);
 }
@@ -370,7 +714,7 @@ fn a_return_leaves_the_function_at_once() {
 
 #[test]
 fn a_variable_assigned_inside_a_function_is_local() {
-    let (report, _desktop) = run("x := \"outside\"\nSet() {\n  x := \"inside\"\n}\nSet()\nMsg x");
+    let (report, _desktop) = run("x := \"outside\"\nSet() {\n  x := \"inside\"\n}\nSet()\nMsgBox x");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["outside"]);
 }
@@ -383,12 +727,210 @@ fn exitapp_ends_the_script_and_carries_a_code() {
     assert_eq!(desktop.types(), vec!["before"]);
 }
 
+// -- the reference operator --------------------------------------------------------
+
+#[test]
+fn a_parameter_written_by_reference_is_an_alias_of_the_variable_of_the_caller() {
+    // The ByRef marker of v2: the parameter and the variable of the
+    // caller are the same thing.
+    let (report, _desktop) = run(
+        "Swap(&a, &b) {\n  tmp := a\n  a := b\n  b := tmp\n}\n\
+         a := \"one\"\nb := \"two\"\nSwap(&a, &b)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text("two".into())));
+    assert_eq!(report.variables.get("b"), Some(&Value::Text("one".into())));
+}
+
+#[test]
+fn a_method_may_have_a_parameter_written_by_reference() {
+    let (report, _desktop) = run(
+        "class Counter {\n  Total(&value) {\n    value := value + 1\n  }\n}\n\
+         c := Counter()\nn := 5\nc.Total(&n)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(6)));
+}
+
+#[test]
+fn a_parameter_written_by_reference_wants_a_reference() {
+    let (report, _desktop) = run("Show(&x) {\n  out := x\n}\nShow(5)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some(
+            "Parameter #1 of Show requires a variable reference, but received an integer. Specifically: 5"
+        )
+    );
+}
+
+#[test]
+fn a_parameter_written_by_reference_that_the_call_leaves_out_is_a_local_one() {
+    // The default of v2 is a value of its own: the parameter is a local
+    // one when the call does not give it a reference.
+    let (report, _desktop) = run("Show(&x := \"default\") {\n  return x\n}\nout := Show()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("out"), Some(&Value::Text("default".into())));
+}
+
+#[test]
+fn a_reference_is_not_a_value() {
+    let (report, _desktop) = run("x := 1\ny := &x\nout := \"v=\" . y");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a String but got a VarRef."));
+}
+
+#[test]
+fn a_plain_parameter_that_is_given_a_reference_holds_it() {
+    // The reference is a value of its own, and the parameter that is
+    // not written `&x` holds it.
+    let (report, _desktop) = run("Show(x) {\n  out := \"in=\" . x\n}\ny := \"orig\"\nShow(&y)");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a String but got a VarRef."));
+}
+
+#[test]
+fn a_plain_parameter_that_is_given_a_reference_writes_its_own_copy() {
+    let (report, _desktop) = run("Show(x) {\n  x := \"written\"\n}\ny := \"orig\"\nShow(&y)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("orig".into())));
+}
+
+#[test]
+fn a_reference_where_the_built_in_wants_a_value_fails() {
+    // The built-ins that write into a variable of the caller want a
+    // reference in that place and nowhere else.
+    let (report, _desktop) = run("x := \"C:\\file.txt\"\nSplitPath &x, &dir");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #1 of SplitPath requires a value, but received a VarRef.")
+    );
+}
+
+#[test]
+fn the_reference_operator_wants_a_variable() {
+    let (report, _desktop) = run("class Box {\n  Prop := 1\n}\nb := Box()\nr := &b.Prop");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("\"&\" requires a variable."));
+}
+
+#[test]
+fn a_built_in_variable_cannot_have_its_reference_taken() {
+    let (report, _desktop) = run("r := &A_ScreenWidth");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This built-in variable cannot have its reference taken. Specifically: A_ScreenWidth")
+    );
+}
+
+#[test]
+fn a_function_cannot_have_its_reference_taken() {
+    let (report, _desktop) = run("r := &Abs");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This Func cannot have its reference taken. Specifically: Abs")
+    );
+}
+
 // -- the focus check ------------------------------------------------------------
+
+#[test]
+fn a_loop_over_the_files_takes_the_pattern_of_v2() {
+    // v2 takes the pattern first and the mode second, and the folder is
+    // the one the script runs in.
+    let (report, desktop) = run("Loop Files \"*.txt\" {\n  Send \"%A_LoopFileName%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["one.txt", "two.txt"]);
+    assert!(
+        desktop.calls.contains(&("working_directory".to_string(), String::new())),
+        "{:?}",
+        desktop.calls
+    );
+    assert!(
+        desktop.calls.contains(&("list_files".to_string(), "/work|*.txt|".to_string())),
+        "{:?}",
+        desktop.calls
+    );
+}
+
+#[test]
+fn a_loop_over_the_files_writes_the_variables_of_v2() {
+    let (report, _desktop) = run(concat!(
+        "Loop Files \"*.txt\" {\n",
+        "  name := A_LoopFileName\n",
+        "  ext := A_LoopFileExt\n",
+        "  dir := A_LoopFileDir\n",
+        "  full := A_LoopFileFullPath\n",
+        "  path := A_LoopFilePath\n",
+        "}\n",
+        "out := name . \"|\" . ext . \"|\" . dir . \"|\" . full . \"|\" . path\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Text("two.txt|txt|/work|/work/two.txt|/work/two".into()))
+    );
+}
+
+#[test]
+fn a_loop_over_the_files_takes_the_mode_of_v2() {
+    let (report, desktop) = run("Loop Files \"*.txt\", \"R\" {\n  Send \"%A_LoopFileName%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(
+        desktop.calls.contains(&("list_files".to_string(), "/work|*.txt|R".to_string())),
+        "{:?}",
+        desktop.calls
+    );
+}
+
+#[test]
+fn a_loop_over_the_files_takes_no_more_than_two_parameters() {
+    let (report, _desktop) = run("Loop Files \"*.txt\", \"R\", \"x\" {\n}\n");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("\"Loop Files\" accepts at most 2 parameters."));
+}
+
+#[test]
+fn the_assignment_operators_of_v2_are_there() {
+    // The bitwise and the shift forms of v2 are `&=`, `|=`, `^=`,
+    // `<<=`, `>>=` and `>>>=`.
+    let (report, _desktop) = run(concat!(
+        "a := 6\na |= 2\n",
+        "\nb := 6\nb &= 2\n",
+        "\nc := 6\nc ^= 2\n",
+        "\nd := 6\nd <<= 2\n",
+        "\ne := 6\ne >>= 1\n",
+        "\nf := 6\nf >>>= 1\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(6)));
+    assert_eq!(report.variables.get("b"), Some(&Value::Int(2)));
+    assert_eq!(report.variables.get("c"), Some(&Value::Int(4)));
+    assert_eq!(report.variables.get("d"), Some(&Value::Int(24)));
+    assert_eq!(report.variables.get("e"), Some(&Value::Int(3)));
+    assert_eq!(report.variables.get("f"), Some(&Value::Int(3)));
+}
+
+#[test]
+fn the_match_operator_of_v2_is_the_tilde_one() {
+    // v2 spells the match `~=`, and it answers the place of the match:
+    // it is zero when the pattern is not there.
+    let (report, _desktop) = run(concat!(
+        "a := \"a1\" ~= \"\\d\"\n",
+        "\nb := \"abc\" ~= \"\\d\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(2)));
+    assert_eq!(report.variables.get("b"), Some(&Value::Int(0)));
+}
 
 #[test]
 fn a_list_can_be_picked_by_its_position() {
     let (report, _desktop) = run(
-        "pos := MouseGetPos()\nx := pos[1]\ny := pos[2]\nfound := PixelSearch(0, 0, 10, 10, \"#ff8800\")\nfx := found[1]",
+        "MouseGetPos &x, &y\nfound := PixelSearch(0, 0, 10, 10, \"#ff8800\")\nfx := found[1]",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
@@ -446,7 +988,7 @@ fn a_key_that_comes_up_is_told_to() {
 
 #[test]
 fn a_mouse_button_can_be_held_down() {
-    let (report, desktop) = run("MouseDown right\nMouseUp right");
+    let (report, desktop) = run("Send \"{RButton down}\"\nSend \"{RButton up}\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         desktop.calls,
@@ -472,22 +1014,49 @@ fn a_click_can_name_the_button_and_the_count() {
 }
 
 #[test]
-fn a_mouse_button_can_be_held_at_a_place() {
-    let (report, desktop) = run("MouseDown 100, 200\nMouseUp 100, 200");
+fn a_number_alone_is_the_number_of_clicks() {
+    // The place is two numbers, so a number on its own is the number of
+    // clicks: `Click 2` is a double click where the pointer is.
+    let (report, desktop) = run("Click 2");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls.len(), 2);
+    assert_eq!(desktop.calls, vec![("click".to_string(), "0,0,left,2".to_string())]);
+}
+
+#[test]
+fn the_components_of_a_click_may_be_in_one_string() {
+    let (report, desktop) = run("Click \"100 200 Right\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("click".to_string(), "100,200,right,1".to_string())]);
+}
+
+#[test]
+fn a_click_that_would_hold_the_button_fails_with_the_reason() {
+    let (report, _desktop) = run("Click \"Down\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the pressing of the button is not carried yet.")
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_mouse_button_can_be_held_at_a_place() {
+    let (report, desktop) = run(
+        "MouseMove 100, 200\nSend \"{LButton down}\"\nSend \"{LButton up}\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls.len(), 3);
 }
 
 #[test]
 fn mouse_get_pos_says_where_the_pointer_is() {
-    let (report, _desktop) = run("MouseMove 120, 340\npos := MouseGetPos()");
+    // v2 writes the place of the pointer into the variables of the
+    // caller.
+    let (report, _desktop) = run("MouseMove 120, 340\nMouseGetPos &x, &y");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("mouse_x"), Some(&Value::Int(120)));
-    assert_eq!(report.variables.get("mouse_y"), Some(&Value::Int(340)));
-    assert_eq!(
-        report.variables.get("pos"),
-        Some(&Value::List(vec![Value::Int(120), Value::Int(340)]))
-    );
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(120)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(340)));
 }
 
 #[test]
@@ -513,7 +1082,7 @@ fn win_active_says_whether_the_window_is_active() {
     let statements = parse("active := WinActive(\"Steam\")").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("active"), Some(&Value::Bool(true)));
+    assert_eq!(report.variables.get("active"), Some(&Value::Int(1)));
 }
 
 #[test]
@@ -535,7 +1104,8 @@ fn the_numbers_have_their_functions() {
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("a"), Some(&Value::Int(3)));
-    assert_eq!(report.variables.get("b"), Some(&Value::Int(4)));
+    // AutoHotkey v2 always answers a float for a square root.
+    assert_eq!(report.variables.get("b"), Some(&Value::Float(4.0)));
     assert_eq!(report.variables.get("c"), Some(&Value::Int(1)));
     assert_eq!(report.variables.get("d"), Some(&Value::Int(2)));
     assert_eq!(report.variables.get("e"), Some(&Value::Int(3)));
@@ -545,9 +1115,42 @@ fn the_numbers_have_their_functions() {
 }
 
 #[test]
+fn the_is_operator_says_whether_an_object_is_of_a_class() {
+    let (report, _desktop) = run(
+        "class Alpha {}\nclass Beta extends Alpha {}\nb := Beta()\n\
+         a := b is Beta\nc := b is Alpha\nd := b is Object\ne := 3 is Object",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("c"), Some(&Value::Int(1)));
+    // Every object is an Object: it is the root of the chain.
+    assert_eq!(report.variables.get("d"), Some(&Value::Int(1)));
+    // A number is not an object.
+    assert_eq!(report.variables.get("e"), Some(&Value::Int(0)));
+}
+
+#[test]
+fn the_is_operator_wants_a_class() {
+    let (report, _desktop) = run("class Alpha {}\nb := Alpha()\na := b is \"Alpha\"");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a Class but got a String."));
+}
+
+#[test]
+fn a_class_has_a_prototype() {
+    let (report, _desktop) = run("class Alpha {}\np := Alpha.Prototype\nt := Type(Alpha)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("t"), Some(&Value::Text("Class".into())));
+    match report.variables.get("p") {
+        Some(Value::Object(object)) => assert_eq!(object.borrow().class, "prototype"),
+        other => panic!("the prototype is {other:?}"),
+    }
+}
+
+#[test]
 fn the_text_has_its_functions() {
     let (report, _desktop) = run(
-        "a := StrLen(\"hello\")\nb := SubStr(\"hello\", 2)\nc := StrReplace(\"hello\", \"l\", \"L\")\nd := InStr(\"hello\", \"ll\")\ne := Upper(\"hi\")\nf := Format(\"{0} of {1}\", 2, 3)\ng := Format(\"{0:.2}\", 2.345)",
+        "a := StrLen(\"hello\")\nb := SubStr(\"hello\", 2)\nc := StrReplace(\"hello\", \"l\", \"L\")\nd := InStr(\"hello\", \"ll\")\ne := StrUpper(\"hi\")\nf := Format(\"{1} of {2}\", 2, 3)\ng := Format(\"{1:.2}\", 2.345)",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("a"), Some(&Value::Int(5)));
@@ -562,7 +1165,96 @@ fn the_text_has_its_functions() {
 
 #[test]
 fn a_function_with_the_name_of_a_builtin_wins() {
-    let (report, desktop) = run("Upper(text) {\n  return \"mine\"\n}\nresult := Upper(\"hi\")\nSend \"%result%\"");
+    let (report, desktop) = run("StrUpper(text) {\n  return \"mine\"\n}\nresult := StrUpper(\"hi\")\nSend \"%result%\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["mine"]);
+}
+
+#[test]
+fn a_builtin_variable_can_be_in_a_string() {
+    // The built-in variables are names of the runtime, so a name in a
+    // string finds them.
+    let (report, desktop) = run("Send \"[%A_AhkVersion%]\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["[2.0.19]"]);
+}
+
+#[test]
+fn a_builtin_variable_that_cannot_be_answered_fails_the_string() {
+    // The clock of the runtime does not know the date, and the string
+    // says so the way the bare name does.
+    let (report, _desktop) = run("Send \"%A_Now%\"");
+    assert!(!report.ok);
+    let error = report.error.unwrap_or_default();
+    assert!(error.contains("does not know the date"), "{error}");
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn an_item_of_a_map_may_be_written() {
+    let (report, desktop) = run("m := Map()\nm[\"a\"] := 1\nv := m[\"a\"]\nSend \"%v%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1"]);
+}
+
+#[test]
+fn an_item_of_an_array_may_be_written() {
+    let (report, desktop) = run("a := Array(0)\na[1] := 5\nv := a[1]\nSend \"%v%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["5"]);
+}
+
+#[test]
+fn an_item_of_an_array_that_is_not_there_may_not_be_written() {
+    // An array grows with `Push` and with `InsertAt`, and not with an
+    // assignment: the index has to be an item that is there.
+    let (report, _desktop) = run("a := Array(0)\na[3] := 5");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Invalid index."));
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn an_item_of_a_class_of_the_script_may_not_be_written() {
+    // v2.0.19 asks only the `__Item` property of the item, and the
+    // meta-functions answer for the properties that are not there.
+    let (report, _desktop) = run(
+        "class Box {\n}\nb := Box()\nb[\"a\"] := 1",
+    );
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This object has no item that can be written.")
+    );
+}
+
+#[test]
+fn a_built_in_may_be_written_as_a_call_statement() {
+    // The parentheses may be left out when the answer is not needed, and
+    // the name is at the start of the line. The answer is discarded.
+    let (report, _desktop) = run("Abs 5");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_function_of_the_script_may_be_written_as_a_call_statement() {
+    let (report, desktop) = run("Greet() {\n    Send \"hello\"\n}\nGreet");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["hello"]);
+}
+
+#[test]
+fn a_name_that_is_neither_a_built_in_nor_a_function_does_not_parse() {
+    // The check is a check of the load, the way v2 has it: the script
+    // does not run at all.
+    let error = parse("Nonsense 1").expect_err("does not parse");
+    assert_eq!(error.message, "Call to nonexistent function.");
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn an_item_may_be_written_with_an_operator() {
+    let (report, desktop) = run("m := Map()\nm[\"a\"] := 1\nm[\"a\"] += 2\nv := m[\"a\"]\nSend \"%v%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["3"]);
 }

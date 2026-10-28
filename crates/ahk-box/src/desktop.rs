@@ -1,21 +1,24 @@
 //! The lab box as a script target.
 //!
-//! A port of `src/yoko_ahk_mcp/box.py` from the Python `yoko-ahk-mcp`.
+//! A port of `src/ahk/box.py` from the archived Python implementation.
 //!
 //! Three primitives are not obvious, and all three were measured on the
-//! lab box (CachyOS, COSMIC Wayland, ydotool 1.0.4) on 2026-10-25:
+//! lab box (CachyOS, COSMIC Wayland) on 2026-10-25:
 //!
-//! * **Text** goes through `ydotool type`. It is exact: every character
-//!   arrives once, in order.
-//! * **Keys** go through a uinput keyboard of our own. `ydotool key`
-//!   cannot be used: ydotool 1.x reads a key *name* as zero and does
-//!   nothing, and a numeric code presses the key without ever releasing
-//!   it, so the compositor's auto-repeat types the key forever.
-//! * **Modifiers** are the one thing our device does not deliver to the
-//!   client: on this box a modifier key never reaches the focused
-//!   surface, whatever device it comes from. A key with a modifier is
-//!   therefore reported as *not delivered* rather than quietly doing
-//!   nothing.
+//! * **Text** goes through the keyboard of our own, one key at a time,
+//!   and the layout is the US one. A character the layout does not have
+//!   fails the statement -- "the keyboard of this box has no key for
+//!   it" -- rather than being typed as something else.
+//! * **Keys** go through that same keyboard. `ydotool key` cannot be
+//!   used: ydotool 1.x reads a key *name* as zero and does nothing, and
+//!   a numeric code presses the key without ever releasing it, so the
+//!   compositor's auto-repeat types the key forever.
+//! * **Modifiers** do reach the client, as long as they go down before
+//!   the key and come up after it: measured on 2026-10-25, ctrl+a
+//!   selected the text of a GTK field and the next key replaced it. (The
+//!   note that "a modifier never reaches the client" was measured with
+//!   the `ydotool` device, whose `key 30:1` is ignored -- a property of
+//!   that tool, not of the box.)
 //!
 //! ## The focus check
 //!
@@ -36,7 +39,7 @@ use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ahk::keys::{MODIFIERS, resolve_name};
-use ahk::runtime::{Desktop, WindowAnswer};
+use ahk::desktop::{Processes, WindowAnswer};
 
 use crate::keyboard::{ENUMERATION_WAIT, Keyboard, KeyboardError};
 use crate::pointer::{PRESS_SETTLE, Pointer, PointerError};
@@ -58,6 +61,9 @@ pub struct LabDesktop {
     pointer: Option<Pointer>,
     screen: Option<(i64, i64)>,
     notes: Vec<String>,
+    /// The files that are open. A handle is the place of the file in
+    /// this list, and a closed file is a hole in it.
+    files: Vec<Option<std::fs::File>>,
 }
 
 impl Default for LabDesktop {
@@ -69,7 +75,13 @@ impl Default for LabDesktop {
 impl LabDesktop {
     /// A desktop that has not yet opened anything.
     pub fn new() -> Self {
-        Self { keyboard: None, pointer: None, screen: None, notes: Vec::new() }
+        Self {
+            keyboard: None,
+            pointer: None,
+            screen: None,
+            notes: Vec::new(),
+            files: Vec::new(),
+        }
     }
 
     /// The notes so far: the places where the box was not what the script
@@ -125,7 +137,7 @@ impl LabDesktop {
         if let Some(size) = self.screen {
             return Ok(size);
         }
-        let path = PathBuf::from(format!("/tmp/yoko-ahk-size-{}.png", millis()));
+        let path = PathBuf::from(format!("/tmp/ahk-size-{}.png", millis()));
         let command = format!("grim {}", shell_quote(&path.to_string_lossy()));
         let output = Command::new("sh")
             .arg("-c")
@@ -234,7 +246,15 @@ fn shell_quote(value: &str) -> String {
     out
 }
 
-impl Desktop for LabDesktop {
+impl ahk::desktop::Desktop for LabDesktop {}
+
+impl ahk::desktop::Clipboard for LabDesktop {}
+
+impl ahk::desktop::Timers for LabDesktop {}
+
+impl ahk::desktop::Hotkeys for LabDesktop {}
+
+impl ahk::desktop::Keyboard for LabDesktop {
     fn type_text(&mut self, text: &str) -> Result<String, String> {
         if text.is_empty() {
             return Ok(String::new());
@@ -264,7 +284,6 @@ impl Desktop for LabDesktop {
         }
         Ok(format!("typed {typed} characters through the uinput keyboard"))
     }
-
     fn press_key(&mut self, name: &str, modifiers: &[String]) -> Result<String, String> {
         let code = resolve_name(name).map_err(|error| error.to_string())?;
         // The modifiers go down first and up last, around the key.
@@ -290,7 +309,19 @@ impl Desktop for LabDesktop {
         let names = modifiers.join("+");
         Ok(format!("pressed {names}+{name} (code {code}) through the uinput keyboard"))
     }
+    fn key_down(&mut self, name: &str) -> Result<String, String> {
+        let code = resolve_name(name).map_err(|error| error.to_string())?;
+        self.keyboard().map_err(|error| error.to_string())?.down(code).map_err(|error| error.to_string())?;
+        Ok(format!("{name} is down (code {code})"))
+    }
+    fn key_up(&mut self, name: &str) -> Result<String, String> {
+        let code = resolve_name(name).map_err(|error| error.to_string())?;
+        self.keyboard().map_err(|error| error.to_string())?.up(code).map_err(|error| error.to_string())?;
+        Ok(format!("{name} is up (code {code})"))
+    }
+}
 
+impl ahk::desktop::Pointer for LabDesktop {
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
         // The absolute pointer is the path that lands where it is aimed:
         // ydotool's device is relative, so its click lands wherever the
@@ -314,7 +345,6 @@ impl Desktop for LabDesktop {
             height = size.1
         ))
     }
-
     fn mouse_down(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
         if let (Some(x), Some(y)) = (x, y) {
             self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;
@@ -323,7 +353,6 @@ impl Desktop for LabDesktop {
         self.pointer().map_err(|error| error.to_string())?.button_down(button).map_err(|error| error.to_string())?;
         Ok(format!("the {button} button is down"))
     }
-
     fn mouse_up(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
         if let (Some(x), Some(y)) = (x, y) {
             self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;
@@ -332,26 +361,10 @@ impl Desktop for LabDesktop {
         self.pointer().map_err(|error| error.to_string())?.button_up(button).map_err(|error| error.to_string())?;
         Ok(format!("the {button} button is up"))
     }
-
-    fn key_down(&mut self, name: &str) -> Result<String, String> {
-        let code = resolve_name(name).map_err(|error| error.to_string())?;
-        self.keyboard().map_err(|error| error.to_string())?.down(code).map_err(|error| error.to_string())?;
-        Ok(format!("{name} is down (code {code})"))
-    }
-
-    fn key_up(&mut self, name: &str) -> Result<String, String> {
-        let code = resolve_name(name).map_err(|error| error.to_string())?;
-        self.keyboard().map_err(|error| error.to_string())?.up(code).map_err(|error| error.to_string())?;
-        Ok(format!("{name} is up (code {code})"))
-    }
-
-
-
     fn move_pointer(&mut self, x: i64, y: i64) -> Result<String, String> {
         self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;
         Ok(format!("moved the pointer to ({x}, {y})"))
     }
-
     fn mouse_position(&mut self) -> Result<(i64, i64), String> {
         // The pointer this runtime drives is an absolute device, so its
         // position can be read back from the kernel. The physical mouse on
@@ -379,20 +392,9 @@ impl Desktop for LabDesktop {
             }
         }
     }
+}
 
-    fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(command)
-            .output()
-            .map_err(|error| error.to_string())?;
-        Ok((
-            output.status.code().unwrap_or(-1),
-            String::from_utf8_lossy(&output.stdout).to_string(),
-            String::from_utf8_lossy(&output.stderr).to_string(),
-        ))
-    }
-
+impl ahk::desktop::Screen for LabDesktop {
     fn capture(
         &mut self,
         x: i64,
@@ -402,7 +404,7 @@ impl Desktop for LabDesktop {
         filename: &str,
     ) -> Result<String, String> {
         let name = if filename.is_empty() {
-            format!("yoko-ahk-{}.png", millis())
+            format!("ahk-{}.png", millis())
         } else {
             filename.to_string()
         };
@@ -419,14 +421,12 @@ impl Desktop for LabDesktop {
         }
         Ok(path.to_string_lossy().to_string())
     }
-
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
-        let path = self.capture(x, y, 1, 1, &format!("yoko-ahk-pixel-{}.png", millis()))?;
+        let path = self.capture(x, y, 1, 1, &format!("ahk-pixel-{}.png", millis()))?;
         let colour = read_pixel(&path)?;
         let _ = std::fs::remove_file(&path);
         Ok(colour)
     }
-
     fn pixel_search(
         &mut self,
         x1: i64,
@@ -443,12 +443,14 @@ impl Desktop for LabDesktop {
         if width <= 0 || height <= 0 {
             return Ok(None);
         }
-        let path = self.capture(left, top, width, height, &format!("yoko-ahk-search-{}.png", millis()))?;
+        let path = self.capture(left, top, width, height, &format!("ahk-search-{}.png", millis()))?;
         let found = search_pixel(&path, target);
         let _ = std::fs::remove_file(&path);
         Ok(found.map(|(x, y)| (x + left, y + top)))
     }
+}
 
+impl ahk::desktop::Windows for LabDesktop {
     fn window_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
         let Some(active) = self.active_window_title()? else {
             return Ok(WindowAnswer::Unknown(
@@ -471,7 +473,6 @@ impl Desktop for LabDesktop {
             Ok(WindowAnswer::NotActive)
         }
     }
-
     fn window_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
         // The X server of this box is the rootless Xwayland of gamescope,
         // and it reports an empty client list: there is no way to ask it
@@ -494,7 +495,6 @@ impl Desktop for LabDesktop {
             "the X server lists {windows:?}, which this runtime does not parse yet"
         )))
     }
-
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         let display = x_display();
         let Some(display) = display else {
@@ -528,6 +528,160 @@ impl Desktop for LabDesktop {
         }
         Ok(None)
     }
+}
+
+impl ahk::desktop::Processes for LabDesktop {
+    fn env_get(&mut self, name: &str) -> Result<String, String> {
+        Ok(std::env::var(name).unwrap_or_default())
+    }
+
+    fn env_set(&mut self, name: &str, value: &str) -> Result<String, String> {
+        // The environment of the runner is its own: the box has one
+        // session and one user, and a script that sets a variable of it
+        // changes it for the rest of the run. The script runs on one
+        // thread, so nothing else is reading the environment while it
+        // happens.
+        unsafe { std::env::set_var(name, value) };
+        Ok(value.to_string())
+    }
+
+    fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .output()
+            .map_err(|error| error.to_string())?;
+        Ok((
+            output.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&output.stdout).to_string(),
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ))
+    }
+}
+
+impl ahk::desktop::Files for LabDesktop {
+    fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
+        let mut options = std::fs::OpenOptions::new();
+        match mode {
+            "r" => {
+                options.read(true);
+            }
+            "w" => {
+                options.write(true).create(true).truncate(true);
+            }
+            "a" => {
+                options.append(true).create(true);
+            }
+            "rw" | "r+" => {
+                options.read(true).write(true).create(true);
+            }
+            other => return Err(format!("the mode {other:?} is not one this desktop knows")),
+        }
+        let file = options.open(path).map_err(|error| error.to_string())?;
+        self.files.push(Some(file));
+        Ok((self.files.len() - 1) as i64)
+    }
+
+    fn read_file_at(&mut self, handle: i64, pos: i64, count: i64) -> Result<Vec<u8>, String> {
+        use std::io::{Read, Seek, SeekFrom};
+        let file = self
+            .files
+            .get_mut(handle.max(0) as usize)
+            .and_then(|file| file.as_mut())
+            .ok_or_else(|| format!("the file {handle} is not open"))?;
+        file.seek(SeekFrom::Start(pos.max(0) as u64)).map_err(|error| error.to_string())?;
+        let mut buffer = vec![0u8; count.max(0) as usize];
+        let read = file.read(&mut buffer).map_err(|error| error.to_string())?;
+        buffer.truncate(read);
+        Ok(buffer)
+    }
+
+    fn write_file_at(&mut self, handle: i64, pos: i64, bytes: &[u8]) -> Result<usize, String> {
+        use std::io::{Seek, SeekFrom, Write};
+        let file = self
+            .files
+            .get_mut(handle.max(0) as usize)
+            .and_then(|file| file.as_mut())
+            .ok_or_else(|| format!("the file {handle} is not open"))?;
+        file.seek(SeekFrom::Start(pos.max(0) as u64)).map_err(|error| error.to_string())?;
+        file.write_all(bytes).map_err(|error| error.to_string())?;
+        Ok(bytes.len())
+    }
+
+    fn file_size(&mut self, handle: i64) -> Result<i64, String> {
+        let file = self
+            .files
+            .get(handle.max(0) as usize)
+            .and_then(|file| file.as_ref())
+            .ok_or_else(|| format!("the file {handle} is not open"))?;
+        let length = file.metadata().map_err(|error| error.to_string())?.len();
+        Ok(length as i64)
+    }
+
+    fn close_file(&mut self, handle: i64) -> Result<(), String> {
+        let slot = self
+            .files
+            .get_mut(handle.max(0) as usize)
+            .ok_or_else(|| format!("the file {handle} is not open"))?;
+        *slot = None;
+        Ok(())
+    }
+
+    fn dir_delete(&mut self, path: &str) -> Result<String, String> {
+        std::fs::remove_dir_all(path).map_err(|error| error.to_string())?;
+        Ok(format!("deleted the directory {path}"))
+    }
+
+    fn working_directory(&mut self) -> Result<String, String> {
+        std::env::current_dir()
+            .map(|path| path.to_string_lossy().to_string())
+            .map_err(|error| format!("the working directory cannot be read: {error}"))
+    }
+    fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
+        let mut files: Vec<String> = Vec::new();
+        walk_the_folder(Path::new(folder), pattern, &mode.to_ascii_uppercase(), &mut files)?;
+        // The order of a directory is not the order of its name, and a
+        // script that loops over the files wants the same order every
+        // time.
+        files.sort();
+        Ok(files)
+    }
+    fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
+        let text = std::fs::read_to_string(path)
+            .map_err(|error| format!("the file {path:?} cannot be read: {error}"))?;
+        let mut lines: Vec<String> = text.lines().map(|line| line.to_string()).collect();
+        // A file that ends with a newline has no last empty line: the
+        // newline is the end of the last line, not a line of its own.
+        if text.ends_with('\n') {
+            lines.pop();
+        }
+        Ok(lines)
+    }
+}
+
+/// The files of a folder that match a pattern.
+///
+/// The mode is v2's: "R" walks into the subfolders as well, and "D"
+/// gives the directories instead of the files.
+fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &mut Vec<String>) -> Result<(), String> {
+    let entries = std::fs::read_dir(folder)
+        .map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        let is_file = entry.path().is_file();
+        // The directories are not files: a loop over the files of a
+        // folder does not walk into them, unless the mode asks for the
+        // directories instead.
+        let wanted = if mode.contains('D') { !is_file } else { is_file };
+        if wanted && name_matches(pattern, &name) {
+            files.push(entry.path().to_string_lossy().to_string());
+        }
+        if mode.contains('R') && !is_file {
+            walk_the_folder(&entry.path(), pattern, mode, files)?;
+        }
+    }
+    Ok(())
 }
 
 /// The X display to ask, when there is one.
@@ -673,4 +827,32 @@ fn search_pixel(path: &str, target: [u8; 3]) -> Option<(i64, i64)> {
 /// The modifier names, for the report.
 pub fn modifier_names() -> Vec<String> {
     MODIFIERS.iter().map(|(name, _)| (*name).to_string()).collect()
+}
+
+/// Whether a name matches a pattern with the stars and the question
+/// marks of a shell glob.
+///
+/// The pattern of a `Loop Files` is a glob: `*` is any number of
+/// characters and `?` is one. The matcher is the same in every
+/// language, so it is written out here.
+fn name_matches(pattern: &str, name: &str) -> bool {
+    let pattern: Vec<char> = pattern.chars().collect();
+    let name: Vec<char> = name.chars().collect();
+    let mut table = vec![vec![false; name.len() + 1]; pattern.len() + 1];
+    table[0][0] = true;
+    for p in 1..=pattern.len() {
+        if pattern[p - 1] == '*' {
+            table[p][0] = table[p - 1][0];
+        }
+    }
+    for p in 1..=pattern.len() {
+        for n in 1..=name.len() {
+            table[p][n] = match pattern[p - 1] {
+                '*' => table[p - 1][n] || table[p][n - 1],
+                '?' => table[p - 1][n - 1],
+                letter => letter == name[n - 1] && table[p - 1][n - 1],
+            };
+        }
+    }
+    table[pattern.len()][name.len()]
 }
