@@ -266,6 +266,15 @@ fn a_run_carries_the_output() {
 }
 
 #[test]
+fn the_power_binds_tighter_than_the_unary_minus() {
+    // Measured on the binary of v2.0.19 on 2026-10-28: `-2 ** 2` is -4
+    // there, and not 4.
+    let (report, _desktop) = run("x := -2 ** 2");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(-4)));
+}
+
+#[test]
 fn a_pixel_get_reads_the_colour() {
     let (report, _desktop) = run("PixelGetColor 10, 20");
     assert!(report.ok);

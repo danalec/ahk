@@ -87,9 +87,9 @@ pub mod precedence {
     /// `*`, `/`, `//`.
     pub const MULTIPLICATIVE: u8 = 18;
     /// `**`.
-    pub const POWER: u8 = 19;
+    pub const POWER: u8 = 20;
     /// The operators with one side: `-`, `+`, `!`, `~`, `&`.
-    pub const UNARY: u8 = 20;
+    pub const UNARY: u8 = 19;
     /// `++`, `--`.
     pub const INCREMENT: u8 = 21;
 }
@@ -1005,7 +1005,14 @@ impl Parser {
             };
             if let Some(op) = op {
                 self.next();
-                let operand = self.parse_unary()?;
+                // The power binds tighter than the sign and the bitwise
+                // operators: `-2 ** 2` is `-(2 ** 2)`, the way v2 reads
+                // it. The increment and the decrement bind tighter than
+                // the power, so they take only the value.
+                let operand = match op {
+                    UnaryOp::PreIncrement | UnaryOp::PreDecrement => self.parse_unary()?,
+                    _ => self.parse_binary(precedence::POWER)?,
+                };
                 return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
             }
         }
@@ -1331,8 +1338,8 @@ mod tests {
             (precedence::SHIFT, "<<"),
             (precedence::ADDITIVE, "+"),
             (precedence::MULTIPLICATIVE, "*"),
-            (precedence::POWER, "**"),
             (precedence::UNARY, "!"),
+            (precedence::POWER, "**"),
             (precedence::INCREMENT, "++"),
         ];
         for pair in order.windows(2) {
@@ -1361,6 +1368,17 @@ mod tests {
         let Node::Binary { op, right, .. } = value.as_ref() else { panic!("a power") };
         assert_eq!(*op, BinaryOp::Power);
         assert!(matches!(right.as_ref(), Node::Binary { op: BinaryOp::Power, .. }));
+    }
+
+    #[test]
+    fn the_power_binds_tighter_than_the_unary_minus() {
+        // Measured on the binary of v2.0.19 on 2026-10-28: `-2 ** 2` is
+        // -4 there, and not 4.
+        let statements = parse("x := -2 ** 2").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::Unary { op, operand, .. } = value.as_ref() else { panic!("a negation") };
+        assert_eq!(*op, UnaryOp::Negate);
+        assert!(matches!(operand.as_ref(), Node::Binary { op: BinaryOp::Power, .. }));
     }
 
     #[test]

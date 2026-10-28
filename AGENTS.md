@@ -883,6 +883,22 @@ against the real thing.
   `ObjFromPtrAddRef`, `ObjPtr`, `ObjPtrAddRef` and `ObjRelease` -- are
   names of Windows, and the tree says so.
 
+## 20. The precedence of the operators
+
+The table in `ahk::precedence` is the one of the v2 documentation, and it
+was measured against the binary of v2.0.19 on 2026-10-28.
+
+- **The power binds tighter than the sign.** `-2 ** 2` is -4 and not 4:
+  the unary minus takes the whole power, the way `-(2 ** 2)` does. So the
+  operand of a unary operator is parsed with the power in it, and the
+  increment and the decrement -- which bind tighter than the power --
+  take only the value.
+- **The rest of the table is the one of the documentation.** Measured on
+  the same day: `2 ** 3 ** 2` is 512 (the power is right-associative),
+  `1 + 2 . 3` is "33" (the addition binds tighter than the
+  concatenation), `2 * -3 ** 2` is -18, and `!1 == 1` is 0 (the `!`
+  binds tighter than the comparison, while the word `not` binds looser).
+
 ## Where to read more
 
 - `README.md` -- the language: the statements, the keys, the functions,
