@@ -703,6 +703,12 @@ copied over it and the release rebuilt from them:
   and an absolute path writes where it says.
 - The loop kinds take the comma as well: `Loop Files, "*.txt"` and
   `Loop Files "*.txt"` both run.
+- The array literal and the for loop work on the box: `a := [1, 2, 3]`
+  is an array of three, `a.Length` is 3, `for v in a` walks the three
+  values, `for k, val in m` walks the key and the value of a map, and
+  `A_Index` counts the turns from one. A source that cannot be walked
+  stops the script with "Value not enumerable." on the line of the loop,
+  and the runner exits 1.
 
 Not verified:
 
