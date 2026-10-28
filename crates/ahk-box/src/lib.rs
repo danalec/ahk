@@ -9,6 +9,7 @@ pub mod desktop;
 pub mod keyboard;
 pub mod native;
 pub mod pointer;
+pub mod raven;
 
 pub use desktop::{BoxError, LabDesktop};
 pub use keyboard::{ENUMERATION_WAIT, KEY_GAP, KEY_HOLD, Keyboard, KeyboardError};

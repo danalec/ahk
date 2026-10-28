@@ -70,6 +70,14 @@ pub struct LabDesktop {
     /// kept: a script that calls the same library twice does not load
     /// it twice.
     libraries: Libraries,
+    /// The raven, when a library of Windows has been asked for. The
+    /// raven is a process of its own, and it is started with the first
+    /// call and lives until the desktop is dropped.
+    ///
+    /// It is only here on the box: on Windows the machine is the
+    /// Windows, and there is no raven to ask.
+    #[cfg(target_os = "linux")]
+    raven: Option<crate::raven::Raven>,
 }
 
 impl Default for LabDesktop {
@@ -88,6 +96,8 @@ impl LabDesktop {
             notes: Vec::new(),
             files: Vec::new(),
             libraries: Libraries::new(),
+            #[cfg(target_os = "linux")]
+            raven: None,
         }
     }
 
@@ -197,6 +207,24 @@ impl LabDesktop {
             self.notes.push(format!("no wayland socket in {runtime_dir}"));
         }
     }
+
+    /// The call of a function of a library of Windows.
+    ///
+    /// The raven is the Windows of this box: it is a program that
+    /// emulates one, and it runs the helper that does the call. It
+    /// starts with the first call and lives until the desktop is
+    /// dropped, because a program of its own is not cheap to start.
+    #[cfg(target_os = "linux")]
+    fn windows(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+        if self.raven.is_none() {
+            let paths = crate::raven::Paths::from_environment().ok_or_else(|| {
+                "this box has no raven: the libraries of Windows cannot be called.".to_string()
+            })?;
+            self.raven = Some(crate::raven::Raven::start(&paths)?);
+            self.notes.push("started a raven for the libraries of Windows".to_string());
+        }
+        self.raven.as_mut().expect("just started").call(call)
+    }
 }
 
 /// The codes the device announces.
@@ -263,6 +291,16 @@ impl ahk::desktop::Hotkeys for LabDesktop {}
 
 impl ahk::desktop::Native for LabDesktop {
     fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+        // A library of this machine is called here, and a library of
+        // Windows is called by the raven: the box has no Windows of
+        // its own, and the raven is the Windows of the box.
+        //
+        // On Windows the machine is the Windows, and there is no raven
+        // to ask: every library is called here.
+        #[cfg(target_os = "linux")]
+        if crate::raven::is_windows(&call.library) {
+            return self.windows(call);
+        }
         crate::native::call(&mut self.libraries, call)
     }
 }

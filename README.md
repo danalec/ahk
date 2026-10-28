@@ -104,6 +104,18 @@ of a variable, and the value comes back from the call:
 leaves the count of the clock in `counter`. The call is made by the
 desktop, and the box makes it on both platforms.
 
+**Windows libraries.** A library of Windows is called by the
+raven, a program that emulates a Windows process on Linux: the box
+calls the libraries of both kinds. `DllCall("kernel32\GetTickCount")`
+answers the count of the clock of Windows, and
+`DllCall("libc.so.6\getpid")` answers the number of the process on
+Linux. On the box the name of the library decides: a name that carries a
+slash or `.so` in it is a library of this machine, and every other name
+is a library of Windows. The raven and the helper that runs inside it
+are named by the environment -- `AHK_RAVEN` and `AHK_RAVEN_HELPER` --
+and a box that has not them says so. On Windows there is no raven:
+the machine is the Windows, and every library is called directly.
+
 **Values.** Two values side by side are one value, the way v2 joins them:
 `"a" 1 + 2` is "a3". The dot does the same, and the dot is looser than
 the arithmetic.

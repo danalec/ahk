@@ -50,7 +50,10 @@ and the result is a stale binary with no error.
   compiled.
 - `crates/ahk-box/` -- the box primitives: `lib.rs` (the public surface),
   `keyboard.rs` (the uinput keyboard), `pointer.rs` (the absolute
-  pointer), `desktop.rs` (the captures and the screen reads).
+  pointer), `desktop.rs` (the captures and the screen reads),
+  `native.rs` (the call into a library of the machine) and `raven.rs`
+  (the call into a library of Windows). The helper that the raven runs
+  is in `crates/ahk-box/helper/`.
 - `crates/ahk-cli/` -- the runner. The binary is `ahk`.
 - `crates/ahk/tests/language.rs` -- the dialect tests.
 - `crates/ahk/tests/builtins.rs` -- the cases of the built-ins.
@@ -1126,6 +1129,174 @@ there: the DLL would run against the Windows of Wine, which is a
 re-implementation and not the real one. Neither of them is the way to
 call a function of a library. The `DllCall` of the tree calls the `.so`
 of the box itself, with the same trampoline and the convention of Linux.
+
+## 24. The raven, and the libraries of Windows on the box
+
+Section 23 read the raven on 2026-10-28 and said that it was not the
+way to call a function of a library: it runs whole Windows programs,
+and the way to have an API of a host is a helper program inside the
+raven that the script talks to over its standard input. That helper is
+built now, and it was proved on the box on 2026-10-28. A library of
+Windows is called on the box now, and the `DllCall` of the tree answers
+the libraries of both kinds.
+
+### The raven is the upstream, and only the upstream
+
+The raven is not ours: it is <https://github.com/mirkobrombin/raven>,
+and it is built from the upstream and only from the upstream:
+
+```sh
+git clone --depth 1 https://github.com/mirkobrombin/raven.git raven-upstream
+cd raven-upstream
+cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build -j4
+```
+
+The program is `build/native/raven`.
+
+**The tree is cloned on the box, and it is never copied to it.** The
+build pins the SHA-256 of some of the sources of ReactOS, and the hash
+is of the bytes of the file: a copy of the tree that was checked out on
+a machine with CRLF line endings does not build, and it fails with a
+hash that does not match and nothing else. The GPL of the raven does
+not touch this tree because it is a tool and not a part of it.
+
+### The guest is a real process
+
+With `--execution=native` the raven runs the Windows program as a real
+Linux x86-64 process under ptrace, and it serves the Windows API
+itself. The ABI of the guest is the Microsoft x64 one, and it is
+genuine: it is the ABI that the tree already uses on Windows.
+
+The kernel32 that the raven serves is its own and not the one of
+Microsoft: it is the synthetic Windows of section 23.
+
+The kernel32 of the raven is rich. Measured there on 2026-10-28, and
+answered: `GetTickCount`, `GetCurrentProcessId`, `lstrlenA`,
+`GetSystemTimeAsFileTime`, `GetLastError`, `GetProcAddress`,
+`LoadLibraryW`, `GetModuleHandleW`, `GetStdHandle`, `ReadFile` and
+`WriteFile`.
+
+`GetProcessHeap` is the exception: it is dispatched only when the
+component `raven-rtl.dll` is built, and that component needs a mingw
+cross compiler. A build without it answers "Call to nonexistent
+function." for a function that Windows has.
+
+### The helper
+
+The helper is a Windows program that the raven runs, and it is built
+the way the raven builds its own programs: no C runtime, the entry
+point of the PE called directly, and only the kernel32 imported. It
+lives in `crates/ahk-box/helper/helper.c`.
+
+Its build needs no mingw and no headers of the Windows: the import
+library is made by `llvm-dlltool` from a definition file of five names
+-- `LoadLibraryW`, `GetProcAddress`, `GetStdHandle`, `ReadFile` and
+`WriteFile` -- and the program is linked by clang with lld:
+
+```sh
+llvm-dlltool -d kernel32.def -l libkernel32.a
+clang --target=x86_64-w64-windows-gnu -fuse-ld=lld -O2 -nostdlib -fno-stack-protector -fno-builtin \
+  -Wl,--entry,raven_entry,--no-insert-timestamp -o helper.exe helper.c -L. -lkernel32
+```
+
+**The register that keeps the stack of the call cannot be one of the
+volatile ones.** `R11` is volatile in the Windows x64 ABI: the callee
+takes it, and the stack that the trampoline had prepared is lost -- the
+guest then reads outside its memory, and the raven says "native read
+exceeds readable guest memory". The stack has to be kept in `RBX`,
+which the callee gives back. The trampoline of
+`crates/ahk-box/src/native.rs` already says this; the helper paid for
+it again on 2026-10-28, and the guest read outside its memory until
+the stack was kept in the register that the callee gives back.
+
+### The library of the guest is found beside the helper
+
+The raven looks for the file of a library in the folder of the program,
+and then in the system directory of the prefix. A library that is in
+neither is not found, and the answer is "Failed to load DLL.". The
+helper and the libraries that a script calls live in the same folder:
+the helper is the program of the raven, and the folder of the program
+is the first place the raven looks.
+
+### The protocol
+
+The protocol is one line per call, tab separated, and every value in
+hexadecimal: the library, the function, the type of the answer, the
+number of the arguments, and then the type and the value of every
+argument. The answer is `ok` and the value and the blocks that came
+back, or `error` and the reason.
+
+The type is the name the tree spells it with, and a star at the end
+says that the argument is the address of a value. The table of the
+helper holds those names in lower case, and it matches them exactly.
+
+The reasons are the messages of v2.0.19: "Failed to load DLL.",
+"Call to nonexistent function.", "Invalid arg type." and "Invalid
+return type.".
+
+What the helper proved on the box, on 2026-10-28, inside the raven:
+
+- `GetTickCount` and `GetCurrentProcessId` answer their number.
+- `lstrlenA` answers 5 for a text of five characters that went out by
+  its address.
+- `GetSystemTimeAsFileTime` writes the time into the block of an
+  address, and the block comes back.
+- A float of eight bytes comes back in the float register, and the bits
+  are right; a float of four bytes likewise.
+- A text comes back as the bytes of the text.
+- A library that does not exist answers "Failed to load DLL.", and a
+  function that does not exist answers "Call to nonexistent function.".
+
+### The routing on the box
+
+A library whose name carries a slash in it, or ".so" in it, is a
+library of this machine, and the direct path of section 23 answers it.
+Every other name is a library of Windows, and the raven answers it: the
+backslash of a path of Windows is the one that sends it there.
+
+**The rule is a rule of the box.** On Windows the machine is the
+Windows, and every library is called by the direct path: the raven is
+not there, and the name of the library does not decide anything.
+
+**The rule is a rule of the box.** On Windows the machine is the
+Windows, and every library is called by the direct path: the raven is
+not there, and the name of the library does not decide anything.
+
+**The rule is a rule of the box.** On Windows the machine is the
+Windows, and every library is called by the direct path: the raven is
+not there, and the name of the library does not decide anything.
+
+The raven is named by the environment: `AHK_RAVEN` is its program, and
+`AHK_RAVEN_HELPER` is the helper. A box that does not have them says
+so, and it does not answer with a wrong answer.
+
+### The raven is a long-lived process
+
+It starts with the first library of Windows that a script asks for, and
+it lives until the desktop is dropped. Its standard input and its
+standard output are the pipes of the host. Its standard error goes
+nowhere: the reason of a failure comes back in the protocol. The
+timeout of the guest is a day.
+
+**The raven stops with the runner, even when the runner is killed.** The
+pipe of the standard input of the raven is held by the runner, and the
+kernel closes it when the runner dies: the guest reads the end of it and
+stops, and the raven stops with it. Measured on the box on 2026-10-28:
+the raven was there while the script ran, and it was gone three seconds
+after the runner was killed with SIGKILL. The emergency stop of section 8
+does not have to know about the raven.
+
+### The limits
+
+The call is the one of the Microsoft x64, and the limits of it are the
+limits of section 23: a call that takes a variable number of arguments
+cannot be made, because the callee saves the float registers in a space
+whose size only the callee knows.
+
+The `Str*` of the tree passes the address of the bytes of the text, and
+v2 passes the address of the pointer to it: the difference is measured
+in section 23, and it is the same on the two paths.
 
 ## Where to read more
 

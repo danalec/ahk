@@ -2,14 +2,15 @@
 
 ## Overview
 
-`src` is the whole of `ahk-box`: four modules and the module root that names them.
+`src` is the whole of `ahk-box`: five modules and the module root that names them.
 
 | File | What it holds |
 | --- | --- |
-| `lib.rs` | The public surface of the crate, and nothing else. It declares the four modules and re-exports the names the runner needs. |
+| `lib.rs` | The public surface of the crate, and nothing else. It declares the five modules and re-exports the names the runner needs. |
 | `keyboard.rs` | A uinput keyboard of our own, for the keys `ydotool type` cannot express. |
 | `pointer.rs` | An absolute uinput pointer, for driving a Wayland session exactly. |
 | `native.rs` | The call into a library of the machine: the loader, the trampoline and the marshalling of the arguments. |
+| `raven.rs` | The call into a library of Windows: the raven, the helper that runs inside it, and the protocol between them. |
 | `desktop.rs` | The lab box as the runtime sees it: the `ahk::desktop::Desktop` implementation that ties the keyboard, the pointer, the screen and the shell together. |
 
 The crate does no parsing and no interpreting: a script is already parsed by the language crate `ahk`, and this crate only answers what the runtime asks of the desktop. It depends on `ahk` for the `Desktop` trait, for the key names and for the keymap of the US layout, and on `libc`, `png` and `thiserror` for the rest. `serde` and `serde_json` are declared in the manifest and used by nothing here: the report is written by the runner, which is where the serialisation lives. Nothing here depends on the runner, and the runner depends on this crate in one direction only.
@@ -23,6 +24,7 @@ pub mod desktop;
 pub mod keyboard;
 pub mod native;
 pub mod pointer;
+pub mod raven;
 
 pub use desktop::{BoxError, LabDesktop};
 pub use keyboard::{ENUMERATION_WAIT, KEY_GAP, KEY_HOLD, Keyboard, KeyboardError};
@@ -31,6 +33,7 @@ pub use pointer::{PRESS_HOLD, PRESS_SETTLE, Pointer, PointerError};
 ```
 
 Everything a caller needs is reachable from the crate root, except the three names of `pointer` and the one of `desktop` that are not re-exported: `ahk_box::pointer::DEVICE_NAME`, `ahk_box::pointer::POSITION_ATTEMPTS`, `ahk_box::pointer::POSITION_RETRY` and `ahk_box::desktop::modifier_names()`.
+The names of the raven are reached through its module: `ahk_box::raven::Raven` and `ahk_box::raven::Paths`.
 
 ### `keyboard.rs` — the keyboard of our own
 
@@ -115,6 +118,37 @@ the argument: the argument is the way back to the variable of the script.
 The answer of a text is the bytes read at the address the callee
 returned, and the language decodes them.
 
+### `raven.rs` — the Windows of the box
+
+The box has no Windows of its own, and the raven is one: it is a program
+that emulates a Windows process on Linux, and it runs the helper that
+does the call. The helper is a Windows program of our own, and it lives
+in `crates/ahk-box/helper/`. The raven is not a part of this crate: it
+is a program of the box, built from the upstream, and the environment
+names it.
+
+| Item | Signature | Notes |
+| --- | --- | --- |
+| `Raven` | struct | The raven: the process, and the pipes to it. It is started once and kept. |
+| `Raven::start` | `(&Paths) -> Result<Raven, String>` | Starts the raven with the helper as its program, and hands it the pipes of the host. |
+| `Raven::call` | `(&mut self, &mut NativeCall) -> Result<NativeResult, String>` | One call: the request goes down the pipe, the answer comes up it. |
+| `Paths` | struct | The two programs: the raven and the helper. |
+| `Paths::from_environment` | `() -> Option<Paths>` | `AHK_RAVEN` is the raven and `AHK_RAVEN_HELPER` is the helper. `None` when the box has not them. |
+| `is_windows` | `(&str) -> bool` | Whether the name of a library is a library of Windows. |
+
+The protocol between the two is one line per call, tab separated, and
+every value in it is hexadecimal: the library, the function, the type of
+the answer, the number of the arguments, and then the type and the
+value of every argument. The answer is `ok` and the value and the
+blocks that came back, or `error` and the reason. The type is the name
+the tree spells it with, and a star at the end says that the argument
+is the address of a value.
+
+The reasons are the messages of v2.0.19 — "Failed to load DLL.",
+"Call to nonexistent function.", "Invalid arg type." and "Invalid
+return type." — and the box does not answer with a reason of its own
+where v2 has one.
+
 ### `desktop.rs` — the box as the runtime sees it
 
 | Item | Signature | Notes |
@@ -164,6 +198,37 @@ file handles, and the whole-file writes), `Clipboard`, `Timers` and
 - **A question the box cannot answer fails; it does not answer `false`.** The session is Wayland, the COSMIC services answer `Introspect` with an empty list, and the rootless Xwayland of gamescope reports an empty client list, so `WinActive` and `WinExist` answer "unknown" and say out loud how to check the focus instead. `WinGetTitle` is the exception: with no active X11 window it answers an empty string, because there is no X11 window to ask about.
 - **The screen is the focus check.** `PixelGet` and `PixelSearch` are read from the frame the compositor draws, so they work whatever window is in front, Wayland or not.
 
+- **A library of this machine is called here, and a library of Windows is
+  called by the raven.** The name of the library decides: a slash or a
+  `.so` in it is a library of this machine, and every other name is a
+  library of Windows. The box has no Windows of its own, and the raven
+  is the Windows of the box. The rule is a rule of the box: on Windows
+  the machine is the Windows, and every library is called here.
+- **The raven is named by the environment.** `AHK_RAVEN` is its program
+  and `AHK_RAVEN_HELPER` is the helper. A box that has not them says so
+  — "this box has no raven: the libraries of Windows cannot be called."
+  — and it does not answer with a wrong answer.
+- **The raven is a process of its own, and it is started once.** It
+  starts with the first library of Windows that a script asks for, and
+  it lives until the desktop is dropped: a program of its own is not
+  cheap to start. Its standard input and its standard output are the
+  pipes of the host, and its standard error goes nowhere — the reason of
+  a failure comes back in the protocol. It stops with the runner, even
+  with a runner that is killed: the pipe of its input ends with the
+  runner, and the guest reads the end of it and stops.
+- **The call is the one of the Microsoft x64.** The guest is a real
+  Linux x86-64 process under ptrace, and the ABI of it is genuine: it
+  is the ABI that the tree already uses on Windows. A call that takes a
+  variable number of arguments cannot be made, because the callee saves
+  the float registers in a space whose size only the callee knows.
+- **The stack of the call is kept in `RBX`.** `R11` is volatile in the
+  Windows x64 ABI: the callee takes it, and the stack that the
+  trampoline had prepared is lost — the guest then reads outside its
+  memory, and the raven says "native read exceeds readable guest
+  memory". `RBX` is a register the callee gives back. The trampoline of
+  `native.rs` says this already, and the helper paid for it again on
+  2026-10-28.
+
 ## Side Effects
 
 - **Opens `/dev/uinput`** twice over the life of a run, once per device, with `O_NONBLOCK`. The user has to be in the `input` group; no privilege beyond that is asked for.
@@ -177,7 +242,21 @@ file handles, and the whole-file writes), `Clipboard`, `Timers` and
 - **Loads the libraries of the machine** that the script asks for, and calls into them. The library stays loaded for the life of the desktop, and it is the callee that owns the memory it writes into.
 - **Collects notes** — the device that had to be waited for, the environment that was found, the position the runtime put the pointer at when the kernel would not say — and the runner adds them to the report.
 
+- **Starts the raven**, a process of its own with the helper as its
+  program, and talks to it over a pair of pipes. Its standard error goes
+  nowhere, and the timeout of the guest is a day.
+
 ## Verification
 
 - Run: `cargo test --workspace`
 - The cases inside `pointer.rs` pin the numbers of the uinput ABI against the C definitions, so a mistake in them is caught on the workstation and not on the box. The cases inside `native.rs` make real calls, against the libraries of the machine: `kernel32` on Windows and `libc.so.6` on Linux. They are the ones that say whether the shape of the call is right, and they run on both platforms. The device itself is checked on the box, by hand: a script that asks for the pointer and for a pixel touches the screen and nothing else.
+
+- The raven needs the box and the two programs of the environment, so it
+  is not in the suite: what it answers is checked on the box, by hand.
+  Measured there on 2026-10-28, the kernel32 of the raven answered
+  `GetTickCount`, `GetCurrentProcessId`, `lstrlenA`,
+  `GetSystemTimeAsFileTime`, `GetLastError`, `GetProcAddress`,
+  `LoadLibraryW`, `GetModuleHandleW`, `GetStdHandle`, `ReadFile` and
+  `WriteFile`. `GetProcessHeap` is the exception: it is dispatched only
+  when the component `raven-rtl.dll` is built, and that component needs
+  a mingw cross compiler.

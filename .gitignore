@@ -11,3 +11,7 @@ egm-review/
 
 # a run that finds no cache directory of its own used to leave this behind
 .cache/
+
+# the helper of the raven is built on the box, and the build is not in the tree
+crates/ahk-box/helper/helper.exe
+crates/ahk-box/helper/libkernel32.a
