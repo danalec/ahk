@@ -65,6 +65,11 @@ and the result is a stale binary with no error.
 - `crates/ahk-cli/tests/runner.rs` -- the cases of the runner.
 - `../archived/ahk-python/` -- the reference implementation. Frozen;
   nothing new lands there.
+- `docs/ahk-x11-comparison.md` -- the AHK_X11 (the AHK v1.0.24 for X11, in
+  Crystal) against this tree, and what to port from it. Read it before
+  touching the hotkeys, the clipboard, the sound or the windows. Its code
+  is GPL-2.0 and this tree is Apache 2.0: the behaviour may be ported, the
+  code may not.
 
 EGM artifact directory: `egm-review/`
 
