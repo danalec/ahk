@@ -320,9 +320,13 @@ the crates say the same, so they can be published as they are.
 ## 1. The three trees, and what may be changed in them
 
 All three crates are ours to change freely: `ahk` (the language),
-`ahk-box` (the box primitives) and `ahk-cli` (the runner). The archive and
-`yoko-rust` are not: the archive is frozen, and `yoko-rust` is the lab
-server.
+`ahk-box` (the box primitives) and `ahk-cli` (the runner). The archive is
+not: it is frozen, and it is kept to be read.
+
+`yoko-rust` is the lab server. It is ours as well, but it is a server and
+not part of this tree, so it is changed when the public shape of this tree
+breaks it, and not otherwise. Section 11 says how that happens and how it
+is checked.
 
 **The archive is the record of the old dialect.** It lives in
 `../archived/ahk-python`, and it is frozen. It is kept to be read: it says
@@ -562,6 +566,25 @@ for the `ahk` crate.
 
 The input tools of that server go through this runtime on the box, so
 there is exactly one implementation of "drive the box".
+
+**The server takes the crate by path, so it breaks when the shape of this
+tree changes.** The port to v2 did exactly that: a command is a call now,
+and the nodes `Send` and `Click` are gone, so the arms of the sibling that
+named them did not compile and the server did not build. The sibling was
+fixed in its own tree, in the same week -- its own notes say that it may
+be changed freely -- and the fix was three arms and two helpers.
+
+So a change to the public shape of this crate -- a node that is gone, a
+name that is renamed, a trait whose methods change -- has to be checked
+against the server that depends on it:
+
+```sh
+cd ../yoko-rust && cargo check --locked --offline --workspace --all-targets
+```
+
+The failure is a compile error and not a wrong answer, so it cannot pass
+unnoticed: the server does not build, and the tool that drives the box is
+not there.
 
 ## 12. The box commands
 
