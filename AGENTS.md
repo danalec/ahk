@@ -686,6 +686,24 @@ Steam store window:
   variables of v2 hold the name, the extension and the folder of the
   file.
 
+Verified on 2026-10-28, on the same box, with the sources of the tree
+copied over it and the release rebuilt from them:
+
+- A recursion stops and says so: `F(k) { return F(k + 1) }` answers
+  "Function recursion limit exceeded." on line 2, the report comes out,
+  and the runner exits 1. Before this the runner died with a stack
+  overflow and no report at all.
+- The dialect says what the binary of v2.0.19 says: `-2 ** 2` is -4,
+  `"x" 1 + 2` is "x3" and `1 + 2 "d"` is "3d" -- the same three
+  answers the binary gives, measured on the same day.
+- The size of the screen is the geometry of the box: `A_ScreenWidth` is
+  1920 and `A_ScreenHeight` is 1080.
+- The box writes the files a script asks for: `FileAppend("hello",
+  "ahk_probe.txt")` leaves the file in the working directory of the run,
+  and an absolute path writes where it says.
+- The loop kinds take the comma as well: `Loop Files, "*.txt"` and
+  `Loop Files "*.txt"` both run.
+
 Not verified:
 
 - The compositor on the box is COSMIC; nothing here was measured on GNOME
