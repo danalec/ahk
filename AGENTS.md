@@ -70,6 +70,10 @@ and the result is a stale binary with no error.
   touching the hotkeys, the clipboard, the sound or the windows. Its code
   is GPL-2.0 and this tree is Apache 2.0: the behaviour may be ported, the
   code may not.
+- `docs/wayland-toplevel-enumeration.md` -- how a Wayland compositor
+  lists its windows, and the Rust that does it. Read it before touching
+  `WinExist`, `WinActive` or the clipboard: the compositor of the box
+  publishes the protocol, and this is the code that speaks it.
 
 EGM artifact directory: `egm-review/`
 
@@ -477,13 +481,24 @@ of the pointer this runtime drives, which is the only pointer on that box
 whose place can be read at all -- the physical mouse is relative, so its
 place cannot be read.
 
-`WinActive` and `WinExist` need a window API, and the box has none. The
-session is Wayland; the COSMIC desktop's D-Bus service answers
-`Introspect` with an empty list; the Xwayland server beside it
-(gamescope's rootless X server) reports an empty client list. **The answer
-is therefore "unknown", and the runtime says so out loud** -- a script
-that cannot answer the question fails; it does not quietly take the wrong
-branch.
+`WinActive` and `WinExist` need a window API, and the box has none **on
+the paths this tree uses**. The session is Wayland; the COSMIC desktop's
+D-Bus service answers `Introspect` with an empty list; the Xwayland server
+beside it (gamescope's rootless X server) reports an empty client list.
+**The answer is therefore "unknown", and the runtime says so out loud** --
+a script that cannot answer the question fails; it does not quietly take
+the wrong branch.
+
+**Measured on 2026-10-28: the compositor does have a window API, and the
+tree does not use it.** `cosmic-comp` publishes
+`ext_foreign_toplevel_list_v1`, and a client that binds it enumerates the
+windows of the box -- measured, three of them, with their titles and their
+application ids. The same compositor publishes `zcosmic_toplevel_manager_v1`
+(activate, minimize, maximize, close) and `ext_data_control_manager_v1`
+(the clipboard). The reason the answer is "unknown" is therefore the
+**path**, not the permission: the tree talks D-Bus and Xwayland, and the
+Wayland-native way is not implemented yet. The guide is
+`docs/wayland-toplevel-enumeration.md`; it carries the Rust that does it.
 
 `WinGetTitle` is the exception: with no active X11 window it answers an
 empty string, because there is no X11 window to ask about. A native
