@@ -2528,8 +2528,11 @@ impl<'a> Runtime<'a> {
         // rest want a value, and v2 says which parameter got one and what
         // the built-in wanted there.
         let written_back = crate::builtins::reference_parameters(builtin.name);
+        // The built-in that says itself which parameters take a reference
+        // asks in its own handler.
+        let decides = crate::builtins::decides_references(builtin.name);
         for (index, value) in values.iter().enumerate() {
-            if matches!(value, Value::Reference(_)) && !written_back.contains(&index) {
+            if matches!(value, Value::Reference(_)) && !written_back.contains(&index) && !decides {
                 let message = match crate::builtins::wants(builtin.name, index) {
                     crate::builtins::Wants::Number => {
                         requires(index + 1, builtin.name, TypeName::Number, value)

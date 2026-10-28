@@ -5,8 +5,10 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
+    Windows,
 };
+use ahk::dll::{encode_number, NativeCall, NativeResult, NativeType, NativeValue};
 use ahk::runtime::{Report, Runtime, Value};
 use ahk::parse;
 use std::time::Duration;
@@ -15,6 +17,13 @@ use std::time::Duration;
 #[derive(Debug, Default)]
 struct Fake {
     calls: Vec<(String, String)>,
+    /// The native call the script made, if it made one.
+    native: Option<NativeCall>,
+    /// The answer the fake gives to a native call.
+    answer: Option<NativeResult>,
+    /// The numbers the fake writes into the arguments that are the
+    /// address of a variable, in the order the arguments were given.
+    writes: Vec<f64>,
 }
 
 impl Desktop for Fake {}
@@ -84,11 +93,90 @@ impl Processes for Fake {
     }
 }
 
+impl Native for Fake {
+    fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+        self.native = Some(call.clone());
+        // The bytes the callee left in the memory of an address come
+        // back into the argument: the argument is the way back.
+        let mut writes = self.writes.iter();
+        for argument in call.arguments.iter_mut() {
+            if !argument.address {
+                continue;
+            }
+            let Some(number) = writes.next() else { continue };
+            argument.value = NativeValue::Bytes(encode_number(*number, argument.kind));
+        }
+        Ok(self.answer.clone().unwrap_or(NativeResult {
+            kind: call.returns,
+            value: NativeValue::Integer(0),
+        }))
+    }
+}
+
+/// A desktop that cannot make a native call.
+///
+/// It writes the capability, but not the method: the default of the
+/// trait says that this desktop cannot do it.
+#[derive(Debug, Default)]
+struct Blind;
+
+impl Desktop for Blind {}
+
+impl Windows for Blind {}
+
+impl Files for Blind {}
+
+impl Clipboard for Blind {}
+
+impl Timers for Blind {}
+
+impl Hotkeys for Blind {}
+
+impl Native for Blind {}
+
+impl Keyboard for Blind {
+    fn type_text(&mut self, _text: &str) -> Result<String, String> {
+        Ok(String::new())
+    }
+    fn press_key(&mut self, _name: &str, _modifiers: &[String]) -> Result<String, String> {
+        Ok(String::new())
+    }
+}
+
+impl Pointer for Blind {
+    fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        Ok(String::new())
+    }
+}
+
+impl Screen for Blind {
+    fn capture(&mut self, _x: i64, _y: i64, _width: i64, _height: i64, _filename: &str) -> Result<String, String> {
+        Ok(String::new())
+    }
+    fn pixel(&mut self, _x: i64, _y: i64) -> Result<String, String> {
+        Ok("#000000".into())
+    }
+}
+
+impl Processes for Blind {
+    fn run(&mut self, _command: &str, _window: &str) -> Result<(i32, String, String), String> {
+        Ok((0, String::new(), String::new()))
+    }
+}
+
 /// Run a script and answer with its report.
 fn run(source: &str) -> Report {
     let mut desktop = Fake::default();
+    run_on(source, &mut desktop)
+}
+
+/// Run a script against a desktop and answer with its report.
+///
+/// The desktop is the one of the caller, so that a case can look at
+/// what the call carried.
+fn run_on(source: &str, desktop: &mut Fake) -> Report {
     let statements = parse(source).expect("parses");
-    Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements)
+    Runtime::new(desktop, Duration::from_secs(10)).run(&statements)
 }
 
 /// The value of a variable, as the script left it.
@@ -120,7 +208,7 @@ fn failure_of(report: &Report) -> String {
 
 #[test]
 fn a_name_of_windows_fails_with_the_reason() {
-    let report = run("DllCall(\"user32\")");
+    let report = run("StrGet(\"a\")");
     assert_eq!(failure_of(&report), "this is a name of Windows, and this desktop is not Windows.");
 }
 
@@ -898,4 +986,101 @@ fn regex_replace_wants_a_reference_where_it_writes_the_count() {
         failure_of(&report),
         "Parameter #4 of RegExReplace requires a variable reference, but received an Integer. Specifically: 5"
     );
+}
+
+// -- the native call, against a desktop that records it ------------------------
+
+#[test]
+fn the_library_and_the_function_are_read_out_of_the_first_parameter() {
+    let mut desktop = Fake::default();
+    let report = run_on("DllCall(\"kernel32\\GetLastError\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    let call = desktop.native.expect("the desktop was asked for a call");
+    assert_eq!(call.library, "kernel32");
+    assert_eq!(call.function, "GetLastError");
+}
+
+#[test]
+fn the_types_of_the_arguments_are_read_in_pairs() {
+    let mut desktop = Fake::default();
+    let report = run_on("DllCall(\"f\", \"Int\", 5, \"Str\", \"hello\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    let call = desktop.native.expect("the desktop was asked for a call");
+    assert_eq!(call.arguments.len(), 2);
+    assert_eq!(call.arguments[0].kind, NativeType::Int);
+    assert_eq!(call.arguments[0].value, NativeValue::Integer(5));
+    assert_eq!(call.arguments[1].kind, NativeType::Str);
+    // A text goes out as its bytes: two a character, and the nul at the end.
+    assert_eq!(
+        call.arguments[1].value,
+        NativeValue::Bytes(vec![b'h', 0, b'e', 0, b'l', 0, b'l', 0, b'o', 0, 0, 0])
+    );
+}
+
+#[test]
+fn the_type_of_the_answer_is_the_last_parameter_when_the_rest_is_odd() {
+    let mut desktop = Fake::default();
+    let report = run_on("DllCall(\"f\", \"Int\", 5, \"Double\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    let call = desktop.native.expect("the desktop was asked for a call");
+    assert_eq!(call.returns, NativeType::Double);
+    assert_eq!(call.arguments.len(), 1);
+}
+
+#[test]
+fn the_answer_of_the_desktop_comes_back_to_the_script() {
+    let mut desktop = Fake {
+        answer: Some(NativeResult { kind: NativeType::Int, value: NativeValue::Integer(42) }),
+        ..Default::default()
+    };
+    let report = run_on("a := DllCall(\"f\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(42));
+}
+
+#[test]
+fn a_star_at_the_end_of_a_type_is_the_address_of_a_variable() {
+    // The fake writes into the memory of the address, the way the box does.
+    let mut desktop = Fake { writes: vec![42.0], ..Default::default() };
+    let report = run_on("counter := 0\nDllCall(\"f\", \"Int64*\", &counter)", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "counter"), 42);
+}
+
+#[test]
+fn a_type_that_is_not_a_type_fails() {
+    let report = run("DllCall(\"f\", \"Nope\", 5)");
+    assert_eq!(failure_of(&report), "Invalid arg type.");
+}
+
+#[test]
+fn a_type_of_the_answer_that_is_not_a_type_fails() {
+    let report = run("DllCall(\"f\", \"Int\", 5, \"Nope\")");
+    assert_eq!(failure_of(&report), "Invalid return type.");
+}
+
+#[test]
+fn a_number_where_a_text_is_wanted_fails() {
+    let report = run("DllCall(\"f\", 5, 5)");
+    assert_eq!(failure_of(&report), "Expected a String but got an Integer.");
+}
+
+#[test]
+fn a_text_where_a_number_is_wanted_fails() {
+    let report = run("DllCall(\"f\", \"Int\", \"hello\")");
+    assert_eq!(failure_of(&report), "Expected a Number but got a String.");
+}
+
+#[test]
+fn a_first_parameter_that_is_not_a_text_fails() {
+    let report = run("DllCall(5)");
+    assert_eq!(failure_of(&report), "Expected a String but got an Integer.");
+}
+
+#[test]
+fn a_desktop_that_cannot_make_a_native_call_fails_with_the_reason() {
+    let mut desktop = Blind;
+    let statements = parse("DllCall(\"f\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert_eq!(failure_of(&report), "this desktop cannot make a native call.");
 }

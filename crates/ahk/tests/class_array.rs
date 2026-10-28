@@ -4,7 +4,8 @@
 //! answers nothing, because nothing is asked of it.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
+    Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime};
@@ -62,6 +63,8 @@ impl Processes for Fake {
         Ok((0, String::new(), String::new()))
     }
 }
+
+impl Native for Fake {}
 
 /// A script, and the report of it.
 fn run(source: &str) -> Report {

@@ -13,6 +13,7 @@
 //! "this desktop cannot ...". A question the machine cannot answer
 //! fails with the reason, and never answers `false`.
 
+use crate::dll::{NativeCall, NativeResult};
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
 
@@ -266,6 +267,19 @@ pub trait Hotkeys {
     }
 }
 
+/// The native calls of the desktop.
+///
+/// A call into a library of the machine is not something the language
+/// can do: the crate does no I/O of its own, and the desktop is the way
+/// out. The call carries the blocks the callee may write into, and the
+/// answer comes back with them.
+pub trait Native {
+    /// The call of a function of a library.
+    fn call_native(&mut self, _call: &mut NativeCall) -> Result<NativeResult, String> {
+        Err("this desktop cannot make a native call.".to_string())
+    }
+}
+
 /// The sum of the capabilities: what the runtime drives.
 ///
 /// The trait has no methods of its own. It is the sum, so that the
@@ -280,5 +294,6 @@ pub trait Desktop:
     + Clipboard
     + Timers
     + Hotkeys
+    + Native
 {
 }

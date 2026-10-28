@@ -40,8 +40,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ahk::keys::{MODIFIERS, resolve_name};
 use ahk::desktop::{Processes, WindowAnswer};
+use ahk::dll::{NativeCall, NativeResult};
 
 use crate::keyboard::{ENUMERATION_WAIT, Keyboard, KeyboardError};
+use crate::native::Libraries;
 use crate::pointer::{PRESS_SETTLE, Pointer, PointerError};
 
 /// A primitive could not be carried out.
@@ -64,6 +66,10 @@ pub struct LabDesktop {
     /// The files that are open. A handle is the place of the file in
     /// this list, and a closed file is a hole in it.
     files: Vec<Option<std::fs::File>>,
+    /// The libraries that are loaded. A library is loaded once and
+    /// kept: a script that calls the same library twice does not load
+    /// it twice.
+    libraries: Libraries,
 }
 
 impl Default for LabDesktop {
@@ -81,6 +87,7 @@ impl LabDesktop {
             screen: None,
             notes: Vec::new(),
             files: Vec::new(),
+            libraries: Libraries::new(),
         }
     }
 
@@ -253,6 +260,12 @@ impl ahk::desktop::Clipboard for LabDesktop {}
 impl ahk::desktop::Timers for LabDesktop {}
 
 impl ahk::desktop::Hotkeys for LabDesktop {}
+
+impl ahk::desktop::Native for LabDesktop {
+    fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+        crate::native::call(&mut self.libraries, call)
+    }
+}
 
 impl ahk::desktop::Keyboard for LabDesktop {
     fn type_text(&mut self, text: &str) -> Result<String, String> {

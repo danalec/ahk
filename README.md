@@ -29,7 +29,9 @@ The parser is portable and does no I/O of its own. The runtime runs
   (uinput), an absolute pointer, and the screen captures (grim). The code
   uinput syscalls are behind `#[cfg(target_os = "linux")]`, so a Windows
   build leaves them out and the device answers `NotLinux` when it is
-  used. `desktop.rs` is not behind that gate at all.
+  used. `desktop.rs` is not behind that gate at all, and the native call
+  is not either: it loads a library of the machine and calls into it, on
+  both platforms.
 - **`ahk-cli`** -- the runner. A script on stdin, a report on stdout. The
   binary is `ahk`, and it is the one that runs on the box.
 
@@ -90,6 +92,17 @@ so is a function of the script -- `MyFunc` calls `MyFunc()`.
 
 The positions count from one, the way AutoHotkey counts them:
 `SubStr("hello", 2)` is `ello`, and `InStr("hello", "ll")` is `3`.
+
+**Native calls.** `DllCall` calls a function of a library of the machine:
+`DllCall("kernel32\GetTickCount")` answers the count of the clock of
+Windows, and `DllCall("libc.so.6\getpid")` answers the number of the
+process on Linux. The library and the function go in one string, the
+types of the arguments alternate with the values, and the type of the
+answer is the last parameter. A `*` at the end of a type is the address
+of a variable, and the value comes back from the call:
+`DllCall("kernel32\QueryPerformanceCounter", "Int64*", &counter)`
+leaves the count of the clock in `counter`. The call is made by the
+desktop, and the box makes it on both platforms.
 
 **Values.** Two values side by side are one value, the way v2 joins them:
 `"a" 1 + 2` is "a3". The dot does the same, and the dot is looser than

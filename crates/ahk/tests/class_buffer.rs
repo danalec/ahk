@@ -10,7 +10,8 @@
 //! binary of v2.0.19 on 2026-10-27, with `HasProp` and `HasMethod`.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
+    Windows,
 };
 use ahk::runtime::{Report, Runtime, Value};
 use ahk::parse;
@@ -70,6 +71,8 @@ impl Processes for Fake {
         Ok((0, String::new(), String::new()))
     }
 }
+
+impl Native for Fake {}
 
 /// Run a script and answer the report of it.
 fn run(source: &str) -> Report {

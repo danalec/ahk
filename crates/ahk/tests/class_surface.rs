@@ -18,7 +18,8 @@
 //! tables against the surface instead.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
+    Windows,
 };
 use ahk::runtime::{Report, Runtime};
 use ahk::parse;
@@ -116,6 +117,8 @@ impl Processes for Fake {
         Ok((0, String::new(), String::new()))
     }
 }
+
+impl Native for Fake {}
 
 /// The report of a script.
 fn run(source: &str) -> Report {

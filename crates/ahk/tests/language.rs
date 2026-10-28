@@ -9,7 +9,8 @@
 //! implementations have to agree.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
+    Windows,
 };
 use ahk::desktop::WindowAnswer;
 use ahk::runtime::{Report, Runtime, Value};
@@ -165,6 +166,8 @@ impl Processes for Fake {
         Ok((0, format!("ran {command}\n"), String::new()))
     }
 }
+
+impl Native for Fake {}
 
 fn run(source: &str) -> (Report, Fake) {
     let mut desktop = Fake::default();

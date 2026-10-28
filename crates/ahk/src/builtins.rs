@@ -24,7 +24,10 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::runtime::{Runtime, RuntimeError, TypeName, Value, WindowAnswer};
+use crate::dll::{Convention, NativeArg, NativeCall, NativeType, NativeValue};
+use crate::runtime::{
+    expected_type, unassigned, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, WindowAnswer,
+};
 use core::cmp::Ordering;
 use core::sync::atomic::{AtomicU32, Ordering as AtomicOrder};
 
@@ -212,7 +215,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "ControlShowDropDown", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
     Builtin { name: "DetectHiddenText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
     Builtin { name: "DetectHiddenWindows", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DllCall", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, handler: not_carried },
+    Builtin { name: "DllCall", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, handler: dll_call },
     Builtin { name: "DriveEject", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
     Builtin { name: "DriveGetCapacity", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
     Builtin { name: "DriveGetFilesystem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
@@ -452,6 +455,16 @@ pub fn reference_parameters(name: &str) -> &'static [usize] {
     }
 }
 
+/// Whether the built-in says itself which parameters take a reference.
+///
+/// The `DllCall` is the one that does: the place of the reference is
+/// said by the type of the argument, and the type is a parameter of the
+/// call. The table of v2 cannot hold that, because the table is fixed
+/// and the call is not.
+pub fn decides_references(name: &str) -> bool {
+    matches!(name, "DllCall")
+}
+
 /// The built-in with this name, if the language has one.
 ///
 /// The name is matched the way AutoHotkey matches it: without regard to
@@ -474,6 +487,165 @@ pub fn names() -> impl Iterator<Item = &'static str> {
 }
 
 // -- the names that are carried, and that this runtime cannot answer ------------
+
+
+/// `DllCall`: a call into a library of the machine.
+///
+/// v2 writes the library and the function in one string, the type of
+/// every argument after it, and the type of the answer at the end. The
+/// types and the values alternate, and the last parameter may be the
+/// type of the answer alone: the count of the parameters tells the two
+/// apart.
+fn dll_call(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let Some(first) = values.first() else {
+        return Err(RuntimeError { message: "DllCall wants the library and the function.".into(), line });
+    };
+    let Value::Text(target) = first else {
+        return Err(RuntimeError { message: expected_type(TypeName::String, first.type_name()), line });
+    };
+    let (library, function) = crate::dll::split_target(target);
+    let rest = &values[1..];
+    let (returns, convention, rest) = if rest.len() % 2 == 1 {
+        let last = rest.last().expect("there is one");
+        let Value::Text(text) = last else {
+            return Err(RuntimeError { message: expected_type(TypeName::String, last.type_name()), line });
+        };
+        let (convention, name) = split_convention(text);
+        let Some((kind, _)) = crate::dll::parse_type(name) else {
+            return Err(RuntimeError { message: "Invalid return type.".into(), line });
+        };
+        (kind, convention, &rest[..rest.len() - 1])
+    } else {
+        (NativeType::Int, Convention::Standard, rest)
+    };
+    let mut arguments = Vec::new();
+    let mut references = Vec::new();
+    let mut index = 0;
+    while index < rest.len() {
+        let Value::Text(text) = &rest[index] else {
+            return Err(RuntimeError { message: expected_type(TypeName::String, rest[index].type_name()), line });
+        };
+        let Some((kind, address)) = crate::dll::parse_type(text) else {
+            return Err(RuntimeError { message: "Invalid arg type.".into(), line });
+        };
+        let (argument, reference) = marshal(rt, kind, address, &rest[index + 1], line)?;
+        arguments.push(argument);
+        references.push(reference);
+        index += 2;
+    }
+    let mut call = NativeCall { library, function, convention, returns, arguments };
+    let answer = rt
+        .desktop()
+        .call_native(&mut call)
+        .map_err(|reason| RuntimeError { message: reason, line })?;
+    // The arguments that are the address of a variable come back into
+    // the variable.
+    for (argument, reference) in call.arguments.iter().zip(references) {
+        // Only the argument that is the address of a variable comes back.
+        if !argument.address {
+            continue;
+        }
+        let Some(reference) = reference else { continue };
+        let NativeValue::Bytes(bytes) = &argument.value else { continue };
+        let written = if argument.kind.is_text() {
+            Value::Text(crate::dll::decode(bytes, argument.kind))
+        } else if argument.kind.is_float() {
+            Value::Float(crate::dll::decode_number(bytes, argument.kind))
+        } else {
+            Value::Int(crate::dll::decode_number(bytes, argument.kind) as i64)
+        };
+        rt.write_reference(&reference, written);
+    }
+    Ok(match answer.value {
+        NativeValue::Integer(number) => Value::Int(number),
+        NativeValue::Float(number) => Value::Float(number),
+        NativeValue::Bytes(bytes) => Value::Text(crate::dll::decode(&bytes, answer.kind)),
+    })
+}
+
+/// The argument of a native call, out of the value the script wrote.
+///
+/// A value behind a reference is the value of the variable, and the
+/// call writes into the variable: the reference comes back with the
+/// argument.
+fn marshal(
+    rt: &mut Runtime<'_>,
+    kind: NativeType,
+    address: bool,
+    value: &Value,
+    line: u32,
+) -> Result<(NativeArg, Option<Value>), RuntimeError> {
+    let (value, reference) = match value {
+        Value::Reference(reference) => {
+            let Some(current) = rt.read_reference(reference) else {
+                return Err(RuntimeError { message: unassigned(&reference.name), line });
+            };
+            (current, Some(value.clone()))
+        }
+        other => (other.clone(), None),
+    };
+    // A text goes out as its bytes.
+    if kind.is_text() {
+        let Value::Text(text) = &value else {
+            return Err(RuntimeError { message: expected_type(TypeName::String, value.type_name()), line });
+        };
+        let bytes = crate::dll::encode(text, kind);
+        return Ok((NativeArg { kind, address, value: NativeValue::Bytes(bytes) }, reference));
+    }
+    // A pointer may be an object, and then it is the address of the
+    // object that goes.
+    if matches!(kind, NativeType::Ptr | NativeType::UPtr) {
+        if let Value::Object(_) = &value {
+            if let Some(place) = rt.property_of(&value, "ptr", line) {
+                let place = place
+                    .to_number_strict()
+                    .map_err(|got| RuntimeError { message: expected_type(TypeName::Integer, got), line })?;
+                return Ok((NativeArg { kind, address, value: NativeValue::Integer(place as i64) }, reference));
+            }
+        }
+    }
+    let number = native_number(rt, &value, line)?;
+    let value = if kind.is_float() {
+        NativeValue::Float(number)
+    } else {
+        NativeValue::Integer(number as i64)
+    };
+    Ok((NativeArg { kind, address, value }, reference))
+}
+
+/// The value as a number, the way a native call wants it.
+fn native_number(rt: &Runtime<'_>, value: &Value, line: u32) -> Result<f64, RuntimeError> {
+    match rt.number(value, line) {
+        Ok(number) => Ok(number),
+        Err(RuntimeFailure::Error(error)) => Err(error),
+        Err(RuntimeFailure::Timeout(_)) => {
+            Err(RuntimeError { message: "the script ran out of time.".into(), line })
+        }
+        Err(RuntimeFailure::Flow(_)) => {
+            Err(RuntimeError { message: "a number was expected.".into(), line })
+        }
+    }
+}
+
+/// The convention and the type of the answer, read out of the last
+/// parameter.
+///
+/// v2 writes the convention and the type of the answer in one string:
+/// "CDecl Int", or "CDecl" alone, or the type alone.
+fn split_convention(text: &str) -> (Convention, &str) {
+    let trimmed = text.trim();
+    let (head, tail) = match trimmed.split_once(char::is_whitespace) {
+        Some((head, tail)) => (head, tail.trim()),
+        None => (trimmed, ""),
+    };
+    if head.eq_ignore_ascii_case("cdecl") {
+        return (Convention::Cdecl, tail);
+    }
+    if head.eq_ignore_ascii_case("stdcall") {
+        return (Convention::Standard, tail);
+    }
+    (Convention::Standard, trimmed)
+}
 
 /// A name that this runtime carries, and cannot answer.
 ///

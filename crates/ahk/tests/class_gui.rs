@@ -5,7 +5,8 @@
 //! the object is made, and every name of it says why it cannot work.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
+    Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime, Value};
@@ -83,6 +84,8 @@ impl Processes for Fake {
 }
 
 impl Windows for Fake {}
+
+impl Native for Fake {}
 
 #[test]
 fn a_gui_is_made() {

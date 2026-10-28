@@ -108,12 +108,12 @@ the box: it does no I/O, and it has to keep building without `std`.
   that answers it. A name that is shaped for Windows is in the table too,
   and the handler answers it with the reason: a question the desktop cannot
   answer fails, and it does not answer `false`.
-- **The `Desktop` trait is the sum of nine capability traits** -- `Keyboard`,
+- **The `Desktop` trait is the sum of ten capability traits** -- `Keyboard`,
   `Pointer`, `Screen`, `Windows`, `Processes`, `Files`, `Clipboard`,
-  `Timers` and `Hotkeys`. There is no blanket implementation: every
-  implementor writes the nine of them, and every method that a capability
-  does not have has a default that says so. A new capability goes in its
-  own trait, and `Desktop` grows by naming it.
+  `Timers`, `Hotkeys` and `Native`. There is no blanket implementation:
+  every implementor writes the ten of them, and every method that a
+  capability does not have has a default that says so. A new capability
+  goes in its own trait, and `Desktop` grows by naming it.
 - **A class type of the runtime is a class too.** `Map`, `Array`, `Buffer`,
   `File`, `Func`, `Gui`, `Menu` and `Hotkey` are classes the script cannot
   extend. Their state lives in the property table of the object under a
@@ -273,10 +273,11 @@ not active.
 and the primitives of the box are the Linux ones: the uinput keyboard,
 the absolute pointer, the `grim` capture. The names of v2 that are about
 Windows stay in the surface all the same, and they answer with the
-reason they cannot answer: a script that calls `DllCall` or
-`ControlSendText` runs, and it is told what the desktop of this tree
-cannot do. The names are the names of v2 on every platform, and the
-desktop is the one thing that differs.
+reason they cannot answer: a script that calls `ControlSendText` runs,
+and it is told what the desktop of this tree cannot do. The `DllCall` is
+the one that is not refused: it calls the library of the machine, and it
+does it on Windows and on Linux (section 23). The names are the names of
+v2 on every platform, and the desktop is the one thing that differs.
 
 **The tables are read when the tests are compiled**, so a name that moves
 between them breaks the build of a test and not a run of it.
@@ -1001,13 +1002,24 @@ were written against.
   answer with a list as well. A class that enumerates one value at a time
   needs a generator, and the tree has no `yield`.
 
-## 23. The `DllCall`, and what it would take
+## 23. The `DllCall`, and the trampoline behind it
 
-The tree carries the name `DllCall` because v2 carries it, and it refuses
-it: the handler is the one that answers "this is a name of Windows, and
-this desktop is not Windows." That answer is the same on every desktop,
-and it would be wrong on a Windows one too, because **this tree has no
-Windows desktop at all**. The only desktop is the box, which is Linux.
+The tree carries the `DllCall` and it calls: a script may call a function
+of a library of the machine, on Windows and on Linux.
+
+It falls into three pieces, and the split is the rule of the tree:
+
+- **The marshalling is pure, and it is in this crate**
+  (`crates/ahk/src/dll.rs`): the names of the types, their sizes, the
+  type of the answer, the convention, and the bytes of a value in the
+  encoding its type asks for.
+- **The call is I/O, and it is the tenth capability of the desktop**
+  (`ahk::desktop::Native`): the runtime hands the desktop a `NativeCall`,
+  and the desktop makes the call and answers with a `NativeResult`.
+- **The box answers it** (`crates/ahk-box/src/native.rs`):
+  `LoadLibraryW` and `GetProcAddress` on Windows, `dlopen` and `dlsym` on
+  Linux, and a trampoline that puts the arguments where the machine wants
+  them.
 
 What v2 does with it, measured on the binary on 2026-10-28, so that the
 next one does not have to measure it again:
@@ -1016,7 +1028,8 @@ next one does not have to measure it again:
   and the library in `Extra`.
 - A function that is not in the library: an `Error` with "Call to
   nonexistent function." and the name in `Extra`.
-- A type that is not a type: a `ValueError` with "Invalid return type."
+- A type that is not a type: a `ValueError` with "Invalid arg type.", and
+  "Invalid return type." for the type of the answer.
 - A number where a string is expected: a `TypeError` with "Expected a
   String but got an Integer." and the value in `Extra`.
 - A string where a number is expected: a `TypeError` with "Expected a
@@ -1024,32 +1037,95 @@ next one does not have to measure it again:
 - A float as the name of the function: a `TypeError` with "Parameter #1
   invalid."
 - The types are `Str`, `WStr`, `AStr`, `Int`, `Int64`, `Short`, `Char`,
-  `Float`, `Double` and `Ptr`, with a `U` in front of the whole ones and
-  a `*` or a `P` at the end for the address of the value. The return
+  `Float`, `Double`, `Ptr` and `UPtr`, with a `U` in front of the whole
+  ones and a `*` or a `P` at the end for the address of the value. The return
   type is `Int` when it is left out, and the last parameter may be
   "CDecl" or "CDecl Int" to say the convention.
 - The `*` writes back: `DllCall("kernel32\QueryPerformanceCounter",
   "Int64*", &counter)` leaves the count of the clock in `counter`.
 - A `Str` return reads the text at the address the function returned.
 
-What it would take here, in the three pieces it falls into:
+The rules of this tree, and where they differ from v2:
 
-- **The marshalling is pure and belongs to this crate**: the names of the
-  types, their sizes, the return type and the convention.
-- **The call is I/O and belongs to the desktop**: a tenth capability, a
-  trait of its own, that the box answers with `dlopen` and `dlsym` and a
-  call through `libffi`.
-- **A Windows desktop is a third thing**, and it does not exist: the
-  names of Windows are in the built-in table because they are names of
-  v2, and the tree answers them with the reason it cannot answer them.
+- **The `Str` and the `WStr` are UTF-16, and the `AStr` is UTF-8.** The
+  `AStr` of v2 is the codepage of Windows, and there is no codepage in the
+  tree: the text of the machine is UTF-8.
+- **The `*` passes the address of a copy.** The values of the tree have no
+  stable address, so the desktop allocates the block, passes its address,
+  and reads the bytes the callee left there back into the variable of the
+  caller.
+- **The convention does not change the call.** The two conventions of x64
+  are the same one; a call of thirty-two bits is the only one where they
+  differ, and the tree has no thirty-two bits.
+- **The `Str` with a star is the address of the text in the tree, and the
+  address of the pointer to it in v2.** Measured on the binary on
+  2026-10-28: v2 answers 3 for `DllCall("kernel32\lstrlenA", "Str*",
+  "hello")`, and the tree answers 1. No case of the tree depends on the
+  difference.
+
+The trampoline is assembly inline, and there is no `libffi`: the shape of
+the call is known when the call is made, and the cache of the cargo does
+not have the crate. It was written and proved before it entered the tree,
+in a prototype of its own: thirteen cases, green on Windows and fourteen
+green on the box.
+
+**The two conventions of x64 do not agree, and the tree follows each of
+them.** Measured on the compiler's own assembly on 2026-10-28, on both
+machines:
+
+- **On Windows the register of an argument is the one of its place.** The
+  first four arguments go in RCX, RDX, R8 and R9, and the float of the
+  fourth place goes in XMM3 -- and not in XMM0, as the documentation of
+  the other convention says. The float goes in the register of the
+  integers of that place as well, and that is what a function that takes
+  a variable number of arguments reads.
+- **On Linux the register of an argument is the one of its class.** The
+  integers go in RDI, RSI, RDX, RCX, R8 and R9, and the floats go in
+  XMM0 to XMM7 by their own count, whatever is between them.
+
+A function that takes a variable number of arguments is carried on Linux
+and not on Windows. On Linux the number of the float registers travels in
+AL, and the tree writes it there: the compiler writes `movb $1, %al` for
+one float, and the tree does the same. On Windows the callee saves the
+float registers in a room whose size only the callee knows, and the
+trampoline cannot know that the callee takes a variable number of
+arguments: the room would sit between the home space and the arguments
+of the stack, and a call that is not variadic wants them the other way.
+
+Five things about the trampoline are easy to break by accident:
+
+- **The `asm!` of Rust does not take a name in the operand of an explicit
+  register.** `inout("r9") x => _` is a syntax error; it wants
+  `inout("r9") _ => x`.
+- **The block has to put the `rsp` back.** `mov rsp, rbx` and `pop rbx` at
+  the end, or the epilogue of the function corrupts the stack.
+- **The `rsp` that is saved has to live in a preserved register.** A
+  volatile one (`r10`) does not survive the call.
+- **`rbx` cannot be an operand on Linux.** The LLVM reserves it there; it
+  may only be used inside the text of the assembly.
+- **The number of the float registers rides in the array of the integers.**
+  The seventh place of that array carries it, and the assembly reads it
+  into AL just before the call: the address of the array is in RAX at
+  that moment, and the load of AL clears the rest of RAX, which the call
+  overwrites anyway.
 
 And the raven is not the way to call a Windows function from here. The
 raven of today is a runtime that runs whole Windows programs on Linux --
 C++20, CMake, the components of ReactOS, and a GPL that does not touch
-this tree because it is a tool and not a part of it. A Windows DLL is a
-program that Linux cannot `dlopen`: the way to have one on the box is a
-helper program inside the raven, and the script would talk to that helper
-instead of to the library.
+this tree because it is a tool and not a part of it. Read on
+2026-10-28: it loads a DLL and calls into it, but only from inside a
+program of its own. There is no API of a host, and the way to have one is
+a helper program inside the raven that the script talks to over its
+standard input -- a program of its own, built with MinGW, running for as
+long as the script needs it. The DLL would then run against the Windows
+of the raven -- the synthetic one -- and not against the Windows of the
+machine.
+
+The box has Wine, and that is the lighter way to run a Windows program
+there: the DLL would run against the Windows of Wine, which is a
+re-implementation and not the real one. Neither of them is the way to
+call a function of a library. The `DllCall` of the tree calls the `.so`
+of the box itself, with the same trampoline and the convention of Linux.
 
 ## Where to read more
 

@@ -17,7 +17,7 @@
 //!
 //! ```
 //! use ahk::runtime::{Clock, Runtime};
-//! # use ahk::desktop::{Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows};
+//! # use ahk::desktop::{Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers, Windows};
 //! # use core::time::Duration;
 //! # #[derive(Default)]
 //! # struct Fake;
@@ -41,6 +41,7 @@
 //! # impl Clipboard for Fake {}
 //! # impl Timers for Fake {}
 //! # impl Hotkeys for Fake {}
+//! # impl Native for Fake {}
 //! # struct TheClock;
 //! # impl Clock for TheClock {
 //! #     fn now_ms(&self) -> u64 { 0 }
@@ -63,7 +64,7 @@
 //! let report = Runtime::new(&mut desktop, core::time::Duration::from_secs(10)).run(&statements);
 //! assert!(report.ok);
 //! assert_eq!(report.output, vec!["the answer is 42"]);
-//! # use ahk::desktop::{Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows};
+//! # use ahk::desktop::{Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers, Windows};
 //! # #[derive(Default)]
 //! # struct Fake;
 //! # impl Desktop for Fake {}
@@ -86,6 +87,7 @@
 //! # impl Clipboard for Fake {}
 //! # impl Timers for Fake {}
 //! # impl Hotkeys for Fake {}
+//! # impl Native for Fake {}
 //! ```
 
 extern crate alloc;
@@ -93,6 +95,7 @@ extern crate alloc;
 pub mod ast;
 pub mod builtins;
 pub mod classes;
+pub mod dll;
 pub mod desktop;
 pub mod keys;
 pub mod lexer;

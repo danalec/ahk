@@ -20,13 +20,15 @@ The files, in the order the data moves through them:
 | `builtins.rs` | the built-in table: every name of v2 the dialect carries |
 | `classes/` | the class types: `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`, `Hotkey` |
 | `desktop.rs` | the capability traits the runtime is handed |
+| `dll.rs` | the marshalling of a call into a library of the machine |
 | `variables.rs` | the built-in variables of v2 |
 | `keys.rs` | the key table: the evdev codes, the aliases and the key specs |
 | `regex.rs` | the regular expressions of `RegExMatch` and `RegExReplace` |
 
 The dependency between them runs one way: `parser.rs` reads `ast.rs` and
 `lexer.rs`, and `runtime.rs` reads `ast.rs`, `builtins.rs`, `classes/`,
-`variables.rs` and `regex.rs`. `ast.rs`, `lexer.rs`, `keys.rs` and `regex.rs`
+`variables.rs` and `regex.rs`. `dll.rs` depends on nothing inside the
+crate: it is the marshalling of a native call, and it is pure. `ast.rs`, `lexer.rs`, `keys.rs` and `regex.rs`
 depend on
 nothing inside the crate. The key table is the odd one out: the runtime
 hands the desktop the *name* of a key, and turning that name into a code is
@@ -44,6 +46,7 @@ pub mod ast;
 pub mod builtins;
 pub mod classes;
 pub mod desktop;
+pub mod dll;
 pub mod keys;
 pub mod lexer;
 pub mod parser;
@@ -313,11 +316,41 @@ none, and the statement fails with that reason.
 
 ### The desktop (`desktop.rs`)
 
-The nine capability traits, and the `Desktop` that is their sum. Every
-implementor writes the nine of them: there is no blanket implementation,
-so a desktop that grows a capability grows with it. Every method that a
+The ten capability traits, and the `Desktop` that is their sum. Every
+implementor writes the ten of them: there is no blanket implementation,
+so a desktop that grows a capability grows with it. The tenth is `Native`,
+the call into a library of the machine. Every method that a
 capability does not have has a default that answers with the reason it
 cannot.
+
+### The marshalling of a native call (`dll.rs`)
+
+The shapes of a call into a library of the machine, and the marshalling of
+the values. It is pure, so it belongs to this crate; the call itself is
+I/O, and belongs to the desktop.
+
+- `NativeType` -- `Int`, `Int64`, `Short`, `Char`, `UChar`, `UShort`, `UInt`,
+  `UInt64`, `Float`, `Double`, `Ptr`, `UPtr`, `Str`, `WStr` and `AStr`. The
+  methods are `width()`, `is_float()`, `is_text()`, `is_integer()` and
+  `character_width()`.
+- `Convention` -- `Standard` and `Cdecl`. The two conventions of x64 are
+  the same one, so the value does not change the shape of the call.
+- `NativeValue` -- `Integer(i64)`, `Float(f64)` and `Bytes(Vec<u8>)`.
+- `NativeArg { kind, address, value }` -- one argument. `address` is the
+  `*` that v2 writes at the end of a type: the value of the variable of the
+  caller comes back from the call, and the desktop is the one that writes
+  it into the argument.
+- `NativeCall { library, function, convention, returns, arguments }` -- the
+  call, ready to be made.
+- `NativeResult { kind, value }` -- the answer.
+- `parse_type(&str) -> Option<(NativeType, bool)>` -- the type out of the
+  string the script writes, and whether it is the address of a value.
+- `split_target(&str) -> (String, String)` -- the library and the function
+  out of `"kernel32\GetLastError"`.
+- `encode` and `decode` -- the bytes of a text: UTF-16 for `Str` and
+  `WStr`, UTF-8 for `AStr`. The text ends at the first nul.
+- `encode_number` and `decode_number` -- the bytes of a number, in the
+  width its type asks for.
 
 ### The built-in variables (`variables.rs`)
 
@@ -382,6 +415,10 @@ that asks for another one is refused with the reason.
   They are in `core`. `sqrt`, `floor`, `ceil`, `round` and `fract` go
   through the helper in `runtime.rs`, which is `libm` under `no_std`, so a
   target with no `std` answers with the same numbers.
+- **The marshalling of a native call is pure.** `dll.rs` opens nothing and
+  calls nothing: it turns the values of the script into the shapes of the
+  machine and back. The call itself is the tenth capability of the desktop,
+  and the crate never reaches for it on its own.
 - **The tree is not in rustfmt's shape, and the formatter is not part of the
   loop.** The code is written compactly, with a struct variant and a line of
   logic on one line, and `cargo fmt --all` would rewrite it into something
@@ -394,8 +431,9 @@ that asks for another one is refused with the reason.
   back, not something it puts anywhere.
 - **The calls it makes into the injected `Desktop`.** Typing, clicking,
   pressing keys, moving the pointer, reading a pixel, searching the screen
-  for a colour, capturing a region, running a command and asking about the
-  windows all go through the `Desktop` the runtime was handed. A desktop
+  for a colour, capturing a region, running a command, asking about the
+  windows and calling into a library of the machine all go through the
+  `Desktop` the runtime was handed. A desktop
   that cannot do one of them answers with the reason, and the runtime turns
   that reason into the `error` of the report.
 - **The pause it asks of the injected `Clock`.** `Sleep` waits on the clock,

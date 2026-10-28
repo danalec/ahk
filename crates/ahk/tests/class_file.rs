@@ -5,7 +5,8 @@
 //! the same methods, and the box is checked by hand.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
+    Windows,
 };
 use ahk::runtime::{Report, Runtime};
 use ahk::parse;
@@ -156,6 +157,8 @@ impl Processes for Fake {
         Ok((0, String::new(), String::new()))
     }
 }
+
+impl Native for Fake {}
 
 /// Run a script against a desktop and answer the report of it.
 fn run(desktop: &mut Fake, source: &str) -> Report {

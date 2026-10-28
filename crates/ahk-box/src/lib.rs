@@ -7,8 +7,10 @@
 
 pub mod desktop;
 pub mod keyboard;
+pub mod native;
 pub mod pointer;
 
 pub use desktop::{BoxError, LabDesktop};
 pub use keyboard::{ENUMERATION_WAIT, KEY_GAP, KEY_HOLD, Keyboard, KeyboardError};
+pub use native::Libraries;
 pub use pointer::{PRESS_HOLD, PRESS_SETTLE, Pointer, PointerError};

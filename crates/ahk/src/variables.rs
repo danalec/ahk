@@ -207,7 +207,8 @@ fn reason(message: &str) -> RuntimeError {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Files, Hotkeys, Keyboard, Pointer, Processes, Screen, Timers, Windows,
+        Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
+        Windows,
     };
     use crate::runtime::Clock;
     use alloc::string::String;
@@ -231,6 +232,8 @@ mod tests {
     impl Hotkeys for Fake {}
 
     impl Windows for Fake {}
+
+    impl Native for Fake {}
 
     impl Keyboard for Fake {
         fn type_text(&mut self, _text: &str) -> Result<String, String> {
