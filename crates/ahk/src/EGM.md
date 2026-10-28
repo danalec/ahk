@@ -80,9 +80,10 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
 
 - `Node` -- one node of the tree. The variants are `Literal`, `Var`,
   `Unary`, `Binary`, `Ternary`, `Cast`, `Assign`, `Index`, `AssignIndex`,
-  `Call`, `If`, `Switch`, `While`, `Loop`, `Directive`, `Break`, `Continue`,
-  `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`, `Property`
-  and `AssignProperty`. Every variant carries its line.
+  `Call`, `If`, `Switch`, `While`, `Loop`, `For`, `Directive`, `Break`,
+  `Continue`, `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`,
+  `Property`, `AssignProperty` and `ArrayLiteral`. Every variant carries
+  its line.
 
   The statements that v2 spells as commands -- `Send`, `Click`, `Sleep`,
   `Run`, `MsgBox` -- are not variants of the tree: they are names of the
@@ -94,6 +95,14 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   class of the script: the meta-functions answer for the properties that
   are not there, and `x[y]` asks only the `__Item`, which reads and never
   writes.
+- `ArrayLiteral { items, line }` -- the literal of an array: `[a, b]` is
+  `Array(a, b)`. It is a primary, so the suffixes of a value follow it
+  the way they follow a variable: `[1, 2].Length` is the length of the
+  array.
+- `For { variables, source, body, line }` -- the loop that walks what an
+  object enumerates. A name the script left out is an empty string in
+  the list, so `for , value in map` is two names and the first one is
+  nobody's.
 - `Node::line(&self) -> u32` -- the line of the node, which is the line the
   report blames.
 - `LiteralValue` -- `Number(f64)`, `Text(String)`, `Bool(bool)`. The
@@ -148,6 +157,12 @@ written that way -- a built-in and a function of the script alike -- and
 the answer of the call is thrown away. The names that are neither are
 checked at the end of the parse, because the script may define a
 function further down.
+
+The bracket with a space opens the array and the bracket without one is
+the item of the value: `f [1, 2]` is a call whose argument is the array,
+and `f[1, 2]` is the item of the value `f`. The space is the reason, the
+same way it is for the dot. In an expression the space does not matter:
+`arr [2]` is the second item of `arr`.
 
 The parameters of a function and of a method are read apart from the
 arguments of a call: the brace that follows the list is what tells a

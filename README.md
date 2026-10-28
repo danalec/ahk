@@ -57,7 +57,8 @@ AutoHotkey's, cut down to what a script can do to a Linux desktop.
 **Statements.** `Send`, `Click`, `MouseMove`, `MouseDown`, `MouseUp`,
 `Sleep`, `Run`, `PixelGetColor`, `PixelSearch`, `Screenshot`, `MsgBox`,
 `If`/`ElseIf`/`Else`, `Switch`/`Case`/`Default`, `While`, `Loop`,
-`Break`, `Continue`, `Return`, `Exit`, `ExitApp`, the class definitions,
+`For`, `Break`, `Continue`, `Return`, `Exit`, `ExitApp`, the class
+definitions,
 and the assignment operators (`:=`, `+=`, `-=`, `*=`, `/=`, `//=`, `.=`,
 `&=`, `|=`, `^=`, `<<=`, `>>=`, `>>>=`).
 
@@ -94,6 +95,11 @@ The positions count from one, the way AutoHotkey counts them:
 `"a" 1 + 2` is "a3". The dot does the same, and the dot is looser than
 the arithmetic.
 
+**Arrays.** `[a, b]` is the array of two, and `[]` is the array of
+nothing. The bracket with a space opens the array and the bracket
+without one is the item of the value: `Send [1, 2]` sends an array, and
+`Send[1, 2]` is the item of `Send`.
+
 **Classes.** `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu` and
 `Hotkey` are classes of the runtime, and a script cannot extend them.
 A class type owns its own state and its own names; the base object
@@ -116,7 +122,8 @@ runtime has not got fails the script with the reason; one that asks for
 what is already the case is accepted.
 
 **Loops.** `Loop` counts, and `Loop Files`, `Loop Reg`, `Loop Read` and
-`Loop Parse` walk what they walk.
+`Loop Parse` walk what they walk. `for x in y` walks what `y`
+enumerates.
 
 **Keys.** A key is written `{Name}`, and the modifiers are the ones
 AutoHotkey uses: `^` is ctrl, `+` is shift, `!` is alt and `#` is the

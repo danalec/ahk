@@ -731,11 +731,13 @@ These are the places where they differ:
   name the dialect invents.
 - **The classes.** The archive has no class types; the eleven tables of
   the binary are here now.
-- **The tree has no `for ... in` and no `[]`.** v2 has both: `for x in y`
-  walks the values of `y`, and `[a, b]` is an array of two. The tree has
-  the `Array` class -- `Array(1, 2, 3)` is an array of three -- and the
-  loops of v2 (`Loop Files`, `Loop Reg`, `Loop Read` and `Loop Parse`), and
-  the two forms are not in it.
+- **The tree has the array literal and the `for` loop.** They came on
+  2026-10-28, and section 22 says how they read. The tree still has no
+  exceptions, no `global` and no `until`: v2 has `try`, `catch`,
+  `finally` and `throw`, a `global` that makes a variable of a function
+  the variable of the script, and a loop that runs until a condition is
+  true. A script that uses them fails to parse, and the reason is that
+  the name is neither a built-in nor a function of the script.
 - **`yield` is not in the tree.** v2 has it: a function that yields gives a
   generator, and a class that enumerates one is a generator of its own.
   The tree has no `yield`, so a class cannot write an `__Enum` that yields.
@@ -957,6 +959,91 @@ was measured against the binary of v2.0.19 on 2026-10-28.
   `A_OsVersion` and the rest are names of v2, and the tree carries the
   names. The values are not there: the runtime keeps no machine, and it
   says so.
+
+## 22. The array literal, and the loop that walks an enumeration
+
+The two forms came on 2026-10-28, and the binary of v2.0.19 is what they
+were written against.
+
+- **The literal is the array of the `Array` built-in.** `[a, b]` is
+  `Array(a, b)`, and `[]` is the array of nothing. The values go in the
+  order they are written, and the places of an array count from one.
+- **The bracket with a space opens the array, and the bracket without
+  one is the item of the value.** Measured on the binary on 2026-10-28:
+  `f [1, 2]` is a call whose argument is the array of two, and `f[1, 2]`
+  is the item of the value `f` -- the item of a function is an error in
+  v2, and the tree says the same. The space is the reason, the same way
+  it is for the dot. In an expression the space does not matter: `arr [2]`
+  is the second item of `arr`, in v2 and in the tree.
+- **The enumerator is asked how many variables the loop wants.** v2 gives
+  the `__Enum` of the object the number of the variables of the loop: it
+  is 0 when the loop wants none, and one more than the number of the
+  commas otherwise. The `Array` of the tree gives its values with one
+  variable and the place and the value with two; the `Map` gives its
+  keys with one and the key and the value with two. The map is the one
+  that surprises: the enumerator of a map gives the key first, so a loop
+  with one variable walks the keys.
+- **A value that cannot be walked is not walked.** v2 says "Value not
+  enumerable." and the tree says the same.
+- **The variables go back to the values they had.** v2 restores them when
+  the loop ends, and the tree does the same: a name that had no value
+  before the loop has no value after it.
+- **The loop has the guard rail of the other loops.** A thousand turns and
+  no more, and the message is the one of the `while` loop.
+- **The enumerator of the tree is a list.** The classes answer `__Enum`
+  with the whole enumeration at once, and a class of the script may
+  answer with a list as well. A class that enumerates one value at a time
+  needs a generator, and the tree has no `yield`.
+
+## 23. The `DllCall`, and what it would take
+
+The tree carries the name `DllCall` because v2 carries it, and it refuses
+it: the handler is the one that answers "this is a name of Windows, and
+this desktop is not Windows." That answer is the same on every desktop,
+and it would be wrong on a Windows one too, because **this tree has no
+Windows desktop at all**. The only desktop is the box, which is Linux.
+
+What v2 does with it, measured on the binary on 2026-10-28, so that the
+next one does not have to measure it again:
+
+- A library that cannot be loaded: an `Error` with "Failed to load DLL."
+  and the library in `Extra`.
+- A function that is not in the library: an `Error` with "Call to
+  nonexistent function." and the name in `Extra`.
+- A type that is not a type: a `ValueError` with "Invalid return type."
+- A number where a string is expected: a `TypeError` with "Expected a
+  String but got an Integer." and the value in `Extra`.
+- A string where a number is expected: a `TypeError` with "Expected a
+  Number but got a String." and the value in `Extra`.
+- A float as the name of the function: a `TypeError` with "Parameter #1
+  invalid."
+- The types are `Str`, `WStr`, `AStr`, `Int`, `Int64`, `Short`, `Char`,
+  `Float`, `Double` and `Ptr`, with a `U` in front of the whole ones and
+  a `*` or a `P` at the end for the address of the value. The return
+  type is `Int` when it is left out, and the last parameter may be
+  "CDecl" or "CDecl Int" to say the convention.
+- The `*` writes back: `DllCall("kernel32\QueryPerformanceCounter",
+  "Int64*", &counter)` leaves the count of the clock in `counter`.
+- A `Str` return reads the text at the address the function returned.
+
+What it would take here, in the three pieces it falls into:
+
+- **The marshalling is pure and belongs to this crate**: the names of the
+  types, their sizes, the return type and the convention.
+- **The call is I/O and belongs to the desktop**: a tenth capability, a
+  trait of its own, that the box answers with `dlopen` and `dlsym` and a
+  call through `libffi`.
+- **A Windows desktop is a third thing**, and it does not exist: the
+  names of Windows are in the built-in table because they are names of
+  v2, and the tree answers them with the reason it cannot answer them.
+
+And the raven is not the way to call a Windows function from here. The
+raven of today is a runtime that runs whole Windows programs on Linux --
+C++20, CMake, the components of ReactOS, and a GPL that does not touch
+this tree because it is a tool and not a part of it. A Windows DLL is a
+program that Linux cannot `dlopen`: the way to have one on the box is a
+helper program inside the raven, and the script would talk to that helper
+instead of to the library.
 
 ## Where to read more
 

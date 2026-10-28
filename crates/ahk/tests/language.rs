@@ -1302,3 +1302,154 @@ fn an_item_may_be_written_with_an_operator() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["3"]);
 }
+
+// -- the array and the for loop ---------------------------------------------------
+
+#[test]
+fn an_array_literal_is_an_array() {
+    let (report, desktop) = run("a := [\"x\", \"y\"]\nSend \"%a.Length%\"\nSend a[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["2", "x"]);
+}
+
+#[test]
+fn an_empty_array_literal_is_an_array_of_nothing() {
+    let (report, desktop) = run("a := []\nSend \"%a.Length%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["0"]);
+}
+
+#[test]
+fn an_array_literal_holds_the_values_it_is_given() {
+    let (report, desktop) = run("x := 2\na := [x + 1, \"n\" . x]\nSend a[1]\nSend a[2]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["3", "n2"]);
+}
+
+#[test]
+fn a_for_walks_the_values_of_an_array() {
+    let (report, desktop) = run("for v in [\"a\", \"b\"] {\n  Send v\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["a", "b"]);
+}
+
+#[test]
+fn a_for_with_two_variables_walks_the_places_and_the_values() {
+    let (report, desktop) = run("for i, v in [\"a\", \"b\"] {\n  Send \"%i%:%v%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1:a", "2:b"]);
+}
+
+#[test]
+fn a_for_walks_the_keys_of_a_map() {
+    // The enumerator of a map gives the key, and the value under it
+    // when the loop wants two.
+    let (report, desktop) = run("m := Map()\nm.Set(\"a\", 1)\nfor v in m {\n  Send v\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["a"]);
+}
+
+#[test]
+fn a_for_with_two_variables_walks_the_keys_and_the_values_of_a_map() {
+    let (report, desktop) = run("m := Map()\nm.Set(\"a\", 1)\nfor k, v in m {\n  Send \"%k%=%v%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["a=1"]);
+}
+
+#[test]
+fn a_for_may_leave_the_key_out() {
+    let (report, desktop) = run("m := Map()\nm.Set(\"a\", 1)\nfor , v in m {\n  Send v\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1"]);
+}
+
+#[test]
+fn a_for_counts_its_turns() {
+    let (report, desktop) = run("for v in [\"a\", \"b\"] {\n  Send \"%A_Index%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1", "2"]);
+}
+
+#[test]
+fn a_break_leaves_a_for() {
+    let (report, desktop) = run(
+        "for v in [\"a\", \"b\", \"c\"] {\n  If v = \"b\" {\n    Break\n  }\n  Send v\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["a"]);
+}
+
+#[test]
+fn a_continue_skips_the_rest_of_a_for() {
+    let (report, desktop) = run(
+        "for v in [\"a\", \"b\"] {\n  If v = \"a\" {\n    Continue\n  }\n  Send v\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["b"]);
+}
+
+#[test]
+fn a_call_statement_may_take_an_array() {
+    // The space is the reason: `f[1, 2]` is the item of the value `f`,
+    // and `f [1, 2]` is a call whose argument is the array.
+    let (report, _desktop) = run("f(a) {\n  return a.Length\n}\nf [1, 2]");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_for_gives_the_variables_back() {
+    let (report, desktop) = run("v := \"before\"\nfor v in [\"a\"] {\n}\nSend v");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["before"]);
+}
+
+#[test]
+fn a_for_leaves_no_variable_behind() {
+    // A name that had no value before the loop has no value after it.
+    let (report, _desktop) = run("for v in [\"a\"] {\n}\nSend v");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This variable has not been assigned a value. Specifically: v")
+    );
+}
+
+#[test]
+fn a_for_walks_what_a_class_of_the_script_enumerates() {
+    let (report, desktop) = run(
+        "class Bag {\n  __Enum(n) {\n    return [\"a\", \"b\"]\n  }\n}\nfor v in Bag() {\n  Send v\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["a", "b"]);
+}
+
+#[test]
+fn a_for_gives_the_variables_back_inside_a_function() {
+    let (report, desktop) = run("f() {\n  v := \"before\"\n  for v in [\"a\"] {\n  }\n  return v\n}\nSend f()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["before"]);
+}
+
+#[test]
+fn a_for_over_a_value_that_cannot_be_enumerated_fails_with_the_reason() {
+    let (report, _desktop) = run("for v in 42 {\n}");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Value not enumerable."));
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_for_over_an_object_without_an_enumerator_fails_with_the_reason() {
+    let (report, _desktop) = run("class Box {\n}\nfor v in Box() {\n}");
+    assert!(!report.ok);
+    let error = report.error.unwrap_or_default();
+    assert_eq!(error, "Value not enumerable.");
+}
+
+#[test]
+fn a_for_that_runs_too_long_fails_with_the_reason() {
+    let (report, _desktop) = run("a := []\nLoop 1001 {\n  a.Push(1)\n}\nfor v in a {\n}");
+    assert!(!report.ok);
+    let error = report.error.unwrap_or_default();
+    assert!(error.contains("the loop ran more than 1000 times"), "{error}");
+}

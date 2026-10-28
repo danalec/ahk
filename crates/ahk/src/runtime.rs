@@ -935,6 +935,13 @@ impl<'a> Runtime<'a> {
             Node::ClassDef { name, .. } => {
                 detail = format!("the class {name} is defined");
             }
+            Node::ArrayLiteral { .. } => {
+                // An array literal is an expression: the parser never
+                // gives one as a statement of its own.
+            }
+            Node::For { variables, source, body, line } => {
+                self.for_loop(variables, source, body, *line)?;
+            }
             Node::MethodCall { target, name, arguments, line } => {
                 let target_value = self.evaluate(target)?;
                 let value = self.call_method_on(&target_value, name, arguments, *line)?;
@@ -1177,6 +1184,188 @@ impl<'a> Runtime<'a> {
             elapsed_ms: self.clock.now_ms().saturating_sub(started),
         });
         Ok(())
+    }
+
+    // -- the for loop ---------------------------------------------------------------
+
+    /// The loop that walks what an object enumerates.
+    ///
+    /// The source is asked once, before the loop, and the enumerator it
+    /// gives is walked turn by turn. The variables of the loop go back
+    /// to the values they had before it: v2 restores them.
+    fn for_loop(
+        &mut self,
+        variables: &[String],
+        source: &Node,
+        body: &[Node],
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        // v2 gives the loop two variables at most: the key and the
+        // value under it.
+        if variables.len() > 2 {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "a for loop takes at most two variables.".into(),
+                line,
+            }));
+        }
+        // The variables keep the values they had before the loop, and
+        // they get them back when the loop ends.
+        let saved: Vec<(String, Option<Value>)> = variables
+            .iter()
+            .filter(|name| !name.is_empty())
+            .map(|name| (name.clone(), self.lookup_variable(name)))
+            .collect();
+        let object = self.evaluate(source)?;
+        let items = self.enumeration(&object, variables.len(), line)?;
+        let mut turns = 0usize;
+        let mut outcome = Ok(());
+        for item in items {
+            turns += 1;
+            if turns > Self::MAX_ITERATIONS {
+                outcome = Err(RuntimeFailure::Error(RuntimeError {
+                    message: format!("the loop ran more than {} times", Self::MAX_ITERATIONS),
+                    line,
+                }));
+                break;
+            }
+            // The values of the turn are given to the variables before
+            // the body runs: the key and the value, or the value alone.
+            if let Err(failure) = self.set_loop_variables(variables, &item, line) {
+                outcome = Err(failure);
+                break;
+            }
+            self.set_global("A_Index", Value::Int(turns as i64));
+            match self.run_block(body) {
+                Ok(()) => {}
+                Err(RuntimeFailure::Flow(Flow::Break)) => break,
+                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
+                Err(other) => {
+                    outcome = Err(other);
+                    break;
+                }
+            }
+        }
+        for (name, value) in saved {
+            self.restore_variable(&name, value);
+        }
+        outcome
+    }
+
+    /// The values a `for` loop walks.
+    ///
+    /// The object is asked for its enumerator, and the number of the
+    /// variables the loop wants is given to it: the enumerator of an
+    /// array gives the values with one variable and the places with
+    /// two.
+    fn enumeration(
+        &mut self,
+        object: &Value,
+        wanted: usize,
+        line: u32,
+    ) -> Result<Vec<Value>, RuntimeFailure> {
+        // The enumerator of a value is its `__Enum`. A value that has
+        // none cannot be walked, and v2 says so in as many words.
+        if !self.can_enumerate(object) {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "Value not enumerable.".into(),
+                line,
+            }));
+        }
+        let count = Node::Literal { value: LiteralValue::Number(wanted as f64), line };
+        let enumerator = self.call_method_on(object, "__enum", &[count], line)?;
+        match enumerator {
+            Value::List(items) => Ok(items),
+            // The enumerator may be an object of its own -- the array of
+            // a class of the script, for one -- and it is walked the way
+            // the source is.
+            Value::Object(_) => {
+                let count = Node::Literal { value: LiteralValue::Number(wanted as f64), line };
+                match self.call_method_on(&enumerator, "__enum", &[count], line)? {
+                    Value::List(items) => Ok(items),
+                    _ => Err(RuntimeFailure::Error(RuntimeError {
+                        message: "the enumerator did not answer with an enumeration.".into(),
+                        line,
+                    })),
+                }
+            }
+            _ => Err(RuntimeFailure::Error(RuntimeError {
+                message: "the enumerator did not answer with an enumeration.".into(),
+                line,
+            })),
+        }
+    }
+
+    /// Whether a value can be walked.
+    ///
+    /// The enumerator of a value is its `__Enum`: a class of the script
+    /// may have one, and the class types of the runtime have their own.
+    fn can_enumerate(&self, object: &Value) -> bool {
+        let Value::Object(value) = object else { return false };
+        if self.find_method_on(object, "__enum").is_some() {
+            return true;
+        }
+        let class = value.borrow().class.clone();
+        crate::classes::carries(&class, "__enum")
+    }
+
+    /// The variables of a turn of a `for` loop.
+    ///
+    /// With one variable the enumerator gives the value, with two it
+    /// gives the key and the value under it. A name the script left
+    /// out is given to nobody.
+    fn set_loop_variables(
+        &mut self,
+        variables: &[String],
+        item: &Value,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        match variables.len() {
+            0 => Ok(()),
+            1 => {
+                // The enumerator gives the value alone.
+                if !variables[0].is_empty() {
+                    self.assign(&variables[0], item.clone());
+                }
+                Ok(())
+            }
+            _ => {
+                // The enumerator gives the key and the value under it.
+                let pair = match item {
+                    Value::List(pair) if pair.len() == 2 => pair,
+                    _ => {
+                        return Err(RuntimeFailure::Error(RuntimeError {
+                            message: "the enumeration did not give a key and a value.".into(),
+                            line,
+                        }))
+                    }
+                };
+                for (name, value) in variables.iter().zip(pair.iter()) {
+                    if name.is_empty() {
+                        continue;
+                    }
+                    self.assign(name, value.clone());
+                }
+                Ok(())
+            }
+        }
+    }
+
+    /// A variable of a loop, put back the way it was.
+    ///
+    /// v2 restores the variables of a loop when the loop ends: a name
+    /// that had no value before it has no value after it either.
+    fn restore_variable(&mut self, name: &str, value: Option<Value>) {
+        match value {
+            Some(value) => self.assign(name, value),
+            None => match self.scopes.last_mut() {
+                Some(scope) => {
+                    scope.remove(name);
+                }
+                None => {
+                    self.variables.remove(name);
+                }
+            },
+        }
     }
 
     // -- scopes ---------------------------------------------------------------------
@@ -2405,6 +2594,23 @@ impl<'a> Runtime<'a> {
                 LiteralValue::Text(text) => Value::Text(self.interpolate(text, *line)?),
                 LiteralValue::Bool(flag) => Value::Int(*flag as i64),
             }),
+            Node::ArrayLiteral { items, line } => {
+                // The literal is the array the `Array` built-in makes:
+                // the values go in, in the order they are written.
+                let values = self.evaluate_all(items)?;
+                match crate::classes::construct("array", &values, self, *line) {
+                    Some(result) => result,
+                    None => Ok(Value::List(values)),
+                }
+            }
+            Node::For { line, .. } => {
+                // A for loop is a statement: the parser never gives one
+                // where an expression is asked for.
+                Err(RuntimeFailure::Error(RuntimeError {
+                    message: "the for loop is not an expression.".into(),
+                    line: *line,
+                }))
+            }
             Node::Var { name, line } => match self.lookup(name) {
                 Some(value) => Ok(value),
                 // The name may be one of the built-in variables: the
@@ -3308,6 +3514,8 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Switch { .. } => "Switch",
         Node::While { .. } => "While",
         Node::Loop { .. } => "Loop",
+        Node::ArrayLiteral { .. } => "ArrayLiteral",
+        Node::For { .. } => "For",
         Node::Directive { name, .. } => name,
         Node::Break { .. } => "Break",
         Node::Continue { .. } => "Continue",

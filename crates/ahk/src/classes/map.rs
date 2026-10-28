@@ -135,14 +135,27 @@ pub(crate) fn call(
             Some(Ok(Value::Text(String::new())))
         }
         "clone" => Some(Ok(clone(this))),
-        // The enumeration of a map is the entries, in the order they were
-        // put in: a key and the value under it.
+        // The enumeration of a map is the keys, in the order the entries
+        // were put in, and with two variables it is the key and the value
+        // under it.
         "__enum" => {
+            // The number of the variables the loop wants is the argument:
+            // with one it wants the keys, with two the keys and the
+            // values.
+            let wanted = arguments.first().and_then(|value| value.to_number()).unwrap_or(0.0) as i64;
             let Some(state) = state(this) else { return Some(Ok(Value::List(Vec::new()))) };
             let state = state.borrow();
             let items: Vec<Value> = entries(&state)
                 .into_iter()
-                .map(|(key, value)| Value::List(vec![key, value]))
+                .map(|(key, value)| {
+                    // The enumerator of a map gives the key, and the
+                    // value under it when the loop wants two.
+                    if wanted == 1 {
+                        key
+                    } else {
+                        Value::List(vec![key, value])
+                    }
+                })
                 .collect();
             Some(Ok(Value::List(items)))
         }

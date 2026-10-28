@@ -67,6 +67,7 @@ pub const KEYWORDS: &[&str] = &[
     "exitapp",
     "while",
     "loop",
+    "for",
     "break",
     "continue",
     "true",
@@ -365,6 +366,16 @@ mod tests {
         assert_eq!(tokens[0].value, "requires");
         assert_eq!(tokens[1].kind, TokenKind::String);
         assert_eq!(tokens[1].value, "AutoHotkey v2.0.19");
+    }
+
+    #[test]
+    fn the_word_for_is_a_keyword() {
+        // v2 reserves the word: a script cannot use it as a name.
+        let tokens = tokenize("for x in y").expect("parses");
+        assert_eq!(tokens[0].kind, TokenKind::Keyword);
+        assert_eq!(tokens[0].value, "for");
+        assert_eq!(tokens[2].kind, TokenKind::Keyword);
+        assert_eq!(tokens[2].value, "in");
     }
 
     #[test]

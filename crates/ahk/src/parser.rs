@@ -18,12 +18,15 @@
 //! case      := 'Case' expression (block | ':' statement*) | 'Default' (block | ':' statement*)
 //! while     := 'While' expression '::'? block
 //! loop      := 'Loop' expression? '::'? block
+//! for       := 'For' (name (',' name)?)? 'in' expression '::'? block
 //! function  := NAME '(' parameters ')' block
+//! array     := '[' (expression (',' expression)*)? ']'
 //! ```
 //!
 //! Expressions are the usual ones: numbers, strings, variables, the
 //! arithmetic and comparison operators, `and`/`or`/`not` (and their
-//! `&&`/`||`/`!` spellings), and the dot for string concatenation.
+//! `&&`/`||`/`!` spellings), the dot for string concatenation, and the
+//! literal of an array between brackets.
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
@@ -146,6 +149,16 @@ impl Parser {
         token.kind == TokenKind::Op && token.value == "." && !token.spaced
     }
 
+    /// Whether the bracket that comes next reaches into a value.
+    ///
+    /// A bracket with no space before it is the item of the value; a
+    /// bracket with a space before it opens the array of v2. The space
+    /// is the reason, the same way it is for the dot.
+    fn at_member_bracket(&self) -> bool {
+        let token = self.peek();
+        token.kind == TokenKind::Op && token.value == "[" && !token.spaced
+    }
+
     fn at_op(&self, operators: &[&str]) -> bool {
         let token = self.peek();
         token.kind == TokenKind::Op && operators.contains(&token.value.as_str())
@@ -252,6 +265,7 @@ impl Parser {
                 "switch" => return Ok(vec![self.parse_switch()?]),
                 "while" => return Ok(vec![self.parse_while()?]),
                 "loop" => return Ok(vec![self.parse_loop()?]),
+                "for" => return Ok(vec![self.parse_for()?]),
                 "break" => {
                     self.next();
                     self.end_of_statement()?;
@@ -332,7 +346,7 @@ impl Parser {
         }
         // `obj.Prop := value` and `obj[key] := value`: the left side is a
         // value and not a name.
-        if self.at_member_dot() || self.at_op(&["["]) {
+        if self.at_member_dot() || self.at_member_bracket() {
             let target = Node::Var { name: name_token.value.clone(), line: name_token.line };
             let target = self.parse_suffixes(target)?;
             let operator = self.peek().clone();
@@ -895,6 +909,64 @@ impl Parser {
         Ok(Node::Loop { mode: kind, arguments, body, line: token.line })
     }
 
+    /// The loop over what an object enumerates: `for x in y { }`.
+    ///
+    /// The names are the ones the enumerator gives, and a name may be
+    /// left out: `for , value in map` asks for the value alone. The whole
+    /// list may also be written between parentheses, the way v2 writes
+    /// it when the expression is long.
+    fn parse_for(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let mut variables = Vec::new();
+        // The list may be written between parentheses: `for (x in y)`.
+        let parenthesised = self.at_op(&["("]);
+        if parenthesised {
+            self.next();
+        }
+        self.parse_for_variables(&mut variables)?;
+        if !self.at_keyword(&["in"]) {
+            return Err(self.error("expected `in` in the For loop"));
+        }
+        self.next();
+        let source = self.parse_expression()?;
+        if parenthesised {
+            self.expect_op(")")?;
+        }
+        self.end_of_block()?;
+        let body = self.parse_block()?;
+        Ok(Node::For { variables, source: Box::new(source), body, line: token.line })
+    }
+
+    /// The names the enumerator gives, before the `in`.
+    ///
+    /// A name may be left out, and the name that is left out is the
+    /// empty string: `for , value in map` gives `["", "value"]`.
+    fn parse_for_variables(&mut self, variables: &mut Vec<String>) -> Result<(), SyntaxError> {
+        // The first name. It is left out when the comma comes first.
+        if self.at_op(&[","]) {
+            variables.push(String::new());
+        } else if self.peek().kind == TokenKind::Name {
+            variables.push(self.next().value);
+        } else if !self.at_keyword(&["in"]) {
+            let token = self.peek().clone();
+            return Err(SyntaxError {
+                message: format!("{:?} is not a variable name", token.value),
+                line: token.line,
+                column: token.column,
+            });
+        }
+        // The second name, after the comma that separates the two.
+        if self.at_op(&[","]) {
+            self.next();
+            if self.peek().kind == TokenKind::Name {
+                variables.push(self.next().value);
+            } else {
+                variables.push(String::new());
+            }
+        }
+        Ok(())
+    }
+
     // -- expressions -----------------------------------------------------------------
 
     /// An expression, with v2's operators and v2's precedence.
@@ -1126,6 +1198,23 @@ impl Parser {
                 let node = self.parse_expression()?;
                 self.expect_op(")")?;
                 node
+            }
+            TokenKind::Op if token.value == "[" => {
+                // The literal of an array: `[a, b, c]`. The brackets of
+                // an index are a suffix of a value, and these open one.
+                let mut items = Vec::new();
+                if !self.at_op(&["]"]) {
+                    loop {
+                        items.push(self.parse_expression()?);
+                        if self.at_op(&[","]) {
+                            self.position += 1;
+                            continue;
+                        }
+                        break;
+                    }
+                }
+                self.expect_op("]")?;
+                Node::ArrayLiteral { items, line: token.line }
             }
             _ => {
                 return Err(SyntaxError {
@@ -1445,5 +1534,149 @@ mod tests {
     fn a_function_with_a_keyword_name_can_be_called() {
         let statements = parse("x := PixelGet(10, 20)").expect("parses");
         assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(value.as_ref(), Node::Call { name, .. } if name == "pixelget")));
+    }
+
+    #[test]
+    fn the_empty_brackets_are_the_empty_array() {
+        let statements = parse("x := []").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        assert_eq!(items.len(), 0);
+    }
+
+    #[test]
+    fn an_array_holds_its_values_in_the_order_they_are_written() {
+        let statements = parse("x := [1, 2, 3]").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        assert_eq!(items.len(), 3);
+        assert!(matches!(&items[0], Node::Literal { value: LiteralValue::Number(number), .. } if *number == 1.0));
+        assert!(matches!(&items[2], Node::Literal { value: LiteralValue::Number(number), .. } if *number == 3.0));
+    }
+
+    #[test]
+    fn an_array_holds_expressions() {
+        let statements = parse("x := [a + b, c * d]").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        assert_eq!(items.len(), 2);
+        assert!(matches!(&items[0], Node::Binary { op: BinaryOp::Add, .. }));
+        assert!(matches!(&items[1], Node::Binary { op: BinaryOp::Multiply, .. }));
+    }
+
+    #[test]
+    fn an_array_may_hold_another_array() {
+        let statements = parse("x := [[1], [2]]").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        assert_eq!(items.len(), 2);
+        assert!(matches!(&items[0], Node::ArrayLiteral { items, .. } if items.len() == 1));
+    }
+
+    #[test]
+    fn the_suffixes_reach_into_an_array_literal() {
+        // The literal is a primary, and the suffixes follow it the way
+        // they follow a variable.
+        let statements = parse("x := [1, 2].Length").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::Property { target, name, .. } = value.as_ref() else { panic!("a property") };
+        assert_eq!(name, "Length");
+        assert!(matches!(target.as_ref(), Node::ArrayLiteral { items, .. } if items.len() == 2));
+    }
+
+    #[test]
+    fn an_array_may_be_an_argument_of_a_call() {
+        let statements = parse("DoThing([1, 2])").expect("parses");
+        let Node::Call { arguments, .. } = &statements[0] else { panic!("a call") };
+        assert!(matches!(&arguments[0], Node::ArrayLiteral { items, .. } if items.len() == 2));
+    }
+
+    #[test]
+    fn a_call_statement_may_take_an_array() {
+        // The space is the reason: `DoThing[1, 2]` is the item of the
+        // value `DoThing`, and `DoThing [1, 2]` is a call whose argument
+        // is the array.
+        let statements = parse("f(a) {\n}\nf [1, 2]").expect("parses");
+        let Node::Call { arguments, .. } = &statements[1] else { panic!("a call") };
+        assert!(matches!(&arguments[0], Node::ArrayLiteral { items, .. } if items.len() == 2));
+    }
+
+    #[test]
+    fn a_bracket_without_a_space_is_the_item_of_the_value() {
+        let statements = parse("x[1] := 2").expect("parses");
+        let Node::AssignIndex { index, .. } = &statements[0] else { panic!("an index") };
+        assert!(matches!(index.as_ref(), Node::Literal { value: LiteralValue::Number(number), .. } if *number == 1.0));
+    }
+
+    #[test]
+    fn a_bracket_that_is_never_closed_is_an_error() {
+        assert!(parse("x := [1, 2").is_err());
+    }
+
+    #[test]
+    fn a_for_loop_walks_what_the_object_enumerates() {
+        let statements = parse("for x in items {\n  total += x\n}").expect("parses");
+        let Node::For { variables, source, body, .. } = &statements[0] else { panic!("a for") };
+        assert_eq!(variables.len(), 1);
+        assert_eq!(variables[0], "x");
+        assert!(matches!(source.as_ref(), Node::Var { name, .. } if name == "items"));
+        assert_eq!(body.len(), 1);
+    }
+
+    #[test]
+    fn a_for_loop_may_take_two_names() {
+        let statements = parse("for key, value in items {\n}").expect("parses");
+        let Node::For { variables, .. } = &statements[0] else { panic!("a for") };
+        assert_eq!(variables.len(), 2);
+        assert_eq!(variables[0], "key");
+        assert_eq!(variables[1], "value");
+    }
+
+    #[test]
+    fn a_for_loop_may_leave_the_first_name_out() {
+        // The name that is left out is the empty string.
+        let statements = parse("for , value in map {\n}").expect("parses");
+        let Node::For { variables, .. } = &statements[0] else { panic!("a for") };
+        assert_eq!(variables.len(), 2);
+        assert_eq!(variables[0], "");
+        assert_eq!(variables[1], "value");
+    }
+
+    #[test]
+    fn a_for_loop_may_take_no_name_at_all() {
+        let statements = parse("for in map {\n}").expect("parses");
+        let Node::For { variables, source, .. } = &statements[0] else { panic!("a for") };
+        assert!(variables.is_empty());
+        assert!(matches!(source.as_ref(), Node::Var { name, .. } if name == "map"));
+    }
+
+    #[test]
+    fn the_names_of_a_for_loop_may_be_written_between_parentheses() {
+        let statements = parse("for (x in items) {\n}").expect("parses");
+        let Node::For { variables, source, body, .. } = &statements[0] else { panic!("a for") };
+        assert_eq!(variables.len(), 1);
+        assert_eq!(variables[0], "x");
+        assert!(matches!(source.as_ref(), Node::Var { name, .. } if name == "items"));
+        assert_eq!(body.len(), 0);
+    }
+
+    #[test]
+    fn a_for_loop_may_be_written_with_a_double_colon() {
+        // The `::` that may introduce a block is accepted the way it is
+        // accepted by the other loops.
+        let statements = parse("for x in items :: {\n}").expect("parses");
+        let Node::For { variables, body, .. } = &statements[0] else { panic!("a for") };
+        assert_eq!(variables[0], "x");
+        assert_eq!(body.len(), 0);
+    }
+
+    #[test]
+    fn a_for_without_the_in_is_an_error() {
+        assert!(parse("for x {\n}").is_err());
+    }
+
+    #[test]
+    fn a_for_whose_variable_is_not_a_name_is_an_error() {
+        assert!(parse("for 1 in items {\n}").is_err());
     }
 }

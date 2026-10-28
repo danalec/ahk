@@ -303,6 +303,18 @@ pub enum Node {
         value: Box<Node>,
         line: u32,
     },
+    /// `[a, b, c]`: the literal of an array.
+    ///
+    /// v2 writes an array between brackets, and the empty brackets are
+    /// the array of nothing. The values go in the order they are
+    /// written, and the places of an array count from one.
+    ArrayLiteral { items: Vec<Node>, line: u32 },
+    /// `for x, y in z { }`: the loop over what an object enumerates.
+    ///
+    /// The variables are the ones the enumerator gives, and a name that
+    /// is left out is the one the enumerator does not give: `for , value
+    /// in map` asks for the value alone.
+    For { variables: Vec<String>, source: Box<Node>, body: Vec<Node>, line: u32 },
 }
 
 /// One parameter of a function.
@@ -354,7 +366,9 @@ impl Node {
             | Node::ClassDef { line, .. }
             | Node::MethodCall { line, .. }
             | Node::Property { line, .. }
-            | Node::AssignProperty { line, .. } => *line,
+            | Node::AssignProperty { line, .. }
+            | Node::ArrayLiteral { line, .. }
+            | Node::For { line, .. } => *line,
         }
     }
 }

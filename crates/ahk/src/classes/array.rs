@@ -210,13 +210,25 @@ pub(crate) fn call(
         }
         "clone" => Some(Ok(clone(this))),
         // The enumeration of an array is the values, in the order of their
-        // places.
+        // places, and with two variables it is the place and the value.
         "__enum" => {
+            // The number of the variables the loop wants is the argument:
+            // with two it wants the places and the values, with one the
+            // values alone.
+            let wanted = arguments.first().and_then(|value| value.to_number()).unwrap_or(0.0) as i64;
             let Some(state) = state(this) else { return Some(Ok(Value::List(Vec::new()))) };
             let state = state.borrow();
             let values: Vec<Value> = items(&state)
                 .iter()
-                .map(|item| element_value(item).unwrap_or(Value::Text(String::new())))
+                .enumerate()
+                .map(|(index, item)| {
+                    let value = element_value(item).unwrap_or(Value::Text(String::new()));
+                    if wanted == 2 {
+                        Value::List(vec![Value::Int(index as i64 + 1), value])
+                    } else {
+                        value
+                    }
+                })
                 .collect();
             Some(Ok(Value::List(values)))
         }
