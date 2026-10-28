@@ -742,11 +742,7 @@ tarde; o handler do registry apanha-o quando isso acontecer.
 
 ### 8.2 Como detectar o support
 
-Com o `wayland-info`, que é o modo canónico:
-
-```sh
-wayland-info | grep -i toplevel
-```
+Com o `wayland-info`, que é o modo canónico -- o formato da saída é este:
 
 ```
 ext_foreign_toplevel_list_v1 (v1):
@@ -754,8 +750,8 @@ ext_foreign_toplevel_list_v1 (v1):
     version: 1
 ```
 
-Sem o `wayland-info` instalado, o `WAYLAND_DEBUG=1` de qualquer cliente
-Wayland imprime o registry inteiro:
+Sem o `wayland-info` instalado -- e na caixa ele **não** está instalado --
+o `WAYLAND_DEBUG=1` de qualquer cliente Wayland imprime o registry inteiro:
 
 ```sh
 WAYLAND_DEBUG=1 <qualquer-cliente-wayland> 2>&1 | grep 'wl_registry@.*global'
