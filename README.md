@@ -116,6 +116,14 @@ are named by the environment -- `AHK_RAVEN` and `AHK_RAVEN_HELPER` --
 and a box that has not them says so. On Windows there is no raven:
 the machine is the Windows, and every library is called directly.
 
+**Libraries of thirty-two bits.** The raven runs a guest of the width
+of the program it is given, so the box calls a library of thirty-two
+bits through a second guest: `AHK_RAVEN_HELPER32` is the helper of the
+thirty-two bits, and the box asks it when the guest of the sixty-four
+bits does not have the library. The libraries of the two widths live in
+the same folder -- the folder of the helper -- and each guest takes the
+one that is of its own width.
+
 **Values.** Two values side by side are one value, the way v2 joins them:
 `"a" 1 + 2` is "a3". The dot does the same, and the dot is looser than
 the arithmetic.

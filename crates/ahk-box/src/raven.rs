@@ -16,6 +16,13 @@
 //! `crates/ahk-box/helper/helper.c`, and the two halves were proved
 //! together on the box on 2026-10-28.
 //!
+//! There are two helpers: one of the sixty-four bits and one of the
+//! thirty-two. The raven runs a guest of the width of the program it is
+//! given, and a library of thirty-two bits is only called by a guest of
+//! thirty-two bits. The guest of the sixty-four bits is asked first,
+//! and the guest of the thirty-two bits is asked when the first does
+//! not have the library.
+//!
 //! Two things the box says out loud:
 //!
 //! * The stderr of the raven goes nowhere. The reason of a failure
@@ -26,7 +33,7 @@
 //!   its own is not cheap to start.
 
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::time::Duration;
 
@@ -43,23 +50,40 @@ const FAREWELL: u32 = 20;
 
 // -- the paths ----------------------------------------------------------------
 
-/// The paths of the raven and of the helper that it runs.
+/// The paths of the raven and of the guests that it runs.
+#[derive(Debug)]
 pub struct Paths {
     /// The program of the raven.
     pub program: PathBuf,
-    /// The guest program that the raven runs.
+    /// The guest of the sixty-four bits.
     pub helper: PathBuf,
+    /// The guest of the thirty-two bits, when the box has one.
+    pub helper32: Option<PathBuf>,
 }
 
 impl Paths {
     /// The paths of the box, read out of the environment.
     ///
     /// `AHK_RAVEN` is the program of the raven and `AHK_RAVEN_HELPER`
-    /// is the helper. A box that has not both has no raven.
+    /// is the guest of the sixty-four bits. `AHK_RAVEN_HELPER32` is the
+    /// guest of the thirty-two bits, and the box may not have one: the
+    /// libraries of thirty-two bits are then not called. A box that has
+    /// not the raven and the guest of the sixty-four bits has no raven.
     pub fn from_environment() -> Option<Paths> {
-        Some(Paths { program: read("AHK_RAVEN")?, helper: read("AHK_RAVEN_HELPER")? })
+        Some(Paths {
+            program: read("AHK_RAVEN")?,
+            helper: read("AHK_RAVEN_HELPER")?,
+            helper32: read("AHK_RAVEN_HELPER32"),
+        })
     }
 }
+
+/// The reason of a library that is not there.
+///
+/// It is the message of v2.0.19, and the raven says it in the two
+/// guests: the library of thirty-two bits is not in the folder of the
+/// guest of the sixty-four bits.
+const NOT_THERE: &str = "Failed to load DLL.";
 
 /// The path of a variable of the environment.
 ///
@@ -73,6 +97,49 @@ fn read(name: &str) -> Option<PathBuf> {
     Some(PathBuf::from(value))
 }
 
+// -- the transport ------------------------------------------------------------
+
+/// Where the request of a call goes, and where the answer comes from.
+///
+/// The pipes of the guest are the real thing; the cases of the tree use
+/// a transport of their own, so that the way the two guests are asked
+/// can be proved without a raven.
+trait Transport: std::fmt::Debug {
+    /// The answer of the guest to a request of the protocol.
+    fn ask(&mut self, request: &str) -> Result<String, String>;
+    /// The guest is told that there is nothing more to come.
+    fn close(&mut self) {}
+}
+
+/// The pipes of a guest: the input it reads and the output it writes.
+#[derive(Debug)]
+struct Pipes {
+    input: Option<ChildStdin>,
+    output: BufReader<ChildStdout>,
+}
+
+impl Transport for Pipes {
+    fn ask(&mut self, request: &str) -> Result<String, String> {
+        let input = self.input.as_mut().ok_or_else(|| "the raven is not running.".to_string())?;
+        input
+            .write_all(request.as_bytes())
+            .map_err(|error| format!("the raven did not take the request: {error}"))?;
+        input.flush().map_err(|error| format!("the raven did not take the request: {error}"))?;
+        let mut reply = String::new();
+        let read =
+            self.output.read_line(&mut reply).map_err(|error| format!("the raven did not answer: {error}"))?;
+        if read == 0 {
+            return Err("the raven ended the answer.".to_string());
+        }
+        Ok(reply.trim_end_matches(['\n', '\r']).to_string())
+    }
+
+    fn close(&mut self) {
+        // The end of the input is what ends the guest.
+        drop(self.input.take());
+    }
+}
+
 // -- the raven ----------------------------------------------------------------
 
 /// The raven that runs, and the library of Windows it serves.
@@ -83,30 +150,25 @@ fn read(name: &str) -> Option<PathBuf> {
 /// dropped.
 #[derive(Debug)]
 pub struct Raven {
-    /// The process of the raven.
-    process: Child,
-    /// The input of the helper.
-    ///
-    /// It is taken away when the raven stops: the end of the input is
-    /// what ends the helper.
-    input: Option<ChildStdin>,
-    /// The output of the helper.
-    output: BufReader<ChildStdout>,
+    /// The pipes of the guest.
+    transport: Box<dyn Transport>,
+    /// The process of the raven, when the guest has one.
+    process: Option<Child>,
 }
 
 impl Raven {
-    /// The raven, started with the helper.
+    /// The raven, started with the guest it runs.
     ///
     /// The guest is given the longest life the raven allows (a day),
-    /// and the pipes of the host: the helper reads the requests from
-    /// the input and writes the answers to the output.
-    pub fn start(paths: &Paths) -> Result<Raven, String> {
-        let mut process = Command::new(&paths.program)
+    /// and the pipes of the host: the guest reads the requests from the
+    /// input and writes the answers to the output.
+    pub fn start(program: &Path, guest: &Path) -> Result<Raven, String> {
+        let mut process = Command::new(program)
             .arg("--run-process")
             .arg("--execution=native")
             .arg(format!("--timeout-ms={TIMEOUT_MS}"))
             .arg("--stdio=inherit")
-            .arg(&paths.helper)
+            .arg(guest)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             // The stderr of the raven goes nowhere: the reason of a
@@ -117,7 +179,10 @@ impl Raven {
             .map_err(|error| format!("the raven did not start: {error}"))?;
         let input = process.stdin.take().ok_or_else(|| "the raven has no input.".to_string())?;
         let output = process.stdout.take().ok_or_else(|| "the raven has no output.".to_string())?;
-        Ok(Raven { process, input: Some(input), output: BufReader::new(output) })
+        Ok(Raven {
+            transport: Box::new(Pipes { input: Some(input), output: BufReader::new(output) }),
+            process: Some(process),
+        })
     }
 
     /// The call of a function of a library of Windows.
@@ -129,45 +194,123 @@ impl Raven {
     /// variable of the script.
     pub fn call(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
         let mut line = request(call);
+        // The request is a line: the guest reads it until the end of
+        // the line, and a request without it is a request it never
+        // answers.
         line.push('\n');
-        let input = self.input.as_mut().ok_or_else(|| "the raven is not running.".to_string())?;
-        input
-            .write_all(line.as_bytes())
-            .map_err(|error| format!("the raven did not take the request: {error}"))?;
-        input.flush().map_err(|error| format!("the raven did not take the request: {error}"))?;
-        let mut reply = String::new();
-        let read = self
-            .output
-            .read_line(&mut reply)
-            .map_err(|error| format!("the raven did not answer: {error}"))?;
-        if read == 0 {
-            return Err("the raven ended the answer.".to_string());
-        }
-        answer(call, reply.trim_end_matches(['\n', '\r']))
+        let reply = self.transport.ask(&line)?;
+        answer(call, &reply)
     }
 
-    /// The raven stops: the helper is told by the end of its input,
+    /// The raven stops: the guest is told by the end of its input,
     /// and the process is ended.
     pub fn stop(&mut self) {
-        // The helper ends when its input ends.
-        drop(self.input.take());
-        // The process gets a moment to end by itself: the helper reads
+        // The guest ends when its input ends.
+        self.transport.close();
+        // The process gets a moment to end by itself: the guest reads
         // the end of the input and leaves.
+        let Some(mut process) = self.process.take() else {
+            return;
+        };
         for _ in 0..FAREWELL {
-            if self.process.try_wait().ok().flatten().is_some() {
+            if process.try_wait().ok().flatten().is_some() {
                 return;
             }
             std::thread::sleep(Duration::from_millis(10));
         }
         // And it is ended when it is still there.
-        let _ = self.process.kill();
-        let _ = self.process.wait();
+        let _ = process.kill();
+        let _ = process.wait();
     }
 }
 
 impl Drop for Raven {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+// -- the guests ---------------------------------------------------------------
+
+/// The two guests of the raven.
+///
+/// The guest of the sixty-four bits is asked first: it is the one that
+/// has the libraries of most of the programs. The guest of the
+/// thirty-two bits is asked when the first does not have the library:
+/// the libraries of thirty-two bits live in the folder of the guest of
+/// thirty-two bits, and the raven says the same in the two.
+#[derive(Debug)]
+pub struct Guests {
+    paths: Paths,
+    wide: Option<Raven>,
+    narrow: Option<Raven>,
+    notes: Vec<String>,
+}
+
+impl Guests {
+    /// The guests of a box, with the paths of the programs.
+    pub fn new(paths: Paths) -> Guests {
+        Guests { paths, wide: None, narrow: None, notes: Vec::new() }
+    }
+
+    /// The call of a function of a library of Windows.
+    ///
+    /// The guest of the sixty-four bits is asked first, and the guest of
+    /// the thirty-two bits is asked when the first does not have the
+    /// library. A function that is not in the library is not looked for
+    /// in the other guest: the library was there, and the function was
+    /// not.
+    pub fn call(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+        let reason = {
+            let wide = self.wide()?;
+            match wide.call(call) {
+                Ok(answer) => return Ok(answer),
+                Err(reason) => reason,
+            }
+        };
+        if reason != NOT_THERE {
+            return Err(reason);
+        }
+        // The library is not in the folder of the guest of the sixty-four
+        // bits: the guest of the thirty-two bits may have it.
+        match self.narrow()? {
+            Some(narrow) => narrow.call(call),
+            None => Err(reason),
+        }
+    }
+
+    /// The notes of the guests: the places where the box was not what
+    /// the script assumed.
+    pub fn take_notes(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.notes)
+    }
+
+    /// The guest of the sixty-four bits, started when it is not there.
+    fn wide(&mut self) -> Result<&mut Raven, String> {
+        if self.wide.is_none() {
+            let raven = Raven::start(&self.paths.program, &self.paths.helper)?;
+            self.wide = Some(raven);
+            self.notes.push("started a raven for the libraries of Windows".to_string());
+        }
+        Ok(self.wide.as_mut().expect("just started"))
+    }
+
+    /// The guest of the thirty-two bits, when the box has one.
+    ///
+    /// It starts when the library of the sixty-four bits is not there,
+    /// and not before: a program of its own is not cheap to start.
+    fn narrow(&mut self) -> Result<Option<&mut Raven>, String> {
+        let guest = match &self.paths.helper32 {
+            Some(guest) => guest.clone(),
+            None => return Ok(None),
+        };
+        if self.narrow.is_none() {
+            let raven = Raven::start(&self.paths.program, &guest)?;
+            self.narrow = Some(raven);
+            self.notes
+                .push("started a raven of thirty-two bits for the libraries of thirty-two bits".to_string());
+        }
+        Ok(self.narrow.as_mut())
     }
 }
 
@@ -383,9 +526,9 @@ mod tests {
     //! that say whether they agree: the line that goes out, and the
     //! line that comes back.
 
-    use super::{Paths, Raven, answer, is_windows, request};
+    use super::{Guests, Paths, Raven, Transport, answer, is_windows, request};
     use ahk::dll::{Convention, NativeArg, NativeCall, NativeType, NativeValue};
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     /// A call, with the library and the function of the cases.
     fn call(returns: NativeType, arguments: Vec<NativeArg>) -> NativeCall {
@@ -412,6 +555,16 @@ mod tests {
     fn the_request_of_a_call_without_arguments_is_a_call() {
         let line = request(&call(NativeType::Int, Vec::new()));
         assert_eq!(line, "kernel32\tGetTickCount\tint\t0");
+    }
+
+    #[test]
+    fn the_request_of_a_call_is_a_line() {
+        // The guest reads the request until the end of the line: a
+        // request that is not a line is a request it never answers.
+        let mut guests = guests(&["ok\t000000000000002a\t"], &[]);
+        let mut native = call(NativeType::Int, Vec::new());
+        let answer = guests.call(&mut native).expect("the answer");
+        assert_eq!(answer.value, NativeValue::Integer(42));
     }
 
     #[test]
@@ -503,6 +656,81 @@ mod tests {
         assert_eq!(ahk::dll::decode(bytes, NativeType::AStr), "42");
     }
 
+    /// A transport of the cases: it answers with the lines it holds,
+    /// and it fails when it has none left.
+    #[derive(Debug)]
+    struct Fake {
+        answers: Vec<String>,
+    }
+
+    impl Fake {
+        /// A transport that answers with these lines, one after the
+        /// other.
+        fn new(answers: &[&str]) -> Fake {
+            Fake { answers: answers.iter().map(|line| line.to_string()).collect() }
+        }
+    }
+
+    impl Transport for Fake {
+        fn ask(&mut self, request: &str) -> Result<String, String> {
+            if !request.ends_with('\n') {
+                return Err("the request is not a line.".to_string());
+            }
+            if self.answers.is_empty() {
+                return Err("the guest was asked and it had nothing to say.".to_string());
+            }
+            Ok(self.answers.remove(0))
+        }
+    }
+
+    /// The two guests of a case, with the answers they give.
+    fn guests(wide: &[&str], narrow: &[&str]) -> Guests {
+        Guests {
+            paths: Paths {
+                program: PathBuf::from("raven"),
+                helper: PathBuf::from("helper.exe"),
+                helper32: Some(PathBuf::from("helper32.exe")),
+            },
+            wide: Some(Raven { transport: Box::new(Fake::new(wide)), process: None }),
+            narrow: Some(Raven { transport: Box::new(Fake::new(narrow)), process: None }),
+            notes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn the_guest_of_the_sixty_four_bits_answers_when_it_has_the_library() {
+        let mut guests = guests(&["ok\t000000000000002a\t"], &[]);
+        let mut native = call(NativeType::Int, Vec::new());
+        let answer = guests.call(&mut native).expect("the answer");
+        assert_eq!(answer.value, NativeValue::Integer(42));
+    }
+
+    #[test]
+    fn the_guest_of_the_thirty_two_bits_answers_when_the_library_is_not_there() {
+        let mut guests = guests(&["error\tFailed to load DLL."], &["ok\t0000000000000078\t"]);
+        let mut native = call(NativeType::Int, Vec::new());
+        let answer = guests.call(&mut native).expect("the answer");
+        assert_eq!(answer.value, NativeValue::Integer(120));
+    }
+
+    #[test]
+    fn a_function_that_is_not_in_the_library_is_not_looked_for_in_the_other_guest() {
+        let mut guests = guests(&["error\tCall to nonexistent function."], &[]);
+        let mut native = call(NativeType::Int, Vec::new());
+        let error = guests.call(&mut native).expect_err("it fails");
+        assert_eq!(error, "Call to nonexistent function.");
+    }
+
+    #[test]
+    fn a_box_without_the_guest_of_the_thirty_two_bits_says_that_the_library_is_not_there() {
+        let mut guests = guests(&["error\tFailed to load DLL."], &[]);
+        guests.paths.helper32 = None;
+        guests.narrow = None;
+        let mut native = call(NativeType::Int, Vec::new());
+        let error = guests.call(&mut native).expect_err("it fails");
+        assert_eq!(error, "Failed to load DLL.");
+    }
+
     #[test]
     fn the_answer_of_a_failure_is_the_reason_of_v2() {
         let mut native = call(NativeType::Int, Vec::new());
@@ -531,20 +759,31 @@ mod tests {
         // it, so the two cases are here in one test and not in two.
         let program = std::env::var_os("AHK_RAVEN");
         let helper = std::env::var_os("AHK_RAVEN_HELPER");
+        let helper32 = std::env::var_os("AHK_RAVEN_HELPER32");
         // The environment of the runner is its own: nothing else is
-        // reading these two variables while this happens.
+        // reading these three variables while this happens.
         unsafe {
             std::env::set_var("AHK_RAVEN", "/usr/bin/raven");
             std::env::set_var("AHK_RAVEN_HELPER", "/usr/lib/ahk/helper.exe");
+            std::env::set_var("AHK_RAVEN_HELPER32", "/usr/lib/ahk/helper32.exe");
         }
         let paths = Paths::from_environment().expect("the box has a raven");
         assert_eq!(paths.program, PathBuf::from("/usr/bin/raven"));
         assert_eq!(paths.helper, PathBuf::from("/usr/lib/ahk/helper.exe"));
+        assert_eq!(paths.helper32, Some(PathBuf::from("/usr/lib/ahk/helper32.exe")));
         // A box that has not both has no raven.
         unsafe {
             std::env::remove_var("AHK_RAVEN_HELPER");
         }
         assert!(Paths::from_environment().is_none());
+        // The guest of the thirty-two bits is not needed: a box that has
+        // not it calls the libraries of the sixty-four bits and no more.
+        unsafe {
+            std::env::set_var("AHK_RAVEN_HELPER", "/usr/lib/ahk/helper.exe");
+            std::env::remove_var("AHK_RAVEN_HELPER32");
+        }
+        let paths = Paths::from_environment().expect("the box has a raven");
+        assert_eq!(paths.helper32, None);
         unsafe {
             match program {
                 Some(value) => std::env::set_var("AHK_RAVEN", value),
@@ -554,16 +793,20 @@ mod tests {
                 Some(value) => std::env::set_var("AHK_RAVEN_HELPER", value),
                 None => std::env::remove_var("AHK_RAVEN_HELPER"),
             }
+            match helper32 {
+                Some(value) => std::env::set_var("AHK_RAVEN_HELPER32", value),
+                None => std::env::remove_var("AHK_RAVEN_HELPER32"),
+            }
         }
     }
 
     #[test]
     fn a_raven_that_does_not_start_fails_with_the_reason() {
-        let paths = Paths {
-            program: PathBuf::from("/ahk/no-such-raven"),
-            helper: PathBuf::from("/ahk/no-such-helper"),
-        };
-        let error = Raven::start(&paths).expect_err("it fails");
+        let error = Raven::start(
+            Path::new("/ahk/no-such-raven"),
+            Path::new("/ahk/no-such-helper"),
+        )
+        .expect_err("it fails");
         assert!(error.contains("the raven did not start"), "{error}");
     }
 }

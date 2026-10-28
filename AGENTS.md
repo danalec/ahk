@@ -1057,9 +1057,10 @@ The rules of this tree, and where they differ from v2:
   stable address, so the desktop allocates the block, passes its address,
   and reads the bytes the callee left there back into the variable of the
   caller.
-- **The convention does not change the call.** The two conventions of x64
-  are the same one; a call of thirty-two bits is the only one where they
-  differ, and the tree has no thirty-two bits.
+- **The convention does not change the call of the sixty-four bits.** The
+  two conventions of x64 are the same one. A call of thirty-two bits is
+  the only one where they differ, and it is made by the guest of the
+  thirty-two bits (section 24).
 - **The `Str` with a star is the address of the text in the tree, and the
   address of the pointer to it in v2.** Measured on the binary on
   2026-10-28: v2 answers 3 for `DllCall("kernel32\lstrlenA", "Str*",
@@ -1164,9 +1165,16 @@ not touch this tree because it is a tool and not a part of it.
 ### The guest is a real process
 
 With `--execution=native` the raven runs the Windows program as a real
-Linux x86-64 process under ptrace, and it serves the Windows API
-itself. The ABI of the guest is the Microsoft x64 one, and it is
-genuine: it is the ABI that the tree already uses on Windows.
+Linux process under ptrace, and it serves the Windows API itself. The
+guest of the sixty-four bits is an x86-64 process, and the ABI of it is
+the Microsoft x64 one: it is genuine, and it is the ABI that the tree
+already uses on Windows.
+
+The raven runs a guest of the width of the program it is given, and the
+guest of the thirty-two bits is a real i386 process with the ABI of the
+Microsoft x86. Measured on the box on 2026-10-28: the kernel32 of the
+raven answered `GetTickCount` and `lstrlenA` to a guest of thirty-two
+bits, and it called a library of thirty-two bits.
 
 The kernel32 that the raven serves is its own and not the one of
 Microsoft: it is the synthetic Windows of section 23.
@@ -1200,6 +1208,22 @@ clang --target=x86_64-w64-windows-gnu -fuse-ld=lld -O2 -nostdlib -fno-stack-prot
   -Wl,--entry,raven_entry,--no-insert-timestamp -o helper.exe helper.c -L. -lkernel32
 ```
 
+The guest of the thirty-two bits is built out of the same source, with
+the import library of the i386 and the assembly of the call of the
+thirty-two bits:
+
+```sh
+llvm-dlltool -d kernel32.def -l libkernel32_32.a -m i386
+clang --target=i686-w64-windows-gnu -fuse-ld=lld -O2 -nostdlib -fno-stack-protector -fno-builtin \
+  -Wl,--entry,raven_entry,--no-insert-timestamp -o helper32.exe helper.c helper32.s -L. -lkernel32_32
+```
+
+The linker says that it resolves `__imp__LoadLibraryW@4` to
+`__imp__LoadLibraryW`: the definition has no decoration, and the
+thirty-two bits wants one. The call is the one the guest of the
+thirty-two bits makes, and the kernel32 of the raven is a library of
+Windows: it takes its arguments back.
+
 **The register that keeps the stack of the call cannot be one of the
 volatile ones.** `R11` is volatile in the Windows x64 ABI: the callee
 takes it, and the stack that the trampoline had prepared is lost -- the
@@ -1209,6 +1233,47 @@ which the callee gives back. The trampoline of
 `crates/ahk-box/src/native.rs` already says this; the helper paid for
 it again on 2026-10-28, and the guest read outside its memory until
 the stack was kept in the register that the callee gives back.
+
+### The thirty-two bits
+
+The tree calls a library of thirty-two bits, and it calls it through a
+second guest of the raven.
+
+- **There are two helpers.** The one of the sixty-four bits is
+  `helper.exe` and the one of the thirty-two bits is `helper32.exe`,
+  and both come from `crates/ahk-box/helper/helper.c`: the compiler of
+  the C picks the path of the machine, and the thirty-two bits brings
+  `helper32.s` with it.
+- **The box asks the sixty-four bits first.** The guest of the
+  sixty-four bits does not have the library of thirty-two bits -- the
+  raven skips a library of the other width -- and it answers "Failed
+  to load DLL." The box then asks the guest of the thirty-two bits, and
+  the answer of the library comes from there.
+- **A function that is not in the library is not looked for in the
+  other guest.** The library was there and the function was not, and
+  the reason of v2 is the one the guest of the sixty-four bits gave.
+- **The libraries of the two widths live in the same folder.** The
+  raven looks for the file of a library in the folder of the program,
+  and it skips the one that is of the other width: the folder of the
+  helper holds the libraries of both widths, and each guest takes the
+  one that is its own.
+- **The width of a pointer is the width of the guest.** The tree sends
+  eight bytes for a `Ptr`, and the guest of the thirty-two bits reads
+  four. The address of the tree is never the address of the guest, and
+  the value is the number that the script wrote.
+- **The convention does not matter in the thirty-two bits.** The two
+  conventions of the x86 differ in who takes the arguments back, and
+  the helper puts the stack where it was after the call: the callee may
+  take them back or leave them.
+
+Measured on the box on 2026-10-28, inside the raven, with a library of
+thirty-two bits of its own: the answer of a whole number, the answer of
+a double, the answer of a float of four bytes, the text that comes back
+as its bytes, and the value that the callee writes into the block of an
+address all came right. Measured through the runner on the same day:
+the same five calls answered right, the library of the sixty-four bits
+was still called by the guest of the sixty-four bits, and a library that
+is in neither width answered "Failed to load DLL.".
 
 ### The library of the guest is found beside the helper
 
@@ -1259,17 +1324,17 @@ backslash of a path of Windows is the one that sends it there.
 Windows, and every library is called by the direct path: the raven is
 not there, and the name of the library does not decide anything.
 
-**The rule is a rule of the box.** On Windows the machine is the
-Windows, and every library is called by the direct path: the raven is
-not there, and the name of the library does not decide anything.
+Inside the raven there are two guests, and the box asks them in this
+order: the guest of the sixty-four bits first, and the guest of the
+thirty-two bits when the first does not have the library.
 
-**The rule is a rule of the box.** On Windows the machine is the
-Windows, and every library is called by the direct path: the raven is
-not there, and the name of the library does not decide anything.
-
-The raven is named by the environment: `AHK_RAVEN` is its program, and
-`AHK_RAVEN_HELPER` is the helper. A box that does not have them says
-so, and it does not answer with a wrong answer.
+The raven is named by the environment: `AHK_RAVEN` is its program,
+`AHK_RAVEN_HELPER` is the guest of the sixty-four bits, and
+`AHK_RAVEN_HELPER32` is the guest of the thirty-two bits. A box that
+does not have the first two says so, and it does not answer with a
+wrong answer. The guest of the thirty-two bits is not needed: a box
+that does not have it calls the libraries of the sixty-four bits and no
+more, and a library of thirty-two bits answers "Failed to load DLL.".
 
 ### The raven is a long-lived process
 
@@ -1293,6 +1358,10 @@ The call is the one of the Microsoft x64, and the limits of it are the
 limits of section 23: a call that takes a variable number of arguments
 cannot be made, because the callee saves the float registers in a space
 whose size only the callee knows.
+
+The call of the thirty-two bits is the one of the Microsoft x86, and it
+has the limit of the others: the number of the float registers would
+have to ride in AL, and the helper does not write it there.
 
 The `Str*` of the tree passes the address of the bytes of the text, and
 v2 passes the address of the pointer to it: the difference is measured

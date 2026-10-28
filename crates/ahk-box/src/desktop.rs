@@ -74,10 +74,14 @@ pub struct LabDesktop {
     /// raven is a process of its own, and it is started with the first
     /// call and lives until the desktop is dropped.
     ///
+    /// The raven has two guests: one of the sixty-four bits and one of
+    /// the thirty-two, and the second is only started when the library
+    /// is not in the folder of the first.
+    ///
     /// It is only here on the box: on Windows the machine is the
     /// Windows, and there is no raven to ask.
     #[cfg(target_os = "linux")]
-    raven: Option<crate::raven::Raven>,
+    raven: Option<crate::raven::Guests>,
 }
 
 impl Default for LabDesktop {
@@ -220,10 +224,16 @@ impl LabDesktop {
             let paths = crate::raven::Paths::from_environment().ok_or_else(|| {
                 "this box has no raven: the libraries of Windows cannot be called.".to_string()
             })?;
-            self.raven = Some(crate::raven::Raven::start(&paths)?);
-            self.notes.push("started a raven for the libraries of Windows".to_string());
+            self.raven = Some(crate::raven::Guests::new(paths));
         }
-        self.raven.as_mut().expect("just started").call(call)
+        let guests = self.raven.as_mut().expect("just made");
+        let answer = guests.call(call);
+        // The notes of the guests: the raven that was started, and the
+        // one of the thirty-two bits.
+        for note in guests.take_notes() {
+            self.notes.push(note);
+        }
+        answer
     }
 }
 

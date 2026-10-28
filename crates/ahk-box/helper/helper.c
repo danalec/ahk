@@ -54,11 +54,20 @@ struct kind {
     int is_unsigned;       /* the number does not go negative */
 };
 
+/* The width of a pointer: eight bytes on the sixty-four bits, and
+   four on the thirty-two. */
+#if defined(__x86_64__)
+#define POINTER_WIDTH 8
+#else
+#define POINTER_WIDTH 4
+#endif
+
 static const struct kind kinds[] = {
     {"int", 4, 0, 0, 0, 0},     {"int64", 8, 0, 0, 0, 0},   {"short", 2, 0, 0, 0, 0},
     {"char", 1, 0, 0, 0, 0},    {"uchar", 1, 0, 0, 0, 1},   {"ushort", 2, 0, 0, 0, 1},
     {"uint", 4, 0, 0, 0, 1},    {"uint64", 8, 0, 0, 0, 1},  {"float", 4, 1, 0, 0, 0},
-    {"double", 8, 1, 0, 0, 0},  {"ptr", 8, 0, 0, 0, 0},    {"uptr", 8, 0, 0, 0, 1},
+    {"double", 8, 1, 0, 0, 0},  {"ptr", POINTER_WIDTH, 0, 0, 0, 0},
+    {"uptr", POINTER_WIDTH, 0, 0, 0, 1},
     {"str", 2, 0, 1, 2, 0},     {"wstr", 2, 0, 1, 2, 0},   {"astr", 1, 0, 1, 1, 0},
 };
 
@@ -198,6 +207,8 @@ static u64 narrow(u64 number, const struct kind *kind)
 
 /* ------------------------------------------------------------------ call */
 
+#if defined(__x86_64__)
+
 /* The call of a function whose shape is only known now.
  *
  * The register of an argument is the one of its place: the integers go
@@ -279,6 +290,46 @@ static void invoke(u64 function, const u64 *words, int count)
         : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11", "rbx", "memory", "cc");
 }
 
+#else
+
+/* The call of the thirty-two bits is in the assembly of its own: the
+   machine has six registers to spend, and the compiler of the C has
+   none left for the operands of a block of assembly that wants three
+   of them and takes three more. */
+extern unsigned long long ahk_invoke32(void *function, const unsigned int *image, int slots);
+extern unsigned long long ahk_float32(void);
+
+static u64 integer_answer;
+static u64 float_answer;
+
+/* The call of the thirty-two bits.
+ *
+ * The arguments go on the stack, and the last one is pushed first: the
+ * image holds them in the order they are pushed, and the callee takes
+ * them back. The answer of an integer is in EAX, and the answer of a
+ * float is in ST0, the stack of the x87.
+ *
+ * The answer of an integer of eight bytes is in EDX and EAX, and the two
+ * are the one answer: the assembly leaves the EDX of the callee alone.
+ */
+static u64 invoke(u32 function, const u32 *image, int slots)
+{
+    return ahk_invoke32((void *) (u32) function, image, slots);
+}
+
+/* The answer of the float: ST0, the stack of the x87.
+ *
+ * It is asked for only when the answer is a float: the stack of the
+ * x87 is empty otherwise, and popping it would be asking for
+ * something that is not there.
+ */
+static u64 take_float(void)
+{
+    return ahk_float32();
+}
+
+#endif
+
 /* -------------------------------------------------------------- the call */
 
 /* The answer of the call, and the blocks that came back. */
@@ -328,6 +379,7 @@ static void serve(HANDLE out, char **fields, int count_fields)
     int count = from_decimal(fields[3]);
     const struct kind *returns = kind_of(return_type);
     u64 words[MAX_ARGUMENTS];
+    const struct kind *kinds_of[MAX_ARGUMENTS];
     unsigned char *texts[MAX_ARGUMENTS];
     int is_address[MAX_ARGUMENTS];
     int block_length[MAX_ARGUMENTS];
@@ -445,14 +497,65 @@ static void serve(HANDLE out, char **fields, int count_fields)
                     }
                 }
                 words[index] = value;
+                kinds_of[index] = kind;
             }
+#if defined(__x86_64__)
             invoke((u64) address, words, count);
+#else
+            {
+                /* The image of the stack: the arguments from the last
+                   one to the first, and a double takes two places. */
+                u32 image[MAX_ARGUMENTS * 2];
+                int slots = 0;
+                int at;
+                for (at = count - 1; at >= 0; at--) {
+                    u64 word = words[at];
+                    /* A value of eight bytes takes two places, and the
+                       low one comes first: the last word of the image is
+                       the one that ends up at the lowest address. */
+                    if (kinds_of[at]->width == 8) {
+                        image[slots++] = (u32) (word >> 32);
+                        image[slots++] = (u32) word;
+                    } else
+                        image[slots++] = (u32) word;
+                }
+                integer_answer = invoke((u32) address, image, slots);
+                /* The answer of the thirty-two bits is four bytes wide,
+                   unless the type asks for eight: the EDX of the callee
+                   is not the answer of a smaller one. */
+                if (!returns->is_float && returns->width != 8)
+                    integer_answer = (u64) (u32) integer_answer;
+                if (returns->is_float)
+                    float_answer = take_float();
+            }
+#endif
         }
     }
     /* The answer. */
     say(out, "ok\t");
-    if (returns->is_float)
+    if (returns->is_float) {
+#if !defined(__x86_64__)
+        /* The thirty-two bits answer with a double, and the value of a
+           float is narrowed back to a float. */
+        if (returns->width == 4) {
+            /* The bits go through a union and not through a cast of the
+               address: a cast reads a number of another kind, and the
+               compiler is free to answer with anything. */
+            union {
+                u64 bits;
+                double number;
+            } wide;
+            union {
+                float number;
+                u32 bits;
+            } narrow;
+            wide.bits = float_answer;
+            narrow.number = (float) wide.number;
+            float_answer = (u64) narrow.bits;
+        }
+#endif
         say_hex(out, float_answer);
+    }
     else if (returns->is_text) {
         int length = read_text(integer_answer, returns->character_width, answer_bytes);
         say_bytes(out, answer_bytes, length);

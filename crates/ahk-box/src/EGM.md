@@ -130,10 +130,14 @@ names it.
 | Item | Signature | Notes |
 | --- | --- | --- |
 | `Raven` | struct | The raven: the process, and the pipes to it. It is started once and kept. |
-| `Raven::start` | `(&Paths) -> Result<Raven, String>` | Starts the raven with the helper as its program, and hands it the pipes of the host. |
+| `Raven::start` | `(&Path, &Path) -> Result<Raven, String>` | Starts the raven with the guest as its program, and hands it the pipes of the host. |
 | `Raven::call` | `(&mut self, &mut NativeCall) -> Result<NativeResult, String>` | One call: the request goes down the pipe, the answer comes up it. |
-| `Paths` | struct | The two programs: the raven and the helper. |
-| `Paths::from_environment` | `() -> Option<Paths>` | `AHK_RAVEN` is the raven and `AHK_RAVEN_HELPER` is the helper. `None` when the box has not them. |
+| `Guests` | struct | The two guests of the raven: the one of the sixty-four bits and the one of the thirty-two. |
+| `Guests::new` | `(Paths) -> Guests` | The guests of a box, with the paths of the programs. |
+| `Guests::call` | `(&mut self, &mut NativeCall) -> Result<NativeResult, String>` | The call of the sixty-four bits, and the call of the thirty-two bits when the first does not have the library. |
+| `Guests::take_notes` | `(&mut self) -> Vec<String>` | The notes of the guests: the ravens that were started. |
+| `Paths` | struct | The three programs: the raven, the guest of the sixty-four bits and the guest of the thirty-two. |
+| `Paths::from_environment` | `() -> Option<Paths>` | `AHK_RAVEN` is the raven, `AHK_RAVEN_HELPER` is the guest of the sixty-four bits and `AHK_RAVEN_HELPER32` is the guest of the thirty-two. `None` when the box has not the raven and the guest of the sixty-four bits. |
 | `is_windows` | `(&str) -> bool` | Whether the name of a library is a library of Windows. |
 
 The protocol between the two is one line per call, tab separated, and
@@ -204,10 +208,19 @@ file handles, and the whole-file writes), `Clipboard`, `Timers` and
   library of Windows. The box has no Windows of its own, and the raven
   is the Windows of the box. The rule is a rule of the box: on Windows
   the machine is the Windows, and every library is called here.
-- **The raven is named by the environment.** `AHK_RAVEN` is its program
-  and `AHK_RAVEN_HELPER` is the helper. A box that has not them says so
-  — "this box has no raven: the libraries of Windows cannot be called."
-  — and it does not answer with a wrong answer.
+- **The raven is named by the environment.** `AHK_RAVEN` is its program,
+  `AHK_RAVEN_HELPER` is the guest of the sixty-four bits and
+  `AHK_RAVEN_HELPER32` is the guest of the thirty-two bits. A box that
+  has not the first two says so — "this box has no raven: the libraries
+  of Windows cannot be called." — and it does not answer with a wrong
+  answer. The guest of the thirty-two bits is not needed: a box that
+  has not it calls the libraries of the sixty-four bits and no more.
+- **There are two guests, and the sixty-four bits is asked first.** The
+  guest of the sixty-four bits does not have a library of thirty-two
+  bits — the raven skips a library of the other width — and it answers
+  "Failed to load DLL." The box then asks the guest of the thirty-two
+  bits. A function that is not in the library is not looked for in the
+  other guest: the library was there and the function was not.
 - **The raven is a process of its own, and it is started once.** It
   starts with the first library of Windows that a script asks for, and
   it lives until the desktop is dropped: a program of its own is not
@@ -220,7 +233,10 @@ file handles, and the whole-file writes), `Clipboard`, `Timers` and
   Linux x86-64 process under ptrace, and the ABI of it is genuine: it
   is the ABI that the tree already uses on Windows. A call that takes a
   variable number of arguments cannot be made, because the callee saves
-  the float registers in a space whose size only the callee knows.
+  the float registers in a space whose size only the callee knows. The
+  call of the thirty-two bits is the one of the Microsoft x86, and it
+  has the limit of the others: the number of the float registers would
+  have to ride in AL, and the helper does not write it there.
 - **The stack of the call is kept in `RBX`.** `R11` is volatile in the
   Windows x64 ABI: the callee takes it, and the stack that the
   trampoline had prepared is lost — the guest then reads outside its
@@ -244,7 +260,9 @@ file handles, and the whole-file writes), `Clipboard`, `Timers` and
 
 - **Starts the raven**, a process of its own with the helper as its
   program, and talks to it over a pair of pipes. Its standard error goes
-  nowhere, and the timeout of the guest is a day.
+  nowhere, and the timeout of the guest is a day. The guest of the
+  thirty-two bits is a second process of its own, and it starts only
+  when the library is not in the folder of the first.
 
 ## Verification
 
