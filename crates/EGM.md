@@ -17,8 +17,9 @@ them. The `tests` directory of a crate is test-only and carries no contract.
   interpreter for AutoHotkey-style scripts. Portable, and it does no I/O of
   its own.
 - [ahk-box](./ahk-box/EGM.md) - The box primitives: the uinput keyboard of
-  our own, the absolute pointer, the captures and the screen reads. The
-  parts that talk to the kernel are Linux-only.
+  our own, the absolute pointer, the captures and the screen reads, and the
+  windows of the Wayland compositor. The parts that talk to the kernel and
+  the parts that talk to the compositor are Linux-only.
 - [ahk-cli](./ahk-cli/EGM.md) - The runner: a script on stdin, a report on
   stdout. The binary is `ahk`.
 
@@ -29,7 +30,7 @@ in the contract of each crate; this is the index.
 
 | Crate | Public surface |
 | --- | --- |
-| `ahk` | re-exported at the root: `parse`, `Parser`, `precedence`, `tokenize`, `Token`, `TokenKind`, `SyntaxError`, `Node`, `LiteralValue`, `UnaryOp`, `BinaryOp`, `AssignOp`, `Parameter`, `Runtime`, `Report`, `Step`, `RuntimeError`, `Timeout`, `Value`, the `Desktop` and `Clock` traits, `WindowAnswer`, `SystemClock` (behind the `std` feature), and the key table: `KeyStroke`, `UnknownKey`, `parse_spec`, `resolve_name`. Public in the modules and not re-exported: `ahk::runtime::op_name`, `ahk::runtime::Scope`, `ahk::runtime::Reference`, `ahk::runtime::TypeName`, `ahk::ast::Branch`, `ahk::ast::Case`, `ahk::builtins::names`, `ahk::builtins::find`, `ahk::builtins::reference_parameters`, `ahk::builtins::wants`, `ahk::builtins::Wants`, `ahk::classes::names`, `ahk::classes::carries`, `ahk::variables::carries`, and the nine capability traits of `ahk::desktop` |
+| `ahk` | re-exported at the root: `parse`, `Parser`, `precedence`, `tokenize`, `Token`, `TokenKind`, `SyntaxError`, `Node`, `LiteralValue`, `UnaryOp`, `BinaryOp`, `AssignOp`, `Parameter`, `Runtime`, `Report`, `Step`, `RuntimeError`, `Timeout`, `Value`, the `Desktop` and `Clock` traits, `WindowAnswer`, `SystemClock` (behind the `std` feature), and the key table: `KeyStroke`, `UnknownKey`, `parse_spec`, `resolve_name`. Public in the modules and not re-exported: `ahk::runtime::op_name`, `ahk::runtime::Scope`, `ahk::runtime::Reference`, `ahk::runtime::TypeName`, `ahk::ast::Branch`, `ahk::ast::Case`, `ahk::builtins::names`, `ahk::builtins::find`, `ahk::builtins::reference_parameters`, `ahk::builtins::wants`, `ahk::builtins::Wants`, `ahk::classes::names`, `ahk::classes::carries`, `ahk::variables::carries`, and the ten capability traits of `ahk::desktop` |
 | `ahk-box` | `LabDesktop`, `BoxError`, `Keyboard`, `KeyboardError`, `Pointer`, `PointerError`, `ENUMERATION_WAIT`, `KEY_GAP`, `KEY_HOLD`, `PRESS_SETTLE`, `PRESS_HOLD` |
 | `ahk-cli` | the binary `ahk`: the script on stdin, the report on stdout, the `--timeout=N` argument, and the exit code of the process |
 
@@ -57,8 +58,9 @@ in the contract of each crate; this is the index.
   process and writes nothing to disk; everything it does goes through the
   `Desktop` it was handed.
 - The box crate touches the machine: it opens `/dev/uinput` and creates the
-  keyboard and the absolute pointer, it reads the screen, and it runs the
-  commands of the script.
+  keyboard and the absolute pointer, it reads the screen, it connects to the
+  Wayland compositor to ask about its windows, and it runs the commands of
+  the script.
 - The runner writes a pid file while the script runs, removes it when the
   script ends, and prints one JSON report on stdout.
 

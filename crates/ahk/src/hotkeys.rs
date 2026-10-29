@@ -337,23 +337,30 @@ fn condition_holds(rt: &mut Runtime<'_>, entry: &Hotkey) -> Result<bool, Runtime
         }
         Condition::WindowActive(title) => match rt.desktop().window_active(&title) {
             Ok(WindowAnswer::Active) => Ok(true),
-            Ok(WindowAnswer::NotActive) => Ok(false),
+            // A window that is not there is not the active one.
+            Ok(WindowAnswer::NotActive) | Ok(WindowAnswer::Absent) => Ok(false),
             Ok(WindowAnswer::Unknown(reason)) => Err(fail(&reason, entry.line)),
             Err(reason) => Err(fail(&reason, entry.line)),
         },
         Condition::WindowExists(title) => match rt.desktop().window_exists(&title) {
             Ok(WindowAnswer::Active) | Ok(WindowAnswer::NotActive) => Ok(true),
+            // A window that is not there is not there.
+            Ok(WindowAnswer::Absent) => Ok(false),
             Ok(WindowAnswer::Unknown(reason)) => Err(fail(&reason, entry.line)),
             Err(reason) => Err(fail(&reason, entry.line)),
         },
         Condition::WindowNotActive(title) => match rt.desktop().window_active(&title) {
             Ok(WindowAnswer::Active) => Ok(false),
-            Ok(WindowAnswer::NotActive) => Ok(true),
+            // A window that is not there is not the active one, and so it
+            // is not active.
+            Ok(WindowAnswer::NotActive) | Ok(WindowAnswer::Absent) => Ok(true),
             Ok(WindowAnswer::Unknown(reason)) => Err(fail(&reason, entry.line)),
             Err(reason) => Err(fail(&reason, entry.line)),
         },
         Condition::WindowNotExist(title) => match rt.desktop().window_exists(&title) {
             Ok(WindowAnswer::Active) | Ok(WindowAnswer::NotActive) => Ok(false),
+            // A window that is not there is not there.
+            Ok(WindowAnswer::Absent) => Ok(true),
             Ok(WindowAnswer::Unknown(reason)) => Err(fail(&reason, entry.line)),
             Err(reason) => Err(fail(&reason, entry.line)),
         },
@@ -889,7 +896,7 @@ fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::desktop::{Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers, Windows};
+    use crate::desktop::{Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers, WindowAnswer, Windows};
     use crate::runtime::Clock;
     use alloc::string::String;
     use alloc::vec::Vec;
@@ -951,7 +958,15 @@ mod tests {
         }
     }
 
-    impl Windows for Fake {}
+    impl Windows for Fake {
+        fn window_active(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+            // The fake has no window at all: every window is absent.
+            Ok(WindowAnswer::Absent)
+        }
+        fn window_exists(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+            Ok(WindowAnswer::Absent)
+        }
+    }
     impl Files for Fake {}
     impl Clipboard for Fake {}
     impl Timers for Fake {}
@@ -1154,6 +1169,33 @@ mod tests {
         let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
         assert!(desktop.registered.is_empty());
+    }
+
+    /// A window that is not there is not there: the hotkey that asks for
+    /// it does not run.
+    #[test]
+    fn a_hotkey_of_a_window_that_is_not_there_does_not_run() {
+        let script = "Callback(hk) {\n    MsgBox hk\n}\nHotIfWinExist \"Steam\"\nHotkey(\"^a\", Callback)\n";
+        let statements = crate::parse(script).expect("the script parses");
+        let mut desktop = Fake::new();
+        let mut clock = TheClock;
+        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        assert!(report.ok, "the script failed: {:?}", report.error);
+        assert_eq!(desktop.registered, vec!["^a".to_string()]);
+        assert!(report.output.is_empty(), "the hotkey ran: {:?}", report.output);
+    }
+
+    /// A window that is not there is not the active one, and so it is not
+    /// active: the hotkey that asks for the opposite runs.
+    #[test]
+    fn a_hotkey_of_a_window_that_is_not_active_runs() {
+        let script = "Callback(hk) {\n    MsgBox hk\n}\nHotIfWinNotActive \"Steam\"\nHotkey(\"^a\", Callback)\n";
+        let statements = crate::parse(script).expect("the script parses");
+        let mut desktop = Fake::new();
+        let mut clock = TheClock;
+        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        assert!(report.ok, "the script failed: {:?}", report.error);
+        assert_eq!(report.output, vec!["^a".to_string()]);
     }
 
     /// The three numbers of v2 are the ones the binary has.

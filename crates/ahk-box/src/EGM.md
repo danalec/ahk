@@ -2,17 +2,18 @@
 
 ## Overview
 
-`src` is the whole of `ahk-box`: seven modules and the module root that names them.
+`src` is the whole of `ahk-box`: eight modules and the module root that names them.
 
 | File | What it holds |
 | --- | --- |
-| `lib.rs` | The public surface of the crate, and nothing else. It declares the five modules and re-exports the names the runner needs. |
+| `lib.rs` | The public surface of the crate, and nothing else. It declares the eight modules and re-exports the names the runner needs. |
 | `keyboard.rs` | A uinput keyboard of our own, for the keys `ydotool type` cannot express. |
 | `pointer.rs` | An absolute uinput pointer, for driving a Wayland session exactly. |
 | `native.rs` | The call into a library of the machine: the loader, the trampoline and the marshalling of the arguments. |
 | `raven.rs` | The call into a library of Windows: the raven, the helper that runs inside it, and the protocol between them. |
 | `files.rs` | The files of the machine: the copy, the move, the attributes, the times, the directories and the ini files. |
 | `hotkeys.rs` | The watcher of the keyboard: the device that is read, and the hotkeys and the hotstrings that are registered. |
+| `wayland.rs` | The windows of a Wayland compositor: the client that lists them and the one that has the focus. |
 | `desktop.rs` | The lab box as the runtime sees it: the `ahk::desktop::Desktop` implementation that ties the keyboard, the pointer, the screen and the shell together. |
 
 The crate does no parsing and no interpreting: a script is already parsed by the language crate `ahk`, and this crate only answers what the runtime asks of the desktop. It depends on `ahk` for the `Desktop` trait, for the key names and for the keymap of the US layout, and on `libc`, `png` and `thiserror` for the rest. `serde` and `serde_json` are declared in the manifest and used by nothing here: the report is written by the runner, which is where the serialisation lives. Nothing here depends on the runner, and the runner depends on this crate in one direction only.
@@ -29,6 +30,7 @@ pub mod keyboard;
 pub mod native;
 pub mod pointer;
 pub mod raven;
+pub mod wayland;
 
 pub use desktop::{BoxError, LabDesktop};
 pub use keyboard::{ENUMERATION_WAIT, KEY_GAP, KEY_HOLD, Keyboard, KeyboardError};
@@ -198,6 +200,36 @@ hotkey that fires on what the script writes is a hotkey in a loop. The
 variable is the way around that, and it is how the hotkeys are proved on
 the box without a person at the keyboard.
 
+### `wayland.rs` — the windows of the compositor
+
+The session of the box is Wayland, and the compositor is the one that knows
+the windows. Two protocols of it are used, and they were read out of the
+compositor on 2026-10-29:
+
+- `ext_foreign_toplevel_list_v1` — the portable one. It lists the toplevels
+  and says what each of them is: the title, the application id and an
+  identifier that is stable while the window lives.
+- `zcosmic_toplevel_info_v1` — the one of COSMIC, which *extends* the
+  listing. For a handle of the listing the compositor gives a handle of its
+  own, and that one carries the state of the window — and the state is what
+  says whether the window has the focus.
+
+| Item | Signature | Notes |
+| --- | --- | --- |
+| `Window` | struct | A window: the identifier, the title, the application id, and whether it has the focus. |
+| `Client` | struct | The connection to the compositor, and what it has said so far. |
+| `Client::open` | `() -> Result<Self, String>` | Connects to the display of the session and binds the two protocols. |
+| `Client::windows` | `(&mut self) -> Result<Vec<Window>, String>` | The windows that are mapped, after the compositor has been asked again. |
+| `Client::active` | `(&mut self) -> Result<Option<Window>, String>` | The window that has the focus. |
+| `wayland/linux.rs` | module | The client itself, and the `Dispatch` of the events that matter. |
+| `wayland/protocols.rs` | module | The bindings that `wayland-scanner` generates out of the XML of `../protocols`. |
+| `wayland/other.rs` | module | The stub of the other systems: the client answers that there is no Wayland there. |
+
+The listing is enough to answer whether a window exists, and the state of
+COSMIC is needed to know which one has the focus. The two are joined by the
+handle: `get_cosmic_toplevel` takes the handle of the listing and gives the
+handle of COSMIC, so the correlation is exact and not a guess by title.
+
 ### `desktop.rs` — the box as the runtime sees it
 
 | Item | Signature | Notes |
@@ -213,6 +245,9 @@ the box without a person at the keyboard.
 | `parse_colour` | private fn | `#rrggbb`, `#rgb` or `rrggbb`. |
 | `read_pixel` / `search_pixel` | private fn | The colour of a pixel, and the place of a colour, in a PNG. |
 | `x_display` / `wayland_session` | private fn | The X server to ask, and whether the session is Wayland. |
+| `wayland` / `wayland_active` / `wayland_exists` | private fn | The three questions about the windows, by Wayland. |
+| `empty_title` | private fn | The answer to a question about a window with no title: v2 would use the last found window, and this runtime keeps none. |
+| `title_matches` | private fn | The mode 2 of v2: the title of the window has to contain the text, and the case matters. |
 
 The `Desktop` of the crate is the sum of the ten capability traits of
 `ahk::desktop`, and the box writes the ten of them: `Keyboard`
@@ -246,7 +281,11 @@ machine, which `native.rs` answers). The keyboard and the pointer are opened on 
   of its place, and on Linux it is the one of its class. The two
   trampolines were proved before they entered the tree, in a prototype of
   their own: thirteen cases on Windows and fourteen on the box.
-- **A question the box cannot answer fails; it does not answer `false`.** The session is Wayland, the COSMIC services answer `Introspect` with an empty list, and the rootless Xwayland of gamescope reports an empty client list, so `WinActive` and `WinExist` answer "unknown" and say out loud how to check the focus instead. `WinGetTitle` is the exception: with no active X11 window it answers an empty string, because there is no X11 window to ask about.
+- **A question the box cannot answer fails; it does not answer `false`.** The windows of a Wayland session come from the compositor: `ext_foreign_toplevel_list_v1` lists them and `zcosmic_toplevel_info_v1` says which one has the focus. A compositor that publishes neither fails the question with the reason. A window that is *not there* is not a failure: `WinExist` answers `false` and `WinActive` answers `false`.
+- **The windows of a Wayland session are asked of the compositor, not of X11.** The X server that runs beside it is the rootless Xwayland of gamescope and reports an empty client list, so the X11 path answers "unknown" on a Wayland session. The Wayland path has the precedence when the session is Wayland, and the X11 path is kept for an X11 session.
+- **The state of a window is waited for, and the wait is bounded.** The compositor says the state of a window in its next refresh, and a refresh is a frame away: measured on 2026-10-29 on the box, the answer was there on the second question, ten milliseconds after the first one. The client waits up to 250 ms, five milliseconds at a time, and a window whose state did not arrive leaves the question about the focus open — the answer is the reason, not a wrong window.
+- **The title of a window is matched the way v2 matches it.** The default mode of v2 is the mode 2: the title of the window has to *contain* the text that was asked for, and the case matters. `SetTitleMatchMode` is not carried, so the mode 2 is the one that is used.
+- **A proxy that is dropped is destroyed on the server.** The handles of the listing and the handles of COSMIC are kept in the state for that reason: a handle that is destroyed never tells anything else.
 - **The screen is the focus check.** `PixelGet` and `PixelSearch` are read from the frame the compositor draws, so they work whatever window is in front, Wayland or not.
 - **The hotkeys watch the keyboard that reads.** The keyboard of the box writes; the watcher reads the event node of the physical keyboard. The virtual devices are skipped when the device is found by itself, because a hotkey that fires on what the script writes is a hotkey in a loop. The variable `AHK_HOTKEY_DEVICE` names the device to read, by path or by name, and it is how the hotkeys are proved on the box without a person at the keyboard.
 - **The device of the watcher is opened when the first events are wanted.** The keyboard of the box is made when the script types for the first time, and a watcher that wanted a device that is not there yet would say that the hotkeys cannot be watched. The device that cannot be read is a failure with the reason, and not a watcher that never fires.
@@ -303,7 +342,8 @@ machine, which `native.rs` answers). The keyboard and the pointer are opened on 
 - **Sleeps**: four seconds after each device creation, 200 ms between a motion and a press, 40 ms per button, 20 ms per key and 20 ms between keys, 60 ms between the two clicks of a double click.
 - **Runs the environment probe.** `ensure_session_env` reads `/run/user/<uid>`, sets `XDG_RUNTIME_DIR` to it, and sets `WAYLAND_DISPLAY` to the first `wayland-*` socket it finds — but only when `WAYLAND_DISPLAY` is not set already. Over SSH the display variables are empty and `grim` refuses to run without them.
 - **Calls out to `grim`** for the screen captures: `grim <path>` for the size of the screen, and `grim -g <x,y> <w>x<h> <path>` for a region. It writes PNG files, reads the pixel data back through the `png` crate, and removes the temporary ones afterwards; the file of a `capture` stays where it was written, for the caller to read.
-- **Calls out to `xprop`** for the window questions: `_NET_ACTIVE_WINDOW` and `_NET_WM_NAME`/`WM_NAME` for the title, `_NET_CLIENT_LIST` for the list of windows.
+- **Calls out to `xprop`** for the window questions of an X11 session: `_NET_ACTIVE_WINDOW` and `_NET_WM_NAME`/`WM_NAME` for the title, `_NET_CLIENT_LIST` for the list of windows.
+- **Connects to the compositor.** The socket of the Wayland display is opened when the script asks the first question about the windows, and the connection is kept for the rest of the run. The client waits up to 250 ms for the state of a window, five milliseconds at a time.
 - **Runs the script's own commands** through `sh -c`, and returns the exit code, the standard output and the standard error.
 - **Loads the libraries of the machine** that the script asks for, and calls into them. The library stays loaded for the life of the desktop, and it is the callee that owns the memory it writes into.
 - **Collects notes** — the device that had to be waited for, the environment that was found, the position the runtime put the pointer at when the kernel would not say — and the runner adds them to the report.

@@ -65,13 +65,36 @@ querer dar a primeira e negar o segundo.
 
 ### 1.2 O que isto muda para o nosso runtime
 
-O `AGENTS.md` diz que `WinExist` e `WinActive` respondem *"unknown"* na
+O `AGENTS.md` dizia que `WinExist` e `WinActive` respondiam *"unknown"* na
 caixa, porque o compositor Wayland não expõe lista de janelas ao D-Bus e o
 Xwayland do gamescope reporta uma lista vazia. **Isso continua verdadeiro
 para o D-Bus, e deixa de ser verdade para o Wayland**: o `cosmic-comp`
 publica `ext_foreign_toplevel_list_v1`, e o programa deste guia enumera as
 janelas da caixa sem dificuldade nenhuma. O que faltava era o caminho
 Wayland-native, não a permissão.
+
+**Esse caminho está feito (2026-10-29).** O cliente vive em
+`crates/ahk-box/src/wayland.rs`, e `WinGetTitle`, `WinExist` e `WinActive`
+respondem com valor na caixa. Duas coisas que este guia não cobre e que o
+cliente teve de aprender:
+
+- **A janela activa vem de um segundo protocolo.** O `ext-foreign-toplevel-list-v1`
+  não diz qual das janelas tem o foco. Quem diz é o
+  `zcosmic-toplevel-info-v1`, que *estende* a listagem: `get_cosmic_toplevel`
+  recebe a handle da listagem e devolve uma handle do COSMIC, e essa é que
+  carrega o `state`. A correlação é pela handle, portanto é exacta — e não
+  um palpite pelo título.
+- **O `state` chega um frame depois.** O compositor diz o estado da janela
+  no seu próximo refresco, e um refresco é um frame: medido na caixa, a
+  resposta estava na segunda pergunta, dez milissegundos depois da
+  primeira. O cliente espera — com limite — antes de dizer que a janela
+  activa é uma ou outra.
+
+O XML dos dois protocolos está vendorizado em
+`crates/ahk-box/protocols/` (MIT), e as ligações são geradas pelo
+`wayland-scanner` em tempo de compilação. O crate `cosmic-protocols` é
+GPL-3.0 e **não** é dependência desta árvore: o comportamento é portado, o
+código não é copiado.
 
 ---
 

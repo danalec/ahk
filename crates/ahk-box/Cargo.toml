@@ -14,3 +14,13 @@ png = "0.17"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+
+# The Wayland protocols of the box are Linux-only: the crate of the client
+# is Unix-only, and the compositor is a Linux one. The dependency is
+# therefore declared for Linux alone, so that the crate keeps building on
+# the other systems and answers there that it has no Wayland.
+[target.'cfg(target_os = "linux")'.dependencies]
+wayland-backend = "0.3"
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-scanner = "0.31"

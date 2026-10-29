@@ -58,7 +58,7 @@ modules are public, and the symbols below are re-exported from the root.
 | `precedence` | `parser` | the precedence of the operators, the way v2 has it |
 | `Value` | `runtime` | a value a script can hold |
 | `Desktop` | `desktop` | the machine the runtime drives: the sum of the nine capability traits |
-| `WindowAnswer` | `desktop` | the answer about a window, and the third case is the point |
+| `WindowAnswer` | `desktop` | the answer about a window: it is active, it is there, it is not there, or the desktop cannot tell |
 | `Clock` | `runtime` | the clock the runtime measures itself with |
 | `SystemClock` | `runtime` | the clock of a hosted platform, behind the `std` feature |
 | `KeyStroke`, `UnknownKey` | `keys` | a key press, and the key the table does not have |
@@ -104,8 +104,10 @@ functions that `std` owns.
   with the line of the statement that tripped it.
 - **A question that cannot be answered fails.** `WinActive` and `WinExist`
   answer *unknown* rather than `false`, and the script fails with the reason.
-  `WinGetTitle` is the exception: with no active window it answers an empty
-  string, because there is no window to ask about.
+  A window that is not there is not a failure: the desktop says that it is
+  not there, and the answer is `false`. `WinGetTitle` is the exception: with
+  no active window it answers an empty string, because there is no window to
+  ask about.
 - **The names are the names of v2.0.19, and only those.** `StrUpper` and not
   `upper`, `PixelGetColor` and not `PixelGet`, `MsgBox` and not `Msg`. There
   are no aliases, and the built-in table of the crate is the list of what the

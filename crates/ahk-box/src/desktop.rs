@@ -20,19 +20,22 @@
 //!   the `ydotool` device, whose `key 30:1` is ignored -- a property of
 //!   that tool, not of the box.)
 //!
-//! ## The focus check
+//! ## The windows of the compositor
 //!
-//! The box is a Wayland session, and the compositor does not expose a
-//! window list to D-Bus or to X11: the COSMIC services answer
-//! `Introspect` with nothing, and the X server that runs beside it (the
-//! rootless Xwayland of gamescope) reports an empty client list. So the
-//! window-level questions cannot be answered for a native Wayland window,
-//! and this module says so instead of answering `false`.
+//! The box is a Wayland session, and the compositor is the one that knows
+//! the windows: `ext_foreign_toplevel_list_v1` lists them, and
+//! `zcosmic_toplevel_info_v1` says which one has the focus. The client is
+//! in `wayland.rs`, and the X11 path is kept for a session that is X11.
 //!
-//! What *is* answerable, and is what the focus check uses, is the screen
-//! itself: the colour of a pixel, the place of a colour, and the position
-//! of the pointer. Those three are read from the frame the compositor
-//! draws, so they work for any window, Wayland or not.
+//! The path that is not there any more is the one through D-Bus and X11:
+//! the COSMIC services answer `Introspect` with nothing, and the X server
+//! that runs beside it (the rootless Xwayland of gamescope) reports an
+//! empty client list.
+//!
+//! What is answerable either way, and is what the focus check uses, is the
+//! screen itself: the colour of a pixel, the place of a colour, and the
+//! position of the pointer. Those three are read from the frame the
+//! compositor draws, so they work for any window, Wayland or not.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -82,6 +85,11 @@ pub struct LabDesktop {
     /// Windows, and there is no raven to ask.
     #[cfg(target_os = "linux")]
     raven: Option<crate::raven::Guests>,
+    /// The client of the compositor, when the session is Wayland. It is
+    /// opened with the first question about the windows and kept: the
+    /// connection to the compositor is worth keeping.
+    #[cfg(target_os = "linux")]
+    wayland: Option<crate::wayland::Client>,
 }
 
 impl Default for LabDesktop {
@@ -102,6 +110,8 @@ impl LabDesktop {
             libraries: Libraries::new(),
             #[cfg(target_os = "linux")]
             raven: None,
+            #[cfg(target_os = "linux")]
+            wayland: None,
         }
     }
 
@@ -545,6 +555,13 @@ impl ahk::desktop::Screen for LabDesktop {
 
 impl ahk::desktop::Windows for LabDesktop {
     fn window_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
+        // The session of the box is Wayland, and the compositor is the one
+        // that knows the windows. The X server beside it is the rootless
+        // Xwayland of gamescope, and it sees nothing.
+        if wayland_session() {
+            return self.wayland_active(title);
+        }
+
         let Some(active) = self.active_window_title()? else {
             return Ok(WindowAnswer::Unknown(
                 "no X11 window is active, and a native Wayland window that holds the focus is \
@@ -567,6 +584,12 @@ impl ahk::desktop::Windows for LabDesktop {
         }
     }
     fn window_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
+        // The session of the box is Wayland, and the compositor is the one
+        // that knows the windows.
+        if wayland_session() {
+            return self.wayland_exists(title);
+        }
+
         // The X server of this box is the rootless Xwayland of gamescope,
         // and it reports an empty client list: there is no way to ask it
         // which windows exist.
@@ -589,6 +612,13 @@ impl ahk::desktop::Windows for LabDesktop {
         )))
     }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
+        // The session of the box is Wayland, and the compositor is the one
+        // that knows which window has the focus.
+        if wayland_session() {
+            let active = self.wayland()?.active()?;
+            return Ok(active.map(|window| window.title));
+        }
+
         let display = x_display();
         let Some(display) = display else {
             return Err(
@@ -701,16 +731,72 @@ fn wayland_session() -> bool {
     std::env::var_os("WAYLAND_DISPLAY").is_some()
 }
 
+/// The client of the compositor, opened when it is first needed.
+///
+/// The connection is kept: the compositor is asked again with every
+/// question, and the answers arrive on the same connection.
+#[cfg(target_os = "linux")]
+impl LabDesktop {
+    /// The client of the compositor.
+    fn wayland(&mut self) -> Result<&mut crate::wayland::Client, String> {
+        if self.wayland.is_none() {
+            self.wayland = Some(crate::wayland::Client::open()?);
+        }
+        Ok(self.wayland.as_mut().expect("the client was just opened"))
+    }
+
+    /// Whether the window with this title is the active one, by Wayland.
+    #[cfg(target_os = "linux")]
+    fn wayland_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
+        if title.is_empty() {
+            return Ok(empty_title());
+        }
+        let active = self.wayland()?.active()?;
+        match active {
+            Some(window) if title_matches(&window.title, title) => Ok(WindowAnswer::Active),
+            Some(_) => Ok(WindowAnswer::NotActive),
+            None => Ok(WindowAnswer::Absent),
+        }
+    }
+
+    /// Whether a window with this title exists, by Wayland.
+    #[cfg(target_os = "linux")]
+    fn wayland_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
+        if title.is_empty() {
+            return Ok(empty_title());
+        }
+        let windows = self.wayland()?.windows()?;
+        match windows.iter().find(|window| title_matches(&window.title, title)) {
+            Some(window) if window.active => Ok(WindowAnswer::Active),
+            Some(_) => Ok(WindowAnswer::NotActive),
+            None => Ok(WindowAnswer::Absent),
+        }
+    }
+}
+
+/// The answer to a question about a window with no title.
+///
+/// v2 uses the last found window when the title is empty, and this
+/// runtime does not keep one.
+#[cfg(target_os = "linux")]
+fn empty_title() -> WindowAnswer {
+    WindowAnswer::Unknown(
+        "the title is empty, and v2 would use the last found window: this runtime does not keep \
+         one."
+            .to_string(),
+    )
+}
+
 /// Whether a title matches the one asked for.
 ///
-/// AutoHotkey matches on the window title, and a script that wants an
-/// exact one says so; here the match is the same way: the wanted text has
-/// to be inside the title, and the case does not matter.
+/// The mode of v2 is the default one, 2: the title of the window has to
+/// contain the wanted text. The case matters, as it matters in v2: "the
+/// window titles and text are case-sensitive".
 fn title_matches(title: &str, wanted: &str) -> bool {
     if wanted.is_empty() {
         return false;
     }
-    title.to_lowercase().contains(&wanted.to_lowercase())
+    title.contains(wanted)
 }
 
 /// Parse a colour: `#rrggbb`, `#rgb`, or `rrggbb`.
@@ -849,4 +935,33 @@ pub(crate) fn name_matches(pattern: &str, name: &str) -> bool {
         }
     }
     table[pattern.len()][name.len()]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::title_matches;
+
+    /// The mode of v2 is the default one, 2: the title of the window has
+    /// to contain the text that was asked for.
+    #[test]
+    fn a_title_contains_the_text_that_was_asked_for() {
+        assert!(title_matches("pod153/Login - Chromium", "Login"));
+        assert!(title_matches("pod153/Login - Chromium", "pod153/Login - Chromium"));
+    }
+
+    /// The case matters, the way it matters in v2: the window titles and
+    /// the text are case-sensitive.
+    #[test]
+    fn the_case_of_the_title_matters() {
+        assert!(title_matches("pod153/Login - Chromium", "Chromium"));
+        assert!(!title_matches("pod153/Login - Chromium", "chromium"));
+    }
+
+    /// A title that is not there is not there, and a text that is empty
+    /// is not a text that every title contains.
+    #[test]
+    fn a_title_that_is_not_there_is_not_there() {
+        assert!(!title_matches("pod153/Login - Chromium", "Firefox"));
+        assert!(!title_matches("pod153/Login - Chromium", ""));
+    }
 }

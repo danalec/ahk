@@ -24,6 +24,12 @@ pub enum WindowAnswer {
     Active,
     /// The window exists and is not the active one.
     NotActive,
+    /// The window is not there.
+    ///
+    /// This is an answer and not a failure: `WinExist` says that a window
+    /// that is not there is not there, and `WinActive` says that a window
+    /// that is not there is not the active one.
+    Absent,
     /// The desktop cannot tell; the reason says why.
     Unknown(String),
 }

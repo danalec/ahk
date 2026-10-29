@@ -140,20 +140,32 @@ impl Windows for Fake {
         if self.window_answer_unknown {
             return Ok(WindowAnswer::Unknown("this desktop cannot tell".into()));
         }
-        Ok(match &self.active {
-            Some(active) if active.contains(title) => WindowAnswer::Active,
-            _ => WindowAnswer::NotActive,
-        })
+        // The window that has the focus is a window that is there.
+        if let Some(active) = &self.active {
+            if active.contains(title) {
+                return Ok(WindowAnswer::Active);
+            }
+        }
+        if self.windows.iter().any(|window| window.contains(title)) {
+            return Ok(WindowAnswer::NotActive);
+        }
+        // A window that is not there is not the active one.
+        Ok(WindowAnswer::Absent)
     }
     fn window_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
         if self.window_answer_unknown {
             return Ok(WindowAnswer::Unknown("this desktop cannot list".into()));
         }
-        Ok(if self.windows.iter().any(|window| window.contains(title)) {
-            WindowAnswer::Active
-        } else {
-            WindowAnswer::NotActive
-        })
+        if let Some(active) = &self.active {
+            if active.contains(title) {
+                return Ok(WindowAnswer::Active);
+            }
+        }
+        if self.windows.iter().any(|window| window.contains(title)) {
+            return Ok(WindowAnswer::NotActive);
+        }
+        // A window that is not there is not there.
+        Ok(WindowAnswer::Absent)
     }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         Ok(self.active.clone())
@@ -1130,6 +1142,89 @@ fn win_active_says_whether_the_window_is_active() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("active"), Some(&Value::Int(1)));
+}
+
+/// A window that is there but is not in front is not the active one.
+#[test]
+fn win_active_of_a_window_that_is_not_in_front_is_false() {
+    let mut desktop = Fake {
+        windows: vec!["Steam".into(), "Firefox".into()],
+        active: Some("Steam".into()),
+        ..Default::default()
+    };
+    let statements = parse("active := WinActive(\"Firefox\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("active"), Some(&Value::Int(0)));
+}
+
+/// A window that is not there is not the active one.
+///
+/// This is an answer and not a failure: the desktop said that the window
+/// is not there, and that is the end of the question.
+#[test]
+fn win_active_of_a_window_that_is_not_there_is_false() {
+    let mut desktop = Fake {
+        windows: vec!["Steam".into()],
+        active: Some("Steam".into()),
+        ..Default::default()
+    };
+    let statements = parse("active := WinActive(\"Firefox\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("active"), Some(&Value::Int(0)));
+}
+
+/// A window that is there is there.
+#[test]
+fn win_exist_says_that_a_window_that_is_there_is_there() {
+    let mut desktop = Fake {
+        windows: vec!["Steam".into()],
+        active: Some("Steam".into()),
+        ..Default::default()
+    };
+    let statements = parse("there := WinExist(\"Steam\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("there"), Some(&Value::Int(1)));
+}
+
+/// A window that is not there is not there.
+#[test]
+fn win_exist_of_a_window_that_is_not_there_is_false() {
+    let mut desktop = Fake {
+        windows: vec!["Steam".into()],
+        active: Some("Steam".into()),
+        ..Default::default()
+    };
+    let statements = parse("there := WinExist(\"Firefox\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("there"), Some(&Value::Int(0)));
+}
+
+/// The title of the window that has the focus.
+#[test]
+fn win_get_title_says_the_title_of_the_window_that_has_the_focus() {
+    let mut desktop = Fake {
+        windows: vec!["Steam".into(), "Firefox".into()],
+        active: Some("Firefox".into()),
+        ..Default::default()
+    };
+    let statements = parse("title := WinGetTitle()").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("title"), Some(&Value::Text("Firefox".into())));
+}
+
+/// A desktop with no window in front has no title to give.
+#[test]
+fn win_get_title_without_a_window_in_front_is_empty() {
+    let mut desktop = Fake::default();
+    let statements = parse("title := WinGetTitle()").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("title"), Some(&Value::Text(String::new())));
 }
 
 #[test]
