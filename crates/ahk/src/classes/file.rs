@@ -55,11 +55,31 @@ const CLOSED: i64 = -1;
 /// How many bytes are read at a time when a line is looked for.
 const CHUNK: i64 = 4096;
 
-/// The state of a file: the handle, the position and the encoding.
+/// The state of a file: the handle, the position, the encoding and the
+/// mode it was opened with.
 struct File {
     handle: i64,
     pos: i64,
     encoding: Encoding,
+    mode: String,
+}
+
+impl File {
+    /// Whether the file may be read.
+    ///
+    /// The mode says it: a file that is opened to be written is not one
+    /// that may be read.
+    fn can_read(&self) -> bool {
+        self.mode.contains('r')
+    }
+
+    /// Whether the file may be written.
+    ///
+    /// The mode says it: a file that is opened to be read is not one that
+    /// may be written.
+    fn can_write(&self) -> bool {
+        self.mode.contains('w') || self.mode.contains('a')
+    }
 }
 
 /// The encodings the runtime carries.
@@ -170,7 +190,10 @@ pub(crate) fn property(
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match name.to_lowercase().as_str() {
-        "pos" => Some(state(this, line).map(|file| Value::Int(file.pos))),
+        "pos" => Some(state(this, line).map(|file| {
+            // v2 answers minus one when the file is closed.
+            Value::Int(if is_closed(&file) { -1 } else { file.pos })
+        })),
         "length" => Some(length(rt, this, line)),
         "ateof" => Some(at_eof(rt, this, line)),
         "encoding" => Some(
@@ -276,11 +299,16 @@ fn state(this: &Value, line: u32) -> Result<File, RuntimeFailure> {
         .get("pos")
         .and_then(|value| value.to_number())
         .unwrap_or(0.0) as i64;
+    let mode = inner
+        .properties
+        .get("mode")
+        .map(|value| value.to_text())
+        .unwrap_or_else(|| "rw".to_string());
     let encoding = match inner.properties.get("encoding") {
         Some(value) => Encoding::of(&value.to_text()).map_err(|reason| fail(reason, line))?,
         None => Encoding::Utf8,
     };
-    Ok(File { handle, pos, encoding })
+    Ok(File { handle, pos, encoding, mode })
 }
 
 /// The state of a file, as the property table holds it.
@@ -291,6 +319,7 @@ fn stored(file: &File) -> Value {
             ("handle", Value::Int(file.handle)),
             ("pos", Value::Int(file.pos)),
             ("encoding", Value::Text(file.encoding.name().to_string())),
+            ("mode", Value::Text(file.mode.clone())),
         ],
     )
 }
@@ -301,12 +330,12 @@ fn restore(this: &Value, file: &File) {
     object.borrow_mut().properties.insert(STATE.to_string(), stored(file));
 }
 
-/// The handle of the file, which has to be open.
-fn handle_of(file: &File, line: u32) -> Result<i64, RuntimeFailure> {
-    if file.handle < 0 {
-        return Err(fail("the file is closed.", line));
-    }
-    Ok(file.handle)
+/// Whether the file is closed.
+///
+/// A file that is closed has no handle, and v2 answers the operations on
+/// it with a value and not with a failure.
+fn is_closed(file: &File) -> bool {
+    file.handle < 0
 }
 
 /// The bytes of the file at a place in it.
@@ -353,7 +382,7 @@ fn open(arguments: &[Value], rt: &mut Runtime, line: u32) -> Result<File, Runtim
     } else {
         0
     };
-    Ok(File { handle, pos, encoding })
+    Ok(File { handle, pos, encoding, mode })
 }
 
 /// `Read`: the text of the file at its position.
@@ -380,7 +409,12 @@ fn read_chars(
     count: Option<i64>,
     line: u32,
 ) -> Result<String, RuntimeFailure> {
-    let handle = handle_of(file, line)?;
+    // v2 answers an empty text when the file is closed, and when it
+    // was opened to be written.
+    if is_closed(file) || !file.can_read() {
+        return Ok(String::new());
+    }
+    let handle = file.handle;
     let (text, used) = match count {
         Some(count) => {
             if count < 0 {
@@ -422,7 +456,12 @@ fn read_chars(
 /// `ReadLine`: the line of the file at its position.
 fn read_line(this: &Value, rt: &mut Runtime, line: u32) -> Result<Value, RuntimeFailure> {
     let mut file = state(this, line)?;
-    let handle = handle_of(&file, line)?;
+    // v2 answers an empty text when the file is closed, and when it
+    // was opened to be written.
+    if is_closed(&file) || !file.can_read() {
+        return Ok(Value::Text(String::new()));
+    }
+    let handle = file.handle;
     let mut raw: Vec<u8> = Vec::new();
     let text = loop {
         let bytes = read_at(rt, handle, file.pos + raw.len() as i64, CHUNK, line)?;
@@ -456,7 +495,12 @@ fn read_number(
     of: fn(&[u8]) -> Value,
 ) -> Result<Value, RuntimeFailure> {
     let mut file = state(this, line)?;
-    let handle = handle_of(&file, line)?;
+    // v2 answers an empty text when the file is closed, and when it
+    // was opened to be written.
+    if is_closed(&file) || !file.can_read() {
+        return Ok(Value::Text(String::new()));
+    }
+    let handle = file.handle;
     let bytes = read_at(rt, handle, file.pos, count as i64, line)?;
     if bytes.is_empty() {
         return Err(fail("the read is past the end of the file.", line));
@@ -482,10 +526,15 @@ fn write_text(
         None => return Err(fail("Too few parameters passed to function.", line)),
     };
     let mut file = state(this, line)?;
-    let bytes = encode(&text, file.encoding);
-    let written = write_bytes(rt, &mut file, &bytes, line)?;
-    restore(this, &file);
-    Ok(written)
+    // v2 answers the number of characters it wrote, and a file that is
+    // closed takes them all and keeps none.
+    let written = text.chars().count() as i64;
+    if !is_closed(&file) && file.can_write() {
+        let bytes = encode(&text, file.encoding);
+        write_bytes(rt, &mut file, &bytes, line)?;
+        restore(this, &file);
+    }
+    Ok(Value::Int(written))
 }
 
 /// `WriteLine`: the text of the script, and a newline, into the file.
@@ -500,11 +549,15 @@ fn write_line(
         None => String::new(),
     };
     let mut file = state(this, line)?;
-    let mut bytes = encode(&text, file.encoding);
-    bytes.extend_from_slice(&encode("\n", file.encoding));
-    let written = write_bytes(rt, &mut file, &bytes, line)?;
-    restore(this, &file);
-    Ok(written)
+    // The newline is a character of the file too.
+    let written = text.chars().count() as i64 + 1;
+    if !is_closed(&file) && file.can_write() {
+        let mut bytes = encode(&text, file.encoding);
+        bytes.extend_from_slice(&encode("\n", file.encoding));
+        write_bytes(rt, &mut file, &bytes, line)?;
+        restore(this, &file);
+    }
+    Ok(Value::Int(written))
 }
 
 /// The bytes of a number, written into the file at its position.
@@ -520,9 +573,13 @@ fn write_number(
         None => return Err(fail("Too few parameters passed to function.", line)),
     };
     let mut file = state(this, line)?;
-    let written = write_bytes(rt, &mut file, &of(value), line)?;
-    restore(this, &file);
-    Ok(written)
+    let bytes = of(value);
+    let written = bytes.len() as i64;
+    if !is_closed(&file) && file.can_write() {
+        write_bytes(rt, &mut file, &bytes, line)?;
+        restore(this, &file);
+    }
+    Ok(Value::Int(written))
 }
 
 /// The bytes of the file at its position, written over what is there.
@@ -532,7 +589,7 @@ fn write_bytes(
     bytes: &[u8],
     line: u32,
 ) -> Result<Value, RuntimeFailure> {
-    let handle = handle_of(file, line)?;
+    let handle = file.handle;
     let written = rt
         .desktop()
         .write_file_at(handle, file.pos, bytes)
@@ -549,7 +606,12 @@ fn raw_read(
     line: u32,
 ) -> Result<Value, RuntimeFailure> {
     let mut file = state(this, line)?;
-    let handle = handle_of(&file, line)?;
+    // v2 answers zero when the file is closed, and when it was opened
+    // to be written.
+    if is_closed(&file) || !file.can_read() {
+        return Ok(Value::Int(0));
+    }
+    let handle = file.handle;
     let target = match arguments.first() {
         Some(value) => value.clone(),
         None => return Err(fail("Too few parameters passed to function.", line)),
@@ -578,10 +640,10 @@ fn raw_write(
 ) -> Result<Value, RuntimeFailure> {
     let mut file = state(this, line)?;
     let bytes = match arguments.first() {
-        // A buffer is written as it is, and a string is written in the
-        // encoding of the file, the way `Write` writes it.
+        // A buffer is written as it is, and a string is written as it
+        // is: the bytes of the UTF-16, the way v2 writes it.
         Some(Value::Object(_)) => buffer::raw_bytes(&arguments[0], line)?,
-        Some(Value::Text(text)) => encode(text, file.encoding),
+        Some(Value::Text(text)) => encode(text, Encoding::Utf16),
         Some(other) => {
             return Err(fail(expected_type(TypeName::Object, other.type_name()), line));
         }
@@ -594,9 +656,12 @@ fn raw_write(
     if count < 0 || count as usize > bytes.len() {
         return Err(fail("there are not that many bytes to write.", line));
     }
-    let written = write_bytes(rt, &mut file, &bytes[..count as usize], line)?;
-    restore(this, &file);
-    Ok(written)
+    let written = count;
+    if !is_closed(&file) && file.can_write() {
+        write_bytes(rt, &mut file, &bytes[..count as usize], line)?;
+        restore(this, &file);
+    }
+    Ok(Value::Int(written))
 }
 
 /// `Seek`: the position of the file, somewhere else.
@@ -611,7 +676,11 @@ fn seek(
         None => return Err(fail("Too few parameters passed to function.", line)),
     };
     let mut file = state(this, line)?;
-    let handle = handle_of(&file, line)?;
+    // v2 answers zero when the file is closed.
+    if is_closed(&file) {
+        return Ok(Value::Int(0));
+    }
+    let handle = file.handle;
     // A distance that is negative moves from the end of the file, the
     // way v2 moves it.
     let origin = match arguments.get(1) {
@@ -660,7 +729,11 @@ fn close(this: &Value, rt: &mut Runtime, line: u32) -> Result<Value, RuntimeFail
 /// How long the file is.
 fn length(rt: &mut Runtime, this: &Value, line: u32) -> Result<Value, RuntimeFailure> {
     let file = state(this, line)?;
-    let handle = handle_of(&file, line)?;
+    // v2 answers zero when the file is closed.
+    if is_closed(&file) {
+        return Ok(Value::Int(0));
+    }
+    let handle = file.handle;
     let size = rt
         .desktop()
         .file_size(handle)
@@ -671,7 +744,12 @@ fn length(rt: &mut Runtime, this: &Value, line: u32) -> Result<Value, RuntimeFai
 /// Whether the file is at its end.
 fn at_eof(rt: &mut Runtime, this: &Value, line: u32) -> Result<Value, RuntimeFailure> {
     let file = state(this, line)?;
-    let handle = handle_of(&file, line)?;
+    // v2 answers one when the file is closed: there is nothing more to
+    // read.
+    if is_closed(&file) {
+        return Ok(Value::Int(1));
+    }
+    let handle = file.handle;
     let size = rt
         .desktop()
         .file_size(handle)
@@ -686,6 +764,10 @@ fn set_pos(this: &Value, value: Value, line: u32) -> Result<(), RuntimeFailure> 
         return Err(fail("the position of a file cannot be negative.", line));
     }
     let mut file = state(this, line)?;
+    // v2 keeps the position of a file that is closed.
+    if is_closed(&file) {
+        return Ok(());
+    }
     file.pos = pos;
     restore(this, &file);
     Ok(())
@@ -706,7 +788,11 @@ fn set_length(
         return Err(fail("the length of a file cannot be negative.", line));
     }
     let file = state(this, line)?;
-    let handle = handle_of(&file, line)?;
+    // v2 keeps the length of a file that is closed.
+    if is_closed(&file) {
+        return Ok(());
+    }
+    let handle = file.handle;
     let current = rt
         .desktop()
         .file_size(handle)

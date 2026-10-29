@@ -340,6 +340,20 @@ the box: it does no I/O, and it has to keep building without `std`.
   `classes::CONSTRUCTORS`. The options of a `Gui` are not read yet: the
   tree takes any text, and v2 refuses the ones it cannot read with
   "Invalid option.".
+- **The operations on a file that is closed answer with a value.**
+  Measured on the binary of v2.0.19 on 2026-10-30: a read of a file
+  that is closed answers an empty text, and the reads of the numbers
+  answer it too; a write answers the number of characters it wrote, and
+  the writes of the numbers answer the number of bytes; `Seek` answers
+  zero, `Pos` answers minus one, `Length` answers zero, `AtEOF` answers
+  one and `RawRead` answers zero. The mode of the file says what may be
+  done with it: a file that is opened to be read cannot be written, and
+  a file that is opened to be written cannot be read, and v2 does not
+  fail either way. The write of a text answers the number of characters
+  and not the number of bytes, and the raw write of a text writes the
+  bytes of the UTF-16. The encoding of a file is not carried yet: the
+  tree knows UTF-8 and UTF-16, and v2 knows the code page of the
+  machine.
 - **Every value carries its class.** Measured on the binary of v2.0.19
   on 2026-10-30: the `__Class` of a value is the name of its class ---
   "Integer", "Float", "String", "Array", "VarRef", the name of the class

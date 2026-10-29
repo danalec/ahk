@@ -288,7 +288,10 @@ fn a_file_reads_the_bytes_into_a_buffer() {
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["3 3"]);
-    assert_eq!(desktop.text("raw.bin"), "abc");
+    // Measured on the binary of v2.0.19 on 2026-10-30: the raw write of
+    // a text writes the bytes of the UTF-16, and not the bytes of the
+    // encoding of the file.
+    assert_eq!(desktop.text("raw.bin"), "a\0b\0c\0");
 }
 
 #[test]
@@ -299,20 +302,38 @@ fn a_file_writes_a_string_as_the_bytes_of_it() {
         "f := FileOpen(\"out.txt\", \"w\")\nf.RawWrite(\"abc\")\nf.Close()\ng := FileOpen(\"out.txt\", \"r\")\ntext := g.Read()\nMsgBox \"%text%\"",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["abc"]);
-    assert_eq!(desktop.text("out.txt"), "abc");
+    // The raw write of a text writes the bytes of the UTF-16: the text
+    // of the file is read in the encoding of the file, and the bytes
+    // that are there are the ones of the UTF-16.
+    assert_eq!(report.output, vec!["a\0b\0c\0"]);
+    assert_eq!(desktop.text("out.txt"), "a\0b\0c\0");
 }
 
 #[test]
-fn a_closed_file_fails() {
+fn a_closed_file_answers_an_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: a read of a file
+    // that is closed answers an empty text, and it does not fail.
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := FileOpen(\"notes.txt\", \"r\")\nf.Close()\nline := f.ReadLine()",
+        "f := FileOpen(\"notes.txt\", \"r\")\nf.Close()\nline := f.ReadLine()\nMsgBox \"%line%\"",
     );
-    assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the file is closed."));
-    assert_eq!(report.error_line, Some(3));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec![""]);
+}
+
+#[test]
+fn a_closed_file_answers_the_number_of_what_it_wrote() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: a write of a file
+    // that is closed answers the number of characters it wrote, and the
+    // position of the file answers minus one.
+    let (report, _desktop) = run_with_file(
+        "notes.txt",
+        "one\n",
+        "f := FileOpen(\"notes.txt\", \"r\")\nf.Close()\nwritten := f.Write(\"abc\")\nMsgBox \"%written% %f.Pos% %f.Length% %f.AtEOF%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3 -1 0 1"]);
 }
 
 #[test]
