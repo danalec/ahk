@@ -340,6 +340,15 @@ the box: it does no I/O, and it has to keep building without `std`.
   `classes::CONSTRUCTORS`. The options of a `Gui` are not read yet: the
   tree takes any text, and v2 refuses the ones it cannot read with
   "Invalid option.".
+- **The star is the console of the machine.** Measured on the binary
+  of v2.0.19 on 2026-10-30: `FileAppend "hello", "*"` writes to the
+  standard output, and `FileOpen("*", "w")` opens it as a file: the
+  writes go to the standard output, the reads answer an empty text, and
+  the length of the file is the number of the characters that were
+  written to it. The tree has no console of its own: the output of the
+  script is the output of the report, the same place where the message
+  of a `MsgBox` goes. The answer of the `FileAppend` is an empty text:
+  v2 gives nothing back.
 - **The operations on a file that is closed answer with a value.**
   Measured on the binary of v2.0.19 on 2026-10-30: a read of a file
   that is closed answers an empty text, and the reads of the numbers

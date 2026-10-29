@@ -1807,3 +1807,32 @@ fn the_failure_of_a_built_in_is_of_the_class_of_v2() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
 }
+
+#[test]
+fn the_file_append_writes_to_the_console_when_the_name_is_the_star() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the star is the
+    // standard output of the machine, and the answer of the command is
+    // an empty text.
+    let report = run("x := FileAppend(\"hello\", \"*\")\nMsgBox \"[%x%]\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["hello", "[]"]);
+}
+
+#[test]
+fn the_file_open_of_the_star_opens_the_console() {
+    // The writes go to the standard output, the reads answer an empty
+    // text, and the length of the file is the number of the characters
+    // that were written to it.
+    let report = run(
+        "f := FileOpen(\"*\", \"w\")\nwritten := f.Write(\"hello\")\nMsgBox \"%written% %f.Length% %f.Pos% %f.AtEOF%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["hello", "5 5 5 1"]);
+}
+
+#[test]
+fn the_read_of_the_console_answers_an_empty_text() {
+    let report = run("f := FileOpen(\"*\", \"r\")\ntext := f.Read()\nMsgBox \"[%text%]\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]"]);
+}

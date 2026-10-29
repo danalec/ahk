@@ -799,6 +799,10 @@ fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) ->
 }
 
 /// `FileAppend`: add to the end of a file.
+///
+/// The star is the console of the machine, and the text goes to the
+/// standard output there. The answer of the command is an empty text:
+/// v2 gives nothing back.
 fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     // The options of v2 are the encoding and the way the file is
     // opened, and the desktop of the box appends text.
@@ -810,8 +814,14 @@ fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) 
     }
     let text = text_of(values, 0);
     let path = text_of(values, 1);
+    if path == "*" {
+        // The tree has no console of its own: the output of the script
+        // is the output of the report.
+        rt.push_output(text);
+        return Ok(Value::Text(String::new()));
+    }
     rt.desktop().append_file(&path, &text).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Text(text))
+    Ok(Value::Text(String::new()))
 }
 
 /// `FileDelete`: take a file away.

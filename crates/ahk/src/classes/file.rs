@@ -52,6 +52,12 @@ const METHODS: [&str; 35] = [
 /// The handle of a file that is closed.
 const CLOSED: i64 = -1;
 
+/// The handle of the console of the machine.
+///
+/// The star is the name of the standard output and of the standard
+/// input, and v2 opens them as files.
+const CONSOLE: i64 = -2;
+
 /// How many bytes are read at a time when a line is looked for.
 const CHUNK: i64 = 4096;
 
@@ -335,7 +341,24 @@ fn restore(this: &Value, file: &File) {
 /// A file that is closed has no handle, and v2 answers the operations on
 /// it with a value and not with a failure.
 fn is_closed(file: &File) -> bool {
-    file.handle < 0
+    file.handle == CLOSED
+}
+
+/// Whether the file is the console of the machine.
+fn is_console(file: &File) -> bool {
+    file.handle == CONSOLE
+}
+
+/// The text of the console of the machine.
+///
+/// The tree has no console of its own: the output of the script is the
+/// output of the report.
+fn write_to_the_console(rt: &mut Runtime, bytes: &[u8], encoding: Encoding) {
+    let text = match decode(bytes, encoding) {
+        Ok((text, _)) => text,
+        Err(_) => String::new(),
+    };
+    rt.push_output(text);
 }
 
 /// The bytes of the file at a place in it.
@@ -370,6 +393,11 @@ fn open(arguments: &[Value], rt: &mut Runtime, line: u32) -> Result<File, Runtim
         Some(value) => Encoding::of(&value.to_text()).map_err(|reason| fail(reason, line))?,
         None => Encoding::Utf8,
     };
+    // The star is the console of the machine: the standard output and
+    // the standard input, and v2 opens them as files.
+    if path == "*" {
+        return Ok(File { handle: CONSOLE, pos: 0, encoding, mode });
+    }
     let handle = rt
         .desktop()
         .open_file(&path, &mode)
@@ -410,8 +438,9 @@ fn read_chars(
     line: u32,
 ) -> Result<String, RuntimeFailure> {
     // v2 answers an empty text when the file is closed, and when it
-    // was opened to be written.
-    if is_closed(file) || !file.can_read() {
+    // was opened to be written. The console has no more to give: the
+    // standard input of the tree is the script itself.
+    if is_closed(file) || is_console(file) || !file.can_read() {
         return Ok(String::new());
     }
     let handle = file.handle;
@@ -457,8 +486,9 @@ fn read_chars(
 fn read_line(this: &Value, rt: &mut Runtime, line: u32) -> Result<Value, RuntimeFailure> {
     let mut file = state(this, line)?;
     // v2 answers an empty text when the file is closed, and when it
-    // was opened to be written.
-    if is_closed(&file) || !file.can_read() {
+    // was opened to be written. The console has no more to give: the
+    // standard input of the tree is the script itself.
+    if is_closed(&file) || is_console(&file) || !file.can_read() {
         return Ok(Value::Text(String::new()));
     }
     let handle = file.handle;
@@ -496,8 +526,9 @@ fn read_number(
 ) -> Result<Value, RuntimeFailure> {
     let mut file = state(this, line)?;
     // v2 answers an empty text when the file is closed, and when it
-    // was opened to be written.
-    if is_closed(&file) || !file.can_read() {
+    // was opened to be written. The console has no more to give: the
+    // standard input of the tree is the script itself.
+    if is_closed(&file) || is_console(&file) || !file.can_read() {
         return Ok(Value::Text(String::new()));
     }
     let handle = file.handle;
@@ -530,8 +561,13 @@ fn write_text(
     // closed takes them all and keeps none.
     let written = text.chars().count() as i64;
     if !is_closed(&file) && file.can_write() {
-        let bytes = encode(&text, file.encoding);
-        write_bytes(rt, &mut file, &bytes, line)?;
+        if is_console(&file) {
+            rt.push_output(text);
+            file.pos += written;
+        } else {
+            let bytes = encode(&text, file.encoding);
+            write_bytes(rt, &mut file, &bytes, line)?;
+        }
         restore(this, &file);
     }
     Ok(Value::Int(written))
@@ -552,9 +588,16 @@ fn write_line(
     // The newline is a character of the file too.
     let written = text.chars().count() as i64 + 1;
     if !is_closed(&file) && file.can_write() {
-        let mut bytes = encode(&text, file.encoding);
-        bytes.extend_from_slice(&encode("\n", file.encoding));
-        write_bytes(rt, &mut file, &bytes, line)?;
+        if is_console(&file) {
+            let mut line_of_text = text;
+            line_of_text.push('\n');
+            rt.push_output(line_of_text);
+            file.pos += written;
+        } else {
+            let mut bytes = encode(&text, file.encoding);
+            bytes.extend_from_slice(&encode("\n", file.encoding));
+            write_bytes(rt, &mut file, &bytes, line)?;
+        }
         restore(this, &file);
     }
     Ok(Value::Int(written))
@@ -576,7 +619,12 @@ fn write_number(
     let bytes = of(value);
     let written = bytes.len() as i64;
     if !is_closed(&file) && file.can_write() {
-        write_bytes(rt, &mut file, &bytes, line)?;
+        if is_console(&file) {
+            write_to_the_console(rt, &bytes, file.encoding);
+            file.pos += written;
+        } else {
+            write_bytes(rt, &mut file, &bytes, line)?;
+        }
         restore(this, &file);
     }
     Ok(Value::Int(written))
@@ -658,7 +706,12 @@ fn raw_write(
     }
     let written = count;
     if !is_closed(&file) && file.can_write() {
-        write_bytes(rt, &mut file, &bytes[..count as usize], line)?;
+        if is_console(&file) {
+            write_to_the_console(rt, &bytes[..count as usize], file.encoding);
+            file.pos += written;
+        } else {
+            write_bytes(rt, &mut file, &bytes[..count as usize], line)?;
+        }
         restore(this, &file);
     }
     Ok(Value::Int(written))
@@ -676,8 +729,9 @@ fn seek(
         None => return Err(fail("Too few parameters passed to function.", line)),
     };
     let mut file = state(this, line)?;
-    // v2 answers zero when the file is closed.
-    if is_closed(&file) {
+    // v2 answers zero when the file is closed, and when the file is
+    // the console of the machine.
+    if is_closed(&file) || is_console(&file) {
         return Ok(Value::Int(0));
     }
     let handle = file.handle;
@@ -716,6 +770,9 @@ fn seek(
 /// `Close`: the file is closed and the handle is gone.
 fn close(this: &Value, rt: &mut Runtime, line: u32) -> Result<Value, RuntimeFailure> {
     let mut file = state(this, line)?;
+    if file.handle == CONSOLE {
+        return Ok(Value::Text(String::new()));
+    }
     if file.handle >= 0 {
         rt.desktop()
             .close_file(file.handle)
@@ -729,9 +786,13 @@ fn close(this: &Value, rt: &mut Runtime, line: u32) -> Result<Value, RuntimeFail
 /// How long the file is.
 fn length(rt: &mut Runtime, this: &Value, line: u32) -> Result<Value, RuntimeFailure> {
     let file = state(this, line)?;
-    // v2 answers zero when the file is closed.
+    // v2 answers zero when the file is closed. The console is as long
+    // as what was written to it.
     if is_closed(&file) {
         return Ok(Value::Int(0));
+    }
+    if is_console(&file) {
+        return Ok(Value::Int(file.pos));
     }
     let handle = file.handle;
     let size = rt
@@ -745,8 +806,8 @@ fn length(rt: &mut Runtime, this: &Value, line: u32) -> Result<Value, RuntimeFai
 fn at_eof(rt: &mut Runtime, this: &Value, line: u32) -> Result<Value, RuntimeFailure> {
     let file = state(this, line)?;
     // v2 answers one when the file is closed: there is nothing more to
-    // read.
-    if is_closed(&file) {
+    // read. The console is at its end too.
+    if is_closed(&file) || is_console(&file) {
         return Ok(Value::Int(1));
     }
     let handle = file.handle;
