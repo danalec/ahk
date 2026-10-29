@@ -330,37 +330,78 @@ fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
 
 #[test]
 fn a_script_that_asks_for_the_clipboard_is_told_the_text_of_the_desktop() {
-    let (report, _) = run_with_clipboard("MsgBox Clipboard", "the text of the clipboard");
+    let (report, _) = run_with_clipboard("MsgBox A_Clipboard", "the text of the clipboard");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["the text of the clipboard"]);
 }
 
 #[test]
 fn a_clipboard_that_is_empty_is_an_empty_text() {
-    let (report, _) = run_with_clipboard("MsgBox Clipboard", "");
+    let (report, _) = run_with_clipboard("MsgBox A_Clipboard", "");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec![""]);
 }
 
 #[test]
 fn a_script_that_writes_the_clipboard_puts_the_text_on_it() {
-    let (report, clipboard) = run_with_clipboard("Clipboard := \"the new text\"", "");
+    let (report, clipboard) = run_with_clipboard("A_Clipboard := \"the new text\"", "");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(clipboard, "the new text");
 }
 
 #[test]
 fn a_script_that_appends_to_the_clipboard_adds_to_what_is_there() {
-    let (report, clipboard) = run_with_clipboard("Clipboard .= \" and more\"", "the first part");
+    let (report, clipboard) = run_with_clipboard("A_Clipboard .= \" and more\"", "the first part");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(clipboard, "the first part and more");
 }
 
 #[test]
 fn the_clipboard_is_not_a_variable_of_the_script() {
-    let (report, _) = run_with_clipboard("Clipboard := \"the new text\"", "");
+    let (report, _) = run_with_clipboard("A_Clipboard := \"the new text\"", "");
     assert!(report.ok, "{:?}", report.error);
-    assert!(!report.variables.contains_key("Clipboard"), "{:?}", report.variables);
+    assert!(!report.variables.contains_key("A_Clipboard"), "{:?}", report.variables);
+}
+
+#[test]
+fn the_name_without_the_prefix_is_a_variable_of_the_script() {
+    // The dialect gives every built-in variable the prefix `A_`, and the
+    // binary of v2.0.19 warns about the name without it: `Clipboard` is a
+    // global that was never assigned, and not the clipboard of the
+    // session.
+    let report = run("MsgBox Clipboard");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This variable has not been assigned a value. Specifically: Clipboard")
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn the_name_of_the_elevation_without_the_prefix_is_a_variable_of_the_script() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: `x := A_IsAdmin`
+    // answers 0, and `x := IsAdmin` answers the warning of a global that
+    // was never assigned.
+    let report = run("MsgBox IsAdmin");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This variable has not been assigned a value. Specifically: IsAdmin")
+    );
+}
+
+#[test]
+fn a_variable_of_the_script_named_like_the_clipboard_is_kept_by_the_script() {
+    // The name without the prefix is a variable of the script, and the
+    // script keeps it: the clipboard of the desktop is not touched.
+    let (report, clipboard) = run_with_clipboard(
+        "Clipboard := \"the text of the script\"\nMsgBox Clipboard",
+        "the text of the clipboard",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the text of the script"]);
+    assert_eq!(clipboard, "the text of the clipboard");
 }
 
 #[test]

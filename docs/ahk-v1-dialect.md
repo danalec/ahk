@@ -168,15 +168,14 @@ clipboard of the v1: `x := A_Clipboard` answers the text of the clipboard,
 and `x := Clipboard` answers *"Warning: This global variable appears to
 never be assigned a value. Specifically: Clipboard"*.
 
-**And the tree is more lenient than the dialect.** Its reading path drops
-the prefix before it looks the name up, so it answers to `IsAdmin` as well
-as to `A_IsAdmin`, and to `Clipboard` as well as to `A_Clipboard`. The
-dialect answers to the prefixed name and warns about the other one. A
-script of the v2 that uses the spelling of the dialect works on both; a
-script that uses the other spelling gets an empty value and a warning on
-the dialect, and a value on the tree. For the table of the v1 this
-matters: the names of the surface are the **spelled** ones, `A_Clipboard`
-and not `Clipboard`.
+**And the tree asks for the prefix, as the dialect does.** Its reading
+path wants the name the dialect spells, so it answers to `A_IsAdmin` and
+not to `IsAdmin`, and to `A_Clipboard` and not to `Clipboard`. A name
+without the prefix is a variable of the script, and the tree says that it
+has no value; the dialect warns about the same name and answers an empty
+value. A script of the v2 that uses the spelling of the dialect works on
+both. For the table of the v1 this matters: the names of the surface are
+the **spelled** ones, `A_Clipboard` and not `Clipboard`.
 
 ### 1.3 The surface: what is measured, and how
 

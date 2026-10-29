@@ -409,6 +409,14 @@ I/O, and belongs to the desktop.
 - `refusal_of(name) -> Option<&'static str>` -- the reason the name
   refuses with, when the tree refuses it.
 
+The name of a built-in variable has two spellings, and the two meet here.
+The dialect gives every one of them the prefix `A_`, and the script writes
+it: the read, the write and `is_built_in` want the name the script writes,
+and a name without the prefix is a variable of the script and not a
+built-in variable of the dialect. The table of the surface stores the
+names without the prefix, and `carries` and `refusal_of` take the name of
+the table.
+
 The variables the runtime knows -- the version, the size of a pointer,
 the clock -- are answered by the module. The ones it cannot answer fail
 the statement with the reason.

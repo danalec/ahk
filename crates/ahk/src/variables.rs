@@ -25,12 +25,14 @@
 //!   are the ones of the hotkey system of the runtime.
 //! - The one that lives outside the script: the clipboard. The desktop
 //!   holds it, and the runtime asks it. It is the only built-in variable
-//!   of v2 that a script writes and does not keep, and its name has no
-//!   `A_` prefix.
+//!   of v2 that a script writes and does not keep, and its name is
+//!   `A_Clipboard`, like the name of every other one of them.
 //!
 //! The name arrives as the script spells it, `A_Now`; the table below
 //! carries the name without the `A_` prefix that v2 gives every one of
-//! them.
+//! them. A name the script writes without the prefix is not a built-in
+//! variable of the dialect at all: it is a variable of the script, and
+//! the runtime says that it has no value.
 
 use alloc::format;
 use alloc::string::ToString;
@@ -149,7 +151,7 @@ const NO_SUCH_MACHINE_NAME: &str = "this runtime does not carry this name of the
 /// The error carries no line. The caller knows the line of the statement
 /// that asked, and puts it there.
 pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError>> {
-    let name = spelled(name);
+    let name = spelled(name)?;
     match kind_of(&name)? {
         Kind::Known => Some(Ok(known_value(&name, rt))),
         Kind::State => Some(match crate::settings::value_of(&name) {
@@ -177,9 +179,22 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
 
 /// The name of a built-in variable, as the table below carries it.
 ///
-/// The prefix is v2's; the table carries the name without it. The
-/// clipboard is the one variable of v2 that has no prefix at all.
-fn spelled(name: &str) -> String {
+/// The dialect gives every built-in variable the prefix `A_`, and the
+/// table carries the name without it. `None` means the name the script
+/// wrote is not the name of a built-in variable of the dialect: it is a
+/// variable of the script, and the runtime says that it has no value.
+fn spelled(name: &str) -> Option<String> {
+    let lower = name.to_lowercase();
+    lower.strip_prefix("a_").map(|rest| rest.to_string())
+}
+
+/// The name of a built-in variable, as the table below carries it.
+///
+/// The table of the surface stores the names without the prefix, and the
+/// surface and the tests ask with those names. A name that carries the
+/// prefix is accepted as well: the two conventions meet here, and
+/// nowhere else.
+fn in_the_table(name: &str) -> String {
     let lower = name.to_lowercase();
     lower.strip_prefix("a_").unwrap_or(lower.as_str()).to_string()
 }
@@ -198,14 +213,14 @@ pub(crate) fn write(
     line: u32,
     rt: &mut Runtime,
 ) -> Option<Result<Value, RuntimeError>> {
-    match spelled(name).as_str() {
-        "clipboard" => Some(write_to_the_clipboard(op, value, line, rt)),
+    match spelled(name).as_deref() {
+        Some("clipboard") => Some(write_to_the_clipboard(op, value, line, rt)),
         // The working directory of the run is the one of the desktop, and
         // the script changes it by writing the name.
-        "workingdir" => Some(write_the_working_directory(op, value, line, rt)),
+        Some("workingdir") => Some(write_the_working_directory(op, value, line, rt)),
         // The name of the script is the title that the messages of v2
         // carry, and the box has no window to show a message in.
-        "scriptname" => Some(Err(reason(NO_SCRIPT_TITLE))),
+        Some("scriptname") => Some(Err(reason(NO_SCRIPT_TITLE))),
         _ => None,
     }
 }
@@ -278,14 +293,12 @@ fn put_on_the_clipboard(rt: &mut Runtime, text: &str, line: u32) -> Result<Value
 /// The name is the one the script writes: `A_ScreenWidth`. The table
 /// below carries the name without the prefix, and a variable of the
 /// script that is called `index` is not the built-in `A_Index`.
+///
+/// The dialect gives every built-in variable the prefix, and a name
+/// without it is not one of them.
 pub fn is_built_in(name: &str) -> bool {
-    let spelled = name.to_lowercase();
-    let Some(rest) = spelled.strip_prefix("a_") else {
-        // The clipboard is the one built-in variable of v2 that has no
-        // prefix: the name it has is `Clipboard`.
-        return spelled == "clipboard";
-    };
-    kind_of(rest).is_some() || THE_RUNTIME_OWNS.contains(&rest)
+    let Some(rest) = spelled(name) else { return false };
+    kind_of(&rest).is_some() || THE_RUNTIME_OWNS.contains(&rest.as_str())
 }
 
 /// The reason the tree does not answer a built-in variable, when it does
@@ -295,7 +308,7 @@ pub fn is_built_in(name: &str) -> bool {
 /// the machine, and the reason of a failure belongs to the question and
 /// not to the name.
 pub fn refusal_of(name: &str) -> Option<&'static str> {
-    let name = spelled(name);
+    let name = in_the_table(name);
     match kind_of(&name)? {
         // The hotkeys answer with a value of their own, and the date
         // answers when the clock of the host knows it.
@@ -318,7 +331,7 @@ pub fn refusal_of(name: &str) -> Option<&'static str> {
 /// The name is carried when this module answers it, or when the runtime
 /// writes it where it runs.
 pub fn carries(name: &str) -> bool {
-    let name = spelled(name);
+    let name = in_the_table(name);
     kind_of(&name).is_some() || THE_RUNTIME_OWNS.contains(&name.as_str())
 }
 
@@ -759,6 +772,30 @@ impl Machine for Fake {}
     }
 
     #[test]
+    fn a_name_without_the_prefix_is_not_a_built_in_variable() {
+        // The dialect gives every built-in variable the prefix `A_`, and
+        // the binary of v2.0.19 answers the prefixed name only: `IsAdmin`
+        // is a global that was never assigned, and not the elevation of
+        // the script.
+        assert!(answer("isadmin").is_none());
+        assert!(answer("clipboard").is_none());
+        assert!(answer("now").is_none());
+        assert!(!is_built_in("isadmin"));
+        assert!(!is_built_in("clipboard"));
+    }
+
+    #[test]
+    fn the_table_carries_the_names_without_the_prefix() {
+        // The table of the surface stores the names without the prefix,
+        // and the two conventions meet in `carries` and `refusal_of`.
+        assert!(carries("clipboard"));
+        assert!(carries("Clipboard"));
+        assert!(carries("A_Clipboard"));
+        assert!(refusal_of("A_ScriptHwnd").is_some());
+        assert!(refusal_of("ScriptHwnd").is_some());
+    }
+
+    #[test]
     fn the_variables_the_runtime_writes_where_it_runs_are_not_answered_here() {
         assert!(answer("a_index").is_none());
         assert!(answer("a_loopfilename").is_none());
@@ -770,6 +807,9 @@ impl Machine for Fake {}
         let lost: Vec<String> = surface_variables()
             .into_iter()
             .filter(|name| !THE_RUNTIME_OWNS.contains(&name.as_str()))
+            // The table stores the name without the prefix, and the
+            // script writes it with it.
+            .map(|name| format!("a_{name}"))
             .filter(|name| answer(name).is_none())
             .collect();
         assert!(lost.is_empty(), "these variables of v2 are not answered: {lost:?}");

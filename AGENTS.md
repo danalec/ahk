@@ -1639,16 +1639,17 @@ without a word.
 
 ## 27. The clipboard of the session
 
-The built-in variable `Clipboard` and the command `ClipWait` answer with a
-value now.
+The built-in variable `A_Clipboard` and the command `ClipWait` answer with
+a value now.
 
-- **`Clipboard` is the one built-in variable of v2 that has no `A_`
-  prefix.** The name it has is `Clipboard`, and the table of the variables
-  carries it without the prefix of the other names. Reading it gives the
-  text of the clipboard of the session, and writing it puts the text
-  there: the runtime asks the variables module before it writes a name
-  into its own table, and the variables module answers for the names
-  that live somewhere else.
+- **The name is `A_Clipboard`, like the name of every other built-in
+  variable of v2.** The table of the variables carries the name without the
+  prefix of the other names, and that is the convention of the table and
+  not the spelling of the dialect (section 33). Reading it gives the text
+  of the clipboard of the session, and writing it puts the text there: the
+  runtime asks the variables module before it writes a name into its own
+  table, and the variables module answers for the names that live
+  somewhere else.
 - **The box reads the clipboard with `wl-paste` and writes it with
   `wl-copy`.** The session of the box is Wayland. Measured on 2026-10-29:
   `wl-copy` **holds the channel of the caller open** when its output is
@@ -1669,7 +1670,7 @@ value now.
 
 Measured on the box on 2026-10-29: with `ahk-external` on the clipboard,
 the script answered `read=ahk-external` and `wait=1`; after
-`Clipboard := "ahk-written"`, the clipboard of the session answered
+`A_Clipboard := "ahk-written"`, the clipboard of the session answered
 `ahk-written`.
 
 ## 28. `NumGet` and `NumPut` read and write the bytes of a buffer
@@ -1796,14 +1797,11 @@ And the name of the computer is asked to the kernel, not to the environment:
 a run that comes from `ssh` has no `HOSTNAME` in its environment, and the
 computer is `pod158c`.
 
-One question of the machine is still open, and the box cannot settle it: the
-tree answers the name of a variable with and without the prefix --
-`A_IsAdmin` and `IsAdmin` are the same question -- because the table of the
-variables carries the names without the prefix and the read drops it when the
-script writes one. The documentation of v2 says that the variables have the
-prefix, and that the `Clipboard` is the only one that does not, and the
-binary of v2.0.19 is not on the box: whether the binary answers the two
-spellings is a measurement that is still to be made.
+One question of the machine is closed now, and it was answered by the binary
+of v2.0.19 and not by the box: the tree answered the name of a variable with
+and without the prefix -- `A_IsAdmin` and `IsAdmin` were the same question.
+The binary answers the prefixed name only, and so does the tree now
+(section 33).
 
 ## 32. The facts of the script
 
@@ -1847,3 +1845,40 @@ a script write -- the settings of the runtime, and the names of the machine
 -- are written into the table of the script, and the write of a name that
 v2 does not let a script write should refuse with the reason of the name.
 That is the next block, and it needs the measurement of the v2 binary.
+
+## 33. The spelling of the variables is the spelling of the dialect
+
+The tree answered the name of a built-in variable with and without the `A_`
+prefix: `A_IsAdmin` and `IsAdmin` were the same question, and so were
+`A_Clipboard` and `Clipboard`. The dialect does not do that, and the binary
+of v2.0.19 settles it: `x := A_IsAdmin` answers `0`, and `x := IsAdmin`
+answers *"Warning: This global variable appears to never been assigned a
+value. Specifically: IsAdmin"*.
+
+- **Every built-in variable of v2 has the prefix.** The documentation of the
+  v2 lists 116 of them and every one of them carries it; the tree carries
+  the 131 names the binary keeps, and they all carry it too. The reading
+  path wants the prefix now, and so does the write.
+- **A name without the prefix is a variable of the script.** It is not the
+  built-in variable, and the tree says that it has no value: `MsgBox
+  Clipboard` fails with "This variable has not been assigned a value.
+  Specifically: Clipboard". The dialect warns and answers an empty value;
+  the tree fails, the way it fails for every name that has no value.
+- **The table of the surface keeps the names without the prefix.** The table
+  was read out of the binary, which stores them that way, and the
+  convention of the table is not the spelling of the dialect. The two
+  conventions meet in `variables::carries` and `variables::refusal_of`,
+  which take the name of the table; the read, the write and
+  `variables::is_built_in` take the name the script writes.
+- **The clipboard is `A_Clipboard`.** The tree had carried the name
+  `Clipboard` for the variable of the clipboard, and the v2 spells it with
+  the prefix of the other names. The v1 had `Clipboard` as a command and
+  `A_Clipboard` as the variable of the text, with `ClipboardAll` beside it
+  for the object with all the formats; the v2 has the command and
+  `ClipboardAll` gone, and keeps the variable of the text.
+
+Measured on the box on 2026-10-29: `MsgBox A_Clipboard` answered the text of
+the clipboard of the session, `MsgBox Clipboard` failed with "This variable
+has not been assigned a value. Specifically: Clipboard", `MsgBox IsAdmin`
+failed the same way, and writing `A_Clipboard` put the text on the clipboard
+of the session.

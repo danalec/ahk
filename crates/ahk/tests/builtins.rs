@@ -1306,7 +1306,7 @@ fn a_desktop_that_cannot_read_the_clipboard_fails_the_wait_with_the_reason() {
 #[test]
 fn a_script_that_writes_the_clipboard_finds_what_it_wrote_when_it_reads_it_again() {
     let mut desktop = Fake::default();
-    let report = run_on("Clipboard := \"the new text\"\nMsgBox Clipboard", &mut desktop);
+    let report = run_on("A_Clipboard := \"the new text\"\nMsgBox A_Clipboard", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["the new text"]);
     assert_eq!(desktop.clipboard, "the new text");
