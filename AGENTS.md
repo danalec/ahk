@@ -2087,3 +2087,45 @@ expression the space does not matter (`arr [2]` is the second item of `arr`),
 and as the left side of an assignment the bracket without a space is the item
 (`o["a"] := 1`), while the bracket with a space is not ("Invalid assignment.
 Specifically: := 1)").
+
+## 40. The `super` of v2 is the base of the class where the method was defined
+
+`super` is a keyword of v2, and the tree carries it. The documentation says
+what it is: "the keyword super can be used in place of this to access the
+superclass versions of methods or properties which are overridden in a
+derived class", and "super.Method() always invokes the base of the class or
+prototype object associated with the current method's original definition,
+even if this is derived from a subclass of that class or some other class
+entirely".
+
+- **The base is the one of the class that defined the method.** A method that
+  `Derived` inherits asks the base of the class that wrote it, and not the
+  base of the class of the object. The frame of the runtime carries the
+  class that defined the method that runs (`current_classes`), and the base
+  is the one after it in the chain of the classes.
+- **The base gets the same `this`.** `super.m()` is `Base.m(this)`.
+- **The three forms.** `super.m()` calls the method of the base, `super.value`
+  reads the property through the getter of the base, and `super["x"]` asks
+  the base for the item. The documentation adds the fourth: `super()` is
+  `super.call()`, and the tree carries it too.
+- **A property is read through the getter of the base.** The instance
+  variable of the base is not read: measured on the binary of v2.0.19 on
+  2026-10-30, `super.value` refuses when the base only has
+  `this.value := ...`, and answers when the base has a getter. The tree has
+  no getter of its own, so the `__Get` of the base is what answers.
+- **The refusals are the wording of v2.** Outside a class the keyword is
+  refused when the script is read: '"Super" is valid only inside a class.
+  Specifically: super.m()'. The text of it is the source of the expression as
+  it stands -- `super.m(1, 2)` keeps the space after the comma, and
+  `super["x"]` keeps the quotes -- and a member that is not called is
+  written with the parentheses of a call, because that is what it is.
+  The keyword alone is refused as well: "Syntax error. Specifically: super".
+- **The refusals of the base name the class of the value.** 'This value of
+  type "Derived" has no method named "n".', and 'This value of type
+  "Derived" has no property named "value".'
+
+Measured on the binary of v2.0.19 on 2026-10-30.
+
+What is not carried yet: the tree does not call the `__Init` of a class when
+an instance is made, so the `super.__Init()` of v2 has nothing to give the
+base yet.

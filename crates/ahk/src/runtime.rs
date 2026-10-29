@@ -685,6 +685,11 @@ pub struct Runtime<'a> {
     /// declares global live in the scope of the script, and the ones it
     /// declares local live in the scope of the function.
     declarations: Vec<Declarations>,
+    /// The classes of the methods that run.
+    ///
+    /// `super` asks the base of the class where the method was defined,
+    /// and that class is the one the frame carries.
+    current_classes: Vec<String>,
     functions: BTreeMap<String, Function>,
     classes: BTreeMap<String, Class>,
     /// The class values the runtime made.
@@ -776,6 +781,7 @@ impl<'a> Runtime<'a> {
             initial_working_dir,
             scopes: Vec::new(),
             declarations: Vec::new(),
+            current_classes: Vec::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
@@ -819,6 +825,7 @@ impl<'a> Runtime<'a> {
             initial_working_dir,
             scopes: Vec::new(),
             declarations: Vec::new(),
+            current_classes: Vec::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
@@ -1381,6 +1388,14 @@ impl<'a> Runtime<'a> {
             }
             Node::Try { body, catches, otherwise, finally, .. } => {
                 self.run_try(body, catches, otherwise, finally)?;
+            }
+            Node::Super { line } => {
+                // A `super` with no member: the parser refuses it, and the
+                // runtime refuses it too.
+                return Err(RuntimeFailure::Error(RuntimeError {
+                    message: "Syntax error. Specifically: super".into(),
+                    line: *line,
+                }));
             }
             Node::Declare { names, line, .. } => {
                 // The names of the declaration are read when the script is
@@ -2085,11 +2100,19 @@ impl<'a> Runtime<'a> {
     /// The class itself comes first, and then the classes it extends:
     /// a method that is not in the class is in the one it extends.
     fn find_method(&self, class: &str, name: &str) -> Option<MethodDef> {
+        self.find_method_in(class, name).map(|(_, method)| method)
+    }
+
+    /// The method a name asks for, on a class, and the class that has it.
+    ///
+    /// The class matters: `super` asks the base of the class where the
+    /// method was defined, and not the base of the class of the object.
+    fn find_method_in(&self, class: &str, name: &str) -> Option<(String, MethodDef)> {
         let name = name.to_lowercase();
         for class in self.class_chain(class) {
             if let Some(definition) = self.classes.get(&class) {
                 if let Some(method) = definition.methods.get(&name) {
-                    return Some(method.clone());
+                    return Some((class.clone(), method.clone()));
                 }
             }
         }
@@ -2097,10 +2120,10 @@ impl<'a> Runtime<'a> {
     }
 
     /// The method a name asks for, on a value.
-    fn find_method_on(&self, target: &Value, name: &str) -> Option<MethodDef> {
+    fn find_method_on(&self, target: &Value, name: &str) -> Option<(String, MethodDef)> {
         let Value::Object(object) = target else { return None };
         let class = object.borrow().class.clone();
-        self.find_method(&class, name)
+        self.find_method_in(&class, name)
     }
 
     /// The object a class makes.
@@ -2132,8 +2155,8 @@ impl<'a> Runtime<'a> {
         })));
         // `__New` runs with the new object as `this`, and may answer an
         // object of its own.
-        if let Some(method) = self.find_method(class, "__new") {
-            let result = self.call_method(&method, &object, arguments, line)?;
+        if let Some((defining, method)) = self.find_method_in(class, "__new") {
+            let result = self.call_method(&defining, &method, &object, arguments, line)?;
             return Ok(match result {
                 Value::Object(_) => result,
                 _ => object,
@@ -2151,6 +2174,110 @@ impl<'a> Runtime<'a> {
         Ok(values)
     }
 
+    /// The base of the class where the method that runs was defined.
+    fn the_base_of_the_running_method(&self) -> Option<String> {
+        let class = self.current_classes.last()?;
+        self.class_chain(class).get(1).cloned()
+    }
+
+    /// The value the method that runs was called on.
+    fn the_this(&self) -> Value {
+        for scope in self.scopes.iter().rev() {
+            if let Some(value) = scope.get("this") {
+                return value.clone();
+            }
+        }
+        Value::Text(String::new())
+    }
+
+    /// The class of the value the method that runs was called on.
+    ///
+    /// The name is the one the class was written with: v2 names the class
+    /// of the value in its refusals.
+    fn the_class_of_this(&self) -> String {
+        self.class_of(&self.the_this()).unwrap_or_default()
+    }
+
+    /// The method of the base of the class where the method was defined.
+    ///
+    /// `super.m()` is this one.
+    fn call_the_method_of_the_base(
+        &mut self,
+        name: &str,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let found = self
+            .the_base_of_the_running_method()
+            .and_then(|base| self.find_method_in(&base, name));
+        let Some((defining, method)) = found else {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: format!(
+                    "This value of type \"{}\" has no method named \"{name}\".",
+                    self.the_class_of_this()
+                ),
+                line,
+            }));
+        };
+        let this = self.the_this();
+        self.call_method(&defining, &method, &this, arguments, line)
+    }
+
+    /// The property of the base, the way v2 reads it.
+    ///
+    /// `super.value` is this one: the base has to have the getter, and the
+    /// value of the object alone is not enough.
+    fn read_the_property_of_the_base(
+        &mut self,
+        name: &str,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let base = self.the_base_of_the_running_method();
+        let this = self.the_this();
+        if let Some(base) = base {
+            // The base has to have the getter: the property of the object
+            // alone is not enough. Measured on the binary of v2.0.19 on
+            // 2026-10-30, `super.value` refuses when the base only has
+            // `this.value := ...`.
+            if let Some((defining, method)) = self.find_method_in(&base, "__get") {
+                let argument = Node::Literal { value: LiteralValue::Text(name.to_string()), line };
+                return self.call_method(&defining, &method, &this, &[argument], line);
+            }
+        }
+        Err(RuntimeFailure::Error(RuntimeError {
+            message: format!(
+                "This value of type \"{}\" has no property named \"{name}\".",
+                self.the_class_of_this()
+            ),
+            line,
+        }))
+    }
+
+    /// The item of the base, the way v2 reads it.
+    ///
+    /// `super["value"]` is this one.
+    fn read_the_item_of_the_base(
+        &mut self,
+        key: &Value,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let base = self.the_base_of_the_running_method();
+        let this = self.the_this();
+        if let Some(base) = base {
+            if let Some((defining, method)) = self.find_method_in(&base, "__item") {
+                let arguments = [Node::Literal { value: LiteralValue::Text(key.to_text()), line }];
+                return self.call_method(&defining, &method, &this, &arguments, line);
+            }
+        }
+        Err(RuntimeFailure::Error(RuntimeError {
+            message: format!(
+                "This value of type \"{}\" has no property named \"__Item\".",
+                self.the_class_of_this()
+            ),
+            line,
+        }))
+    }
+
     /// A method, called on a value.
     ///
     /// The class of the script answers first. A class type of the
@@ -2163,8 +2290,8 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
-        if let Some(method) = self.find_method_on(target, name) {
-            return self.call_method(&method, target, arguments, line);
+        if let Some((defining, method)) = self.find_method_on(target, name) {
+            return self.call_method(&defining, &method, target, arguments, line);
         }
         let values = self.evaluate_all(arguments)?;
         let class = match target {
@@ -2187,6 +2314,7 @@ impl<'a> Runtime<'a> {
     /// A method, called on a value.
     fn call_method(
         &mut self,
+        class: &str,
         method: &MethodDef,
         this: &Value,
         arguments: &[Node],
@@ -2250,7 +2378,9 @@ impl<'a> Runtime<'a> {
         self.enter_call(line)?;
         self.scopes.push(scope);
         self.declarations.push(method.declarations.clone());
+        self.current_classes.push(class.to_lowercase());
         let outcome = self.run_block(&method.body);
+        self.current_classes.pop();
         self.declarations.pop();
         self.scopes.pop();
         self.leave_call();
@@ -2393,9 +2523,9 @@ impl<'a> Runtime<'a> {
             return Ok(value.clone());
         }
         // `__Get` is asked when the property is not there.
-        if let Some(method) = self.find_method(&class, "__get") {
+        if let Some((defining, method)) = self.find_method_in(&class, "__get") {
             let argument = Node::Literal { value: LiteralValue::Text(name), line };
-            return self.call_method(&method, target, &[argument], line);
+            return self.call_method(&defining, &method, target, &[argument], line);
         }
         Err(RuntimeFailure::Error(RuntimeError {
             message: format!("This object has no property {name:?}."),
@@ -2428,12 +2558,12 @@ impl<'a> Runtime<'a> {
         // that keeps the value: a class that writes a property of its
         // own inside `__Set` would otherwise call itself for ever.
         if !self.declares_property(&class, &name) {
-            if let Some(method) = self.find_method(&class, "__set") {
+            if let Some((defining, method)) = self.find_method_in(&class, "__set") {
                 let arguments = [
                     Node::Literal { value: LiteralValue::Text(name), line },
                     Node::Literal { value: LiteralValue::Number(0.0), line },
                 ];
-                self.call_method(&method, target, &arguments, line)?;
+                self.call_method(&defining, &method, target, &arguments, line)?;
                 return Ok(());
             }
         }
@@ -2721,8 +2851,8 @@ impl<'a> Runtime<'a> {
         if let Some(value) = self.lookup_variable(name) {
             if let Value::Object(object) = &value {
                 let class = object.borrow().class.clone();
-                if let Some(method) = self.find_method(&class, "__call") {
-                    return self.call_method(&method, &value, arguments, line);
+                if let Some((defining, method)) = self.find_method_in(&class, "__call") {
+                    return self.call_method(&defining, &method, &value, arguments, line);
                 }
             }
         }
@@ -3258,6 +3388,14 @@ impl<'a> Runtime<'a> {
                     line: *line,
                 }))
             }
+            Node::Super { line } => {
+                // A `super` with no member: the parser refuses it, and the
+                // runtime refuses it too.
+                Err(RuntimeFailure::Error(RuntimeError {
+                    message: "Syntax error. Specifically: super".into(),
+                    line: *line,
+                }))
+            }
             Node::Var { name, line } => match self.lookup(name) {
                 Some(value) => Ok(value),
                 // The name may be one of the built-in variables: the
@@ -3559,14 +3697,27 @@ impl<'a> Runtime<'a> {
             }
             Node::Call { name, arguments, line } => self.call(name, arguments, *line),
             Node::MethodCall { target, name, arguments, line } => {
+                // `super.m()`: the method of the base.
+                if let Node::Super { .. } = &**target {
+                    return self.call_the_method_of_the_base(name, arguments, *line);
+                }
                 let target_value = self.evaluate(target)?;
                 self.call_method_on(&target_value, name, arguments, *line)
             }
             Node::Property { target, name, line } => {
+                // `super.value`: the property of the base.
+                if let Node::Super { .. } = &**target {
+                    return self.read_the_property_of_the_base(name, *line);
+                }
                 let target_value = self.evaluate(target)?;
                 self.read_property(&target_value, name, *line)
             }
             Node::Index { target, index, line } => {
+                // `super["value"]`: the item of the base.
+                if let Node::Super { .. } = &**target {
+                    let key = self.evaluate(index)?;
+                    return self.read_the_item_of_the_base(&key, *line);
+                }
                 let target = self.evaluate(target)?;
                 let key = self.evaluate(index)?;
                 // An object is asked for its item: the class of the
@@ -3752,9 +3903,9 @@ impl<'a> Runtime<'a> {
         let class = object.borrow().class.clone();
         // The class of the script first, and then the class types of the
         // runtime.
-        if let Some(method) = self.find_method(&class, "__item") {
+        if let Some((defining, method)) = self.find_method_in(&class, "__item") {
             let arguments = [Node::Literal { value: LiteralValue::Text(key.to_text()), line }];
-            return self.call_method(&method, target, &arguments, line);
+            return self.call_method(&defining, &method, target, &arguments, line);
         }
         if let Some(result) = crate::classes::item(&class, key, target, self, line) {
             return result;
@@ -4200,6 +4351,7 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Try { .. } => "Try",
         Node::Throw { .. } => "Throw",
         Node::Declare { .. } => "Declare",
+        Node::Super { .. } => "Super",
         Node::Loop { .. } => "Loop",
         Node::ArrayLiteral { .. } => "ArrayLiteral",
         Node::For { .. } => "For",

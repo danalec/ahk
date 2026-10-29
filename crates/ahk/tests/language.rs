@@ -1713,6 +1713,243 @@ fn a_parameter_read_in_another_case_is_the_same_parameter() {
 }
 
 #[test]
+fn a_super_calls_the_method_of_the_base() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  m() {\n",
+        "    return \"the base\"\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  m() {\n",
+        "    return \"the derived and \" . super.m()\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.m()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the derived and the base"]);
+}
+
+#[test]
+fn a_super_gives_the_base_the_same_this() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  m() {\n",
+        "    return this.value\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  m() {\n",
+        "    this.value := \"the value\"\n",
+        "    return super.m()\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.m()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the value"]);
+}
+
+#[test]
+fn a_super_in_a_grandchild_asks_the_middle() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  m() {\n",
+        "    return \"the base\"\n",
+        "  }\n",
+        "}\n",
+        "class Middle extends Base {\n",
+        "  m() {\n",
+        "    return \"the middle and \" . super.m()\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Middle {\n",
+        "  m() {\n",
+        "    return \"the derived and \" . super.m()\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.m()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the derived and the middle and the base"]);
+}
+
+#[test]
+fn a_super_reads_the_property_of_the_base_through_its_getter() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  __Get(name) {\n",
+        "    return \"the value of \" . name\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  m() {\n",
+        "    return super.value\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.m()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the value of value"]);
+}
+
+#[test]
+fn a_super_asks_the_base_for_the_item() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  __Item(key) {\n",
+        "    return \"the item \" . key\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  m() {\n",
+        "    return super[\"value\"]\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.m()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the item value"]);
+}
+
+#[test]
+fn a_super_is_the_call_of_the_base() {
+    // `super()` is `super.call()`.
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  Call(x) {\n",
+        "    return \"called with \" . x\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  m() {\n",
+        "    return super(\"the argument\")\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.m()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["called with the argument"]);
+}
+
+#[test]
+fn a_super_in_a_static_method_asks_the_base() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  static m() {\n",
+        "    return \"the base\"\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  static m() {\n",
+        "    return super.m()\n",
+        "  }\n",
+        "}\n",
+        "MsgBox Derived.m()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the base"]);
+}
+
+#[test]
+fn a_base_that_has_not_the_method_refuses_with_the_name_of_the_class() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  m() {\n",
+        "    return \"the base\"\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  n() {\n",
+        "    return super.n()\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.n()\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Derived\" has no method named \"n\".")
+    );
+}
+
+#[test]
+fn a_class_without_a_base_refuses_with_its_own_name() {
+    let (report, _) = run(concat!(
+        "class Alone {\n",
+        "  m() {\n",
+        "    return super.m()\n",
+        "  }\n",
+        "}\n",
+        "a := Alone()\n",
+        "MsgBox a.m()\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Alone\" has no method named \"m\".")
+    );
+}
+
+#[test]
+fn a_base_that_has_not_the_property_refuses_with_the_name_of_the_class() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  m() {\n",
+        "    return \"the base\"\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  n() {\n",
+        "    return super.value\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.n()\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Derived\" has no property named \"value\".")
+    );
+}
+
+#[test]
+fn an_inherited_method_asks_the_base_of_the_class_that_defined_it() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  m() {\n",
+        "    return super.n()\n",
+        "  }\n",
+        "  n() {\n",
+        "    return \"the base\"\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  n() {\n",
+        "    return \"the derived\"\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.m()\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Derived\" has no method named \"n\".")
+    );
+}
+
+#[test]
 fn a_global_in_a_function_writes_the_global_of_the_script() {
     // Measured on the binary of v2.0.19 on 2026-10-30.
     let (report, _) = run(concat!(

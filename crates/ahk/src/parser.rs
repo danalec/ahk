@@ -41,6 +41,114 @@ use crate::ast::{
 };
 use crate::lexer::{SyntaxError, Token, TokenKind};
 
+/// The shape of a `super`, the way v2 reads it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TheShapeOfASuper {
+    /// The keyword alone: `super`.
+    Bare,
+    /// The method of the base: `super.m` and `super.m()`.
+    Member,
+    /// The item of the base: `super["x"]`.
+    Item,
+    /// The call of the base: `super()`.
+    Call,
+}
+
+/// The shape of a `super`, and the text of it.
+///
+/// The text is the source as it stands: `super.m(1, 2)` is written back
+/// with the space after the comma. A member that is not called is written
+/// with the parentheses of a call, because that is what it is: a function.
+fn the_shape_of_a_super(parser: &Parser, start: usize) -> (TheShapeOfASuper, String) {
+    let tokens = &parser.tokens;
+    let mut end = start + 1;
+    let mut shape = TheShapeOfASuper::Bare;
+    let mut called = false;
+    if let Some(token) = tokens.get(end) {
+        if token.kind == TokenKind::Op && token.value == "." {
+            // The member: `super.m` and `super.m()`. The dot reaches into
+            // the value when there is no space after it.
+            let name = tokens.get(end + 1);
+            let is_member = name.map(|token| !token.spaced).unwrap_or(false)
+                && name.map(|token| token.kind == TokenKind::Name || token.kind == TokenKind::Keyword).unwrap_or(false);
+            if is_member {
+                end += 2;
+                shape = TheShapeOfASuper::Member;
+                // The call: the parentheses and what is inside them.
+                if let Some(open) = tokens.get(end) {
+                    if open.kind == TokenKind::Op && open.value == "(" {
+                        end = the_end_of_a_group(tokens, end);
+                        called = true;
+                    }
+                }
+            }
+        } else if token.kind == TokenKind::Op && token.value == "[" {
+            // The item: `super["x"]`.
+            end = the_end_of_a_group(tokens, end);
+            shape = TheShapeOfASuper::Item;
+        } else if token.kind == TokenKind::Op && token.value == "(" {
+            // The call: `super()`.
+            end = the_end_of_a_group(tokens, end);
+            shape = TheShapeOfASuper::Call;
+            called = true;
+        }
+    }
+    let mut text = the_source_of_the_tokens(parser, start, end);
+    // A member that is not called is a function, and v2 writes it with the
+    // parentheses of a call.
+    if shape == TheShapeOfASuper::Member && !called {
+        text.push_str("()");
+    }
+    (shape, text)
+}
+
+/// The index just after the group that opens at `start`.
+///
+/// The brackets nest, and a string is one token, so the brackets of a
+/// string do not count.
+fn the_end_of_a_group(tokens: &[Token], start: usize) -> usize {
+    let mut depth = 0usize;
+    let mut index = start;
+    while index < tokens.len() {
+        let token = &tokens[index];
+        if token.kind == TokenKind::Op {
+            match token.value.as_str() {
+                "(" | "[" | "{" => depth += 1,
+                ")" | "]" | "}" => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return index + 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        index += 1;
+    }
+    tokens.len()
+}
+
+/// The source of a range of tokens, the way the script wrote it.
+///
+/// The tokens know whether a space came before them, and that is what
+/// makes the text: `super.m(1, 2)` keeps the space after the comma.
+fn the_source_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String {
+    let mut text = String::new();
+    for token in parser.tokens.get(start..end).unwrap_or(&[]) {
+        if !text.is_empty() && token.spaced {
+            text.push(' ');
+        }
+        if token.kind == TokenKind::String {
+            text.push('"');
+            text.push_str(&token.value);
+            text.push('"');
+        } else {
+            text.push_str(&token.value);
+        }
+    }
+    text
+}
+
 /// The text of a declaration, the way v2 writes it when it refuses.
 fn the_text_of_a_declaration(kind: DeclareKind, names: &[Declared]) -> String {
     let mut text = kind.word().to_string();
@@ -234,6 +342,10 @@ pub struct Parser {
     ///
     /// A declaration may not name a parameter: v2 says so.
     parameters: Vec<Vec<String>>,
+    /// Whether the parser is inside a class.
+    ///
+    /// The `super` of v2 is only valid inside a class.
+    in_class: bool,
 }
 
 impl Parser {
@@ -245,6 +357,7 @@ impl Parser {
             defined: BTreeSet::new(),
             pending: Vec::new(),
             parameters: Vec::new(),
+            in_class: false,
         }
     }
 
@@ -417,6 +530,7 @@ impl Parser {
                 "global" => return Ok(vec![self.parse_declaration(DeclareKind::Global)?]),
                 "local" => return Ok(vec![self.parse_declaration(DeclareKind::Local)?]),
                 "throw" => return Ok(vec![self.parse_throw()?]),
+                "super" => return self.parse_super_statement(),
                 "return" => return Ok(vec![self.parse_return()?]),
                 "exitapp" => return Ok(vec![self.parse_exitapp()?]),
                 _ => {}
@@ -1085,6 +1199,10 @@ impl Parser {
         self.expect_op("{")?;
         let mut methods = Vec::new();
         let mut properties = Vec::new();
+        // The body of a class is inside a class, and the `super` of v2 is
+        // only valid there.
+        let was_in_a_class = self.in_class;
+        self.in_class = true;
         loop {
             self.skip_newlines();
             let token = self.peek().clone();
@@ -1148,6 +1266,7 @@ impl Parser {
                 line: name_token.line,
             });
         }
+        self.in_class = was_in_a_class;
         Ok((methods, properties))
     }
 
@@ -1446,30 +1565,37 @@ impl Parser {
             }
             TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
             TokenKind::Keyword => {
-                // A keyword that is a function name -- `PixelGetColor(10, 20)`
-                // -- is a call. The words that are values are the two below.
-                if self.at_op(&["("]) {
+                // The `super` of v2 is the base of the class where the
+                // method was defined. It is the only keyword that is
+                // neither a value nor a call.
+                if token.value.eq_ignore_ascii_case("super") {
+                    self.parse_super(token)?
+                } else if self.at_op(&["("]) {
+                    // A keyword that is a function name -- `PixelGetColor(10, 20)`
+                    // -- is a call.
                     return self.parse_call(token.value.to_lowercase(), token.line);
-                }
-                match token.value.to_lowercase().as_str() {
-                    "true" => Node::Literal { value: LiteralValue::Bool(true), line: token.line },
-                    "false" => Node::Literal { value: LiteralValue::Bool(false), line: token.line },
-                    "in" | "contains" => {
-                        return Err(SyntaxError {
-                            message: format!(
-                                "{:?} is reserved for a future of AutoHotkey and does nothing yet",
-                                token.value
-                            ),
-                            line: token.line,
-                            column: token.column,
-                        });
-                    }
-                    _ => {
-                        return Err(SyntaxError {
-                            message: format!("{:?} is not a value", token.value),
-                            line: token.line,
-                            column: token.column,
-                        });
+                } else {
+                    // The words that are values are the two below.
+                    match token.value.to_lowercase().as_str() {
+                        "true" => Node::Literal { value: LiteralValue::Bool(true), line: token.line },
+                        "false" => Node::Literal { value: LiteralValue::Bool(false), line: token.line },
+                        "in" | "contains" => {
+                            return Err(SyntaxError {
+                                message: format!(
+                                    "{:?} is reserved for a future of AutoHotkey and does nothing yet",
+                                    token.value
+                                ),
+                                line: token.line,
+                                column: token.column,
+                            });
+                        }
+                        _ => {
+                            return Err(SyntaxError {
+                                message: format!("{:?} is not a value", token.value),
+                                line: token.line,
+                                column: token.column,
+                            });
+                        }
                     }
                 }
             }
@@ -1585,6 +1711,59 @@ impl Parser {
             break;
         }
         Ok(node)
+    }
+
+    /// The `super` of v2: the base of the class where the method was
+    /// defined.
+    ///
+    /// The keyword is only valid inside a class, and it has to be followed
+    /// by `.`, `[` or `(`.
+    fn parse_super(&mut self, token: Token) -> Result<Node, SyntaxError> {
+        // The token of the keyword is the one before the place the parser
+        // is at now.
+        let start = self.position - 1;
+        let (shape, text) = the_shape_of_a_super(self, start);
+        if shape == TheShapeOfASuper::Bare {
+            // The keyword has to be followed by `.`, `[` or `(`.
+            return Err(self.error("Syntax error. Specifically: super"));
+        }
+        if !self.in_class {
+            return Err(self.error(format!(
+                "\"Super\" is valid only inside a class. Specifically: {text}"
+            )));
+        }
+        if shape == TheShapeOfASuper::Call {
+            // `super()` is `super.call()`.
+            self.expect_op("(")?;
+            let arguments = self.parse_arguments()?;
+            self.expect_op(")")?;
+            return Ok(Node::MethodCall {
+                target: Box::new(Node::Super { line: token.line }),
+                name: "Call".to_string(),
+                arguments,
+                line: token.line,
+            });
+        }
+        Ok(Node::Super { line: token.line })
+    }
+
+    /// A statement that asks the base: `super.__Init()`.
+    ///
+    /// The `super` alone is a command of v2 at the top level, and it is
+    /// refused with the name of the call.
+    fn parse_super_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
+        let (shape, _text) = the_shape_of_a_super(self, self.position);
+        if shape == TheShapeOfASuper::Bare {
+            if self.in_class {
+                return Err(self.error("Syntax error. Specifically: super"));
+            }
+            return Err(self.error(
+                "\"Super\" is valid only inside a class. Specifically: super()",
+            ));
+        }
+        let node = self.parse_expression()?;
+        self.end_of_statement()?;
+        Ok(vec![node])
     }
 
     /// A call in an expression: the name, the arguments, the closing paren.
@@ -1996,6 +2175,49 @@ mod tests {
         let Node::FunctionDef { declarations, .. } = &statements[0] else { panic!("a definition") };
         assert!(declarations.assume_global);
         assert!(declarations.globals.is_empty());
+    }
+
+    #[test]
+    fn a_super_outside_a_class_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-30.
+        let error = parse("super.m()").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "\"Super\" is valid only inside a class. Specifically: super.m()"
+        );
+    }
+
+    #[test]
+    fn the_text_of_a_refused_super_is_the_source() {
+        let error = parse("super.m(1, 2)").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "\"Super\" is valid only inside a class. Specifically: super.m(1, 2)"
+        );
+    }
+
+    #[test]
+    fn the_text_of_a_refused_super_keeps_the_quotes() {
+        let error = parse("super[\"x\"]").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "\"Super\" is valid only inside a class. Specifically: super[\"x\"]"
+        );
+    }
+
+    #[test]
+    fn a_super_that_has_no_member_is_an_error() {
+        let error = parse("class C {\n  m() {\n    return super\n  }\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error. Specifically: super");
+    }
+
+    #[test]
+    fn a_super_alone_outside_a_class_is_the_call_of_the_keyword() {
+        let error = parse("super").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "\"Super\" is valid only inside a class. Specifically: super()"
+        );
     }
 
     #[test]

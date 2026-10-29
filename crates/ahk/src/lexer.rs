@@ -88,6 +88,7 @@ pub const KEYWORDS: &[&str] = &[
     "static",
     "global",
     "local",
+    "super",
 ];
 
 /// The operators, longest first so that `:=` wins over `:`.

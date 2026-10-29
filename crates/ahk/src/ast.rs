@@ -338,6 +338,10 @@ pub enum Node {
         declarations: Declarations,
         line: u32,
     },
+    /// `super`: the base of the class where the method was defined.
+    ///
+    /// It is not a value: it is followed by a member.
+    Super { line: u32 },
     /// `global name` or `local name`: a declaration of v2.
     ///
     /// The names are read when the script is read, and the values wait for
@@ -464,6 +468,7 @@ impl Node {
             | Node::Try { line, .. }
             | Node::Throw { line, .. }
             | Node::Declare { line, .. }
+            | Node::Super { line, .. }
             | Node::For { line, .. } => *line,
         }
     }
