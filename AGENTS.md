@@ -741,6 +741,33 @@ copied over it and the release rebuilt from them:
   stops the script with "Value not enumerable." on the line of the loop,
   and the runner exits 1.
 
+Verified on 2026-10-29, on the same box, with the sources of the tree
+copied over it and the build rebuilt from them:
+
+- The date of the machine is answered: `A_Now` is a number of fourteen
+  digits, and `FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")` writes the date
+  the way v2 writes it. The arithmetic is v2's: `DateAdd("20260101", 1,
+  "d")` is `20260102000000` and `DateDiff("20260102", "20260101", "d")` is
+  1.
+- The files of the machine are answered: the file written and read back is
+  "hello", its size is 5, its time is the one that was set, its attributes
+  are "R" after `FileSetAttrib "R"`, the ini written is read back, the
+  copy is the file it copied, the file taken away is not there any more,
+  and `FileExist` answers with the attributes -- "A" for a file, "D" for a
+  folder, and the empty text when the file is not there.
+- The settings of the script are answered: the speed of the pointer is the
+  one that was set, the mode of the coordinates is "Screen", the delay of
+  the keys is 20, the delay of the mouse is 30, the method of the send is
+  "Input", and the codes of a key are the ones of the machine.
+- The hotkeys fire: the hotkey "a" runs its function when the script types
+  "a", and the hotstring ":btw:" runs its function when the script types
+  "btw". The device that was watched was the keyboard of the box itself,
+  named by `AHK_HOTKEY_DEVICE`, because there is nobody at the keyboard of
+  the box.
+- The thirty-five cases of the harness went through the runner, and all of
+  them passed: the ones that answer with a value, and the ones that fail
+  with the reason of v2 or with the reason of the box.
+
 Not verified:
 
 - The compositor on the box is COSMIC; nothing here was measured on GNOME
