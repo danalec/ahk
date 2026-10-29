@@ -5,6 +5,12 @@
 //! speed of the pointer, the mode of the caps lock, the encoding of the
 //! files and the mask of the menu.
 //!
+//! The settings that the runtime does not keep are answered with the
+//! reason of their own name: the delay of the control, the delay of the
+//! windows, the speed of the matching of the titles, the cursor of the
+//! pointer, the reading of the hidden text and of the hidden windows, the
+//! mode of the matching of the titles and the view of the registry.
+//!
 //! The runtime has no field for them and the tree runs one script in one
 //! thread, so the state lives here, in the module that answers it. The
 //! numbers are in atomics: the crate runs without the standard library,
@@ -93,6 +99,44 @@ const NO_TOOLTIP: &str = "the tooltip is a window of its own, and this runtime h
 /// to.
 const NO_PLAY: &str = "the play method of v2 posts the messages to the active window, and there is no window here to post \
                        them to.";
+
+/// The reason a setting of the runtime is not kept.
+///
+/// The runtime keeps none of them yet: the delay of the control, the delay
+/// of the windows and the speed of the matching of the titles are not in
+/// it.
+pub(crate) const NO_STATE: &str = "the runtime keeps no such state yet.";
+
+/// The reason the cursor of the pointer is not answered.
+///
+/// The pointer of the box has one shape, and the runtime does not change
+/// it.
+const NO_CURSOR: &str = "this runtime does not change the cursor of the pointer.";
+
+/// The reason the hidden text of a window is not answered.
+///
+/// The tree reads no text of a window, so it cannot tell the text of a
+/// window that is hidden from it.
+const NO_DETECT_HIDDEN_TEXT: &str = "this runtime reads no text of a window.";
+
+/// The reason the hidden windows are not answered.
+///
+/// The windows of this desktop are the ones of the compositor, and it has
+/// no hidden ones.
+const NO_DETECT_HIDDEN_WINDOWS: &str =
+    "the windows of this desktop are the ones of the compositor, and it has no hidden ones.";
+
+/// The reason the mode of the matching of the titles is not answered.
+///
+/// The titles are matched the way v2 matches them with the mode 2, and the
+/// mode is not changed.
+const NO_TITLE_MATCH_MODE: &str =
+    "the titles are matched the way v2 matches them with the mode 2, and the mode is not changed.";
+
+/// The reason the view of the registry is not answered.
+///
+/// The registry is a thing of Windows, and the tree does not carry it.
+const NO_REG_VIEW: &str = "the registry is not carried by this runtime.";
 
 /// The state of the settings.
 ///
@@ -187,6 +231,14 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
         "sendmode" => Value::Text(send_mode_text()),
         "storecapslockmode" => Value::Int(STATE.caps_lock.load(Ordering::Relaxed) as i64),
         "allowmainwindow" => Value::Int(1),
+        // The settings that the runtime does not keep: each one refuses
+        // with the reason of its own name.
+        "controldelay" | "windelay" | "titlematchmodespeed" => return Some(Err(NO_STATE)),
+        "cursor" => return Some(Err(NO_CURSOR)),
+        "detecthiddentext" => return Some(Err(NO_DETECT_HIDDEN_TEXT)),
+        "detecthiddenwindows" => return Some(Err(NO_DETECT_HIDDEN_WINDOWS)),
+        "titlematchmode" => return Some(Err(NO_TITLE_MATCH_MODE)),
+        "regview" => return Some(Err(NO_REG_VIEW)),
         _ => return None,
     };
     Some(Ok(value))
@@ -860,8 +912,8 @@ fn event_of(event: &str) -> u16 {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
-        Sound, Timers, Windows,
+        Clipboard, Desktop, Files, Hotkeys, Keyboard, Machine, Native, Pointer,
+        Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
     use core::time::Duration;
@@ -881,6 +933,7 @@ mod tests {
 
     impl Desktop for Fake {}
     impl Sound for Fake {}
+impl Machine for Fake {}
 
     impl Files for Fake {}
 

@@ -219,7 +219,7 @@ The traits the runtime is handed:
 
 | Trait | Methods |
 | --- | --- |
-| `Desktop` | the sum of the eleven capability traits below: it has no method of its own, and there is no blanket implementation |
+| `Desktop` | the sum of the twelve capability traits below: it has no method of its own, and there is no blanket implementation |
 | `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up`, `key_is_down` and `keys_down` have a default that answers with the reason it cannot |
 | `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position`, `set_mouse_speed` and `set_mouse_delay` have a default that answers with the reason it cannot |
 | `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
@@ -231,9 +231,10 @@ The traits the runtime is handed:
 | `Timers` | `takes_over_timers` has a default that answers with the reason it cannot |
 | `Hotkeys` | `register_hotkey`, `unregister_hotkey`, `hotkeys`, `fired_hotkey` have a default that answers with the reason it cannot |
 | `Sound` | `sound_volume`, `sound_set_volume`, `sound_muted`, `sound_set_muted`, `sound_play` and `sound_beep` have a default that answers with the reason it cannot |
+| `Machine` | `user_name`, `computer_name`, `shell`, `folders`, `os_version`, `language`, `is_admin` and `idle_times` have a default that answers with the reason it cannot |
 | `Clock` | `now_ms() -> u64` (the milliseconds since an arbitrary origin, never backwards), `sleep_ms(u64)` (waits at least that long) and `wall_clock() -> Option<WallClock>` (the date of the machine, and nothing when the host does not know it) |
 
-Every implementor writes the eleven of them: there is no blanket
+Every implementor writes the twelve of them: there is no blanket
 implementation, so a desktop that grows a capability grows with it.
 
 `SystemClock` is the clock of a hosted platform -- the monotonic clock and the
@@ -328,11 +329,12 @@ none, and the statement fails with that reason.
 
 ### The desktop (`desktop.rs`)
 
-The eleven capability traits, and the `Desktop` that is their sum. Every
-implementor writes the eleven of them: there is no blanket implementation,
+The twelve capability traits, and the `Desktop` that is their sum. Every
+implementor writes the twelve of them: there is no blanket implementation,
 so a desktop that grows a capability grows with it. The tenth is `Native`,
-the call into a library of the machine, and the eleventh is `Sound`, the
-volume of a device and the playing of a sound. Every method that a
+the call into a library of the machine, the eleventh is `Sound`, the
+volume of a device and the playing of a sound, and the twelfth is `Machine`,
+the machine itself: the user, the computer, the folders and the session. Every method that a
 capability does not have has a default that answers with the reason it
 cannot.
 
@@ -404,10 +406,20 @@ I/O, and belongs to the desktop.
   that runs.
 - `carries(name) -> bool` -- whether the tree carries the built-in
   variable of that name.
+- `refusal_of(name) -> Option<&'static str>` -- the reason the name
+  refuses with, when the tree refuses it.
 
 The variables the runtime knows -- the version, the size of a pointer,
 the clock -- are answered by the module. The ones it cannot answer fail
 the statement with the reason.
+
+The names of the machine are the desktop's: the user, the computer, the
+shell, the folders, the version of the operating system, the language, the
+rights of the script and the idle times are asked of the desktop, and the
+reason of a question the desktop cannot answer is the one of the desktop.
+The names that the tree does not carry refuse with the reason of the name,
+and that reason is written once: the read of the name and the refusal of
+the name say the same thing.
 
 ### The regular expressions (`regex.rs`)
 

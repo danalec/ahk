@@ -5,8 +5,8 @@
 //! the same methods, and the box is checked by hand.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
-    Sound, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Machine, Native, Pointer, Processes,
+    Screen, Sound, Timers, Windows,
 };
 use ahk::runtime::{Report, Runtime};
 use ahk::parse;
@@ -40,6 +40,7 @@ impl Fake {
 
 impl Desktop for Fake {}
 impl Sound for Fake {}
+impl Machine for Fake {}
 
 impl Clipboard for Fake {}
 

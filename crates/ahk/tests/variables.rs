@@ -1,27 +1,89 @@
 //! The built-in variables of the runtime, as a script sees them.
 //!
 //! The desktop is a fake: this is about what the language says, not about
-//! what the machine does.
+//! what the machine does. The fake answers the machine, so the names that
+//! the desktop carries are answered with the value of the fake, and the
+//! names that the tree does not carry refuse with the reason of the name.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
-    Sound, Timers, Windows,
+    Clipboard, Desktop, Files, Folders, Hotkeys, Idle, Keyboard, Machine, Native, Pointer,
+    Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::runtime::{Report, Runtime};
 use ahk::parse;
 use std::time::Duration;
 
-/// A desktop that holds a clipboard of its own.
-#[derive(Debug, Default)]
+/// A desktop that holds a clipboard of its own and answers the machine.
+#[derive(Debug)]
 struct Fake {
     /// The text on the clipboard.
     clipboard: String,
+    /// The folders of the machine.
+    folders: Folders,
+}
+
+/// The folders of the machine of the test.
+///
+/// They are the ones of the box, measured on 2026-10-29: the folders of
+/// the user and the ones of everybody, and no desktop for everybody.
+fn the_folders() -> Folders {
+    Folders {
+        app_data: Some("/home/danalec/.local/share".to_string()),
+        app_data_common: Some("/usr/share".to_string()),
+        desktop: Some("/home/danalec/Desktop".to_string()),
+        desktop_common: None,
+        start_menu: Some("/home/danalec/.local/share/applications".to_string()),
+        start_menu_common: Some("/usr/share/applications".to_string()),
+        programs: Some("/home/danalec/.local/share/applications".to_string()),
+        programs_common: Some("/usr/share/applications".to_string()),
+        startup: Some("/home/danalec/.config/autostart".to_string()),
+        startup_common: Some("/etc/xdg/autostart".to_string()),
+        my_documents: Some("/home/danalec/Documents".to_string()),
+        temp: Some("/tmp".to_string()),
+    }
+}
+
+impl Default for Fake {
+    fn default() -> Self {
+        Fake { clipboard: String::new(), folders: the_folders() }
+    }
 }
 
 impl Desktop for Fake {}
 impl Sound for Fake {}
 
-impl Files for Fake {}
+impl Machine for Fake {
+    fn user_name(&mut self) -> Result<String, String> {
+        Ok("danalec".to_string())
+    }
+    fn computer_name(&mut self) -> Result<String, String> {
+        Ok("pod158c".to_string())
+    }
+    fn shell(&mut self) -> Result<String, String> {
+        Ok("/usr/bin/zsh".to_string())
+    }
+    fn folders(&mut self) -> Result<Folders, String> {
+        Ok(self.folders.clone())
+    }
+    fn os_version(&mut self) -> Result<String, String> {
+        Ok("7.3.0-5-cachyos".to_string())
+    }
+    fn language(&mut self) -> Result<String, String> {
+        Ok("en_US.UTF-8".to_string())
+    }
+    fn is_admin(&mut self) -> Result<bool, String> {
+        Ok(false)
+    }
+    fn idle_times(&mut self) -> Result<Idle, String> {
+        Ok(Idle { any: 1000, physical: 2000, keyboard: 3000, mouse: 4000 })
+    }
+}
+
+impl Files for Fake {
+    fn working_directory(&mut self) -> Result<String, String> {
+        Ok("/work".to_string())
+    }
+}
 
 impl Clipboard for Fake {
     fn clipboard_read(&mut self) -> Result<String, String> {
@@ -91,7 +153,7 @@ fn run(script: &str) -> Report {
 /// The report of a script that ran, and the clipboard it left behind.
 fn run_with_clipboard(script: &str, clipboard: &str) -> (Report, String) {
     let statements = parse(script).expect("parses");
-    let mut desktop = Fake { clipboard: clipboard.to_string() };
+    let mut desktop = Fake { clipboard: clipboard.to_string(), ..Fake::default() };
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     (report, desktop.clipboard)
 }
@@ -133,14 +195,122 @@ fn a_script_that_asks_for_the_date_is_told_the_date() {
 }
 
 #[test]
-fn a_script_that_asks_for_the_user_name_fails_with_the_reason_of_the_machine() {
-    let report = run("MsgBox A_UserName");
+fn a_name_of_the_machine_answers_with_the_value_of_the_desktop() {
+    // The machine is the desktop's, and the desktop is asked.
+    let report = run("MsgBox A_UserName \", \" A_ComputerName \", \" A_ComSpec \", \" A_Language");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["danalec, pod158c, /usr/bin/zsh, en_US.UTF-8"]);
+}
+
+#[test]
+fn a_script_that_asks_whether_it_is_elevated_is_told_a_number() {
+    // The elevation of v2 is a number: one or zero.
+    let report = run("MsgBox A_IsAdmin");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn an_idle_time_answers_with_the_milliseconds_of_the_desktop() {
+    let report = run("MsgBox A_TimeIdle \", \" A_TimeIdlePhysical \", \" A_TimeIdleKeyboard \", \" A_TimeIdleMouse");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1000, 2000, 3000, 4000"]);
+}
+
+#[test]
+fn a_folder_of_the_machine_answers_with_the_folder() {
+    let report = run("MsgBox A_Desktop \", \" A_Temp \", \" A_MyDocuments");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["/home/danalec/Desktop, /tmp, /home/danalec/Documents"]);
+}
+
+#[test]
+fn a_folder_that_the_machine_does_not_have_refuses_with_the_reason_of_the_name() {
+    // The machine of the test has no desktop for everybody, and the reason
+    // is the one of the name.
+    let report = run("MsgBox A_DesktopCommon");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("the machine and the session are not carried by this runtime.")
+        Some("the machine has no desktop for everybody: the desktop of the session is the one of the user.")
     );
     assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn the_working_directory_answers_with_the_directory_of_the_desktop() {
+    let report = run("MsgBox A_WorkingDir");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["/work"]);
+}
+
+#[test]
+fn a_name_of_windows_refuses_with_the_reason_of_the_contract() {
+    let report = run("MsgBox A_WinDir");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this is a name of Windows, and this desktop is not Windows.")
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_setting_that_the_runtime_does_not_keep_refuses_with_the_reason_of_the_settings() {
+    let report = run("MsgBox A_ControlDelay");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the runtime keeps no such state yet."));
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn each_setting_that_the_runtime_does_not_keep_refuses_with_its_own_reason() {
+    let report = run("MsgBox A_Cursor");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this runtime does not change the cursor of the pointer.")
+    );
+
+    let report = run("MsgBox A_RegView");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the registry is not carried by this runtime.")
+    );
+}
+
+#[test]
+fn a_name_that_the_runtime_does_not_carry_refuses_with_the_reason_of_the_contract() {
+    let report = run("MsgBox A_ScriptName");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this runtime does not know the name of the script.")
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
+    for name in [
+        "A_WinDir",
+        "A_ProgramFiles",
+        "A_ControlDelay",
+        "A_Cursor",
+        "A_RegView",
+        "A_AhkPath",
+        "A_ScriptName",
+        "A_IconFile",
+    ] {
+        let refusal = match ahk::variables::refusal_of(name) {
+            Some(refusal) => refusal,
+            None => panic!("{name} answers with a value and has no reason"),
+        };
+        let report = run(&format!("MsgBox {name}"));
+        assert!(!report.ok, "{name} answered with a value");
+        assert_eq!(report.error.as_deref(), Some(refusal), "{name}");
+    }
 }
 
 #[test]

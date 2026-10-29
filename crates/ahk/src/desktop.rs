@@ -429,6 +429,105 @@ pub trait Sound {
     }
 }
 
+/// The machine, the session and the user.
+///
+/// The names are the ones of v2: the name of the user, the name of the
+/// computer, the shell of the session, the folders of the machine, the
+/// version of the operating system, the language of the session, whether
+/// the script is elevated, and how long the session has been idle.
+///
+/// The folders are the ones the machine has. A folder that the machine
+/// does not have is not in the answer: the name that asks for it says
+/// so.
+pub trait Machine {
+    /// The name of the user that launched the session.
+    fn user_name(&mut self) -> Result<String, String> {
+        Err("this desktop cannot say the name of the user".to_string())
+    }
+
+    /// The name of the computer, as the network sees it.
+    fn computer_name(&mut self) -> Result<String, String> {
+        Err("this desktop cannot say the name of the computer".to_string())
+    }
+
+    /// The program that runs a command of the session.
+    ///
+    /// v2 calls it `A_ComSpec`, and on the machine of the box it is the
+    /// shell of the session.
+    fn shell(&mut self) -> Result<String, String> {
+        Err("this desktop cannot say the shell of the session".to_string())
+    }
+
+    /// The folders of the machine.
+    fn folders(&mut self) -> Result<Folders, String> {
+        Err("this desktop cannot say the folders of the machine".to_string())
+    }
+
+    /// The version of the operating system.
+    fn os_version(&mut self) -> Result<String, String> {
+        Err("this desktop cannot say the version of the operating system".to_string())
+    }
+
+    /// The language of the session.
+    fn language(&mut self) -> Result<String, String> {
+        Err("this desktop cannot say the language of the session".to_string())
+    }
+
+    /// Whether the script runs with the rights of an administrator.
+    fn is_admin(&mut self) -> Result<bool, String> {
+        Err("this desktop cannot say whether the script is elevated".to_string())
+    }
+
+    /// How long the session has been idle, in milliseconds.
+    fn idle_times(&mut self) -> Result<Idle, String> {
+        Err("this desktop cannot say how long the session has been idle".to_string())
+    }
+}
+
+/// The folders of the machine, as the names of v2 ask for them.
+///
+/// A folder that is not there is a folder the machine does not have.
+#[derive(Clone, Debug, Default)]
+pub struct Folders {
+    /// `A_AppData`: the application data of the user.
+    pub app_data: Option<String>,
+    /// `A_AppDataCommon`: the application data of everybody.
+    pub app_data_common: Option<String>,
+    /// `A_Desktop`: the desktop of the user.
+    pub desktop: Option<String>,
+    /// `A_DesktopCommon`: the desktop of everybody.
+    pub desktop_common: Option<String>,
+    /// `A_StartMenu`: the start menu of the user.
+    pub start_menu: Option<String>,
+    /// `A_StartMenuCommon`: the start menu of everybody.
+    pub start_menu_common: Option<String>,
+    /// `A_Programs`: the programs of the user.
+    pub programs: Option<String>,
+    /// `A_ProgramsCommon`: the programs of everybody.
+    pub programs_common: Option<String>,
+    /// `A_Startup`: the startup folder of the user.
+    pub startup: Option<String>,
+    /// `A_StartupCommon`: the startup folder of everybody.
+    pub startup_common: Option<String>,
+    /// `A_MyDocuments`: the documents of the user.
+    pub my_documents: Option<String>,
+    /// `A_Temp`: the folder of the temporary files.
+    pub temp: Option<String>,
+}
+
+/// The idle times of the session, in milliseconds.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Idle {
+    /// `A_TimeIdle`: since the last input of any kind.
+    pub any: u64,
+    /// `A_TimeIdlePhysical`: since the last input of the user.
+    pub physical: u64,
+    /// `A_TimeIdleKeyboard`: since the last key of the user.
+    pub keyboard: u64,
+    /// `A_TimeIdleMouse`: since the last move of the mouse.
+    pub mouse: u64,
+}
+
 /// The sum of the capabilities: what the runtime drives.
 ///
 /// The trait has no methods of its own. It is the sum, so that the
@@ -445,5 +544,6 @@ pub trait Desktop:
     + Hotkeys
     + Native
     + Sound
+    + Machine
 {
 }

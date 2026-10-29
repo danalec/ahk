@@ -43,7 +43,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ahk::keys::{MODIFIERS, resolve_name};
-use ahk::desktop::{Processes, WindowAnswer};
+use ahk::desktop::{Folders, Idle, Processes, WindowAnswer};
 use ahk::dll::{NativeCall, NativeResult};
 
 use crate::keyboard::{ENUMERATION_WAIT, Keyboard, KeyboardError};
@@ -851,6 +851,33 @@ impl ahk::desktop::Processes for LabDesktop {
             String::from_utf8_lossy(&output.stdout).to_string(),
             String::from_utf8_lossy(&output.stderr).to_string(),
         ))
+    }
+}
+
+impl ahk::desktop::Machine for LabDesktop {
+    fn user_name(&mut self) -> Result<String, String> {
+        crate::machine::user_name()
+    }
+    fn computer_name(&mut self) -> Result<String, String> {
+        crate::machine::computer_name()
+    }
+    fn shell(&mut self) -> Result<String, String> {
+        crate::machine::shell()
+    }
+    fn folders(&mut self) -> Result<Folders, String> {
+        crate::machine::folders()
+    }
+    fn os_version(&mut self) -> Result<String, String> {
+        crate::machine::os_version()
+    }
+    fn language(&mut self) -> Result<String, String> {
+        crate::machine::language()
+    }
+    fn is_admin(&mut self) -> Result<bool, String> {
+        crate::machine::is_admin()
+    }
+    fn idle_times(&mut self) -> Result<Idle, String> {
+        crate::machine::idle_times()
     }
 }
 

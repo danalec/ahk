@@ -769,7 +769,7 @@ Abs                  function  value
 WinMove              command   refusal: this is a name of Windows, and this desktop is not Windows.
 Hotkey               command   value
 ...
-the surface of v2 has 725 entries: 479 answer with a value, 246 are refused, 0 are pending.
+the surface of v2 has 725 entries: 502 answer with a value, 223 are refused, 0 are pending.
 ```
 
 With that, "what is missing" stops being an opinion and becomes a number that
@@ -778,7 +778,7 @@ yet: it is the same information, in another format, and the command is the
 entry point.
 
 A second number deserves attention: **how many names of the surface of v2 are
-really implemented** — today 479 of 725 entries. The goal is not 725: v2 has
+really implemented** — today 502 of 725 entries. The goal is not 725: v2 has
 names that are Windows and that will not happen here. The honest goal is:
 *no name that the AHK_X11 does on Linux should be in the refusal for lack of
 implementation*. The AHK_X11 does ~127 v1 commands in a comparable
@@ -808,5 +808,5 @@ rule we propose.
 - **Counts of this comparison** — 725 entries of surface (644 distinct names):
   242 commands, 103 functions, 131 variables, 249 methods; 346 built-ins in the
   table, 141 with a real handler and 205 with `not_carried`. Of the 725
-  entries, 479 answer with a value and 246 refuse with the reason — the
+  entries, 502 answer with a value and 223 refuse with the reason — the
   `ahk --surface` is what counts.

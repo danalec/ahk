@@ -142,10 +142,10 @@ the box: it does no I/O, and it has to keep building without `std`.
   that answers it. A name that is shaped for Windows is in the table too,
   and the handler answers it with the reason: a question the desktop cannot
   answer fails, and it does not answer `false`.
-- **The `Desktop` trait is the sum of eleven capability traits** -- `Keyboard`,
+- **The `Desktop` trait is the sum of twelve capability traits** -- `Keyboard`,
   `Pointer`, `Screen`, `Windows`, `Processes`, `Files`, `Clipboard`,
-  `Timers`, `Hotkeys`, `Native` and `Sound`. There is no blanket
-  implementation: every implementor writes the eleven of them, and every
+  `Timers`, `Hotkeys`, `Native`, `Sound` and `Machine`. There is no blanket
+  implementation: every implementor writes the twelve of them, and every
   method that a
   capability does not have has a default that says so. A new capability
   goes in its own trait, and `Desktop` grows by naming it.
@@ -1064,10 +1064,9 @@ was measured against the binary of v2.0.19 on 2026-10-28.
   script wrote. Measured on the box on 2026-10-28: `FileAppend("hello",
   "ahk_probe.txt")` writes the file in the working directory of the run,
   and an absolute path writes where it says.
-- **The machine is not carried.** `A_ComputerName`, `A_UserName`,
-  `A_OsVersion` and the rest are names of v2, and the tree carries the
-  names. The values are not there: the runtime keeps no machine, and it
-  says so.
+- **The machine is the desktop's.** `A_ComputerName`, `A_UserName`,
+  `A_OSVersion` and the rest ask the desktop, and the box answers with the
+  machine that runs the script. A desktop that cannot answer says so.
 
 ## 22. The array literal, and the loop that walks an enumeration
 
@@ -1615,7 +1614,7 @@ with the reason.
 
 - **The sound is a capability of its own.** The trait `Sound` is in
   `ahk::desktop`, and the `Desktop` trait grew by naming it: the sum is
-  eleven capabilities now, and every implementor writes the eleven.
+  twelve capabilities now, and every implementor writes the twelve.
 - **The mixer of the session is the source.** The box runs PulseAudio on
   PipeWire (measured on 2026-10-29), and `pactl` answers the volume and
   the mute of a sink. The device that the script does not name is the
@@ -1711,7 +1710,7 @@ coming.
   them.
 
 Measured on the box on 2026-10-29: the flag printed 725 lines and the
-summary `the surface of v2 has 725 entries: 479 answer with a value, 246
+summary `the surface of v2 has 725 entries: 502 answer with a value, 223
 are refused, 0 are pending`.
 
 ## 30. The tables of the binary put seven names in the wrong place
@@ -1744,3 +1743,55 @@ And a correction to the `--surface`: it said that the names of the
 *settings* refused, and they answer -- the module of the *settings* is the
 one that knows which of them it cannot answer. The refusal of a name is the
 one of the module, and not a generic reason.
+
+## 31. The machine is a capability of its own
+
+Forty-seven names of v2 refused with one reason for all of them -- "the
+machine and the session are not carried by this runtime." -- and that reason
+hid four different things. The names are the group of the machine in the
+table of the built-in variables, and they are the ones of the user, of the
+computer, of the session and of the script.
+
+- **The machine answers.** The trait `Machine` is in `ahk::desktop`, and the
+  `Desktop` trait grew by naming it: the sum is twelve capabilities now. It
+  asks for the name of the user, the name of the computer, the shell of the
+  session, the folders of the machine, the version of the operating system,
+  the language of the session, whether the script is elevated and how long
+  the session has been idle.
+- **The folders of the machine are the XDG base directories.** A Linux machine
+  has `~/.local/share`, `~/.config`, `/usr/share` and `/etc/xdg`, and the
+  names of v2 that ask for a folder of Windows ask for the one that is
+  nearest: the application data is the data directory, the start menu is the
+  folder of the applications, the startup is the `autostart` of the
+  configuration, and the documents are the documents of the user. The machine
+  has no desktop for everybody and no programs folder, and those names say
+  so instead of answering a folder that is not there.
+- **The names of Windows say that they are names of Windows.** `A_WinDir` and
+  `A_ProgramFiles` are the folders of another operating system.
+- **The names that are a setting of the runtime moved to the settings.** The
+  eight of them -- `A_ControlDelay`, `A_Cursor`, `A_DetectHiddenText`,
+  `A_DetectHiddenWindows`, `A_RegView`, `A_TitleMatchMode`,
+  `A_TitleMatchModeSpeed` and `A_WinDelay` -- are answered by the module of
+  the settings, and each one says why the runtime does not keep it.
+
+And the reason of a name is now the one of the module that owns it: the
+desktop says what the machine cannot answer, the module of the settings says
+which setting the runtime does not keep, and the tree says what it does not
+carry. The reason is written once, and the read of the name and the refusal
+of the name say the same thing.
+
+Measured on the box on 2026-10-29: twenty-four of the forty-seven answer
+with a value -- the user is `danalec`, the computer is `pod158c`, the shell
+is `/usr/bin/zsh`, the version is `7.3.0-5-cachyos`, the language is
+`en_US.UTF-8`, the script is not elevated, the temporary folder is `/tmp`,
+and the folders are the ones of the XDG. The other twenty-three refuse with
+the reason of the name.
+
+Two of them are the ones that the box cannot answer, and both say why: the
+machine has no desktop for everybody and no programs folder, and the XDG
+portal of the box does not publish the interface
+`org.freedesktop.portal.Idle`, so the four idle times have nothing to read.
+
+And the name of the computer is asked to the kernel, not to the environment:
+a run that comes from `ssh` has no `HOSTNAME` in its environment, and the
+computer is `pod158c`.

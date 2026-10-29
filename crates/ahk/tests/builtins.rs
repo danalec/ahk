@@ -5,8 +5,8 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
-    Sound, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Machine, Native, Pointer, Processes,
+    Screen, Sound, Timers, Windows,
 };
 use ahk::dll::{encode_number, NativeCall, NativeResult, NativeType, NativeValue};
 use ahk::runtime::{Report, Runtime, Value};
@@ -56,6 +56,7 @@ impl Sound for Fake {
         Ok("beeped".to_string())
     }
 }
+impl Machine for Fake {}
 
 impl Windows for Fake {}
 
@@ -181,6 +182,7 @@ struct Blind;
 
 impl Desktop for Blind {}
 impl Sound for Blind {}
+impl Machine for Blind {}
 
 impl Windows for Blind {}
 

@@ -9,6 +9,7 @@ pub mod desktop;
 pub mod files;
 pub mod hotkeys;
 pub mod keyboard;
+pub mod machine;
 pub mod native;
 pub mod pointer;
 pub mod raven;

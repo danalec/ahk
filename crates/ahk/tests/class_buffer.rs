@@ -10,8 +10,8 @@
 //! binary of v2.0.19 on 2026-10-27, with `HasProp` and `HasMethod`.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
-    Sound, Timers, Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Machine, Native, Pointer, Processes,
+    Screen, Sound, Timers, Windows,
 };
 use ahk::runtime::{Report, Runtime, Value};
 use ahk::parse;
@@ -23,6 +23,7 @@ struct Fake;
 
 impl Desktop for Fake {}
 impl Sound for Fake {}
+impl Machine for Fake {}
 
 impl Files for Fake {}
 

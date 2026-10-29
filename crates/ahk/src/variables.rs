@@ -17,7 +17,12 @@
 //!   counts the milliseconds of a run from an arbitrary origin, and it
 //!   does not know the date.
 //! - The ones that want the machine, the session or the hotkey system.
-//!   This runtime carries none of them.
+//!   The machine and the session are the desktop's: the user, the
+//!   computer, the shell, the folders of the machine, the version of the
+//!   operating system, the language, the elevation and the idle times are
+//!   the ones of the machine that runs the script, and the names that the
+//!   tree does not carry refuse with the reason of the name. The hotkeys
+//!   are the ones of the hotkey system of the runtime.
 //! - The one that lives outside the script: the clipboard. The desktop
 //!   holds it, and the runtime asks it. It is the only built-in variable
 //!   of v2 that a script writes and does not keep, and its name has no
@@ -51,18 +56,96 @@ pub const THE_RUNTIME_OWNS: &[&str] = &[
 /// The version of the dialect this runtime carries.
 const AHK_VERSION: &str = "2.0.19";
 
-/// The reason the machine and the session are not answered.
+/// The reason the names of Windows are not answered.
 ///
-/// The desktop has questions for the screen, but none for the user, for
-/// the folders or for the idle time, and the runtime carries nothing of
-/// its own about them.
-const NO_MACHINE: &str = "the machine and the session are not carried by this runtime.";
+/// The two names are about the folders of Windows, and the desktop of the
+/// tree is not the one of Windows.
+const NOT_WINDOWS: &str = "this is a name of Windows, and this desktop is not Windows.";
 
-/// The reason a setting of the runtime is not answered.
+/// The reason a folder of the machine is not there.
 ///
-/// The runtime keeps none of them yet: the coordinate modes, the delays
-/// and the send mode are not in it.
-const NO_STATE: &str = "the runtime keeps no such state yet.";
+/// The folders are the ones the machine has, and the ones it does not have
+/// are not answered.
+const NO_SUCH_FOLDER: &str = "the machine has no such folder.";
+
+/// The reason the desktop of everybody is not there.
+///
+/// The desktop of the session is the one of the user, and there is no
+/// other one.
+const NO_DESKTOP_COMMON: &str =
+    "the machine has no desktop for everybody: the desktop of the session is the one of the user.";
+
+/// The reason the programs of the user are not there.
+///
+/// The start menu of the user is the folder of the applications.
+const NO_PROGRAMS: &str =
+    "the machine has no programs folder: the start menu of the user is the folder of the applications.";
+
+/// The reason the programs of everybody are not there.
+///
+/// The start menu is the folder of the applications.
+const NO_PROGRAMS_COMMON: &str =
+    "the machine has no programs folder for everybody: the start menu is the folder of the applications.";
+
+/// The reason the path of the executable is not answered.
+///
+/// This runtime is not AutoHotkey, and it has no executable of its own.
+const NO_AHK_PATH: &str = "this runtime is not AutoHotkey, and it has no path of an executable.";
+
+/// The reason the window of the script is not answered.
+///
+/// The runtime is a script that runs and ends, and it has no window.
+const NO_SCRIPT_HWND: &str = "this runtime has no window of its own: it is a script that runs and ends.";
+
+/// The reason the scale of the output is not answered.
+///
+/// The desktop does not know the scale of the screen it shows.
+const NO_SCREEN_DPI: &str = "this desktop does not know the scale of the output.";
+
+/// The reason the information of an event is not answered.
+///
+/// The runtime has no wheel hotkeys and no `OnMessage`, and no event
+/// carries information.
+const NO_EVENT_INFO: &str =
+    "this runtime has no events that carry information: it has no wheel hotkeys and no OnMessage.";
+
+/// The reason the last error of the operating system is not answered.
+///
+/// The tree does not call Windows, and it has no last error.
+const NO_LAST_ERROR: &str =
+    "this runtime has no last error of the operating system: the tree does not call Windows.";
+
+/// The reason the tray icon is not answered.
+///
+/// The runtime has no tray icon.
+const NO_TRAY_ICON: &str = "this runtime has no tray icon.";
+
+/// The reason the directory where the run started is not answered.
+///
+/// The runtime does not keep it.
+const NO_INITIAL_WORKING_DIR: &str = "this runtime does not keep the directory where the run started.";
+
+/// The reason the directory of the script is not answered.
+///
+/// The runtime does not know it.
+const NO_SCRIPT_DIR: &str = "this runtime does not know the directory of the script.";
+
+/// The reason the name of the script is not answered.
+///
+/// The runtime does not know it.
+const NO_SCRIPT_NAME: &str = "this runtime does not know the name of the script.";
+
+/// The reason the path of the script is not answered.
+///
+/// The runtime does not know it.
+const NO_SCRIPT_FULL_PATH: &str = "this runtime does not know the path of the script.";
+
+/// The reason a name of the machine is not answered.
+///
+/// The table of the names and the table of the questions are the same one,
+/// and a name that is in neither of them is a name the tree does not
+/// carry.
+const NO_SUCH_MACHINE_NAME: &str = "this runtime does not carry this name of the machine.";
 
 /// The built-in variable of this name, if there is one.
 ///
@@ -80,10 +163,11 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
         Kind::State => Some(match crate::settings::value_of(&name) {
             Some(Ok(value)) => Ok(value),
             Some(Err(why)) => Err(reason(why)),
-            None => Err(reason(NO_STATE)),
+            None => Err(reason(crate::settings::NO_STATE)),
         }),
         Kind::Date => Some(crate::date::variable_value(&name, rt)),
-        Kind::Machine => Some(Err(reason(NO_MACHINE))),
+        // The machine is the desktop's, and the desktop is asked.
+        Kind::Machine => Some(machine_value(&name, rt)),
         // The clipboard is the desktop's, and the desktop is asked.
         Kind::Clipboard => Some(match rt.desktop().clipboard_read() {
             Ok(text) => Ok(Value::Text(text)),
@@ -197,9 +281,11 @@ pub fn refusal_of(name: &str) -> Option<&'static str> {
         Kind::State => match crate::settings::value_of(&name) {
             Some(Ok(_)) => None,
             Some(Err(why)) => Some(why),
-            None => Some(NO_STATE),
+            None => Some(crate::settings::NO_STATE),
         },
-        Kind::Machine => Some(NO_MACHINE),
+        // The names that the desktop answers have no reason of their own:
+        // the desktop says what the machine cannot answer.
+        Kind::Machine => machine_refusal(&name),
     }
 }
 
@@ -221,23 +307,23 @@ fn kind_of(name: &str) -> Option<Kind> {
         "ahkversion" | "is64bitos" | "ptrsize" | "iscompiled" | "iscritical" | "ispaused"
         | "issuspended" | "tickcount" | "endchar" | "space" | "tab" => Some(Kind::Known),
         // -- the settings the runtime keeps ---------------------------------------
-        "allowmainwindow" | "coordmodecaret" | "coordmodemenu" | "coordmodemouse" | "coordmodepixel"
-        | "coordmodetooltip" | "defaultmousespeed" | "fileencoding" | "keydelay" | "keydelayplay"
-        | "keyduration" | "keydurationplay" | "listlines" | "menumaskkey" | "mousedelay"
-        | "mousedelayplay" | "sendlevel" | "sendmode" | "storecapslockmode" => Some(Kind::State),
+        "allowmainwindow" | "controldelay" | "coordmodecaret" | "coordmodemenu" | "coordmodemouse"
+        | "coordmodepixel" | "coordmodetooltip" | "cursor" | "defaultmousespeed" | "detecthiddentext"
+        | "detecthiddenwindows" | "fileencoding" | "keydelay" | "keydelayplay" | "keyduration"
+        | "keydurationplay" | "listlines" | "menumaskkey" | "mousedelay" | "mousedelayplay"
+        | "regview" | "sendlevel" | "sendmode" | "storecapslockmode" | "titlematchmode"
+        | "titlematchmodespeed" | "windelay" => Some(Kind::State),
         // -- the date and the time ------------------------------------------------
         "dd" | "ddd" | "dddd" | "hour" | "mday" | "min" | "mm" | "mmm" | "mmmm" | "mon" | "msec"
         | "now" | "nowutc" | "sec" | "wday" | "yday" | "year" | "yweek" | "yyyy" => Some(Kind::Date),
         // -- the machine and the session -------------------------------------------
-        "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec"
-        | "controldelay" | "cursor" | "desktop" | "desktopcommon" | "detecthiddentext"
-        | "detecthiddenwindows" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
+        "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec" | "desktop"
+        | "desktopcommon" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
         | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments" | "osversion"
-        | "programfiles" | "programs" | "programscommon" | "regview" | "screendpi"
-        | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu"
-        | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle" | "timeidlekeyboard"
-        | "timeidlemouse" | "timeidlephysical" | "titlematchmode" | "titlematchmodespeed" | "traymenu"
-        | "username" | "windelay" | "windir" | "workingdir" => Some(Kind::Machine),
+        | "programfiles" | "programs" | "programscommon" | "screendpi" | "scriptdir"
+        | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu" | "startmenucommon"
+        | "startup" | "startupcommon" | "temp" | "timeidle" | "timeidlekeyboard" | "timeidlemouse"
+        | "timeidlephysical" | "traymenu" | "username" | "windir" | "workingdir" => Some(Kind::Machine),
         // -- the clipboard -----------------------------------------------------------
         "clipboard" => Some(Kind::Clipboard),
         // -- the screen ---------------------------------------------------------------
@@ -289,6 +375,121 @@ fn known_value(name: &str, rt: &Runtime) -> Value {
     }
 }
 
+/// The value of a built-in variable of the machine.
+///
+/// The desktop is asked: the user, the computer, the shell, the folders,
+/// the version of the operating system, the language, the elevation and
+/// the idle times are the ones of the machine that runs the script, and
+/// the reason of a question the desktop cannot answer is the one of the
+/// desktop. The names that the tree refuses are refused with the reason
+/// of the name, and that reason is written once.
+fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
+    if let Some(why) = machine_refusal(name) {
+        return Err(reason(why));
+    }
+    match name {
+        "username" => text(rt.desktop().user_name()),
+        "computername" => text(rt.desktop().computer_name()),
+        "comspec" => text(rt.desktop().shell()),
+        "osversion" => text(rt.desktop().os_version()),
+        "language" => text(rt.desktop().language()),
+        "isadmin" => rt.desktop().is_admin().map(|yes| Value::Int(yes as i64)).map_err(|why| reason(&why)),
+        "appdata" | "appdatacommon" | "desktop" | "desktopcommon" | "startmenu" | "startmenucommon"
+        | "programs" | "programscommon" | "startup" | "startupcommon" | "mydocuments" | "temp" => {
+            folder(rt, name)
+        }
+        "timeidle" | "timeidlephysical" | "timeidlekeyboard" | "timeidlemouse" => idle(rt, name),
+        // The working directory is the one of the files, and the tree uses
+        // it everywhere else.
+        "workingdir" => text(rt.desktop().working_directory()),
+        _ => Err(reason(NO_SUCH_MACHINE_NAME)),
+    }
+}
+
+/// The reason a name of the machine refuses with.
+///
+/// The names that the desktop answers have no reason here: the desktop
+/// says what the machine cannot answer, and that reason is not the one of
+/// the name.
+fn machine_refusal(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "windir" | "programfiles" => NOT_WINDOWS,
+        "ahkpath" => NO_AHK_PATH,
+        "scripthwnd" => NO_SCRIPT_HWND,
+        "screendpi" => NO_SCREEN_DPI,
+        "eventinfo" => NO_EVENT_INFO,
+        "lasterror" => NO_LAST_ERROR,
+        "iconfile" | "iconhidden" | "iconnumber" | "icontip" | "traymenu" => NO_TRAY_ICON,
+        "initialworkingdir" => NO_INITIAL_WORKING_DIR,
+        "scriptdir" => NO_SCRIPT_DIR,
+        "scriptname" => NO_SCRIPT_NAME,
+        "scriptfullpath" => NO_SCRIPT_FULL_PATH,
+        _ => return None,
+    })
+}
+
+/// The text of the answer of the desktop, or the reason it cannot answer.
+fn text(answer: Result<String, String>) -> Result<Value, RuntimeError> {
+    answer.map(Value::Text).map_err(|why| reason(&why))
+}
+
+/// The folder of the machine that a name asks for.
+///
+/// A folder that the machine does not have is a reason, and the reason is
+/// the one of the name: the desktop of everybody and the programs are the
+/// two folders that the machine answers in their own way.
+fn folder(rt: &mut Runtime, name: &str) -> Result<Value, RuntimeError> {
+    let folders = rt.desktop().folders().map_err(|why| reason(&why))?;
+    let path = match name {
+        "appdata" => folders.app_data.clone(),
+        "appdatacommon" => folders.app_data_common.clone(),
+        "desktop" => folders.desktop.clone(),
+        "desktopcommon" => folders.desktop_common.clone(),
+        "startmenu" => folders.start_menu.clone(),
+        "startmenucommon" => folders.start_menu_common.clone(),
+        "programs" => folders.programs.clone(),
+        "programscommon" => folders.programs_common.clone(),
+        "startup" => folders.startup.clone(),
+        "startupcommon" => folders.startup_common.clone(),
+        "mydocuments" => folders.my_documents.clone(),
+        "temp" => folders.temp.clone(),
+        _ => None,
+    };
+    match path {
+        Some(path) => Ok(Value::Text(path)),
+        None => Err(reason(no_folder(name))),
+    }
+}
+
+/// The reason a folder of the machine is not there.
+///
+/// The reason is the one of the name: the desktop of everybody and the
+/// programs are the two folders that the machine answers in their own way.
+fn no_folder(name: &str) -> &'static str {
+    match name {
+        "desktopcommon" => NO_DESKTOP_COMMON,
+        "programs" => NO_PROGRAMS,
+        "programscommon" => NO_PROGRAMS_COMMON,
+        _ => NO_SUCH_FOLDER,
+    }
+}
+
+/// The idle time of the session that a name asks for.
+///
+/// The times are the milliseconds since the last input, and the desktop
+/// says when it cannot tell.
+fn idle(rt: &mut Runtime, name: &str) -> Result<Value, RuntimeError> {
+    let idle = rt.desktop().idle_times().map_err(|why| reason(&why))?;
+    let millis = match name {
+        "timeidle" => idle.any,
+        "timeidlephysical" => idle.physical,
+        "timeidlekeyboard" => idle.keyboard,
+        "timeidlemouse" => idle.mouse,
+        _ => 0,
+    };
+    Ok(Value::Int(millis as i64))
+}
+
 /// The error of a built-in variable this runtime cannot answer.
 ///
 /// The line is zero: the caller knows the line of the statement that asked,
@@ -301,8 +502,8 @@ fn reason(message: &str) -> RuntimeError {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
-        Sound, Timers, Windows,
+        Clipboard, Desktop, Files, Hotkeys, Keyboard, Machine, Native, Pointer,
+        Processes, Screen, Sound, Timers, Windows,
     };
     /// The reason the date and the time are not answered.
     ///
@@ -322,6 +523,7 @@ mod tests {
 
     impl Desktop for Fake {}
     impl Sound for Fake {}
+impl Machine for Fake {}
 
     impl Files for Fake {}
 
@@ -486,9 +688,11 @@ mod tests {
     }
 
     #[test]
-    fn a_script_that_asks_for_the_machine_is_told_the_runtime_does_not_carry_it() {
-        assert_eq!(reason("a_computername"), NO_MACHINE);
-        assert_eq!(reason("a_username"), NO_MACHINE);
+    fn a_script_that_asks_for_the_machine_is_told_what_the_desktop_cannot_answer() {
+        // The machine is the desktop's, and the desktop of this test
+        // answers nothing: the reason is the one of the desktop.
+        assert_eq!(reason("a_computername"), "this desktop cannot say the name of the computer");
+        assert_eq!(reason("a_username"), "this desktop cannot say the name of the user");
     }
 
     #[test]

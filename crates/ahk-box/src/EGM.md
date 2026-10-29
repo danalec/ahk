@@ -2,16 +2,17 @@
 
 ## Overview
 
-`src` is the whole of `ahk-box`: eight modules and the module root that names them.
+`src` is the whole of `ahk-box`: nine modules and the module root that names them.
 
 | File | What it holds |
 | --- | --- |
-| `lib.rs` | The public surface of the crate, and nothing else. It declares the eight modules and re-exports the names the runner needs. |
+| `lib.rs` | The public surface of the crate, and nothing else. It declares the nine modules and re-exports the names the runner needs. |
 | `keyboard.rs` | A uinput keyboard of our own, for the keys `ydotool type` cannot express. |
 | `pointer.rs` | An absolute uinput pointer, for driving a Wayland session exactly. |
 | `native.rs` | The call into a library of the machine: the loader, the trampoline and the marshalling of the arguments. |
 | `raven.rs` | The call into a library of Windows: the raven, the helper that runs inside it, and the protocol between them. |
 | `files.rs` | The files of the machine: the copy, the move, the attributes, the times, the directories and the ini files. |
+| `machine.rs` | The machine that runs the script: the user, the computer, the shell, the folders, the version, the language and the rights of the script. |
 | `hotkeys.rs` | The watcher of the keyboard: the device that is read, and the hotkeys and the hotstrings that are registered. |
 | `wayland.rs` | The windows of a Wayland compositor: the client that lists them and the one that has the focus. |
 | `desktop.rs` | The lab box as the runtime sees it: the `ahk::desktop::Desktop` implementation that ties the keyboard, the pointer, the screen and the shell together. |
@@ -159,6 +160,27 @@ The reasons are the messages of v2.0.19 — "Failed to load DLL.",
 return type." — and the box does not answer with a reason of its own
 where v2 has one.
 
+### `machine.rs` — the machine that runs the script
+
+The module answers the questions about the machine that the runtime asks
+through the `Machine` capability: the name of the user, the name of the
+computer, the shell of the session, the folders of the machine, the version
+of the operating system, the language of the session, whether the script is
+elevated and how long the session has been idle.
+
+The answers are read where Linux keeps them: the environment of the session,
+the files of the XDG base directories and the release of the kernel. The name
+of the computer is asked to the kernel and not to the environment, because a
+run that comes from `ssh` has no `HOSTNAME` in it. The folders are the ones
+of the XDG: the application data is the data directory, the start menu is the
+folder of the applications, the startup is the `autostart` of the
+configuration, and a folder that the machine does not have is not in the
+answer.
+
+The two things that only Linux has -- the release of the kernel and the
+effective user id -- are behind `#[cfg(target_os = "linux")]`, and the other
+systems answer with the reason they cannot answer.
+
 ### `files.rs` — the files of the machine
 
 The operations of v2 that are not the file handles: the copy, the move,
@@ -249,8 +271,8 @@ handle of COSMIC, so the correlation is exact and not a guess by title.
 | `empty_title` | private fn | The answer to a question about a window with no title: v2 would use the last found window, and this runtime keeps none. |
 | `title_matches` | private fn | The mode 2 of v2: the title of the window has to contain the text, and the case matters. |
 
-The `Desktop` of the crate is the sum of the eleven capability traits of
-`ahk::desktop`, and the box writes the eleven of them: `Keyboard`
+The `Desktop` of the crate is the sum of the twelve capability traits of
+`ahk::desktop`, and the box writes the twelve of them: `Keyboard`
 (`type_text`, `press_key`, `mouse_down`, `mouse_up`, `key_down`, `key_up`,
 `key_is_down`, `keys_down`), `Pointer` (`click`, `move_pointer`,
 `mouse_position`, `set_mouse_speed`, `set_mouse_delay`), `Screen` (`capture`,
@@ -259,9 +281,10 @@ The `Desktop` of the crate is the sum of the eleven capability traits of
 file handles, the whole-file writes, and the operations of `files.rs`),
 `Clipboard`, `Timers`, `Hotkeys` (`register_hotkey`, `unregister_hotkey`,
 `hotkeys`, `fired_hotkey`), `Native` (the call into a library of the
-machine, which `native.rs` answers) and `Sound` (`sound_volume`,
+machine, which `native.rs` answers), `Sound` (`sound_volume`,
 `sound_set_volume`, `sound_muted`, `sound_set_muted`, `sound_play`,
-`sound_beep`). The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
+`sound_beep`) and `Machine` (`user_name`, `computer_name`, `shell`,
+`folders`, `os_version`, `language`, `is_admin`, `idle_times`). The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
 
 ## Invariants
 
