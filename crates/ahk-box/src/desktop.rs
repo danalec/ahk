@@ -77,6 +77,9 @@ pub struct LabDesktop {
     /// It is read when the desktop is made, and it is kept: a script that
     /// changes the working directory does not change this one.
     pub(crate) initial_working_dir: Option<String>,
+    /// The pictures that are loaded. The number that identifies one is
+    /// the place of the picture in this list.
+    pub(crate) pictures: Vec<crate::pictures::Picture>,
     /// The libraries that are loaded. A library is loaded once and
     /// kept: a script that calls the same library twice does not load
     /// it twice.
@@ -115,6 +118,7 @@ impl LabDesktop {
             screen: None,
             notes: Vec::new(),
             files: Vec::new(),
+            pictures: Vec::new(),
             initial_working_dir: std::env::current_dir()
                 .ok()
                 .map(|path| path.to_string_lossy().to_string()),

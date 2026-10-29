@@ -914,7 +914,7 @@ fn the_block(bytes: &[u8], at: usize, counts: Counts, time_size: usize) -> Optio
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
         Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
@@ -930,6 +930,7 @@ mod tests {
     struct Fake;
 
     impl Desktop for Fake {}
+    impl Pictures for Fake {}
     impl Network for Fake {}
     impl Sound for Fake {}
 impl Machine for Fake {}

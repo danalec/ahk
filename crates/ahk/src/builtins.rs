@@ -26,11 +26,12 @@ use alloc::vec::Vec;
 
 use crate::date::{date_add, date_diff, format_time};
 use crate::dialogs::{dir_select, file_select, input_box};
-use crate::files::{download, 
-    dir_copy, dir_move, file_copy, file_encoding, file_get_attrib, file_get_size, file_get_time,
-    file_install, file_move, file_open, file_set_attrib, file_set_time, ini_delete, ini_read,
-    ini_write,
+use crate::files::{
+    dir_copy, dir_move, download, file_copy, file_encoding, file_get_attrib, file_get_size,
+    file_get_time, file_install, file_move, file_open, file_set_attrib, file_set_time, ini_delete,
+    ini_read, ini_write,
 };
+use crate::pictures::{image_search, load_picture};
 use crate::hotkeys::{
     get_key_state, hotif, hotif_window, hotkey, hotstring, install_hook, key_history,
     list_hotkeys,
@@ -418,7 +419,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "GetKeyName", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_name },
     Builtin { name: "GetKeySC", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_sc },
     Builtin { name: "GetKeyVK", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_vk },
-    Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 0, max: 255, variant: 119, handler: not_carried },
+    Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 7, max: 7, variant: 0, handler: image_search },
     Builtin { name: "IniDelete", kind: BuiltinKind::Command, min: 1, max: 3, variant: 6, handler: ini_delete },
     Builtin { name: "IniRead", kind: BuiltinKind::Command, min: 2, max: 4, variant: 4, handler: ini_read },
     Builtin { name: "IniWrite", kind: BuiltinKind::Command, min: 3, max: 4, variant: 4, handler: ini_write },
@@ -426,7 +427,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: is_label },
     Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 114, handler: not_carried },
     Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 255, variant: 115, handler: not_carried },
-    Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 0, max: 255, variant: 118, handler: not_carried },
+    Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 1, max: 3, variant: 0, handler: load_picture },
     Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: click },
     Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: mouse_click_drag },
     Builtin { name: "OnError", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, handler: on_error },
@@ -458,7 +459,9 @@ pub const BUILTINS: &[Builtin] = &[
 pub fn reference_parameters(name: &str) -> &'static [usize] {
     match name {
         "CaretGetPos" => &[0],
+        "ImageSearch" => &[0, 1],
         "IsSetRef" => &[0],
+        "LoadPicture" => &[2],
         "MouseGetPos" => &[0, 1, 2, 3],
         "RegExMatch" => &[2],
         "RegExReplace" => &[3],

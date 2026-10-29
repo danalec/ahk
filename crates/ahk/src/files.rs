@@ -621,7 +621,7 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
         Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
@@ -644,6 +644,7 @@ mod tests {
     }
 
     impl Desktop for Fake {}
+    impl Pictures for Fake {}
     impl Network for Fake {}
     impl Sound for Fake {}
 impl Machine for Fake {}

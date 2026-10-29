@@ -219,7 +219,7 @@ The traits the runtime is handed:
 
 | Trait | Methods |
 | --- | --- |
-| `Desktop` | the sum of the fourteen capability traits below: it has no method of its own, and there is no blanket implementation |
+| `Desktop` | the sum of the fifteen capability traits below: it has no method of its own, and there is no blanket implementation |
 | `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up`, `key_is_down` and `keys_down` have a default that answers with the reason it cannot |
 | `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position`, `set_mouse_speed` and `set_mouse_delay` have a default that answers with the reason it cannot |
 | `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
@@ -234,9 +234,10 @@ The traits the runtime is handed:
 | `Machine` | `user_name`, `computer_name`, `shell`, `folders`, `os_version`, `language`, `is_admin` and `idle_times` have a default that answers with the reason it cannot |
 | `Dialogs` | `input_box`, `file_select` and `dir_select` have a default that answers with the reason it cannot: the question of the user is the machine's |
 | `Network` | `download` has a default that answers with the reason it cannot: the network is the machine's |
+| `Pictures` | `load_picture` and `image_search` have a default that answers with the reason it cannot: the images of the machine are the machine's |
 | `Clock` | `now_ms() -> u64` (the milliseconds since an arbitrary origin, never backwards), `sleep_ms(u64)` (waits at least that long) and `wall_clock() -> Option<WallClock>` (the date of the machine, and nothing when the host does not know it) |
 
-Every implementor writes the fourteen of them: there is no blanket
+Every implementor writes the fifteen of them: there is no blanket
 implementation, so a desktop that grows a capability grows with it.
 
 `SystemClock` is the clock of a hosted platform -- the monotonic clock and the
@@ -384,16 +385,31 @@ none, and the statement fails with that reason.
 
 ### The desktop (`desktop.rs`)
 
-The fourteen capability traits, and the `Desktop` that is their sum. Every
-implementor writes the fourteen of them: there is no blanket implementation,
+The fifteen capability traits, and the `Desktop` that is their sum. Every
+implementor writes the fifteen of them: there is no blanket implementation,
 so a desktop that grows a capability grows with it. The tenth is `Native`,
 the call into a library of the machine, the eleventh is `Sound`, the
 volume of a device and the playing of a sound, the twelfth is `Machine`,
 the machine itself: the user, the computer, the folders and the session,
-the thirteenth is `Dialogs`, the questions of the user, and the fourteenth
-is `Network`, the way out to the network of the machine. Every method that a
+the thirteenth is `Dialogs`, the questions of the user, the fourteenth is
+`Network`, the way out to the network of the machine, and the fifteenth is
+`Pictures`, the images of the machine. Every method that a
 capability does not have has a default that answers with the reason it
 cannot.
+
+### The pictures (`pictures.rs`)
+
+The two names of v2 that read the images of the machine: `LoadPicture`
+loads a picture of a file and answers the number that identifies it, and
+`ImageSearch` looks for a picture on the screen. The options of each one
+are read here, because they are the dialect's, and the image is the
+machine's: the runtime reads the options and hands them to the desktop,
+and the desktop reads the image.
+
+The `LoadPicture` answers zero when the picture could not be loaded: v2
+does not fail when the file is not there. The `ImageSearch` answers one
+when the picture is on the screen and zero when it is not, and the place
+of the picture is written in the first two variables of the caller.
 
 ### The dialogs (`dialogs.rs`)
 

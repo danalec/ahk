@@ -9,7 +9,7 @@
 //! implementations have to agree.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer, Processes,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
     Screen, Sound, Timers, Windows,
 };
 use ahk::desktop::WindowAnswer;
@@ -42,6 +42,7 @@ impl Fake {
 }
 
 impl Desktop for Fake {}
+impl Pictures for Fake {}
 impl Network for Fake {}
 impl Sound for Fake {}
 impl Machine for Fake {}
@@ -903,7 +904,7 @@ fn a_parameter_written_by_reference_wants_a_reference() {
     assert_eq!(
         report.error.as_deref(),
         Some(
-            "Parameter #1 of Show requires a variable reference, but received an integer. Specifically: 5"
+            "Parameter #1 of Show requires a variable reference, but received an Integer."
         )
     );
 }

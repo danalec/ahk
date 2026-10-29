@@ -5,8 +5,9 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, InputAnswer, InputOptions,
-    Keyboard, Machine, Native, Network, Pointer, Processes, Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
+    ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network, PictureOptions,
+    Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::dll::{encode_number, NativeCall, NativeResult, NativeType, NativeValue};
 use ahk::runtime::{Report, Runtime, Value};
@@ -29,6 +30,27 @@ struct Fake {
 }
 
 impl Desktop for Fake {}
+impl Pictures for Fake {
+    fn load_picture(&mut self, filename: &str, _options: &PictureOptions) -> Result<Option<u32>, String> {
+        self.calls.push(("load-picture".into(), filename.to_string()));
+        Ok(Some(7))
+    }
+    fn image_search(
+        &mut self,
+        x1: i64,
+        y1: i64,
+        x2: i64,
+        y2: i64,
+        image: &Image,
+        _options: &ImageOptions,
+    ) -> Result<ImageSearch, String> {
+        self.calls.push(("image-search".into(), format!("{x1},{y1},{x2},{y2}")));
+        match image {
+            Image::File(name) if name.is_empty() => Ok(ImageSearch::NotLoadable),
+            _ => Ok(ImageSearch::Found(10, 20)),
+        }
+    }
+}
 impl Network for Fake {
     fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
         self.calls.push(("download".into(), format!("{url}|{file}")));
@@ -222,6 +244,7 @@ impl Native for Fake {
 struct Blind;
 
 impl Desktop for Blind {}
+impl Pictures for Blind {}
 impl Network for Blind {}
 impl Sound for Blind {}
 impl Machine for Blind {}
@@ -632,7 +655,7 @@ fn a_path_that_wants_an_output_variable_says_so() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Parameter #2 of SplitPath requires a variable reference, but received an Integer. Specifically: 5"
+        "Parameter #2 of SplitPath requires a variable reference, but received an Integer."
     );
 }
 
@@ -672,7 +695,7 @@ fn is_set_ref_wants_a_reference() {
     let report = run("a := IsSetRef(1)");
     assert_eq!(
         failure_of(&report),
-        "Parameter #1 of IsSetRef requires a variable reference, but received an Integer. Specifically: 1"
+        "Parameter #1 of IsSetRef requires a variable reference, but received an Integer."
     );
 }
 
@@ -1092,7 +1115,7 @@ fn str_replace_wants_a_reference_where_it_writes_the_count() {
     let report = run("a := StrReplace(\"aaa\", \"a\", \"b\", true, 5)");
     assert_eq!(
         failure_of(&report),
-        "Parameter #5 of StrReplace requires a variable reference, but received an Integer. Specifically: 5"
+        "Parameter #5 of StrReplace requires a variable reference, but received an Integer."
     );
 }
 
@@ -1298,7 +1321,7 @@ fn regex_replace_wants_a_reference_where_it_writes_the_count() {
     let report = run("a := RegExReplace(\"a1b2\", \"[0-9]\", \"#\", 5)");
     assert_eq!(
         failure_of(&report),
-        "Parameter #4 of RegExReplace requires a variable reference, but received an Integer. Specifically: 5"
+        "Parameter #4 of RegExReplace requires a variable reference, but received an Integer."
     );
 }
 
@@ -1379,14 +1402,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
         (
             "ListVars",
             "the variables are listed in a window of v2, and this runtime has no window to show them in.",
-        ),
-        (
-            "LoadPicture",
-            "the picture is read by the desktop, and this desktop does not read the images of the machine.",
-        ),
-        (
-            "ImageSearch",
-            "the search of a picture is made by the desktop, and this desktop does not read the images of the machine.",
         ),
     ] {
         let report = run(name);
@@ -1483,7 +1498,7 @@ fn a_text_is_not_a_callback_and_refuses_with_the_reason_of_v2() {
     let report = run("OnExit(\"Bye\")");
     assert_eq!(
         failure_of(&report),
-        "Parameter #1 of OnExit requires an Object, but received a String. Specifically: Bye"
+        "Parameter #1 of OnExit requires an Object, but received a String."
     );
 }
 
@@ -1535,7 +1550,7 @@ fn an_order_that_is_not_a_number_refuses_with_the_reason_of_v2() {
     let report = run("OnExit Bye, \"x\"\nBye(Reason, Code) {\n}\n");
     assert_eq!(
         failure_of(&report),
-        "Parameter #2 of OnExit requires a Number, but received a String. Specifically: x"
+        "Parameter #2 of OnExit requires a Number, but received a String."
     );
 }
 
@@ -2008,6 +2023,121 @@ fn the_options_of_the_dir_select_are_a_number() {
     );
 }
 
+
+
+#[test]
+fn the_load_picture_answers_the_number_of_the_picture() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the answer is
+    // the number that identifies the picture, and the type of the
+    // handle is written in the third parameter.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        "t := 9\nx := LoadPicture(\"the.png\", \"w10\", &t)\nMsgBox x \" | \" t",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7 | 0"]);
+    assert_eq!(
+        desktop.calls,
+        vec![("load-picture".to_string(), "the.png".to_string())]
+    );
+}
+
+#[test]
+fn the_load_picture_without_arguments_fails_the_way_v2_does() {
+    let report = run("x := LoadPicture()");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too few parameters passed to function. Specifically: LoadPicture"
+    );
+}
+
+#[test]
+fn the_load_picture_of_too_many_arguments_fails_the_way_v2_does() {
+    let report = run("x := LoadPicture(\"a\", \"b\", &t, \"d\")");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too many parameters passed to function. Specifically: LoadPicture"
+    );
+}
+
+#[test]
+fn the_image_search_answers_one_and_writes_the_place() {
+    let mut desktop = Fake::default();
+    let report = run_on(
+        "x := 0\ny := 0\nz := ImageSearch(&x, &y, 1, 2, 3, 4, \"the.png\")\nMsgBox z \" | \" x \" | \" y",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 | 10 | 20"]);
+    assert_eq!(
+        desktop.calls,
+        vec![("image-search".to_string(), "1,2,3,4".to_string())]
+    );
+}
+
+#[test]
+fn the_image_search_wants_two_variables() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the first two
+    // parameters want a variable.
+    let report = run(
+        "z := ImageSearch(0, 0, 0, 0, 10, 10, \"the.png\")\n",
+    );
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of ImageSearch requires a VarRef, but received an Integer."
+    );
+}
+
+#[test]
+fn the_image_search_of_a_picture_that_cannot_be_loaded_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the message is
+    // "Parameter #7 of ImageSearch is invalid." and the name of the
+    // picture is in the Extra.
+    let report = run(
+        "try {\n    x := 0\n    y := 0\n    ImageSearch(&x, &y, 0, 0, 10, 10, \"\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #7 of ImageSearch is invalid. | ValueError | ImageSearch"]
+    );
+}
+
+#[test]
+fn the_image_search_of_too_few_arguments_fails_the_way_v2_does() {
+    let report = run("x := 0\ny := 0\nz := ImageSearch(&x, &y, 0, 0, 10, 10)");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too few parameters passed to function. Specifically: ImageSearch"
+    );
+}
+
+#[test]
+fn the_image_search_of_too_many_arguments_fails_the_way_v2_does() {
+    let report = run("x := 0\ny := 0\nz := ImageSearch(&x, &y, 0, 0, 10, 10, \"a\", \"b\")");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too many parameters passed to function. Specifically: ImageSearch"
+    );
+}
+
+#[test]
+fn a_desktop_that_does_not_read_the_images_says_so() {
+    let mut desktop = Blind;
+    let statements = parse("x := LoadPicture(\"the.png\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the picture is read by the desktop, and this desktop does not read the images of the machine.")
+    );
+}
 
 #[test]
 fn the_download_writes_the_file_and_answers_nothing() {

@@ -6,7 +6,7 @@
 
 | File | What it holds |
 | --- | --- |
-| `lib.rs` | The public surface of the crate, and nothing else. It declares the ten modules and re-exports the names the runner needs. |
+| `lib.rs` | The public surface of the crate, and nothing else. It declares the eleven modules and re-exports the names the runner needs. |
 | `keyboard.rs` | A uinput keyboard of our own, for the keys `ydotool type` cannot express. |
 | `pointer.rs` | An absolute uinput pointer, for driving a Wayland session exactly. |
 | `native.rs` | The call into a library of the machine: the loader, the trampoline and the marshalling of the arguments. |
@@ -16,6 +16,7 @@
 | `hotkeys.rs` | The watcher of the keyboard: the device that is read, and the hotkeys and the hotstrings that are registered. |
 | `wayland.rs` | The windows of a Wayland compositor: the client that lists them and the one that has the focus. |
 | `network.rs` | The way out to the network: the download of a file, with curl. |
+| `pictures.rs` | The images of the machine: the pixels of a file, and the search of a picture on the screen. |
 | `desktop.rs` | The lab box as the runtime sees it: the `ahk::desktop::Desktop` implementation that ties the keyboard, the pointer, the screen and the shell together. |
 
 The crate does no parsing and no interpreting: a script is already parsed by the language crate `ahk`, and this crate only answers what the runtime asks of the desktop. It depends on `ahk` for the `Desktop` trait, for the key names and for the keymap of the US layout, and on `libc`, `png` and `thiserror` for the rest. `serde` and `serde_json` are declared in the manifest and used by nothing here: the report is written by the runner, which is where the serialisation lives. Nothing here depends on the runner, and the runner depends on this crate in one direction only.
@@ -289,8 +290,8 @@ handle of COSMIC, so the correlation is exact and not a guess by title.
 | `the_result_of_the_dialog` | private fn | The words of v2 for the way a dialog ended: "OK", "Cancel" and "Timeout". |
 | `the_filter_of_zenity` | private fn | The filter of v2, "Documents (*.txt)", in the spelling of zenity, "Documents \| *.txt". |
 
-The `Desktop` of the crate is the sum of the fourteen capability traits of
-`ahk::desktop`, and the box writes the fourteen of them: `Keyboard`
+The `Desktop` of the crate is the sum of the fifteen capability traits of
+`ahk::desktop`, and the box writes the fifteen of them: `Keyboard`
 (`type_text`, `press_key`, `mouse_down`, `mouse_up`, `key_down`, `key_up`,
 `key_is_down`, `keys_down`), `Pointer` (`click`, `move_pointer`,
 `mouse_position`, `set_mouse_speed`, `set_mouse_delay`), `Screen` (`capture`,
@@ -305,8 +306,11 @@ machine, which `native.rs` answers), `Sound` (`sound_volume`,
 `folders`, `os_version`, `language`, `is_admin`, `idle_times`), and
 `Dialogs` (`input_box`, `file_select`, `dir_select`), which asks the user
 through zenity: the window of the session is the window of v2, and the
-exit code of zenity says how the dialog ended, and `Network`
-(`download`), which fetches the file with curl. The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
+exit code of zenity says how the dialog ended, `Network`
+(`download`), which fetches the file with curl, and `Pictures`
+(`load_picture`, `image_search`), which reads the images of the machine
+with the `png` crate and looks for them on the screen with a capture of
+`grim`. The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
 
 ## Invariants
 

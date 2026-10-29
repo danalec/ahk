@@ -201,25 +201,23 @@ pub fn invalid_parameter(index: usize, name: &str) -> String {
 ///
 /// The wording is the one of the handler that raises it: the built-in
 /// that writes the pieces of a path says "a variable reference" and the
-/// one that writes the place of the pointer says "a VarRef". The type
-/// of the value is in lower case here, and in its own spelling when
-/// the built-in that raises the message is the one that writes a path.
+/// one that writes the place of the pointer says "a VarRef".
+///
+/// Measured on the binary of v2.0.19 on 2026-10-29: the message ends
+/// with the type of the value, and the value that was there is in the
+/// `Extra` of the failure, and not in the message.
 pub fn wants_a_reference(
     index: usize,
     name: &str,
     wants: &str,
     got: TypeName,
-    value: &str,
-    capitalised: bool,
+    _value: &str,
+    _capitalised: bool,
 ) -> String {
-    let kind = if capitalised { got.name() } else { got.lowercase() };
     format!(
-        "Parameter #{} of {} requires {wants}, but received a{} {}. Specifically: {}",
-        index,
-        name,
+        "Parameter #{index} of {name} requires {wants}, but received a{} {}.",
         got.article(),
-        kind,
-        value
+        got.name()
     )
 }
 

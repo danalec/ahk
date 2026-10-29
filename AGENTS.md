@@ -149,12 +149,12 @@ the box: it does no I/O, and it has to keep building without `std`.
   that answers it. A name that is shaped for Windows is in the table too,
   and the handler answers it with the reason: a question the desktop cannot
   answer fails, and it does not answer `false`.
-- **The `Desktop` trait is the sum of fourteen capability traits** -- `Keyboard`,
+- **The `Desktop` trait is the sum of fifteen capability traits** -- `Keyboard`,
   `Pointer`, `Screen`, `Windows`, `Processes`, `Files`, `Clipboard`,
-  `Timers`, `Hotkeys`, `Native`, `Sound`, `Machine`, `Dialogs` and
-  `Network`. There is
+  `Timers`, `Hotkeys`, `Native`, `Sound`, `Machine`, `Dialogs`, `Network`
+  and `Pictures`. There is
   no blanket
-  implementation: every implementor writes the fourteen of them, and every
+  implementation: every implementor writes the fifteen of them, and every
   method that a
   capability does not have has a default that says so. A new capability
   goes in its own trait, and `Desktop` grows by naming it.
@@ -376,6 +376,20 @@ the box: it does no I/O, and it has to keep building without `std`.
   class of the value. Every object has the property, and it is not an own
   property: `m.HasProp("__Class")` is 1 and `m.HasOwnProp("__Class")` is
   0.
+- **The pictures of the machine are the machine's.** Measured on the
+  binary of v2.0.19 on 2026-10-29: the `LoadPicture` takes three
+  parameters and answers the number that identifies the picture -- zero
+  when the picture could not be loaded, and not a failure -- and the type
+  of the handle is written in the third parameter. The `ImageSearch`
+  takes seven parameters, the first two of them by reference, and it
+  answers one when the picture is on the screen and zero when it is not,
+  and the place of the picture is written in the first two variables of
+  the caller. A picture that cannot be loaded is refused with "Parameter
+  #7 of ImageSearch is invalid.", and a value where a variable is wanted
+  is refused with "Parameter #1 of ImageSearch requires a VarRef, but
+  received an Integer.". The images are read by the desktop, and the box
+  reads them with the `png` crate: it looks for them on the screen with a
+  capture of `grim`.
 - **The download is the machine's.** Measured on the binary of v2.0.19 on
   2026-10-29: the `Download` takes two parameters -- the url and the
   name of the file -- and it answers nothing: the answer is an empty
@@ -1173,9 +1187,11 @@ against the real thing and read off its dialogs.
   place of the pointer, `StrReplace` and `RegExReplace` write the number of
   the swaps, `IsSetRef` asks whether a variable is set, and
   `VarSetStrCapacity` sets the capacity of a string. A value where a
-  reference is wanted fails with the place of the parameter and the value
-  that was there: "Parameter #5 of StrReplace requires a variable reference,
-  but received an Integer. Specifically: 5".
+  reference is wanted fails with the place of the parameter and the type
+  of the value: "Parameter #5 of StrReplace requires a variable reference,
+  but received an Integer.". Measured on the binary of v2.0.19 on
+  2026-10-29: the value that was there is in the `Extra` of the failure,
+  and not in the message.
 - **`SplitPath` cuts the drive off the path before it cuts the name.**
   Measured on the binary of v2.0.19: the path "C:/Users/danalec/file.txt"
   gives the name "/Users/danalec/file.txt" and the directory "C:". The

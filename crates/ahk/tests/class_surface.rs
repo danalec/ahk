@@ -18,7 +18,7 @@
 //! tables against the surface instead.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer, Processes,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
     Screen, Sound, Timers, Windows,
 };
 use ahk::runtime::{Report, Runtime};
@@ -48,6 +48,7 @@ const REACHABLE: &[(&str, &str)] = &[
 struct Fake;
 
 impl Desktop for Fake {}
+impl Pictures for Fake {}
 impl Network for Fake {}
 impl Sound for Fake {}
 impl Machine for Fake {}

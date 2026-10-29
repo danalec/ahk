@@ -400,6 +400,34 @@ pub trait Native {
     }
 }
 
+/// The pictures of the desktop.
+///
+/// A picture is an image of the machine, and the machine is the one
+/// that reads it: a desktop that does not read the images says so.
+pub trait Pictures {
+    /// Load a picture of a file, and answer the number that identifies
+    /// it.
+    ///
+    /// `None` is the answer when the picture is not there: v2 answers
+    /// zero in that case, and not a failure.
+    fn load_picture(&mut self, _filename: &str, _options: &PictureOptions) -> Result<Option<u32>, String> {
+        Err("the picture is read by the desktop, and this desktop does not read the images of the machine.".to_string())
+    }
+
+    /// Look for a picture on the screen.
+    fn image_search(
+        &mut self,
+        _x1: i64,
+        _y1: i64,
+        _x2: i64,
+        _y2: i64,
+        _image: &Image,
+        _options: &ImageOptions,
+    ) -> Result<ImageSearch, String> {
+        Err("the search of a picture is made by the desktop, and this desktop does not read the images of the machine.".to_string())
+    }
+}
+
 /// The network of the desktop.
 ///
 /// A download is a file that comes from the network, and the network is
@@ -411,6 +439,58 @@ pub trait Network {
     fn download(&mut self, _url: &str, _file: &str) -> Result<String, String> {
         Err("the download is made by the desktop, and this desktop does not reach the network.".to_string())
     }
+}
+
+/// The options of a picture.
+///
+/// The options are the ones of v2: the size the picture is loaded at,
+/// and the icon of a file that has many. The runtime reads them, and
+/// the desktop keeps the ones that are about the machine.
+#[derive(Clone, Debug, Default)]
+pub struct PictureOptions {
+    /// The width of the picture, in pixels.
+    pub width: Option<i64>,
+    /// The height of the picture, in pixels.
+    pub height: Option<i64>,
+    /// The icon of a file that has many.
+    pub icon: Option<i64>,
+}
+
+/// The options of a search of the screen for a picture.
+#[derive(Clone, Debug, Default)]
+pub struct ImageOptions {
+    /// How much the colours of the screen may differ from the picture.
+    pub variation: i64,
+    /// The size the picture is looked for at.
+    pub width: Option<i64>,
+    /// The size the picture is looked for at.
+    pub height: Option<i64>,
+    /// The colour of the picture that matches any colour of the screen.
+    pub transparent: Option<String>,
+}
+
+/// The picture of a search.
+///
+/// v2 writes the picture as the name of a file, and it writes the
+/// handle of a picture that was loaded before in the spelling of
+/// Windows: "HBITMAP:*123". The runtime reads both.
+#[derive(Clone, Debug)]
+pub enum Image {
+    /// A picture of a file.
+    File(String),
+    /// A picture that was loaded before.
+    Loaded(u32),
+}
+
+/// The answer of a search of the screen for a picture.
+#[derive(Clone, Debug)]
+pub enum ImageSearch {
+    /// The picture is not on the screen.
+    NotFound,
+    /// The picture is on the screen, at this place.
+    Found(i64, i64),
+    /// The picture could not be loaded.
+    NotLoadable,
 }
 
 /// The sound of the machine.
@@ -676,5 +756,6 @@ pub trait Desktop:
     + Machine
     + Dialogs
     + Network
+    + Pictures
 {
 }

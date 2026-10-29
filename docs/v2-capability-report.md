@@ -2,7 +2,7 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **721 entries** : **508 answer with a value** , **213 are refused** and **none is pending**.
+The surface of the v2.0.19 has **721 entries** : **510 answer with a value** , **211 are refused** and **none is pending**.
 
 The table has **721 entries and 685 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
@@ -14,7 +14,7 @@ The table has **721 entries and 685 distinct names** : a property with a setter 
 | File and directory operations | 96 | 77 | 19 |
 | Hotkeys, hotstrings, and input | 102 | 94 | 8 |
 | GUI windows and window automation | 271 | 139 | 132 |
-| Screen capture and pixel functions | 7 | 4 | 3 |
+| Screen capture and pixel functions | 7 | 6 | 1 |
 | Native function calls (DllCall) | 9 | 8 | 1 |
 | Registry APIs | 11 | 4 | 7 |
 | COM automation (ComObject) | 15 | 0 | 15 |
@@ -24,7 +24,7 @@ The table has **721 entries and 685 distinct names** : a property with a setter 
 | The machine, the processes and the environment | 35 | 20 | 15 |
 | The clipboard | 2 | 1 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **721** | **508** | **213** |
+| **The whole of it** | **721** | **510** | **211** |
 
 ## What the numbers do not say
 
@@ -118,14 +118,12 @@ names that the tree answers.
 
 ## 5. Screen capture and pixel functions
 
-**7 names: 4 answer with a value, 3 are refused.**
+**7 names: 6 answer with a value, 1 is refused.**
 
-**The ones that answer** (4): `PixelGetColor`, `PixelSearch`, `ScreenHeight`, `ScreenWidth`
+**The ones that answer** (6): `ImageSearch`, `LoadPicture`, `PixelGetColor`, `PixelSearch`, `ScreenHeight`, `ScreenWidth`
 
-**The ones that are refused** (3), by the reason:
+**The ones that are refused** (1), by the reason:
 
-- *the search of a picture is made by the desktop, and this desktop does not read the images of the machine.* (1): `ImageSearch`
-- *the picture is read by the desktop, and this desktop does not read the images of the machine.* (1): `LoadPicture`
 - *this desktop does not know the scale of the output.* (1): `ScreenDPI`
 
 ## 6. Native function calls (DllCall)

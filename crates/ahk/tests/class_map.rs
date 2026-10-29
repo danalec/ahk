@@ -4,7 +4,7 @@
 //! answers nothing, because nothing is asked of it.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer, Processes,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
     Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
@@ -16,6 +16,7 @@ use std::time::Duration;
 struct Fake;
 
 impl Desktop for Fake {}
+impl Pictures for Fake {}
 impl Network for Fake {}
 impl Sound for Fake {}
 impl Machine for Fake {}

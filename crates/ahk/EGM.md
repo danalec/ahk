@@ -57,7 +57,7 @@ modules are public, and the symbols below are re-exported from the root.
 | `RuntimeError`, `Timeout` | `runtime` | the two ways a run fails |
 | `precedence` | `parser` | the precedence of the operators, the way v2 has it |
 | `Value` | `runtime` | a value a script can hold |
-| `Desktop` | `desktop` | the machine the runtime drives: the sum of the fourteen capability traits |
+| `Desktop` | `desktop` | the machine the runtime drives: the sum of the fifteen capability traits |
 | `WindowAnswer` | `desktop` | the answer about a window: it is active, it is there, it is not there, or the desktop cannot tell |
 | `Clock` | `runtime` | the clock the runtime measures itself with |
 | `SystemClock` | `runtime` | the clock of a hosted platform, behind the `std` feature |
