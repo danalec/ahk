@@ -440,6 +440,50 @@ table of the v1 follows that rule.
 
 ---
 
+### 1.7 The errors of the v1, and how they are told apart
+
+The v1 tells an error in two ways, and the tree has to tell them the same way.
+Measured on 2026-10-29, on the two binaries.
+
+**A load-time error comes on stderr.** The script does not parse, the binary
+writes the complaint on stderr with the exit code 2, and the line of the
+failure is in it: `* (2) : ==> Missing ")"`. Nothing of the script runs.
+
+**A runtime error is caught by `OnError`.** The v1 registers a callback —
+`OnError("AhkErrorHandler")` , with the name of the function in quotes; the
+old form, a label, is refused. The callback is called only for an error that
+would otherwise show the dialog, and **it cannot be called for a load-time
+error**: `OnError` cannot run before the script has loaded.
+
+The callback receives **the thrown value**. When the value is an object, it
+carries `Message` , `What` , `Extra` , `File` and `Line` , and the `Line` is
+the line of the script that failed. The handler written *after* the script
+gives the exact line, because the functions of a v1 script are hoisted:
+measured, `ComObjCreate("NoSuch.ProgID.1.2")` on the line 2 reaches the
+handler with `line=2`.
+
+When the value is **not** an object — a thrown string — it carries no message
+and no line: the value itself is the error, and the tree has nothing else to
+say about it.
+
+**The v1 is lenient, and the tree must be too.** These are not errors in the
+v1, they are blank results: a variable that was never assigned, an index out
+of range, a property that does not exist, and a division by zero. The
+documentation says it of the last one: *"Division by zero yields a blank
+result"*. Measured: `x / 0` in the v1 gives no error at all, while the same
+line in the v2 throws *"Divide by zero."*.
+
+**The v2, for the comparison.** The v2 has no handler that can be registered
+before the script runs: the only way to take a runtime error is a `try`
+around it. The object that is caught carries `Message` , `Line` and `Stack`
+(the `What` is empty), and it has no methods — `e.GetClass()` opens the
+error dialog itself. A load-time error of the v2 also comes on stderr, with
+the exit code 2.
+
+**The tool that measured this** is `ahk_error` , in the lab server
+(`../yoko-rust`) : it runs the script under the real binary and returns what
+it says, without waiting for the window to be read.
+
 ## 2. The gate: three shapes, and the one that is chosen
 
 ### (a) Compile-time feature — `--features v1`
@@ -718,6 +762,10 @@ v1 uses the two in the same place ( `if (a = b)` compares; `a = b` assigns).
 - The text is everything: the v1 has no integer and float apart, and the
   `Value` of the runtime has them ( `runtime.rs:57-82` ).
 - The classes of the v1: `Object` and the literal `{}` .
+- **The error of the v1** : the `OnError` of the v1 and the object that it
+  receives, the line that it carries and the errors that it cannot see
+  (§1.7) . The v2 catches with a `try` ; the v1 registers a callback, and
+  the callback never sees a load-time error.
 
 **Result.** The `=` and the `%nome%` of a v1 script behave as the measured v1,
 and a v2 script feels nothing.
