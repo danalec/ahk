@@ -47,7 +47,16 @@ pub(crate) const TYPES: [&str; 10] = [
 /// Whether the name is a class type of the runtime.
 pub(crate) fn is_type(name: &str) -> bool {
     let name = name.to_lowercase();
-    TYPES.contains(&name.as_str())
+    TYPES.contains(&name.as_str()) || error::is_a_class(&name)
+}
+
+/// The class a class type of the runtime derives from.
+///
+/// The errors of v2 are a tree of their own: a `PropertyError` is a
+/// `MemberError` and an `UnsetError` as well, and every one of them is
+/// an `Error`. The other classes of the runtime are the root of it.
+pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
+    error::the_base_of(class)
 }
 
 /// The value of a class type: the class itself.
@@ -58,11 +67,7 @@ pub(crate) fn class_value(name: &str) -> Value {
     let mut table = BTreeMap::new();
     // The name of the class is the one v2 spells: the name of the
     // runtime carries it in lower case.
-    let mut spelled = name.to_string();
-    if let Some(first) = spelled.get_mut(0..1) {
-        first.make_ascii_uppercase();
-    }
-    table.insert("name".to_string(), Value::Text(spelled));
+    table.insert("name".to_string(), Value::Text(the_spelling_of(name)));
     table.insert("prototype".to_string(), crate::runtime::prototype_value(name));
     Value::Object(Rc::new(RefCell::new(Object {
         class: name.to_lowercase(),
@@ -90,6 +95,21 @@ pub(crate) fn object_with(class: &str, properties: Vec<(&str, Value)>) -> Value 
     })))
 }
 
+/// The name of a class of the runtime, the way v2 spells it.
+///
+/// The classes of the errors have a spelling of their own: `TypeError`,
+/// and not `Typeerror`.
+pub(crate) fn the_spelling_of(name: &str) -> String {
+    if let Some(spelled) = error::the_spelling_of(name) {
+        return spelled;
+    }
+    let mut spelled = name.to_string();
+    if let Some(first) = spelled.get_mut(0..1) {
+        first.make_ascii_uppercase();
+    }
+    spelled
+}
+
 /// The object a class type makes.
 ///
 /// `None` means the name is not a class type of the runtime.
@@ -99,10 +119,14 @@ pub(crate) fn construct(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // The errors of v2 are a tree of classes, and every one of them is
+    // made the way the root of it is.
+    if error::is_a_class(class) {
+        return Some(error::construct(class, arguments, rt, line));
+    }
     match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
         "buffer" => Some(buffer::construct(arguments, rt, line)),
-        "error" => Some(error::construct(arguments, rt, line)),
         "file" => Some(file::construct(arguments, rt, line)),
         "func" => Some(func::construct(arguments, rt, line)),
         "hotkey" => Some(hotkey::construct(arguments, rt, line)),
@@ -269,6 +293,9 @@ pub(crate) fn set_item(
 /// told apart by the module that owns the class. The names are in lower
 /// case, the way the script spells them.
 pub fn names(class: &str) -> Vec<&'static str> {
+    if error::is_a_class(class) {
+        return error::names();
+    }
     match class.to_lowercase().as_str() {
         "array" => array::names(),
         "buffer" => buffer::names(),

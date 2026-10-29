@@ -265,6 +265,22 @@ the box: it does no I/O, and it has to keep building without `std`.
   is missing in its `Extra`, or the name of the method. A runtime error
   in an expression carries no name at all. The stack of v2 is not
   carried: the script of the runner has no file.
+- **The errors of v2 are a tree of classes.** Measured on the binary of
+  v2.0.19 on 2026-10-29: the classes are `Error`, `MemoryError`,
+  `OSError`, `TargetError`, `TimeoutError`, `TypeError`, `UnsetError`,
+  `MemberError`, `PropertyError`, `MethodError`, `UnsetItemError`,
+  `ValueError`, `IndexError` and `ZeroDivisionError`, and every one of
+  them is made the way `Error` is: `TypeError(Message, What, Extra)`. A
+  message that is not given is the name of the class, and the name of
+  the class is the one of v2: `TypeError`, and not `Typeerror`.
+- **A failure of v2 is of a class of its own.** Measured on the binary of
+  v2.0.19 on 2026-10-29: a property that is not there is an `UnsetError`,
+  a `MemberError` and a `PropertyError` at the same time, and an index
+  that is out of range is a `ValueError` and an `IndexError`. The classes
+  derive from one another, and every one of them is an `Error`. The tree
+  carries the classes and the tree of them, and the failures of the
+  runtime are still of the class `Error`: the class of a failure is not
+  carried yet.
 - **A method of the script is a value.** Measured on the binary of v2.0.19
   on 2026-10-30: `t.Method` hands over a function whose name is
   "Thing.Prototype.Method", and the reference is the method itself: the
@@ -437,11 +453,12 @@ the wrong names with it.
   carry the same six properties --- `Message` , `What` , `Extra` , `File` ,
   `Line` and `Stack` . The tree carries the `Menu` --- it is the menu of a
   window, and it refuses with the reason of the windows --- and it carries
-  none of the other eight: `ComObject("Shell.Application")` and
-  `TypeError("boom")` both fail with *"Call to nonexistent function."* .
-  The `Error` itself is not in the table either, and the tree carries it
-  since 2026-10-30: `Error(Message, What, Extra)` makes an error, and the
-  catch holds it. The stack of v2 is not carried.
+  the classes of the errors since 2026-10-29: `TypeError("boom")` makes an
+  error of the class `TypeError`. It carries none of the `ComObject`:
+  `ComObject("Shell.Application")` still fails with *"Call to nonexistent
+  function."* . The `Error` itself is not in the table either, and the tree
+  carries it since 2026-10-30: `Error(Message, What, Extra)` makes an
+  error, and the catch holds it. The stack of v2 is not carried.
 
 The lesson is in the tree now: the probe of `tests/class_surface.rs` asks
 the tree what it answers, and the answer is what counts -- not the

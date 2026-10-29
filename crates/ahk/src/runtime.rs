@@ -2156,11 +2156,13 @@ impl<'a> Runtime<'a> {
                 break;
             }
             chain.push(class.clone());
-            current = self
-                .classes
-                .get(&class)
-                .and_then(|definition| definition.extends.clone())
-                .map(|base| base.to_lowercase());
+            current = match self.classes.get(&class) {
+                Some(definition) => definition.extends.clone().map(|base| base.to_lowercase()),
+                // The class types of the runtime have their own bases: the
+                // errors of v2 are a tree, and every one of them is an
+                // `Error`.
+                None => crate::classes::the_base_of(&class).map(|base| base.to_string()),
+            };
         }
         chain
     }
