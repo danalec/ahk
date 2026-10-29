@@ -1049,7 +1049,7 @@ fn str_compare_says_which_text_comes_first() {
         "\nb := StrCompare(\"b\", \"a\")",
         "\nc := StrCompare(\"a\", \"a\")",
         "\nd := StrCompare(\"A\", \"a\")",
-        "\ne := StrCompare(\"A\", \"a\", \"On\")",
+        "\ne := StrCompare(\"A\", \"a\", true)",
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "a"), Value::Int(-1));
@@ -1058,6 +1058,23 @@ fn str_compare_says_which_text_comes_first() {
     // The case is not looked at, unless the caller asks for it.
     assert_eq!(value_of(&report, "d"), Value::Int(0));
     assert_eq!(value_of(&report, "e"), Value::Int(-1));
+}
+
+#[test]
+fn the_case_sense_wants_a_boolean() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the sense of the case
+    // is a boolean, and a text is not a value that the parameter can take.
+    for (source, message) in [
+        ("a := StrCompare(\"a\", \"A\", \"On\")", "Parameter #3 of StrCompare is invalid."),
+        ("a := StrReplace(\"a\", \"a\", \"b\", \"On\")", "Parameter #4 of StrReplace is invalid."),
+        ("a := InStr(\"a\", \"a\", \"On\")", "Parameter #3 of InStr is invalid."),
+        ("a := StrCompare(\"a\", \"A\", 3)", "Parameter #3 of StrCompare is invalid."),
+        ("a := StrReplace(\"a\", \"a\", \"b\", 3)", "Parameter #4 of StrReplace is invalid."),
+        ("a := InStr(\"a\", \"a\", 1.0)", "Parameter #3 of InStr is invalid."),
+    ] {
+        let report = run(source);
+        assert_eq!(failure_of(&report), message, "{source}");
+    }
 }
 
 #[test]
@@ -1089,14 +1106,44 @@ fn in_str_says_where_the_needle_is() {
     let report = run(concat!(
         "a := InStr(\"hello\", \"ll\")",
         "\nb := InStr(\"hello\", \"z\")",
-        "\nc := InStr(\"hello\", \"l\", 3)",
-        "\nd := InStr(\"hello\", \"l\", 1, 4)",
+        "\nc := InStr(\"hello\", \"l\", 1)",
+        "\nd := InStr(\"hello\", \"l\", true, 4)",
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "a"), Value::Int(3));
     assert_eq!(value_of(&report, "b"), Value::Int(0));
+    // Measured on the binary of v2.0.19 on 2026-10-31: the third parameter is
+    // the sense of the case and the fourth is the place where the search
+    // begins.
     assert_eq!(value_of(&report, "c"), Value::Int(3));
-    assert_eq!(value_of(&report, "d"), Value::Int(3));
+    assert_eq!(value_of(&report, "d"), Value::Int(4));
+}
+
+#[test]
+fn in_str_counts_the_occurrences() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the fifth parameter is
+    // the occurrence that the caller wants, and zero is not one.
+    let report = run(concat!(
+        "a := InStr(\"abcabc\", \"b\", true, 1, 1)",
+        "\nb := InStr(\"abcabc\", \"b\", true, 1, 2)",
+        "\nc := InStr(\"abcabc\", \"b\", true, 1, 3)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(2));
+    assert_eq!(value_of(&report, "b"), Value::Int(5));
+    assert_eq!(value_of(&report, "c"), Value::Int(0));
+}
+
+#[test]
+fn the_occurrence_of_the_needle_wants_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    let report = run("a := InStr(\"abcabc\", \"b\", true, 1, 0)");
+    assert_eq!(failure_of(&report), "Parameter #5 of InStr is invalid.");
+    let report = run("a := InStr(\"abcabc\", \"b\", true, 1, \"x\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #5 of InStr requires a Number, but received a String."
+    );
 }
 
 #[test]
@@ -1166,9 +1213,12 @@ fn var_set_str_capacity_answers_the_capacity() {
 }
 
 #[test]
-fn str_replace_with_an_empty_needle_fails() {
+fn str_replace_with_an_empty_needle_changes_nothing() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a needle that is
+    // empty changes nothing, and the text comes back as it is.
     let report = run("a := StrReplace(\"hello\", \"\", \"x\")");
-    assert_eq!(failure_of(&report), "Parameter #2 of StrReplace is invalid.");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("hello".into()));
 }
 
 #[test]

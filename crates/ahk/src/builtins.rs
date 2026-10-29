@@ -1639,13 +1639,18 @@ fn integer_argument(values: &[Value], index: usize, line: u32) -> Result<i64, Ru
 /// Whether the case sense says that the letters are to be taken as they
 /// are.
 ///
-/// The sense is on when it says "On", and the number one is the same
-/// thing, the way the booleans of AutoHotkey are ones and zeros.
-fn case_sense(values: &[Value], index: usize) -> bool {
+/// Measured on the binary of v2.0.19 on 2026-10-31: the parameter wants a
+/// boolean, and a boolean of AutoHotkey is a zero or a one. A number that
+/// is another one, a float and a text are not values that the parameter can
+/// take, and the name of the built-in says which one it is.
+fn case_sense(values: &[Value], index: usize, name: &str, line: u32) -> Result<bool, RuntimeError> {
     match values.get(index) {
-        Some(Value::Text(text)) => text.eq_ignore_ascii_case("on"),
-        Some(Value::Int(number)) => *number != 0,
-        _ => false,
+        Some(Value::Int(number)) if *number == 0 || *number == 1 => Ok(*number == 1),
+        None => Ok(false),
+        Some(_) => Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(index + 1, name),
+            line,
+        }),
     }
 }
 
@@ -2038,25 +2043,53 @@ fn in_str(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> R
     if needle.is_empty() {
         return Err(RuntimeError { message: crate::runtime::invalid_parameter(2, "InStr"), line });
     }
-    let start = match values.get(2).and_then(|value| value.to_number()) {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the sense of the case
+    // is the third parameter, the place where the search begins is the
+    // fourth, and the occurrence that the caller wants is the fifth. The end
+    // of the search is not a parameter of v2.
+    let case_sensitive = case_sense(values, 2, "InStr", line)?;
+    let start = match values.get(3).and_then(|value| value.to_number()) {
         Some(start) => (start.max(1.0) as usize - 1).min(haystack.len()),
         None => 0,
     };
-    let end = match values.get(3).and_then(|value| value.to_number()) {
-        Some(end) => (end.max(0.0) as usize).min(haystack.len()),
-        None => haystack.len(),
+    let occurrence = match values.get(4) {
+        None => 1usize,
+        Some(value) => {
+            let Some(number) = value.to_number() else {
+                return Err(RuntimeError {
+                    message: crate::runtime::requires(
+                        5,
+                        "InStr",
+                        crate::runtime::TypeName::Number,
+                        value,
+                    ),
+                    line,
+                });
+            };
+            if number < 1.0 {
+                return Err(RuntimeError {
+                    message: crate::runtime::invalid_parameter(5, "InStr"),
+                    line,
+                });
+            }
+            number as usize
+        }
     };
-    let case_sensitive = case_sense(values, 4);
+    let end = haystack.len();
     if end < start || end - start < needle.len() {
         return Ok(Value::Int(0));
     }
+    let mut found = 0usize;
     for at in start..=(end - needle.len()) {
         let same = haystack[at..at + needle.len()]
             .iter()
             .zip(needle.iter())
             .all(|(left, right)| same_letter(*left, *right, case_sensitive));
         if same {
-            return Ok(Value::Int(at as i64 + 1));
+            found += 1;
+            if found == occurrence {
+                return Ok(Value::Int(at as i64 + 1));
+            }
         }
     }
     Ok(Value::Int(0))
@@ -2100,10 +2133,10 @@ fn sort(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Res
 ///
 /// The answer is -1, 0 or 1, and the case sense says whether the letters
 /// are taken as they are.
-fn str_compare(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+fn str_compare(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let left = text_of(values, 0);
     let right = text_of(values, 1);
-    let order = compare_texts(&left, &right, case_sense(values, 2));
+    let order = compare_texts(&left, &right, case_sense(values, 2, "StrCompare", line)?);
     Ok(Value::Int(match order {
         Ordering::Less => -1,
         Ordering::Equal => 0,
@@ -2134,15 +2167,14 @@ fn str_replace(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) 
     let haystack = text_argument("StrReplace", values, 0, line)?;
     let needle = text_argument("StrReplace", values, 1, line)?;
     let replacement = text_argument("StrReplace", values, 2, line)?;
-    let case_sensitive = case_sense(values, 3);
+    let case_sensitive = case_sense(values, 3, "StrReplace", line)?;
     let limit = number_of(values, 5) as i64;
-    if needle.is_empty() {
-        return Err(RuntimeError { message: crate::runtime::invalid_parameter(2, "StrReplace"), line });
-    }
     let mut out = String::with_capacity(haystack.len());
     let mut rest = haystack.as_str();
     let mut replaced = 0i64;
-    loop {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a needle that is
+    // empty changes nothing, and the text comes back as it is.
+    while !needle.is_empty() {
         let found = if case_sensitive {
             rest.find(needle.as_str())
         } else {

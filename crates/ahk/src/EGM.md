@@ -246,6 +246,10 @@ The interpreter and everything it reports:
 | `WindowAnswer` | `Active`, `NotActive`, `Unknown(String)` -- and the third case is the point |
 | `op_name(&Node) -> &'static str` | the name of a statement, for the report |
 
+The built-ins that have a sense of the case want a boolean: a zero or a one.
+A number that is another one, a float and a text are refused, and the name
+of the built-in says which parameter it is.
+
 The scope of the runtime is shared: a function that is written inside another
 one closes over the scope of the one around it, and the write of the closure
 is seen by the scope it closes over. A name that the scope around the call

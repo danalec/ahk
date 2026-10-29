@@ -2611,3 +2611,33 @@ opens it at the end of its line, and the body begins on the next one. The
 tree takes `f() { x := 1 }`, and v2 refuses it with "Unexpected \"{\"".
 
 Seventeen of the load errors are the same in the tree and in the dialect.
+
+## 49. The case sense of v2 is a boolean, and the built-ins have the shape of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the built-ins that have a
+sense of the case took a text and made of it what they could, and the shape
+of `InStr` was the one of v1.
+
+- **The sense of the case is a boolean.** A boolean of AutoHotkey is a zero
+  or a one: a number that is another one, a float and a text are refused
+  with "Parameter #3 of StrCompare is invalid.", and the name of the built-in
+  says which parameter it is.
+- **The sense of the case comes before the place.**
+  `InStr(Haystack, Needle, CaseSense?, Offset?, Occurrence?)`: the third
+  parameter is the case, the fourth is the place where the search begins,
+  and the fifth is the occurrence that the caller wants. The end of the
+  search is not a parameter of v2.
+- **The occurrence is a number that is not zero.** The third occurrence of a
+  needle that is there twice is zero, and a zero that is asked for is
+  refused: "Parameter #5 of InStr is invalid.".
+- **A needle that is empty changes nothing.** `StrReplace("hello", "", "x")`
+  hands the text back as it is, and the number of the swaps is zero.
+- **The default of the case is off.** The letters are not looked at, unless
+  the caller asks for it.
+
+One difference is left, and it is small: v2 puts no name in the `What` of the
+failure that wants a variable reference, and the tree puts the name of the
+built-in there.
+
+Ten cases of the booleans, nine of the case sense and ten of the replace are
+the same in the tree and in the dialect.
