@@ -1723,10 +1723,10 @@ impl<'a> Runtime<'a> {
             Some(value) => self.assign(name, value),
             None => match self.scopes.last_mut() {
                 Some(scope) => {
-                    scope.remove(name);
+                    scope.remove(the_key_of(name).as_str());
                 }
                 None => {
-                    self.variables.remove(name);
+                    self.variables.remove(the_key_of(name).as_str());
                 }
             },
         }
@@ -1910,8 +1910,9 @@ impl<'a> Runtime<'a> {
     /// A parameter that is an alias of a variable of the caller reads
     /// that variable: the alias and the variable are the same thing.
     fn lookup_variable(&self, name: &str) -> Option<Value> {
+        let name = the_key_of(name);
         for scope in self.scopes.iter().rev() {
-            match scope.get(name) {
+            match scope.get(&name) {
                 Some(Value::Reference(reference)) if reference.alias => {
                     return self.read_reference(reference);
                 }
@@ -1919,7 +1920,7 @@ impl<'a> Runtime<'a> {
                 None => continue,
             }
         }
-        self.variables.get(name).cloned()
+        self.variables.get(&name).cloned()
     }
 
     /// The alias of this name, if the name is one.
@@ -1927,8 +1928,9 @@ impl<'a> Runtime<'a> {
     /// A parameter written `&x` in the definition of a function is an
     /// alias of the variable of the caller.
     fn alias_of(&self, name: &str) -> Option<&Reference> {
+        let name = the_key_of(name);
         for scope in self.scopes.iter().rev() {
-            if let Some(value) = scope.get(name) {
+            if let Some(value) = scope.get(&name) {
                 if let Value::Reference(reference) = value {
                     if reference.alias {
                         return Some(reference);
@@ -1945,9 +1947,10 @@ impl<'a> Runtime<'a> {
     /// The answer is nothing when the variable has no value: that is the
     /// difference between a variable that is set and one that is not.
     pub(crate) fn read_reference(&self, reference: &Reference) -> Option<Value> {
+        let name = the_key_of(&reference.name);
         match reference.scope {
-            Scope::Global => self.variables.get(&reference.name).cloned(),
-            Scope::Local(depth) => self.scopes.get(depth)?.get(&reference.name).cloned(),
+            Scope::Global => self.variables.get(&name).cloned(),
+            Scope::Local(depth) => self.scopes.get(depth)?.get(&name).cloned(),
         }
     }
 
@@ -1957,13 +1960,14 @@ impl<'a> Runtime<'a> {
     /// it was given by reference.
     pub(crate) fn write_reference(&mut self, value: &Value, written: Value) {
         let Value::Reference(reference) = value else { return };
+        let name = the_key_of(&reference.name);
         match reference.scope {
             Scope::Global => {
-                self.variables.insert(reference.name.clone(), written);
+                self.variables.insert(name, written);
             }
             Scope::Local(depth) => {
                 if let Some(scope) = self.scopes.get_mut(depth) {
-                    scope.insert(reference.name.clone(), written);
+                    scope.insert(name, written);
                 }
             }
         }
@@ -1980,12 +1984,13 @@ impl<'a> Runtime<'a> {
             self.write_reference(&Value::Reference(reference), value);
             return;
         }
+        let name = the_key_of(name);
         match self.scopes.last_mut() {
             Some(scope) => {
-                scope.insert(name.to_string(), value);
+                scope.insert(name, value);
             }
             None => {
-                self.variables.insert(name.to_string(), value);
+                self.variables.insert(name, value);
             }
         }
     }
@@ -2181,10 +2186,10 @@ impl<'a> Runtime<'a> {
                 };
                 let mut alias = reference;
                 alias.alias = true;
-                scope.insert(parameter.name.clone(), Value::Reference(alias));
+                scope.insert(the_key_of(&parameter.name), Value::Reference(alias));
                 continue;
             }
-            scope.insert(parameter.name.clone(), value);
+            scope.insert(the_key_of(&parameter.name), value);
         }
         // The parameter that takes the rest of the arguments takes them as
         // an array, the way v2 has it.
@@ -2194,7 +2199,7 @@ impl<'a> Runtime<'a> {
                 Some(result) => result?,
                 None => Value::List(rest),
             };
-            scope.insert(method.parameters[index].name.clone(), array);
+            scope.insert(the_key_of(&method.parameters[index].name), array);
         }
         self.enter_call(line)?;
         self.scopes.push(scope);
@@ -2759,10 +2764,10 @@ impl<'a> Runtime<'a> {
                 };
                 let mut alias = reference;
                 alias.alias = true;
-                scope.insert(parameter.name.clone(), Value::Reference(alias));
+                scope.insert(the_key_of(&parameter.name), Value::Reference(alias));
                 continue;
             }
-            scope.insert(parameter.name.clone(), value);
+            scope.insert(the_key_of(&parameter.name), value);
         }
         // The parameter that takes the rest of the arguments takes them as
         // an array, the way v2 has it.
@@ -2772,7 +2777,7 @@ impl<'a> Runtime<'a> {
                 Some(result) => result?,
                 None => Value::List(rest),
             };
-            scope.insert(function.parameters[index].name.clone(), array);
+            scope.insert(the_key_of(&function.parameters[index].name), array);
         }
         self.enter_call(line)?;
         self.scopes.push(scope);
@@ -3159,7 +3164,7 @@ impl<'a> Runtime<'a> {
 
     /// A variable of the script, by name.
     pub(crate) fn set_global(&mut self, name: &str, value: Value) {
-        self.variables.insert(name.to_string(), value);
+        self.variables.insert(the_key_of(name), value);
     }
 
     /// A line of the report, from the script.
@@ -4098,6 +4103,15 @@ fn the_message_of(failure: &RuntimeFailure) -> String {
 /// The number of a property of an object, when it has one.
 fn number_of(properties: &BTreeMap<String, Value>, name: &str) -> i64 {
     properties.get(name).map(|value| value.to_number().unwrap_or(0.0) as i64).unwrap_or(0)
+}
+
+/// The key of a variable, as the tree keeps it.
+///
+/// The dialect does not know the case of the names: `x` and `X` are the
+/// same variable. The names of the functions were in lower case already;
+/// the variables are like them now.
+fn the_key_of(name: &str) -> String {
+    name.to_lowercase()
 }
 
 /// The message of a value that was thrown and that nobody caught.

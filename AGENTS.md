@@ -2007,3 +2007,21 @@ script, so a method and a bound function are not callbacks the tree can take
 (the `Bind` of the class `Func` refuses too). And the error object of the
 runtime has an empty `What` and an empty `Extra`: the tree's error does not
 name the built-in that failed and does not carry the value it was given.
+
+## 37. The names of the script do not know their case
+
+The tree kept the variables as they were written, and the dialect does not
+know the case of the names: `x` and `X` are the same variable.
+
+- **The key of a variable is in lower case.** `the_key_of` in `runtime.rs` is
+  the one that writes it, and the lookup, the assignment, the restore of a
+  loop and the reference of a variable all go through it.
+- **The names of the functions were already in lower case**, and the
+  parameters of a function and of a method are like them now.
+- **The report carries the names in lower case**, because the report is the
+  table of the variables of the script.
+
+Measured on the binary of v2.0.19 on 2026-10-30: `x := 1` and then `X`
+answers 1, `X := 2` writes the variable `x`, a parameter read in another
+case is the same parameter, and a global declared in another case is the
+same global.

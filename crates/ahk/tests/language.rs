@@ -1688,3 +1688,26 @@ fn a_catch_of_a_class_that_the_tree_does_not_know_fails_with_the_reason() {
         Some("the class of a catch is not a class of this runtime: NoSuchClass")
     );
 }
+
+#[test]
+fn the_names_of_the_variables_are_the_names_of_the_dialect() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the dialect does
+    // not know the case of the names.
+    let (report, _) = run("x := 1\nMsgBox X\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_variable_written_in_another_case_is_the_same_variable() {
+    let (report, _) = run("x := 1\nX := 2\nMsgBox x\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn a_parameter_read_in_another_case_is_the_same_parameter() {
+    let (report, _) = run("f(p) {\n  return P\n}\nMsgBox f(\"the parameter\")\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the parameter"]);
+}
