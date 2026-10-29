@@ -33,7 +33,7 @@ const KNOWN: [char; 4] = ['R', 'A', 'N', 'D'];
 impl ahk::desktop::Files for LabDesktop {
     fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
         let mut options = std::fs::OpenOptions::new();
-        match mode {
+        match mode.to_lowercase().as_str() {
             "r" => {
                 options.read(true);
             }
@@ -46,7 +46,7 @@ impl ahk::desktop::Files for LabDesktop {
             "rw" | "r+" => {
                 options.read(true).write(true).create(true);
             }
-            other => return Err(format!("the mode {other:?} is not one this desktop knows")),
+            _ => return Err(format!("the mode {mode:?} is not one this desktop knows")),
         }
         let file = options.open(path).map_err(|error| error.to_string())?;
         self.files.push(Some(file));

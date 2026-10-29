@@ -1774,3 +1774,36 @@ fn a_desktop_that_cannot_make_a_native_call_fails_with_the_reason() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert_eq!(failure_of(&report), "this desktop cannot make a native call.");
 }
+
+#[test]
+fn the_failure_of_a_built_in_names_the_built_in() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the failure of a
+    // built-in carries the name of it in the `What`, and the value of the
+    // parameter that failed in the `Extra`.
+    let report = run(
+        "try {\n    x := Chr(-1)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Parameter #1 of Chr is invalid. | Chr | -1"]);
+}
+
+#[test]
+fn the_failure_of_a_built_in_that_wants_a_number_carries_the_value() {
+    let report = run(
+        "try {\n    x := Round(\"abc\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of Round requires a Number, but received a String. | Round | abc"]
+    );
+}
+
+#[test]
+fn the_failure_of_a_built_in_is_of_the_class_of_v2() {
+    let report = run(
+        "try {\n    x := Chr(-1)\n} catch Any as e {\n    MsgBox e is ValueError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}

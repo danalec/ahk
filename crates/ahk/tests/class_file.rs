@@ -55,7 +55,9 @@ impl Files for Fake {
         match mode {
             "r" => {
                 if !self.disk.contains_key(path) {
-                    return Err(format!("the file {path:?} is not there."));
+                    // The machine says the code of the system in front of
+                    // what it says, and v2 reads it that way.
+                    return Err("(2) The system cannot find the file specified.".to_string());
                 }
             }
             "w" => {
@@ -320,7 +322,7 @@ fn a_file_that_is_not_there_fails() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("the file \"nope.txt\" is not there.")
+        Some("(2) The system cannot find the file specified.")
     );
     assert_eq!(report.error_line, Some(1));
 }
@@ -431,4 +433,35 @@ fn the_inside_of_a_file_is_not_a_property_of_it() {
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec![" 0"]);
+}
+
+#[test]
+fn the_failure_of_a_file_that_is_not_there_is_of_the_class_of_the_system() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the failure of
+    // the machine is of the class `OSError`, and its message is the code
+    // of the system in front of what it says.
+    let mut desktop = Fake::default();
+    let report = run(
+        &mut desktop,
+        "try {\n    f := FileOpen(\"nope.txt\", \"r\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What\n    MsgBox e is OSError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "(2) The system cannot find the file specified. | FileOpen",
+            "1",
+        ]
+    );
+}
+
+#[test]
+fn the_failure_of_a_mode_that_is_not_one_is_of_the_class_of_a_value() {
+    let mut desktop = Fake::default();
+    let report = run(
+        &mut desktop,
+        "try {\n    f := FileOpen(\"nope.txt\", \"zz\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What\n    MsgBox e is ValueError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Invalid parameter(s). | FileOpen", "1"]);
 }

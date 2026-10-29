@@ -276,6 +276,13 @@ the box: it does no I/O, and it has to keep building without `std`.
   the `What`: "Map.Prototype.Get". The call of the `Call` method of a
   value carries that method in the `What`: "Func.Prototype.Call". The
   numbers of the arguments are in `classes::CALLS`.
+- **The failure of a built-in names the built-in.** Measured on the
+  binary of v2.0.19 on 2026-10-30: the failure of a built-in carries the
+  name of it in the `What` -- "Chr", "FileOpen", "WinActivate" -- and the
+  value of the parameter that failed in the `Extra`: "Parameter #1 of
+  Chr is invalid." carries "-1". The failure of the machine is of the
+  class `OSError`, and its message is the code of the system in front of
+  what it says: "(2) The system cannot find the file specified.".
 - **The errors of v2 are a tree of classes.** Measured on the binary of
   v2.0.19 on 2026-10-29: the classes are `Error`, `MemoryError`,
   `OSError`, `TargetError`, `TimeoutError`, `TypeError`, `UnsetError`,

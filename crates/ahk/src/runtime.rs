@@ -3708,7 +3708,16 @@ impl<'a> Runtime<'a> {
                 return Err(RuntimeFailure::Error(RuntimeError { message, line }));
             }
         }
-        (builtin.handler)(self, values, line, builtin.variant).map_err(RuntimeFailure::Error)
+        (builtin.handler)(self, values, line, builtin.variant).map_err(|error| {
+            // The failure of a built-in carries the name of the built-in
+            // in the `What`, and the value of the parameter that failed
+            // in the `Extra`.
+            let extra = the_parameter_that_failed(&error.message, values);
+            RuntimeFailure::Detailed(
+                error,
+                Detail { what: builtin.name.to_string(), extra },
+            )
+        })
     }
 
     /// The desktop the script drives.
@@ -4820,6 +4829,27 @@ fn class_value(name: &str, class: &Class) -> Value {
     );
     properties.insert("prototype".to_string(), prototype_value(&class.name));
     Value::Object(Rc::new(RefCell::new(Object { class: name.to_lowercase(), properties })))
+}
+
+/// The value of the parameter that a failure names.
+///
+/// v2 carries the value that a built-in complained about in the `Extra`
+/// of the error: the message names the parameter, and the value is the
+/// one that was given to it.
+fn the_parameter_that_failed(message: &str, values: &[Value]) -> String {
+    let Some(rest) = message.strip_prefix("Parameter #") else {
+        return String::new();
+    };
+    let Some((number, _)) = rest.split_once(" of ") else {
+        return String::new();
+    };
+    let Ok(number) = number.parse::<usize>() else {
+        return String::new();
+    };
+    values
+        .get(number.saturating_sub(1))
+        .map(|value| value.to_text())
+        .unwrap_or_default()
 }
 
 /// The prototype of a class: the object that holds its methods.

@@ -80,6 +80,11 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
     if message == "Divide by zero." {
         return "ZeroDivisionError";
     }
+    // The message of the machine is the code of the system and what it
+    // says: "(2) The system cannot find the file specified."
+    if message.starts_with('(') {
+        return "OSError";
+    }
     if message.contains("has no property named") {
         return "PropertyError";
     }
@@ -93,6 +98,9 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
         return "IndexError";
     }
     if message == "Invalid value." || message.ends_with(" is invalid.") {
+        return "ValueError";
+    }
+    if message == "Invalid parameter(s)." {
         return "ValueError";
     }
     if message.starts_with("Expected a ")

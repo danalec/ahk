@@ -213,8 +213,29 @@ pub(crate) fn item(
 // -- the state ------------------------------------------------------------------
 
 /// The failure of a file, with the line the script was on.
+///
+/// The reason of the machine carries the code of the system at its end,
+/// and v2 puts it in front.
 fn fail(message: impl Into<String>, line: u32) -> RuntimeFailure {
-    RuntimeFailure::Error(RuntimeError { message: message.into(), line })
+    let message = message.into();
+    RuntimeFailure::Error(RuntimeError { message: the_reason_of_the_machine(&message), line })
+}
+
+/// The reason of the machine, the way v2 writes it.
+///
+/// v2 puts the code of the system in front of what it says: "(2) The
+/// system cannot find the file specified."
+fn the_reason_of_the_machine(reason: &str) -> String {
+    let Some(without_the_bracket) = reason.strip_suffix(')') else {
+        return reason.to_string();
+    };
+    let Some((message, number)) = without_the_bracket.rsplit_once(" (os error ") else {
+        return reason.to_string();
+    };
+    match number.parse::<i64>() {
+        Ok(number) => format!("({number}) {message}"),
+        Err(_) => reason.to_string(),
+    }
 }
 
 /// The whole number an argument holds.
@@ -309,6 +330,11 @@ fn open(arguments: &[Value], rt: &mut Runtime, line: u32) -> Result<File, Runtim
         Some(value) => value.to_text(),
         None => "r".to_string(),
     };
+    // The modes of v2 are "r", "w", "a" and "rw", and the case of the
+    // letters is not the case of the words.
+    if !matches!(mode.to_lowercase().as_str(), "r" | "w" | "a" | "rw") {
+        return Err(fail("Invalid parameter(s).", line));
+    }
     let encoding = match arguments.get(2) {
         Some(value) => Encoding::of(&value.to_text()).map_err(|reason| fail(reason, line))?,
         None => Encoding::Utf8,
