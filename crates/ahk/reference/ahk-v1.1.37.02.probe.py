@@ -33,6 +33,7 @@ import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from html import unescape
 
 NOT_ACTION = "does not contain a recognized action"
 NO_FUNCTION = "Call to nonexistent function"
@@ -85,6 +86,81 @@ def names_of_the_docs(chm):
     variables = sorted(set(re.findall(r"\bA_[A-Za-z][A-Za-z0-9_]*\b", variables_page)))
     commands = ["#" + stem[1:] if stem.startswith("_") else stem for stem in sorted(pages)]
     return commands, variables
+
+
+# The words of the documentation that say what a name is for. The name
+# that a command writes into is an Output; the name that it reads from is
+# a Variable; the name of something else -- an environment variable, a
+# window -- is a Value, because it is not a variable of the script.
+OUTPUT_WORD = re.compile(r"output variable|in which to store", re.I)
+READ_WORD = re.compile(r"the name of the (input )?variable|name of the input variable", re.I)
+ILLEGAL_NAME = re.compile(r'illegal character:\s*""?([A-Za-z_]\w*)""?')
+
+
+def syntaxes_of(text):
+    """The syntax lines of a page, in the order of the page."""
+    lines = []
+    for block in re.findall(r'<pre class="Syntax">(.*?)</pre>', text, re.S):
+        clean = unescape(re.sub(r"<[^>]+>", "", block))
+        for line in clean.splitlines():
+            line = " ".join(line.split())
+            if line:
+                lines.append(line)
+    return lines
+
+
+def parameters_of(text):
+    """The parameters of a page: the name of each one and what it says."""
+    found = []
+    for match in re.finditer(r"<dt>(.*?)</dt>\s*<dd>(.*?)</dd>", text, re.S):
+        name = unescape(re.sub(r"<[^>]+>", "", match.group(1))).strip()
+        said = " ".join(unescape(re.sub(r"<[^>]+>", " ", match.group(2))).split())
+        found.append((name, said))
+    return found
+
+
+def parameters_of_a_syntax(line, kind):
+    """The names of the parameters of a syntax line, in order."""
+    if kind == "function":
+        inside = line[line.find("(") + 1:line.rfind(")")]
+        return [part.strip() for part in inside.split(",") if part.strip()]
+    parts = [part.strip() for part in line.split(",")]
+    if len(parts) > 1:
+        return parts[1:]
+    # The new form of a command: `Send Keys` -- the name and the first
+    # parameter share the line, and there is no comma to split on.
+    words = line.split(None, 1)
+    return [words[1].strip()] if len(words) > 1 else []
+
+
+def syntax_for(syntaxes, name, kind):
+    """The syntax line of the form that the kind asks for.
+
+    A page may carry several: `ControlGet` has sixteen, and
+    `GetKeyState` has both a command and a function.
+    """
+    if kind == "command":
+        # The name of a command is followed by a comma in the syntax of
+        # the v1 (`StringLen, OutputVar, InputVar`), and the new form
+        # carries the first parameter on the same line (`Send Keys`).
+        chosen = [line for line in syntaxes
+                  if line.split() and line.split()[0].rstrip(",") == name]
+    else:
+        chosen = [line for line in syntaxes if re.search(r"\b%s\s*\(" % re.escape(name), line)]
+    if not chosen:
+        chosen = syntaxes
+    # The variant with the most parameters: the others are shorter forms
+    # of the same one.
+    return max(chosen, key=lambda line: len(line.split(",")))
+
+
+def pages_of(chm):
+    """The syntax and the parameters of every page of the documentation."""
+    pages = {}
+    for page in (chm / "docs" / "lib").glob("*.htm"):
+        text = page.read_text(encoding="utf-8", errors="replace")
+        pages[page.stem] = (syntaxes_of(text), parameters_of(text))
+    return pages
 
 
 class Probe:
@@ -164,6 +240,35 @@ class Probe:
             return True, msg
         return False, msg
 
+    def shape(self, name, count):
+        """The positions of the parameters that want the name of a variable.
+
+        The v1 checks a command at load time, and the complaint names the
+        parameter that is wrong: a quoted string is not the name of a
+        variable. Each position gets a text of its own, so the complaint
+        says which one it is, and the probe goes on with the next.
+
+        The answer is the list of the positions, and whether the question
+        was conclusive: a command that wants more parameters than the
+        page says complains about the count first, and then nothing is
+        known.
+        """
+        values = ['"p%d"' % (index + 1) for index in range(count)]
+        positions = []
+        for _ in range(count + 1):
+            body = "if (0)\n    %s, %s" % (name, ", ".join(values))
+            message = self.message(self.run(f"sh_{name}_{len(positions)}", body)[0])
+            found = ILLEGAL_NAME.search(message)
+            if not found:
+                # The count of the parameters is the other complaint, and it
+                # comes first: the question was not asked.
+                conclusive = "requires at least" not in message and "Too few" not in message
+                return positions, conclusive
+            index = int(found.group(1)[1:]) - 1
+            positions.append(index)
+            values[index] = "v%d" % (index + 1)
+        return positions, True
+
     def arity(self, name, form):
         """The fewest and the most parameters, by a scan of the count.
 
@@ -190,6 +295,49 @@ class Probe:
         low, high = accepted[0], accepted[-1]
         # A name that takes any number of them has the 255 of the table of v2.
         return low, (255 if high == LIMIT else high)
+
+
+def shape_of(documented, syntax_name, measured, conclusive):
+    """The shape of one parameter.
+
+    The binary says whether the parameter wants the *name* of a variable,
+    and the documentation says whether that name is written into (an
+    Output) or read from (a Variable). A function is not checked at load
+    time, so for those the documentation alone decides.
+    """
+    written = bool(OUTPUT_WORD.search(documented)) or syntax_name.lower().startswith("out")
+    if conclusive:
+        if not measured:
+            return "Value"
+        return "Output" if written else "Variable"
+    if written:
+        return "Output"
+    if READ_WORD.search(documented):
+        return "Variable"
+    return "Value"
+
+
+def shapes_of(probe, pages, name, kind, low):
+    """The shapes of the parameters of a name, in order."""
+    if kind == "directive":
+        # A directive is not a row of the built-in table, and every
+        # parameter of a directive is a value: there is no name of a
+        # variable to read from and no variable to write into.
+        return []
+    page = pages.get(name[1:] if name.startswith("#") else name)
+    if not page:
+        return []
+    syntaxes, parameters = page
+    line = syntax_for(syntaxes, name, kind)
+    names = parameters_of_a_syntax(line, kind)
+    said = dict(parameters)
+    count = max(len(names), low or 0)
+    if kind == "command":
+        measured, conclusive = probe.shape(name, count)
+    else:
+        measured, conclusive = [], False
+    return [shape_of(said.get(parameter, ""), parameter, index in measured, conclusive)
+            for index, parameter in enumerate(names)]
 
 
 def kind_of(probe, name):
@@ -227,8 +375,16 @@ HEADER = """\
 # max       the most parameters, 255 for any number: the v1 ignores the
 #           parameters that a command does not need, and a function that
 #           takes any number of them says so
-# shape     the shape of each parameter (Value, Variable, Output): not
-#           measured yet
+# shape     the shape of each parameter, in order: Value (an expression),
+#           Variable (the name of a variable of the script) or Output (the
+#           name of a variable of the script that the command writes into).
+#           Measured on 2026-10-29: the binary says whether a parameter
+#           wants a name -- a command is checked at load time, and the
+#           complaint is on stderr -- and the documentation says whether
+#           that name is written into or read from. A function is checked
+#           at runtime, so its shape comes from the documentation alone.
+#           A directive has no shape: it is not a row of the built-in
+#           table, and every parameter of a directive is a value.
 #
 # The names come from the documentation of the v1 -- the pages of the CHM
 # and the page of the built-in variables -- and the kind and the arity of
@@ -257,6 +413,8 @@ def main():
     commands, variables = names_of_the_docs(chm)
     names = commands + [v for v in variables if v not in commands]
 
+    pages = pages_of(chm)
+
     work = directory / "probe"
     work.mkdir(exist_ok=True)
     probe = Probe(binary, work)
@@ -281,19 +439,29 @@ def main():
     with ThreadPoolExecutor(max_workers=8) as pool:
         arities = {name: (low, high) for name, low, high in pool.map(bounds, calls)}
 
-    lines = []
+    # The rows of the table: a name that is two things has two of them.
+    rows = []
     for name, (kind, _) in zip(names, kinds):
         if kind == "-":
             continue
+        if kind == "command and function":
+            rows.append((name, "command"))
+            rows.append((name, "function"))
+            continue
+        rows.append((name, kind))
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        shapes = list(pool.map(
+            lambda row: shapes_of(probe, pages, row[0], row[1], arities.get(row[0], (None, None))[0]),
+            rows,
+        ))
+
+    lines = []
+    for (name, kind), shape in zip(rows, shapes):
         low, high = arities.get(name, (None, None))
         low = "" if low is None else low
         high = "" if high is None else high
-        if kind == "command and function":
-            # One name, two rows: the way the v2 carries a name twice.
-            lines.append("command\t\t%s\t%s\t%s\t" % (name, low, high))
-            lines.append("function\t\t%s\t%s\t%s\t" % (name, low, high))
-            continue
-        lines.append("%s\t\t%s\t%s\t%s\t" % (kind, name, low, high))
+        lines.append("%s\t\t%s\t%s\t%s\t%s" % (kind, name, low, high, ",".join(shape)))
 
     table = HEADER + "\n".join(lines) + "\n"
     if len(sys.argv) > 2:

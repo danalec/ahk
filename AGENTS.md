@@ -299,9 +299,15 @@ binary of v2.0.19, and they are the contract of the port.
 - `ahk-v2.0.19.pending.tsv` -- the names of v2 this tree does not carry
   yet, with the reason. It is empty: the port carries the whole of v2.
 - `ahk-v1.1.37.02.surface.tsv` -- the surface of the v1, measured on the
-  binary on 2026-10-29 with the probe beside it. The plan of the dialect
-  is `docs/ahk-v1-dialect.md`, and the gate is not built yet: the table is
-  the data of its first phase.
+  binary on 2026-10-29 with the probe beside it: the kind of each name,
+  the arity of each parameter and the shape of each one (Value, Variable
+  or Output). A directive has no shape: every parameter of a directive is a
+  value, and a directive is not a row of the built-in table. The plan of the
+  dialect is `docs/ahk-v1-dialect.md`, and the gate is not built yet: the
+  table is the data of its first phase.
+- `ahk-v1.1.37.02.pending.tsv` -- the names of the v1 that the tree does
+  not carry yet, with the reason. It is not empty: it is the first pending
+  table that is not, and it has 72 names.
 
 **A name is carried when the tree answers it.** The answer may be a value
 or the reason the tree cannot give one. A name that is shaped for Windows

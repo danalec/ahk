@@ -1,0 +1,97 @@
+# The names of AutoHotkey v1.1.37.02 that this tree does not carry yet.
+#
+# The tree carries the whole of the v2, so the pending table of the v2 is
+# empty. The v1 has names that the v2 does not have, and those are pending
+# until the v1 dialect lands.
+#
+# A name that is about a Windows API is not listed here: the tree carries
+# the Windows-shaped names of the v2 and refuses them with the reason, and
+# the v1 will do the same.
+#
+# kind      command, function, variable or directive
+# name      the name, as the v1 spells it
+# reason    why the tree does not carry it yet
+#
+# The reasons:
+#
+# variable  the name is a built-in variable that is not here yet.
+# not-yet   the name is here, and it is still to do.
+#
+# The names come from the table of the surface of the v1
+# (ahk-v1.1.37.02.surface.tsv), which was measured on the binary on
+# 2026-10-29, and the names that the v2 does not have were read out of the
+# table of the v2.
+kind	name	reason
+
+function	Asc	not-yet
+command	AutoTrim	not-yet
+command	EnvAdd	not-yet
+command	EnvDiv	not-yet
+command	EnvMult	not-yet
+command	EnvSub	not-yet
+command	FileCopyDir	not-yet
+command	FileCreateDir	not-yet
+command	FileMoveDir	not-yet
+command	FileReadLine	not-yet
+command	FileRemoveDir	not-yet
+function	Func	not-yet
+command	IfInString	not-yet
+command	IfMsgBox	not-yet
+function	IsFunc	not-yet
+function	IsSet	not-yet
+function	Object	not-yet
+command	SetBatchLines	not-yet
+command	SetEnv	not-yet
+command	StringCaseSense	not-yet
+command	StringGetPos	not-yet
+command	StringLeft	not-yet
+command	StringLen	not-yet
+command	StringLower	not-yet
+command	StringMid	not-yet
+command	StringReplace	not-yet
+command	StringSplit	not-yet
+command	StringTrimLeft	not-yet
+function	VarSetCapacity	not-yet
+directive	#CommentFlag	not-yet
+directive	#EscapeChar	not-yet
+directive	#HotkeyInterval	not-yet
+directive	#HotkeyModifierTimeout	not-yet
+directive	#If	not-yet
+directive	#IfTimeout	not-yet
+directive	#IfWinActive	not-yet
+directive	#InstallKeybdHook	not-yet
+directive	#InstallMouseHook	not-yet
+directive	#KeyHistory	not-yet
+directive	#MaxHotkeysPerInterval	not-yet
+directive	#MaxMem	not-yet
+directive	#MenuMaskKey	not-yet
+directive	#NoEnv	not-yet
+directive	#Persistent	not-yet
+variable	A_Args	variable
+variable	A_AutoTrim	variable
+variable	A_BatchLines	variable
+variable	A_CaretX	variable
+variable	A_CaretY	variable
+variable	A_DefaultGui	variable
+variable	A_DefaultListView	variable
+variable	A_DefaultTreeView	variable
+variable	A_ExitReason	variable
+variable	A_FormatFloat	variable
+variable	A_FormatInteger	variable
+variable	A_Gui	variable
+variable	A_GuiControl	variable
+variable	A_GuiControlEvent	variable
+variable	A_GuiEvent	variable
+variable	A_GuiHeight	variable
+variable	A_GuiWidth	variable
+variable	A_GuiX	variable
+variable	A_GuiY	variable
+variable	A_IPAddress1	variable
+variable	A_IsUnicode	variable
+variable	A_NumBatchLines	variable
+variable	A_OSType	variable
+variable	A_StringCaseSense	variable
+variable	A_ThisLabel	variable
+variable	A_ThisMenu	variable
+variable	A_ThisMenuItem	variable
+variable	A_ThisMenuItemPos	variable

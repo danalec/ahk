@@ -613,16 +613,62 @@ that the binary removed is written down.
 The **arity** of every name is measured as well, on the same day and with the
 same probe: the columns `min` and `max` of the table are filled.
 
-**Left.** The **shape of the parameters** : the column `shape` is empty, and
-it is the last thing that F1 needs. The v1 has three shapes and the v2 has
-two (§3.2) , and the shape of a name is what decides whether the handler
+The **shape of the parameters** is measured too, on the same day and with the
+same probe: the column `shape` is filled. The v1 has three shapes and the v2
+has two (§3.2) , and the shape of a name is what decides whether the handler
 writes into a variable of the script or returns a value. The binary says
 that a parameter is the *name* of a variable when the value is not one (the
 error is *"The following variable name contains an illegal character"*) , and
 the documentation says whether that name is written into or read from ---
-`OutputVar` is written into, `Var` is read. That last step is a reading of
-the documentation and not a measurement of the binary, and it is the one
-part of F1 that is not a measurement.
+`OutputVar` is written into, `Var` is read.
+
+**What the measurement showed, on 2026-10-29:**
+
+- **A command is checked at load time.** A parameter that wants a name refuses
+  a quoted string, and the complaint is on stderr. The probe gives each
+  position a text of its own, so the complaint says which one it is, and it
+  goes on with the next. Nothing runs: the question is asked in a dead branch,
+  and the resolution of a name in the v1 is static (§1.3).
+- **A function is checked at runtime**, so the shape of a function is the
+  documentation's alone, and the measurement cannot confirm it.
+- **The names that the commands read are the ones the convention of the v1
+  calls `InputVar`** : `StringLen` , `StringMid` , `StringGetPos` ,
+  `StringReplace` , `StringSplit` , `StringTrimLeft` , `StringLeft` ,
+  `StringLower` , `SplitPath` , `Sort` , `IfInString` — and the shape of the
+  command is `Output,Variable` where the function of the same family is
+  `Value`.
+- **The output variable of a command is not always the first parameter** :
+  `SplitPath` reads one and writes five, `FileGetShortcut` writes seven,
+  `MouseGetPos` writes four and `WinGetPos` four.
+- **Seven commands take no parameter at all** (`Edit` , `EnvUpdate` ,
+  `KeyHistory` , `ListHotkeys` , `ListVars` , `Reload` , `WinMinimizeAll` ),
+  and their shape is empty.
+- **A directive has no shape.** It is not a row of the built-in table, and
+  every parameter of a directive is a value: there is no name of a variable
+  to read from and no variable to write into. The 29 directives carry an
+  empty shape, and the seven commands above carry an empty shape too ---
+  **211 rows of the 384 carry a shape**: the 160 commands that take a
+  parameter and the 51 functions.
+- **The page of a name may carry the syntax of another name.** The
+  documentation puts the directives on the pages with a leading underscore
+  (`_Hotstring` , `_IfWinActive` ) , and the page of a command may carry
+  the syntax of the command that sits beside it: the page of `PostMessage`
+  carries the line of `SendMessage` , and the page of `Progress` the one of
+  `SplashImage` . The probe asks the page for the syntax of the name it
+  wants, and the row of `PostMessage` has eight parameters and not the nine
+  of that other line.
+
+The **pending table of the v1** is written as well, in
+`crates/ahk/reference/ahk-v1.1.37.02.pending.tsv` : **72 names** that the
+tree does not carry yet — 23 commands, 6 functions, 15 directives and 28
+built-in variables. The names that are about a Windows API are not in it: the
+tree carries the Windows-shaped names of the v2 and refuses them with the
+reason, and the v1 will do the same.
+
+**Left.** Nothing of the data: the shape, the arity, the kind and the pending
+table are all there. What is left is the *use* of it --- the table of the
+built-ins of the v1, and the `--dialect=v1` of the command that prints the
+surface (§5).
 
 **Result.** `ahk --surface --dialect=v1` prints the list with the state of
 each name — the command that the wave of 2026-10-29 built for the v2, with one
