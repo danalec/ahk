@@ -173,6 +173,24 @@ the box: it does no I/O, and it has to keep building without `std`.
   parameters passed to function.". A parameter may carry a default
   (`Name(a, b := 1)`) or take the rest of the arguments (`Name(a,
   rest*)`), which is an array.
+- **The number of the arguments is checked in two places.** Measured on the
+  binary of v2.0.19 on 2026-10-29: a call that the script writes is checked
+  when the script loads, and the failure names the function: "Too few
+  parameters passed to function. Specifically: Abs". A call that goes
+  through a value is checked when the call runs, and it says so in other
+  words: a built-in answers "Too few parameters passed to function." and a
+  function of the script answers "Missing a required parameter.". The name
+  of the function goes in the `Extra` of the error, and the name of the
+  parameter that is missing goes there when the callee is a function of the
+  script. The tree checks the call that the script writes at the run and
+  not at the load, and it says the same words.
+- **The messages of the class types are the messages of v2.** Measured on the
+  binary of v2.0.19 on 2026-10-29: a key that is not there is "Item has no
+  value.", a place of an array without a value is "Item has no value.", an
+  array with nothing to take away is "Array is empty.", a length that is
+  negative is "Invalid value.", and the capacity of a map is a number of
+  thirty-two bits: a value that is out of the range wraps around, and
+  `m.Capacity := -1` answers 4294967295.
 - **The marker of a by-reference parameter is in the definition.** v2
   writes it on the parameter -- `Swap(&Left, &Right)` -- and the caller
   passes a reference -- `Swap(&a, &b)`. The parameter is then an alias of

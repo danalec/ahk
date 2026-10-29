@@ -7,7 +7,7 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value, METHOD_CLASS, METHOD_NAME};
+use crate::runtime::{Route, Runtime, RuntimeError, RuntimeFailure, Value, METHOD_CLASS, METHOD_NAME};
 
 /// The properties a function owns.
 ///
@@ -91,7 +91,7 @@ pub(crate) fn call(
             if let Some((class, method)) = reference {
                 return Some(rt.call_a_method_reference(&class, &method, &values, line));
             }
-            Some(rt.call_named(&name, &values, line))
+            Some(rt.call_named(&name, &values, line, Route::ThroughValue))
         }
         // The values of the class that the function carries.
         "isoptional" => Some(Ok(Value::Int(0))),

@@ -927,7 +927,7 @@ impl<'a> Runtime<'a> {
         let callbacks: Vec<Callback> = core::mem::take(&mut self.exit_callbacks);
         for callback in callbacks {
             let values = [Value::Text(reason.to_string()), Value::Int(code as i64)];
-            match self.call_named(&callback.name, &values, callback.line) {
+            match self.call_named(&callback.name, &values, callback.line, Route::Written) {
                 Ok(answer) => {
                     // A function that answers a number that is not zero
                     // keeps the script alive, and the functions that come
@@ -1262,7 +1262,7 @@ impl<'a> Runtime<'a> {
             let Some(function) = self.functions.get(&name.to_lowercase()).cloned() else {
                 continue;
             };
-            self.call_function(&function, &[], 0)?;
+            self.call_function(&function, &[], 0, Route::Written)?;
         }
         Ok(())
     }
@@ -3265,7 +3265,7 @@ impl<'a> Runtime<'a> {
     /// Call a function: the one the script defined, or one of the builtins.
     fn call(&mut self, name: &str, arguments: &[Node], line: u32) -> Result<Value, RuntimeFailure> {
         if let Some(function) = self.functions.get(name).cloned() {
-            return self.call_function(&function, arguments, line);
+            return self.call_function(&function, arguments, line, Route::Written);
         }
         // The name of a class makes an object. The class types of the
         // runtime are classes too: the script cannot extend one, but it
@@ -3282,7 +3282,7 @@ impl<'a> Runtime<'a> {
         }
         // A function that is held in a variable is called through it.
         if let Some(function) = self.function_in_a_variable(name) {
-            return self.call_function(&function, arguments, line);
+            return self.call_function(&function, arguments, line, Route::ThroughValue);
         }
         // An object that is called is asked through its `Call` method:
         // v2 does not ask the `__Call` of the class when the object
@@ -3304,7 +3304,7 @@ impl<'a> Runtime<'a> {
         for argument in arguments {
             values.push(self.evaluate(argument)?);
         }
-        self.call_builtin(name, &values, line)
+        self.call_builtin(name, &values, line, Route::Written)
     }
 
     /// Call a function the script defined.
@@ -3313,9 +3313,10 @@ impl<'a> Runtime<'a> {
         function: &Function,
         arguments: &[Node],
         line: u32,
+        route: Route,
     ) -> Result<Value, RuntimeFailure> {
         let values = self.evaluate_all(arguments)?;
-        self.call_function_with(function, &values, line)
+        self.call_function_with(function, &values, line, route)
     }
 
     /// The call of a function, with the values of the arguments already
@@ -3325,6 +3326,7 @@ impl<'a> Runtime<'a> {
         function: &Function,
         values: &[Value],
         line: u32,
+        route: Route,
     ) -> Result<Value, RuntimeFailure> {
         // The arity of a function is in its definition: the parameters that
         // have no default are needed, and the ones that are there are the
@@ -3335,23 +3337,38 @@ impl<'a> Runtime<'a> {
             .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
             .count();
         if values.len() < needed {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: format!(
-                    "Too few parameters passed to function. Specifically: {}",
-                    function.name
-                ),
-                line,
-            }));
+            // A call that the script wrote is checked when the script
+            // loads, and the failure names the function. A call that
+            // goes through a value is checked when the call runs, and
+            // the failure names the parameter that is missing.
+            if matches!(route, Route::Written) {
+                return Err(self.the_arity_failure(
+                    "Too few parameters passed to function.",
+                    &function.name,
+                    route,
+                    line,
+                ));
+            }
+            let missing = function
+                .parameters
+                .iter()
+                .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+                .nth(values.len())
+                .map(|parameter| parameter.name.clone())
+                .unwrap_or_default();
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message: "Missing a required parameter.".into(), line },
+                Detail { what: String::new(), extra: missing },
+            ));
         }
         let variadic = function.parameters.iter().any(|parameter| parameter.variadic);
         if !variadic && values.len() > function.parameters.len() {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: format!(
-                    "Too many parameters passed to function. Specifically: {}",
-                    function.name
-                ),
+            return Err(self.the_arity_failure(
+                "Too many parameters passed to function.",
+                &function.name,
+                route,
                 line,
-            }));
+            ));
         }
         let mut scope: BTreeMap<String, Value> = BTreeMap::new();
         for (index, parameter) in function.parameters.iter().enumerate() {
@@ -3467,11 +3484,12 @@ impl<'a> Runtime<'a> {
         name: &str,
         values: &[Value],
         line: u32,
+        route: Route,
     ) -> Result<Value, RuntimeFailure> {
         if let Some(function) = self.functions.get(&name.to_lowercase()).cloned() {
-            return self.call_function_with(&function, values, line);
+            return self.call_function_with(&function, values, line, route);
         }
-        self.call_builtin(name, values, line)
+        self.call_builtin(name, values, line, route)
     }
 
     /// The function a variable holds, if it holds one.
@@ -3502,12 +3520,40 @@ impl<'a> Runtime<'a> {
         Some((class, method))
     }
 
+    /// The failure of a call that does not have the number of the
+    /// arguments the function wants.
+    ///
+    /// A call that the script wrote is checked when the script loads,
+    /// and the failure names the function: "Too few parameters passed
+    /// to function. Specifically: Abs". A call that goes through a
+    /// value is checked when the call runs, and the failure is the one
+    /// of the run: the name of the function goes in the `Extra`.
+    fn the_arity_failure(
+        &self,
+        message: &str,
+        name: &str,
+        route: Route,
+        line: u32,
+    ) -> RuntimeFailure {
+        match route {
+            Route::Written => RuntimeFailure::Error(RuntimeError {
+                message: format!("{message} Specifically: {name}"),
+                line,
+            }),
+            Route::ThroughValue => RuntimeFailure::Detailed(
+                RuntimeError { message: message.to_string(), line },
+                Detail { what: String::new(), extra: name.to_string() },
+            ),
+        }
+    }
+
     /// The functions the language carries.
     fn call_builtin(
         &mut self,
         name: &str,
         values: &[Value],
         line: u32,
+        route: Route,
     ) -> Result<Value, RuntimeFailure> {
         let Some(builtin) = crate::builtins::find(name) else {
             return Err(RuntimeFailure::Error(RuntimeError {
@@ -3518,22 +3564,20 @@ impl<'a> Runtime<'a> {
         // The arity is in the table, so the check is the same for every
         // built-in and it says what AutoHotkey says.
         if values.len() < builtin.min as usize {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: format!(
-                    "Too few parameters passed to function. Specifically: {}",
-                    builtin.name
-                ),
+            return Err(self.the_arity_failure(
+                "Too few parameters passed to function.",
+                builtin.name,
+                route,
                 line,
-            }));
+            ));
         }
         if values.len() > builtin.max as usize {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: format!(
-                    "Too many parameters passed to function. Specifically: {}",
-                    builtin.name
-                ),
+            return Err(self.the_arity_failure(
+                "Too many parameters passed to function.",
+                builtin.name,
+                route,
                 line,
-            }));
+            ));
         }
         // A reference is for the parameters that are written back: the
         // rest want a value, and v2 says which parameter got one and what
@@ -3772,7 +3816,7 @@ impl<'a> Runtime<'a> {
         for callback in callbacks {
             let values = [value.clone(), Value::Text(mode.to_string())];
             // A function that fails does not hide the failure.
-            if let Ok(said) = self.call_named(&callback.name, &values, callback.line) {
+            if let Ok(said) = self.call_named(&callback.name, &values, callback.line, Route::Written) {
                 let said = said.to_number().unwrap_or(0.0) as i64;
                 if said != 0 {
                     answer = said;
@@ -3799,7 +3843,7 @@ impl<'a> Runtime<'a> {
         let Some(function) = self.functions.get(&name.to_lowercase()).cloned() else {
             return Ok(());
         };
-        self.call_function(&function, &[], line).map(|_| ())
+        self.call_function(&function, &[], line, Route::Written).map(|_| ())
     }
 
     /// The date and the time of the machine, when the clock knows them.
@@ -4843,6 +4887,25 @@ pub struct Detail {
     pub what: String,
     /// The detail of the failure.
     pub extra: String,
+}
+
+/// How a call found the function it calls.
+///
+/// v2 checks the number of the arguments in two places. A call that the
+/// script writes is checked when the script loads, and the failure says
+/// the name of the function: "Too few parameters passed to function.
+/// Specifically: Abs". A call that goes through a value is checked when
+/// the call runs, and the failure is the one of the run: "Missing a
+/// required parameter." for a function of the script, and "Too few
+/// parameters passed to function." for a built-in.
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum Route {
+    /// The script wrote the call, and the name of the function is known
+    /// when the script loads.
+    Written,
+    /// The call goes through a value, and the name of the function is
+    /// not known when the script loads.
+    ThroughValue,
 }
 
 impl From<RuntimeError> for RuntimeFailure {

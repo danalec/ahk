@@ -105,7 +105,7 @@ pub(crate) fn call(
                     Some(default) => Some(Ok(default.clone())),
                     None => match default_property(this) {
                         Some(default) => Some(Ok(default)),
-                        None => failure("Key not found."),
+                        None => failure("Item has no value."),
                     },
                 },
             }
@@ -116,12 +116,12 @@ pub(crate) fn call(
         }
         "delete" => {
             let Some(key) = arguments.first() else { return failure("Too few parameters passed to function.") };
-            let Some(state) = state(this) else { return failure("Key not found.") };
+            let Some(state) = state(this) else { return failure("Item has no value.") };
             let mut state = state.borrow_mut();
             let sense = case_sense(&state);
             let mut pairs = entries(&state);
             let Some(index) = pairs.iter().position(|(existing, _)| same_key(existing, key, sense)) else {
-                return failure("Key not found.");
+                return failure("Item has no value.");
             };
             let (_, value) = pairs.remove(index);
             set_entries(&mut state, pairs);
@@ -211,9 +211,10 @@ pub(crate) fn set_property(
                 Ok(number) => number,
                 Err(failure) => return Some(Err(failure)),
             };
-            if wanted < 0 {
-                return failure("Invalid value.");
-            }
+            // The capacity of a map is a number of v2 that does not go
+            // below zero: a value that is out of the range wraps around,
+            // the way a number of thirty-two bits does.
+            let wanted = wanted as u32 as i64;
             let state = state(this)?;
             let mut state = state.borrow_mut();
             // A capacity below the number of the entries is the number of
@@ -253,7 +254,7 @@ pub(crate) fn item(
         None => match default_property(this) {
             Some(default) => Some(Ok(default)),
             None => Some(Err(RuntimeFailure::Error(RuntimeError {
-                message: "Key not found.".into(),
+                message: "Item has no value.".into(),
                 line,
             }))),
         },

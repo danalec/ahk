@@ -124,7 +124,7 @@ fn the_item_of_a_key_is_the_value_under_it() {
 fn a_key_that_is_not_there_is_an_error() {
     let report = run("m := Map()\nMsgBox m.Get(\"nope\")");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Key not found."));
+    assert_eq!(report.error.as_deref(), Some("Item has no value."));
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -132,7 +132,7 @@ fn a_key_that_is_not_there_is_an_error() {
 fn the_item_of_a_key_that_is_not_there_is_an_error() {
     let report = run("m := Map()\nMsgBox m[\"nope\"]");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Key not found."));
+    assert_eq!(report.error.as_deref(), Some("Item has no value."));
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -154,7 +154,7 @@ fn a_key_can_be_taken_away() {
 fn taking_away_a_key_that_is_not_there_is_an_error() {
     let report = run("m := Map()\nMsgBox m.Delete(\"nope\")");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Key not found."));
+    assert_eq!(report.error.as_deref(), Some("Item has no value."));
 }
 
 #[test]

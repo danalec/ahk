@@ -19,7 +19,7 @@ use core::cell::RefCell;
 
 use crate::desktop::WindowAnswer;
 use crate::keys;
-use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value};
+use crate::runtime::{Route, Runtime, RuntimeError, RuntimeFailure, Value};
 
 /// The name of the environment variable that says which device to watch.
 ///
@@ -296,7 +296,7 @@ pub(crate) fn run_fired(rt: &mut Runtime<'_>) -> Result<(), RuntimeFailure> {
         shared.current = Some((entry.name.clone(), rt.now_ms()));
     }
     if entry.takes_name {
-        rt.call_named(&entry.function, &[Value::Text(fired)], entry.line)?;
+        rt.call_named(&entry.function, &[Value::Text(fired)], entry.line, Route::Written)?;
     } else {
         rt.call_function_by_name(&entry.function, entry.line)?;
     }
@@ -332,7 +332,7 @@ fn condition_holds(rt: &mut Runtime<'_>, entry: &Hotkey) -> Result<bool, Runtime
     };
     match condition {
         Condition::Function(name) => {
-            let value = rt.call_named(&name, &[], entry.line)?;
+            let value = rt.call_named(&name, &[], entry.line, Route::Written)?;
             Ok(value.truthy())
         }
         Condition::WindowActive(title) => match rt.desktop().window_active(&title) {

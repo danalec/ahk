@@ -81,7 +81,7 @@ pub(crate) fn call(
             let Some(state) = state(this) else { return failure("Invalid index.") };
             let mut state = state.borrow_mut();
             let mut items = items(&state);
-            let Some(last) = items.pop() else { return failure("Invalid index.") };
+            let Some(last) = items.pop() else { return failure("Array is empty.") };
             set_items(&mut state, items);
             Some(Ok(element_value(&last).unwrap_or(Value::Text(String::new()))))
         }
@@ -185,7 +185,7 @@ pub(crate) fn call(
                     Some(default) => Some(Ok(default.clone())),
                     None => match default_property(this) {
                         Some(default) => Some(Ok(default)),
-                        None => failure("Key not found."),
+                        None => failure("Item has no value."),
                     },
                 },
             }
@@ -305,7 +305,7 @@ pub(crate) fn set_property(
                 Err(failure) => return Some(Err(failure)),
             };
             if wanted < 0 {
-                return failure("Invalid Length.");
+                return failure("Invalid value.");
             }
             let state = state(this)?;
             let mut state = state.borrow_mut();
@@ -378,7 +378,7 @@ pub(crate) fn item(
         None => match default_property(this) {
             Some(default) => Some(Ok(default)),
             None => Some(Err(RuntimeFailure::Error(RuntimeError {
-                message: "Key not found.".into(),
+                message: "Item has no value.".into(),
                 line,
             }))),
         },

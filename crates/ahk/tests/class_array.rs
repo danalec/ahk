@@ -114,7 +114,7 @@ fn the_last_value_can_be_taken_away() {
 fn taking_away_the_last_value_of_an_empty_array_is_an_error() {
     let report = run("a := Array()\na.Pop()");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Invalid index."));
+    assert_eq!(report.error.as_deref(), Some("Array is empty."));
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -157,7 +157,7 @@ fn a_value_can_be_deleted_and_the_place_stays() {
 fn a_place_without_a_value_is_an_error() {
     let report = run("a := Array(\"x\", \"y\")\na.Delete(1)\nMsgBox a[1]");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Key not found."));
+    assert_eq!(report.error.as_deref(), Some("Item has no value."));
     assert_eq!(report.error_line, Some(3));
 }
 
