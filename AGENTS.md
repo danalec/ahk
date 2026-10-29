@@ -49,8 +49,9 @@ and the result is a stale binary with no error.
   (the settings of the script) and `hotkeys.rs` (the hotkeys of the
   script). No I/O of its own.
 - `crates/ahk/reference/` -- the tables of v2.0.19: the surface, the
-  operators and the pending list. They are read when the tests are
-  compiled.
+  operators and the pending list, and the surface of the v1.1.37.02 with
+  the probe that measured it. The tables of the v2 are read when the tests
+  are compiled.
 - `crates/ahk-box/` -- the box primitives: `lib.rs` (the public surface),
   `keyboard.rs` (the uinput keyboard), `pointer.rs` (the absolute
   pointer), `desktop.rs` (the captures and the screen reads),
@@ -297,6 +298,10 @@ binary of v2.0.19, and they are the contract of the port.
   `ahk::precedence`, which follows the documentation of v2.
 - `ahk-v2.0.19.pending.tsv` -- the names of v2 this tree does not carry
   yet, with the reason. It is empty: the port carries the whole of v2.
+- `ahk-v1.1.37.02.surface.tsv` -- the surface of the v1, measured on the
+  binary on 2026-10-29 with the probe beside it. The plan of the dialect
+  is `docs/ahk-v1-dialect.md`, and the gate is not built yet: the table is
+  the data of its first phase.
 
 **A name is carried when the tree answers it.** The answer may be a value
 or the reason the tree cannot give one. A name that is shaped for Windows

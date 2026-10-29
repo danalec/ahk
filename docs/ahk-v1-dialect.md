@@ -177,6 +177,18 @@ value. A script of the v2 that uses the spelling of the dialect works on
 both. For the table of the v1 this matters: the names of the surface are
 the **spelled** ones, `A_Clipboard` and not `Clipboard`.
 
+The variables of the v1 are **137** names, and they were counted on the
+binary on 2026-10-29: 134 answer `1` to `IsSet` and three do not answer at
+all — `A_Is64bitOS` , `A_IsUnicode` and `A_PtrSize` . They are variables
+all the same, and the reason the question does not answer is a detail of the
+v1 that the probing has to know: **the parameter of the `IsSet` of the v1 is
+an output variable** , and these three are built-in variables that cannot be
+written. The binary says *"Parameter #1 invalid"* and opens a dialog — a
+*runtime* error, which `/ErrorStdOut` does not cover. A direct read answers
+them: `x := A_Is64bitOS` is `1` , `x := A_IsUnicode` is `1` and `x := A_PtrSize`
+is `8` . A probe that asks `IsSet` and nothing else calls the three of them
+"not variables" , and that would be wrong.
+
 ### 1.3 The surface: what is measured, and how
 
 Two pieces of news, one good and one bad.
@@ -211,12 +223,40 @@ It is with these three questions that F1 fills the column of the kind of the
 table of the v1. And it is for that reason that a probe by name is more than
 a yes or no: the same name answers differently according to its shape.
 
-Forty-seven names measured on 2026-10-28 took a minute. For the whole surface
-of the v1 (the one of the v2 has **725** names — the table of
-`crates/ahk/reference/ahk-v2.0.19.surface.tsv` , which the wave of 2026-10-29
-already prints with `ahk --surface` ) there are ~250 probes: **two minutes** —
-on the box, where a lost command (a `Click` without parameters clicks wherever
-the mouse is) does no harm.
+**The whole surface of the v1 was measured on 2026-10-29: 421 names, in 22
+seconds, on the workstation.** The box is not needed and was never needed: the
+v1 is a Windows binary, and the probing never runs anything — the two
+first questions are inside a dead branch, and the resolution of a name in the
+v1 is static, so the answer is a *load* error and `/ErrorStdOut` prints it on
+stdout. A `Click` that got out of hand would click wherever the mouse is, and
+nothing got out of hand: nothing ran.
+
+The three questions have to be read by the error that answers them, and there
+are more of those errors than the first probe expected. The rules that came
+out of the measurement:
+
+| Question | The answer that says no | The answer that says yes |
+|---|---|---|
+| `Name, 0` | *"This line does not contain a recognized action"* | the script loads, or the error is a complaint about a parameter (*"Parameter #2 required"* , *"requires at least 2 parameters"*) |
+| `x := Name()` | *"Call to nonexistent function"* | *"Too few parameters passed to function"* — the name resolved, the arity was wrong |
+| `x := IsSet(Name)` | the value `0` | the value `1` |
+
+Two things that the first probe got wrong, and that the table of the v1 does
+not carry:
+
+- **A name that is not a command is not always a name that the v1 does not
+  know.** The statements of the language — `Catch` , `Break` , `Return` ,
+  `Gosub` , `For` , `Switch` , `Until` — answer with their own message
+  (*"CATCH with no matching TRY"* , *"Break/Continue must be enclosed by a
+  Loop."*) , and a rule that only looked for *"does not contain a recognized
+  action"* called all of them commands. The rule that separates them is the
+  complaint about a **parameter** : a command says that its parameter is
+  wrong, a statement says what it wants instead.
+- **A statement that takes a body swallows the next line.** `Loop, 0`
+  inside the dead branch takes the marker as its body, the body never runs,
+  and the script ends without an error and without the marker. That silence
+  is the signature of a statement (`Loop` , `While` , `IfEqual` , `IfExist` ,
+  `IfWinActive` , `IfWinExist` ).
 
 The probing has one more use: the `--surface` of the wave prints the state of
 each **v2** name; the same mechanics, with the table of the v1 inside it,
@@ -246,7 +286,7 @@ Measured on the two binaries:
 | `StrSplit` | **function** | **command** |
 | `FileExist` | **function** | **command** |
 | `FileRead` | **command** (with an output variable) | **command** |
-| `GetKeyState` | **function** | **command** |
+| `GetKeyState` | **command and function** | **command** |
 | `StrReplace` | **function** (parameters in a different order) | **function** |
 | `Clipboard` | **does not exist** | **does not exist** either |
 | `A_Clipboard` | **variable** (the text) | **variable** (the text) — the same name |
@@ -287,6 +327,100 @@ and `__Init` exist — measured: `class Probe { __Init() { this.x := 1 } }` ,
 class ("Probe"). What the v1 does not have is a class *surface* behind a name:
 the `Map` and the `Array` of the v2 are objects with methods; in the v1 they
 are objects with keys.
+
+### 1.6 The surface of the v1, counted
+
+The whole surface of the v1 was measured on 2026-10-29 and it is **421
+names** : the 284 pages of the documentation of the v1 (the CHM of the zip) and
+the 137 built-in variables of the page of the variables. The kind of each one
+is the answer of the binary, and the table is in
+`crates/ahk/reference/ahk-v1.1.37.02.surface.tsv` :
+
+| Kind | Names | What they are |
+|---|---|---|
+| command | 166 | the names a script writes without parentheses — `Send` , `MsgBox` , `StringLen` |
+| function | 50 | the names a script writes with parentheses — `StrLen` , `Format` , `DllCall` |
+| command and function | 1 | `GetKeyState` , the only one that is both |
+| variable | 137 | the built-in variables, `A_Clipboard` and the rest |
+| directive | 29 | the `#NoEnv` and the rest |
+| — | 38 | **not names** : the statements of the language and the topics of the docs |
+
+**The 38 are not a failure of the measurement.** Each one carries the message
+of the binary that says what it is, and they are of two kinds:
+
+- **The statements of the language** (23): `Break` , `Catch` , `Continue` ,
+  `Else` , `Finally` , `For` , `Gosub` , `Goto` , `IfBetween` , `IfEqual` ,
+  `IfExist` , `IfExpression` , `IfIn` , `IfIs` , `IfWinActive` , `IfWinExist` ,
+  `Loop` , `Return` , `Switch` , `Throw` , `Try` , `Until` , `While` . They
+  are the grammar of the v1, and the table of the v2 does not carry them
+  either — the grammar is F2's business, not the surface's.
+- **The topics of the documentation** (14): `Block` , `Enumerator` , `File` ,
+  `GetKey` , `GuiControls` , `ListView` , `LoopFile` , `LoopParse` ,
+  `LoopReadFile` , `LoopReg` , `Math` , `SetExpression` ,
+  `SetNumScrollCapsLockState` , `TreeView` . They are pages, not names.
+
+And the last one is a **directive that the docs still carry and that the binary
+removed** : `#AllowSameLineComments` . The page of the CHM says *" [v1.1.09+]:
+This directive was removed"* , and the binary says *"This line does not contain
+a recognized action"* . The list of the docs is a **candidate** ; the binary is
+the authority. (`#DllLoad` is the other way round: it is a directive of the
+**v2** — *"New Directives"* , in the page of the changes — and the
+v1.1.37.02 does not have it.)
+
+**Against the v2** , the numbers are these:
+
+| | The v1.1.37.02 | The v2.0.19 |
+|---|---|---|
+| the names of the surface | 383 | 725 entries, 644 names |
+| of which the v2 has the name | 266 | — |
+| only in this one | **117** | 214 (without the methods) |
+| the same name, another kind | **21** | — |
+
+The **117** are 48 commands, 13 functions, 27 variables and the 29 directives.
+The **21** whose kind the v2 does not have are the ones the gate hurts the
+most:
+
+| Name | in the v1.1.37.02 | in the v2.0.19 |
+|---|---|---|
+| `Click` | command | **function** |
+| `FileExist` | **function** | command |
+| `FormatTime` | command | **function** |
+| `GetKeyState` | **command and function** | command |
+| `Gui` | command | method (of `Gui.Control`) |
+| `Hotstring` | **function** | command |
+| `Input` | command | method (of `Hotkey`) |
+| `IsByRef` | **function** | method (of `Func`) |
+| `IsLabel` | **function** | command |
+| `LoadPicture` | **function** | command |
+| `OnError` | **function** | command |
+| `OnMessage` | **function** | command |
+| `Random` | command | **function** |
+| `RegDelete` , `RegRead` , `RegWrite` | command | **function** |
+| `SetFormat` | command | method (of `Gui.Control`) |
+| `Sort` , `SplitPath` | command | **function** |
+| `StrSplit` | **function** | command |
+
+**The v1.1 is a hybrid, and the rule of the hybrid is the name.** The old name
+is a **command** and the new name is a **function** , and the two live in the
+same dialect:
+
+| The old name | The new name |
+|---|---|
+| `StringLen` (command) | `StrLen` (function) |
+| `StringMid` (command) | `SubStr` (function) |
+| `StringGetPos` (command) | `InStr` (function) |
+| `StringReplace` (command) | `StrReplace` (function) |
+| `StringSplit` (command) | `StrSplit` (function) |
+| `StringTrimLeft` (command) | `Trim` (function) |
+| `SetFormat` (command) | `Format` (function) |
+
+This is what a dialect that is a **hybrid** looks like from the inside: the
+v1.1 kept the command of the v1.0 and put the function of the v2 beside it.
+The tree carries the names of the v2; the table of the v1 has to carry
+**both** . And the tree has no row for a name that is a command *and* a
+function — the table of the v2 already carries a name twice when it is two
+things (`SendMode` is a command **and** a variable of the v2) , and the table of
+the v1 follows that rule.
 
 ---
 
@@ -448,11 +582,23 @@ only goes up); the `--dialect=v1` still answers
 
 **Content.** The table of the names of the v1: the list of the documentation,
 the kind of each one, the shape and the arity of each parameter —
-**verified on the binary** , with the probing of one process per name (§1.3),
-on the box. The variables of the v1 (§1.2). The classes of the v1: **none**
+**verified on the binary** , with the probing of one process per name (§1.3).
+The variables of the v1 (§1.2). The classes of the v1: **none**
 (§1.5) — the v1 has no runtime classes, and what it has are objects and the
 script classes. The pending table of the v1, with the reason of each name that
 is not carried — and this is the first pending table that is not empty (§0).
+
+**Done (2026-10-29).** The list of the names and the kind of each one: **421
+names, 383 of them of the surface** , in
+`crates/ahk/reference/ahk-v1.1.37.02.surface.tsv` (§1.6). The 29 directives of
+the v1 are measured too, and the one that the documentation still carries and
+that the binary removed is written down.
+
+**Left.** The **arity** and the **shape of the parameters** of each name: the
+columns `min` , `max` and the shape (`Value` , `Variable` , `Output` ) are
+empty in the table, and they are the next measurement. The v1 has three shapes
+and the v2 has two (§3.2) , and the shape of a name is what decides whether
+the handler writes into a variable of the script or returns a value.
 
 **Result.** `ahk --surface --dialect=v1` prints the list with the state of
 each name — the command that the wave of 2026-10-29 built for the v2, with one
@@ -607,8 +753,10 @@ The shape is the one of today: the name, the kind, and the state — `value` ,
 three lines are the format: a name refused with the reason, a name that
 answers, and a name that the dialect does not yet carry. The numbers of the
 summary are what matters — and the middle one is what says what is missing.
-The surface of the v1 has not been counted yet: it comes out of the probing of
-F1.
+The surface of the v1 has been counted (2026-10-29, §1.6): **383 names of the
+surface** , of which 266 the v2 has as well, 117 are only of the v1 and 21
+are the same name with another kind. The summary of the v1 will say the same
+thing the one of the v2 says, with the number of the dialect in it.
 
 The baseline is the one of the v2, at the commit `feb0d5a` (2026-10-29):
 
