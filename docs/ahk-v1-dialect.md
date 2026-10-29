@@ -185,9 +185,9 @@ v1 that the probing has to know: **the parameter of the `IsSet` of the v1 is
 an output variable** , and these three are built-in variables that cannot be
 written. The binary says *"Parameter #1 invalid"* and opens a dialog — a
 *runtime* error, which `/ErrorStdOut` does not cover. A direct read answers
-them: `x := A_Is64bitOS` is `1` , `x := A_IsUnicode` is `1` and `x := A_PtrSize`
-is `8` . A probe that asks `IsSet` and nothing else calls the three of them
-"not variables" , and that would be wrong.
+them: `x := A_Is64bitOS` is `1` , `x := A_IsUnicode` is `1` and
+`x := A_PtrSize` is `8` . A probe that asks `IsSet` and nothing else calls
+the three of them "not variables" , and that would be wrong.
 
 ### 1.3 The surface: what is measured, and how
 
@@ -418,9 +418,9 @@ This is what a dialect that is a **hybrid** looks like from the inside: the
 v1.1 kept the command of the v1.0 and put the function of the v2 beside it.
 The tree carries the names of the v2; the table of the v1 has to carry
 **both** . And the tree has no row for a name that is a command *and* a
-function — the table of the v2 already carries a name twice when it is two
-things (`SendMode` is a command **and** a variable of the v2) , and the table of
-the v1 follows that rule.
+function — the table of the v2 already carries a name twice when it is
+two things (`SendMode` is a command **and** a variable of the v2) , and the
+table of the v1 follows that rule.
 
 ---
 
@@ -664,9 +664,10 @@ registry) are refused with the reason, as the v2 does.
 
 The clipboard changes shape, not path: in the v1 the text is the variable
 `A_Clipboard` and the complete object is the variable `ClipboardAll` ; in the
-v2 the text is the variable `Clipboard` and `ClipboardAll` does not exist. The
-path is the same on both sides — the `wl-paste` and the `wl-copy` of the box,
-and **not** the protocol of the compositor (§27 of the notes).
+v2 the text is the variable `A_Clipboard` too -- the same name -- and
+`ClipboardAll` does not exist. The path is the same on both sides -- the
+`wl-paste` and the `wl-copy` of the box, and **not** the protocol of the
+compositor (§27 of the notes).
 
 **Result.** A v1 script that reads a pixel, writes a file and sends a key
 works on the box.
@@ -763,6 +764,10 @@ The baseline is the one of the v2, at the commit `feb0d5a` (2026-10-29):
 ```
 the surface of v2 has 725 entries: 502 answer with a value, 223 are refused, 0 are pending.
 ```
+
+The tree moved after that baseline: the prefix of the built-in variables was
+closed on 2026-10-29 (`c391430`) , and the surface is 725 entries with **506**
+values and **219** refusals.
 
 The 223 refusals are almost all names of Windows — and the refusal is the
 right answer for them. The rule of the plan is on the other side: no name that
