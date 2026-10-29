@@ -80,6 +80,10 @@ and the result is a stale binary with no error.
   lists its windows, and the Rust that does it. Read it before touching
   `WinExist`, `WinActive` or the clipboard: the compositor of the box
   publishes the protocol, and this is the code that speaks it.
+- `docs/ahk-v1-dialect.md` -- the plan for the v1 dialect beside the v2:
+  the gate, the phases, and what was measured on the binary of v1.1.37.02
+  on 2026-10-28. Read it before touching the parser or the built-in
+  table: it says where the dialect is woven into the tree.
 
 EGM artifact directory: `egm-review/`
 
@@ -364,6 +368,12 @@ is checked.
 `../archived/ahk-python`, and it is frozen. It is kept to be read: it says
 what the dialect meant before the port to v2, and the port to v2 is why
 the two do not agree any more.
+
+The archive is **not** the v1 of AutoHotkey: it is a dialect of our own,
+com v1 nos nomes e v2 na sintaxe, e a sua própria nota diz isso
+(`archived/ahk-python/AGENTS.md:38-41`). O v1 de verdade mede-se no
+binário do v1.1.37.02, e o plano de o pôr ao lado do v2 está em
+`docs/ahk-v1-dialect.md`.
 
 The rule that the two have to speak the same dialect held until the port
 to v2.0.19 and does not hold now: v2's names are the names here, and a
