@@ -1202,7 +1202,13 @@ impl<'a> Runtime<'a> {
     /// The error of the runtime as a value: an object of the class `error`,
     /// the way v2 hands it to a catch.
     fn error_value(&self, error: &RuntimeError) -> Value {
-        crate::classes::error::error_value(&error.message, "", "", error.line)
+        crate::classes::error::error_value_of(
+            crate::classes::error::the_class_of(&error.message),
+            &error.message,
+            "",
+            "",
+            error.line,
+        )
     }
 
     /// The error of the runtime as a value, with the detail of it.
@@ -1210,7 +1216,8 @@ impl<'a> Runtime<'a> {
     /// The detail is the name of the thing that raised the failure, and
     /// the detail that goes with it.
     fn error_value_with(&self, error: &RuntimeError, detail: &Detail) -> Value {
-        crate::classes::error::error_value(
+        crate::classes::error::error_value_of(
+            crate::classes::error::the_class_of(&error.message),
             &error.message,
             &detail.what,
             &detail.extra,

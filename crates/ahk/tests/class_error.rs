@@ -175,6 +175,79 @@ fn every_class_of_the_errors_is_carried() {
 }
 
 #[test]
+fn a_division_by_zero_is_a_zero_division_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-29.
+    let report = run(
+        "try {\n    d := 0\n    x := 1 / d\n} catch Any as e {\n    MsgBox e is ZeroDivisionError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_property_that_is_not_there_is_a_property_error() {
+    let report = run(
+        "try {\n    x := 1\n    y := x.Nothing\n} catch Any as e {\n    MsgBox e is PropertyError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_method_that_is_not_there_is_a_method_error() {
+    let report = run(
+        "try {\n    x := 1\n    x.Nothing()\n} catch Any as e {\n    MsgBox e is MethodError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn an_item_that_has_no_value_is_an_unset_item_error() {
+    let report = run(
+        "try {\n    m := Map()\n    y := m[\"nope\"]\n} catch Any as e {\n    MsgBox e is UnsetItemError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn an_index_that_is_out_of_range_is_an_index_error() {
+    let report = run(
+        "try {\n    a := [1]\n    y := a[9]\n} catch Any as e {\n    MsgBox e is IndexError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_value_of_the_wrong_type_is_a_type_error() {
+    let report = run(
+        "try {\n    x := 1 + \"a\"\n} catch Any as e {\n    MsgBox e is TypeError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_value_that_is_not_valid_is_a_value_error() {
+    let report = run(
+        "try {\n    m := Map()\n    m.CaseSense := \"x\"\n} catch Any as e {\n    MsgBox e is ValueError\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_arity_of_a_call_is_a_plain_error() {
+    let report = run(
+        "try {\n    f := Abs\n    f.Call()\n} catch Any as e {\n    MsgBox e is Error\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
 fn the_stack_of_an_error_is_empty() {
     // The tree keeps no stack: the stack of v2 names the file of every
     // frame, and the script of the runner has no file.

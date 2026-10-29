@@ -68,6 +68,42 @@ pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
         .filter(|base| !base.is_empty())
 }
 
+/// The class of a failure, the way v2 names it.
+///
+/// v2 has a class for every kind of failure: a property that is not
+/// there is a `PropertyError`, a value of the wrong type is a
+/// `TypeError`, an item that has no value is an `UnsetItemError`, and
+/// so on. The tree decides the class by the message of the failure,
+/// because the message of v2 says what the failure is. A failure that
+/// the table below does not know is of the class `Error`.
+pub(crate) fn the_class_of(message: &str) -> &'static str {
+    if message == "Divide by zero." {
+        return "ZeroDivisionError";
+    }
+    if message.contains("has no property named") {
+        return "PropertyError";
+    }
+    if message.contains("has no method named") {
+        return "MethodError";
+    }
+    if message == "Item has no value." {
+        return "UnsetItemError";
+    }
+    if message == "Invalid index." {
+        return "IndexError";
+    }
+    if message == "Invalid value." || message.ends_with(" is invalid.") {
+        return "ValueError";
+    }
+    if message.starts_with("Expected a ")
+        || message.contains(" requires ")
+        || message == "Value not enumerable."
+    {
+        return "TypeError";
+    }
+    "Error"
+}
+
 /// Whether a name is one of the classes of the errors.
 pub(crate) fn is_a_class(class: &str) -> bool {
     let class = class.to_lowercase();
@@ -112,12 +148,8 @@ pub(crate) fn construct(
 
 /// The object of an error, with the properties of it.
 ///
-/// The error of the runtime is an object of the class `error`, and the
-/// object that the script throws is one too.
-pub(crate) fn error_value(message: &str, what: &str, extra: &str, line: u32) -> Value {
-    error_value_of("error", message, what, extra, line)
-}
-
+/// The error of the runtime is an object of the class of the failure,
+/// and the object that the script throws is one too.
 /// The object of an error, of the class it was made of.
 pub(crate) fn error_value_of(
     class: &str,

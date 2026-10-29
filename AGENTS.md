@@ -278,8 +278,15 @@ the box: it does no I/O, and it has to keep building without `std`.
   a `MemberError` and a `PropertyError` at the same time, and an index
   that is out of range is a `ValueError` and an `IndexError`. The classes
   derive from one another, and every one of them is an `Error`. The tree
-  carries the classes and the tree of them, and the failures of the
-  runtime are still of the class `Error`: the class of a failure is not
+  carries the classes and the tree of them, and the class of a failure is
+  decided by the message of it, the way v2 decides it by the kind of the
+  failure: a division by zero is a `ZeroDivisionError`, a property that is
+  not there is a `PropertyError`, a method that is not there is a
+  `MethodError`, an item that has no value is an `UnsetItemError`, an
+  index that is out of range is an `IndexError`, a value of the wrong type
+  is a `TypeError`, and a value that is not valid is a `ValueError`. The
+  failures of the files are still of the class `Error`: the message of the
+  machine is not the one of v2, and the class of those failures is not
   carried yet.
 - **A method of the script is a value.** Measured on the binary of v2.0.19
   on 2026-10-30: `t.Method` hands over a function whose name is
