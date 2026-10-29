@@ -146,7 +146,10 @@ fn a_property_of_a_gui_that_is_written_says_why_it_cannot() {
 fn a_name_that_is_not_in_the_table_is_not_a_method() {
     let report = run("gui := Gui()\ngui.Focus()");
     assert!(!report.ok);
-    assert_eq!(error_of(&report), "\"Focus\" is not a method of this value.");
+    assert_eq!(
+        error_of(&report),
+        "This value of type \"Gui\" has no method named \"Focus\"."
+    );
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -154,5 +157,8 @@ fn a_name_that_is_not_in_the_table_is_not_a_method() {
 fn a_name_that_is_not_in_the_table_is_not_a_property() {
     let report = run("gui := Gui()\nvalue := gui.Nonsense");
     assert!(!report.ok);
-    assert_eq!(error_of(&report), "This object has no property \"nonsense\".");
+    assert_eq!(
+        error_of(&report),
+        "This value of type \"Gui\" has no property named \"Nonsense\"."
+    );
 }

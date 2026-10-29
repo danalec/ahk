@@ -152,7 +152,7 @@ fn every_name_of_every_class_answers() {
         for name in names_of(class) {
             let called = run(&format!("{make}\nx.{name}()"));
             let error = called.error.unwrap_or_default();
-            if !error.contains("is not a method of this value") {
+            if !error.contains("has no method named") {
                 // The class answered the call, one way or another.
                 continue;
             }
@@ -175,5 +175,5 @@ fn a_class_does_not_answer_the_names_of_another() {
     // tables have names in common besides.
     let report = run("x := Gui()\nx.Focus()");
     let error = report.error.unwrap_or_default();
-    assert!(error.contains("is not a method of this value"), "{error}");
+    assert!(error.contains("has no method named"), "{error}");
 }

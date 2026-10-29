@@ -595,7 +595,10 @@ fn a_function_that_is_held_in_a_variable_can_be_called() {
 fn a_method_that_is_not_there_fails_with_the_reason() {
     let (report, _desktop) = run("class Point {\n}\np := Point()\np.Nothing()");
     assert!(!report.ok);
-    assert!(report.error.as_deref().unwrap_or("").contains("not a method"), "{:?}", report.error);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Point\" has no method named \"Nothing\".")
+    );
 }
 
 #[test]
@@ -1000,8 +1003,20 @@ fn a_list_can_be_picked_by_its_position() {
 }
 
 #[test]
-fn a_text_can_be_picked_by_its_position() {
+fn a_text_cannot_be_picked_by_its_position() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: a text has no
+    // item, and `SubStr` is the way to take a letter out of one.
     let (report, _desktop) = run("letter := \"hello\"[2]");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"String\" has no property named \"__Item\".")
+    );
+}
+
+#[test]
+fn a_letter_is_taken_out_of_a_text_with_substr() {
+    let (report, _desktop) = run("letter := SubStr(\"hello\", 2, 1)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("letter"), Some(&Value::Text("e".into())));
 }
@@ -1010,6 +1025,10 @@ fn a_text_can_be_picked_by_its_position() {
 fn a_position_that_is_not_there_is_an_error() {
     let (report, _desktop) = run("letter := \"hello\"[99]");
     assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"String\" has no property named \"__Item\".")
+    );
 }
 
 #[test]
@@ -1361,13 +1380,14 @@ fn an_item_of_an_array_that_is_not_there_may_not_be_written() {
 fn an_item_of_a_class_of_the_script_may_not_be_written() {
     // v2.0.19 asks only the `__Item` property of the item, and the
     // meta-functions answer for the properties that are not there.
+    // Measured on the binary of v2.0.19 on 2026-10-30.
     let (report, _desktop) = run(
         "class Box {\n}\nb := Box()\nb[\"a\"] := 1",
     );
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This object has no item that can be written.")
+        Some("This value of type \"Box\" has no property named \"__Item\".")
     );
 }
 
@@ -1710,6 +1730,102 @@ fn a_parameter_read_in_another_case_is_the_same_parameter() {
     let (report, _) = run("f(p) {\n  return P\n}\nMsgBox f(\"the parameter\")\n");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["the parameter"]);
+}
+
+#[test]
+fn a_property_that_is_not_there_names_the_type_of_the_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let (report, _) = run("x := 5\nMsgBox x.nothing");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Integer\" has no property named \"nothing\".")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_method_that_is_not_there_names_the_type_of_the_value() {
+    let (report, _) = run("x := 5\nMsgBox x.nothing()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Integer\" has no method named \"nothing\".")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn an_item_that_is_not_there_names_the_type_of_the_value() {
+    let (report, _) = run("x := 5\nMsgBox x[1]");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Integer\" has no property named \"__Item\".")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn the_refusal_of_a_text_names_the_type_of_the_value() {
+    let (report, _) = run("x := \"abc\"\nMsgBox x.nothing");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"String\" has no property named \"nothing\".")
+    );
+}
+
+#[test]
+fn the_refusal_of_an_object_names_the_class_of_the_script() {
+    let (report, _) = run("class Thing {\n}\nt := Thing()\nMsgBox t.nothing");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Thing\" has no property named \"nothing\".")
+    );
+}
+
+#[test]
+fn the_refusal_of_a_class_type_names_the_class() {
+    let (report, _) = run("m := Map()\nMsgBox m.nothing");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Map\" has no property named \"nothing\".")
+    );
+}
+
+#[test]
+fn the_write_of_a_property_that_is_not_there_names_the_type() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the write is
+    // refused the same way the read is.
+    let (report, _) = run("x := 5\nx.nothing := 2");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Integer\" has no property named \"nothing\".")
+    );
+}
+
+#[test]
+fn the_write_of_an_item_that_is_not_there_names_the_type() {
+    let (report, _) = run("x := 5\nx[1] := 2");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Integer\" has no property named \"__Item\".")
+    );
+}
+
+#[test]
+fn the_write_of_a_property_of_a_class_of_the_script_makes_the_property() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: v2 does not refuse
+    // the write of a property that the class does not declare, and the
+    // property is there afterwards.
+    let (report, _) = run("class Thing {\n}\nt := Thing()\nt.nothing := 2\nMsgBox t.nothing");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
 }
 
 #[test]

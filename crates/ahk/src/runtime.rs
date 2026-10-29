@@ -1247,7 +1247,10 @@ impl<'a> Runtime<'a> {
                 line,
             }),
             None => Err(RuntimeError {
-                message: format!("{name:?} is not a method of this value."),
+                message: format!(
+                    "This value of type \"{}\" has no method named {name:?}.",
+                    self.the_type_of(target)
+                ),
                 line,
             }),
         }
@@ -2383,10 +2386,7 @@ impl<'a> Runtime<'a> {
         if let Some(result) = self.base_method(target, name, &values, line) {
             return result;
         }
-        Err(RuntimeFailure::Error(RuntimeError {
-            message: format!("{name:?} is not a method of this value."),
-            line,
-        }))
+        Err(self.no_method(target, name, line))
     }
 
     /// A method, called on a value.
@@ -2510,10 +2510,7 @@ impl<'a> Runtime<'a> {
                     return Some(Err(missing()));
                 };
                 let Some(method) = self.find_method(&class, &name) else {
-                    return Some(Err(RuntimeFailure::Error(RuntimeError {
-                        message: format!("This object has no method {name:?}."),
-                        line,
-                    })));
+                    return Some(Err(self.no_method(target, &name, line)));
                 };
                 Some(Ok(method_value(&name, &method)))
             }
@@ -2582,14 +2579,61 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The name of the type of a value, the way v2 writes it.
+    ///
+    /// An object is named after its class, and the other values after their
+    /// kind: "Integer", "String", "Object".
+    fn the_type_of(&self, value: &Value) -> String {
+        match self.class_of(value) {
+            Some(name) => name,
+            None => value.type_name().name().to_string(),
+        }
+    }
+
+    /// The refusal of a property that a value does not have.
+    fn no_property(&self, target: &Value, name: &str, line: u32) -> RuntimeFailure {
+        RuntimeFailure::Error(RuntimeError {
+            message: format!(
+                "This value of type \"{}\" has no property named {name:?}.",
+                self.the_type_of(target)
+            ),
+            line,
+        })
+    }
+
+    /// The refusal of a method that a value does not have.
+    fn no_method(&self, target: &Value, name: &str, line: u32) -> RuntimeFailure {
+        RuntimeFailure::Error(RuntimeError {
+            message: format!(
+                "This value of type \"{}\" has no method named {name:?}.",
+                self.the_type_of(target)
+            ),
+            line,
+        })
+    }
+
+    /// The refusal of an item that a value does not have.
+    ///
+    /// The item of a value is the `__Item` of it, and that is the name the
+    /// refusal carries.
+    fn no_item(&self, target: &Value, line: u32) -> RuntimeFailure {
+        RuntimeFailure::Error(RuntimeError {
+            message: format!(
+                "This value of type \"{}\" has no property named \"__Item\".",
+                self.the_type_of(target)
+            ),
+            line,
+        })
+    }
+
     /// A property of a value.
     fn read_property(&mut self, target: &Value, name: &str, line: u32) -> Result<Value, RuntimeFailure> {
+        // The name is written as the script wrote it, and the lookup is in
+        // lower case: the tree does not know the case of a property.
+        let written = name.to_string();
         let name = name.to_lowercase();
         let Value::Object(object) = target else {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: format!("{target:?} has no properties."),
-                line,
-            }));
+            return Err(self.no_property(target, &written, line));
         };
         let class = object.borrow().class.clone();
         // A class type of the runtime has properties of its own, and it
@@ -2605,10 +2649,7 @@ impl<'a> Runtime<'a> {
             let argument = Node::Literal { value: LiteralValue::Text(name), line };
             return self.call_method(&defining, &method, target, &[argument], line);
         }
-        Err(RuntimeFailure::Error(RuntimeError {
-            message: format!("This object has no property {name:?}."),
-            line,
-        }))
+        Err(self.no_property(target, &written, line))
     }
 
     /// A property of a value that is written.
@@ -2619,12 +2660,10 @@ impl<'a> Runtime<'a> {
         value: Value,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
+        let written = name.to_string();
         let name = name.to_lowercase();
         let Value::Object(object) = target else {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: format!("{target:?} has no properties."),
-                line,
-            }));
+            return Err(self.no_property(target, &written, line));
         };
         let class = object.borrow().class.clone();
         // A class type of the runtime owns the whole of its properties.
@@ -3811,19 +3850,9 @@ impl<'a> Runtime<'a> {
                     Value::List(items) => items.get(position - 1).cloned().ok_or_else(|| {
                         RuntimeFailure::Error(RuntimeError { message: "Invalid index.".into(), line: *line })
                     }),
-                    Value::Text(text) => {
-                        let characters: Vec<char> = text.chars().collect();
-                        characters.get(position - 1).map(|c| Value::Text(c.to_string())).ok_or_else(|| {
-                            RuntimeFailure::Error(RuntimeError {
-                                message: "Invalid index.".into(),
-                                line: *line,
-                            })
-                        })
-                    }
-                    _ => Err(RuntimeFailure::Error(RuntimeError {
-                        message: "Invalid index.".into(),
-                        line: *line,
-                    })),
+                    // A text has no item, and v2 refuses the index of
+                    // one: `SubStr` is the way to take a letter out.
+                    _ => Err(self.no_item(&target, *line)),
                 }
             }
             Node::Ternary { condition, then, otherwise, .. } => {
@@ -3939,10 +3968,7 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         let Value::Object(object) = target else {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: "Invalid index.".into(),
-                line,
-            }));
+            return Err(self.no_item(target, line));
         };
         let class = object.borrow().class.clone();
         // The compound operators read what is there before they write.
@@ -3958,10 +3984,7 @@ impl<'a> Runtime<'a> {
                 result?;
                 Ok(value)
             }
-            None => Err(RuntimeFailure::Error(RuntimeError {
-                message: "This object has no item that can be written.".into(),
-                line,
-            })),
+            None => Err(self.no_item(target, line)),
         }
     }
 
@@ -3973,10 +3996,7 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         let Value::Object(object) = target else {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: "Invalid index.".into(),
-                line,
-            }));
+            return Err(self.no_item(target, line));
         };
         let class = object.borrow().class.clone();
         // The class of the script first, and then the class types of the
@@ -4000,7 +4020,7 @@ impl<'a> Runtime<'a> {
         ) {
             return result;
         }
-        Err(RuntimeFailure::Error(RuntimeError { message: "Invalid index.".into(), line }))
+        Err(self.no_item(target, line))
     }
 
     /// The value of a reference: a name, or a path of names.

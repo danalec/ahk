@@ -151,7 +151,10 @@ fn a_name_that_is_not_in_the_table_is_not_a_method() {
     return 0
 }\nhk := Hotkey(\"^!a\", Callback)\nhk.Nonsense()");
     assert!(!report.ok);
-    assert_eq!(error_of(&report), "\"Nonsense\" is not a method of this value.");
+    assert_eq!(
+        error_of(&report),
+        "This value of type \"Hotkey\" has no method named \"Nonsense\"."
+    );
     // The function of the script takes three lines, and the call is the
     // fifth.
     assert_eq!(report.error_line, Some(5));

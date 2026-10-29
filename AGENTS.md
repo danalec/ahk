@@ -207,6 +207,16 @@ the box: it does no I/O, and it has to keep building without `std`.
   `__Set` is not called for it, and `x[y]` asks only the `__Item`, which
   reads and never writes. The tree follows that, and a class that cannot
   write an item fails the statement with the reason.
+- **The refusal of an object is the wording of v2.** Measured on the binary
+  of v2.0.19 on 2026-10-30: `x.nothing` on a number answers "This value of
+  type \"Integer\" has no property named \"nothing\".", `x.nothing()` answers
+  the same with "method" where the property says "property", and `x[1]`
+  answers "This value of type \"Integer\" has no property named \"__Item\"."
+  -- the item is the `__Item` of the value, and that is the name the
+  refusal carries. The type is the class of the script, the name of the
+  class type, or the kind of the value: "Thing", "Map", "String", "Float".
+  A property that is written is refused the same way, and a text has no
+  item at all: `SubStr` is the way to take a letter out of one.
 
 ## Testing instructions
 

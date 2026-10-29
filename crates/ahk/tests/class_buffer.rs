@@ -128,7 +128,7 @@ fn a_buffer_has_no_position() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This object has no property \"pos\".")
+        Some("This value of type \"Buffer\" has no property named \"Pos\".")
     );
 }
 
@@ -140,7 +140,7 @@ fn a_buffer_does_not_read_bytes() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("\"ReadUChar\" is not a method of this value.")
+        Some("This value of type \"Buffer\" has no method named \"ReadUChar\".")
     );
     assert_eq!(report.error_line, Some(2));
 }
@@ -149,7 +149,12 @@ fn a_buffer_does_not_read_bytes() {
 fn a_buffer_has_no_item() {
     let report = run("b := Buffer(2)\nbyte := b[1]");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Invalid index."));
+    // The buffer of v2 has no item either: the name of the item is the
+    // name of the property that carries it.
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Buffer\" has no property named \"__Item\".")
+    );
     assert_eq!(report.error_line, Some(2));
 }
 
