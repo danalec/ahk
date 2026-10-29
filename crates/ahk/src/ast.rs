@@ -391,6 +391,12 @@ pub enum Node {
     /// the array of nothing. The values go in the order they are
     /// written, and the places of an array count from one.
     ArrayLiteral { items: Vec<Node>, line: u32 },
+    /// `{a: 1, b: 2}`: the literal of an object.
+    ///
+    /// v2 writes an object between braces, and the empty braces are the
+    /// object of nothing. The name of a property is a name of the script,
+    /// and the names of the properties do not know their case.
+    ObjectLiteral { properties: Vec<(String, Node)>, line: u32 },
     /// `try { } catch { } else { } finally { }`.
     ///
     /// The block of the `try` is guarded against the errors of the runtime
@@ -470,6 +476,7 @@ impl Node {
             | Node::Property { line, .. }
             | Node::AssignProperty { line, .. }
             | Node::ArrayLiteral { line, .. }
+            | Node::ObjectLiteral { line, .. }
             | Node::Try { line, .. }
             | Node::Throw { line, .. }
             | Node::Declare { line, .. }

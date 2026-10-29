@@ -1532,6 +1532,62 @@ fn a_name_that_is_neither_a_built_in_nor_a_function_does_not_parse() {
 }
 
 #[test]
+fn the_object_literal_of_v2_makes_an_object() {
+    let (report, desktop) = run("x := {a: 1, b: 2}\nSend \"%x.a%%x.b%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["12"]);
+}
+
+#[test]
+fn the_empty_object_literal_is_an_object_of_nothing() {
+    let (report, desktop) = run("x := {}\nSend \"%x.__Class%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["Object"]);
+}
+
+#[test]
+fn the_names_of_the_properties_of_an_object_do_not_know_their_case() {
+    let (report, desktop) = run("x := {a: 1}\nSend \"%x.A%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1"]);
+}
+
+#[test]
+fn the_name_of_a_property_of_an_object_literal_must_be_a_name() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the script does
+    // not load at all.
+    let error = parse("x := {\"a b\": 1}").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid property name in object literal.");
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn a_property_of_an_object_literal_needs_its_colon() {
+    let error = parse("x := {a 1}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn the_name_of_a_property_of_an_object_literal_may_be_a_keyword() {
+    let (report, desktop) = run("x := {class: 1}\nSend \"%x.class%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1"]);
+}
+
+#[test]
+fn a_comma_at_the_end_of_a_list_is_allowed() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: v2 takes a comma at
+    // the end of the list of an array, of an object and of the arguments of
+    // a call.
+    let (report, _desktop) = run(
+        "a := [1, 2,]\nx := {a: 1,}\ny := StrLen(\"ab\",)\nMsgBox \"%a.Length%\"\nMsgBox \"%x.a%\"\nMsgBox \"%y%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2", "1", "2"]);
+}
+
+#[test]
 fn the_hex_of_v2_is_a_whole_number() {
     let (report, desktop) = run("x := 0xE9\nSend \"%x%\"");
     assert!(report.ok, "{:?}", report.error);

@@ -1358,6 +1358,9 @@ impl<'a> Runtime<'a> {
                 // An array literal is an expression: the parser never
                 // gives one as a statement of its own.
             }
+            Node::ObjectLiteral { .. } => {
+                // The literal of an object is an expression too.
+            }
             Node::For { variables, source, body, line } => {
                 self.for_loop(variables, source, body, *line)?;
             }
@@ -4038,6 +4041,19 @@ impl<'a> Runtime<'a> {
                 LiteralValue::Text(text) => Value::Text(self.interpolate(text, *line)?),
                 LiteralValue::Bool(flag) => Value::Int(*flag as i64),
             }),
+            Node::ObjectLiteral { properties, .. } => {
+                // The literal of an object of v2: an object of the base
+                // class with the properties it writes. The names of the
+                // properties do not know their case.
+                let object = crate::classes::object("Object");
+                if let Value::Object(cell) = &object {
+                    for (name, value) in properties {
+                        let value = self.evaluate(value)?;
+                        cell.borrow_mut().properties.insert(name.to_lowercase(), value);
+                    }
+                }
+                Ok(object)
+            }
             Node::ArrayLiteral { items, line } => {
                 // The literal is the array the `Array` built-in makes:
                 // the values go in, in the order they are written.
@@ -5029,6 +5045,7 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Super { .. } => "Super",
         Node::Loop { .. } => "Loop",
         Node::ArrayLiteral { .. } => "ArrayLiteral",
+        Node::ObjectLiteral { .. } => "ObjectLiteral",
         Node::For { .. } => "For",
         Node::Directive { name, .. } => name,
         Node::Break { .. } => "Break",

@@ -807,6 +807,10 @@ impl Parser {
             arguments.push(self.parse_expression()?);
             if self.at_op(&[","]) {
                 self.position += 1;
+                // A comma at the end of the list is allowed.
+                if self.at_op(&[")"]) {
+                    break;
+                }
                 continue;
             }
             break;
@@ -1657,6 +1661,10 @@ impl Parser {
                         items.push(self.parse_expression()?);
                         if self.at_op(&[","]) {
                             self.position += 1;
+                            // A comma at the end of the list is allowed.
+                            if self.at_op(&["]"]) {
+                                break;
+                            }
                             continue;
                         }
                         break;
@@ -1664,6 +1672,44 @@ impl Parser {
                 }
                 self.expect_op("]")?;
                 Node::ArrayLiteral { items, line: token.line }
+            }
+            TokenKind::Op if token.value == "{" => {
+                // The literal of an object: `{a: 1, b: 2}`. The braces of
+                // a block open a statement, and these open a value.
+                let mut properties = Vec::new();
+                if !self.at_op(&["}"]) {
+                    loop {
+                        let name = self.next();
+                        if name.kind != TokenKind::Name && name.kind != TokenKind::Keyword {
+                            return Err(SyntaxError {
+                                message: "Invalid property name in object literal.".into(),
+                                line: name.line,
+                                column: name.column,
+                            });
+                        }
+                        if !self.at_op(&[":"]) {
+                            return Err(SyntaxError {
+                                message: "Missing \"propertyname:\" in object literal.".into(),
+                                line: name.line,
+                                column: name.column,
+                            });
+                        }
+                        self.position += 1;
+                        let value = self.parse_expression()?;
+                        properties.push((name.value, value));
+                        if self.at_op(&[","]) {
+                            self.position += 1;
+                            // A comma at the end of the list is allowed.
+                            if self.at_op(&["}"]) {
+                                break;
+                            }
+                            continue;
+                        }
+                        break;
+                    }
+                }
+                self.expect_op("}")?;
+                Node::ObjectLiteral { properties, line: token.line }
             }
             _ => {
                 return Err(SyntaxError {

@@ -2484,3 +2484,35 @@ the code page CP1252.
 
 Seventeen cases of the encoding are the same in the tree and in the dialect,
 the bytes of the files included.
+
+## 44. The literal of an object of v2 is an object
+
+The tree did not read `{}` at all: it said "unexpected \"{\"". Measured on the
+binary of v2.0.19 on 2026-10-30, v2 writes an object between braces.
+
+- **The braces of a value are the literal of an object.** `{}` is the object of
+  nothing, and `{a: 1, b: 2}` is the object with the properties it writes. The
+  object is of the class `Object`, the base of the tree.
+- **The name of a property is a name of the script.** A name that is not one is
+  refused at the load: "Invalid property name in object literal.". The colon
+  is not optional either: "Missing \"propertyname:\" in object literal.".
+- **The names of the properties do not know their case.** `{a: 1}` is read as
+  `x.A` too, and the tree reads the properties of an object in lower case
+  already.
+
+Eleven cases of the object literal are the same in the tree and in the dialect.
+
+## 45. A comma at the end of a list is allowed
+
+Measured on the binary of v2.0.19 on 2026-10-30: v2 takes a comma at the end
+of the list of an array, of an object and of the arguments of a call. The tree
+refused all three.
+
+- `[1, 2,]` is the array of two values.
+- `{a: 1,}` is the object of one property.
+- `StrLen("ab",)` is the call of one argument.
+
+The parameters of a function are not one of them: v2 refuses a comma at the end
+of them with "Missing parameter name.", and the tree says that the name is not
+one. The words are the ones of the tree, and the gap is in the notes of the
+tree.

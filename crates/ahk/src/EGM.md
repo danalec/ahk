@@ -99,8 +99,8 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   `Unary`, `Binary`, `Ternary`, `Cast`, `Assign`, `Index`, `AssignIndex`,
   `Call`, `If`, `Switch`, `While`, `Loop`, `For`, `Directive`, `Break`,
   `Continue`, `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`,
-  `Property`, `AssignProperty` and `ArrayLiteral`. Every variant carries
-  its line.
+  `Property`, `AssignProperty`, `ArrayLiteral` and `ObjectLiteral`. Every
+  variant carries its line.
 
   The statements that v2 spells as commands -- `Send`, `Click`, `Sleep`,
   `Run`, `MsgBox` -- are not variants of the tree: they are names of the
@@ -116,6 +116,11 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   `Array(a, b)`. It is a primary, so the suffixes of a value follow it
   the way they follow a variable: `[1, 2].Length` is the length of the
   array.
+- `ObjectLiteral { properties, line }` -- the literal of an object:
+  `{a: 1}` is an object of the base class with the property `a`. The name of
+  a property is a name of the script, and the names of the properties do not
+  know their case. A comma at the end of the list of an array, of an object
+  and of the arguments of a call is allowed.
 - `For { variables, source, body, line }` -- the loop that walks what an
   object enumerates. A name the script left out is an empty string in
   the list, so `for , value in map` is two names and the first one is
