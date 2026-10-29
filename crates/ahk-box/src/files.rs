@@ -41,7 +41,9 @@ impl ahk::desktop::Files for LabDesktop {
                 options.write(true).create(true).truncate(true);
             }
             "a" => {
-                options.append(true).create(true);
+                // The file is read as well as it is written: the bytes
+                // of its head say the encoding of it.
+                options.append(true).read(true).create(true);
             }
             "rw" | "r+" => {
                 options.read(true).write(true).create(true);

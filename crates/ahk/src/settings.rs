@@ -22,6 +22,7 @@
 //! method of the send is `Input`, and the mask of the menu is the Escape
 //! key spelled `vk11sc01D`.
 
+use alloc::format;
 use alloc::string::{String, ToString};
 use core::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 #[cfg(test)]
@@ -54,15 +55,17 @@ const SEND_MODES: [&str; 4] = ["Input", "Event", "Play", "InputThenPlay"];
 ///
 /// The default of v2 is `CP0`, the code page of the machine, and v2
 /// resolves it to the code page of the machine: on the machine of the
-/// measurement it was `CP1252`. The box has no code pages, so the tree
-/// carries the default and the two that name a byte order, with the
-/// `-RAW` forms: the suffix says that the file has no byte order mark.
+/// measurement it was `CP1252`. The tree carries that code page, and the
+/// two that name a byte order, with the `-RAW` forms: the suffix says
+/// that the file has no byte order mark.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-28: the variable keeps
 /// the suffix (`FileEncoding "UTF-8-RAW"` leaves `A_FileEncoding` at
 /// `UTF-8-RAW`), `FileEncoding "CP0"` is carried, and `FileEncoding
 /// "ANSI"`, `FileEncoding "OEM"` and `FileEncoding "UTF8"` are refused.
-const ENCODINGS: [&str; 5] = ["CP0", "UTF-8", "UTF-8-RAW", "UTF-16", "UTF-16-RAW"];
+/// Measured on the binary of v2.0.19 on 2026-10-30: `FileEncoding
+/// "CP1252"` is carried too, and the variable keeps the name.
+const ENCODINGS: [&str; 6] = ["CP0", "CP1252", "UTF-8", "UTF-8-RAW", "UTF-16", "UTF-16-RAW"];
 
 /// The key that closes a menu.
 ///
@@ -269,11 +272,15 @@ pub fn file_encoding() -> &'static str {
 
 /// The encoding the bytes of the files are written in.
 ///
-/// The default of v2 is the code page of the machine, and the box has no
-/// code page: the tree writes UTF-8, the encoding that carries every
-/// character it can write.
+/// The default of v2 is the code page of the machine, and the tree
+/// carries the code page of the machine where the dialect was measured:
+/// `CP1252`. The suffix of the raw files is kept, because it says that
+/// the file has no byte order mark.
 pub fn file_bytes_encoding() -> &'static str {
-    if file_encoding().starts_with("UTF-16") { "UTF-16" } else { "UTF-8" }
+    match file_encoding() {
+        "CP0" => "CP1252",
+        other => other,
+    }
 }
 
 /// `CoordMode`: the way the coordinates are read.
@@ -587,20 +594,40 @@ fn key_delay_of(delay: i64, play: bool) -> i64 {
 ///
 /// The name has to be one of the encodings of the tree: a file read
 /// with an encoding the tree does not know is a file read as something
-/// else. The box has no code pages, so a name of a code page -- `CP1252`,
-/// the one v2 accepts and resolves -- is refused with the message v2
-/// gives for a name it does not know.
+/// else. The tree carries one code page -- `CP1252`, the one of the
+/// machine where the dialect was measured -- and a name of another one
+/// is refused with the message v2 gives for a name it does not know.
 ///
 /// The name is carried the way v2 carries it: `utf-8` becomes `UTF-8`,
 /// and the suffix `-RAW` is kept.
 pub fn set_file_encoding(name: &str) -> Result<&'static str, String> {
     let wanted = name.trim().to_uppercase();
-    let found = ENCODINGS
-        .iter()
-        .position(|encoding| *encoding == wanted.as_str())
-        .ok_or_else(|| runtime::invalid_parameter(1, "FileEncoding"))?;
+    let found = ENCODINGS.iter().position(|encoding| *encoding == wanted.as_str());
+    let found = match found {
+        Some(found) => found,
+        None => {
+            // v2 takes any code page of the machine and resolves it to
+            // the code page of the machine. The tree carries one of them,
+            // and it says which one it is.
+            if is_a_code_page(&wanted) {
+                return Err(format!(
+                    "the code page {wanted} is not one this runtime carries: it knows the code page of the machine (CP1252)."
+                ));
+            }
+            return Err(runtime::invalid_parameter(1, "FileEncoding"));
+        }
+    };
     STATE.encoding.store(found as u8, Ordering::Relaxed);
     Ok(ENCODINGS[found])
+}
+
+/// Whether a name is the name of a code page.
+///
+/// The name of a code page is `CP` and a number: `CP0` is the code page
+/// of the machine, and `CP1252` is the one that the tree carries.
+fn is_a_code_page(name: &str) -> bool {
+    let Some(number) = name.strip_prefix("CP") else { return false };
+    !number.is_empty() && number.chars().all(|digit| digit.is_ascii_digit())
 }
 
 /// The text of the argument at this place, or the empty string.
@@ -1080,14 +1107,31 @@ impl Dialogs for Fake {}
         // The suffix of the raw files is kept, the way v2 keeps it.
         assert_eq!(set_file_encoding("UTF-16-RAW"), Ok("UTF-16-RAW"));
         assert_eq!(value("fileencoding"), Value::Text("UTF-16-RAW".into()));
-        // The bytes of a file are UTF-16 when the encoding says so.
-        assert_eq!(file_bytes_encoding(), "UTF-16");
+        // The bytes of a file are UTF-16 when the encoding says so, and
+        // the suffix of the raw files is kept: it says that the file has
+        // no byte order mark.
+        assert_eq!(file_bytes_encoding(), "UTF-16-RAW");
         assert_eq!(set_file_encoding("CP0"), Ok("CP0"));
-        assert_eq!(file_bytes_encoding(), "UTF-8");
-        // A code page is a name the tree does not carry: the box has none.
+        // The bytes of a file are the code page of the machine, the one
+        // where the dialect was measured.
+        assert_eq!(file_bytes_encoding(), "CP1252");
+        // Measured on the binary of v2.0.19 on 2026-10-30: the name of
+        // the code page is carried, and the variable keeps it.
+        assert_eq!(set_file_encoding("CP1252"), Ok("CP1252"));
+        assert_eq!(value("fileencoding"), Value::Text("CP1252".into()));
+        assert_eq!(file_bytes_encoding(), "CP1252");
+        // A name that v2 does not know is refused with the message of
+        // v2.
         assert_eq!(
-            set_file_encoding("CP1252"),
+            set_file_encoding("ANSI"),
             Err("Parameter #1 of FileEncoding is invalid.".to_string())
+        );
+        // A code page that the tree does not carry is refused with the
+        // reason of its own: the tree carries one code page.
+        assert_eq!(
+            set_file_encoding("CP437"),
+            Err("the code page CP437 is not one this runtime carries: it knows the code page of the machine (CP1252)."
+                .to_string())
         );
     }
 

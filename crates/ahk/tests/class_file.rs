@@ -27,14 +27,24 @@ struct Fake {
 impl Fake {
     /// A desktop with one file on it.
     fn with_file(path: &str, text: &str) -> Fake {
+        Fake::with_bytes(path, text.as_bytes())
+    }
+
+    /// A desktop with one file on it, with the bytes it has.
+    fn with_bytes(path: &str, bytes: &[u8]) -> Fake {
         let mut disk = BTreeMap::new();
-        disk.insert(path.to_string(), text.as_bytes().to_vec());
+        disk.insert(path.to_string(), bytes.to_vec());
         Fake { disk, open: BTreeMap::new(), next: 0 }
     }
 
     /// The text of a file of the fake.
     fn text(&self, path: &str) -> String {
         String::from_utf8_lossy(self.disk.get(path).map(|file| file.as_slice()).unwrap_or(&[])).to_string()
+    }
+
+    /// The bytes of a file of the fake.
+    fn bytes(&self, path: &str) -> Vec<u8> {
+        self.disk.get(path).cloned().unwrap_or_default()
     }
 }
 
@@ -371,6 +381,19 @@ fn a_file_has_an_encoding() {
         "f := FileOpen(\"notes.txt\", \"r\")\nMsgBox \"%f.Encoding%\"",
     );
     assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: a file of the
+    // default is a file of the code page of the machine.
+    assert_eq!(report.output, vec!["CP1252"]);
+}
+
+#[test]
+fn a_file_of_utf_8_has_the_name_of_utf_8() {
+    let (report, _desktop) = run_with_file(
+        "notes.txt",
+        "one\n",
+        "f := FileOpen(\"notes.txt\", \"r\", \"UTF-8\")\nMsgBox \"%f.Encoding%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["UTF-8"]);
 }
 
@@ -390,14 +413,107 @@ fn an_encoding_that_is_not_carried_fails() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := FileOpen(\"notes.txt\", \"r\")\nf.Encoding := \"CP1252\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nf.Encoding := \"CP437\"",
     );
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("the encoding \"CP1252\" is not one this runtime carries: it knows UTF-8 and UTF-16.")
+        Some(
+            "the encoding \"CP437\" is not one this runtime carries: it knows the code page of the machine (CP1252), UTF-8 and UTF-16."
+        )
     );
     assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_file_of_the_code_page_writes_the_bytes_of_the_code_page() {
+    let mut desktop = Fake::default();
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"out.txt\", \"w\")\nf.Write(Chr(0xE9))\nf.Close()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: the bytes of a
+    // file of the default are the bytes of the code page of the machine.
+    assert_eq!(desktop.bytes("out.txt"), vec![0xE9]);
+}
+
+#[test]
+fn a_character_the_code_page_does_not_have_is_a_question_mark() {
+    let mut desktop = Fake::default();
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"out.txt\", \"w\")\nf.Write(Chr(0x65E5))\nf.Close()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: a character the
+    // code page does not have is a question mark.
+    assert_eq!(desktop.bytes("out.txt"), vec![0x3F]);
+}
+
+#[test]
+fn a_file_of_utf_8_begins_with_the_mark() {
+    let mut desktop = Fake::default();
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"out.txt\", \"w\", \"UTF-8\")\nf.Write(\"a\")\nf.Close()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-29: a file of UTF-8
+    // begins with the mark of three bytes.
+    assert_eq!(desktop.bytes("out.txt"), vec![0xEF, 0xBB, 0xBF, b'a']);
+}
+
+#[test]
+fn a_file_of_utf_8_raw_has_no_mark() {
+    let mut desktop = Fake::default();
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"out.txt\", \"w\", \"UTF-8-RAW\")\nf.Write(\"a\")\nf.Close()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-29: the raw files
+    // have no mark.
+    assert_eq!(desktop.bytes("out.txt"), vec![b'a']);
+}
+
+#[test]
+fn the_mark_of_a_file_is_skipped_when_the_file_is_opened() {
+    let mut desktop = Fake::with_bytes("notes.txt", &[0xEF, 0xBB, 0xBF, b'a']);
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"notes.txt\", \"r\")\npos := f.Pos\ntext := f.Read()\nMsgBox \"%pos% / %text%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: the position of a
+    // file with a mark goes over the mark when the file is opened.
+    assert_eq!(report.output, vec!["3 / a"]);
+}
+
+#[test]
+fn the_mark_of_a_file_decides_the_encoding_of_it() {
+    let mut desktop = Fake::with_bytes("notes.txt", &[0xEF, 0xBB, 0xBF, b'a']);
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"notes.txt\", \"r\", \"CP1252\")\nMsgBox \"%f.Encoding%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: the bytes of a
+    // file decide the encoding of it, whatever the script asked for.
+    assert_eq!(report.output, vec!["UTF-8"]);
+}
+
+#[test]
+fn a_file_that_is_appended_to_keeps_the_encoding_of_its_head() {
+    let mut desktop = Fake::with_bytes("notes.txt", &[0xEF, 0xBB, 0xBF, b'a']);
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"notes.txt\", \"a\")\nMsgBox \"%f.Encoding% / %f.Pos%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: the encoding of a
+    // file that is appended to is the one of its head.
+    assert_eq!(report.output, vec!["UTF-8 / 4"]);
 }
 
 #[test]

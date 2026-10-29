@@ -390,6 +390,14 @@ the class, and the write of one goes the same way. Only a `Map` and an
 `Array` have a way to write an item: the others answer that they have
 none, and the statement fails with that reason.
 
+The encoding of a `File` is the encoding of the script when the script does
+not say which one it wants, and the code page of the machine is the default of
+the script: `CP1252`, the code page of the machine where the dialect was
+measured. The byte order mark of the encoding is written when the file is
+opened to be written, and the bytes of the file decide the encoding of it when
+it is opened: a file that begins with the mark of UTF-8 is read with UTF-8,
+whatever the script asked for.
+
 ### The desktop (`desktop.rs`)
 
 The fifteen capability traits, and the `Desktop` that is their sum. Every
@@ -468,7 +476,10 @@ Four modules that answer what the runtime used to answer with a reason.
   state is in the module and not in the runtime: the runtime has no field
   for it, and the crate runs without the standard library, so there is no
   mutex of the standard library either. The modes of the coordinates that
-  need windows answer with the reason.
+  need windows answer with the reason. The encoding of the files is the
+  name that the script wrote: `CP0` is the code page of the machine, and
+  the tree carries one code page -- `CP1252` -- and refuses another one
+  with the reason of its own.
 - `hotkeys.rs` -- the hotkeys of the script. The runtime holds the
   registry and the desktop holds the watcher: the script says which
   function a hotkey runs, and the machine says which key was pressed. The

@@ -2450,3 +2450,37 @@ that "integers may be written in either hexadecimal or decimal format".
 - **A number has one point.** The point of `1.5.2` is the member operator,
   and the member of v2 may be a number: the name of the property is the text
   of the number, and `1.5.2` asks for the property "2" of the float.
+
+## 43. The encoding of a file is the code page of the machine
+
+The tree wrote the files in UTF-8 and refused the code pages of the machine.
+Measured on the binary of v2.0.19 on 2026-10-30: the files of a script are
+written in the code page of the machine, and the machine of the measurement had
+the code page CP1252.
+
+- **The default encoding of the files is the encoding of the script.** The
+  default of v2 is `CP0`, which is the code page of the machine, and the tree
+  carries the code page of the machine where the dialect was measured:
+  `CP1252`. The bytes of a file of the default are the bytes of the code page:
+  "café" is `63 61 66 e9`.
+- **A character the code page does not have is a question mark.** The machine
+  has no way to write it, and it writes `3f`.
+- **The variable keeps the name that the script wrote.** `A_FileEncoding` is
+  `CP0` by default, `FileEncoding "CP1252"` leaves it at `CP1252`, and
+  `FileEncoding "UTF-8-RAW"` leaves it at `UTF-8-RAW`.
+- **The encoding of a file answers its own name.** A file of the default
+  answers `CP1252`, and a file of raw text answers `UTF-8`: the suffix that
+  says that the file has no byte order mark is not in the name of the file.
+- **The byte order mark is written when the file is opened to be written.** A
+  file of UTF-8 begins with `ef bb bf`, and a file of UTF-16 with `ff fe`. The
+  code page has none, and the raw files have none.
+- **The bytes of the file decide its encoding.** A file that begins with the
+  mark of UTF-8 is read with UTF-8, whatever the script asked for, and the
+  position of the file goes over the mark when the file is opened.
+- **A code page that the tree does not carry is refused with its own reason.**
+  v2 takes any code page of the machine and resolves it; the tree carries one
+  of them, and it says which: "the code page CP437 is not one this runtime
+  carries: it knows the code page of the machine (CP1252)."
+
+Seventeen cases of the encoding are the same in the tree and in the dialect,
+the bytes of the files included.

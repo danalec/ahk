@@ -7,9 +7,10 @@
 //! and it keeps the handle, the position and the encoding of the file
 //! in the property table of the object, under one key.
 //!
-//! The text of a file is UTF-8 or UTF-16, the two encodings the
-//! runtime carries: an encoding it does not carry is a failure with the
-//! reason, and not a text that is written in the wrong bytes.
+//! The text of a file is the code page of the machine, or UTF-8, or
+//! UTF-16: the three encodings the runtime carries. An encoding it does
+//! not carry is a failure with the reason, and not a text that is
+//! written in the wrong bytes.
 
 use alloc::collections::BTreeMap;
 use alloc::format;
@@ -89,10 +90,21 @@ impl File {
 }
 
 /// The encodings the runtime carries.
+///
+/// The code page of the machine is one of them: it is the encoding of
+/// the files when the script does not say which one it wants, and it is
+/// the code page of the machine where the dialect was measured.
+///
+/// The raw files have no byte order mark: the suffix of their name says
+/// so.
 #[derive(Clone, Copy)]
 enum Encoding {
-    Utf8,
-    Utf16,
+    /// The code page of the machine.
+    Cp1252,
+    /// The text of v2, in UTF-8.
+    Utf8 { raw: bool },
+    /// The text of v2, in UTF-16.
+    Utf16 { raw: bool },
 }
 
 /// The object a `File` makes.
@@ -312,7 +324,7 @@ fn state(this: &Value, line: u32) -> Result<File, RuntimeFailure> {
         .unwrap_or_else(|| "rw".to_string());
     let encoding = match inner.properties.get("encoding") {
         Some(value) => Encoding::of(&value.to_text()).map_err(|reason| fail(reason, line))?,
-        None => Encoding::Utf8,
+        None => Encoding::of(crate::files::encoding()).map_err(|reason| fail(reason, line))?,
     };
     Ok(File { handle, pos, encoding, mode })
 }
@@ -386,12 +398,15 @@ fn open(arguments: &[Value], rt: &mut Runtime, line: u32) -> Result<File, Runtim
     };
     // The modes of v2 are "r", "w", "a" and "rw", and the case of the
     // letters is not the case of the words.
-    if !matches!(mode.to_lowercase().as_str(), "r" | "w" | "a" | "rw") {
+    let kind = mode.to_lowercase();
+    if !matches!(kind.as_str(), "r" | "w" | "a" | "rw") {
         return Err(fail("Invalid parameter(s).", line));
     }
+    // The file is opened with the encoding of the script when the
+    // script does not say which one it wants.
     let encoding = match arguments.get(2) {
         Some(value) => Encoding::of(&value.to_text()).map_err(|reason| fail(reason, line))?,
-        None => Encoding::Utf8,
+        None => Encoding::of(crate::files::encoding()).map_err(|reason| fail(reason, line))?,
     };
     // The star is the console of the machine: the standard output and
     // the standard input, and v2 opens them as files.
@@ -410,7 +425,29 @@ fn open(arguments: &[Value], rt: &mut Runtime, line: u32) -> Result<File, Runtim
     } else {
         0
     };
-    Ok(File { handle, pos, encoding, mode })
+    let mut file = File { handle, pos, encoding, mode };
+    // The bytes of the file decide the encoding of it: a file that
+    // begins with a byte order mark is read with the encoding of that
+    // mark, whatever the script asked for. The desktop that cannot read
+    // the head of the file keeps the encoding of the script.
+    if kind.contains('r') || kind == "a" {
+        if let Ok(bytes) = read_at(rt, handle, 0, 3, line) {
+            if let Some((encoding, at)) = Encoding::detect(&bytes) {
+                file.encoding = encoding;
+                if file.pos == 0 {
+                    file.pos = at as i64;
+                }
+            }
+        }
+    }
+    // The mark of the encoding is written when the file is written from
+    // its start. The raw files have none.
+    if (kind == "w" || kind == "a") && file.pos == 0 {
+        if let Some(mark) = file.encoding.mark() {
+            write_bytes(rt, &mut file, &mark, line)?;
+        }
+    }
+    Ok(file)
 }
 
 /// `Read`: the text of the file at its position.
@@ -452,21 +489,29 @@ fn read_chars(
             // A character is at most four bytes, and a UTF-16 one is
             // two: the read is wide enough for what was asked for.
             let wide = match file.encoding {
-                Encoding::Utf8 => count * 4,
-                Encoding::Utf16 => count * 2,
+                // A character of the code page is one byte.
+                Encoding::Cp1252 => count,
+                Encoding::Utf8 { .. } => count * 4,
+                Encoding::Utf16 { .. } => count * 2,
             };
             let bytes = read_at(rt, handle, file.pos, wide, line)?;
             let (text, used) = decode(&bytes, file.encoding).map_err(|reason| fail(reason, line))?;
             match file.encoding {
                 // The characters of a UTF-8 text are counted by the
                 // bytes they take, so the cut is where the text says.
-                Encoding::Utf8 => {
+                Encoding::Utf8 { .. } => {
+                    let (text, used) = take(&text, count as usize);
+                    (text, used)
+                }
+                // A character of the code page is one byte, and the cut
+                // is where the text says too.
+                Encoding::Cp1252 => {
                     let (text, used) = take(&text, count as usize);
                     (text, used)
                 }
                 // A UTF-16 character is two bytes, and the read was
                 // wide enough for the units that were asked for.
-                Encoding::Utf16 => (text, used),
+                Encoding::Utf16 { .. } => (text, used),
             }
         }
         None => {
@@ -691,7 +736,7 @@ fn raw_write(
         // A buffer is written as it is, and a string is written as it
         // is: the bytes of the UTF-16, the way v2 writes it.
         Some(Value::Object(_)) => buffer::raw_bytes(&arguments[0], line)?,
-        Some(Value::Text(text)) => encode(text, Encoding::Utf16),
+        Some(Value::Text(text)) => encode(text, Encoding::Utf16 { raw: false }),
         Some(other) => {
             return Err(fail(expected_type(TypeName::Object, other.type_name()), line));
         }
@@ -886,38 +931,173 @@ fn set_encoding(this: &Value, value: Value, line: u32) -> Result<(), RuntimeFail
 
 impl Encoding {
     /// The encoding of a name, as v2 spells it.
+    ///
+    /// The suffix of the raw files says that the file has no byte order
+    /// mark: v2 keeps the suffix in the name of the encoding of the
+    /// script, and the file of a raw script has no mark.
     fn of(name: &str) -> Result<Encoding, String> {
         let name = name.trim().to_uppercase();
-        // v2 ignores the `-RAW` suffix of the encoding of a file: the
-        // suffix says that the file has no byte order mark, and the
-        // runtime writes none either way.
-        let name = match name.strip_suffix("-RAW") {
-            Some(short) => short,
-            None => name.as_str(),
+        let (name, raw) = match name.strip_suffix("-RAW") {
+            Some(short) => (short, true),
+            None => (name.as_str(), false),
         };
         match name {
-            "UTF-8" | "UTF8" => Ok(Encoding::Utf8),
-            "UTF-16" | "UTF16" => Ok(Encoding::Utf16),
+            "UTF-8" | "UTF8" => Ok(Encoding::Utf8 { raw }),
+            "UTF-16" | "UTF16" => Ok(Encoding::Utf16 { raw }),
+            // The code page of the machine is the one of the machine
+            // where the dialect was measured.
+            "CP0" | "CP1252" => Ok(Encoding::Cp1252),
             other => Err(format!(
-                "the encoding {other:?} is not one this runtime carries: it knows UTF-8 and UTF-16."
+                "the encoding {other:?} is not one this runtime carries: it knows the code page of the machine (CP1252), UTF-8 and UTF-16."
             )),
         }
     }
 
     /// The name of the encoding, as v2 spells it.
+    ///
+    /// The suffix of the raw files is not in the name: v2 answers the
+    /// encoding of a file of raw text with the name of the encoding.
     fn name(self) -> &'static str {
         match self {
-            Encoding::Utf8 => "UTF-8",
-            Encoding::Utf16 => "UTF-16",
+            Encoding::Cp1252 => "CP1252",
+            Encoding::Utf8 { .. } => "UTF-8",
+            Encoding::Utf16 { .. } => "UTF-16",
         }
+    }
+
+    /// The bytes of the byte order mark of the encoding, if it has one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-29: a file of UTF-8
+    /// begins with the mark of three bytes, and a file of UTF-16 with the
+    /// mark of two, and the code page has none.
+    fn mark(self) -> Option<Vec<u8>> {
+        match self {
+            Encoding::Cp1252 => None,
+            Encoding::Utf8 { raw } => {
+                if raw {
+                    None
+                } else {
+                    Some(vec![0xEF, 0xBB, 0xBF])
+                }
+            }
+            Encoding::Utf16 { raw } => {
+                if raw {
+                    None
+                } else {
+                    Some(vec![0xFF, 0xFE])
+                }
+            }
+        }
+    }
+
+    /// The encoding of the bytes of a file that begin with a mark.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-30: the bytes of a
+    /// file decide the encoding of it, whatever the script asked for: a
+    /// file that begins with the mark of UTF-8 is read with UTF-8, and
+    /// the position of the file goes over the mark.
+    fn detect(bytes: &[u8]) -> Option<(Encoding, usize)> {
+        if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+            return Some((Encoding::Utf8 { raw: false }, 3));
+        }
+        if bytes.starts_with(&[0xFF, 0xFE]) {
+            return Some((Encoding::Utf16 { raw: false }, 2));
+        }
+        None
+    }
+}
+
+/// The characters of the code page of the machine that are not Latin-1.
+///
+/// The code page is CP1252, and the range 0x80-0x9F is the one that is
+/// not Latin-1: the euro, the quotes of Windows and the letters with a
+/// cedilla and a caron.
+const CP1252: [(u8, char); 27] = [
+    (0x80, '\u{20AC}'),
+    (0x82, '\u{201A}'),
+    (0x83, '\u{0192}'),
+    (0x84, '\u{201E}'),
+    (0x85, '\u{2026}'),
+    (0x86, '\u{2020}'),
+    (0x87, '\u{2021}'),
+    (0x88, '\u{02C6}'),
+    (0x89, '\u{2030}'),
+    (0x8A, '\u{0160}'),
+    (0x8B, '\u{2039}'),
+    (0x8C, '\u{0152}'),
+    (0x8E, '\u{017D}'),
+    (0x91, '\u{2018}'),
+    (0x92, '\u{2019}'),
+    (0x93, '\u{201C}'),
+    (0x94, '\u{201D}'),
+    (0x95, '\u{2022}'),
+    (0x96, '\u{2013}'),
+    (0x97, '\u{2014}'),
+    (0x98, '\u{02DC}'),
+    (0x99, '\u{2122}'),
+    (0x9A, '\u{0161}'),
+    (0x9B, '\u{203A}'),
+    (0x9C, '\u{0153}'),
+    (0x9E, '\u{017E}'),
+    (0x9F, '\u{0178}'),
+];
+
+/// The bytes of the text, in the code page of the machine.
+///
+/// A character that the code page does not have is a question mark: the
+/// machine has no way to write it.
+fn encode_cp1252(text: &str) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    for character in text.chars() {
+        match the_byte_of_cp1252(character) {
+            Some(byte) => bytes.push(byte),
+            None => bytes.push(b'?'),
+        }
+    }
+    bytes
+}
+
+/// The byte of a character in the code page of the machine.
+fn the_byte_of_cp1252(character: char) -> Option<u8> {
+    let code = character as u32;
+    if code < 0x80 || (0xA0..=0xFF).contains(&code) {
+        return Some(code as u8);
+    }
+    CP1252
+        .iter()
+        .find(|(_, other)| *other == character)
+        .map(|(byte, _)| *byte)
+}
+
+/// The text of the bytes of the code page of the machine.
+///
+/// Every byte is a character, and the byte that the code page does not
+/// have is the replacement character.
+fn decode_cp1252(bytes: &[u8]) -> (String, usize) {
+    let mut text = String::new();
+    for byte in bytes {
+        text.push(the_character_of_cp1252(*byte));
+    }
+    (text, bytes.len())
+}
+
+/// The character of a byte in the code page of the machine.
+fn the_character_of_cp1252(byte: u8) -> char {
+    match byte {
+        0x80..=0x9F => match CP1252.iter().find(|(code, _)| *code == byte) {
+            Some((_, character)) => *character,
+            None => '\u{FFFD}',
+        },
+        other => other as char,
     }
 }
 
 /// The bytes of the text, in the encoding.
 fn encode(text: &str, encoding: Encoding) -> Vec<u8> {
     match encoding {
-        Encoding::Utf8 => text.as_bytes().to_vec(),
-        Encoding::Utf16 => {
+        Encoding::Cp1252 => encode_cp1252(text),
+        Encoding::Utf8 { .. } => text.as_bytes().to_vec(),
+        Encoding::Utf16 { .. } => {
             let mut bytes = Vec::new();
             for character in text.chars() {
                 let mut units = [0u16; 2];
@@ -934,8 +1114,9 @@ fn encode(text: &str, encoding: Encoding) -> Vec<u8> {
 /// the text is.
 fn decode(bytes: &[u8], encoding: Encoding) -> Result<(String, usize), String> {
     match encoding {
-        Encoding::Utf8 => decode_utf8(bytes),
-        Encoding::Utf16 => decode_utf16(bytes),
+        Encoding::Cp1252 => Ok(decode_cp1252(bytes)),
+        Encoding::Utf8 { .. } => decode_utf8(bytes),
+        Encoding::Utf16 { .. } => decode_utf16(bytes),
     }
 }
 
@@ -1009,14 +1190,16 @@ fn take(text: &str, count: usize) -> (String, usize) {
 /// The bytes of the line, and the byte after the newline that ends it.
 fn line_of(bytes: &[u8], encoding: Encoding) -> Option<(usize, usize)> {
     match encoding {
-        Encoding::Utf8 => {
+        // The line of a text of the code page ends with the same byte
+        // as the line of a text of UTF-8.
+        Encoding::Cp1252 | Encoding::Utf8 { .. } => {
             let at = bytes.iter().position(|byte| *byte == 0x0A)?;
             // A line that ends with a carriage return and a newline
             // does not carry the carriage return.
             let end = if at > 0 && bytes[at - 1] == 0x0D { at - 1 } else { at };
             Some((end, at + 1))
         }
-        Encoding::Utf16 => {
+        Encoding::Utf16 { .. } => {
             let at = bytes
                 .windows(2)
                 .position(|pair| pair[0] == 0x0A && pair[1] == 0x00)?;
