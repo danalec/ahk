@@ -620,12 +620,33 @@ impl Parser {
     /// the start of its line. The word tells the block what it is, and
     /// every construct says in its own words that the brace is not where
     /// it belongs.
-    fn parse_block(&mut self, kind: &str) -> Result<Vec<Node>, SyntaxError> {
+    ///
+    /// The body may also be one statement, and the braces may be absent:
+    /// `if (1)` and then `x := 1` on the next line is an `if` with a body.
+    /// The line is the line of the construct, and the messages that name
+    /// it need it.
+    fn parse_block(&mut self, kind: &str, line: u32) -> Result<Vec<Node>, SyntaxError> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the body of the
+        // `if`, the `while`, the `loop`, the `for` and the `catch` is on
+        // the next line, and the `try`, the `else` and the `finally` take
+        // it on the line of the construct as well.
+        if !self.at_op(&["{"])
+            && !self.the_body_begins_on_the_next_line()
+            && Self::the_body_must_begin_on_the_next_line(kind)
+        {
+            // The body is on the line of the construct, and the construct
+            // says in its own words that it is not there.
+            return Err(self.error(self.the_message_of_the_body(kind)));
+        }
         // The brace may be on a line of its own.
         self.skip_newlines();
+        if !self.at_op(&["{"]) {
+            // The body is one statement, and the braces are not there.
+            return self.the_body_without_braces(kind, line);
+        }
         let open = self.expect_op("{")?;
         if !self.the_body_begins_on_the_next_line() {
-            return Err(self.error(self.the_message_of_the_opening_brace(kind, open.line)));
+            return Err(self.error(self.the_message_of_the_opening_brace(kind, line)));
         }
         let mut body = Vec::new();
         self.skip_newlines();
@@ -652,6 +673,56 @@ impl Parser {
             body.extend(self.parse_statement()?);
             self.skip_newlines();
         }
+    }
+
+    /// The body of a block that has no braces.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the body is one
+    /// statement, and the function and the method need the braces. The
+    /// `if`, the `while`, the `loop`, the `for` and the `try` need a
+    /// body, and the `catch`, the `else` and the `finally` do not.
+    fn the_body_without_braces(&mut self, kind: &str, line: u32) -> Result<Vec<Node>, SyntaxError> {
+        if matches!(kind, "function" | "method") {
+            // The function and the method need the braces.
+            return Err(self.error(self.the_message_of_the_opening_brace(kind, line)));
+        }
+        if self.at_end_of_statement() {
+            // The body is not there.
+            if Self::the_block_needs_a_body(kind) {
+                return Err(self.error(self.the_message_of_the_body(kind)));
+            }
+            return Ok(Vec::new());
+        }
+        self.parse_statement()
+    }
+
+    /// The message of v2 when the body of a block is not where it belongs.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the construct names
+    /// its own word: "Unexpected \"If\"", "Unexpected \"While\"",
+    /// "Unexpected \"Loop\"", "Unexpected \"For\"", "Unexpected
+    /// \"Catch\"" and "Unexpected \"Try\"".
+    fn the_message_of_the_body(&self, kind: &str) -> String {
+        format!("Unexpected {kind:?}")
+    }
+
+    /// Whether the body of a block must begin on the next line.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the `if`, the
+    /// `while`, the `loop`, the `for` and the `catch` want the body on the
+    /// next line, and the `try`, the `else` and the `finally` take it on
+    /// the line of the construct as well.
+    fn the_body_must_begin_on_the_next_line(kind: &str) -> bool {
+        matches!(kind, "If" | "While" | "Loop" | "For" | "Catch")
+    }
+
+    /// Whether the block needs a body.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the `if`, the
+    /// `while`, the `loop`, the `for` and the `try` need one, and the
+    /// `catch`, the `else` and the `finally` do not.
+    fn the_block_needs_a_body(kind: &str) -> bool {
+        matches!(kind, "If" | "While" | "Loop" | "For" | "Try")
     }
 
     /// Whether the body of a block begins on the next line.
@@ -735,6 +806,15 @@ impl Parser {
                     return Ok(vec![Node::Continue { line: token.line }]);
                 }
                 "class" => return Ok(vec![self.parse_class()?]),
+                "else" | "catch" | "finally" => {
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // `else`, the `catch` and the `finally` are statements of
+                    // their own, and the body of them never runs.
+                    let keyword = self.next();
+                    let kind = if keyword.value.eq_ignore_ascii_case("catch") { "Catch" } else { "else" };
+                    let _body = self.parse_block(kind, keyword.line)?;
+                    return Ok(Vec::new());
+                }
                 "try" => return Ok(vec![self.parse_try()?]),
                 "global" => return Ok(vec![self.parse_declaration(DeclareKind::Global)?]),
                 "local" => return Ok(vec![self.parse_declaration(DeclareKind::Local)?]),
@@ -847,7 +927,7 @@ impl Parser {
                 self.expect_op(")")?;
                 self.the_expression_is_done(self.position, false)?;
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
-                let body = self.parse_block("function")?;
+                let body = self.parse_block("function", name_token.line)?;
                 self.parameters.pop();
                 let declarations = the_declarations_of_a_body(&body)?;
                 self.defined.insert(name_token.value.to_lowercase());
@@ -1267,25 +1347,33 @@ impl Parser {
     fn parse_if(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
         let mut branches = Vec::new();
+        if self.at_end_of_statement() {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the `if` needs
+            // a condition, and it says so in its own words.
+            return Err(self.error(format!(
+                "\"If\" requires at least 1 parameter.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )));
+        }
         let condition = self.the_expression_of_a_statement()?;
         self.end_of_block()?;
-        let body = self.parse_block("If")?;
+        let body = self.parse_block("If", token.line)?;
         branches.push(Branch { condition, body });
         let mut otherwise = Vec::new();
         loop {
             self.skip_newlines();
             if self.at_keyword(&["elseif"]) {
-                self.next();
+                let keyword = self.next();
                 let condition = self.the_expression_of_a_statement()?;
                 self.end_of_block()?;
-                let body = self.parse_block("elseif")?;
+                let body = self.parse_block("elseif", keyword.line)?;
                 branches.push(Branch { condition, body });
                 continue;
             }
             if self.at_keyword(&["else"]) {
-                self.next();
+                let keyword = self.next();
                 self.end_of_block()?;
-                otherwise = self.parse_block("else")?;
+                otherwise = self.parse_block("else", keyword.line)?;
             }
             break;
         }
@@ -1297,6 +1385,17 @@ impl Parser {
         let subject = self.the_expression_of_a_statement()?;
         self.end_of_block()?;
         self.skip_newlines();
+        if !self.at_op(&["{"]) {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the switch
+            // needs the braces, and it names what it found instead.
+            let token = self.peek().clone();
+            let message = if token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("case") {
+                "Unexpected \"Case\"".to_string()
+            } else {
+                "Unexpected \"Switch\"".to_string()
+            };
+            return Err(SyntaxError { message, line: token.line, column: token.column });
+        }
         let open = self.expect_op("{")?;
         if !self.the_body_begins_on_the_next_line() {
             return Err(self.error(self.the_message_of_the_opening_brace("Switch", open.line)));
@@ -1396,7 +1495,7 @@ impl Parser {
     fn parse_try(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
         self.end_of_block()?;
-        let body = self.parse_block("try")?;
+        let body = self.parse_block("Try", token.line)?;
         let mut catches = Vec::new();
         loop {
             self.skip_newlines();
@@ -1408,16 +1507,16 @@ impl Parser {
         let mut otherwise = Vec::new();
         self.skip_newlines();
         if self.at_keyword(&["else"]) {
-            self.next();
+            let keyword = self.next();
             self.end_of_block()?;
-            otherwise = self.parse_block("else")?;
+            otherwise = self.parse_block("else", keyword.line)?;
         }
         let mut finally = Vec::new();
         self.skip_newlines();
         if self.at_keyword(&["finally"]) {
-            self.next();
+            let keyword = self.next();
             self.end_of_block()?;
-            finally = self.parse_block("finally")?;
+            finally = self.parse_block("finally", keyword.line)?;
         }
         Ok(Node::Try { body, catches, otherwise, finally, line: token.line })
     }
@@ -1451,7 +1550,7 @@ impl Parser {
             self.expect_op(")")?;
         }
         self.end_of_block()?;
-        let body = self.parse_block("catch")?;
+        let body = self.parse_block("Catch", token.line)?;
         let _ = token;
         Ok(Catch { class, variable, body })
     }
@@ -1542,9 +1641,17 @@ impl Parser {
 
     fn parse_while(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
+        if self.at_end_of_statement() {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the `while`
+            // needs a condition, and it says so in its own words.
+            return Err(self.error(format!(
+                "\"While\" requires at least 1 parameter.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )));
+        }
         let condition = self.the_expression_of_a_statement()?;
         self.end_of_block()?;
-        let body = self.parse_block("While")?;
+        let body = self.parse_block("While", token.line)?;
         Ok(Node::While { condition: Box::new(condition), body, line: token.line })
     }
 
@@ -1613,6 +1720,24 @@ impl Parser {
     fn parse_class_body(&mut self, line: u32) -> Result<(Vec<MethodDef>, Vec<PropertyDef>), SyntaxError> {
         // The brace may be on a line of its own.
         self.skip_newlines();
+        if !self.at_op(&["{"]) {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the class
+            // needs the braces, and the line of the class is the one that is
+            // named.
+            return Err(SyntaxError {
+                message: format!(
+                    "Missing \"{{\"\n     Specifically: {}",
+                    the_source_of_the_line(self, line)
+                ),
+                line,
+                column: self
+                    .tokens
+                    .iter()
+                    .find(|token| token.line == line)
+                    .map(|token| token.column)
+                    .unwrap_or(1),
+            });
+        }
         self.expect_op("{")?;
         if !self.the_body_begins_on_the_next_line() {
             return Err(self.error(self.the_message_of_the_opening_brace("class", line)));
@@ -1657,7 +1782,7 @@ impl Parser {
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
-                let body = self.parse_block("method")?;
+                let body = self.parse_block("method", name_token.line)?;
                 self.parameters.pop();
                 let declarations = the_declarations_of_a_body(&body)?;
                 methods.push(MethodDef {
@@ -1743,7 +1868,7 @@ impl Parser {
         }
         self.the_expression_is_done(self.position, false)?;
         self.end_of_block()?;
-        let body = self.parse_block("Loop")?;
+        let body = self.parse_block("Loop", token.line)?;
         Ok(Node::Loop { mode: kind, arguments, body, line: token.line })
     }
 
@@ -1761,11 +1886,24 @@ impl Parser {
         if parenthesised {
             self.next();
         }
+        if self.at_end_of_statement() {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the `for`
+            // needs the names, and it says so in its own words.
+            return Err(self.error(format!(
+                "Syntax error.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )));
+        }
         self.parse_for_variables(&mut variables)?;
         if !self.at_keyword(&["in"]) {
             return Err(self.error("expected `in` in the For loop"));
         }
         self.next();
+        if self.at_end_of_statement() {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the `for` needs
+            // the collection, and it names its own word.
+            return Err(self.error(self.the_message_of_the_body("For")));
+        }
         self.the_expression_begins();
         let source = self.parse_expression()?;
         if parenthesised {
@@ -1773,7 +1911,7 @@ impl Parser {
         }
         self.the_expression_is_done(self.position, false)?;
         self.end_of_block()?;
-        let body = self.parse_block("For")?;
+        let body = self.parse_block("For", token.line)?;
         Ok(Node::For { variables, source: Box::new(source), body, line: token.line })
     }
 

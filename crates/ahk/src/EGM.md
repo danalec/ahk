@@ -196,6 +196,12 @@ is at the start of its line. The word that `parse_block` takes is the
 construct the block belongs to, and it says in its own words that the
 brace is not where it belongs.
 
+The body of a block may also be one statement, and the braces may be
+absent: `if (1)` and then `x := 1` on the next line is an `if` with a body.
+The body is one statement, and the `if`, the `while`, the `loop`, the `for`
+and the `catch` want it on the next line, while the `try`, the `else` and
+the `finally` take it on the line of the construct as well.
+
 The bracket with a space opens the array and the bracket without one is
 the item of the value: `f [1, 2]` is a call whose argument is the array,
 and `f[1, 2]` is the item of the value `f`. The space is the reason, the

@@ -2782,6 +2782,9 @@ that refuses it is in one place: `the_body_begins_on_the_next_line`.
 Twenty-five of the twenty-five cases of the blocks are the same in the
 tree and in the dialect.
 
+The body of a block may also be one statement, and the braces may be
+absent: section 56.
+
 ## 55. An operator that wants a number may not follow a literal text
 
 Measured on the binary of v2.0.19 on 2026-10-31: the tree took `"a" + 0`
@@ -2819,8 +2822,48 @@ closed is named before the operator: "Missing \")\"\n     Specifically: x
 
 Thirty-nine of the forty-five cases of the operator are the same in the
 tree and in the dialect. The six that are not are the parenthesis that is
-spaced (the tree reads `MsgBox ("a" + 1)` as a call and v2 reads it as a
-command), the property name of an object literal that is quoted (the tree
-refuses it), the return that carries a value outside a function (v2
-refuses it in its own words), and three cases where the dialect opens a
-dialog and the measurement cannot see what it says.
+spaced, the property name of an object literal that is quoted, the return
+that carries a value outside a function, and three cases where the
+dialect opens a dialog and the measurement cannot see what it says.
+
+## 56. The body of a block may be one statement, and the braces may be absent
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree refused the body
+of an `if` that has no braces, and v2 takes it.
+
+- **The body of a block may be one statement, and the braces may be
+  absent.** `if (1)` and then `x := 1` on the next line is an `if` with a
+  body, and the same goes for the `while`, the `loop`, the `for`, the
+  `else`, the `try`, the `catch` and the `finally`.
+- **The body is one statement.** The statement that follows is the body,
+  and the rest of the line is outside of it.
+- **The body of the `if`, the `while`, the `loop`, the `for` and the
+  `catch` is on the next line.** On the line of the construct, the
+  construct names its own word: "Unexpected \"If\"", "Unexpected
+  \"While\"", "Unexpected \"Loop\"", "Unexpected \"For\"" and
+  "Unexpected \"Catch\"".
+- **The body of the `try`, the `else` and the `finally` may be on the line
+  of the construct.**
+- **The `if`, the `while`, the `loop`, the `for` and the `try` need a
+  body.** The ones that do not need one are the `catch`, the `else` and
+  the `finally`: an `else` alone is a script that v2 takes, and its body
+  never runs.
+- **The function, the method and the class need the braces.** The class
+  names its line ("Missing \"{\"\n     Specifically: class Thing") and
+  the method names its line too ("Not a valid method, class or property
+  definition.\n     Specifically: M()").
+- **The switch needs the braces**, and it names what it found: "Unexpected
+  \"Switch\"" and "Unexpected \"Case\"".
+- **The condition of the `if` and of the `while` is not optional:** "\"If\"
+  requires at least 1 parameter. Specifically: if" and "\"While\" requires
+  at least 1 parameter. Specifically: while".
+
+The rule that says where the body may begin is in one place:
+`the_body_begins_on_the_next_line`, so that the v1 dialect -- which takes
+the body on the line of the construct -- can let it go.
+
+Thirty-seven of the thirty-nine cases of the body are the same in the tree
+and in the dialect, and the five cases of the effect of the body are the
+same too. The two that are not are the call of a function that is not
+there (the tree refuses it at the load and v2 at the run) and the colon of
+the ternary (v2 names it: "A \":\" is missing its \"?\"").

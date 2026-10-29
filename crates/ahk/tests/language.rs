@@ -3143,6 +3143,76 @@ fn a_group_is_not_a_literal_text() {
 }
 
 #[test]
+fn the_body_of_a_block_may_be_one_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the body of a block
+    // may be one statement, and the braces may be absent.
+    let (report, _desktop) = run("if (1)\n    x := 1\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_body_of_a_block_without_braces_is_one_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the body is the one
+    // statement that follows, and the rest of the line is outside of it.
+    let (report, _desktop) = run("if (0)\n    MsgBox \"a\"\nMsgBox \"b\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["b"]);
+}
+
+#[test]
+fn the_body_of_an_if_may_not_be_on_the_line_of_the_if() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `if` names its
+    // own word.
+    let error = parse("if (1) x := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"If\"");
+}
+
+#[test]
+fn the_body_of_an_else_may_be_on_the_line_of_the_else() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `else` takes the
+    // body on its line and on the next one.
+    let (report, _desktop) = run("if (0)\n    x := 1\nelse x := 2\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn a_block_that_has_no_body_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `if` needs a
+    // body, and it names its own word.
+    let error = parse("if (1)").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"If\"");
+}
+
+#[test]
+fn the_condition_of_an_if_is_not_there() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `if` needs a
+    // condition, and it says so in its own words.
+    let error = parse("if\n    x := 1").expect_err("does not parse");
+    assert_eq!(error.message, "\"If\" requires at least 1 parameter.\n     Specifically: if");
+}
+
+#[test]
+fn the_class_needs_its_braces() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the class names the
+    // line of it.
+    let error = parse("class Thing\n    x := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"{\"\n     Specifically: class Thing");
+}
+
+#[test]
+fn a_method_needs_its_braces() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the method names the
+    // line of it.
+    let error = parse("class Thing {\n    M()\n        x := 1\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Not a valid method, class or property definition.\n     Specifically: M()"
+    );
+}
+
+#[test]
 fn every_object_has_the_property_of_the_class_of_it() {
     let (report, _desktop) = run(
         "m := Map()\nMsgBox m.HasProp(\"__Class\") \" \" m.HasOwnProp(\"__Class\")",
