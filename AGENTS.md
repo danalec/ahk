@@ -412,6 +412,9 @@ the wrong names with it.
   window, and it refuses with the reason of the windows --- and it carries
   none of the other eight: `ComObject("Shell.Application")` and
   `TypeError("boom")` both fail with *"Call to nonexistent function."* .
+  The `Error` itself is not in the table either, and the tree carries it
+  since 2026-10-30: `Error(Message, What, Extra)` makes an error, and the
+  catch holds it. The stack of v2 is not carried.
 
 The lesson is in the tree now: the probe of `tests/class_surface.rs` asks
 the tree what it answers, and the answer is what counts -- not the
