@@ -1304,6 +1304,155 @@ fn a_desktop_that_cannot_read_the_clipboard_fails_the_wait_with_the_reason() {
 }
 
 #[test]
+fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thing() {
+    // The fourteen names of the shape shared one reason, and that reason
+    // hid fourteen different things.
+    for (name, reason) in [
+        (
+            "Critical",
+            "this runtime runs one script in one thread, and it cannot make it critical.",
+        ),
+        (
+            "Thread",
+            "this runtime runs one script in one thread, and it cannot start another.",
+        ),
+        (
+            "Pause",
+            "this runtime cannot wait for a key to continue: the script ends when it ends.",
+        ),
+        (
+            "Persistent",
+            "this runtime is a script that ends when it ends, and it cannot be kept alive.",
+        ),
+        (
+            "Reload",
+            "this runtime runs one script once, and it cannot run itself again.",
+        ),
+        ("Suspend", "this runtime cannot stop itself: it would never end."),
+        (
+            "ListLines",
+            "the lines are listed in a window of v2, and this runtime has no window to show them in.",
+        ),
+        (
+            "ListVars",
+            "the variables are listed in a window of v2, and this runtime has no window to show them in.",
+        ),
+        (
+            "InputBox",
+            "the question of the user is asked in a window of v2, and this runtime has no window to ask in.",
+        ),
+        (
+            "Download",
+            "the download is made by the desktop, and this desktop does not reach the network.",
+        ),
+        (
+            "LoadPicture",
+            "the picture is read by the desktop, and this desktop does not read the images of the machine.",
+        ),
+        (
+            "ImageSearch",
+            "the search of a picture is made by the desktop, and this desktop does not read the images of the machine.",
+        ),
+        (
+            "OnError",
+            "the handler of an error is not carried: this runtime ends the script when it fails.",
+        ),
+    ] {
+        let report = run(name);
+        assert_eq!(failure_of(&report), reason, "{name}");
+        // The reason of the name is the one that the surface says.
+        assert_eq!(ahk::builtins::refusal_of(name), Some(reason), "{name}");
+    }
+}
+
+#[test]
+fn the_function_of_the_exit_runs_when_the_script_ends() {
+    // The callback may be the function itself: v2 resolves a name that is
+    // a function to the function.
+    let report = run("OnExit Bye\nBye() {\n  MsgBox \"bye\"\n}\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["bye"]);
+}
+
+#[test]
+fn the_function_of_the_exit_may_be_given_by_its_name() {
+    let report = run("OnExit(\"Bye\")\nBye() {\n  MsgBox \"bye\"\n}\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["bye"]);
+}
+
+#[test]
+fn the_function_of_the_exit_runs_when_the_script_stops_with_a_code() {
+    let report = run("OnExit(\"Bye\")\nBye() {\n  MsgBox \"bye\"\n}\nExit 3\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["bye"]);
+    assert_eq!(report.exit_code, Some(3));
+}
+
+#[test]
+fn the_function_of_the_exit_runs_when_the_script_fails() {
+    // The end of the script is the end of the script, whatever the reason
+    // it ended.
+    let report = run("OnExit(\"Bye\")\nBye() {\n  MsgBox \"bye\"\n}\nMsgBox NoSuchVariable\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
+    );
+    assert_eq!(report.output, vec!["bye"]);
+}
+
+#[test]
+fn a_function_of_the_exit_that_fails_fails_the_run() {
+    let report = run("OnExit(\"Bye\")\nBye() {\n  MsgBox NoSuchVariable\n}\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
+    );
+    // The line is the line of the statement that failed, inside the
+    // function.
+    assert_eq!(report.error_line, Some(3));
+}
+
+#[test]
+fn a_function_of_the_exit_that_fails_when_the_script_already_failed_is_a_note() {
+    // The error of the script is the error of the run, and the failure of
+    // the function is not lost.
+    let report = run(
+        "OnExit(\"Bye\")\nBye() {\n  MsgBox NoSuchVariable\n}\nMsgBox NoSuchVariable\n",
+    );
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
+    );
+    assert!(
+        report.notes.iter().any(|note| note.contains("the function of the exit failed")),
+        "{:?}",
+        report.notes
+    );
+}
+
+#[test]
+fn a_function_of_the_exit_that_is_not_a_function_of_the_script_refuses_with_the_reason() {
+    let report = run("OnExit(\"NoSuchFunction\")");
+    assert_eq!(
+        failure_of(&report),
+        "the function of the exit is not a function of the script: NoSuchFunction"
+    );
+}
+
+#[test]
+fn the_mode_of_the_exit_is_not_carried_and_refuses_with_the_reason() {
+    let report = run("OnExit(\"Bye\", 1)\nBye() {\n  MsgBox \"bye\"\n}\n");
+    assert_eq!(
+        failure_of(&report),
+        "the mode of the exit is not carried: the runtime calls the function when the script ends."
+    );
+}
+
+#[test]
 fn a_script_that_writes_the_clipboard_finds_what_it_wrote_when_it_reads_it_again() {
     let mut desktop = Fake::default();
     let report = run_on("A_Clipboard := \"the new text\"\nMsgBox A_Clipboard", &mut desktop);

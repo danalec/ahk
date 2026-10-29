@@ -634,6 +634,18 @@ struct Timer {
     last: u64,
 }
 
+/// The function the script asked to run when it ends.
+///
+/// The name is the one the script wrote, and the line is the line of the
+/// statement that registered it: a function that fails says where it was
+/// asked for.
+struct ExitCallback {
+    /// The name of the function the script registered.
+    name: String,
+    /// The line of the statement that registered it.
+    line: u32,
+}
+
 /// Executes a script.
 ///
 /// The limits are the guard rails: a script that loops forever must not
@@ -680,6 +692,11 @@ pub struct Runtime<'a> {
     hotkeys: Vec<crate::hotkeys::Hotkey>,
     /// The code the script asked to stop with.
     exit_requested: Option<i32>,
+    /// The function to call when the script ends.
+    ///
+    /// The script asks for it with `OnExit`, and the runtime calls it when
+    /// the script ends, whatever the reason the script ended.
+    exit_callback: Option<ExitCallback>,
 }
 
 impl<'a> Runtime<'a> {
@@ -731,6 +748,7 @@ impl<'a> Runtime<'a> {
             timers: Vec::new(),
             hotkeys: Vec::new(),
             exit_requested: None,
+            exit_callback: None,
         }
     }
 
@@ -768,6 +786,7 @@ impl<'a> Runtime<'a> {
             timers: Vec::new(),
             hotkeys: Vec::new(),
             exit_requested: None,
+            exit_callback: None,
         }
     }
 
@@ -815,6 +834,39 @@ impl<'a> Runtime<'a> {
                 error = Some(timeout.to_string());
             }
         }
+        // The script has ended. The function it asked to run at its exit
+        // runs now: the end is the moment the runtime knows, and it knows
+        // it whatever the reason the script ended.
+        if let Some(callback) = self.exit_callback.take() {
+            // The script has already stopped: the flag that stops it does
+            // not stop the function of the exit, and the code of the run
+            // is the code the script asked with.
+            self.exit_requested = None;
+            if let Err(failure) = self.call_function_by_name(&callback.name, callback.line) {
+                let (message, line) = match failure {
+                    RuntimeFailure::Error(error) => (error.message, error.line),
+                    RuntimeFailure::Timeout(timeout) => (timeout.to_string(), 0),
+                    RuntimeFailure::Flow(_) => (
+                        "the function of the exit left the script in the middle of a block.".to_string(),
+                        0,
+                    ),
+                };
+                if error.is_none() {
+                    error = Some(message);
+                    error_line = Some(if line == 0 { callback.line } else { line });
+                } else {
+                    // The script had already failed: its failure is the
+                    // error of the run, and the failure of the function of
+                    // the exit is a note, so that it is not lost.
+                    self.note(format!("the function of the exit failed: {message}"));
+                }
+            }
+            // The function of the exit may ask to stop with a code of its
+            // own, and that code is the code of the run.
+            if let Some(code) = self.exit_requested {
+                exit_code = Some(code);
+            }
+        }
         let elapsed_ms = self.elapsed_ms();
         Report {
             ok: error.is_none(),
@@ -829,8 +881,8 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    /// A note for the report: the place where the box was not what the
-    /// script assumed.
+    /// A note for the report: a thing the script should know, and that is
+    /// not the error of the run.
     pub fn note(&mut self, note: impl Into<String>) {
         self.notes.push(note.into());
     }
@@ -2659,6 +2711,19 @@ impl<'a> Runtime<'a> {
     /// The hotkeys of the script.
     pub(crate) fn hotkeys(&mut self) -> &mut Vec<crate::hotkeys::Hotkey> {
         &mut self.hotkeys
+    }
+
+    /// The function the script asks to run when it ends.
+    ///
+    /// The name is the one the script wrote, and the line is the line of
+    /// the statement that registered it.
+    pub(crate) fn set_exit_callback(&mut self, name: &str, line: u32) {
+        self.exit_callback = Some(ExitCallback { name: name.to_string(), line });
+    }
+
+    /// Whether the script defined a function of this name.
+    pub(crate) fn has_function(&self, name: &str) -> bool {
+        self.functions.contains_key(&name.to_lowercase())
     }
 
     /// Call a function of the script by name, with no arguments.

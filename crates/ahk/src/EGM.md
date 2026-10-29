@@ -304,6 +304,14 @@ knows, and the ones the runtime writes where it runs.
 - `wants(name, index) -> Wants` -- the type of that parameter. The table holds the built-ins whose types were measured on the
   binary of v2.0.19, and the guard on a reference asks it, so that the
   message names the type the built-in wanted.
+- `refusal_of(name) -> Option<&'static str>` -- the reason the name refuses
+  with, when it refuses.
+
+A name that the tree carries and cannot answer has the refusal as its
+handler, and the variant of the row is the reason: the reason is written
+once, and the read of the name and the refusal of the name say the same
+thing. The variant is the reason of the name and not the reason of a group
+of names: the names of the shape of the runtime each say what they want.
 
 ### The class types (`classes/`)
 

@@ -1882,3 +1882,42 @@ the clipboard of the session, `MsgBox Clipboard` failed with "This variable
 has not been assigned a value. Specifically: Clipboard", `MsgBox IsAdmin`
 failed the same way, and writing `A_Clipboard` put the text on the clipboard
 of the session.
+
+## 34. The shape of the runtime, and the reason of each name of it
+
+Fourteen names of v2 refused with one reason -- "this runtime is one script
+that ends when it ends, and it cannot do that." -- and that reason hid
+fourteen different things. Each of them refuses now with the reason of the
+thing it wants, and the one that the runtime can do is carried.
+
+- **`OnExit` is carried.** The script asks for a function of itself, and the
+  runtime calls it when the script ends: the end of the last statement, the
+  code it asked to stop with, or the error that stopped it. The function may
+  be the function itself (`OnExit Bye`) or its name (`OnExit("Bye")`), and a
+  name that is not a function of the script refuses with the reason.
+- **The mode of the exit is not carried.** v2 says when the function is
+  called, and the runtime has one moment: the end of the script. The second
+  parameter refuses with the reason.
+- **The thread of the runtime is one.** `Critical` and `Thread` say that the
+  runtime runs one script in one thread, and that it cannot make it critical
+  or start another.
+- **The script cannot wait, cannot stay, cannot run again and cannot stop.**
+  `Pause`, `Persistent`, `Reload` and `Suspend` each say what they want.
+- **The lists and the question are windows of v2.** `ListLines`, `ListVars`
+  and `InputBox` are windows, and this runtime has no window to show them
+  in.
+- **The download, the picture and the search are the desktop's.** `Download`,
+  `LoadPicture` and `ImageSearch` say that this desktop does not reach the
+  network and does not read the images of the machine.
+- **The handler of an error is not carried.** `OnError` is the handler of the
+  errors that no `try` catches, and this runtime ends the script when it
+  fails.
+
+And a function of the exit that fails does not pass silently: the run fails
+with the failure of the function, and when the script had already failed the
+failure of the function is a note of the report.
+
+Measured on the box on 2026-10-29: a script with `OnExit Bye` and a function
+`Bye` that writes "bye" ended with "the script ends" and then "bye", and
+`Critical` refused with the reason of its own thing. The surface answers 507
+names with a value and refuses 218.

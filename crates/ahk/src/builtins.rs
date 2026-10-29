@@ -395,13 +395,13 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "ListHotkeys", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, handler: list_hotkeys },
     // -- the names of the script that this runtime cannot answer -----------------
     Builtin { name: "CoordMode", kind: BuiltinKind::Command, min: 1, max: 2, variant: 5, handler: coord_mode },
-    Builtin { name: "Critical", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "Critical", kind: BuiltinKind::Command, min: 0, max: 255, variant: 108, handler: not_carried },
     Builtin { name: "DateAdd", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, handler: date_add },
     Builtin { name: "DateDiff", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, handler: date_diff },
     Builtin { name: "DirCopy", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_copy },
     Builtin { name: "DirMove", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_move },
     Builtin { name: "DirSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 104, handler: not_carried },
-    Builtin { name: "Download", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "Download", kind: BuiltinKind::Command, min: 0, max: 255, variant: 117, handler: not_carried },
     Builtin { name: "FileCopy", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, handler: file_copy },
     Builtin { name: "FileEncoding", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_encoding },
     Builtin { name: "FileGetAttrib", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_get_attrib },
@@ -417,22 +417,22 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "GetKeyName", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_name },
     Builtin { name: "GetKeySC", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_sc },
     Builtin { name: "GetKeyVK", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_vk },
-    Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 0, max: 255, variant: 119, handler: not_carried },
     Builtin { name: "IniDelete", kind: BuiltinKind::Command, min: 1, max: 3, variant: 6, handler: ini_delete },
     Builtin { name: "IniRead", kind: BuiltinKind::Command, min: 2, max: 4, variant: 4, handler: ini_read },
     Builtin { name: "IniWrite", kind: BuiltinKind::Command, min: 3, max: 4, variant: 4, handler: ini_write },
-    Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 255, variant: 116, handler: not_carried },
     Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: is_label },
-    Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 114, handler: not_carried },
+    Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 255, variant: 115, handler: not_carried },
+    Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 0, max: 255, variant: 118, handler: not_carried },
     Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: click },
     Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: mouse_click_drag },
-    Builtin { name: "OnError", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "Pause", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "Persistent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "Reload", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "OnError", kind: BuiltinKind::Command, min: 0, max: 255, variant: 120, handler: not_carried },
+    Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: on_exit },
+    Builtin { name: "Pause", kind: BuiltinKind::Command, min: 0, max: 255, variant: 110, handler: not_carried },
+    Builtin { name: "Persistent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 111, handler: not_carried },
+    Builtin { name: "Reload", kind: BuiltinKind::Command, min: 0, max: 255, variant: 112, handler: not_carried },
     Builtin { name: "SendEvent", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_event },
     Builtin { name: "SendInput", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_input },
     Builtin { name: "SendLevel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_level },
@@ -443,8 +443,8 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "SetStoreCapsLockMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: set_store_caps_lock_mode },
     Builtin { name: "SetWorkingDir", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_working_dir },
     Builtin { name: "StrTitle", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: str_title },
-    Builtin { name: "Suspend", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "Thread", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "Suspend", kind: BuiltinKind::Command, min: 0, max: 255, variant: 113, handler: not_carried },
+    Builtin { name: "Thread", kind: BuiltinKind::Command, min: 0, max: 255, variant: 109, handler: not_carried },
     Builtin { name: "VerCompare", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, handler: ver_compare },
 ];
 
@@ -698,6 +698,21 @@ fn refusal_message(variant: u8) -> &'static str {
         // had them in a table of methods -- and the reason moved with
         // them.
         6 => "a method of this runtime is not bound to an object.",
+        // The shape of the runtime: each name of the group says what it
+        // wants, and the group of them is gone.
+        8 => "this runtime runs one script in one thread, and it cannot make it critical.",
+        9 => "this runtime runs one script in one thread, and it cannot start another.",
+        10 => "this runtime cannot wait for a key to continue: the script ends when it ends.",
+        11 => "this runtime is a script that ends when it ends, and it cannot be kept alive.",
+        12 => "this runtime runs one script once, and it cannot run itself again.",
+        13 => "this runtime cannot stop itself: it would never end.",
+        14 => "the lines are listed in a window of v2, and this runtime has no window to show them in.",
+        15 => "the variables are listed in a window of v2, and this runtime has no window to show them in.",
+        16 => "the question of the user is asked in a window of v2, and this runtime has no window to ask in.",
+        17 => "the download is made by the desktop, and this desktop does not reach the network.",
+        18 => "the picture is read by the desktop, and this desktop does not read the images of the machine.",
+        19 => "the search of a picture is made by the desktop, and this desktop does not read the images of the machine.",
+        20 => "the handler of an error is not carried: this runtime ends the script when it fails.",
         _ => "this runtime does not carry that name yet.",
     }
 }
@@ -1293,10 +1308,49 @@ fn exit_script(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8)
     Ok(Value::Int(code as i64))
 }
 
+/// `OnExit`: the function the script asks to run when it ends.
+///
+/// The runtime is one script that ends when it ends, and the end is the
+/// moment the runtime knows: the function runs then, whatever the reason
+/// the script ended -- the end of the last statement, the code it asked to
+/// stop with, or the error that stopped it.
+fn on_exit(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    // The mode of v2 says when the function is called, and the runtime
+    // has one moment: the end of the script.
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the mode of the exit is not carried: the runtime calls the function when the script ends.".into(),
+            line,
+        });
+    }
+    let Some(value) = values.first() else {
+        return Err(RuntimeError { message: "the function of the exit is missing.".into(), line });
+    };
+    let Some(name) = the_name_of_a_function(value) else {
+        return Err(RuntimeError {
+            message: format!(
+                "the function of the exit is not a function of the script: {}",
+                value.to_text()
+            ),
+            line,
+        });
+    };
+    // The function has to be one of the script: the runtime calls it by
+    // name, and a name that is not a function is a name of nothing.
+    if !rt.has_function(&name) {
+        return Err(RuntimeError {
+            message: format!("the function of the exit is not a function of the script: {name}"),
+            line,
+        });
+    }
+    rt.set_exit_callback(&name, line);
+    Ok(Value::Int(1))
+}
+
 /// What a parameter of a built-in wants.
 ///
-/// v2 declares the type of a parameter when the built-in has one, and
-/// the message of the failure names it: "Parameter #1 of Abs requires a
+/// v2 declares the type of a parameter when the built-in has one, and the
+/// message of the failure names it: "Parameter #1 of Abs requires a
 /// Number, but received a String.".
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Wants {
@@ -1418,6 +1472,27 @@ fn obj_add_ref(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: u8
 }
 
 // -- the helpers ----------------------------------------------------------------
+
+/// The name of the function that a value names.
+///
+/// The value is the function itself -- v2 resolves a name that is a
+/// function to the function -- or the name of it, as a text.
+fn the_name_of_a_function(value: &Value) -> Option<String> {
+    match value {
+        Value::Text(text) => Some(text.clone()),
+        Value::Object(object) => {
+            let object = object.borrow();
+            if object.class != "func" {
+                return None;
+            }
+            match object.properties.get("name") {
+                Some(Value::Text(name)) => Some(name.clone()),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
 
 /// The text of the argument at this place, or the empty string.
 fn text_of(values: &[Value], index: usize) -> String {
