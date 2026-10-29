@@ -1,556 +1,562 @@
-# O dialeto v1 ao lado do v2: o gate, as fases e o que fica de fora
+# The v1 dialect beside the v2: the gate, the phases, and what stays out
 
-> O plano. A autoridade é o binário do **AutoHotkey v1.1.37.02** e a
-> documentação do v1 — medidos em 2026-10-28. A árvore fala **v2.0.19** hoje;
-> este documento é sobre pôr o **v1** ao lado dele, sem mexer no v2.
+> The plan. The authority is the binary of the **AutoHotkey v1.1.37.02** and
+> the documentation of the v1 — measured on 2026-10-28. The tree speaks
+> **v2.0.19** today; this document is about putting the **v1** beside it,
+> without touching the v2.
 
 ---
 
-## 0. O que este plano é, e o que ele inverte
+## 0. What this plan is, and what it inverts
 
-A árvore é o v2.0.19. Este plano propõe um **segundo dialeto**, com o v1
-encerrado atrás de um *gate*, e o v2 a ser o default.
+The tree is the v2.0.19. This plan proposes a **second dialect** , with the v1
+locked behind a *gate* , and the v2 as the default.
 
-Isto inverte uma linha escrita em `docs/ahk-x11-comparison.md`:
+This inverts a line written in `docs/ahk-x11-comparison.md` :
 
-> | Não portar | Porquê |
+> | Do not port | Why |
 > |---|---|
-> | A sintaxe legacy v1 | O nosso dialeto é v2.0.19, e é essa a vantagem competitiva |
+> | The legacy v1 syntax | Our dialect is v2.0.19, and that is the competitive advantage |
 
-A razão continua válida para o **v2**: o v2 é o dialeto principal e a
-vantagem competitiva. A mudança é que o v1 passa a ser uma **opção** —
-para os scripts que já existem e que ninguém vai reescrever.
+The reason stays valid for the **v2** : the v2 is the main dialect and the
+competitive advantage. The change is that the v1 becomes an **option** — for
+the scripts that already exist and that nobody will rewrite.
 
-**A comparação está em revisão** — a onda de 2026-10-29 reescreve esse
-documento, e os números das suas secções mudam com ele. A decisão está
-escrita nos dois sítios: a comparação diz que a linha é verdade do v2 e
-só do v2, e aponta para este plano; este plano diz o mesmo e aponta
-para a comparação. E o `AGENTS.md` aponta para aqui. Duas outras linhas
-da mesma tabela também ficam invertidas — para o dialecto do v1, e só
-para ele:
+**The comparison is under review** — the wave of 2026-10-29 rewrites that
+document, and the numbers of its sections change with it. The decision is
+written in both places: the comparison says that the line is true of the v2
+and only of the v2, and points to this plan; this plan says the same and
+points to the comparison. And the `AGENTS.md` points here. Two other rows of
+the same table are also inverted — for the dialect of the v1, and only for it:
 
-| Linha da comparação | Para o v2 | Para o v1 |
+| Row of the comparison | For the v2 | For the v1 |
 |---|---|---|
-| A convenção "output var" (`StringLen, out, in`) | o valor de retorno, e o `&` quando é preciso escrever | a convenção é a do v1 medido, e a tabela dos built-ins ganha a coluna da forma do parâmetro (§3.2) |
-| `#NoEnv` como default | o ambiente é explícito, `EnvGet` está lá | o `#NoEnv` existe e desliga a substituição (§3) |
+| The "output var" convention (`StringLen, out, in`) | the return value, and the `&` when a write is needed | the convention is the one of the measured v1, and the table of the built-ins gains the column of the shape of the parameter (§3.2) |
+| `#NoEnv` as the default | the environment is explicit, `EnvGet` is there | the `#NoEnv` exists and turns the substitution off (§3) |
 
-### A coordenação com a onda de 2026-10-29
+### The coordination with the wave of 2026-10-29
 
-Outra sessão trabalha nesta árvore ao mesmo tempo, e o trabalho dela é
-**outro**: fechar as lacunas do port para dentro do **v2** — o clipboard,
-o som, o `NumGet` e o `NumPut`, os ficheiros, a data — e construir o
-comando `ahk --surface`, que imprime o estado de cada nome de v2. Está a
-reescrever `docs/ahk-x11-comparison.md` ao mesmo tempo.
+Another session works in this tree at the same time, and its work is **other**
+: closing the gaps of the port into the **v2** — the clipboard, the sound, the
+`NumGet` and the `NumPut` , the files, the date — and building the command
+`ahk --surface` , which prints the state of each v2 name. It is rewriting
+`docs/ahk-x11-comparison.md` at the same time.
 
-Os dois planos são **ortogonais**: a onda porta *capacidades* para
-dentro do v2; este plano acrescenta um *dialecto* ao lado do v2, sem
-mexer em nenhuma capacidade. Duas coisas ficam acordadas:
+The two plans are **orthogonal** : the wave ports *capabilities* into the v2;
+this plan adds a *dialect* beside the v2, without touching any capability. Two
+things are agreed:
 
-1. **O `--surface` é da onda, e este plano usa-o.** As fases F1 e F5
-   precisam do estado de cada nome — e o comando já existe
-   (`crates/ahk/src/surface.rs`, `ahk --surface`). Este plano
-   **estende-o com um parâmetro**; não faz um segundo comando.
-2. **A comparação é reescrita, e o plano não depende do número das
-   secções.** O plano cita o texto; o `AGENTS.md` aponta para o plano.
+1. **The `--surface` belongs to the wave, and this plan uses it.** The phases
+   F1 and F5 need the state of each name — and the command already exists (
+   `crates/ahk/src/surface.rs` , `ahk --surface` ). This plan
+   **extends it with a parameter** ; it does not make a second command.
+2. **The comparison is rewritten, and the plan does not depend on the number of the sections.**
+   The plan quotes the text; the `AGENTS.md` points to the plan.
 
-A extensão que a F1 precisa é pequena. O `surface::entries()` de hoje lê
-a tabela de v2 que está embutida e pergunta à árvore, nome a nome —
-`builtins::find` e `builtins::refusal_of` para os comandos e as
-funções, `variables::carries` e `variables::refusal_of` para as
-variáveis, e `classes::carries` para os métodos. Com um dialecto, cada
-uma dessas perguntas passa a levar o dialecto, e `entries()` passa a ser
-`entries_for(dialect)`. O vocabulário fica como está — `Value`,
-`Refusal(reason)`, `Pending(reason)`; é a frase do resumo que troca o
-"de v2" pelo nome do dialecto.
+The extension that F1 needs is small. The `surface::entries()` of today reads
+the v2 table that is embedded and asks the tree, name by name —
+`builtins::find` and `builtins::refusal_of` for the commands and the
+functions, `variables::carries` and `variables::refusal_of` for the variables,
+and `classes::carries` for the methods. With a dialect, each one of those
+questions comes to carry the dialect, and `entries()` comes to be
+`entries_for(dialect)` . The vocabulary stays as it is — `Value` ,
+`Refusal(reason)` , `Pending(reason)` ; it is the sentence of the summary that
+swaps the "of v2" for the name of the dialect.
 
-E o `Pending` é o que a F1 precisa: a tabela de pendentes do v2 está
-**vazia** — o port carrega o v2 inteiro — e a do v1 vai ser a primeira
-que não está. É aí que entram os nomes do v1 que o v2 não tem, e o
-`Pending` é a resposta certa para cada um deles. O primeiro deles é o
-`SetBatchLines` (§5).
+And the `Pending` is what F1 needs: the pending table of the v2 is **empty** —
+the port carries the whole v2 — and the one of the v1 will be the first that
+is not. That is where the names of the v1 that the v2 does not have come in,
+and the `Pending` is the right answer for each one of them. The first one of
+them is the `SetBatchLines` (§5).
 
-### A autoridade
+### The authority
 
-| Fonte | O que é | Onde |
+| Source | What it is | Where |
 |---|---|---|
-| `AutoHotkeyU64.exe` (v1.1.37.02) | a verdade: as mensagens, as formas, os nomes | descarregado de `autohotkey.com/download/1.1/` a 2026-10-28; portátil, nada instalado |
-| `autohotkey.com/docs/v1/` | a lista dos comandos e das funções, e a gramática |idem |
-| `docs/ahk-x11-comparison.md` | os nomes que mudaram do v1 para o v2 (a secção "Os nomes que mudaram do v1 para o v2") | no repositório, em revisão |
-| `AutoHotkey.chm` (no zip do v1.1) | a documentação offline | no zip |
+| `AutoHotkeyU64.exe` (v1.1.37.02) | the truth: the messages, the shapes, the names | downloaded from `autohotkey.com/download/1.1/` on 2026-10-28; portable, nothing installed |
+| `autohotkey.com/docs/v1/` | the list of the commands and the functions, and the grammar |same |
+| `docs/ahk-x11-comparison.md` | the names that changed from the v1 to the v2 (the section "The names that changed from the v1 to the v2") | in the repository, under review |
+| `AutoHotkey.chm` (in the zip of the v1.1) | the offline documentation | in the zip |
 
-**O arquivo `../archived/ahk-python` não serve de referência.** Não é uma
-implementação do v1: a sua própria nota diz *"O dialeto é o do AutoHotkey
-v2. `:=` atribui, `=` compara"* (`archived/ahk-python/AGENTS.md:38-41`), e
-os seus 9 commits são todos de 2026-10-25 — o primeiro já era v2. É o
-registo do dialecto *yoko-ahk* pré-port, não do v1.
+**The archive `../archived/ahk-python` is not a reference.** It is not an
+implementation of the v1: its own note says
+*"The dialect is the one of AutoHotkey v2. `:=` assigns, `=` compares"* (
+`archived/ahk-python/AGENTS.md:38-41` ), and its 9 commits are all of
+2026-10-25 — the first one was already v2. It is the record of the *yoko-ahk*
+dialect before the port, not of the v1.
 
-### O que o gate tem de resolver
+### What the gate has to resolve
 
-1. A **superfície**: os nomes, as aridades e as formas dos parâmetros. Os
-   dois dialetos não têm os mesmos nomes, **nem o mesmo género para o
-   mesmo nome** (ver §1.4).
-2. A **gramática**: o comando legacy com vírgulas (`Msg, texto`), o `=`
-   que atribui, os *labels*, o `if (x)` de uma só instrução, a hotstring
-   como **instrução** e não como comando.
-3. A **semântica**: o `=` do v1 compara sem distinção de maiúsculas, o
-   `%nome%` é a *variável de ambiente*, as variáveis são globais por
-   omissão, e o v1 tem *threads* — o v1.1 corre cada hotkey no seu
-   thread, e o v2 não tem threads.
+1. The **surface** : the names, the arities and the shapes of the parameters.
+   The two dialects do not have the same names,
+   **nor the same kind for the same name** (see §1.4).
+2. The **grammar** : the legacy command with commas ( `Msg, texto` ), the `=`
+   that assigns, the *labels* , the one-statement `if (x)` , the hotstring as
+   a **statement** and not as a command.
+3. The **semantics** : the `=` of the v1 compares without distinguishing case,
+   the `%nome%` is the *environment variable* , the variables are global by
+   default, and the v1 has *threads* — the v1.1 runs each hotkey in its own
+   thread, and the v2 has no threads.
 
 ---
 
-## 1. O que foi medido no v1.1.37.02 (2026-10-28)
+## 1. What was measured on the v1.1.37.02 (2026-10-28)
 
-Tudo o que segue foi medido no binário, com `/ErrorStdOut` (o v1 abre um
-diálogo quando um script falha; com a opção, a razão sai no stdout e o
-processo acaba).
+Everything that follows was measured on the binary, with `/ErrorStdOut` (the
+v1 opens a dialog when a script fails; with the option, the reason comes out
+on stdout and the process ends).
 
-### 1.1 As regras da sintaxe
+### 1.1 The rules of the syntax
 
-| Regra | v1.1.37.02 medido | v2.0.19 (a árvore) |
+| Rule | v1.1.37.02 measured | v2.0.19 (the tree) |
 |---|---|---|
-| Comando legacy | `FileAppend, hello, C:\...\out.txt` escreve "hello" | `FileAppend "hello", "..."` — a vírgula depois do nome é erro de sintaxe (`parser.rs:462-499`) |
-| Parâmetro de um comando | `StringLen, n, x` → `n` = 5: o parâmetro é o **nome de uma variável** | o parâmetro é uma expressão |
-| Parâmetro de texto | `StringLen, n, %x%` → `n` = 0 (a forma `%…%` é a substituição *legacy*) | não há |
-| Parâmetro de expressão | `StringLen, n, (x)` → recusado: *"The following variable name contains an illegal character: "(x)""* — a forma `(…)` só existe nos parâmetros que são expressão | toda a expressão |
-| Atribuição | `x = 5` atribui (e `y := 7` também) | `:=` atribui; `=` compara |
-| Comparação | `"ABC" = "abc"` → **verdade**; `"ABC" == "abc"` → falso; `"ABC" === "abc"` → falso | `=` é estrito, `==` é o que não distingue maiúsculas (`runtime.rs:2798-2809`) |
-| `if` | `if (x > 1)` com **uma** instrução e `else` — sem chavetas | `if` com expressão e bloco `{ }` |
-| *Labels* | `MyLabel:` e `goto MyLabel2` funcionam | não existem |
-| Hotstring | é uma **instrução**: `::btw::by the way`, ou `::btw::` seguido das linhas e do `return` | `Hotstring(":btw:", Callback)` — um comando |
-| Hotkey | `Hotkey, ^a, MyCallback` — o alvo é um *label* | `Hotkey("^a", Callback)` — o alvo é o objecto de uma função |
-| Threads | `#MaxThreads 10`, `#MaxThreadsBuffer 100`, `Thread, Priority, 1` — todos existem | as directivas do v1 são recusadas (`runtime.rs:2131-2132`) |
-| Directivas | `#NoEnv`, `#Persistent`, `#SingleInstance Force` existem | o conjunto é o do v2 (19) |
-| Objectos | `o := {}`, `o.x := 5`, `Object()` — existem | `Map`, `Array`, `Buffer`, `Func`, `Gui`, `Menu`, `Hotkey` — nove classes, e o v1 não tem nenhuma |
-| Erros | função desconhecida: *"Call to nonexistent function. Specifically: X"*; comando desconhecido: *"This line does not contain a recognized action. Specifically: X"* | *"Call to nonexistent function."* |
+| Legacy command | `FileAppend, hello, C:\...\out.txt` writes "hello" | `FileAppend "hello", "..."` — the comma after the name is a syntax error (`parser.rs:462-499`) |
+| Parameter of a command | `StringLen, n, x` → `n` = 5: the parameter is the **name of a variable** | the parameter is an expression |
+| Text parameter | `StringLen, n, %x%` → `n` = 0 (the `%…%` form is the *legacy* substitution) | there is none |
+| Expression parameter | `StringLen, n, (x)` → refused: *"The following variable name contains an illegal character: "(x)""* — the `(…)` form exists only in the parameters that are expressions | the whole expression |
+| Assignment | `x = 5` assigns (and `y := 7` as well) | `:=` assigns; `=` compares |
+| Comparison | `"ABC" = "abc"` → **true**; `"ABC" == "abc"` → false; `"ABC" === "abc"` → false | `=` is strict, `==` is the one that does not distinguish case (`runtime.rs:2798-2809`) |
+| `if` | `if (x > 1)` with **one** statement and `else` — without braces | `if` with an expression and a block `{ }` |
+| *Labels* | `MyLabel:` and `goto MyLabel2` work | they do not exist |
+| Hotstring | it is a **statement**: `::btw::by the way`, or `::btw::` followed by the lines and the `return` | `Hotstring(":btw:", Callback)` — a command |
+| Hotkey | `Hotkey, ^a, MyCallback` — the target is a *label* | `Hotkey("^a", Callback)` — the target is the object of a function |
+| Threads | `#MaxThreads 10`, `#MaxThreadsBuffer 100`, `Thread, Priority, 1` — all exist | the directives of the v1 are refused (`runtime.rs:2131-2132`) |
+| Directives | `#NoEnv`, `#Persistent`, `#SingleInstance Force` exist | the set is the one of the v2 (19) |
+| Objects | `o := {}`, `o.x := 5`, `Object()` — exist | `Map`, `Array`, `Buffer`, `Func`, `Gui`, `Menu`, `Hotkey` — nine classes, and the v1 has none |
+| Errors | unknown function: *"Call to nonexistent function. Specifically: X"*; unknown command: *"This line does not contain a recognized action. Specifically: X"* | *"Call to nonexistent function."* |
 
-### 1.2 As variáveis do v1
+### 1.2 The variables of the v1
 
-`A_AhkVersion` é `1.1.37.02`. O v1 tem variáveis que o v2 não tem, e
-valores que o v2 não partilha:
+`A_AhkVersion` is `1.1.37.02` . The v1 has variables that the v2 does not
+have, and values that the v2 does not share:
 
-| Variável | v1.1.37.02 | v2.0.19 |
+| Variable | v1.1.37.02 | v2.0.19 |
 |---|---|---|
 | `A_SendMode` | `Event` | `Input` |
 | `A_StoreCapsLockMode` | `On` | `1` |
-| `A_ControlDelay` | `20` | não existe |
-| `A_WinDelay` | `100` | não existe |
-| `A_DetectHiddenWindows` / `A_DetectHiddenText` | `Off` / `On` | não existem |
-| `A_TitleMatchMode` | `1` | não existe |
-| `A_FormatFloat` / `A_FormatInteger` | `0.6` / `D` | não existem |
-| `A_IsAdmin`, `A_IsCompiled`, `A_IsCritical`, `A_IsPaused`, `A_IsSuspended` | existem | existem **sem o prefixo**: `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended` |
-| `A_IconFile`, `A_IconHidden`, `A_IconNumber`, `A_IconTip` | existem | não existem |
-| `A_ToolTipDelay`, `A_ToolTipTimeout` | existem | não existem |
-| `A_LineFile`, `A_LineNumber`, `A_LoopFile*`, `A_LoopReg*`, `A_LoopReadLine` | existem | alguns existem |
-| `A_KeyDelay`, `A_MouseDelay`, `A_Now`, `A_NowUTC`, `A_WDay`, `A_YWeek`, `A_MMM`, `A_MMMM` | iguais | iguais |
-| `A_CoordModeCaret`, `A_CoordModeMenu`, `A_FileEncoding` | não existem | existem |
+| `A_ControlDelay` | `20` | does not exist |
+| `A_WinDelay` | `100` | does not exist |
+| `A_DetectHiddenWindows` / `A_DetectHiddenText` | `Off` / `On` | do not exist |
+| `A_TitleMatchMode` | `1` | does not exist |
+| `A_FormatFloat` / `A_FormatInteger` | `0.6` / `D` | do not exist |
+| `A_IsAdmin`, `A_IsCompiled`, `A_IsCritical`, `A_IsPaused`, `A_IsSuspended` | exist | exist **without the prefix**: `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended` |
+| `A_IconFile`, `A_IconHidden`, `A_IconNumber`, `A_IconTip` | exist | do not exist |
+| `A_ToolTipDelay`, `A_ToolTipTimeout` | exist | do not exist |
+| `A_LineFile`, `A_LineNumber`, `A_LoopFile*`, `A_LoopReg*`, `A_LoopReadLine` | exist | some exist |
+| `A_KeyDelay`, `A_MouseDelay`, `A_Now`, `A_NowUTC`, `A_WDay`, `A_YWeek`, `A_MMM`, `A_MMMM` | the same | the same |
+| `A_CoordModeCaret`, `A_CoordModeMenu`, `A_FileEncoding` | do not exist | exist |
 
-### 1.3 A superfície: o que se mede, e como
+### 1.3 The surface: what is measured, and how
 
-Duas notícias, uma boa e uma má.
+Two pieces of news, one good and one bad.
 
-**A má: a extracção do v2 não se repete.** A superfície do v2 foi lida
-**de dentro do binário**: as tabelas de nomes e de handlers. No v1 **os
-nomes dos comandos não são texto simples no executável** — uma busca de
-`WinActivate`, `SendMode`, `MouseMove`, `Click`, `MsgBox` e `Hotkey` por
-bytes ASCII (e por maiúsculas) não encontra nada; `SetTimer` e
-`BlockInput` aparecem só dentro das mensagens de ajuda. A tabela de
-comandos do v1 está ofuscada no binário.
+**The bad one: the v2 extraction does not repeat.** The surface of the v2 was
+read **from inside the binary** : the tables of names and of handlers. In the
+v1 **the names of the commands are not plain text in the executable** — a
+search for `WinActivate` , `SendMode` , `MouseMove` , `Click` , `MsgBox` and
+`Hotkey` by ASCII bytes (and by case) finds nothing; `SetTimer` and
+`BlockInput` appear only inside the help messages. The table of commands of
+the v1 is obfuscated in the binary.
 
-**A boa: a sondagem directa é barata e é a verdade.** No v1, uma função
-desconhecida é um erro de **carga**, não de execução — o `try`/`catch` não
-a apanha. A pergunta é então uma por processo:
+**The good one: the direct probing is cheap and it is the truth.** In the v1,
+an unknown function is a **load** error, not a runtime error — the `try` /
+`catch` does not catch it. The question is then one per process:
 
 ```
-x := StrLen("abc")     # existe: o ficheiro recebe "3"
-x := Upper("abc")      # não existe: "Call to nonexistent function."
+x := StrLen("abc")     # it exists: the file receives "3"
+x := Upper("abc")      # it does not exist: "Call to nonexistent function."
 ```
 
-E o **género** de cada nome sai de três perguntas que o v1 faz de
-maneiras diferentes (medido em 2026-10-29):
+And the **kind** of each name comes out of three questions that the v1 asks
+in three different ways (measured on 2026-10-29):
 
-| Pergunta | O que responde |
+| Question | What answers |
 |---|---|
-| `Nome, arg` | é um **comando**? — *"This line does not contain a recognized action"* diz que não é |
-| `x := Nome()` | é uma **função**? — *"Call to nonexistent function"* diz que não é |
-| `x := IsSet(Nome)` | é uma **variável** do runtime? — 1 diz que é, e 0 que não é (um nome inventado dá 0) |
+| `Name, arg` | is it a **command**? — *"This line does not contain a recognized action"* says it is not |
+| `x := Name()` | is it a **function**? — *"Call to nonexistent function"* says it is not |
+| `x := IsSet(Name)` | is it a **variable** of the runtime? — 1 says it is, and 0 says it is not (a name that is made up gives 0) |
 
-É com estas três perguntas que a F1 preenche a coluna do género da
-tabela do v1. E é por isso que uma sondagem por nome é mais do que um
-sim ou não: o mesmo nome responde diferente conforme a forma.
+It is with these three questions that F1 fills the column of the kind of the
+table of the v1. And it is for that reason that a probe by name is more than
+a yes or no: the same name answers differently according to its shape.
 
-Quarenta e sete nomes medidos em 2026-10-28 levaram um minuto. Para a
-superfície inteira do v1 (a do v2 tem **725** nomes — a tabela de
-`crates/ahk/reference/ahk-v2.0.19.surface.tsv`, que a onda de
-2026-10-29 já imprime com `ahk --surface`) são ~250 sondas: **dois
-minutos** — na caixa, onde um comando perdido (um `Click` sem parâmetros
-clica onde o rato estiver) não faz mal.
+Forty-seven names measured on 2026-10-28 took a minute. For the whole surface
+of the v1 (the one of the v2 has **725** names — the table of
+`crates/ahk/reference/ahk-v2.0.19.surface.tsv` , which the wave of 2026-10-29
+already prints with `ahk --surface` ) there are ~250 probes: **two minutes** —
+on the box, where a lost command (a `Click` without parameters clicks wherever
+the mouse is) does no harm.
 
-A sondagem tem uma utilidade a mais: o `--surface` da onda imprime o
-estado de cada nome **de v2**; a mesma mecânica, com a tabela do v1 por
-dentro, imprime o do v1 — e a sondagem é o que preenche essa tabela.
+The probing has one more use: the `--surface` of the wave prints the state of
+each **v2** name; the same mechanics, with the table of the v1 inside it,
+prints the one of the v1 — and the probing is what fills that table.
 
-### 1.4 Os nomes: a maior parte coincide, o género não
+### 1.4 The names: most of them match, the kind does not
 
-Medido nos dois binários:
+Measured on the two binaries:
 
-- **No v1 e não no v2**: `Asc`, `IsSet`, `Object`, `MenuGetName`,
-  `Exception`.
-- **No v2 e não no v1**: `StrUpper`, `StrLower` — *o v1.1.37.02 não tem
-  nenhuma função de caixa*: nem `Upper`, nem `StrUpper`, nem `Lower`,
-  nem `StrLower*. `Number`, `Transform`, `StringReplace` e `ComValue` também
-  não são do v1.1 (os dois primeiros são de v1.0 ou do v2). `HasProp` e
-  `HasMethod` também não — e o v1 não tem `ObjHasProp` tampoco (medido:
-  *"Call to nonexistent function. Specifically: ObjHasProp(o, "a")"*).
-  `SetBatchLines` é ao contrário: é um nome do v1 que o v2 não tem
-  (medido em 2026-10-29: `SetBatchLines, 10` corre, e `SetBatchLines(10)`
-  dá *"Call to nonexistent function"*).
-- **O mesmo nome, outro género** — e é aqui que o gate dói:
+- **In the v1 and not in the v2** : `Asc` , `IsSet` , `Object` , `MenuGetName`
+  , `Exception` .
+- **In the v2 and not in the v1** : `StrUpper` , `StrLower` —
+  *the v1.1.37.02 has no case function at all* : neither `Upper` , nor
+  `StrUpper` , nor `Lower` , nor `StrLower*. ` Number `, ` Transform `, `
+  StringReplace ` and ` ComValue
+  ` are not of the v1.1 either (the first two are of v1.0 or of the v2). `
+  HasProp ` and ` HasMethod ` are not either — and the v1 has no ` ObjHasProp`
+  either (measured:
+  *"Call to nonexistent function. Specifically: ObjHasProp(o, "a")"* ).
+- `SetBatchLines` is the other way round: it is a name of the v1 that the v2
+  does not have (measured on 2026-10-29: `SetBatchLines, 10` runs, and
+  `SetBatchLines(10)` gives *"Call to nonexistent function"*).
+- **The same name, another kind** — and this is where the gate hurts:
 
-| Nome | no v1.1.37.02 | no v2.0.19 |
+| Name | in the v1.1.37.02 | in the v2.0.19 |
 |---|---|---|
-| `StrSplit` | **função** | **comando** |
-| `FileExist` | **função** | **comando** |
-| `FileRead` | **comando** (com variável de saída) | **comando** |
-| `GetKeyState` | **função** | **comando** |
-| `StrReplace` | **função** (parâmetros por ordem diferente) | **função** |
-| `Clipboard` | **não existe** | **variável** (o texto do clipboard) |
-| `A_Clipboard` | **variável** (o texto) | não existe |
-| `ClipboardAll` | **variável** (um objecto com todos os formatos) | não existe |
-| `Length` do array | **método**: `a.Length()` | **propriedade**: `a.Length` |
+| `StrSplit` | **function** | **command** |
+| `FileExist` | **function** | **command** |
+| `FileRead` | **command** (with an output variable) | **command** |
+| `GetKeyState` | **function** | **command** |
+| `StrReplace` | **function** (parameters in a different order) | **function** |
+| `Clipboard` | **does not exist** | **variable** (the text of the clipboard) |
+| `A_Clipboard` | **variable** (the text) | does not exist |
+| `ClipboardAll` | **variable** (an object with all the formats) | does not exist |
+| `Length` of the array | **method**: `a.Length()` | **property**: `a.Length` |
 
-O clipboard é o caso que mais muda: no v1 o texto é `A_Clipboard` e o
-objecto completo é `ClipboardAll`, e **não existe** nenhum nome
-`Clipboard` — medido: `Clipboard, 0, hello` → *"This line does not
-contain a recognized action. Specifically: Clipboard, 0, hello"*, e
-`Clipboard()` → *"Call to nonexistent function"*. As duas variáveis do
-v1 foram confirmadas com o `IsSet` do v1: `IsSet(A_Clipboard)` e
-`IsSet(ClipboardAll)` dão 1, e um nome inventado dá 0.
+The clipboard is the case that changes the most: in the v1 the text is
+`A_Clipboard` and the complete object is `ClipboardAll` , and **no** name
+`Clipboard` exists — measured: `Clipboard, 0, hello` →
+*"This line does not contain a recognized action. Specifically: Clipboard, 0, hello"*
+, and `Clipboard()` → *"Call to nonexistent function"* . The two variables of
+the v1 were confirmed with the `IsSet` of the v1: `IsSet(A_Clipboard)` and
+`IsSet(ClipboardAll)` give 1, and an invented name gives 0.
 
-Uma tabela por dialecto, com a coluna do género, é o que resolve isto.
+One table per dialect, with the column of the kind, is what solves this.
 
-### 1.5 As classes: o v1 não tem classes do runtime
+### 1.5 The classes: the v1 has no runtime classes
 
-O v2 tem onze classes na superfície — `Map`, `Array`, `Buffer`, `File`,
-`Func`, `Gui` (com `Gui.Control`, `Gui.ListView`, `Gui.Menu` e
-`Gui.StatusBar`) e `Hotkey` — e são **tipos do runtime**: o script não
-as estende, e os métodos são os que o runtime responde.
+The v2 has eleven classes in the surface — `Map` , `Array` , `Buffer` , `File`
+, `Func` , `Gui` (with `Gui.Control` , `Gui.ListView` , `Gui.Menu` and
+`Gui.StatusBar` ) and `Hotkey` — and they are **runtime types** : the script
+does not extend them, and the methods are the ones the runtime answers.
 
-O v1 não tem nenhum desses tipos. O que tem são **objectos**, e medido
-no binário em 2026-10-29 o `.__Class` deles é **vazio**: o `File` de
-`FileOpen`, o objecto de `Object()`, o literal `{a: 1}` e o objecto da
-variável `ClipboardAll` dão todos `.__Class` vazio. O `Object` do v1
-é uma **função** (`Object()` corre), e o objecto base não tem nome de
-classe. O array do v1 também é um objecto: `a := [1, 2, 3]` dá
-`a.Length()` = 3 (um **método**) e `a.__Class` vazio.
+The v1 has none of those types. What it has are **objects** , and measured on
+the binary on 2026-10-29 their `.__Class` is **empty** : the `File` of
+`FileOpen` , the object of `Object()` , the literal `{a: 1}` and the object of
+the variable `ClipboardAll` all give an empty `.__Class` . The `Object` of the
+v1 is a **function** ( `Object()` runs), and the base object has no class
+name. The array of the v1 is also an object: `a := [1, 2, 3]` gives
+`a.Length()` = 3 (a **method** ) and an empty `a.__Class` .
 
-O v1 tem classes, mas são **do script**: `class`, `new`, `this` e
-`__Init` existem — medido: `class Probe { __Init() { this.x := 1 } }`,
-`new Probe`, e `o.x` vale 1 — e aí o `.__Class` é o nome da classe
-("Probe"). O que o v1 não tem é uma *superfície* de classe por trás de
-um nome: o `Map` e o `Array` do v2 são objectos com métodos; no v1 são
-objectos com chaves.
-
----
-
-## 2. O gate: três formas, e a que se escolhe
-
-### (a) Feature de compilação — `--features v1`
-
-Um binário por dialeto. Zero custo em runtime, e o v1 nem entra no
-binário do v2. Em troca: trocar de dialeto é recompilar, o servidor do
-lab precisa das duas construções, e a caixa tem de as guardar.
-
-### (b) Sinalizador de runtime — `--dialect=v1` ← **a recomendada**
-
-Um binário, os dois dialetos. O dialeto é um **valor** que o parser e o
-runtime consultam; o v2 é o default e o caminho do v1 fica inerte para um
-script v2. A caixa e o MCP mudam de dialeto sem recompilar.
-
-Custa: um predicado no parser e outro no runtime, e as duas tabelas no
-binário.
-
-### (c) Crate separado — `ahk-v1`
-
-A superfície do v1 fica isolada. Em troca: o runtime, o interpretador, as
-classes e o `Desktop` duplicados e mantidos em paralelo — o dobro do
-trabalho para sempre, e a árvore deixa de ter *uma* tabela e *um* dialecto.
-
-### Porquê (b)
-
-Três razões, na ordem do peso:
-
-1. **O dialecto é uma propriedade do script, não do binário.** O lab
-   corre scripts v1 e v2 no mesmo dia; com (a) seriam dois binários a
-   manter na caixa.
-2. **A superfície já é data.** `builtins.rs` é uma tabela; `variables.rs`
-   é uma tabela; as classes são uma lista. Um segundo dialeto é,
-   sobretudo, **um segundo conjunto de linhas** — e a tabela é
-   exactamente o que a arquitectura da árvore já pede.
-3. **O custo em runtime é um predicado.** O `Dialect` é um
-   `&'static dyn Dialect`; o parser pergunta-o uma vez por instrução e o
-   runtime uma vez por operação que dependa do dialecto.
-
-A (b) tem um custo que a (a) não tem: **as duas gramáticas estão sempre
-compiladas**. É o preço da gramática legacy (a instrução `Cmd, a, b` e a
-hotstring-instrução `::btw::`), que é a peça mais cara do plano e que se
-pagaria de qualquer maneira.
+The v1 has classes, but they are **of the script** : `class` , `new` , `this`
+and `__Init` exist — measured: `class Probe { __Init() { this.x := 1 } }` ,
+`new Probe` , and `o.x` is 1 — and there the `.__Class` is the name of the
+class ("Probe"). What the v1 does not have is a class *surface* behind a name:
+the `Map` and the `Array` of the v2 are objects with methods; in the v1 they
+are objects with keys.
 
 ---
 
-## 3. A forma do código
+## 2. The gate: three shapes, and the one that is chosen
 
-### 3.1 O trait
+### (a) Compile-time feature — `--features v1`
 
-```rust
-/// O dialecto que o runtime fala.
+One binary per dialect. Zero runtime cost, and the v1 does not even enter the
+binary of the v2. In exchange: changing dialect means recompiling, the server
+of the lab needs both builds, and the box has to keep them.
+
+### (b) Runtime flag — `--dialect=v1` ← **the recommended one**
+
+One binary, the two dialects. The dialect is a **value** that the parser and
+the runtime consult; the v2 is the default and the path of the v1 stays inert
+for a v2 script. The box and the MCP change dialect without recompiling.
+
+It costs: a predicate in the parser and another in the runtime, and the two
+tables in the binary.
+
+### (c) Separate crate — `ahk-v1`
+
+The surface of the v1 stays isolated. In exchange: the runtime, the
+interpreter, the classes and the `Desktop` duplicated and kept in parallel —
+twice the work forever, and the tree stops having *one* table and *one*
+dialect.
+
+### Why (b)
+
+Three reasons, in the order of weight:
+
+1. **The dialect is a property of the script, not of the binary.** The lab
+   runs v1 and v2 scripts on the same day; with (a) they would be two binaries
+   to keep on the box.
+2. **The surface is already data.** `builtins.rs` is a table; `variables.rs`
+   is a table; the classes are a list. A second dialect is, above all,
+   **a second set of rows** — and the table is exactly what the architecture
+   of the tree already asks for.
+3. **The runtime cost is a predicate.** The `Dialect` is an
+   `&'static dyn Dialect` ; the parser asks it once per statement and the
+   runtime once per operation that depends on the dialect.
+
+(b) has a cost that (a) does not have:
+**the two grammars are always compiled** . It is the price of the legacy
+grammar (the `Cmd, a, b` statement and the hotstring-statement `::btw::` ),
+which is the most expensive piece of the plan and which would be paid anyway.
+
+---
+
+## 3. The shape of the code
+
+### 3.1 The trait
+
+```
+/// The dialect that the runtime speaks.
 ///
-/// O v2 é o dialecto do Serialize: o `V2` é o que o runner usa por
-/// omissão, e o `V1` só é escolhido quando o script o pede.
+/// The v2 is the dialect of the Serialize: the `V2` is the one that the
+/// runner uses by default, and the `V1` is only chosen when the script
+/// asks for it.
 pub trait Dialect {
-    /// O nome do dialecto, para o relatório.
+    /// The name of the dialect, for the report.
     fn name(&self) -> &'static str;
-    /// Os nomes que o dialecto carrega.
+    /// The names that the dialect carries.
     fn builtins(&self) -> &'static [Builtin];
-    /// As variáveis que o dialecto carrega.
+    /// The variables that the dialect carries.
     fn variables(&self) -> &'static [Variable];
-    /// As classes de tipo que o dialecto carrega.
+    /// The class types that the dialect carries.
     fn classes(&self) -> &'static [&'static str];
 
-    /// O comando legacy: `Msg, texto`.
+    /// The legacy command: `Msg, text`.
     fn legacy_commands(&self) -> bool;
-    /// O `=` atribui (e não compara).
+    /// The `=` assigns (and does not compare).
     fn assign_with_equal(&self) -> bool;
-    /// O `=` compara sem distinção de maiúsculas.
+    /// The `=` compares without a distinction of case.
     fn equal_is_case_insensitive(&self) -> bool;
-    /// O `%nome%` é a variável de ambiente.
+    /// The `%name%` is the environment variable.
     fn percent_is_environment(&self) -> bool;
-    /// As variáveis são globais por omissão.
+    /// The variables are global by default.
     fn scope_is_global(&self) -> bool;
-    /// A hotstring é uma instrução: `::btw::`.
+    /// The hotstring is a statement: `::btw::`.
     fn hotstrings_are_statements(&self) -> bool;
 }
 ```
 
-O `Runtime` passa a carregar `dialect: &'static dyn Dialect` (ao lado do
-`desktop`), e o `Parser` recebe-o no construtor. O `ahk-cli` ganha
-`--dialect=v1|v2`, com o v2 por omissão.
+The `Runtime` comes to carry `dialect: &'static dyn Dialect` (beside the
+`desktop` ), and the `Parser` receives it in the constructor. The `ahk-cli`
+gains `--dialect=v1|v2` , with the v2 by default.
 
-### 3.2 A tabela dos built-ins ganha a forma dos parâmetros
+### 3.2 The table of the built-ins gains the shape of the parameters
 
-O v1 tem três tipos de parâmetro: **variável** (o nome de uma variável
-do script), **variável de saída** (o `n` de `StringLen, n, x`) e
-**expressão**. O v2 tem dois: valor e referência. Uma coluna resolve os
-dois:
+The v1 has three kinds of parameter: **variable** (the name of a variable of
+the script), **output variable** (the `n` of `StringLen, n, x` ) and
+**expression** . The v2 has two: value and reference. One column solves the
+two:
 
-```rust
-/// A forma de um parâmetro.
+```
+/// The shape of a parameter.
 pub enum Parameter {
-    /// Uma expressão: o valor chega ao handler.
+    /// An expression: the value reaches the handler.
     Value,
-    /// O nome de uma variável do script: o handler recebe a referência.
+    /// The name of a variable of the script: the handler receives the reference.
     Variable,
-    /// O nome de uma variável do script onde o handler escreve.
+    /// The name of a variable of the script where the handler writes.
     Output,
 }
 ```
 
-A linha de hoje é `Builtin { name, kind, min, max, variant, handler }` —
-o `variant` é o tempero do handler (`Ceil` e `Floor` são o mesmo
-handler com dois sabores). A coluna nova entra ao lado:
-`parameters: &[Parameter]`. O `reference_parameters` actual —
-`builtins.rs:457` — passa a ser lido dessa coluna. A tabela do v1
-preenche a coluna com a forma que o v1 medido tiver.
+The row of today is `Builtin { name, kind, min, max, variant, handler }` — the
+`variant` is the flavor of the handler ( `Ceil` and `Floor` are the same
+handler with two flavors). The new column goes beside it:
+`parameters: &[Parameter]` . The current `reference_parameters` —
+`builtins.rs:457` — comes to be read from that column. The table of the v1
+fills the column with the shape that the measured v1 has.
 
-### 3.3 O que **não** muda
+### 3.3 What does **not** change
 
-O `Desktop` e os seus dez traits, o `ahk-box`, o relatório, os guard
-rails, a classe `File`, o `DllCall`, o raven, a caixa. **O v1 corre sobre
-o mesmo motor** — é o que torna o plano possível em vez de ser uma
-reescrita.
+The `Desktop` and its ten traits, the `ahk-box` , the report, the guard rails,
+the `File` class, the `DllCall` , the raven, the box.
+**The v1 runs on the same engine** — it is what makes the plan possible
+instead of it being a rewrite.
 
-### 3.4 As tabelas de referência
+### 3.4 The reference tables
 
-Passam a ser por dialecto, em `crates/ahk/reference/`:
+They come to be per dialect, in `crates/ahk/reference/` :
 
 ```
-ahk-v1.1.37.02.surface.tsv      # os nomes do v1, com o género e a aridade
-ahk-v1.1.37.02.pending.tsv      # os nomes do v1 que a árvore não carrega
-ahk-v2.0.19.surface.tsv         # o que já existe
+ahk-v1.1.37.02.surface.tsv      # the names of the v1, with the kind and the arity
+ahk-v1.1.37.02.pending.tsv      # the names of the v1 that the tree does not carry
+ahk-v2.0.19.surface.tsv         # what is already there
 ahk-v2.0.19.pending.tsv
 ```
 
-E o teste de paridade (`tests/surface.rs`) passa a correr **contra o
-dialecto escolhido**: para o v2 é o que é hoje; para o v1 é a mesma
-mecânica com a outra tabela.
+And the parity test ( `tests/surface.rs` ) comes to run
+**against the chosen dialect** : for the v2 it is what it is today; for the v1
+it is the same mechanics with the other table.
 
 ---
 
-## 4. As fases
+## 4. The phases
 
-Cada fase tem um resultado **verificável**, e nenhuma delas mexe no
-comportamento do v2.
+Each phase has a **verifiable** result, and none of them touches the behaviour
+of the v2.
 
-### F0 — O gate, sem mudar nada
+### F0 — The gate, changing nothing
 
-**Conteúdo.** O trait `Dialect`, o `V2` (que embrulha as tabelas de
-hoje sem as mover), o parser e o runtime a perguntá-lo, o
-`--dialect=v2` no runner, e a tabela dos parâmetros na tabela dos
-built-ins (preenchida com `Value`/`Variable`, que é o que o v2 já faz).
+**Content.** The `Dialect` trait, the `V2` (which wraps the tables of today
+without moving them), the parser and the runtime asking it, the `--dialect=v2`
+in the runner, and the table of the parameters in the table of the built-ins
+(filled with `Value` / `Variable` , which is what the v2 already does).
 
-**Resultado.** A suite continua verde sem mudar de corpo — os 622
-casos do commit `6def58f` (a onda de 2026-10-29 também os mudou, e o
-número só sobe); o `--dialect=v1` ainda responde *"this runtime does
-not speak that dialect"*.
+**Result.** The suite stays green without a change of body — the 622 cases of
+the commit `6def58f` (the wave of 2026-10-29 changed them too, and the number
+only goes up); the `--dialect=v1` still answers
+*"this runtime does not speak that dialect"* .
 
-**Risco.** Baixo. É a fase que prova que o gate não custa nada ao v2.
+**Risk.** Low. It is the phase that proves the gate costs nothing to the v2.
 
-### F1 — A superfície do v1 (dados)
+### F1 — The surface of the v1 (data)
 
-**Conteúdo.** A tabela dos nomes do v1: a lista da documentação, o género
-de cada um, a forma e a aridade de cada parâmetro — **verificadas no
-binário**, com a sondagem de um processo por nome (§1.3), na caixa. As
-variáveis do v1 (§1.2). As classes do v1: **nenhuma** (§1.5) — o v1
-não tem classes do runtime, e o que ele tem são objectos e as classes
-do script. A tabela de pendentes do v1, com a razão de cada nome que
-não é carregado — e esta é a primeira tabela de pendentes que não está
-vazia (§0).
+**Content.** The table of the names of the v1: the list of the documentation,
+the kind of each one, the shape and the arity of each parameter —
+**verified on the binary** , with the probing of one process per name (§1.3),
+on the box. The variables of the v1 (§1.2). The classes of the v1: **none**
+(§1.5) — the v1 has no runtime classes, and what it has are objects and the
+script classes. The pending table of the v1, with the reason of each name that
+is not carried — and this is the first pending table that is not empty (§0).
 
-**Resultado.** `ahk --surface --dialect=v1` imprime a lista com o estado
-de cada nome — o comando que a onda de 2026-10-29 construiu para o v2,
-com o dialecto a mais; o número de "carregados a sério" é visível em
-cada commit.
+**Result.** `ahk --surface --dialect=v1` prints the list with the state of
+each name — the command that the wave of 2026-10-29 built for the v2, with one
+dialect more; the number of "really carried" ones is visible in each commit.
 
-**Risco.** Médio: é trabalho mecânico, mas é trabalho. E é a fase de que
-depende a F2.
+**Risk.** Medium: it is mechanical work, but it is work. And it is the phase
+that F2 depends on.
 
-### F2 — A gramática do v1
+### F2 — The grammar of the v1
 
-**Conteúdo.**
-- A instrução `Cmd, a, b` (o `parser.rs:462-499` é v2-only) e a
-  desambiguação com a vírgula.
-- A forma dos parâmetros: variável, variável de saída, expressão.
-- O `=` que atribui (`parser.rs:353-361` e `:501-504` já leem `=` e `:=`
-  para o mesmo braço — é quase metade do trabalho).
-- O `if (x)` de uma instrução e o `else`.
-- Os *labels* e o `goto`.
-- A hotstring como instrução (`::btw::`).
-- O `Hotkey, ^a, Label` com o alvo num label.
-- As directivas do v1 (`#MaxThreads*`, `#NoEnv`, `#Persistent`,
-  `#SingleInstance`, `#UseHook`, `#HotIf`, …).
+**Content.**
+- The `Cmd, a, b` statement (the `parser.rs:462-499` is v2-only) and the
+  disambiguation with the comma.
+- The shape of the parameters: variable, output variable, expression.
+- The `=` that assigns ( `parser.rs:353-361` and `:501-504` already read `=`
+  and `:=` for the same arm — it is almost half of the work).
+- The one-statement `if (x)` and the `else` .
+- The *labels* and the `goto` .
+- The hotstring as a statement ( `::btw::` ).
+- The `Hotkey, ^a, Label` with the target in a label.
+- The directives of the v1 ( `#MaxThreads*` , `#NoEnv` , `#Persistent` ,
+  `#SingleInstance` , `#UseHook` , `#HotIf` , …).
 
-**Resultado.** Um script v1 da documentação corre no runner: `MsgBox, text`
-escreve a mensagem, `StringLen, n, s` preenche `n`, `if (a = b)` compara
-sem distinção de maiúsculas, `goto` salta. (O `Msg` não é um comando do
-v1 — medido em 2026-10-29: *"This line does not contain a recognized
-action. Specifically: Msg, hello"*. O `MsgBox` é, e abre uma janela.)
+**Result.** A v1 script from the documentation runs in the runner:
+`MsgBox, text` writes the message, `StringLen, n, s` fills `n` , `if (a = b)`
+compares without distinguishing case, `goto` jumps. (The `Msg` is not a
+command of the v1 — measured on 2026-10-29:
+*"This line does not contain a recognized action. Specifically: Msg, hello"* .
+The `MsgBox` is, and it opens a window.)
 
-**Risco.** Alto — é a fase mais cara. O `=` é o ponto difícil: o mesmo
-token é atribuição ou comparação conforme a posição, e o v1 usa os dois
-no mesmo sítio (`if (a = b)` compara; `a = b` atribui).
+**Risk.** High — it is the most expensive phase. The `=` is the hard point:
+the same token is assignment or comparison depending on the position, and the
+v1 uses the two in the same place ( `if (a = b)` compares; `a = b` assigns).
 
-### F3 — A semântica do v1
+### F3 — The semantics of the v1
 
-**Conteúdo.**
-- O `=` do v1 compara sem distinção de maiúsculas e o `==` distingue
-  (o inverso do v2) — `runtime.rs:2798-2809`.
-- O `%nome%` é a variável de ambiente, não a do script (o `#NoEnv` é o
-  interruptor). **A árvore hoje interpola `%nome%` com a variável do
-  script** (`runtime.rs:3073`) — é a regra do v1 com o sentido do v2, e
-  o plano corrige-a por dialecto.
-- As variáveis são globais por omissão (`runtime.rs:1648-1661` cria uma
-  local); o v1 precisa de `global`.
-- O texto é tudo: o v1 não tem inteiro e float separados, e o `Value` do
-  runtime tem-nos (`runtime.rs:57-82`).
-- As classes do v1: `Object` e o literal `{}`.
+**Content.**
+- The `=` of the v1 compares without distinguishing case and the `==`
+  distinguishes (the opposite of the v2) — `runtime.rs:2798-2809` .
+- The `%nome%` is the environment variable, not the one of the script (the
+  `#NoEnv` is the switch).
+  **The tree today interpolates `%nome%` with the variable of the script** (
+  `runtime.rs:3073` ) — it is the rule of the v1 with the sense of the v2, and
+  the plan corrects it per dialect.
+- The variables are global by default ( `runtime.rs:1648-1661` creates a local
+  one); the v1 needs `global` .
+- The text is everything: the v1 has no integer and float apart, and the
+  `Value` of the runtime has them ( `runtime.rs:57-82` ).
+- The classes of the v1: `Object` and the literal `{}` .
 
-**Resultado.** O `=` e o `%nome%` de um script v1 comportam-se como o v1
-medido, e um script v2 não sente nada.
+**Result.** The `=` and the `%nome%` of a v1 script behave as the measured v1,
+and a v2 script feels nothing.
 
-**Risco.** Médio-alto: o modelo de valor e o de âmbito são estruturais.
+**Risk.** Medium-high: the value model and the scope model are structural.
 
-### F4 — A caixa
+### F4 — The box
 
-**Conteúdo.** O v1 usa as mesmas capacidades, com os nomes do v1:
-`Send`, `Click`, `PixelGet`, `WinExist`, `FileRead`, `FileAppend`,
-`IniRead`, `StrReplace`, `StrLen`, `Format`, `RegExMatch`. As
-capacidades que o v1 tem e o v2 não (`Control*`, `Win*`, o registo) são
-recusadas com a razão, como o v2 faz.
+**Content.** The v1 uses the same capabilities, with the names of the v1:
+`Send` , `Click` , `PixelGet` , `WinExist` , `FileRead` , `FileAppend` ,
+`IniRead` , `StrReplace` , `StrLen` , `Format` , `RegExMatch` . The
+capabilities that the v1 has and the v2 does not ( `Control*` , `Win*` , the
+registry) are refused with the reason, as the v2 does.
 
-O clipboard muda de forma, não de caminho: no v1 o texto é a variável
-`A_Clipboard` e o objecto completo é a variável `ClipboardAll`; no v2 o
-texto é a variável `Clipboard` e `ClipboardAll` não existe. O caminho é
-o mesmo dos dois lados — o `wl-paste` e o `wl-copy` da caixa, e **não**
-o protocolo do compositor (§27 das notas).
+The clipboard changes shape, not path: in the v1 the text is the variable
+`A_Clipboard` and the complete object is the variable `ClipboardAll` ; in the
+v2 the text is the variable `Clipboard` and `ClipboardAll` does not exist. The
+path is the same on both sides — the `wl-paste` and the `wl-copy` of the box,
+and **not** the protocol of the compositor (§27 of the notes).
 
-**Resultado.** Um script v1 que lê um pixel, escreve um ficheiro e manda
-uma tecla funciona na caixa.
+**Result.** A v1 script that reads a pixel, writes a file and sends a key
+works on the box.
 
-**Risco.** Baixo: é a camada do `Desktop`, que já sabe fazer quase tudo
-isto.
+**Risk.** Low: it is the layer of the `Desktop` , which already knows how to
+do almost all of this.
 
-### F5 — A verificação
+### F5 — The verification
 
-**Conteúdo.**
-- O teste de paridade por dialecto, com as duas tabelas.
-- A suite do v1 (`crates/ahk/tests/v1/`) a espelhar a do v2.
-- O `--surface` por dialecto, em texto e em JSON.
-- A medição na caixa: os casos do v1 pelo runner, como os 35 do v2
-  (2026-10-29).
+**Content.**
+- The parity test per dialect, with the two tables.
+- The suite of the v1 ( `crates/ahk/tests/v1/` ) mirroring the one of the v2.
+- The `--surface` per dialect, in text and in JSON.
+- The measurement on the box: the cases of the v1 through the runner, like the
+  35 of the v2 (2026-10-29).
 
-**Resultado.** `ahk --surface --dialect=v1` diz o que falta, e o número
-não piora sem se ver.
+**Result.** `ahk --surface --dialect=v1` says what is missing, and the number
+does not get worse without being seen.
 
 ---
 
-## 5. Os riscos
+## 5. The risks
 
-| Risco | Gravidade | O que se faz |
+| Risk | Severity | What is done |
 |---|---|---|
-| **As threads do v1.** O v1 corre cada hotkey no seu thread, com `#MaxThreads` e `#MaxThreadsBuffer`; o v2 é cooperativo e tem guard rails. | **Alta** | **Decidido: o v1 corre no modelo cooperativo da árvore**, e o critério é o do resto da árvore — *o dialecto decide os nomes; o que cada nome faz é do runtime, e é o mesmo nos dois dialectos*. `Thread` e `Critical` são **comandos do v1** (medido em 2026-10-29) e o v2 também os tem como comandos: a superfície do v1 carrega os dois e **recusa-os com a razão** que o v2 usa — *"this runtime is one script that ends when it ends, and it cannot do that."*. O `SetBatchLines`, que o v1 tem e a árvore não, vai para a **tabela de pendentes**. Um modelo de threads a sério é outro projecto, e não é este. |
-| **O `=` do v1.** Atribuição e comparação com o mesmo token. | Alta | O parser decide pela posição (a instrução começa com `=` → atribui; dentro de uma expressão → compara). Medido: `"ABC" = "abc"` é verdade. |
-| **`%nome%` é a variável de ambiente no v1.** | Média | A árvore interpola a variável do script. Com o dialecto v1 passa a ser a de ambiente, e o `#NoEnv` desliga a substituição. É uma mudança de *sentido* de uma regra que a árvore já tem. |
-| **A superfície não sai do binário.** Os nomes do v1 estão ofuscados. | Média | A lista vem da documentação e é verificada pelo binário, na caixa — §1.3. |
-| **Duas tabelas para manter.** | Média | O teste de paridade por dialecto e o `--surface` tornam a deriva visível. |
-| **A onda e o plano no mesmo `--surface`.** A onda de 2026-10-29 construiu o comando; este plano estende-o. | Média | A extensão é um parâmetro e quatro perguntas que passam a levar o dialecto. Não há um segundo comando, e o `AGENTS.md` diz qual é a peça de cada um. |
-| **Duas gramáticas no mesmo parser.** | Média | A gramática legacy fica atrás do predicado do dialecto; o v2 não a vê. |
-| **A licença do AHK_X11.** GPL-2.0. | Baixa | Já está escrito na comparação (a nota da licença): o *comportamento* pode ser portado, o código não. Este plano só usa a lista de nomes e o comportamento medido. |
-| **O `v1` e o `v2` a divergirem com o tempo.** | Baixa | O gate é o dialecto, não a versão: uma tabela nova do v1 (1.1.37.03) é uma linha a mais. |
+| **The threads of the v1.** The v1 runs each hotkey in its own thread, with `#MaxThreads` and `#MaxThreadsBuffer`; the v2 is cooperative and has guard rails. | **High** | **Decided: the v1 runs in the cooperative model of the tree**, and the criterion is the one of the rest of the tree — *the dialect decides the names; what each name does is the runtime's, and it is the same in the two dialects*. `Thread` and `Critical` are **commands of the v1** (measured on 2026-10-29) and the v2 has them as commands too: the surface of the v1 carries the two and **refuses them with the reason** that the v2 uses — *"this runtime is one script that ends when it ends, and it cannot do that."*. The `SetBatchLines`, which the v1 has and the tree does not, goes to the **pending table**. A real thread model is another project, and this is not it. |
+| **The `=` of the v1.** Assignment and comparison with the same token. | High | The parser decides by the position (the statement starts with `=` → assigns; inside an expression → compares). Measured: `"ABC" = "abc"` is true. |
+| **`%nome%` is the environment variable in the v1.** | Medium | The tree interpolates the variable of the script. With the v1 dialect it becomes the environment one, and the `#NoEnv` turns the substitution off. It is a change of *sense* of a rule that the tree already has. |
+| **The surface does not come out of the binary.** The names of the v1 are obfuscated. | Medium | The list comes from the documentation and is verified by the binary, on the box — §1.3. |
+| **Two tables to maintain.** | Medium | The parity test per dialect and the `--surface` make the drift visible. |
+| **The wave and the plan on the same `--surface`.** The wave of 2026-10-29 built the command; this plan extends it. | Medium | The extension is a parameter and four questions that come to carry the dialect. There is no second command, and the `AGENTS.md` says which piece is whose. |
+| **Two grammars in the same parser.** | Medium | The legacy grammar stays behind the predicate of the dialect; the v2 does not see it. |
+| **The license of the AHK_X11.** GPL-2.0. | Low | It is already written in the comparison (the license note): the *behaviour* may be ported, the code may not. This plan only uses the list of names and the measured behaviour. |
+| **The `v1` and the `v2` diverging over time.** | Low | The gate is the dialect, not the version: a new table of the v1 (1.1.37.03) is one more row. |
 
 ---
 
-## 6. O que fica de fora
+## 6. What stays out
 
-- **As threads do v1** (acima): o v1 corre no modelo cooperativo. Os
-  nomes que o v1 tem sobre threads são carregados e **recusados com a
-  razão do runtime** — `Thread` e `Critical` — e o `SetBatchLines`, que a
-  árvore não tem, fica **pendente**. As directivas `#MaxThreads` e
-  `#MaxThreadsBuffer` são recusadas com a mesma razão.
-- **As classes do v2** (`Map`, `Array`, `Buffer`, `Func`, `Gui`, `Menu`,
-  `Hotkey`) não existem no v1 — e o v1 não ganha classes novas.
-- **O `Gui`, o `Menu` e o `TrayTip`**: no v1 são comandos e menus do
-  sistema; a árvore recusa-os (o v2 também recusa o `Gui`).
-- **O registo do Windows** (`RegRead`, `RegWrite`, `RegDelete`): recusado
-  com a razão, como no v2.
-- **O COM** (`ComObj`, `ComValue`): recusado.
-- **O `Control*`**: recusado — a caixa não tem a camada de
-  acessibilidade (ver `docs/wayland-toplevel-enumeration.md`).
-- **As *variáveis de ambiente* como mecanismo**: o `#NoEnv` é aceite, e
-  a substituição é a do v1.
+- **The threads of the v1** (above): the v1 runs in the cooperative model. The
+  names that the v1 has about threads are carried and **refused with the
+  reason of the runtime** — `Thread` and `Critical` — and the `SetBatchLines`,
+  which the tree does not have, stays **pending**. The directives
+  `#MaxThreads` and `#MaxThreadsBuffer` are refused with the same reason.
+- **The classes of the v2** ( `Map` , `Array` , `Buffer` , `Func` , `Gui` ,
+  `Menu` , `Hotkey` ) do not exist in the v1 — and the v1 does not gain new
+  classes.
+- **The `Gui`, the `Menu` and the `TrayTip`** : in the v1 they are commands
+  and system menus; the tree refuses them (the v2 also refuses the `Gui` ).
+- **The Windows registry** ( `RegRead` , `RegWrite` , `RegDelete` ): refused
+  with the reason, as in the v2.
+- **The COM** ( `ComObj` , `ComValue` ): refused.
+- * *The `Control* `**: refused — the box has no accessibility layer (see `
+  docs/wayland-toplevel-enumeration.md`).
+- * *The * environment variables * as a mechanism* *: the `#NoEnv` is
+  accepted, and the substitution is the one of the v1.
 
 ---
 
-## 7. Como se mede a paridade
+## 7. How the parity is measured
 
-A mecânica já existe dos dois lados:
+The mechanics already exist on both sides:
 
-- `crates/ahk/tests/surface.rs` lê a tabela da superfície e pergunta à
-  árvore, nome a nome, se a carrega. Com o gate, a mesma pergunta corre
-  para os dois dialetos.
-- O **comando** também já existe: a onda de 2026-10-29 construiu o
-  `ahk --surface` (`crates/ahk/src/surface.rs`), que imprime uma linha
-  por nome e o resumo no fim. O gate não cria um segundo comando — dá-lhe
-  um parâmetro:
+- `crates/ahk/tests/surface.rs` reads the table of the surface and asks the
+  tree, name by name, whether it carries it. With the gate, the same question
+  runs for the two dialects.
+- The **command** also already exists: the wave of 2026-10-29 built the
+  `ahk --surface` ( `crates/ahk/src/surface.rs` ), which prints one line per
+  name and the summary at the end. The gate does not create a second command —
+  it gives it a parameter:
 
 ```
 ahk --surface --dialect=v1
@@ -562,44 +568,46 @@ StringLen function pending: this runtime does not carry that name yet.
 the surface of v1 has <n> entries: <v> answer with a value, <r> are refused, <p> are pending.
 ```
 
-A forma é a de hoje: o nome, o género, e o estado — `value`,
-`refusal: ...` ou `pending: ...`, com a razão quando a há. As três
-linhas são o formato: um nome recusado com a razão, um nome que
-responde, e um nome que o dialecto ainda não carrega. Os números do
-resumo são o que interessa — e o do meio é o que diz o que falta. A
-superfície do v1 ainda não foi contada: sai da sondagem da F1.
+The shape is the one of today: the name, the kind, and the state — `value` ,
+`refusal: ...` or `pending: ...` , with the reason when there is one. The
+three lines are the format: a name refused with the reason, a name that
+answers, and a name that the dialect does not yet carry. The numbers of the
+summary are what matters — and the middle one is what says what is missing.
+The surface of the v1 has not been counted yet: it comes out of the probing of
+F1.
 
-A linha de base é a do v2, no commit `aa28156` (2026-10-29):
+The baseline is the one of the v2, at the commit `aa28156` (2026-10-29):
 
 ```
 the surface of v2 has 725 entries: 479 answer with a value, 246 are refused, 0 are pending.
 ```
 
-As 246 recusas são quase todas nomes de Windows — e a recusa é a
-resposta certa para eles. A régua do plano é a do outro lado: nenhum
-nome que o v1 faz e que a caixa consegue fazer devia estar na recusa por
-falta de implementação.
+The 246 refusals are almost all names of Windows — and the refusal is the
+right answer for them. The rule of the plan is on the other side: no name that
+the v1 does and that the box can do should be in the refusal for lack of
+implementation.
 
-O JSON, para o CI, é uma peça da F5: o comando de hoje imprime o texto.
+The JSON, for the CI, is a piece of F5: the command of today prints the text.
 
-O segundo número: **quantos nomes da superfície do v1 estão implementados
-a sério**. A régua honesta é a mesma da comparação com o X11 — *nenhum
-nome que o v1 faz e que a caixa consegue fazer devia estar na recusa por
-falta de implementação*.
+The second number:
+**how many names of the surface of the v1 are really implemented** . The
+honest rule is the same as the one of the comparison with the X11 —
+*no name that the v1 does and that the box can do should be in the refusal for lack of implementation*
+.
 
 ---
 
-## 8. O resumo
+## 8. The summary
 
 | | |
 |---|---|
-| **O gate** | um valor: `--dialect=v1`, o v2 por omissão |
-| **A forma** | o `Dialect` é um trait; as tabelas são dados; o parser e o runtime perguntam |
-| **As fases** | F0 o gate · F1 a superfície · F2 a gramática · F3 a semântica · F4 a caixa · F5 a verificação |
-| **A fase cara** | F2, a gramática legacy |
-| **O que não muda** | o v2, o `Desktop`, a caixa, o relatório, os guard rails |
-| **As classes do v1** | nenhuma: o v1 tem objectos e classes do script, não tipos do runtime |
-| **A divergência que fica escrita** | o v1 corre no modelo cooperativo: sem threads |
-| **A autoridade** | o binário do v1.1.37.02 e a documentação do v1 |
-| **A dependência** | o `--surface` da onda de 2026-10-29, com o dialecto a mais |
-| **A coordenação** | a onda porta capacidades para dentro do v2; este plano acrescenta o dialecto ao lado |
+| **The gate** | one value: `--dialect=v1`, the v2 by default |
+| **The shape** | the `Dialect` is a trait; the tables are data; the parser and the runtime ask |
+| **The phases** | F0 the gate · F1 the surface · F2 the grammar · F3 the semantics · F4 the box · F5 the verification |
+| **The expensive phase** | F2, the legacy grammar |
+| **What does not change** | the v2, the `Desktop`, the box, the report, the guard rails |
+| **The classes of the v1** | none: the v1 has objects and script classes, not runtime types |
+| **The divergence that stays written** | the v1 runs in the cooperative model: no threads |
+| **The authority** | the binary of the v1.1.37.02 and the documentation of the v1 |
+| **The dependency** | the `--surface` of the wave of 2026-10-29, with one dialect more |
+| **The coordination** | the wave ports capabilities into the v2; this plan adds the dialect beside it |
