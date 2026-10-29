@@ -132,6 +132,11 @@ the box: it does no I/O, and it has to keep building without `std`.
   not run it over the tree.
 - The comments and the commits say *why*, in plain sentences, in the same
   voice as this file.
+- **The documents of this repository are in English.** The `AGENTS.md`,
+  the `README.md`, the contracts, the guides and the plans are all in
+  English, and so are the comments of the code and the reasons that the
+  runtime answers with. The owner decided it, and the documents that were
+  in Portuguese were translated.
 - **The built-in table is the list of what the dialect carries.** Every name
   of v2.0.19 is in `builtins.rs`, with its kind, its arity and the handler
   that answers it. A name that is shaped for Windows is in the table too,
