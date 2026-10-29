@@ -277,6 +277,14 @@ fn without_the_extension(path: &str, extension: &str) -> String {
 /// has a space in it, so that a script cannot reach it by name.
 pub(crate) const BASE: &str = "object base";
 
+/// The class that has the method a reference points at.
+///
+/// The key has a space in it, so that a script cannot reach it by name.
+pub(crate) const METHOD_CLASS: &str = "method class";
+
+/// The name of the method a reference points at.
+pub(crate) const METHOD_NAME: &str = "method name";
+
 /// Where a variable lives.
 ///
 /// The scopes of the script are a stack: the global one is under the
@@ -2543,10 +2551,10 @@ impl<'a> Runtime<'a> {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
                     return Some(Err(missing()));
                 };
-                let Some(method) = self.find_method(&class, &name) else {
+                let Some((defining, method)) = self.find_method_in(&class, &name) else {
                     return Some(Err(self.no_method(target, &name, line)));
                 };
-                Some(Ok(method_value(&name, &method)))
+                Some(Ok(self.method_reference(&defining, &method)))
             }
             "hasbase" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
@@ -2618,6 +2626,10 @@ impl<'a> Runtime<'a> {
     /// An object is named after its class, and the other values after their
     /// kind: "Integer", "String", "Object".
     fn the_type_of(&self, value: &Value) -> String {
+        // A class is a value of its own kind, and v2 names it "Class".
+        if self.class_name_of(value).is_some() {
+            return "Class".to_string();
+        }
         match self.class_of(value) {
             Some(name) => name,
             None => value.type_name().name().to_string(),
@@ -2660,6 +2672,71 @@ impl<'a> Runtime<'a> {
         })
     }
 
+    /// The value of a method of a class of the script.
+    ///
+    /// v2 hands a method over as a function whose first parameter is
+    /// `this`: the reference is the method itself, and the object is one
+    /// of the arguments of the call.
+    fn method_reference(&self, class: &str, method: &MethodDef) -> Value {
+        let mut properties: BTreeMap<String, Value> = BTreeMap::new();
+        // The name of the method is the name of the class, the name of
+        // the prototype, and the name of the method.
+        let owner = self
+            .classes
+            .get(class)
+            .map(|definition| definition.name.clone())
+            .unwrap_or_else(|| class.to_string());
+        properties.insert(
+            "name".to_string(),
+            Value::Text(format!("{owner}.Prototype.{}", method.name)),
+        );
+        // The first parameter of the reference is `this`.
+        let required = method
+            .parameters
+            .iter()
+            .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+            .count();
+        properties.insert("minparams".to_string(), Value::Int(required as i64 + 1));
+        properties.insert(
+            "maxparams".to_string(),
+            Value::Int(method.parameters.len() as i64 + 1),
+        );
+        properties.insert("isbuiltin".to_string(), Value::Int(0));
+        properties.insert("isvariadic".to_string(), Value::Int(0));
+        // The class and the name of the method: the reference calls them.
+        properties.insert(METHOD_CLASS.to_string(), Value::Text(class.to_string()));
+        properties.insert(METHOD_NAME.to_string(), Value::Text(method.name.clone()));
+        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+    }
+
+    /// A method of a class of the script, called through the reference to it.
+    ///
+    /// The reference is the method itself: the first argument of the
+    /// call is `this`, and the rest are the arguments of the method.
+    pub(crate) fn call_a_method_reference(
+        &mut self,
+        class: &str,
+        method: &str,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let Some((defining, definition)) = self.find_method_in(class, method) else {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: format!("There is no method named {method:?} in this class."),
+                line,
+            }));
+        };
+        // The object is the first argument: the reference is the method,
+        // and the method takes the object as `this`.
+        let Some((this, rest)) = arguments.split_first() else {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "Missing a required parameter.".into(),
+                line,
+            }));
+        };
+        self.call_method_with(&defining, &definition, this, rest, line)
+    }
+
     /// A property of a value.
     fn read_property(&mut self, target: &Value, name: &str, line: u32) -> Result<Value, RuntimeFailure> {
         // The name is written as the script wrote it, and the lookup is in
@@ -2677,6 +2754,14 @@ impl<'a> Runtime<'a> {
         }
         if let Some(value) = object.borrow().properties.get(&name) {
             return Ok(value.clone());
+        }
+        // A method of the class is a value: v2 hands it over as a
+        // function whose first parameter is `this`. A class is not an
+        // instance, and its methods are not handed over.
+        if self.class_name_of(target).is_none() {
+            if let Some((defining, method)) = self.find_method_in(&class, &name) {
+                return Ok(self.method_reference(&defining, &method));
+            }
         }
         // `__Get` is asked when the property is not there.
         if let Some((defining, method)) = self.find_method_in(&class, "__get") {
@@ -2994,6 +3079,13 @@ impl<'a> Runtime<'a> {
         if self.classes.contains_key(&name.to_lowercase()) || crate::classes::is_type(name) {
             return self.construct(name, arguments, line);
         }
+        // A method of a class of the script that is held in a variable
+        // is called through the reference to it: the first argument of
+        // the call is `this`.
+        if let Some((class, method)) = self.method_reference_in_a_variable(name) {
+            let values = self.evaluate_all(arguments)?;
+            return self.call_a_method_reference(&class, &method, &values, line);
+        }
         // A function that is held in a variable is called through it.
         if let Some(function) = self.function_in_a_variable(name) {
             return self.call_function(&function, arguments, line);
@@ -3189,6 +3281,22 @@ impl<'a> Runtime<'a> {
         }
         let function_name = object.properties.get("name")?.to_text().to_lowercase();
         self.functions.get(&function_name).cloned()
+    }
+
+    /// The method a variable holds, if it holds a reference to one.
+    ///
+    /// A reference to a method is a function whose first parameter is
+    /// `this`: the class and the name of the method are what it carries.
+    fn method_reference_in_a_variable(&self, name: &str) -> Option<(String, String)> {
+        let value = self.lookup_variable(name)?;
+        let Value::Object(object) = &value else { return None };
+        let object = object.borrow();
+        if object.class != "func" {
+            return None;
+        }
+        let class = object.properties.get(METHOD_CLASS)?.to_text();
+        let method = object.properties.get(METHOD_NAME)?.to_text();
+        Some((class, method))
     }
 
     /// The functions the language carries.
@@ -4325,7 +4433,8 @@ fn func_value(name: &str, function: &Function) -> Value {
     properties.insert("name".to_string(), Value::Text(name.to_string()));
     properties.insert("minparams".to_string(), Value::Int(fewest as i64));
     properties.insert("maxparams".to_string(), Value::Int(function.parameters.len() as i64));
-    properties.insert("builtin".to_string(), Value::Int(0));
+    properties.insert("isbuiltin".to_string(), Value::Int(0));
+    properties.insert("isvariadic".to_string(), Value::Int(0));
     Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
 }
 
@@ -4338,17 +4447,8 @@ fn builtin_value(name: &str, min: u8, max: u8) -> Value {
     properties.insert("name".to_string(), Value::Text(name.to_string()));
     properties.insert("minparams".to_string(), Value::Int(min as i64));
     properties.insert("maxparams".to_string(), Value::Int(max as i64));
-    properties.insert("builtin".to_string(), Value::Int(1));
-    Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
-}
-
-/// The value of a method: an object of the class `Func`.
-fn method_value(name: &str, method: &MethodDef) -> Value {
-    let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-    properties.insert("name".to_string(), Value::Text(name.to_string()));
-    properties.insert("minparams".to_string(), Value::Int(method.parameters.len() as i64));
-    properties.insert("maxparams".to_string(), Value::Int(method.parameters.len() as i64));
-    properties.insert("builtin".to_string(), Value::Int(0));
+    properties.insert("isbuiltin".to_string(), Value::Int(1));
+    properties.insert("isvariadic".to_string(), Value::Int(0));
     Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
 }
 

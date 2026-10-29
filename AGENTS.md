@@ -210,6 +210,14 @@ the box: it does no I/O, and it has to keep building without `std`.
   `__Set` is not called for it, and `x[y]` asks only the `__Item`, which
   reads and never writes. The tree follows that, and a class that cannot
   write an item fails the statement with the reason.
+- **A method of the script is a value.** Measured on the binary of v2.0.19
+  on 2026-10-30: `t.Method` hands over a function whose name is
+  "Thing.Prototype.Method", and the reference is the method itself: the
+  first argument of the call is `this`, and a call without one answers
+  "Missing a required parameter.". The method of the class and not of an
+  instance is not handed over: `Thing.Method` answers "This value of type
+  \"Class\" has no property named \"Method\".". The methods of the class
+  types of the runtime are not handed over yet.
 - **The refusal of an object is the wording of v2.** Measured on the binary
   of v2.0.19 on 2026-10-30: `x.nothing` on a number answers "This value of
   type \"Integer\" has no property named \"nothing\".", `x.nothing()` answers

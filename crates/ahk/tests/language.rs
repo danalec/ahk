@@ -407,9 +407,20 @@ fn a_function_knows_how_many_parameters_it_wants() {
 
 #[test]
 fn a_builtin_is_a_builtin() {
-    let (report, desktop) = run("f := Abs\nSend f.IsBuiltIn()");
+    // `IsBuiltIn` is a property of v2, and not a method.
+    let (report, desktop) = run("f := Abs\nSend f.IsBuiltIn");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["1"]);
+}
+
+#[test]
+fn the_is_built_in_of_a_function_is_not_a_method() {
+    let (report, _) = run("f := Abs\nMsgBox f.IsBuiltIn()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Func\" has no method named \"IsBuiltIn\".")
+    );
 }
 
 #[test]
@@ -1863,6 +1874,59 @@ fn the_write_of_a_property_of_a_class_of_the_script_makes_the_property() {
     let (report, _) = run("class Thing {\n}\nt := Thing()\nt.nothing := 2\nMsgBox t.nothing");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn a_method_of_the_script_is_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: a method is
+    // handed over as a function whose first parameter is `this`.
+    let (report, _) = run(
+        "class Thing {\n  Method() {\n    return \"the answer\"\n  }\n}\nt := Thing()\nf := t.Method\nMsgBox \"%f.Name% %f.MinParams% %f.MaxParams%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Thing.Prototype.Method 1 1"]);
+}
+
+#[test]
+fn a_method_held_in_a_variable_is_called_with_the_object() {
+    let (report, desktop) = run(
+        "class Thing {\n  Method() {\n    return \"the answer\"\n  }\n}\nt := Thing()\nf := t.Method\nSend f(t)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["the answer"]);
+}
+
+#[test]
+fn a_method_held_in_a_variable_without_the_object_fails() {
+    let (report, _) = run(
+        "class Thing {\n  Method() {\n    return \"the answer\"\n  }\n}\nt := Thing()\nf := t.Method\nSend f()",
+    );
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Missing a required parameter.")
+    );
+}
+
+#[test]
+fn the_method_of_the_class_is_not_a_value() {
+    // A class is a value of its own kind, and v2 does not hand its
+    // methods over.
+    let (report, _) = run("class Thing {\n  Method() {\n    return 1\n  }\n}\nMsgBox Thing.Method");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Class\" has no property named \"Method\".")
+    );
+}
+
+#[test]
+fn a_function_says_whether_it_is_built_in() {
+    // `IsBuiltIn` and `IsVariadic` are properties of v2, and not
+    // methods.
+    let (report, _) = run("f := Abs\nMsgBox \"%f.IsBuiltIn%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
 }
 
 #[test]

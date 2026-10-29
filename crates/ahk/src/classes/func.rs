@@ -7,18 +7,24 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value};
+use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value, METHOD_CLASS, METHOD_NAME};
 
 /// The properties a function owns.
 ///
-/// The name, the number of the parameters and whether the function is
-/// built in are in the table of the object.
-const PROPERTIES: [&str; 3] = ["name", "minparams", "maxparams"];
+/// The name, the number of the parameters, whether the function is
+/// built in and whether it takes a rest are in the table of the object.
+const PROPERTIES: [&str; 5] = [
+    "name",
+    "minparams",
+    "maxparams",
+    "isbuiltin",
+    "isvariadic",
+];
 
 /// The methods a function has: the ones of the class, and the ones every
 /// object has.
-const METHODS: [&str; 9] = [
-    "call", "isoptional", "isvariadic", "isbyref", "isbuiltin", "bind", "ptr", "size", "__new",
+const METHODS: [&str; 7] = [
+    "call", "isoptional", "isbyref", "bind", "ptr", "size", "__new",
 ];
 
 /// The names a function answers: its properties and its methods.
@@ -65,23 +71,31 @@ pub(crate) fn call(
         "__new" => failure(
             "a function is a value of the script; there is no way to make one here.".to_string(),
         ),
-        // The call of the function the value holds.
+        // The call of the function the value holds. A method of a
+        // class of the script is a reference to the method: the first
+        // argument of the call is `this`.
         "call" => {
             let values = arguments.to_vec();
+            let reference = {
+                let borrowed = object.borrow();
+                match (
+                    borrowed.properties.get(METHOD_CLASS),
+                    borrowed.properties.get(METHOD_NAME),
+                ) {
+                    (Some(class), Some(method)) => {
+                        Some((class.to_text(), method.to_text()))
+                    }
+                    _ => None,
+                }
+            };
+            if let Some((class, method)) = reference {
+                return Some(rt.call_a_method_reference(&class, &method, &values, line));
+            }
             Some(rt.call_named(&name, &values, line))
         }
         // The values of the class that the function carries.
         "isoptional" => Some(Ok(Value::Int(0))),
-        "isvariadic" => Some(Ok(Value::Int(0))),
         "isbyref" => Some(Ok(Value::Int(0))),
-        "isbuiltin" => Some(Ok(
-            object
-                .borrow()
-                .properties
-                .get("builtin")
-                .cloned()
-                .unwrap_or(Value::Int(0)),
-        )),
         // The binding of a function to an object, and the address of
         // one, are things this runtime does not keep.
         "bind" => failure(
