@@ -318,6 +318,7 @@ pub fn file_open(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
     match crate::classes::file::construct(&arguments, rt, line) {
         Ok(value) => Ok(value),
         Err(RuntimeFailure::Error(error)) => Err(error),
+        Err(RuntimeFailure::Detailed(error, _)) => Err(error),
         Err(_) => Err(RuntimeError {
             message: "the file cannot be opened.".to_string(),
             line,

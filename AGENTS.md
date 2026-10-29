@@ -210,6 +210,15 @@ the box: it does no I/O, and it has to keep building without `std`.
   `__Set` is not called for it, and `x[y]` asks only the `__Item`, which
   reads and never writes. The tree follows that, and a class that cannot
   write an item fails the statement with the reason.
+- **The error object carries the `What` and the `Extra` of v2.** Measured
+  on the binary of v2.0.19 on 2026-10-30: `Error(Message, What, Extra)`
+  makes an error, and the catch holds it. An error thrown inside a
+  function of the script carries the name of the function in its `What`,
+  and one thrown inside a method carries "Thing.Prototype.Method". The
+  error of the arity of a method carries the name of the parameter that
+  is missing in its `Extra`, or the name of the method. A runtime error
+  in an expression carries no name at all. The stack of v2 is not
+  carried: the script of the runner has no file.
 - **A method of the script is a value.** Measured on the binary of v2.0.19
   on 2026-10-30: `t.Method` hands over a function whose name is
   "Thing.Prototype.Method", and the reference is the method itself: the

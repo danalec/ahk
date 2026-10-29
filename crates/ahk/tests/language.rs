@@ -1930,6 +1930,52 @@ fn a_function_says_whether_it_is_built_in() {
 }
 
 #[test]
+fn an_error_carries_its_message() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let (report, _) = run(
+        "try {\n    throw Error(\"the message\")\n} catch as e {\n    MsgBox e.Message\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the message"]);
+}
+
+#[test]
+fn an_error_carries_what_and_extra() {
+    let (report, _) = run(
+        "try {\n    throw Error(\"the message\", \"the what\", \"the extra\")\n} catch as e {\n    MsgBox \"%e.What% %e.Extra%\"\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the what the extra"]);
+}
+
+#[test]
+fn an_error_thrown_in_a_function_names_it() {
+    let (report, _) = run(
+        "try {\n    Helper()\n} catch as e {\n    MsgBox e.What\n}\n\nHelper() {\n    throw Error(\"the message\")\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Helper"]);
+}
+
+#[test]
+fn the_extra_of_a_missing_parameter_is_its_name() {
+    let (report, _) = run(
+        "class Thing {\n  Method(a) {\n    return a\n  }\n}\ntry {\n    t := Thing()\n    t.Method()\n} catch as e {\n    MsgBox e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a"]);
+}
+
+#[test]
+fn the_extra_of_too_many_arguments_is_the_method() {
+    let (report, _) = run(
+        "class Thing {\n  Method(a) {\n    return a\n  }\n}\ntry {\n    t := Thing()\n    t.Method(1, 2)\n} catch as e {\n    MsgBox e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Thing.Prototype.Method"]);
+}
+
+#[test]
 fn the_init_of_a_class_runs_when_the_instance_is_made() {
     // Measured on the binary of v2.0.19 on 2026-10-30.
     let (report, _) = run(concat!(

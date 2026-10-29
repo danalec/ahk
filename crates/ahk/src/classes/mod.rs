@@ -29,6 +29,7 @@ use crate::runtime::{Object, Runtime, RuntimeFailure, Value};
 
 pub(crate) mod array;
 pub(crate) mod buffer;
+pub(crate) mod error;
 pub(crate) mod file;
 pub(crate) mod func;
 pub(crate) mod gui;
@@ -39,8 +40,8 @@ pub(crate) mod map;
 ///
 /// `Object` is the root of every class: v2 has it, and every object of
 /// the tree is one.
-pub(crate) const TYPES: [&str; 9] = [
-    "array", "buffer", "file", "func", "gui", "hotkey", "map", "menu", "object",
+pub(crate) const TYPES: [&str; 10] = [
+    "array", "buffer", "error", "file", "func", "gui", "hotkey", "map", "menu", "object",
 ];
 
 /// Whether the name is a class type of the runtime.
@@ -101,6 +102,7 @@ pub(crate) fn construct(
     match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
         "buffer" => Some(buffer::construct(arguments, rt, line)),
+        "error" => Some(error::construct(arguments, rt, line)),
         "file" => Some(file::construct(arguments, rt, line)),
         "func" => Some(func::construct(arguments, rt, line)),
         "hotkey" => Some(hotkey::construct(arguments, rt, line)),
@@ -160,6 +162,7 @@ fn call_once(
     match class.to_lowercase().as_str() {
         "array" => array::call(method, this, arguments, rt, line),
         "buffer" => buffer::call(method, this, arguments, rt, line),
+        "error" => error::call(method, this, arguments, rt, line),
         "file" => file::call(method, this, arguments, rt, line),
         "func" => func::call(method, this, arguments, rt, line),
         "hotkey" => hotkey::call(method, this, arguments, rt, line),
@@ -185,6 +188,7 @@ pub(crate) fn property(
     match class.to_lowercase().as_str() {
         "array" => array::property(name, this, rt, line),
         "buffer" => buffer::property(name, this, rt, line),
+        "error" => error::property(name, this, rt, line),
         "file" => file::property(name, this, rt, line),
         "func" => func::property(name, this, rt, line),
         "hotkey" => hotkey::property(name, this, rt, line),
@@ -211,6 +215,7 @@ pub(crate) fn set_property(
     match class.to_lowercase().as_str() {
         "array" => array::set_property(name, this, value, rt, line),
         "buffer" => buffer::set_property(name, this, value, rt, line),
+        "error" => error::set_property(name, this, value, rt, line),
         "file" => file::set_property(name, this, value, rt, line),
         "func" => func::set_property(name, this, value, rt, line),
         "hotkey" => hotkey::set_property(name, this, value, rt, line),
@@ -267,6 +272,7 @@ pub fn names(class: &str) -> Vec<&'static str> {
     match class.to_lowercase().as_str() {
         "array" => array::names(),
         "buffer" => buffer::names(),
+        "error" => error::names(),
         "file" => file::names(),
         "func" => func::names(),
         "hotkey" => hotkey::names(),

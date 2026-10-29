@@ -632,6 +632,7 @@ fn native_number(rt: &Runtime<'_>, value: &Value, line: u32) -> Result<f64, Runt
     match rt.number(value, line) {
         Ok(number) => Ok(number),
         Err(RuntimeFailure::Error(error)) => Err(error),
+        Err(RuntimeFailure::Detailed(error, _)) => Err(error),
         Err(RuntimeFailure::Timeout(_)) => {
             Err(RuntimeError { message: "the script ran out of time.".into(), line })
         }
@@ -1921,6 +1922,7 @@ fn num_get(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> 
     match crate::classes::buffer::read_number(&source, offset, kind, line) {
         Ok(number) => Ok(number),
         Err(RuntimeFailure::Error(error)) => Err(error),
+        Err(RuntimeFailure::Detailed(error, _)) => Err(error),
         Err(_) => Err(RuntimeError { message: "the buffer did not answer.".into(), line }),
     }
 }
@@ -1970,6 +1972,7 @@ fn num_put(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> 
     match crate::classes::buffer::write_numbers(target, offset, &numbers, line) {
         Ok(address) => Ok(Value::Int(address)),
         Err(RuntimeFailure::Error(error)) => Err(error),
+        Err(RuntimeFailure::Detailed(error, _)) => Err(error),
         Err(_) => Err(RuntimeError { message: "the buffer did not answer.".into(), line }),
     }
 }

@@ -885,6 +885,7 @@ fn fail(message: &str, line: u32) -> RuntimeFailure {
 fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
     match failure {
         RuntimeFailure::Error(error) => error,
+        RuntimeFailure::Detailed(error, _) => error,
         _ => RuntimeError {
             message: "the hotkey could not be registered.".to_string(),
             line,

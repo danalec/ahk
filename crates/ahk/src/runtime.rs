@@ -698,6 +698,12 @@ pub struct Runtime<'a> {
     /// `super` asks the base of the class where the method was defined,
     /// and that class is the one the frame carries.
     current_classes: Vec<String>,
+    /// The frames of the calls that run.
+    ///
+    /// The frame is the name of the function or of the method that
+    /// runs: v2 puts it in the `What` of an error that does not carry
+    /// one.
+    frames: Vec<String>,
     functions: BTreeMap<String, Function>,
     classes: BTreeMap<String, Class>,
     /// The class values the runtime made.
@@ -790,6 +796,7 @@ impl<'a> Runtime<'a> {
             scopes: Vec::new(),
             declarations: Vec::new(),
             current_classes: Vec::new(),
+            frames: Vec::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
@@ -834,6 +841,7 @@ impl<'a> Runtime<'a> {
             scopes: Vec::new(),
             declarations: Vec::new(),
             current_classes: Vec::new(),
+            frames: Vec::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
@@ -896,6 +904,10 @@ impl<'a> Runtime<'a> {
                 error = Some(failure.message);
                 error_line = Some(failure.line);
             }
+            Err(RuntimeFailure::Detailed(failure, _)) => {
+                error = Some(failure.message);
+                error_line = Some(failure.line);
+            }
             Err(RuntimeFailure::Timeout(timeout)) => {
                 error = Some(timeout.to_string());
             }
@@ -936,6 +948,7 @@ impl<'a> Runtime<'a> {
                 Err(failure) => {
                     let (message, line) = match failure {
                         RuntimeFailure::Error(error) => (error.message, error.line),
+                        RuntimeFailure::Detailed(error, _) => (error.message, error.line),
                         RuntimeFailure::Thrown(value) => (thrown_message(&value), 0),
                         RuntimeFailure::Timeout(timeout) => (timeout.to_string(), 0),
                         RuntimeFailure::Flow(_) => (
@@ -1106,6 +1119,9 @@ impl<'a> Runtime<'a> {
         // itself.
         let thrown = match failure.as_ref() {
             Some(RuntimeFailure::Error(error)) => Some(self.error_value(error)),
+            Some(RuntimeFailure::Detailed(error, detail)) => {
+                Some(self.error_value_with(error, detail))
+            }
             Some(RuntimeFailure::Thrown(value)) => Some(value.clone()),
             _ => None,
         };
@@ -1194,13 +1210,45 @@ impl<'a> Runtime<'a> {
     /// The error of the runtime as a value: an object of the class `error`,
     /// the way v2 hands it to a catch.
     fn error_value(&self, error: &RuntimeError) -> Value {
-        let mut properties = BTreeMap::new();
-        properties.insert("what".to_string(), Value::Text(String::new()));
-        properties.insert("message".to_string(), Value::Text(error.message.clone()));
-        properties.insert("extra".to_string(), Value::Text(String::new()));
-        properties.insert("file".to_string(), Value::Text(String::new()));
-        properties.insert("line".to_string(), Value::Int(error.line as i64));
-        Value::Object(Rc::new(RefCell::new(Object { class: "error".to_string(), properties })))
+        crate::classes::error::error_value(&error.message, "", "", error.line)
+    }
+
+    /// The error of the runtime as a value, with the detail of it.
+    ///
+    /// The detail is the name of the thing that raised the failure, and
+    /// the detail that goes with it.
+    fn error_value_with(&self, error: &RuntimeError, detail: &Detail) -> Value {
+        crate::classes::error::error_value(
+            &error.message,
+            &detail.what,
+            &detail.extra,
+            error.line,
+        )
+    }
+
+    /// The name of the thing that threw a value.
+    ///
+    /// v2 puts the name of the function or of the method in the `What`
+    /// of an error that does not carry one.
+    fn name_the_thrower(&self, value: &Value) {
+        let Value::Object(object) = value else { return };
+        if object.borrow().class != "error" {
+            return;
+        }
+        let carries = object
+            .borrow()
+            .properties
+            .get("what")
+            .map(|what| !what.to_text().is_empty())
+            .unwrap_or(false);
+        if carries {
+            return;
+        }
+        let Some(frame) = self.frames.last() else { return };
+        object
+            .borrow_mut()
+            .properties
+            .insert("what".to_string(), Value::Text(frame.clone()));
     }
 
     /// The timers that are due.
@@ -1250,6 +1298,7 @@ impl<'a> Runtime<'a> {
         match self.base_method(target, name, arguments, line) {
             Some(Ok(value)) => Ok(value),
             Some(Err(RuntimeFailure::Error(error))) => Err(error),
+            Some(Err(RuntimeFailure::Detailed(error, _))) => Err(error),
             Some(Err(_)) => Err(RuntimeError {
                 message: "the runtime cannot answer that.".into(),
                 line,
@@ -1444,6 +1493,9 @@ impl<'a> Runtime<'a> {
                         }
                     },
                 };
+                // v2 puts the name of the thing that threw the error in
+                // its `What`, when the error does not carry one.
+                self.name_the_thrower(&value);
                 return Err(RuntimeFailure::Thrown(value));
             }
             Node::Loop { mode, arguments, body, line } => {
@@ -2430,19 +2482,26 @@ impl<'a> Runtime<'a> {
         // method that has one has no maximum.
         let variadic = method.parameters.iter().any(|parameter| parameter.variadic);
         if !variadic && values.len() > method.parameters.len() {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: "Too many parameters passed to function.".into(),
-                line,
-            }));
+            let extra = self.the_name_of_the_method(class, method);
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError {
+                    message: "Too many parameters passed to function.".into(),
+                    line,
+                },
+                Detail { what: String::new(), extra },
+            ));
         }
         // A parameter that has no default is required: v2 refuses the
         // call and says that the parameter is missing.
         for (index, parameter) in method.parameters.iter().enumerate() {
             if values.get(index).is_none() && parameter.default.is_none() && !parameter.variadic {
-                return Err(RuntimeFailure::Error(RuntimeError {
-                    message: "Missing a required parameter.".into(),
-                    line,
-                }));
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError {
+                        message: "Missing a required parameter.".into(),
+                        line,
+                    },
+                    Detail { what: String::new(), extra: parameter.name.clone() },
+                ));
             }
         }
         let mut scope: BTreeMap<String, Value> = BTreeMap::new();
@@ -2495,11 +2554,14 @@ impl<'a> Runtime<'a> {
             };
             scope.insert(the_key_of(&method.parameters[index].name), array);
         }
+        let frame = self.the_name_of_the_method(class, method);
         self.enter_call(line)?;
         self.scopes.push(scope);
         self.declarations.push(method.declarations.clone());
         self.current_classes.push(class.to_lowercase());
+        self.frames.push(frame);
         let outcome = self.run_block(&method.body);
+        self.frames.pop();
         self.current_classes.pop();
         self.declarations.pop();
         self.scopes.pop();
@@ -2672,6 +2734,19 @@ impl<'a> Runtime<'a> {
         })
     }
 
+    /// The name of a method, the way v2 names it.
+    ///
+    /// The name of the class, the name of the prototype, and the name of
+    /// the method.
+    fn the_name_of_the_method(&self, class: &str, method: &MethodDef) -> String {
+        let owner = self
+            .classes
+            .get(class)
+            .map(|definition| definition.name.clone())
+            .unwrap_or_else(|| class.to_string());
+        format!("{owner}.Prototype.{}", method.name)
+    }
+
     /// The value of a method of a class of the script.
     ///
     /// v2 hands a method over as a function whose first parameter is
@@ -2679,16 +2754,9 @@ impl<'a> Runtime<'a> {
     /// of the arguments of the call.
     fn method_reference(&self, class: &str, method: &MethodDef) -> Value {
         let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-        // The name of the method is the name of the class, the name of
-        // the prototype, and the name of the method.
-        let owner = self
-            .classes
-            .get(class)
-            .map(|definition| definition.name.clone())
-            .unwrap_or_else(|| class.to_string());
         properties.insert(
             "name".to_string(),
-            Value::Text(format!("{owner}.Prototype.{}", method.name)),
+            Value::Text(self.the_name_of_the_method(class, method)),
         );
         // The first parameter of the reference is `this`.
         let required = method
@@ -3203,7 +3271,9 @@ impl<'a> Runtime<'a> {
         self.enter_call(line)?;
         self.scopes.push(scope);
         self.declarations.push(function.declarations.clone());
+        self.frames.push(function.name.clone());
         let outcome = self.run_block(&function.body);
+        self.frames.pop();
         self.declarations.pop();
         self.scopes.pop();
         self.leave_call();
@@ -3552,6 +3622,9 @@ impl<'a> Runtime<'a> {
             // A failure of the runtime is a continuable one: the thread
             // goes on when a function says so.
             RuntimeFailure::Error(error) => (self.error_value(error), "Return"),
+            RuntimeFailure::Detailed(error, detail) => {
+                (self.error_value_with(error, detail), "Return")
+            }
             // A value that the script threw is not a continuable failure.
             RuntimeFailure::Thrown(value) => (value.clone(), "Exit"),
             // The timeout of the tree stops the program.
@@ -4488,6 +4561,7 @@ pub(crate) fn prototype_value(name: &str) -> Value {
 fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
     match failure {
         RuntimeFailure::Error(error) => error,
+        RuntimeFailure::Detailed(error, _) => error,
         _ => RuntimeError { message: "the runtime cannot answer that.".into(), line },
     }
 }
@@ -4535,6 +4609,7 @@ fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
 fn the_message_of(failure: &RuntimeFailure) -> String {
     match failure {
         RuntimeFailure::Error(error) => error.message.clone(),
+        RuntimeFailure::Detailed(error, _) => error.message.clone(),
         RuntimeFailure::Thrown(value) => thrown_message(value),
         RuntimeFailure::Timeout(timeout) => timeout.to_string(),
         RuntimeFailure::Flow(_) => "the script left a block in the middle of it.".to_string(),
@@ -4609,10 +4684,28 @@ pub fn op_name(statement: &Node) -> &str {
 
 pub(crate) enum RuntimeFailure {
     Error(RuntimeError),
+    /// A failure with the detail that v2 carries in the error object.
+    ///
+    /// `What` names the thing that raised the failure, and `Extra` is
+    /// the detail that goes with it.
+    Detailed(RuntimeError, Detail),
     /// A value that the script threw.
     Thrown(Value),
     Timeout(Timeout),
     Flow(Flow),
+}
+
+/// The name of the thing that raised a failure, and the detail that
+/// goes with it.
+///
+/// v2 carries both in the error object: `What` names the thing that
+/// raised the failure, and `Extra` is the detail.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Detail {
+    /// The name of the thing that raised the failure.
+    pub what: String,
+    /// The detail of the failure.
+    pub extra: String,
 }
 
 impl From<RuntimeError> for RuntimeFailure {
