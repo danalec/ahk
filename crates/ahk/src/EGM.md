@@ -402,9 +402,16 @@ not while the body of a `try` runs.
   column turned into the places of the parameters.
 - `Wants` -- the type a parameter declares: `Number`, `String`, `Object`, or
   `Value` for a built-in that takes a value of any kind.
-- `wants(name, index) -> Wants` -- the type of that parameter. The table holds the built-ins whose types were measured on the
-  binary of v2.0.19, and the guard on a reference asks it, so that the
-  message names the type the built-in wanted.
+- `wants(name, index) -> Wants` -- the type of that parameter. The two
+  tables of it -- `THE_TEXTS` and `THE_NUMBERS` -- were measured on the
+  binary of v2.0.19 on 2026-10-31: every built-in of the tree was
+  called with an object where the parameter goes, and the refusal of the
+  binary named the parameter and the kind it wanted. The runtime asks
+  the table before the handler runs, and a value that does not fit is
+  refused with the reason.
+- `refuses_itself(name) -> bool` -- the built-ins that refuse the
+  parameter in their own handler: the `Mod` says "Invalid parameter(s)."
+  for anything that is not a number, and it does not name the type.
 - `refusal_of(name) -> Option<&'static str>` -- the reason the name refuses
   with, when it refuses.
 

@@ -2691,3 +2691,38 @@ read a member of the answer of a call: `FileExist("a.txt").__Class` is a
 load error, and v2 answers "String".
 
 Thirteen of the eighteen cases are the same in the tree and in the dialect.
+
+## 52. A parameter of v2 declares the kind it wants
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree took whatever
+it was given and made of it what it could. `StrLen({})` answered with a
+number, and `Run({})` ran a command called "object".
+
+- **A parameter that wants a text takes a text and a number.** The number
+  is made of the text of it, the way v2 makes of it.
+- **A parameter that wants a number takes a number and a text that holds
+  one.** A text that holds nothing else is a text, and the failure names
+  it: "Parameter #1 of Abs requires a Number, but received a String.".
+- **An object, an array and a function are refused.** The message is the
+  one of v2: "Parameter #1 of StrLen requires a String, but received an
+  Object.". It is a `TypeError`, the name of the built-in goes in its
+  `What`, and the value that arrived goes in its `Extra` -- the text of
+  it, and nothing for an object, an array or a function.
+- **The table was measured, name by name.** Every built-in of the tree
+  was called on the binary with an object where the parameter goes, and
+  the refusal of the binary named the parameter and the kind it wanted.
+  A hundred and thirty of the built-ins declare one, and the table holds
+  them.
+
+Two of the names are left out of the table, and both are the dialect's:
+the `Mod` says "Invalid parameter(s)." for anything that is not a
+number, and it does not name the type; and the values of a `Format` are
+only read when the pattern asks for them.
+
+One difference is left, and it is the tree's: a reference where v2
+declares nothing is read through by v2 -- `Type(&y)` answers "VarRef" --
+and the tree refuses it with "requires a value, but received a VarRef.".
+
+Thirty-seven of the fifty-three cases of the text parameters, fifteen of
+the references and sixteen of the numbers are the same in the tree and in
+the dialect.

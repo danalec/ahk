@@ -944,12 +944,14 @@ fn a_plain_parameter_that_is_given_a_reference_writes_its_own_copy() {
 #[test]
 fn a_reference_where_the_built_in_wants_a_value_fails() {
     // The built-ins that write into a variable of the caller want a
-    // reference in that place and nowhere else.
+    // reference in that place and nowhere else. Measured on the binary of
+    // v2.0.19 on 2026-10-31: the first parameter of the `SplitPath`
+    // wants a text, and the reference is refused with the name of it.
     let (report, _desktop) = run("x := \"C:\\file.txt\"\nSplitPath &x, &dir");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Parameter #1 of SplitPath requires a value, but received a VarRef.")
+        Some("Parameter #1 of SplitPath requires a String, but received a VarRef.")
     );
 }
 

@@ -3567,7 +3567,9 @@ impl<'a> Runtime<'a> {
         value.to_number_strict().map_err(|_| {
             RuntimeFailure::Detailed(
                 RuntimeError {
-                    message: expected_the_kind(TypeName::Number, &self.the_type_of(value)),
+                    // The name of the kind is the one of v2, and an empty
+                    // text has a name of its own.
+                    message: expected_number(value),
                     line,
                 },
                 Detail { what: String::new(), extra: the_extra_of_the_value(value) },
@@ -4115,7 +4117,11 @@ impl<'a> Runtime<'a> {
         // asks in its own handler.
         let decides = crate::builtins::decides_references(builtin.name);
         for (index, value) in values.iter().enumerate() {
-            if matches!(value, Value::Reference(_)) && !written_back.contains(&index) && !decides {
+            if matches!(value, Value::Reference(_))
+                && !written_back.contains(&index)
+                && !decides
+                && !crate::builtins::refuses_itself(builtin.name)
+            {
                 let message = match crate::builtins::wants(builtin.name, index) {
                     crate::builtins::Wants::Number => {
                         requires(index + 1, builtin.name, TypeName::Number, value)
@@ -4132,8 +4138,50 @@ impl<'a> Runtime<'a> {
                         builtin.name
                     ),
                 };
-                return Err(RuntimeFailure::Error(RuntimeError { message, line }));
+                // The name of the built-in goes in the `What` of the
+                // failure: v2 carries it there.
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError { message, line },
+                    Detail { what: builtin.name.to_string(), extra: String::new() },
+                ));
             }
+        }
+        // A parameter that v2 declares wants a value of a kind, and a
+        // value of another kind is refused with the reason: the name of
+        // the built-in, the number of the parameter and the kind that
+        // arrived.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: a parameter
+        // that wants a text takes a text and a number, and one that
+        // wants a number takes a number and a text that holds one.
+        for (index, value) in values.iter().enumerate() {
+            // A reference is the business of the guard above: the
+            // parameters that are written back take one.
+            if matches!(value, Value::Reference(_)) {
+                continue;
+            }
+            let message = match crate::builtins::wants(builtin.name, index) {
+                crate::builtins::Wants::String => {
+                    if matches!(value, Value::Text(_) | Value::Int(_) | Value::Float(_)) {
+                        continue;
+                    }
+                    requires(index + 1, builtin.name, TypeName::String, value)
+                }
+                crate::builtins::Wants::Number => {
+                    if value.to_number_strict().is_ok() {
+                        continue;
+                    }
+                    requires(index + 1, builtin.name, TypeName::Number, value)
+                }
+                _ => continue,
+            };
+            // v2 carries the value that arrived in the `Extra`: the
+            // text of it, and nothing for an object, an array or a
+            // function.
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message, line },
+                Detail { what: builtin.name.to_string(), extra: the_extra_of_the_value(value) },
+            ));
         }
         (builtin.handler)(self, values, line, builtin.variant).map_err(|error| {
             // The failure of a built-in carries the name of the built-in

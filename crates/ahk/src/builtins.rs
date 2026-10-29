@@ -1449,24 +1449,178 @@ pub enum Wants {
 
 /// The type the parameters of a built-in declare.
 ///
-/// The table holds the built-ins whose types were measured on the binary
-/// of v2.0.19: the maths, the two texts and the objects. A built-in
-/// that is not in it takes a value of any kind, and the guard on a
-/// reference says so.
+/// The tables were measured on the binary of v2.0.19 on 2026-10-31:
+/// every built-in of the tree was called with an object where the
+/// parameter goes, and the refusal of the binary named the parameter and
+/// the kind it wanted. A built-in that is not in them takes a value of
+/// any kind, and the guard on a reference says so.
+///
+/// The number of the parameter is the one of the call: the first is the
+/// first, and the two of `StrReplace` are the text and the needle.
+/// The parameters that want a text.
+const THE_TEXTS: &[(&str, &[u8])] = &[
+    ("CoordMode", &[0, 1]),
+    ("DateAdd", &[0, 2]),
+    ("DateDiff", &[0, 1, 2]),
+    ("DirCopy", &[0, 1]),
+    ("DirCreate", &[0]),
+    ("DirDelete", &[0]),
+    ("DirExist", &[0]),
+    ("DirMove", &[0, 1]),
+    ("DirSelect", &[0, 2]),
+    ("Download", &[0, 1]),
+    ("EnvGet", &[0]),
+    ("EnvSet", &[0, 1]),
+    ("FileAppend", &[1, 2]),
+    ("FileCopy", &[0, 1]),
+    ("FileDelete", &[0]),
+    ("FileEncoding", &[0]),
+    ("FileExist", &[0]),
+    ("FileGetAttrib", &[0]),
+    ("FileGetSize", &[0, 1]),
+    ("FileGetTime", &[0, 1]),
+    ("FileInstall", &[0, 1]),
+    ("FileMove", &[0, 1]),
+    ("FileRead", &[0, 1]),
+    ("FileSelect", &[0, 1, 2, 3]),
+    ("FileSetAttrib", &[0, 1]),
+    ("FileSetTime", &[0, 1, 2]),
+    ("Format", &[0]),
+    ("FormatTime", &[0, 1]),
+    ("GetKeyName", &[0]),
+    ("GetKeySC", &[0]),
+    ("GetKeyState", &[0, 1]),
+    ("GetKeyVK", &[0]),
+    ("HotIfWinActive", &[0]),
+    ("HotIfWinExist", &[0]),
+    ("HotIfWinNotActive", &[0]),
+    ("HotIfWinNotExist", &[0]),
+    ("Hotkey", &[0, 2]),
+    ("Hotstring", &[0, 2]),
+    ("InStr", &[0, 1]),
+    ("IniDelete", &[0, 1, 2]),
+    ("IniRead", &[0, 1, 2, 3]),
+    ("IniWrite", &[0, 1, 2, 3]),
+    ("InputBox", &[0, 1, 2, 3]),
+    ("IsAlnum", &[0, 1]),
+    ("IsAlpha", &[0, 1]),
+    ("IsDigit", &[0]),
+    ("IsLabel", &[0]),
+    ("IsLower", &[0, 1]),
+    ("IsSpace", &[0]),
+    ("IsTime", &[0]),
+    ("IsUpper", &[0, 1]),
+    ("IsXDigit", &[0]),
+    ("KeyWait", &[0, 1]),
+    ("LTrim", &[0, 1]),
+    ("LoadPicture", &[0, 1]),
+    ("MouseClick", &[0]),
+    ("MouseClickDrag", &[0]),
+    ("MouseMove", &[3]),
+    ("MsgBox", &[0, 1, 2]),
+    ("Ord", &[0]),
+    ("RTrim", &[0, 1]),
+    ("RegExMatch", &[0, 1]),
+    ("RegExReplace", &[0, 1]),
+    ("Run", &[0, 1, 2]),
+    ("RunWait", &[0, 1, 2]),
+    ("Send", &[0]),
+    ("SendEvent", &[0]),
+    ("SendInput", &[0]),
+    ("SendMode", &[0]),
+    ("SendPlay", &[0]),
+    ("SendText", &[0]),
+    ("SetKeyDelay", &[2]),
+    ("SetMouseDelay", &[1]),
+    ("SetWorkingDir", &[0]),
+    ("Sort", &[0, 1]),
+    ("SoundGetMute", &[0, 1]),
+    ("SoundGetVolume", &[0, 1]),
+    ("SoundPlay", &[0]),
+    ("SoundSetMute", &[1, 2]),
+    ("SoundSetVolume", &[1, 2]),
+    ("SplitPath", &[0]),
+    ("StrCompare", &[0, 1]),
+    ("StrLen", &[0]),
+    ("StrLower", &[0]),
+    ("StrReplace", &[0, 1]),
+    ("StrSplit", &[0, 2]),
+    ("StrTitle", &[0]),
+    ("StrUpper", &[0]),
+    ("SubStr", &[0]),
+    ("Trim", &[0, 1]),
+    ("VerCompare", &[0, 1]),
+    ("WinGetTitle", &[1, 2, 3]),
+];
+
+/// The parameters that want a number.
+const THE_NUMBERS: &[(&str, &[u8])] = &[
+    ("ACos", &[0]),
+    ("ASin", &[0]),
+    ("ATan", &[0]),
+    ("Abs", &[0]),
+    ("Ceil", &[0]),
+    ("Chr", &[0]),
+    ("ClipWait", &[0, 1]),
+    ("Cos", &[0]),
+    ("DateAdd", &[1]),
+    ("DirSelect", &[1]),
+    ("Exit", &[0]),
+    ("ExitApp", &[0]),
+    ("Exp", &[0]),
+    ("FileCopy", &[2]),
+    ("FileInstall", &[2]),
+    ("FileMove", &[2]),
+    ("Floor", &[0]),
+    ("InStr", &[3, 4]),
+    ("KeyHistory", &[0]),
+    ("Ln", &[0]),
+    ("Log", &[0]),
+    ("MouseClick", &[1, 2, 3, 4]),
+    ("MouseClickDrag", &[1, 2, 3, 4]),
+    ("MouseMove", &[0, 1, 2]),
+    ("PixelGetColor", &[0, 1]),
+    ("Random", &[0, 1]),
+    ("Round", &[0, 1]),
+    ("SendLevel", &[0]),
+    ("SetDefaultMouseSpeed", &[0]),
+    ("SetKeyDelay", &[0, 1]),
+    ("SetMouseDelay", &[0]),
+    ("Sin", &[0]),
+    ("Sleep", &[0]),
+    ("SoundBeep", &[0, 1]),
+    ("Sqrt", &[0]),
+    ("StrSplit", &[3]),
+    ("SubStr", &[1, 2]),
+    ("Tan", &[0]),
+];
+
 pub fn wants(name: &str, index: usize) -> Wants {
+    let index = index as u8;
+    if THE_TEXTS.iter().any(|(built_in, indexes)| *built_in == name && indexes.contains(&index)) {
+        return Wants::String;
+    }
+    if THE_NUMBERS.iter().any(|(built_in, indexes)| *built_in == name && indexes.contains(&index)) {
+        return Wants::Number;
+    }
     match (name, index) {
-        (
-            "Abs" | "ACos" | "ASin" | "ATan" | "Ceil" | "Cos" | "Exp" | "Floor" | "Ln" | "Log"
-            | "Sin" | "Sqrt" | "Tan",
-            0,
-        ) => Wants::Number,
+        // Every parameter of the two is a number, and there is no telling
+        // how many of them there are.
         ("Min" | "Max", _) => Wants::Number,
-        ("Mod", 0 | 1) => Wants::Number,
-        ("Round", 0 | 1) => Wants::Number,
-        ("StrLen" | "SubStr", 0) => Wants::String,
         ("ObjOwnProps" | "ObjOwnPropCount" | "ObjHasOwnProp" | "ObjSetBase", 0) => Wants::Object,
         _ => Wants::Value,
     }
+}
+
+/// The built-ins that refuse the parameter themselves.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the `Mod` says
+/// "Invalid parameter(s)." for anything that is not a number -- a text,
+/// an object and a reference alike -- and it does not name the type that
+/// was wrong. The tree says it in its handler, and the guard above lets
+/// it speak.
+pub fn refuses_itself(name: &str) -> bool {
+    matches!(name, "Mod")
 }
 
 /// The handlers of the object model.
@@ -2020,8 +2174,12 @@ fn num_put(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> 
 // -- the text -------------------------------------------------------------------
 
 /// `Chr`: the character with that code point.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the parameter wants
+/// a number and not a whole one, and the point that is not whole is the
+/// one before it.
 fn chr(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let code = integer_argument(values, 0, line)?;
+    let code = number_argument(values, 0, line, "Chr")? as i64;
     let Some(character) = char::from_u32(code as u32) else {
         return Err(RuntimeError { message: crate::runtime::invalid_parameter(1, "Chr"), line });
     };

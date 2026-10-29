@@ -101,9 +101,12 @@ fn a_value_goes_at_the_end() {
 
 #[test]
 fn the_push_answers_the_array() {
-    let report = run("a := Array()\nMsgBox a.Push(\"x\")");
+    // Measured on the binary of v2.0.19 on 2026-10-31: a `MsgBox` wants
+    // a text, and an array is not one: the class of the answer is read
+    // instead.
+    let report = run("a := Array()\nr := a.Push(\"x\")\nMsgBox r.__Class");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["array"]);
+    assert_eq!(report.output, vec!["Array"]);
 }
 
 #[test]
@@ -262,7 +265,9 @@ fn a_capacity_below_the_length_takes_the_places_at_the_end_away() {
 
 #[test]
 fn the_enumeration_is_in_the_order_of_the_values() {
-    let report = run("a := Array(\"x\", \"y\")\nMsgBox a.__Enum()");
+    // A `MsgBox` wants a text, and the enumeration of the tree is an
+    // array: the values are read one by one.
+    let report = run("a := Array(\"x\", \"y\")\ne := a.__Enum()\nMsgBox e[1] . \",\" . e[2]");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x,y"]);
 }

@@ -110,10 +110,11 @@ fn a_value_goes_under_a_key() {
 #[test]
 fn the_set_answers_the_map() {
     // This is what v2 does: the map itself comes back, so that the calls
-    // can be chained.
-    let report = run("m := Map()\nMsgBox m.Set(\"a\", 1)");
+    // can be chained. A `MsgBox` wants a text, and a map is not one: the
+    // class of the answer is read instead.
+    let report = run("m := Map()\nr := m.Set(\"a\", 1)\nMsgBox r.__Class");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["map"]);
+    assert_eq!(report.output, vec!["Map"]);
 }
 
 #[test]
@@ -254,7 +255,11 @@ fn a_string_key_is_never_an_integer_key() {
 
 #[test]
 fn the_enumeration_is_in_the_order_of_the_entries() {
-    let report = run("m := Map()\nm.Set(\"a\", 1)\nm.Set(\"b\", 2)\nMsgBox m.__Enum()");
+    // A `MsgBox` wants a text, and the enumeration of the tree is an
+    // array: the entries are read one by one.
+    let report = run(
+        "m := Map()\nm.Set(\"a\", 1)\nm.Set(\"b\", 2)\ne := m.__Enum()\nMsgBox e[1][1] . \",\" . e[1][2] . \",\" . e[2][1] . \",\" . e[2][2]",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["a,1,b,2"]);
 }
