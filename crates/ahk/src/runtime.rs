@@ -2638,7 +2638,10 @@ impl<'a> Runtime<'a> {
                     return Some(Err(missing()));
                 };
                 let found = object.borrow().properties.contains_key(&name.to_lowercase())
-                    || self.declares_property(&class, &name);
+                    || self.declares_property(&class, &name)
+                    // Every value carries its class, and the base object
+                    // has the property of it.
+                    || name.eq_ignore_ascii_case("__class");
                 Some(Ok(Value::Int(found as i64)))
             }
             "hasmethod" => {
@@ -2733,6 +2736,39 @@ impl<'a> Runtime<'a> {
         match self.class_of(value) {
             Some(name) => name,
             None => value.type_name().name().to_string(),
+        }
+    }
+
+    /// The class of a value, the way v2 names it.
+    ///
+    /// Every value carries the class of it, and the `__Class` of the
+    /// value is the name of that class: "Integer", "Float", "String",
+    /// "Array", "VarRef", the name of the class of the script, and
+    /// "Class" for a class itself. The prototype of a class is of the
+    /// class it is the prototype of.
+    fn the_class_of_the_value(&self, value: &Value) -> String {
+        // A class is a value of its own kind, and v2 names it "Class".
+        if self.class_name_of(value).is_some() {
+            return "Class".to_string();
+        }
+        if let Value::Object(object) = value {
+            if object.borrow().class == "prototype" {
+                let name = object
+                    .borrow()
+                    .properties
+                    .get("name")
+                    .map(|value| value.to_text())
+                    .unwrap_or_default();
+                return crate::classes::the_spelling_of(&name);
+            }
+        }
+        match value {
+            Value::Int(_) => "Integer".to_string(),
+            Value::Float(_) => "Float".to_string(),
+            Value::Text(_) => "String".to_string(),
+            Value::List(_) => "Array".to_string(),
+            Value::Reference(_) => "VarRef".to_string(),
+            Value::Object(_) => self.the_type_of(value),
         }
     }
 
@@ -2938,6 +2974,11 @@ impl<'a> Runtime<'a> {
         let written = name.to_string();
         let name = name.to_lowercase();
         let Value::Object(object) = target else {
+            // Every value carries its class, and the class of a value
+            // that is not an object is the kind of it.
+            if name == "__class" {
+                return Ok((Value::Text(self.the_class_of_the_value(target)), false));
+            }
             return Err(self.no_property(target, &written, line));
         };
         let class = object.borrow().class.clone();
@@ -2948,6 +2989,10 @@ impl<'a> Runtime<'a> {
         }
         if let Some(value) = object.borrow().properties.get(&name) {
             return Ok((value.clone(), false));
+        }
+        // Every value carries its class.
+        if name == "__class" {
+            return Ok((Value::Text(self.the_class_of_the_value(target)), false));
         }
         // A method of the class is a value: v2 hands it over as a
         // function whose first parameter is `this`. A class is not an
@@ -3006,6 +3051,14 @@ impl<'a> Runtime<'a> {
         let written = name.to_string();
         let name = name.to_lowercase();
         let Value::Object(object) = target else {
+            // The class of a value that is not an object cannot be
+            // written: v2 says that the property is read-only.
+            if name == "__class" {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError { message: "Property is read-only.".to_string(), line },
+                    Detail { what: String::new(), extra: written },
+                ));
+            }
             return Err(self.no_property(target, &written, line));
         };
         let class = object.borrow().class.clone();

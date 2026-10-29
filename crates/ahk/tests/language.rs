@@ -2618,3 +2618,66 @@ fn the_call_of_a_value_carries_no_name_of_a_method() {
         vec!["Too few parameters passed to function. |  | Abs"]
     );
 }
+
+#[test]
+fn every_value_carries_its_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: every value
+    // carries its class, and the `__Class` of it is the name of it.
+    let (report, _desktop) = run(
+        "number := 5\nfloat := 5.5\ntext := \"text\"\nlist := [1]\nMsgBox number.__Class \" \" float.__Class \" \" text.__Class \" \" list.__Class",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Integer Float String Array"]);
+}
+
+#[test]
+fn the_class_of_an_object_is_the_class_of_it() {
+    let (report, _desktop) = run(
+        "class Thing {\n}\nthing := Thing()\nmap := Map()\nMsgBox thing.__Class \" \" map.__Class \" \" Abs.__Class",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Thing Map Func"]);
+}
+
+#[test]
+fn the_class_of_a_class_is_a_class() {
+    let (report, _desktop) = run("class Thing {\n}\nMsgBox Thing.__Class \" \" Map.__Class");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Class Class"]);
+}
+
+#[test]
+fn the_class_of_a_prototype_is_the_class_it_is_the_prototype_of() {
+    let (report, _desktop) = run(
+        "class Thing {\n}\nMsgBox Thing.Prototype.__Class \" \" Map.Prototype.__Class",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Thing Map"]);
+}
+
+#[test]
+fn the_class_of_a_value_that_is_not_an_object_cannot_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the property is
+    // read-only, and the name of it goes in the `Extra`.
+    let (report, _desktop) = run(
+        "try {\n    x := 5\n    x.__Class := \"Map\"\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Property is read-only. |  | __Class"]);
+}
+
+#[test]
+fn the_class_of_an_object_can_be_written_and_it_shadows_the_class() {
+    let (report, _desktop) = run("m := Map()\nm.__Class := \"X\"\nMsgBox m.__Class");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["X"]);
+}
+
+#[test]
+fn every_object_has_the_property_of_the_class_of_it() {
+    let (report, _desktop) = run(
+        "m := Map()\nMsgBox m.HasProp(\"__Class\") \" \" m.HasOwnProp(\"__Class\")",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 0"]);
+}

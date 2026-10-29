@@ -940,7 +940,11 @@ fn base_method(
         }
         "hasownprop" => Some(Ok(Value::Int(own_property(object, &key) as i64))),
         "hasprop" => Some(Ok(Value::Int(
-            (PROPERTIES.contains(&key.as_str()) || own_property(object, &key)) as i64,
+            (PROPERTIES.contains(&key.as_str())
+                || own_property(object, &key)
+                // Every value carries its class, and the base object has
+                // the property of it.
+                || key == "__class") as i64,
         ))),
         "hasmethod" => Some(Ok(Value::Int(METHODS.contains(&key.as_str()) as i64))),
         // A file extends the base object, and nothing else.

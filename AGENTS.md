@@ -340,6 +340,17 @@ the box: it does no I/O, and it has to keep building without `std`.
   `classes::CONSTRUCTORS`. The options of a `Gui` are not read yet: the
   tree takes any text, and v2 refuses the ones it cannot read with
   "Invalid option.".
+- **Every value carries its class.** Measured on the binary of v2.0.19
+  on 2026-10-30: the `__Class` of a value is the name of its class ---
+  "Integer", "Float", "String", "Array", "VarRef", the name of the class
+  of the script --- and a class is a class of its own kind: "Class". The
+  prototype of a class is of the class it is the prototype of: "C",
+  "Map". The class of a value that is not an object cannot be written:
+  "Property is read-only.", with the name of the property in the `Extra`.
+  On an object it is written like any other property, and it shadows the
+  class of the value. Every object has the property, and it is not an own
+  property: `m.HasProp("__Class")` is 1 and `m.HasOwnProp("__Class")` is
+  0.
 - **The refusal of an object is the wording of v2.** Measured on the binary
   of v2.0.19 on 2026-10-30: `x.nothing` on a number answers "This value of
   type \"Integer\" has no property named \"nothing\".", `x.nothing()` answers
