@@ -1877,9 +1877,12 @@ value. Specifically: IsAdmin"*.
   `variables::is_built_in` take the name the script writes.
 - **The clipboard is `A_Clipboard`.** The tree had carried the name
   `Clipboard` for the variable of the clipboard, and the v2 spells it with
-  the prefix of the other names. The v1 had `Clipboard` as a command and
-  `A_Clipboard` as the variable of the text, with `ClipboardAll` beside it
-  for the object with all the formats; the v2 has the command and
+  the prefix of the other names. The v1 had **no `Clipboard` command at
+  all** -- measured on the binary of the v1.1.37.02 on 2026-10-29:
+  *"This line does not contain a recognized action. Specifically: Clipboard,
+  0, hello"* -- and no `Clipboard` function either: *"Call to nonexistent
+  function. Specifically: Clipboard()"* . The text is `A_Clipboard` and the
+  object with all the formats is the variable `ClipboardAll` ; the v2 has
   `ClipboardAll` gone, and keeps the variable of the text.
 
 Measured on the box on 2026-10-29: `MsgBox A_Clipboard` answered the text of
