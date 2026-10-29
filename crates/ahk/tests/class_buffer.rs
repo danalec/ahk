@@ -10,8 +10,8 @@
 //! binary of v2.0.19 on 2026-10-27, with `HasProp` and `HasMethod`.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
-    Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
+    Sound, Timers, Windows,
 };
 use ahk::runtime::{Report, Runtime, Value};
 use ahk::parse;
@@ -22,6 +22,7 @@ use std::time::Duration;
 struct Fake;
 
 impl Desktop for Fake {}
+impl Sound for Fake {}
 
 impl Files for Fake {}
 
@@ -178,4 +179,170 @@ fn a_buffer_may_have_a_property_of_its_own() {
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 1"]);
+}
+
+// -- the numbers --------------------------------------------------------------
+
+#[test]
+fn a_number_goes_into_a_buffer_and_comes_back() {
+    let report = run(
+        "b := Buffer(8)\nNumPut(\"Int\", 42, b)\nvalue := NumGet(b, \"Int\")\nMsgBox \"%value%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["42"]);
+}
+
+#[test]
+fn every_type_of_a_number_is_a_number() {
+    let report = run(
+        "b := Buffer(64)\n\
+         NumPut(\"UInt\", 4294967295, b, 0)\n\
+         NumPut(\"Int\", -2, b, 4)\n\
+         NumPut(\"Int64\", -3, b, 8)\n\
+         NumPut(\"Short\", -4, b, 16)\n\
+         NumPut(\"UShort\", 65535, b, 18)\n\
+         NumPut(\"Char\", -5, b, 20)\n\
+         NumPut(\"UChar\", 255, b, 21)\n\
+         NumPut(\"Float\", 1.5, b, 22)\n\
+         NumPut(\"Double\", 2.25, b, 26)\n\
+         u := NumGet(b, 0, \"UInt\")\n\
+         i := NumGet(b, 4, \"Int\")\n\
+         i64 := NumGet(b, 8, \"Int64\")\n\
+         s := NumGet(b, 16, \"Short\")\n\
+         us := NumGet(b, 18, \"UShort\")\n\
+         c := NumGet(b, 20, \"Char\")\n\
+         uc := NumGet(b, 21, \"UChar\")\n\
+         f := NumGet(b, 22, \"Float\")\n\
+         d := NumGet(b, 26, \"Double\")\n\
+         MsgBox \"%u% %i% %i64% %s% %us% %c% %uc% %f% %d%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["4294967295 -2 -3 -4 65535 -5 255 1.5 2.25"]);
+}
+
+#[test]
+fn a_pointer_is_a_number_of_the_size_of_a_pointer() {
+    let report = run(
+        "b := Buffer(16)\nNumPut(\"Ptr\", 1234, b, 0)\nNumPut(\"UPtr\", 4321, b, 8)\n\
+         first := NumGet(b, 0, \"Ptr\")\nsecond := NumGet(b, 8, \"UPtr\")\nMsgBox \"%first% %second%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1234 4321"]);
+}
+
+#[test]
+fn a_number_is_at_the_offset_it_is_written_at() {
+    let report = run(
+        "b := Buffer(8)\nNumPut(\"Int\", 42, b, 4)\nvalue := NumGet(b, 4, \"Int\")\n\
+         empty := NumGet(b, 0, \"Int\")\nMsgBox \"%value% %empty%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["42 0"]);
+}
+
+#[test]
+fn a_write_takes_several_numbers() {
+    let report = run(
+        "b := Buffer(8)\nNumPut(\"Int\", 1, \"Short\", 2, b)\n\
+         first := NumGet(b, 0, \"Int\")\nsecond := NumGet(b, 4, \"Short\")\nMsgBox \"%first% %second%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 2"]);
+}
+
+#[test]
+fn a_write_answers_the_address_to_the_right_of_the_last_number() {
+    let report = run("b := Buffer(8)\naddress := NumPut(\"Int\", 42, b)\nright := address - b.Ptr");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("right"), Some(&Value::Int(4)));
+}
+
+#[test]
+fn a_number_that_does_not_fit_in_the_buffer_fails() {
+    let report = run("b := Buffer(2)\nNumPut(\"Int\", 42, b)");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the bytes do not fit in the buffer."));
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_number_that_is_not_in_the_buffer_fails() {
+    let report = run("b := Buffer(2)\nNumGet(b, 0, \"Int\")");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the bytes do not fit in the buffer."));
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_number_is_not_read_from_the_memory_of_an_address() {
+    let report = run("NumGet(1234, \"Int\")");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this runtime does not read the memory of an address: the source of a number is a buffer.")
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_number_is_not_written_to_the_memory_of_an_address() {
+    let report = run("NumPut(\"Int\", 42, 1234)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this runtime does not write to the memory of an address: the target of a number is a buffer.")
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_number_is_not_read_from_a_value_that_is_not_a_buffer() {
+    let report = run("a := Array()\nNumGet(a, \"Int\")");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("this value is not a buffer."));
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_type_that_is_not_a_type_of_a_number_fails() {
+    let report = run("b := Buffer(4)\nNumGet(b, \"Word\")");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the type of a number is one of UInt, Int, Int64, Short, UShort, Char, UChar, Double, Float, Ptr or UPtr.")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_number_that_is_not_a_number_fails() {
+    let report = run("b := Buffer(4)\nNumPut(\"Int\", \"word\", b)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #2 of NumPut requires a Number, but received a String.")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn num_get_wants_a_source_and_a_type() {
+    let report = run("b := Buffer(4)\nNumGet(b)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too few parameters passed to function. Specifically: NumGet")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn num_put_wants_a_type_a_number_and_a_target() {
+    let report = run("NumPut(\"Int\", 42)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too few parameters passed to function. Specifically: NumPut")
+    );
+    assert_eq!(report.error_line, Some(1));
 }

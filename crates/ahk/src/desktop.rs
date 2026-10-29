@@ -383,6 +383,44 @@ pub trait Native {
     }
 }
 
+/// The sound of the machine.
+///
+/// The names are the ones of v2: the volume of a device, whether it is
+/// muted, and the playing of a sound. The device is named by the script
+/// with the name of the device, or with `#` and its number -- `#1` is
+/// the first device -- and the empty name is the device of the system.
+pub trait Sound {
+    /// The volume of a device, as a number between 0 and 100.
+    fn sound_volume(&mut self, _device: &str) -> Result<f64, String> {
+        Err("this desktop cannot say the volume of a device".to_string())
+    }
+
+    /// Set the volume of a device, as a number between 0 and 100.
+    fn sound_set_volume(&mut self, _device: &str, _volume: f64) -> Result<(), String> {
+        Err("this desktop cannot set the volume of a device".to_string())
+    }
+
+    /// Whether a device is muted.
+    fn sound_muted(&mut self, _device: &str) -> Result<bool, String> {
+        Err("this desktop cannot say whether a device is muted".to_string())
+    }
+
+    /// Mute a device, or unmute it.
+    fn sound_set_muted(&mut self, _device: &str, _muted: bool) -> Result<(), String> {
+        Err("this desktop cannot mute a device".to_string())
+    }
+
+    /// Play a sound file.
+    fn sound_play(&mut self, _path: &str) -> Result<String, String> {
+        Err("this desktop cannot play a sound".to_string())
+    }
+
+    /// Play a tone of a frequency, for a number of milliseconds.
+    fn sound_beep(&mut self, _frequency: f64, _duration_ms: u64) -> Result<String, String> {
+        Err("this desktop cannot play a tone".to_string())
+    }
+}
+
 /// The sum of the capabilities: what the runtime drives.
 ///
 /// The trait has no methods of its own. It is the sum, so that the
@@ -398,5 +436,6 @@ pub trait Desktop:
     + Timers
     + Hotkeys
     + Native
+    + Sound
 {
 }

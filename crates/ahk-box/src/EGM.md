@@ -249,8 +249,8 @@ handle of COSMIC, so the correlation is exact and not a guess by title.
 | `empty_title` | private fn | The answer to a question about a window with no title: v2 would use the last found window, and this runtime keeps none. |
 | `title_matches` | private fn | The mode 2 of v2: the title of the window has to contain the text, and the case matters. |
 
-The `Desktop` of the crate is the sum of the ten capability traits of
-`ahk::desktop`, and the box writes the ten of them: `Keyboard`
+The `Desktop` of the crate is the sum of the eleven capability traits of
+`ahk::desktop`, and the box writes the eleven of them: `Keyboard`
 (`type_text`, `press_key`, `mouse_down`, `mouse_up`, `key_down`, `key_up`,
 `key_is_down`, `keys_down`), `Pointer` (`click`, `move_pointer`,
 `mouse_position`, `set_mouse_speed`, `set_mouse_delay`), `Screen` (`capture`,
@@ -258,8 +258,10 @@ The `Desktop` of the crate is the sum of the ten capability traits of
 `window_exists`, `active_window_title`), `Processes` (`run`), `Files` (the
 file handles, the whole-file writes, and the operations of `files.rs`),
 `Clipboard`, `Timers`, `Hotkeys` (`register_hotkey`, `unregister_hotkey`,
-`hotkeys`, `fired_hotkey`) and `Native` (the call into a library of the
-machine, which `native.rs` answers). The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
+`hotkeys`, `fired_hotkey`), `Native` (the call into a library of the
+machine, which `native.rs` answers) and `Sound` (`sound_volume`,
+`sound_set_volume`, `sound_muted`, `sound_set_muted`, `sound_play`,
+`sound_beep`). The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
 
 ## Invariants
 
@@ -342,6 +344,7 @@ machine, which `native.rs` answers). The keyboard and the pointer are opened on 
 - **Sleeps**: four seconds after each device creation, 200 ms between a motion and a press, 40 ms per button, 20 ms per key and 20 ms between keys, 60 ms between the two clicks of a double click.
 - **Runs the environment probe.** `ensure_session_env` reads `/run/user/<uid>`, sets `XDG_RUNTIME_DIR` to it, and sets `WAYLAND_DISPLAY` to the first `wayland-*` socket it finds — but only when `WAYLAND_DISPLAY` is not set already. Over SSH the display variables are empty and `grim` refuses to run without them.
 - **Calls out to `grim`** for the screen captures: `grim <path>` for the size of the screen, and `grim -g <x,y> <w>x<h> <path>` for a region. It writes PNG files, reads the pixel data back through the `png` crate, and removes the temporary ones afterwards; the file of a `capture` stays where it was written, for the caller to read.
+- **Calls out to `pactl`** for the volume and the mute of a sound device, and to `paplay` for the playing of a sound file. The tone of `SoundBeep` is written as a wave file under `/tmp` and played by the mixer, and the file is removed afterwards.
 - **Calls out to `xprop`** for the window questions of an X11 session: `_NET_ACTIVE_WINDOW` and `_NET_WM_NAME`/`WM_NAME` for the title, `_NET_CLIENT_LIST` for the list of windows.
 - **Connects to the compositor.** The socket of the Wayland display is opened when the script asks the first question about the windows, and the connection is kept for the rest of the run. The client waits up to 250 ms for the state of a window, five milliseconds at a time.
 - **Runs the script's own commands** through `sh -c`, and returns the exit code, the standard output and the standard error.

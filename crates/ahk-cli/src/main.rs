@@ -9,6 +9,10 @@
 //!
 //! The exit code is 0 when the script finished, 1 when it failed, and 2
 //! when it did not parse; the report is on stdout either way.
+//!
+//! The `--surface` flag is the other way round: it prints the table of
+//! the names of v2 with the state of each one, and it does not read a
+//! script.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -16,6 +20,7 @@ use std::time::Duration;
 
 use ahk::parse;
 use ahk::runtime::Runtime;
+use ahk::surface;
 use ahk_box::LabDesktop;
 
 /// Where the runtime says it is running.
@@ -61,6 +66,14 @@ const STACK_BYTES: usize = 128 * 1024 * 1024;
 const STACK_BUDGET: usize = 64 * 1024 * 1024;
 
 fn main() -> std::process::ExitCode {
+    // The flag is answered before the script is read: the command is
+    // about the tree, and it must not wait for a script that is not
+    // coming.
+    if std::env::args().skip(1).any(|argument| argument == "--surface") {
+        print_surface();
+        return std::process::ExitCode::from(0);
+    }
+
     let mut source = String::new();
     if let Err(error) = std::io::stdin().read_to_string(&mut source) {
         eprintln!("cannot read the script: {error}");
@@ -149,6 +162,23 @@ fn main() -> std::process::ExitCode {
     // `process::exit`: that one leaves without running the destructors, and
     // the guard that removes the pid file is a destructor.
     std::process::ExitCode::from(if ok { 0 } else { 1 })
+}
+
+/// Print the surface of v2 and where every name of it stands here.
+///
+/// The report is a line for every name of the surface and a summary at
+/// the end: the number is the point of the command, and it is what makes
+/// "what is missing" a measurement and not an opinion.
+fn print_surface() {
+    let entries = surface::entries();
+    let mut out = String::new();
+    for entry in &entries {
+        out.push_str(&entry.line());
+        out.push('\n');
+    }
+    out.push_str(&surface::summary(&entries).text());
+    out.push('\n');
+    print!("{out}");
 }
 
 /// The source with the includes put in place of the lines that ask for

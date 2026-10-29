@@ -9,6 +9,11 @@
 //! This dialect keeps the bytes of the buffer in the runtime, because
 //! that is where a file reads them.
 //!
+//! The `NumGet` and the `NumPut` of v2 read a number out of a buffer
+//! and write one into it. The bytes they touch are the bytes of the
+//! buffer, so the module that owns them is the one that reads and
+//! writes them.
+//!
 //! The bytes live in the property table of the object, under one key,
 //! so that the module owns the whole of the state of a buffer.
 
@@ -20,6 +25,7 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use crate::classes::object_with;
+use crate::dll::NativeType;
 use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_type};
 
 /// The key the state of a buffer lives under.
@@ -96,7 +102,7 @@ pub(crate) fn property(
 ) -> Option<Result<Value, RuntimeFailure>> {
     match name.to_lowercase().as_str() {
         "size" => Some(state(this, line).map(|buffer| Value::Int(buffer.bytes.len() as i64))),
-        "ptr" => Some(address(this, line)),
+        "ptr" => Some(ptr_of(this, line).map(Value::Int)),
         _ => None,
     }
 }
@@ -133,19 +139,81 @@ pub(crate) fn raw_bytes(value: &Value, line: u32) -> Result<Vec<u8>, RuntimeFail
 /// is the one that writes into it. The bytes go to the start of the
 /// buffer: a buffer has no position of its own.
 pub(crate) fn fill(value: &Value, bytes: &[u8], line: u32) -> Result<usize, RuntimeFailure> {
-    let mut buffer = state(value, line)?;
-    if bytes.len() > buffer.bytes.len() {
-        return Err(fail("the bytes do not fit in the buffer.", line));
-    }
-    let written = bytes.len();
-    buffer.bytes[..written].copy_from_slice(bytes);
-    restore(value, &buffer);
-    Ok(written)
+    write_at(value, 0, bytes, line)?;
+    Ok(bytes.len())
 }
 
 /// How many bytes a buffer has.
 pub(crate) fn size_of(value: &Value, line: u32) -> Result<i64, RuntimeFailure> {
     Ok(state(value, line)?.bytes.len() as i64)
+}
+
+/// The address of the memory of the buffer.
+///
+/// The bytes of a buffer live in the runtime, so the address of a
+/// buffer is the address of the storage the runtime keeps for them.
+/// It is a real address, and it changes when the buffer is made of
+/// another size, as v2 says of a buffer that is reallocated.
+pub(crate) fn ptr_of(this: &Value, line: u32) -> Result<i64, RuntimeFailure> {
+    let Value::Object(object) = this else {
+        return Err(fail("this value is not a buffer.", line));
+    };
+    let inner = match object.borrow().properties.get(STATE) {
+        Some(Value::Object(inner)) => inner.clone(),
+        _ => return Err(fail("this value is not a buffer.", line)),
+    };
+    Ok(alloc::rc::Rc::as_ptr(&inner) as usize as i64)
+}
+
+/// The type of a number, out of the name the script writes.
+///
+/// The types of a number are the types of a native call, and the tree
+/// keeps them in one table: `NumGet` and `NumPut` name them the way
+/// `DllCall` does.
+pub(crate) fn number_type(text: &str) -> Option<NativeType> {
+    match text.trim().to_ascii_lowercase().as_str() {
+        "uint" => Some(NativeType::UInt),
+        "int" => Some(NativeType::Int),
+        "int64" => Some(NativeType::Int64),
+        "short" => Some(NativeType::Short),
+        "ushort" => Some(NativeType::UShort),
+        "char" => Some(NativeType::Char),
+        "uchar" => Some(NativeType::UChar),
+        "double" => Some(NativeType::Double),
+        "float" => Some(NativeType::Float),
+        "ptr" => Some(NativeType::Ptr),
+        "uptr" => Some(NativeType::UPtr),
+        _ => None,
+    }
+}
+
+/// The number of a buffer, at an offset.
+///
+/// The type of the number says how wide it is, and the bytes of a
+/// buffer are read here because this module owns them.
+pub(crate) fn read_number(value: &Value, offset: i64, kind: NativeType, line: u32) -> Result<Value, RuntimeFailure> {
+    let buffer = state(value, line)?;
+    let start = start_of(offset, line)?;
+    let end = start.saturating_add(kind.width());
+    if end > buffer.bytes.len() {
+        return Err(fail("the bytes do not fit in the buffer.", line));
+    }
+    Ok(number_from_bytes(&buffer.bytes[start..end], kind))
+}
+
+/// Put the numbers into a buffer, at an offset.
+///
+/// The numbers go out one after the other, the way v2 writes them, and
+/// the answer is the address to the right of the last one of them.
+pub(crate) fn write_numbers(value: &Value, offset: i64, numbers: &[(NativeType, Value)], line: u32) -> Result<i64, RuntimeFailure> {
+    let mut bytes = Vec::new();
+    for (kind, number) in numbers {
+        bytes.extend_from_slice(&number_bytes(number, *kind));
+    }
+    write_at(value, offset, &bytes, line)?;
+    // The answer of v2 is the address to the right of the last number:
+    // the address of the buffer and the offset it stopped at.
+    Ok(ptr_of(value, line)? + offset + bytes.len() as i64)
 }
 
 // -- the state ------------------------------------------------------------------
@@ -231,24 +299,6 @@ fn new(arguments: &[Value], line: u32) -> Result<Buffer, RuntimeFailure> {
     Ok(Buffer { bytes: vec![fill; size as usize] })
 }
 
-/// The address of the memory of the buffer.
-///
-/// The bytes of a buffer live in the runtime, so the address of a
-/// buffer is the address of the storage the runtime keeps for them.
-/// It is a real address, and it changes when the buffer is made of
-/// another size, as v2 says of a buffer that is reallocated.
-fn address(this: &Value, line: u32) -> Result<Value, RuntimeFailure> {
-    let Value::Object(object) = this else {
-        return Err(fail("this value is not a buffer.", line));
-    };
-    let inner = match object.borrow().properties.get(STATE) {
-        Some(Value::Object(inner)) => inner.clone(),
-        _ => return Err(fail("this value is not a buffer.", line)),
-    };
-    let address = alloc::rc::Rc::as_ptr(&inner) as usize as i64;
-    Ok(Value::Int(address))
-}
-
 /// Make the buffer of another size, the way v2 does: the bytes that
 /// stay are kept, and the bytes that come are zero.
 fn resize(this: &Value, value: Value, line: u32) -> Result<(), RuntimeFailure> {
@@ -260,6 +310,90 @@ fn resize(this: &Value, value: Value, line: u32) -> Result<(), RuntimeFailure> {
     buffer.bytes.resize(size as usize, 0);
     restore(this, &buffer);
     Ok(())
+}
+
+/// Put the bytes into a buffer, at an offset.
+///
+/// The write of a number belongs to the module that owns the buffer,
+/// the same way the read does.
+fn write_at(value: &Value, offset: i64, bytes: &[u8], line: u32) -> Result<(), RuntimeFailure> {
+    let mut buffer = state(value, line)?;
+    let start = start_of(offset, line)?;
+    let end = start.saturating_add(bytes.len());
+    if end > buffer.bytes.len() {
+        return Err(fail("the bytes do not fit in the buffer.", line));
+    }
+    buffer.bytes[start..end].copy_from_slice(bytes);
+    restore(value, &buffer);
+    Ok(())
+}
+
+/// The place in the bytes of a buffer that an offset names.
+fn start_of(offset: i64, line: u32) -> Result<usize, RuntimeFailure> {
+    if offset < 0 {
+        return Err(fail("the offset of a number cannot be negative.", line));
+    }
+    match usize::try_from(offset) {
+        Ok(start) => Ok(start),
+        Err(_) => Err(fail("the bytes do not fit in the buffer.", line)),
+    }
+}
+
+/// The bytes of a number, in the width its type asks for.
+///
+/// The numbers go out little-endian, the way the machines of x86 read
+/// them, and a whole number is cut to the width of its type.
+fn number_bytes(number: &Value, kind: NativeType) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(kind.width());
+    match kind {
+        NativeType::Float => bytes.extend_from_slice(&(number.to_number().unwrap_or(0.0) as f32).to_le_bytes()),
+        NativeType::Double => bytes.extend_from_slice(&number.to_number().unwrap_or(0.0).to_le_bytes()),
+        _ => {
+            let whole = match number {
+                Value::Int(number) => *number,
+                other => other.to_number().unwrap_or(0.0) as i64,
+            };
+            match kind.width() {
+                1 => bytes.push(whole as u8),
+                2 => bytes.extend_from_slice(&(whole as u16).to_le_bytes()),
+                4 => bytes.extend_from_slice(&(whole as u32).to_le_bytes()),
+                _ => bytes.extend_from_slice(&whole.to_le_bytes()),
+            }
+        }
+    }
+    bytes
+}
+
+/// The number of the bytes, read in the width its type asks for.
+///
+/// The bytes come in little-endian, the way they went out, and the type
+/// says whether the number is signed: the sign is in the last byte of
+/// the width.
+fn number_from_bytes(bytes: &[u8], kind: NativeType) -> Value {
+    match kind {
+        NativeType::Float => Value::Float(f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as f64),
+        NativeType::Double => {
+            let mut whole = [0u8; 8];
+            whole.copy_from_slice(&bytes[..8]);
+            Value::Float(f64::from_le_bytes(whole))
+        }
+        _ => {
+            let mut whole = 0i64;
+            // The bytes come in little-endian, and the last byte of them
+            // is the first of the number.
+            for byte in bytes.iter().take(kind.width()).rev() {
+                whole = (whole << 8) | *byte as i64;
+            }
+            let bits = kind.width() * 8;
+            if bits < 64 && !kind.is_unsigned() {
+                let sign = 1i64 << (bits - 1);
+                if whole & sign != 0 {
+                    whole -= sign << 1;
+                }
+            }
+            Value::Int(whole)
+        }
+    }
 }
 
 // -- the base object ----------------------------------------------------------

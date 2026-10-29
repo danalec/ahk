@@ -9,8 +9,8 @@
 //! the function.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
-    Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
+    Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime, Value};
@@ -45,6 +45,7 @@ fn error_of(report: &Report) -> String {
 }
 
 impl Desktop for Fake {}
+impl Sound for Fake {}
 
 impl Files for Fake {}
 

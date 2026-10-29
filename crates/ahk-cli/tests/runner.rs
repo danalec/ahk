@@ -6,13 +6,20 @@
 //!
 //! The runner is what runs on the lab box. Here the box is a fake: the
 //! `Msg` statement is the only one that needs nothing.
+//!
+//! The `--surface` flag is the other way round: the report is the table
+//! of the names of v2, and there is no script.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
 use std::time::Duration;
 
 /// The runner, as it was built.
 const RUNNER: &str = env!("CARGO_BIN_EXE_ahk");
+
+/// The surface of v2.0.19, as the table of it.
+const SURFACE: &str = include_str!("../../ahk/reference/ahk-v2.0.19.surface.tsv");
 
 /// Run a script and answer with the exit code and the report.
 fn run(source: &str) -> (i32, serde_json::Value) {
@@ -153,4 +160,95 @@ fn the_pid_file_does_not_land_in_the_working_directory() {
         "the pid file landed in the working directory"
     );
     let _ = std::fs::remove_dir_all(&cache);
+}
+
+/// Ask the runner for the surface of v2, with no script on stdin.
+///
+/// The stdin of the runner is a pipe that is never written to and never
+/// closed: a runner that waits for a script waits for ever, and the case
+/// is that the flag answers before the read.
+fn surface() -> (i32, String) {
+    let mut child = Command::new(RUNNER)
+        .arg("--surface")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the runner starts");
+    let _script = child.stdin.take().expect("the runner reads a script");
+    let stdout = child.stdout.take().expect("the runner writes the surface");
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut text = String::new();
+        let mut stdout = stdout;
+        let _ = stdout.read_to_string(&mut text);
+        let _ = sender.send(text);
+    });
+    let text = match receiver.recv_timeout(Duration::from_secs(30)) {
+        Ok(text) => text,
+        Err(_) => {
+            let _ = child.kill();
+            panic!("the runner did not answer the flag without a script on stdin");
+        }
+    };
+    let status = child.wait().expect("the runner finishes");
+    (status.code().unwrap_or(-1), text)
+}
+
+/// The names of the surface: the rows of the table, without the comments
+/// and without the line of column names.
+fn names_of_the_surface() -> usize {
+    SURFACE
+        .lines()
+        .filter(|line| !line.trim().is_empty() && !line.starts_with('#') && !line.starts_with("kind\t"))
+        .count()
+}
+
+#[test]
+fn the_surface_flag_answers_without_a_script() {
+    let (code, text) = surface();
+    assert_eq!(code, 0);
+    assert!(
+        !text.trim_start().starts_with('{'),
+        "the flag answered with a report of a script and not with the surface"
+    );
+    assert!(text.contains("Abs function value"), "the surface is not in the report");
+}
+
+#[test]
+fn the_surface_has_a_line_for_every_name_of_v2() {
+    let (_code, text) = surface();
+    let lines: Vec<&str> = text.lines().collect();
+    let names = names_of_the_surface();
+    // The last line is the summary; the ones before it are the names.
+    assert_eq!(
+        lines.len(),
+        names + 1,
+        "the surface has {names} names and the report has {} lines",
+        lines.len()
+    );
+    assert!(
+        lines[lines.len() - 1].contains("the surface of v2 has"),
+        "the report has no summary: {:?}",
+        lines[lines.len() - 1]
+    );
+}
+
+#[test]
+fn a_name_that_the_tree_carries_is_reported_as_a_value() {
+    let (_code, text) = surface();
+    assert!(
+        text.lines().any(|line| line == "Abs function value"),
+        "the name that the tree answers is not reported as a value"
+    );
+    // A name that the tree refuses is reported with the reason of the
+    // refusal, and the reason is the one of the tree.
+    let line = text
+        .lines()
+        .find(|line| line.starts_with("ControlSendText command "))
+        .expect("the name is in the report");
+    match ahk::builtins::refusal_of("ControlSendText") {
+        Some(reason) => assert_eq!(line, format!("ControlSendText command refusal: {reason}")),
+        None => assert_eq!(line, "ControlSendText command value"),
+    }
 }

@@ -5,8 +5,8 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
-    Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
+    Sound, Timers, Windows,
 };
 use ahk::dll::{encode_number, NativeCall, NativeResult, NativeType, NativeValue};
 use ahk::runtime::{Report, Runtime, Value};
@@ -24,9 +24,38 @@ struct Fake {
     /// The numbers the fake writes into the arguments that are the
     /// address of a variable, in the order the arguments were given.
     writes: Vec<f64>,
+    /// The text on the clipboard of the fake.
+    clipboard: String,
 }
 
 impl Desktop for Fake {}
+
+impl Sound for Fake {
+    fn sound_volume(&mut self, device: &str) -> Result<f64, String> {
+        self.calls.push(("volume".into(), device.into()));
+        Ok(50.0)
+    }
+    fn sound_set_volume(&mut self, device: &str, volume: f64) -> Result<(), String> {
+        self.calls.push(("set-volume".into(), format!("{device} {volume}")));
+        Ok(())
+    }
+    fn sound_muted(&mut self, device: &str) -> Result<bool, String> {
+        self.calls.push(("mute".into(), device.into()));
+        Ok(false)
+    }
+    fn sound_set_muted(&mut self, device: &str, muted: bool) -> Result<(), String> {
+        self.calls.push(("set-mute".into(), format!("{device} {muted}")));
+        Ok(())
+    }
+    fn sound_play(&mut self, path: &str) -> Result<String, String> {
+        self.calls.push(("play".into(), path.into()));
+        Ok(format!("played {path}"))
+    }
+    fn sound_beep(&mut self, frequency: f64, duration: u64) -> Result<String, String> {
+        self.calls.push(("beep".into(), format!("{frequency} {duration}")));
+        Ok("beeped".to_string())
+    }
+}
 
 impl Windows for Fake {}
 
@@ -48,7 +77,17 @@ impl Files for Fake {
     }
 }
 
-impl Clipboard for Fake {}
+impl Clipboard for Fake {
+    fn clipboard_read(&mut self) -> Result<String, String> {
+        self.calls.push(("clipboard-read".into(), String::new()));
+        Ok(self.clipboard.clone())
+    }
+    fn clipboard_write(&mut self, text: &str) -> Result<String, String> {
+        self.calls.push(("clipboard-write".into(), text.into()));
+        self.clipboard = text.to_string();
+        Ok(text.to_string())
+    }
+}
 
 impl Timers for Fake {}
 
@@ -124,6 +163,7 @@ impl Native for Fake {
 struct Blind;
 
 impl Desktop for Blind {}
+impl Sound for Blind {}
 
 impl Windows for Blind {}
 
@@ -207,6 +247,122 @@ fn float_of(report: &Report, name: &str) -> f64 {
 fn failure_of(report: &Report) -> String {
     assert!(!report.ok, "the script was expected to fail");
     report.error.clone().expect("the failure has a message")
+}
+
+#[test]
+fn the_volume_of_a_device_is_a_number_between_zero_and_a_hundred() {
+    let report = run("volume := SoundGetVolume()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(float_of(&report, "volume"), 50.0);
+}
+
+#[test]
+fn the_volume_of_a_device_can_be_set() {
+    let mut desktop = Fake::default();
+    let report = run_on("SoundSetVolume 30", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("set-volume".to_string(), " 30".to_string())]);
+}
+
+#[test]
+fn a_sign_in_front_of_the_volume_adjusts_it() {
+    let mut desktop = Fake::default();
+    let report = run_on("SoundSetVolume \"+10\"", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    // The volume of the device is asked first, and the sign adds ten to
+    // it: 50 becomes 60.
+    assert_eq!(
+        desktop.calls,
+        vec![("volume".to_string(), String::new()), ("set-volume".to_string(), " 60".to_string())]
+    );
+}
+
+#[test]
+fn a_volume_that_is_not_a_percentage_fails_the_script() {
+    let report = run("SoundSetVolume \"loud\"");
+    let failure = failure_of(&report);
+    assert!(failure.contains("percentage between -100 and 100"), "{failure}");
+}
+
+#[test]
+fn the_mute_of_a_device_is_a_number() {
+    let report = run("muted := SoundGetMute()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "muted"), 0);
+}
+
+#[test]
+fn a_device_can_be_muted_and_unmuted() {
+    let mut desktop = Fake::default();
+    let report = run_on("SoundSetMute 1", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("set-mute".to_string(), " true".to_string())]);
+}
+
+#[test]
+fn a_minus_sign_in_front_of_the_volume_adjusts_it_down() {
+    let mut desktop = Fake::default();
+    let report = run_on("SoundSetVolume \"-10\"", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    // The volume of the device is 50, and the sign takes ten from it.
+    assert_eq!(
+        desktop.calls,
+        vec![("volume".to_string(), String::new()), ("set-volume".to_string(), " 40".to_string())]
+    );
+}
+
+#[test]
+fn a_component_that_the_box_does_not_have_fails_the_script() {
+    let report = run("SoundGetVolume(\"Microphone\")");
+    let failure = failure_of(&report);
+    assert!(failure.contains("one volume per device"), "{failure}");
+}
+
+#[test]
+fn a_tone_is_a_frequency_and_a_duration() {
+    let mut desktop = Fake::default();
+    let report = run_on("SoundBeep 750, 500", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("beep".to_string(), "750 500".to_string())]);
+}
+
+#[test]
+fn a_tone_has_the_defaults_of_v2() {
+    let mut desktop = Fake::default();
+    let report = run_on("SoundBeep", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    // The frequency of v2 is 523 and its duration is 150 milliseconds.
+    assert_eq!(desktop.calls, vec![("beep".to_string(), "523 150".to_string())]);
+}
+
+#[test]
+fn a_frequency_that_is_not_a_tone_fails_the_script() {
+    let report = run("SoundBeep 1");
+    let failure = failure_of(&report);
+    assert!(failure.contains("between 37 and 32767"), "{failure}");
+}
+
+#[test]
+fn a_sound_file_is_played() {
+    let mut desktop = Fake::default();
+    let report = run_on("SoundPlay \"/tmp/a.wav\"", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("play".to_string(), "/tmp/a.wav".to_string())]);
+}
+
+#[test]
+fn a_sound_that_the_desktop_cannot_answer_fails_the_script() {
+    let statements = parse("volume := SoundGetVolume()").expect("parses");
+    let mut desktop = Blind;
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    let failure = failure_of(&report);
+    assert!(failure.contains("cannot"), "{failure}");
+}
+
+#[test]
+fn the_names_of_the_sound_that_are_windows_fail_with_the_reason() {
+    let report = run("SoundGetName()");
+    assert_eq!(failure_of(&report), "this is a name of Windows, and this desktop is not Windows.");
 }
 
 #[test]
@@ -999,6 +1155,59 @@ fn regex_replace_wants_a_reference_where_it_writes_the_count() {
         failure_of(&report),
         "Parameter #4 of RegExReplace requires a variable reference, but received an Integer. Specifically: 5"
     );
+}
+
+// -- the clipboard ----------------------------------------------------------------
+
+#[test]
+fn a_wait_for_the_clipboard_that_finds_data_answers_one() {
+    let mut desktop = Fake { clipboard: "the text".to_string(), ..Default::default() };
+    let report = run_on("MsgBox ClipWait(0.25)", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_wait_for_the_clipboard_that_times_out_answers_zero() {
+    let mut desktop = Fake::default();
+    let report = run_on("MsgBox ClipWait(0.25)", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn a_wait_for_the_clipboard_with_no_timeout_waits_for_the_data() {
+    let mut desktop = Fake { clipboard: "the text".to_string(), ..Default::default() };
+    let report = run_on("MsgBox ClipWait()", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_wait_for_the_data_of_any_kind_fails_with_the_reason_of_the_text() {
+    let mut desktop = Fake::default();
+    let report = run_on("MsgBox ClipWait(0.25, 1)", &mut desktop);
+    assert_eq!(
+        failure_of(&report),
+        "the clipboard of this runtime carries text only, and it cannot wait for data of any kind."
+    );
+}
+
+#[test]
+fn a_desktop_that_cannot_read_the_clipboard_fails_the_wait_with_the_reason() {
+    let mut desktop = Blind;
+    let statements = parse("ClipWait(0.25)").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert_eq!(failure_of(&report), "this desktop cannot read the clipboard");
+}
+
+#[test]
+fn a_script_that_writes_the_clipboard_finds_what_it_wrote_when_it_reads_it_again() {
+    let mut desktop = Fake::default();
+    let report = run_on("Clipboard := \"the new text\"\nMsgBox Clipboard", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the new text"]);
+    assert_eq!(desktop.clipboard, "the new text");
 }
 
 // -- the native call, against a desktop that records it ------------------------

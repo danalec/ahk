@@ -5,8 +5,8 @@
 //! the object is made, and every name of it says why it cannot work.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
-    Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
+    Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime, Value};
@@ -16,7 +16,7 @@ use std::time::Duration;
 ///
 /// The classes of the windows ask it nothing: a window is a Windows
 /// window, and this desktop is a Wayland session without one. The fake is
-/// here because `Desktop` is the sum of the nine capabilities, and the
+/// here because `Desktop` is the sum of the eleven capabilities, and the
 /// runtime wants all of them.
 #[derive(Debug, Default)]
 struct Fake;
@@ -42,6 +42,7 @@ fn error_of(report: &Report) -> String {
 }
 
 impl Desktop for Fake {}
+impl Sound for Fake {}
 
 impl Files for Fake {}
 

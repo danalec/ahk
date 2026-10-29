@@ -28,6 +28,7 @@ The files, in the order the data moves through them:
 | `files.rs` | the files of the machine, in the dialect of v2 |
 | `settings.rs` | the settings of the script, and the state that keeps them |
 | `hotkeys.rs` | the hotkeys of the script: the registry and the watcher |
+| `surface.rs` | the state of every name of v2: the value it answers, or the reason it does not |
 
 The dependency between them runs one way: `parser.rs` reads `ast.rs` and
 `lexer.rs`, and `runtime.rs` reads `ast.rs`, `builtins.rs`, `classes/`,
@@ -218,7 +219,7 @@ The traits the runtime is handed:
 
 | Trait | Methods |
 | --- | --- |
-| `Desktop` | the sum of the ten capability traits below: it has no method of its own, and there is no blanket implementation |
+| `Desktop` | the sum of the eleven capability traits below: it has no method of its own, and there is no blanket implementation |
 | `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up`, `key_is_down` and `keys_down` have a default that answers with the reason it cannot |
 | `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position`, `set_mouse_speed` and `set_mouse_delay` have a default that answers with the reason it cannot |
 | `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
@@ -229,9 +230,10 @@ The traits the runtime is handed:
 | `Clipboard` | `clipboard_read`, `clipboard_write` have a default that answers with the reason it cannot |
 | `Timers` | `takes_over_timers` has a default that answers with the reason it cannot |
 | `Hotkeys` | `register_hotkey`, `unregister_hotkey`, `hotkeys`, `fired_hotkey` have a default that answers with the reason it cannot |
+| `Sound` | `sound_volume`, `sound_set_volume`, `sound_muted`, `sound_set_muted`, `sound_play` and `sound_beep` have a default that answers with the reason it cannot |
 | `Clock` | `now_ms() -> u64` (the milliseconds since an arbitrary origin, never backwards), `sleep_ms(u64)` (waits at least that long) and `wall_clock() -> Option<WallClock>` (the date of the machine, and nothing when the host does not know it) |
 
-Every implementor writes the ten of them: there is no blanket
+Every implementor writes the eleven of them: there is no blanket
 implementation, so a desktop that grows a capability grows with it.
 
 `SystemClock` is the clock of a hosted platform -- the monotonic clock and the
@@ -326,10 +328,11 @@ none, and the statement fails with that reason.
 
 ### The desktop (`desktop.rs`)
 
-The ten capability traits, and the `Desktop` that is their sum. Every
-implementor writes the ten of them: there is no blanket implementation,
+The eleven capability traits, and the `Desktop` that is their sum. Every
+implementor writes the eleven of them: there is no blanket implementation,
 so a desktop that grows a capability grows with it. The tenth is `Native`,
-the call into a library of the machine. Every method that a
+the call into a library of the machine, and the eleventh is `Sound`, the
+volume of a device and the playing of a sound. Every method that a
 capability does not have has a default that answers with the reason it
 cannot.
 

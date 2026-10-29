@@ -775,6 +775,15 @@ impl<'a> Runtime<'a> {
         self.clock.now_ms().saturating_sub(self.started_ms)
     }
 
+    /// The milliseconds the run has left before the timeout of the script.
+    ///
+    /// The timeout is checked between the statements, and a built-in that
+    /// waits inside one does not pass through that check.
+    pub(crate) fn remaining_ms(&self) -> u64 {
+        let limit = self.timeout.as_millis() as u64;
+        limit.saturating_sub(self.elapsed_ms())
+    }
+
     /// Run the script and report what happened.
     pub fn run(mut self, statements: &[Node]) -> Report {
         let mut error = None;
@@ -961,10 +970,21 @@ impl<'a> Runtime<'a> {
         match statement {
             Node::Assign { name, op, value, line } => {
                 let value = self.evaluate(value)?;
-                let current = self.lookup(name);
-                let stored = self.apply_assign(*op, name, current, value, *line)?;
-                self.assign(name, stored);
-                detail = format!("{name} = {}", self.lookup(name).map(|v| v.to_text()).unwrap_or_default());
+                // A built-in variable that is not a variable of the script
+                // is written where it lives, and not in the table of the
+                // script: the clipboard is the one.
+                match crate::variables::write(name, *op, &value, *line, self) {
+                    Some(written) => {
+                        let stored = written.map_err(RuntimeFailure::Error)?;
+                        detail = format!("{name} = {}", stored.to_text());
+                    }
+                    None => {
+                        let current = self.lookup(name);
+                        let stored = self.apply_assign(*op, name, current, value, *line)?;
+                        self.assign(name, stored);
+                        detail = format!("{name} = {}", self.lookup(name).map(|v| v.to_text()).unwrap_or_default());
+                    }
+                }
             }
             Node::ClassDef { name, .. } => {
                 detail = format!("the class {name} is defined");

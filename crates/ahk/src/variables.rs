@@ -18,15 +18,21 @@
 //!   does not know the date.
 //! - The ones that want the machine, the session or the hotkey system.
 //!   This runtime carries none of them.
+//! - The one that lives outside the script: the clipboard. The desktop
+//!   holds it, and the runtime asks it. It is the only built-in variable
+//!   of v2 that a script writes and does not keep, and its name has no
+//!   `A_` prefix.
 //!
 //! The name arrives as the script spells it, `A_Now`; the table below
 //! carries the name without the `A_` prefix that v2 gives every one of
 //! them.
 
+use alloc::format;
 use alloc::string::ToString;
 
 use alloc::string::String;
 
+use crate::ast::AssignOp;
 use crate::runtime::{Runtime, RuntimeError, Value};
 
 /// The built-in variables the runtime writes where it runs: the loop
@@ -47,9 +53,9 @@ const AHK_VERSION: &str = "2.0.19";
 
 /// The reason the machine and the session are not answered.
 ///
-/// The desktop has questions for the screen and for the clipboard, but
-/// none for the user, for the folders or for the idle time, and the
-/// runtime carries nothing of its own about them.
+/// The desktop has questions for the screen, but none for the user, for
+/// the folders or for the idle time, and the runtime carries nothing of
+/// its own about them.
 const NO_MACHINE: &str = "the machine and the session are not carried by this runtime.";
 
 /// The reason a setting of the runtime is not answered.
@@ -68,19 +74,22 @@ const NO_STATE: &str = "the runtime keeps no such state yet.";
 /// The error carries no line. The caller knows the line of the statement
 /// that asked, and puts it there.
 pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError>> {
-    let spelled = name.to_lowercase();
-    // The prefix is v2's; the table below carries the name without it.
-    let name = spelled.strip_prefix("a_").unwrap_or(spelled.as_str());
-    match kind_of(name)? {
-        Kind::Known => Some(Ok(known_value(name, rt))),
-        Kind::State => Some(match crate::settings::value_of(name) {
+    let name = spelled(name);
+    match kind_of(&name)? {
+        Kind::Known => Some(Ok(known_value(&name, rt))),
+        Kind::State => Some(match crate::settings::value_of(&name) {
             Some(Ok(value)) => Ok(value),
             Some(Err(why)) => Err(reason(&why)),
             None => Err(reason(NO_STATE)),
         }),
-        Kind::Date => Some(crate::date::variable_value(name, rt)),
+        Kind::Date => Some(crate::date::variable_value(&name, rt)),
         Kind::Machine => Some(Err(reason(NO_MACHINE))),
-        Kind::Hotkey => crate::hotkeys::variable(name, rt),
+        // The clipboard is the desktop's, and the desktop is asked.
+        Kind::Clipboard => Some(match rt.desktop().clipboard_read() {
+            Ok(text) => Ok(Value::Text(text)),
+            Err(message) => Err(reason(&message)),
+        }),
+        Kind::Hotkey => crate::hotkeys::variable(&name, rt),
         Kind::Screen => Some(match rt.desktop().screen_size() {
             Ok((width, height)) => {
                 Ok(Value::Int(if name == "screenwidth" { width } else { height }))
@@ -90,6 +99,72 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
     }
 }
 
+/// The name of a built-in variable, as the table below carries it.
+///
+/// The prefix is v2's; the table carries the name without it. The
+/// clipboard is the one variable of v2 that has no prefix at all.
+fn spelled(name: &str) -> String {
+    let lower = name.to_lowercase();
+    lower.strip_prefix("a_").unwrap_or(lower.as_str()).to_string()
+}
+
+/// The written value of a built-in variable that is not a variable of the
+/// script.
+///
+/// `None` means the name is an ordinary variable of the script, and the
+/// runtime keeps it in its own table. `Some` is the value that was
+/// written where the variable lives: the clipboard is the one built-in
+/// variable of v2 that a script writes and does not keep.
+pub(crate) fn write(
+    name: &str,
+    op: AssignOp,
+    value: &Value,
+    line: u32,
+    rt: &mut Runtime,
+) -> Option<Result<Value, RuntimeError>> {
+    if spelled(name) != "clipboard" {
+        return None;
+    }
+    Some(write_to_the_clipboard(op, value, line, rt))
+}
+
+/// Write a value on the clipboard.
+fn write_to_the_clipboard(
+    op: AssignOp,
+    value: &Value,
+    line: u32,
+    rt: &mut Runtime,
+) -> Result<Value, RuntimeError> {
+    match op {
+        // `Clipboard := "x"` puts the text on the clipboard.
+        AssignOp::Set => put_on_the_clipboard(rt, &value.to_text(), line),
+        // `Clipboard .= "x"` adds to what is there.
+        AssignOp::Concat => {
+            let current = read_the_clipboard(rt, line)?;
+            put_on_the_clipboard(rt, &format!("{current}{}", value.to_text()), line)
+        }
+        // The clipboard holds a text, and the other operators are the
+        // ones of the numbers.
+        _ => {
+            let current = read_the_clipboard(rt, line)?;
+            Err(RuntimeError { message: crate::runtime::expected_number(&Value::Text(current)), line })
+        }
+    }
+}
+
+/// The text on the clipboard, or the reason the desktop cannot say.
+fn read_the_clipboard(rt: &mut Runtime, line: u32) -> Result<String, RuntimeError> {
+    rt.desktop().clipboard_read().map_err(|message| RuntimeError { message, line })
+}
+
+/// Put a text on the clipboard.
+fn put_on_the_clipboard(rt: &mut Runtime, text: &str, line: u32) -> Result<Value, RuntimeError> {
+    rt.desktop()
+        .clipboard_write(text)
+        .map_err(|message| RuntimeError { message, line })?;
+    Ok(Value::Text(text.to_string()))
+}
+
 /// Whether the name is a built-in variable of v2.
 ///
 /// The name is the one the script writes: `A_ScreenWidth`. The table
@@ -97,8 +172,29 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
 /// script that is called `index` is not the built-in `A_Index`.
 pub fn is_built_in(name: &str) -> bool {
     let spelled = name.to_lowercase();
-    let Some(rest) = spelled.strip_prefix("a_") else { return false };
+    let Some(rest) = spelled.strip_prefix("a_") else {
+        // The clipboard is the one built-in variable of v2 that has no
+        // prefix: the name it has is `Clipboard`.
+        return spelled == "clipboard";
+    };
     kind_of(rest).is_some() || THE_RUNTIME_OWNS.contains(&rest)
+}
+
+/// The reason the tree does not answer a built-in variable, when it does
+/// not.
+///
+/// `None` means the tree answers the name: the value may be the value of
+/// the machine, and the reason of a failure belongs to the question and
+/// not to the name.
+pub fn refusal_of(name: &str) -> Option<&'static str> {
+    let name = spelled(name);
+    match kind_of(&name)? {
+        // The hotkeys answer with a value of their own, and the date
+        // answers when the clock of the host knows it.
+        Kind::Known | Kind::Date | Kind::Hotkey | Kind::Screen | Kind::Clipboard => None,
+        Kind::State => Some(NO_STATE),
+        Kind::Machine => Some(NO_MACHINE),
+    }
 }
 
 /// Whether the tree carries the built-in variable of this name.
@@ -106,9 +202,8 @@ pub fn is_built_in(name: &str) -> bool {
 /// The name is carried when this module answers it, or when the runtime
 /// writes it where it runs.
 pub fn carries(name: &str) -> bool {
-    let spelled = name.to_lowercase();
-    let name = spelled.strip_prefix("a_").unwrap_or(spelled.as_str());
-    kind_of(name).is_some() || THE_RUNTIME_OWNS.contains(&name)
+    let name = spelled(name);
+    kind_of(&name).is_some() || THE_RUNTIME_OWNS.contains(&name.as_str())
 }
 
 /// The kind of a built-in variable.
@@ -128,7 +223,7 @@ fn kind_of(name: &str) -> Option<Kind> {
         "dd" | "ddd" | "dddd" | "hour" | "mday" | "min" | "mm" | "mmm" | "mmmm" | "mon" | "msec"
         | "now" | "nowutc" | "sec" | "wday" | "yday" | "year" | "yweek" | "yyyy" => Some(Kind::Date),
         // -- the machine and the session -------------------------------------------
-        "ahkpath" | "appdata" | "appdatacommon" | "clipboard" | "computername" | "comspec"
+        "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec"
         | "controldelay" | "cursor" | "desktop" | "desktopcommon" | "detecthiddentext"
         | "detecthiddenwindows" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
         | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments" | "osversion"
@@ -137,6 +232,8 @@ fn kind_of(name: &str) -> Option<Kind> {
         | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle" | "timeidlekeyboard"
         | "timeidlemouse" | "timeidlephysical" | "titlematchmode" | "titlematchmodespeed" | "traymenu"
         | "username" | "windelay" | "windir" | "workingdir" => Some(Kind::Machine),
+        // -- the clipboard -----------------------------------------------------------
+        "clipboard" => Some(Kind::Clipboard),
         // -- the screen ---------------------------------------------------------------
         "screenheight" | "screenwidth" => Some(Kind::Screen),
         // -- the hotkeys ------------------------------------------------------------
@@ -159,6 +256,8 @@ enum Kind {
     Date,
     /// The machine, the session or the user.
     Machine,
+    /// The clipboard of the desktop.
+    Clipboard,
     /// The hotkey system.
     Hotkey,
     /// The screen of the desktop.
@@ -196,8 +295,8 @@ fn reason(message: &str) -> RuntimeError {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
-        Windows,
+        Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
+        Sound, Timers, Windows,
     };
     /// The reason the date and the time are not answered.
     ///
@@ -216,6 +315,7 @@ mod tests {
     struct Fake;
 
     impl Desktop for Fake {}
+    impl Sound for Fake {}
 
     impl Files for Fake {}
 

@@ -9,8 +9,8 @@
 //! implementations have to agree.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
-    Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
+    Sound, Timers, Windows,
 };
 use ahk::desktop::WindowAnswer;
 use ahk::runtime::{Report, Runtime, Value};
@@ -42,6 +42,7 @@ impl Fake {
 }
 
 impl Desktop for Fake {}
+impl Sound for Fake {}
 
 impl Files for Fake {
     fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {

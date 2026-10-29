@@ -37,8 +37,9 @@
 //! position of the pointer. Those three are read from the frame the
 //! compositor draws, so they work for any window, Wayland or not.
 
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ahk::keys::{MODIFIERS, resolve_name};
@@ -303,7 +304,118 @@ fn shell_quote(value: &str) -> String {
 
 impl ahk::desktop::Desktop for LabDesktop {}
 
-impl ahk::desktop::Clipboard for LabDesktop {}
+/// The command that reads the clipboard of an X11 session.
+///
+/// `xclip` is the one that is usually there, and `xsel` is the other.
+/// Neither of them is on the box, and the reason is said when the
+/// clipboard of an X11 session is asked.
+const X11_CLIPBOARD_READ: &str = "if command -v xclip > /dev/null 2>&1; then xclip -selection clipboard -out; elif command -v xsel > /dev/null 2>&1; then xsel --clipboard --output; else echo 'neither xclip nor xsel is installed on this machine' >&2; exit 127; fi";
+
+/// The command that puts a text on the clipboard of an X11 session.
+const X11_CLIPBOARD_WRITE: &str = "if command -v xclip > /dev/null 2>&1; then xclip -selection clipboard; elif command -v xsel > /dev/null 2>&1; then xsel --clipboard --input; else echo 'neither xclip nor xsel is installed on this machine' >&2; exit 127; fi";
+
+impl ahk::desktop::Clipboard for LabDesktop {
+    fn clipboard_read(&mut self) -> Result<String, String> {
+        // The session of the box is Wayland, and the compositor holds the
+        // clipboard.
+        if wayland_session() {
+            return self.wayland_clipboard_read();
+        }
+        self.x11_clipboard_read()
+    }
+
+    fn clipboard_write(&mut self, text: &str) -> Result<String, String> {
+        if wayland_session() {
+            return self.wayland_clipboard_write(text);
+        }
+        self.x11_clipboard_write(text)
+    }
+}
+
+impl LabDesktop {
+    /// The text on the clipboard of a Wayland session.
+    ///
+    /// `wl-paste` answers the text, and it says "Nothing is copied" when
+    /// the clipboard is empty. The type is given, or the tool waits for
+    /// ever for a type to arrive.
+    fn wayland_clipboard_read(&mut self) -> Result<String, String> {
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg("wl-paste --no-newline --type text/plain")
+            .output()
+            .map_err(|error| error.to_string())?;
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        // The empty clipboard is a value, and not a failure.
+        if stderr.contains("Nothing is copied") {
+            return Ok(String::new());
+        }
+        Err(format!("wl-paste failed: {stderr}"))
+    }
+
+    /// Put a text on the clipboard of a Wayland session.
+    fn wayland_clipboard_write(&mut self, text: &str) -> Result<String, String> {
+        self.copy_to_the_clipboard("wl-copy --type text/plain", text)
+    }
+
+    /// The text on the clipboard of an X11 session.
+    ///
+    /// An X11 selection that no application owns is an empty clipboard.
+    fn x11_clipboard_read(&mut self) -> Result<String, String> {
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(X11_CLIPBOARD_READ)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        if stderr.contains("not available") {
+            return Ok(String::new());
+        }
+        Err(format!("the clipboard of an X11 session cannot be read: {stderr}"))
+    }
+
+    /// Put a text on the clipboard of an X11 session.
+    fn x11_clipboard_write(&mut self, text: &str) -> Result<String, String> {
+        self.copy_to_the_clipboard(X11_CLIPBOARD_WRITE, text)
+    }
+
+    /// Put a text on the clipboard with the tool of the session.
+    ///
+    /// The tool serves the clipboard in the background, and the process it
+    /// leaves behind holds the channel of the caller: the output is
+    /// detached from it, or the caller waits for the end of the output for
+    /// ever. The text goes in on the input, and the tool stops when the
+    /// input ends.
+    fn copy_to_the_clipboard(&mut self, command: &str, text: &str) -> Result<String, String> {
+        let mut child = Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| error.to_string())?;
+        let mut input = child.stdin.take().ok_or("the tool of the clipboard takes no input")?;
+        // A tool that dies while the text goes in says why on its output,
+        // and the status of it is the reason.
+        let _ = input.write_all(text.as_bytes());
+        drop(input);
+        let status = child.wait().map_err(|error| error.to_string())?;
+        if !status.success() {
+            let mut stderr = String::new();
+            if let Some(mut pipe) = child.stderr.take() {
+                let _ = pipe.read_to_string(&mut stderr);
+            }
+            return Err(format!("the text did not go on the clipboard: {}", stderr.trim()));
+        }
+        Ok(format!("put {text:?} on the clipboard"))
+    }
+}
 
 impl ahk::desktop::Timers for LabDesktop {}
 
@@ -615,8 +727,7 @@ impl ahk::desktop::Windows for LabDesktop {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.
         if wayland_session() {
-            let active = self.wayland()?.active()?;
-            return Ok(active.map(|window| window.title));
+            return self.wayland_active_title();
         }
 
         let display = x_display();
@@ -650,6 +761,67 @@ impl ahk::desktop::Windows for LabDesktop {
             }
         }
         Ok(None)
+    }
+}
+
+impl ahk::desktop::Sound for LabDesktop {
+    fn sound_volume(&mut self, device: &str) -> Result<f64, String> {
+        let sink = self.sink(device)?;
+        let output = self.pactl(&["get-sink-volume", &sink])?;
+        // The mixer answers with a line like
+        // "Volume: front-left: 64881 /  99% / -0.26 dB,  front-right: ...".
+        let head = output.split('%').next().unwrap_or_default();
+        let percent = head.rsplit('/').next().unwrap_or_default().trim();
+        percent.parse().map_err(|_| {
+            format!("the volume of {sink} is not a number: {:?}", output.trim())
+        })
+    }
+
+    fn sound_set_volume(&mut self, device: &str, volume: f64) -> Result<(), String> {
+        let sink = self.sink(device)?;
+        let volume = volume.clamp(0.0, 100.0);
+        self.pactl(&["set-sink-volume", &sink, &format!("{volume:.0}%")])?;
+        Ok(())
+    }
+
+    fn sound_muted(&mut self, device: &str) -> Result<bool, String> {
+        let sink = self.sink(device)?;
+        let output = self.pactl(&["get-sink-mute", &sink])?;
+        // The mixer answers with "Mute: yes" or with "Mute: no".
+        Ok(output.split_whitespace().last() == Some("yes"))
+    }
+
+    fn sound_set_muted(&mut self, device: &str, muted: bool) -> Result<(), String> {
+        let sink = self.sink(device)?;
+        self.pactl(&["set-sink-mute", &sink, if muted { "yes" } else { "no" }])?;
+        Ok(())
+    }
+
+    fn sound_play(&mut self, path: &str) -> Result<String, String> {
+        let command = format!("paplay {}", shell_quote(path));
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Err(format!(
+                "the mixer could not play {path:?}: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        Ok(format!("played {path:?}"))
+    }
+
+    fn sound_beep(&mut self, frequency: f64, duration_ms: u64) -> Result<String, String> {
+        // The tone of v2 comes out of the speaker of the machine. The box
+        // has no speaker of its own: the tone is written as a sound file
+        // and the mixer of the session plays it.
+        let path = format!("/tmp/ahk-tone-{}.wav", millis());
+        std::fs::write(&path, tone(frequency, duration_ms)).map_err(|error| error.to_string())?;
+        let played = self.sound_play(&path);
+        let _ = std::fs::remove_file(&path);
+        played.map(|played| format!("{played}, a tone of {frequency} hertz"))
     }
 }
 
@@ -712,6 +884,100 @@ pub(crate) fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &
 ///
 /// The session is Wayland, and the X server beside it is the rootless
 /// Xwayland of gamescope, whose socket is `/tmp/.X11-unix/X0`.
+impl LabDesktop {
+    /// The sound device that the script asks about.
+    ///
+    /// The device of the system is the default device of the mixer, a
+    /// number is the device of that number, and a name is the device of
+    /// that name.
+    fn sink(&mut self, device: &str) -> Result<String, String> {
+        if device.is_empty() {
+            return Ok("@DEFAULT_SINK@".to_string());
+        }
+        let sinks = self.sinks()?;
+        if let Some(number) = device.strip_prefix('#') {
+            let index: usize = number
+                .parse()
+                .map_err(|_| format!("the sound device {device:?} is not a number"))?;
+            return sinks
+                .get(index.saturating_sub(1))
+                .cloned()
+                .ok_or_else(|| format!("the mixer has {} devices, and there is no #{index}", sinks.len()));
+        }
+        if sinks.iter().any(|sink| sink == device) {
+            return Ok(device.to_string());
+        }
+        Err(format!(
+            "the mixer has no sound device named {device:?}: it has {}",
+            sinks.join(", ")
+        ))
+    }
+
+    /// The sound devices of the mixer, in the order of the mixer.
+    fn sinks(&mut self) -> Result<Vec<String>, String> {
+        let output = self.pactl(&["list", "sinks", "short"])?;
+        Ok(output
+            .lines()
+            .filter_map(|line| {
+                let mut parts = line.split('\t');
+                let _index = parts.next()?;
+                parts.next().map(|name| name.to_string())
+            })
+            .collect())
+    }
+
+    /// Ask the mixer of the session.
+    fn pactl(&mut self, args: &[&str]) -> Result<String, String> {
+        let command = format!("pactl {}", args.join(" "));
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Err(format!(
+                "the mixer refused: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    }
+}
+
+/// A tone, as a sound file.
+///
+/// The tone is one sine, and it starts and ends with a little silence,
+/// so that it does not click.
+fn tone(frequency: f64, duration_ms: u64) -> Vec<u8> {
+    const RATE: u32 = 44100;
+    let samples = (RATE as u64 * duration_ms / 1000).max(1);
+    let mut data = Vec::with_capacity(samples as usize * 2);
+    for index in 0..samples {
+        let time = index as f64 / RATE as f64;
+        let position = index as f64 / samples as f64;
+        let fade = (position * 20.0).min(1.0) * ((1.0 - position) * 20.0).min(1.0);
+        let value = (2.0 * std::f64::consts::PI * frequency * time).sin() * fade * 0.3;
+        data.extend_from_slice(&((value * i16::MAX as f64) as i16).to_le_bytes());
+    }
+    // The header of a wave file: the riff, the wave, the format and the
+    // data, with their sizes.
+    let mut out = Vec::with_capacity(data.len() + 44);
+    out.extend_from_slice(b"RIFF");
+    out.extend_from_slice(&(36 + data.len() as u32).to_le_bytes());
+    out.extend_from_slice(b"WAVEfmt ");
+    out.extend_from_slice(&16u32.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&RATE.to_le_bytes());
+    out.extend_from_slice(&(RATE * 2).to_le_bytes());
+    out.extend_from_slice(&2u16.to_le_bytes());
+    out.extend_from_slice(&16u16.to_le_bytes());
+    out.extend_from_slice(b"data");
+    out.extend_from_slice(&(data.len() as u32).to_le_bytes());
+    out.extend_from_slice(&data);
+    out
+}
+
 fn x_display() -> Option<String> {
     if let Ok(display) = std::env::var("DISPLAY") {
         if !display.is_empty() {
@@ -745,6 +1011,13 @@ impl LabDesktop {
         Ok(self.wayland.as_mut().expect("the client was just opened"))
     }
 
+    /// The title of the window that has the focus, by Wayland.
+    #[cfg(target_os = "linux")]
+    fn wayland_active_title(&mut self) -> Result<Option<String>, String> {
+        let active = self.wayland()?.active()?;
+        Ok(active.map(|window| window.title))
+    }
+
     /// Whether the window with this title is the active one, by Wayland.
     #[cfg(target_os = "linux")]
     fn wayland_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
@@ -772,6 +1045,37 @@ impl LabDesktop {
             None => Ok(WindowAnswer::Absent),
         }
     }
+}
+
+/// The windows of a Wayland session, on a platform that has no Wayland.
+///
+/// The protocols of the compositor are Linux ones, and the client of the
+/// compositor is a Unix program. The questions therefore fail with the
+/// reason, and the box says that it is not Linux.
+#[cfg(not(target_os = "linux"))]
+impl LabDesktop {
+    /// The title of the window that has the focus, by Wayland.
+    fn wayland_active_title(&mut self) -> Result<Option<String>, String> {
+        Err(not_linux())
+    }
+
+    /// Whether the window with this title is the active one, by Wayland.
+    fn wayland_active(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+        Err(not_linux())
+    }
+
+    /// Whether a window with this title exists, by Wayland.
+    fn wayland_exists(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+        Err(not_linux())
+    }
+}
+
+/// The reason this platform cannot answer.
+#[cfg(not(target_os = "linux"))]
+fn not_linux() -> String {
+    "the windows of a Wayland session are asked of the compositor, and the protocols of this \
+     crate are for Linux"
+        .to_string()
 }
 
 /// The answer to a question about a window with no title.

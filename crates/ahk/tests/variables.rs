@@ -4,22 +4,34 @@
 //! what the machine does.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
-    Windows,
+    Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen,
+    Sound, Timers, Windows,
 };
 use ahk::runtime::{Report, Runtime};
 use ahk::parse;
 use std::time::Duration;
 
-/// A desktop that answers nothing.
-#[derive(Debug)]
-struct Fake;
+/// A desktop that holds a clipboard of its own.
+#[derive(Debug, Default)]
+struct Fake {
+    /// The text on the clipboard.
+    clipboard: String,
+}
 
 impl Desktop for Fake {}
+impl Sound for Fake {}
 
 impl Files for Fake {}
 
-impl Clipboard for Fake {}
+impl Clipboard for Fake {
+    fn clipboard_read(&mut self) -> Result<String, String> {
+        Ok(self.clipboard.clone())
+    }
+    fn clipboard_write(&mut self, text: &str) -> Result<String, String> {
+        self.clipboard = text.to_string();
+        Ok(text.to_string())
+    }
+}
 
 impl Timers for Fake {}
 
@@ -72,8 +84,16 @@ impl Native for Fake {}
 /// The report of a script that ran.
 fn run(script: &str) -> Report {
     let statements = parse(script).expect("parses");
-    let mut desktop = Fake;
+    let mut desktop = Fake::default();
     Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements)
+}
+
+/// The report of a script that ran, and the clipboard it left behind.
+fn run_with_clipboard(script: &str, clipboard: &str) -> (Report, String) {
+    let statements = parse(script).expect("parses");
+    let mut desktop = Fake { clipboard: clipboard.to_string() };
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    (report, desktop.clipboard)
 }
 
 #[test]
@@ -121,4 +141,39 @@ fn a_script_that_asks_for_the_user_name_fails_with_the_reason_of_the_machine() {
         Some("the machine and the session are not carried by this runtime.")
     );
     assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_script_that_asks_for_the_clipboard_is_told_the_text_of_the_desktop() {
+    let (report, _) = run_with_clipboard("MsgBox Clipboard", "the text of the clipboard");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the text of the clipboard"]);
+}
+
+#[test]
+fn a_clipboard_that_is_empty_is_an_empty_text() {
+    let (report, _) = run_with_clipboard("MsgBox Clipboard", "");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec![""]);
+}
+
+#[test]
+fn a_script_that_writes_the_clipboard_puts_the_text_on_it() {
+    let (report, clipboard) = run_with_clipboard("Clipboard := \"the new text\"", "");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(clipboard, "the new text");
+}
+
+#[test]
+fn a_script_that_appends_to_the_clipboard_adds_to_what_is_there() {
+    let (report, clipboard) = run_with_clipboard("Clipboard .= \" and more\"", "the first part");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(clipboard, "the first part and more");
+}
+
+#[test]
+fn the_clipboard_is_not_a_variable_of_the_script() {
+    let (report, _) = run_with_clipboard("Clipboard := \"the new text\"", "");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(!report.variables.contains_key("Clipboard"), "{:?}", report.variables);
 }

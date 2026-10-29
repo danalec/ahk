@@ -102,6 +102,8 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "Max", kind: BuiltinKind::Function, min: 1, max: 255, variant: 1, handler: extreme },
     Builtin { name: "Min", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, handler: extreme },
     Builtin { name: "Mod", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, handler: modulo },
+    Builtin { name: "NumGet", kind: BuiltinKind::Function, min: 2, max: 3, variant: 0, handler: num_get },
+    Builtin { name: "NumPut", kind: BuiltinKind::Function, min: 3, max: 255, variant: 0, handler: num_put },
     Builtin { name: "Random", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, handler: random },
     Builtin { name: "Round", kind: BuiltinKind::Function, min: 1, max: 2, variant: 0, handler: round_to_digits },
     Builtin { name: "Sin", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: trigonometry },
@@ -156,6 +158,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "Send", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: send },
     Builtin { name: "Sleep", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: sleep },
     // -- the names this runtime answers -------------------------------------------
+    Builtin { name: "ClipWait", kind: BuiltinKind::Command, min: 0, max: 2, variant: 0, handler: clip_wait },
     Builtin { name: "DirCreate", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: dir_create },
     Builtin { name: "DirDelete", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, handler: dir_delete },
     Builtin { name: "DirExist", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: dir_exist },
@@ -181,205 +184,202 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "StrSplit", kind: BuiltinKind::Command, min: 1, max: 4, variant: 0, handler: str_split },
     Builtin { name: "VarSetStrCapacity", kind: BuiltinKind::Function, min: 1, max: 2, variant: 0, handler: var_set_str_capacity },
     // -- the names of Windows ------------------------------------------------
-    Builtin { name: "BlockInput", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "CallbackCreate", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "CallbackFree", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "CaretGetPos", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, handler: not_carried },
-    Builtin { name: "ClipWait", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ComCall", kind: BuiltinKind::Function, min: 2, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ComObjActive", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "ComObjConnect", kind: BuiltinKind::Function, min: 1, max: 2, variant: 0, handler: not_carried },
-    Builtin { name: "ComObjFlags", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, handler: not_carried },
-    Builtin { name: "ComObjFromPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "ComObjGet", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "ComObjQuery", kind: BuiltinKind::Function, min: 2, max: 3, variant: 0, handler: not_carried },
-    Builtin { name: "ComObjType", kind: BuiltinKind::Function, min: 1, max: 2, variant: 0, handler: not_carried },
-    Builtin { name: "ComObjValue", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "ControlAddItem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlChooseIndex", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlChooseString", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlClick", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlDeleteItem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlFindItem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlFocus", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetChecked", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetChoice", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetClassNN", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetEnabled", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetExStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetFocus", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetHwnd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetIndex", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetItems", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetPos", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlGetVisible", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlHide", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlHideDropDown", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlMove", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlSend", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlSendText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlSetChecked", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlSetEnabled", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlSetExStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlSetStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlSetText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlShow", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ControlShowDropDown", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DetectHiddenText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DetectHiddenWindows", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
+    Builtin { name: "BlockInput", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "CallbackCreate", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "CallbackFree", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "CaretGetPos", kind: BuiltinKind::Function, min: 0, max: 2, variant: 100, handler: not_carried },
+    Builtin { name: "ComCall", kind: BuiltinKind::Function, min: 2, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ComObjActive", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "ComObjConnect", kind: BuiltinKind::Function, min: 1, max: 2, variant: 100, handler: not_carried },
+    Builtin { name: "ComObjFlags", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, handler: not_carried },
+    Builtin { name: "ComObjFromPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "ComObjGet", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "ComObjQuery", kind: BuiltinKind::Function, min: 2, max: 3, variant: 100, handler: not_carried },
+    Builtin { name: "ComObjType", kind: BuiltinKind::Function, min: 1, max: 2, variant: 100, handler: not_carried },
+    Builtin { name: "ComObjValue", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "ControlAddItem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlChooseIndex", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlChooseString", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlClick", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlDeleteItem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlFindItem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlFocus", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetChecked", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetChoice", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetClassNN", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetEnabled", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetExStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetFocus", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetHwnd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetIndex", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetItems", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetPos", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlGetVisible", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlHide", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlHideDropDown", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlMove", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlSend", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlSendText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlSetChecked", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlSetEnabled", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlSetExStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlSetStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlSetText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlShow", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ControlShowDropDown", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DetectHiddenText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DetectHiddenWindows", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
     Builtin { name: "DllCall", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, handler: dll_call },
-    Builtin { name: "DriveEject", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetCapacity", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetFilesystem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetLabel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetList", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetSerial", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetSpaceFree", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetStatus", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetStatusCD", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveGetType", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveLock", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveRetract", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveSetLabel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "DriveUnlock", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "Edit", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "EditGetCurrentCol", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "EditGetCurrentLine", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "EditGetLine", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "EditGetLineCount", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "EditGetSelectedText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "EditPaste", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "FileCreateShortcut", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "FileGetShortcut", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "FileGetVersion", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "FileRecycle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "FileRecycleEmpty", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "GroupActivate", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "GroupAdd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "GroupClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "GroupDeactivate", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "GuiCtrlFromHwnd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "GuiFromHwnd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "IL_Add", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "IL_Create", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "IL_Destroy", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ListViewGetContent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "MenuFromHandle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "MenuSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "MonitorGet", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "MonitorGetCount", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "MonitorGetName", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "MonitorGetPrimary", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "MonitorGetWorkArea", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "NumGet", kind: BuiltinKind::Function, min: 2, max: 3, variant: 0, handler: not_carried },
-    Builtin { name: "NumPut", kind: BuiltinKind::Function, min: 3, max: 255, variant: 0, handler: not_carried },
+    Builtin { name: "DriveEject", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetCapacity", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetFilesystem", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetLabel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetList", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetSerial", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetSpaceFree", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetStatus", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetStatusCD", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveGetType", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveLock", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveRetract", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveSetLabel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "DriveUnlock", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "Edit", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "EditGetCurrentCol", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "EditGetCurrentLine", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "EditGetLine", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "EditGetLineCount", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "EditGetSelectedText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "EditPaste", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "FileCreateShortcut", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "FileGetShortcut", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "FileGetVersion", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "FileRecycle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "FileRecycleEmpty", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "GroupActivate", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "GroupAdd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "GroupClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "GroupDeactivate", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "GuiCtrlFromHwnd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "GuiFromHwnd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "IL_Add", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "IL_Create", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "IL_Destroy", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ListViewGetContent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "MenuFromHandle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "MenuSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "MonitorGet", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "MonitorGetCount", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "MonitorGetName", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "MonitorGetPrimary", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "MonitorGetWorkArea", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
     Builtin { name: "ObjAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: obj_add_ref },
-    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 1, max: 255, variant: 6, handler: not_carried },
+    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 1, max: 255, variant: 106, handler: not_carried },
     // -- the object model ---------------------------------------------------------
-    Builtin { name: "ObjFromPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "ObjFromPtrAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
+    Builtin { name: "ObjFromPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "ObjFromPtrAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
     Builtin { name: "ObjGetBase", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: obj_get_base },
     Builtin { name: "ObjGetCapacity", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: obj_get_capacity },
     Builtin { name: "ObjHasOwnProp", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, handler: obj_has_own_prop },
     Builtin { name: "ObjOwnPropCount", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: obj_own_prop_count },
     Builtin { name: "ObjOwnProps", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: obj_own_props },
-    Builtin { name: "ObjPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "ObjPtrAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "ObjRelease", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
+    Builtin { name: "ObjPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "ObjPtrAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "ObjRelease", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
     Builtin { name: "ObjSetBase", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, handler: obj_set_base },
     Builtin { name: "ObjSetCapacity", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, handler: obj_set_capacity },
-    Builtin { name: "OnClipboardChange", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "OnMessage", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "OutputDebug", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "PostMessage", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ProcessClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ProcessExist", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ProcessGetName", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ProcessGetParent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ProcessGetPath", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ProcessSetPriority", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ProcessWait", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ProcessWaitClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "RegCreateKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "RegDelete", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, handler: not_carried },
-    Builtin { name: "RegDeleteKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "RegRead", kind: BuiltinKind::Function, min: 0, max: 3, variant: 0, handler: not_carried },
-    Builtin { name: "RegWrite", kind: BuiltinKind::Function, min: 0, max: 4, variant: 0, handler: not_carried },
-    Builtin { name: "RunAs", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SendMessage", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SetCapsLockState", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SetNumLockState", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SetRegView", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SetScrollLockState", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SetTitleMatchMode", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SetWinDelay", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "Shutdown", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SoundBeep", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SoundGetInterface", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, handler: not_carried },
-    Builtin { name: "SoundGetMute", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, handler: not_carried },
-    Builtin { name: "SoundGetName", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, handler: not_carried },
-    Builtin { name: "SoundGetVolume", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, handler: not_carried },
-    Builtin { name: "SoundPlay", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SoundSetMute", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, handler: not_carried },
-    Builtin { name: "SoundSetVolume", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, handler: not_carried },
-    Builtin { name: "StatusBarGetText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "StatusBarWait", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "StrGet", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, handler: not_carried },
-    Builtin { name: "StrPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: not_carried },
-    Builtin { name: "StrPut", kind: BuiltinKind::Function, min: 1, max: 4, variant: 0, handler: not_carried },
-    Builtin { name: "SysGet", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "SysGetIPAddresses", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "ToolTip", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "TraySetIcon", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "TrayTip", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinActivate", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinActivateBottom", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetClass", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetClientPos", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetControls", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetControlsHwnd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetCount", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetExStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetID", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetIDLast", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetList", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetMinMax", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetPID", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetPos", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetProcessName", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetProcessPath", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetTransColor", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinGetTransparent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinHide", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinKill", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinMaximize", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinMinimize", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinMinimizeAll", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinMinimizeAllUndo", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinMove", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinMoveBottom", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinMoveTop", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinRedraw", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinRestore", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinSetAlwaysOnTop", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinSetEnabled", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinSetExStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinSetRegion", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinSetStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinSetTitle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinSetTransColor", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinSetTransparent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinShow", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinWait", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinWaitActive", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinWaitClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
-    Builtin { name: "WinWaitNotActive", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
+    Builtin { name: "OnClipboardChange", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "OnMessage", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "OutputDebug", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "PostMessage", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ProcessClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ProcessExist", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ProcessGetName", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ProcessGetParent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ProcessGetPath", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ProcessSetPriority", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ProcessWait", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ProcessWaitClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "RegCreateKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "RegDelete", kind: BuiltinKind::Function, min: 0, max: 2, variant: 100, handler: not_carried },
+    Builtin { name: "RegDeleteKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "RegRead", kind: BuiltinKind::Function, min: 0, max: 3, variant: 100, handler: not_carried },
+    Builtin { name: "RegWrite", kind: BuiltinKind::Function, min: 0, max: 4, variant: 100, handler: not_carried },
+    Builtin { name: "RunAs", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SendMessage", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SetCapsLockState", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SetNumLockState", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SetRegView", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SetScrollLockState", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SetTitleMatchMode", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SetWinDelay", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "Shutdown", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SoundBeep", kind: BuiltinKind::Command, min: 0, max: 2, variant: 0, handler: sound_beep },
+    Builtin { name: "SoundGetInterface", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, handler: not_carried },
+    Builtin { name: "SoundGetMute", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, handler: sound_get_mute },
+    Builtin { name: "SoundGetName", kind: BuiltinKind::Function, min: 0, max: 2, variant: 100, handler: not_carried },
+    Builtin { name: "SoundGetVolume", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, handler: sound_get_volume },
+    Builtin { name: "SoundPlay", kind: BuiltinKind::Command, min: 1, max: 6, variant: 0, handler: sound_play },
+    Builtin { name: "SoundSetMute", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, handler: sound_set_mute },
+    Builtin { name: "SoundSetVolume", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, handler: sound_set_volume },
+    Builtin { name: "StatusBarGetText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "StatusBarWait", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "StrGet", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, handler: not_carried },
+    Builtin { name: "StrPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "StrPut", kind: BuiltinKind::Function, min: 1, max: 4, variant: 100, handler: not_carried },
+    Builtin { name: "SysGet", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "SysGetIPAddresses", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "ToolTip", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "TraySetIcon", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "TrayTip", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinActivate", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinActivateBottom", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetClass", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetClientPos", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetControls", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetControlsHwnd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetCount", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetExStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetID", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetIDLast", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetList", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetMinMax", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetPID", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetPos", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetProcessName", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetProcessPath", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetTransColor", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetTransparent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinHide", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinKill", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinMaximize", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinMinimize", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinMinimizeAll", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinMinimizeAllUndo", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinMove", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinMoveBottom", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinMoveTop", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinRedraw", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinRestore", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinSetAlwaysOnTop", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinSetEnabled", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinSetExStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinSetRegion", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinSetStyle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinSetTitle", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinSetTransColor", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinSetTransparent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinShow", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinWait", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinWaitActive", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinWaitClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
+    Builtin { name: "WinWaitNotActive", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
     // -- the hotkeys --------------------------------------------------------
     Builtin { name: "GetKeyState", kind: BuiltinKind::Command, min: 1, max: 2, variant: 1, handler: get_key_state },
     Builtin { name: "HotIf", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, handler: hotif },
@@ -395,13 +395,13 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "ListHotkeys", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, handler: list_hotkeys },
     // -- the names of the script that this runtime cannot answer -----------------
     Builtin { name: "CoordMode", kind: BuiltinKind::Command, min: 1, max: 2, variant: 5, handler: coord_mode },
-    Builtin { name: "Critical", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
+    Builtin { name: "Critical", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "DateAdd", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, handler: date_add },
     Builtin { name: "DateDiff", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, handler: date_diff },
     Builtin { name: "DirCopy", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_copy },
     Builtin { name: "DirMove", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_move },
-    Builtin { name: "DirSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "Download", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
+    Builtin { name: "DirSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 104, handler: not_carried },
+    Builtin { name: "Download", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "FileCopy", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, handler: file_copy },
     Builtin { name: "FileEncoding", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_encoding },
     Builtin { name: "FileGetAttrib", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_get_attrib },
@@ -410,29 +410,29 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "FileInstall", kind: BuiltinKind::Command, min: 2, max: 3, variant: 4, handler: file_install },
     Builtin { name: "FileMove", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, handler: file_move },
     Builtin { name: "FileOpen", kind: BuiltinKind::Function, min: 2, max: 3, variant: 4, handler: file_open },
-    Builtin { name: "FileSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
+    Builtin { name: "FileSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 104, handler: not_carried },
     Builtin { name: "FileSetAttrib", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: file_set_attrib },
     Builtin { name: "FileSetTime", kind: BuiltinKind::Command, min: 3, max: 3, variant: 4, handler: file_set_time },
     Builtin { name: "FormatTime", kind: BuiltinKind::Function, min: 0, max: 2, variant: 2, handler: format_time },
     Builtin { name: "GetKeyName", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_name },
     Builtin { name: "GetKeySC", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_sc },
     Builtin { name: "GetKeyVK", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_vk },
-    Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
+    Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "IniDelete", kind: BuiltinKind::Command, min: 1, max: 3, variant: 6, handler: ini_delete },
     Builtin { name: "IniRead", kind: BuiltinKind::Command, min: 2, max: 4, variant: 4, handler: ini_read },
     Builtin { name: "IniWrite", kind: BuiltinKind::Command, min: 3, max: 4, variant: 4, handler: ini_write },
-    Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
-    Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
-    Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
-    Builtin { name: "OnError", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "Pause", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "Persistent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "Reload", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
+    Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 106, handler: not_carried },
+    Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 255, variant: 106, handler: not_carried },
+    Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 255, variant: 106, handler: not_carried },
+    Builtin { name: "OnError", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "Pause", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "Persistent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "Reload", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "SendEvent", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_event },
     Builtin { name: "SendInput", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_input },
     Builtin { name: "SendLevel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_level },
@@ -441,11 +441,11 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "SetDefaultMouseSpeed", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: set_default_mouse_speed },
     Builtin { name: "SetMouseDelay", kind: BuiltinKind::Command, min: 1, max: 2, variant: 5, handler: set_mouse_delay },
     Builtin { name: "SetStoreCapsLockMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: set_store_caps_lock_mode },
-    Builtin { name: "SetWorkingDir", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
-    Builtin { name: "StrTitle", kind: BuiltinKind::Function, min: 1, max: 1, variant: 6, handler: not_carried },
-    Builtin { name: "Suspend", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "Thread", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "VerCompare", kind: BuiltinKind::Function, min: 2, max: 2, variant: 6, handler: not_carried },
+    Builtin { name: "SetWorkingDir", kind: BuiltinKind::Command, min: 0, max: 255, variant: 106, handler: not_carried },
+    Builtin { name: "StrTitle", kind: BuiltinKind::Function, min: 1, max: 1, variant: 106, handler: not_carried },
+    Builtin { name: "Suspend", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "Thread", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
+    Builtin { name: "VerCompare", kind: BuiltinKind::Function, min: 2, max: 2, variant: 106, handler: not_carried },
 ];
 
 /// The parameters of a built-in that take a reference.
@@ -661,14 +661,31 @@ fn split_convention(text: &str) -> (Convention, &str) {
     (Convention::Standard, trimmed)
 }
 
-/// A name that this runtime carries, and cannot answer.
+/// The variant that says the name is refused.
 ///
-/// The variant says why: the name is shaped for Windows, it is a
-/// hotkey, or it is a name of the script that this runtime does not
-/// have. The script knows which name it called, so the reason names the
-/// group and not the name.
-fn not_carried(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
-    let message = match variant {
+/// The variants below it belong to the handlers that answer a value, and
+/// the ones from it up are the refusals: the reason of a refusal is
+/// told from the variant of the row.
+pub const REFUSAL: u8 = 100;
+
+/// The reason the tree does not answer a name, when it does not.
+///
+/// The refusals are the names whose handler is the refusal, and the
+/// variant of the row says which reason it is.
+pub fn refusal_of(name: &str) -> Option<&'static str> {
+    let builtin = find(name)?;
+    if builtin.variant < REFUSAL {
+        return None;
+    }
+    Some(refusal_message(builtin.variant - REFUSAL))
+}
+
+/// The reason of a refusal.
+///
+/// The variant is the one of the row, without the offset of the
+/// refusals.
+fn refusal_message(variant: u8) -> &'static str {
+    match variant {
         0 => "this is a name of Windows, and this desktop is not Windows.",
         1 => "this runtime has no hotkeys yet.",
         2 => "the clock of this runtime counts from an arbitrary origin, and it does not know the date.",
@@ -677,7 +694,17 @@ fn not_carried(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, variant: u8)
         5 => "the pointer and the keyboard of this runtime are the ones of the box, and they have no setting of that kind.",
         6 => "a method of this runtime is not bound to an object.",
         _ => "this runtime does not carry that name yet.",
-    };
+    }
+}
+
+/// A name that this runtime carries, and cannot answer.
+///
+/// The variant says why: the name is shaped for Windows, it is a
+/// hotkey, or it is a name of the script that this runtime does not
+/// have. The script knows which name it called, so the reason names the
+/// group and not the name.
+fn not_carried(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
+    let message = refusal_message(variant.saturating_sub(REFUSAL));
     Err(RuntimeError { message: message.to_string(), line })
 }
 
@@ -1061,6 +1088,192 @@ fn set_timer(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) ->
     let period = if period > 0.0 { period as u64 } else { 250 };
     rt.add_timer(&name, period);
     Ok(Value::Int(1))
+}
+
+// -- the sound ---------------------------------------------------------------------
+
+/// `SoundBeep`: a tone of a frequency, for a number of milliseconds.
+///
+/// The frequency of v2 is between 37 and 32767, and it is 523 when the
+/// script does not say. The duration is in milliseconds, and it is 150
+/// when the script does not say.
+fn sound_beep(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let frequency = match values.first() {
+        Some(value) => value.to_number().unwrap_or(523.0),
+        None => 523.0,
+    };
+    if !(37.0..=32767.0).contains(&frequency) {
+        return Err(RuntimeError {
+            message: "the frequency of a tone is between 37 and 32767.".into(),
+            line,
+        });
+    }
+    let duration = match values.get(1) {
+        Some(value) => value.to_number().unwrap_or(150.0),
+        None => 150.0,
+    };
+    let duration = if duration > 0.0 { duration as u64 } else { 150 };
+    rt.desktop().sound_beep(frequency, duration).map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(1))
+}
+
+/// `SoundPlay`: a sound file.
+///
+/// The other parameters of v2 -- the volume, the speed, the pitch, the
+/// wait and the options -- are not carried, and the desktop of the box
+/// plays the file as it is.
+fn sound_play(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the volume, the speed and the pitch of a sound are not carried yet.".into(),
+            line,
+        });
+    }
+    let path = text_of(values, 0);
+    if path.is_empty() {
+        return Err(RuntimeError {
+            message: "the sound file is missing.".into(),
+            line,
+        });
+    }
+    rt.desktop().sound_play(&path).map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(1))
+}
+
+/// `SoundGetVolume`: the volume of a device, in percent.
+///
+/// The component of v2 is a part of a device -- the master volume, the
+/// microphone -- and the box has one volume per device.
+fn sound_get_volume(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the component of a sound is not carried yet: the box has one volume per device.".into(),
+            line,
+        });
+    }
+    component_of(values, 0, line)?;
+    let device = device_of(values, 1);
+    let volume = rt.desktop().sound_volume(&device).map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Float(volume))
+}
+
+/// `SoundSetVolume`: the volume of a device, in percent.
+///
+/// The setting of v2 is a percentage between -100 and 100, and a sign
+/// in front of it adjusts the volume instead of setting it.
+fn sound_set_volume(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the component of a sound is not carried yet: the box has one volume per device.".into(),
+            line,
+        });
+    }
+    let setting = text_of(values, 0);
+    let (adjust, number) = match setting.strip_prefix('+') {
+        Some(rest) => (true, rest.to_string()),
+        None => match setting.strip_prefix('-') {
+            Some(rest) => (true, format!("-{rest}")),
+            None => (false, setting.clone()),
+        },
+    };
+    let number: f64 = number.trim().parse().map_err(|_| RuntimeError {
+        message: format!(
+            "the volume of a device is a percentage between -100 and 100, and {setting:?} is not one."
+        ),
+        line,
+    })?;
+    if !(-100.0..=100.0).contains(&number) {
+        return Err(RuntimeError {
+            message: "the volume of a device is a percentage between -100 and 100.".into(),
+            line,
+        });
+    }
+    component_of(values, 1, line)?;
+    let device = device_of(values, 2);
+    if adjust {
+        let current = rt.desktop().sound_volume(&device).map_err(|e| desktop_failure(e, line))?;
+        let wanted = (current + number).clamp(0.0, 100.0);
+        rt.desktop().sound_set_volume(&device, wanted).map_err(|e| desktop_failure(e, line))?;
+    } else {
+        rt.desktop().sound_set_volume(&device, number).map_err(|e| desktop_failure(e, line))?;
+    }
+    Ok(Value::Int(1))
+}
+
+/// `SoundGetMute`: whether a device is muted.
+fn sound_get_mute(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the component of a sound is not carried yet: the box has one volume per device.".into(),
+            line,
+        });
+    }
+    component_of(values, 0, line)?;
+    let device = device_of(values, 1);
+    let muted = rt.desktop().sound_muted(&device).map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(muted as i64))
+}
+
+/// `SoundSetMute`: mute a device, or unmute it.
+///
+/// The setting of v2 is 1 to mute, 0 to unmute, and -1 to turn the
+/// mute of the device around.
+fn sound_set_mute(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the component of a sound is not carried yet: the box has one volume per device.".into(),
+            line,
+        });
+    }
+    let setting = number_of(values, 0);
+    if !(-1.0..=1.0).contains(&setting) {
+        return Err(RuntimeError {
+            message: "the mute of a device is 1, 0 or -1.".into(),
+            line,
+        });
+    }
+    component_of(values, 1, line)?;
+    let device = device_of(values, 2);
+    let muted = if setting < 0.0 {
+        let current = rt.desktop().sound_muted(&device).map_err(|e| desktop_failure(e, line))?;
+        !current
+    } else {
+        setting != 0.0
+    };
+    rt.desktop().sound_set_muted(&device, muted).map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(1))
+}
+
+/// The component of the sound that the script asks about.
+///
+/// v2 names a part of a device -- the master volume, the microphone --
+/// and the box has one volume per device: the master one. A component
+/// that is not the master fails with the reason.
+fn component_of(values: &[Value], index: usize, line: u32) -> Result<String, RuntimeError> {
+    let component = match values.get(index) {
+        Some(value) => value.to_text(),
+        None => return Ok(String::new()),
+    };
+    if component.is_empty() || component.eq_ignore_ascii_case("master") {
+        return Ok(String::new());
+    }
+    Err(RuntimeError {
+        message: "the box has one volume per device: the master volume is the only one it has.".into(),
+        line,
+    })
+}
+
+/// The device that the script asks about.
+///
+/// v2 names a device by its name or by its number. The device of the
+/// system is the empty name, and a number is written with a `#` in
+/// front of it, so that the desktop can tell the two apart.
+fn device_of(values: &[Value], index: usize) -> String {
+    match values.get(index) {
+        Some(Value::Int(number)) => format!("#{number}"),
+        Some(value) => value.to_text(),
+        None => String::new(),
+    }
 }
 
 // -- the script ---------------------------------------------------------------------
@@ -1570,6 +1783,88 @@ fn random(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Re
                 Ok(Value::Float(low + unit_random(now) * (high - low)))
             }
         }
+    }
+}
+
+/// `NumGet`: the number the bytes of a buffer hold.
+///
+/// v2 reads the memory of an address as well, and this runtime does
+/// not: the source of a number is a buffer, and the bytes of a buffer
+/// live in the runtime.
+fn num_get(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let source = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(source, Value::Object(_)) {
+        // The memory of an address is not read here: the source of a
+        // number is a buffer.
+        let message = match source {
+            Value::Int(_) => "this runtime does not read the memory of an address: the source of a number is a buffer.".to_string(),
+            other => expected_type(TypeName::Object, other.type_name()),
+        };
+        return Err(RuntimeError { message, line });
+    }
+    // The offset is the second parameter when the type is the third.
+    let (offset, type_name) = if values.len() > 2 {
+        (integer_argument(values, 1, line)?, text_of(values, 2))
+    } else {
+        (0, text_of(values, 1))
+    };
+    let kind = crate::classes::buffer::number_type(&type_name).ok_or_else(|| RuntimeError {
+        message: "the type of a number is one of UInt, Int, Int64, Short, UShort, Char, UChar, Double, Float, Ptr or UPtr.".into(),
+        line,
+    })?;
+    match crate::classes::buffer::read_number(&source, offset, kind, line) {
+        Ok(number) => Ok(number),
+        Err(RuntimeFailure::Error(error)) => Err(error),
+        Err(_) => Err(RuntimeError { message: "the buffer did not answer.".into(), line }),
+    }
+}
+
+/// `NumPut`: a number, into the bytes of a buffer.
+///
+/// The types and the numbers come in pairs, and the target and the
+/// offset come after them: v2 writes the target last.
+fn num_put(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    // The target is the last object of the arguments: the pairs come
+    // before it, and the offset comes after it.
+    let Some(index) = values.iter().rposition(|value| matches!(value, Value::Object(_))) else {
+        let message = match values.last() {
+            Some(Value::Int(_)) => "this runtime does not write to the memory of an address: the target of a number is a buffer.".to_string(),
+            Some(other) => expected_type(TypeName::Object, other.type_name()),
+            None => expected_type(TypeName::Object, TypeName::String),
+        };
+        return Err(RuntimeError { message, line });
+    };
+    let pairs = &values[..index];
+    if pairs.len() % 2 != 0 {
+        return Err(RuntimeError { message: "the types and the numbers of a write come in pairs.".into(), line });
+    }
+    if index + 2 < values.len() {
+        return Err(RuntimeError { message: "a write takes the target and the offset after the pairs.".into(), line });
+    }
+    let offset = match values.get(index + 1) {
+        Some(_) => integer_argument(values, index + 1, line)?,
+        None => 0,
+    };
+    let mut numbers = Vec::with_capacity(pairs.len() / 2);
+    let mut at = 0;
+    while at < pairs.len() {
+        let kind = crate::classes::buffer::number_type(&text_of(pairs, at)).ok_or_else(|| RuntimeError {
+            message: "the type of a number is one of UInt, Int, Int64, Short, UShort, Char, UChar, Double, Float, Ptr or UPtr.".into(),
+            line,
+        })?;
+        let number = pairs[at + 1].clone();
+        let number = number_value(&number).ok_or_else(|| RuntimeError {
+            message: crate::runtime::requires(at + 2, "NumPut", TypeName::Number, &number),
+            line,
+        })?;
+        numbers.push((kind, number));
+        at += 2;
+    }
+    let target = &values[index];
+    match crate::classes::buffer::write_numbers(target, offset, &numbers, line) {
+        Ok(address) => Ok(Value::Int(address)),
+        Err(RuntimeFailure::Error(error)) => Err(error),
+        Err(_) => Err(RuntimeError { message: "the buffer did not answer.".into(), line }),
     }
 }
 
@@ -2515,6 +2810,55 @@ fn sleep(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Re
     let millis = number_of(values, 0).clamp(0.0, 60_000.0) as u64;
     rt.sleep_ms(millis);
     Ok(Value::Int(millis as i64))
+}
+
+// -- the clipboard ----------------------------------------------------------------
+
+/// The gap between the reads of the clipboard while a wait goes on.
+///
+/// The read is a process of its own on the box, and a wait is not a
+/// quarter of a second long.
+const CLIP_POLL_MS: u64 = 50;
+
+/// `ClipWait`: wait until the clipboard has data.
+///
+/// The timeout is in seconds and may be a fraction of one. A wait with no
+/// timeout is for the time the script has left: the timeout of the run is
+/// checked between the statements, and this wait is inside one.
+fn clip_wait(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    // The second parameter waits for the data of any kind, and the
+    // clipboard of this runtime carries text only.
+    if number_of(values, 1) != 0.0 {
+        return Err(RuntimeError {
+            message: "the clipboard of this runtime carries text only, and it cannot wait for data of any kind.".to_string(),
+            line,
+        });
+    }
+    let limit = if values.is_empty() { None } else { Some(number_of(values, 0) * 1000.0) };
+    let started = rt.now_ms();
+    loop {
+        let text = rt.desktop().clipboard_read().map_err(|message| desktop_failure(message, line))?;
+        if !text.is_empty() {
+            return Ok(Value::Int(1));
+        }
+        let waited = rt.now_ms().saturating_sub(started) as f64;
+        let left = match limit {
+            Some(limit) => {
+                if waited >= limit {
+                    return Ok(Value::Int(0));
+                }
+                limit - waited
+            }
+            None => {
+                let left = rt.remaining_ms();
+                if left == 0 {
+                    return Ok(Value::Int(0));
+                }
+                left as f64
+            }
+        };
+        rt.sleep_ms((left as u64).clamp(1, CLIP_POLL_MS));
+    }
 }
 
 // -- the pattern of `Format` -----------------------------------------------------

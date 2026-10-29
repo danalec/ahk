@@ -136,10 +136,11 @@ the box: it does no I/O, and it has to keep building without `std`.
   that answers it. A name that is shaped for Windows is in the table too,
   and the handler answers it with the reason: a question the desktop cannot
   answer fails, and it does not answer `false`.
-- **The `Desktop` trait is the sum of ten capability traits** -- `Keyboard`,
+- **The `Desktop` trait is the sum of eleven capability traits** -- `Keyboard`,
   `Pointer`, `Screen`, `Windows`, `Processes`, `Files`, `Clipboard`,
-  `Timers`, `Hotkeys` and `Native`. There is no blanket implementation:
-  every implementor writes the ten of them, and every method that a
+  `Timers`, `Hotkeys`, `Native` and `Sound`. There is no blanket
+  implementation: every implementor writes the eleven of them, and every
+  method that a
   capability does not have has a default that says so. A new capability
   goes in its own trait, and `Desktop` grows by naming it.
 - **A class type of the runtime is a class too.** `Map`, `Array`, `Buffer`,
@@ -1597,3 +1598,108 @@ of the devices of the machine.
   operators and the pending list.
 - This file -- the box: the devices, the timings, the traps, and what was
   measured and when.
+
+## 26. The sound of the machine
+
+Six names of v2 that answered with a reason answer now with a value:
+`SoundBeep`, `SoundPlay`, `SoundGetVolume`, `SoundSetVolume`,
+`SoundGetMute` and `SoundSetMute`. The other two, `SoundGetName` and
+`SoundGetInterface`, are names of Windows (DirectSound), and they answer
+with the reason.
+
+- **The sound is a capability of its own.** The trait `Sound` is in
+  `ahk::desktop`, and the `Desktop` trait grew by naming it: the sum is
+  eleven capabilities now, and every implementor writes the eleven.
+- **The mixer of the session is the source.** The box runs PulseAudio on
+  PipeWire (measured on 2026-10-29), and `pactl` answers the volume and
+  the mute of a sink. The device that the script does not name is the
+  default sink of the session; a number names the sink of that number.
+  The box has one sink: `alsa_output.pci-0000_06_00.0.hdmi-stereo`.
+- **The tone is a file.** The tone of v2 comes out of the speaker of the
+  machine, and the box has no speaker of its own: the tone is written as
+  a wave file under `/tmp`, the mixer of the session plays it with
+  `paplay`, and the file is removed afterwards. The script waits for the
+  sound to finish, the way v2 waits.
+- **The volume is a percentage, between 0 and 100**, the way v2 says it,
+  and not a number between 0 and 1. A sign in front of the setting
+  adjusts the volume instead of setting it.
+- **The component of v2 is a part of a device** -- the master volume,
+  the microphone -- and the box has one volume per device. A component
+  that is not the master fails with the reason.
+
+Measured on the box on 2026-10-29: `pactl get-sink-volume` answered
+`Volume: front-left: 64881 /  99% / -0.26 dB`, `pactl get-sink-mute`
+answered `Mute: no`, and `paplay` played a wave file written by the tree
+without a word.
+
+## 27. The clipboard of the session
+
+The built-in variable `Clipboard` and the command `ClipWait` answer with a
+value now.
+
+- **`Clipboard` is the one built-in variable of v2 that has no `A_`
+  prefix.** The name it has is `Clipboard`, and the table of the variables
+  carries it without the prefix of the other names. Reading it gives the
+  text of the clipboard of the session, and writing it puts the text
+  there: the runtime asks the variables module before it writes a name
+  into its own table, and the variables module answers for the names
+  that live somewhere else.
+- **The box reads the clipboard with `wl-paste` and writes it with
+  `wl-copy`.** The session of the box is Wayland. Measured on 2026-10-29:
+  `wl-copy` **holds the channel of the caller open** when its output is
+  not detached, so the command runs with its output away from the
+  terminal; and `wl-paste --no-newline --type text/plain` answers
+  `Nothing is copied` when the clipboard is empty, which is a value and
+  not a failure.
+- **The X11 path is kept.** An X11 session reads with `xclip` or `xsel`,
+  and the box has neither: the answer there is the reason, and not an
+  empty text.
+- **`ClipWait` waits by asking.** It reads the clipboard and checks that
+  it has data, until the timeout passes; the clock of the runtime is the
+  one that measures the wait. The timeout may be a fraction of a second.
+
+Measured on the box on 2026-10-29: with `ahk-external` on the clipboard,
+the script answered `read=ahk-external` and `wait=1`; after
+`Clipboard := "ahk-written"`, the clipboard of the session answered
+`ahk-written`.
+
+## 28. `NumGet` and `NumPut` read and write the bytes of a buffer
+
+The two names answer with a value now, on top of the `Buffer` class that
+the tree already had.
+
+- **The source of a number is a buffer, and not an address.** v2 accepts
+  a memory address, and the tree does not read the memory of an address:
+  the bytes of a buffer live inside the runtime, and an address fails
+  with the reason. This is the same divergence the buffer itself already
+  has, and it is the safe one.
+- **The types are the ones of v2** -- `UInt`, `Int`, `Int64`, `Short`,
+  `UShort`, `Char`, `UChar`, `Float`, `Double`, `Ptr` and `UPtr` -- and
+  they are read from the table of the native calls, so that the width of
+  a number is the width of that table.
+- **`NumPut` answers the address to the right of the last number it
+  wrote**, the way v2 does: the `Ptr` of the buffer plus the offset it
+  stopped at.
+
+## 29. `ahk --surface` says the state of every name of v2
+
+The runner has a new flag, and it answers without a script: the flag is
+read before the script is, so it does not wait for a script that is not
+coming.
+
+- **A name is carried when the tree answers it.** The answer may be a
+  value or the reason the tree cannot give one, and the flag says which
+  of the two it is.
+- **The reasons are one function.** The refusals of the built-in table
+  are the names whose handler is the refusal, and their variants start
+  at 100, so that a name that answers a value can be told from a name
+  that does not. `builtins::refusal_of` and `variables::refusal_of` say
+  the reason of a name, and the flag asks them.
+- **The table of the surface is the one that was read out of the
+  binary.** The flag reads `crates/ahk/reference/ahk-v2.0.19.surface.tsv`
+  and the pending table, and it does not guess a name that is not in
+  them.
+
+Measured on the box on 2026-10-29: the flag printed 725 lines and the
+summary `the surface of v2 has 725 entries: 457 answer with a value, 268
+are refused, 0 are pending`.

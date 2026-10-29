@@ -559,6 +559,12 @@ certas — falta o corpo.
 O item 6 é o mais barato de todos e o mais útil: transforma "o que falta" de
 opinião em número.
 
+**O estado desta onda (2026-10-29).** Os seis itens estão feitos: o
+clipboard (1), o som (2), o `NumGet` e o `NumPut` (3), os `Files` (4) e o
+`FormatTime` com o `DateAdd` e o `DateDiff` (5) saíram da recusa no bloco da
+secção 25 das notas, e o `ahk --surface` (6) imprime agora o estado de
+cada um dos nomes de v2.
+
 ### 5.2 Onda 2 — hotkeys, threads, hotstrings
 
 Esta é a onda que **muda o produto**: sem hotkeys, um AHK é um programa de
