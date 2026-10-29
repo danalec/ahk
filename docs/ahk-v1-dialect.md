@@ -155,13 +155,28 @@ and not the spelling of the dialect: `variables::spelled` drops the `A_`
 when the script writes a name, and the table holds what is left.
 
 **The spelling of the dialect is the prefix, for every one of them.**
-Measured on the binary of the v2.0.19 on 2026-10-29: `A_IsAdmin` answers
-`0`, and `IsAdmin` answers *"Warning: This global variable appears to
-never be assigned a value. Specifically: IsAdmin"*. The clipboard of the
-v2 is `A_Clipboard`, like the clipboard of the v1: `x := A_Clipboard`
-answers the text of the clipboard, and `x := Clipboard` answers *"Warning:
-This global variable appears to never be assigned a value. Specifically:
-Clipboard"*.
+The documentation of the v2 lists **116** built-in variables and every
+one of them has the prefix -- `A_IsAdmin`, `A_AppData`, `A_ScreenWidth`,
+`A_Clipboard` -- and there is no variable named `Clipboard` at all
+(`autohotkey.com/docs/v2/Variables.htm`, read on 2026-10-29).
+
+Measured on the binary of the v2.0.19 on the same day (`A_AhkVersion`
+answers `2.0.19`): `x := A_IsAdmin` answers `0`, and `x := IsAdmin`
+answers *"Warning: This global variable appears to never be assigned a
+value. Specifically: IsAdmin"*. The clipboard is `A_Clipboard`, like the
+clipboard of the v1: `x := A_Clipboard` answers the text of the clipboard,
+and `x := Clipboard` answers *"Warning: This global variable appears to
+never be assigned a value. Specifically: Clipboard"*.
+
+**And the tree is more lenient than the dialect.** Its reading path drops
+the prefix before it looks the name up, so it answers to `IsAdmin` as well
+as to `A_IsAdmin`, and to `Clipboard` as well as to `A_Clipboard`. The
+dialect answers to the prefixed name and warns about the other one. A
+script of the v2 that uses the spelling of the dialect works on both; a
+script that uses the other spelling gets an empty value and a warning on
+the dialect, and a value on the tree. For the table of the v1 this
+matters: the names of the surface are the **spelled** ones, `A_Clipboard`
+and not `Clipboard`.
 
 ### 1.3 The surface: what is measured, and how
 
