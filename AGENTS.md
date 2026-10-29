@@ -2781,3 +2781,46 @@ that refuses it is in one place: `the_body_begins_on_the_next_line`.
 
 Twenty-five of the twenty-five cases of the blocks are the same in the
 tree and in the dialect.
+
+## 55. An operator that wants a number may not follow a literal text
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree took `"a" + 0`
+and refused it at the run, and v2 refuses it at the load.
+
+- **The operator that wants a number may not follow a literal text.** The
+  addition, the subtraction, the multiplication, the power and the bitwise
+  and: "Unexpected operator following literal string.\n     Specifically: +
+  0".
+- **The text that is named is the operator and the rest of the expression
+  that holds it.** The expression is the one of the statement, and the
+  group is not the end of it: `x := ("a" + 0) + 1` names "+ 0) + 1". The
+  call names the parenthesis that closes it: `f("a" + 0, 1)` names "+ 0,
+  1)".
+- **The command of v2 is a call whose parentheses are not written.** The
+  text that is named carries the one that closes it: `StrLen "a" + 1` names
+  "+ 1)".
+- **The concatenation of two literal texts is a literal text**, and the
+  concatenation of a text and a number is not: `x := "a" "b" + 0` is
+  refused and `x := "a" 1 + 0` is not.
+- **A group is not a literal text.** The value of `("a")` is not a
+  constant, and v2 refuses it at the run: "Expected a Number but got a
+  String."
+- **The comparison and the concatenation take anything.** The pipe, the
+  xor and the shifts are refused at the run.
+- **The division and the integer division after a literal text hang the
+  binary of v2.** The measurement cannot see them, and the tree refuses
+  the value at the run, with the reason that a number is wanted.
+
+The error waits for the expression that holds it: the parser keeps the
+operator and names it when the expression of the statement is done. The
+error that comes first is the one that wins, and a bracket that is not
+closed is named before the operator: "Missing \")\"\n     Specifically: x
+:= (\"a\" + 0".
+
+Thirty-nine of the forty-five cases of the operator are the same in the
+tree and in the dialect. The six that are not are the parenthesis that is
+spaced (the tree reads `MsgBox ("a" + 1)` as a call and v2 reads it as a
+command), the property name of an object literal that is quoted (the tree
+refuses it), the return that carries a value outside a function (v2
+refuses it in its own words), and three cases where the dialect opens a
+dialog and the measurement cannot see what it says.

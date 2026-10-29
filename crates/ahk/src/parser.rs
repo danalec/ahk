@@ -377,6 +377,32 @@ pub struct Parser {
     ///
     /// The `super` of v2 is only valid inside a class.
     in_class: bool,
+    /// The operator that may not follow a literal text.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the error is named
+    /// when the expression that holds the operator is done, and the text it
+    /// names is the operator and the rest of that expression.
+    pending_literal: Option<PendingLiteral>,
+    /// The expressions that may hold that operator.
+    ///
+    /// The expression that holds it is the one of the statement, and that
+    /// one is the one that names the error.
+    expressions: Vec<usize>,
+}
+
+/// The operator that may not follow a literal text.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the error that names
+/// it is named when the expression that holds it is done, and the text that
+/// it names is the operator and the rest of that expression. The line it
+/// names is the line of that expression.
+struct PendingLiteral {
+    /// The place of the operator in the tokens of the parser.
+    at: usize,
+    /// The line of the expression that holds the operator.
+    line: u32,
+    /// The column of the expression that holds the operator.
+    column: u32,
 }
 
 impl Parser {
@@ -389,6 +415,8 @@ impl Parser {
             pending: Vec::new(),
             parameters: Vec::new(),
             in_class: false,
+            pending_literal: None,
+            expressions: Vec::new(),
         }
     }
 
@@ -481,6 +509,74 @@ impl Parser {
     fn error(&self, message: impl Into<String>) -> SyntaxError {
         let token = self.peek();
         SyntaxError { message: message.into(), line: token.line, column: token.column }
+    }
+
+    /// The expression of a statement begins.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the error of the
+    /// operator that may not follow a literal text is named when the
+    /// expression that holds the operator is done, and the text it names
+    /// is the operator and the rest of that expression.
+    fn the_expression_begins(&mut self) {
+        self.expressions.push(self.position);
+    }
+
+    /// The expression of a statement is done.
+    ///
+    /// The error is named here, when this expression is the one that holds
+    /// the operator. The command of v2 is a call whose parentheses are not
+    /// written, and the text that names the operator carries the one that
+    /// closes it.
+    fn the_expression_is_done(&mut self, end: usize, closed: bool) -> Result<(), SyntaxError> {
+        let start = self.expressions.pop().unwrap_or(0);
+        let Some(pending) = self.pending_literal.take() else {
+            return Ok(());
+        };
+        if pending.at < start || pending.at >= end {
+            // The operator is not in this expression: it is in another one,
+            // and that one names the error.
+            self.pending_literal = Some(pending);
+            return Ok(());
+        }
+        Err(self.the_literal_error(&pending, end, closed))
+    }
+
+    /// The expression of a statement, with the error that it may carry.
+    fn the_expression_of_a_statement(&mut self) -> Result<Node, SyntaxError> {
+        self.the_expression_begins();
+        let node = self.parse_expression()?;
+        self.the_expression_is_done(self.position, false)?;
+        Ok(node)
+    }
+
+    /// The operator that may not follow a literal text.
+    ///
+    /// The line and the column are the ones of the expression that holds
+    /// the operator: v2 names the expression and not the operator.
+    fn the_pending_literal(&self, at: usize) -> PendingLiteral {
+        let start = self.expressions.last().copied().unwrap_or(at);
+        let token = self.tokens.get(start);
+        PendingLiteral {
+            at,
+            line: token.map(|token| token.line).unwrap_or(0),
+            column: token.map(|token| token.column).unwrap_or(1),
+        }
+    }
+
+    /// The error of the operator that may not follow a literal text.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the text that is
+    /// named is the operator and the rest of the expression that holds it.
+    fn the_literal_error(&self, pending: &PendingLiteral, end: usize, closed: bool) -> SyntaxError {
+        let mut text = the_source_of_the_tokens(self, pending.at, end);
+        if closed {
+            text.push(')');
+        }
+        SyntaxError {
+            message: format!("Unexpected operator following literal string.\n     Specifically: {text}"),
+            line: pending.line,
+            column: pending.column,
+        }
     }
 
     // -- statements ----------------------------------------------------------------
@@ -743,8 +839,13 @@ impl Parser {
             // carry a default, and it may be the one that takes the rest of
             // the arguments.
             if self.a_definition_follows() {
+                // The default of a parameter is an expression, and the
+                // expression that holds the operator of a literal text is
+                // the list of the parameters.
+                self.the_expression_begins();
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
+                self.the_expression_is_done(self.position, false)?;
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
                 let body = self.parse_block("function")?;
                 self.parameters.pop();
@@ -758,8 +859,10 @@ impl Parser {
                     line: name_token.line,
                 }]);
             }
+            self.the_expression_begins();
             let arguments = self.parse_arguments()?;
             self.expect_op(")")?;
+            self.the_expression_is_done(self.position, false)?;
             // Measured on the binary of v2.0.19 on 2026-10-31: the
             // assignment of a call is refused at the load, and the text
             // of it is named.
@@ -777,7 +880,9 @@ impl Parser {
         // value and not a name.
         if self.at_member_dot() || self.at_member_bracket() {
             let target = Node::Var { name: name_token.value.clone(), line: name_token.line };
+            self.the_expression_begins();
             let target = self.parse_suffixes(target, false)?;
+            self.the_expression_is_done(self.position, false)?;
             let operator = self.peek().clone();
             if operator.kind == TokenKind::Op && operator.value == "=" {
                 return Err(self.the_equal_sign_is_not_an_assignment(name_token.line));
@@ -805,7 +910,7 @@ impl Parser {
                     _ => AssignOp::ShiftRightUnsigned,
                 };
                 self.next();
-                let value = self.parse_expression()?;
+                let value = self.the_expression_of_a_statement()?;
                 self.end_of_statement()?;
                 return Ok(vec![match target {
                     Node::Property { target, name, .. } => Node::AssignProperty {
@@ -912,6 +1017,7 @@ impl Parser {
         if crate::builtins::find(&name).is_none() {
             self.pending.push((name.clone(), name_token.line, name_token.column));
         }
+        self.the_expression_begins();
         let mut arguments = Vec::new();
         if !self.at_end_of_statement() {
             loop {
@@ -929,6 +1035,9 @@ impl Parser {
                 break;
             }
         }
+        // The command of v2 is a call whose parentheses are not written, and
+        // the text that names the operator carries the one that closes it.
+        self.the_expression_is_done(self.position, true)?;
         self.end_of_statement()?;
         // The button of a `Click` may be written without quotes.
         if name == "click" {
@@ -968,7 +1077,7 @@ impl Parser {
             }
         };
         self.next();
-        let value = self.parse_expression()?;
+        let value = self.the_expression_of_a_statement()?;
         self.end_of_statement()?;
         Ok(Node::Assign { name: name_token.value, op, value: Box::new(value), line: name_token.line })
     }
@@ -1158,7 +1267,7 @@ impl Parser {
     fn parse_if(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
         let mut branches = Vec::new();
-        let condition = self.parse_expression()?;
+        let condition = self.the_expression_of_a_statement()?;
         self.end_of_block()?;
         let body = self.parse_block("If")?;
         branches.push(Branch { condition, body });
@@ -1167,7 +1276,7 @@ impl Parser {
             self.skip_newlines();
             if self.at_keyword(&["elseif"]) {
                 self.next();
-                let condition = self.parse_expression()?;
+                let condition = self.the_expression_of_a_statement()?;
                 self.end_of_block()?;
                 let body = self.parse_block("elseif")?;
                 branches.push(Branch { condition, body });
@@ -1185,7 +1294,7 @@ impl Parser {
 
     fn parse_switch(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
-        let subject = self.parse_expression()?;
+        let subject = self.the_expression_of_a_statement()?;
         self.end_of_block()?;
         self.skip_newlines();
         let open = self.expect_op("{")?;
@@ -1202,7 +1311,7 @@ impl Parser {
             }
             if self.at_keyword(&["case"]) {
                 self.next();
-                let value = self.parse_expression()?;
+                let value = self.the_expression_of_a_statement()?;
                 let body = self.parse_case_body()?;
                 cases.push(Case { value: Some(value), body });
                 continue;
@@ -1266,7 +1375,7 @@ impl Parser {
         let value = if self.at_end_of_statement() {
             None
         } else {
-            Some(Box::new(self.parse_expression()?))
+            Some(Box::new(self.the_expression_of_a_statement()?))
         };
         self.end_of_statement()?;
         Ok(Node::Return { value, line: token.line })
@@ -1277,7 +1386,7 @@ impl Parser {
         let code = if self.at_end_of_statement() {
             None
         } else {
-            Some(Box::new(self.parse_expression()?))
+            Some(Box::new(self.the_expression_of_a_statement()?))
         };
         self.end_of_statement()?;
         Ok(Node::ExitApp { code, line: token.line })
@@ -1391,7 +1500,7 @@ impl Parser {
             let value = if self.at_op(&[":="]) {
                 self.next();
                 let start = self.position;
-                let value = self.parse_expression()?;
+                let value = self.the_expression_of_a_statement()?;
                 text.push_str(" := ");
                 text.push_str(&the_text_of_the_tokens(self, start, self.position));
                 Some(Box::new(value))
@@ -1425,7 +1534,7 @@ impl Parser {
         let value = if self.at_end_of_statement() {
             None
         } else {
-            Some(Box::new(self.parse_expression()?))
+            Some(Box::new(self.the_expression_of_a_statement()?))
         };
         self.end_of_statement()?;
         Ok(Node::Throw { value, line: token.line })
@@ -1433,7 +1542,7 @@ impl Parser {
 
     fn parse_while(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
-        let condition = self.parse_expression()?;
+        let condition = self.the_expression_of_a_statement()?;
         self.end_of_block()?;
         let body = self.parse_block("While")?;
         Ok(Node::While { condition: Box::new(condition), body, line: token.line })
@@ -1570,7 +1679,7 @@ impl Parser {
                     column: operator.column,
                 });
             }
-            let value = self.parse_expression()?;
+            let value = self.the_expression_of_a_statement()?;
             properties.push(PropertyDef {
                 name: name_token.value,
                 value: Some(Box::new(value)),
@@ -1608,6 +1717,7 @@ impl Parser {
             "parse" if self.peek().kind == TokenKind::Name => LoopKind::Parse,
             _ => LoopKind::Count,
         };
+        self.the_expression_begins();
         let mut arguments = Vec::new();
         if kind == LoopKind::Count {
             if !self.at_op(&["::", "{"]) {
@@ -1631,6 +1741,7 @@ impl Parser {
                 }
             }
         }
+        self.the_expression_is_done(self.position, false)?;
         self.end_of_block()?;
         let body = self.parse_block("Loop")?;
         Ok(Node::Loop { mode: kind, arguments, body, line: token.line })
@@ -1655,10 +1766,12 @@ impl Parser {
             return Err(self.error("expected `in` in the For loop"));
         }
         self.next();
+        self.the_expression_begins();
         let source = self.parse_expression()?;
         if parenthesised {
             self.expect_op(")")?;
         }
+        self.the_expression_is_done(self.position, false)?;
         self.end_of_block()?;
         let body = self.parse_block("For")?;
         Ok(Node::For { variables, source: Box::new(source), body, line: token.line })
@@ -1747,6 +1860,30 @@ impl Parser {
                 return Ok(left);
             }
             let token = self.next();
+            // Measured on the binary of v2.0.19 on 2026-10-31: an operator
+            // that wants a number may not follow a literal text. The error
+            // is named when the expression that holds the operator is done,
+            // so it waits here.
+            // The group of v2 is not a literal: `("a") + 0` is a value
+            // that is not a constant string, and v2 refuses it at the run.
+            let closed = self
+                .tokens
+                .get(self.position.saturating_sub(2))
+                .map(|token| token.value == ")")
+                .unwrap_or(false);
+            if self.pending_literal.is_none()
+                && !closed
+                && the_literal_is_a_text(&left)
+                && the_operator_wants_a_number(op)
+            {
+                self.pending_literal = Some(self.the_pending_literal(self.position - 1));
+            }
+            // The value that should follow the operator is not there, and
+            // v2 names the operator anyway.
+            if self.pending_literal.is_some() && !self.starts_expression() {
+                let pending = self.pending_literal.take().expect("the operator");
+                return Err(self.the_literal_error(&pending, self.position, false));
+            }
             let next = if right_associative { prec } else { prec + 1 };
             let right = self.parse_binary(next)?;
             left = Node::Binary { op, left: Box::new(left), right: Box::new(right), line: token.line };
@@ -2227,7 +2364,7 @@ impl Parser {
                 "\"Super\" is valid only inside a class. Specifically: super()",
             ));
         }
-        let node = self.parse_expression()?;
+        let node = self.the_expression_of_a_statement()?;
         self.end_of_statement()?;
         Ok(vec![node])
     }
@@ -2239,6 +2376,34 @@ impl Parser {
         self.expect_op(")")?;
         Ok(Node::Call { name, arguments, line })
     }
+}
+
+/// Whether the value is a text that was written as a literal.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the operator that
+/// wants a number may not follow a literal text, and a variable that holds
+/// one is not a literal. The concatenation of two literal texts is a
+/// literal text, and the concatenation of a text and a number is not.
+fn the_literal_is_a_text(node: &Node) -> bool {
+    match node {
+        Node::Literal { value: LiteralValue::Text(_), .. } => true,
+        Node::Binary { op: BinaryOp::Concat, left, right, .. } => {
+            the_literal_is_a_text(left) && the_literal_is_a_text(right)
+        }
+        _ => false,
+    }
+}
+
+/// Whether the operator wants a number.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the addition, the
+/// subtraction, the multiplication, the power and the bitwise and. The
+/// comparison and the concatenation take anything.
+fn the_operator_wants_a_number(op: BinaryOp) -> bool {
+    matches!(
+        op,
+        BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply | BinaryOp::Power | BinaryOp::BitwiseAnd
+    )
 }
 
 /// The button of a click, a mouse down or a mouse up.

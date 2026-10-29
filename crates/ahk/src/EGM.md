@@ -227,6 +227,13 @@ name.\n     Specifically: f(a, b,) {". A bracket that is not closed is named
 the same way, and a token that is not wanted is named too: "Unexpected
 \")\"\n     Specifically: x := 1 )".
 
+An operator that wants a number may not follow a literal text, and the
+refusal is at the load: "Unexpected operator following literal string.\n
+Specifically: + 0". The text that is named is the operator and the rest of
+the expression that holds it -- the one of the statement -- and the parser
+waits for that expression to name it. A group is not a literal text, and
+the concatenation of two literal texts is one.
+
 ### The runtime (`runtime.rs`)
 
 The interpreter and everything it reports:

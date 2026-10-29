@@ -3085,6 +3085,64 @@ fn the_assignment_of_a_call_is_refused() {
 }
 
 #[test]
+fn the_operator_that_wants_a_number_may_not_follow_a_literal_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the script does not
+    // load, and the text that is named is the operator and the rest of the
+    // expression that holds it.
+    let error = parse("x := \"a\" + 0").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected operator following literal string.\n     Specifically: + 0"
+    );
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn the_text_that_is_named_is_the_operator_and_the_rest_of_the_expression() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the expression that
+    // holds the operator is the one of the statement, and the group is not
+    // the end of it.
+    let error = parse("x := (\"a\" + 0) + 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected operator following literal string.\n     Specifically: + 0) + 1"
+    );
+}
+
+#[test]
+fn the_command_of_v2_carries_the_parenthesis_that_closes_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the command is a call
+    // whose parentheses are not written, and the text that is named carries
+    // the one that closes it.
+    let error = parse("StrLen \"a\" + 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected operator following literal string.\n     Specifically: + 1)"
+    );
+}
+
+#[test]
+fn the_concatenation_of_two_literal_texts_is_a_literal_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the concatenation of
+    // two literal texts is a literal text, and the concatenation of a text
+    // and a number is not.
+    let error = parse("x := \"a\" \"b\" + 0").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected operator following literal string.\n     Specifically: + 0"
+    );
+}
+
+#[test]
+fn a_group_is_not_a_literal_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value of a group
+    // is not a constant, and v2 refuses it at the run and not at the load.
+    let (report, _desktop) = run("x := (\"a\") + 0");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a Number but got a String."));
+}
+
+#[test]
 fn every_object_has_the_property_of_the_class_of_it() {
     let (report, _desktop) = run(
         "m := Map()\nMsgBox m.HasProp(\"__Class\") \" \" m.HasOwnProp(\"__Class\")",
