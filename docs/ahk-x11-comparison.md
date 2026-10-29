@@ -1,68 +1,68 @@
-# AHK_X11 × AHK — o que o AHK_X11 já fez, o que o nosso tree já faz, e o que falta
+# AHK_X11 × AHK — what the AHK_X11 already does, what our tree already does, and what is missing
 
-> Documento de comparação e de sugestões.
+> A document of comparison and of suggestions.
 >
-> - **AHK_X11** — <https://phil294.github.io/AHK_X11/> e
->   <https://github.com/phil294/AHK_X11>. Reimplementação do AutoHotkey para
->   Linux, escrita em Crystal, por Philip Waritschlager, **GPL-2.0**.
-> - **AHK (este repositório)** — o AutoHotkey **v2.0.19** em Rust, em três
+> - **AHK_X11** — <https://phil294.github.io/AHK_X11/> and
+>   <https://github.com/phil294/AHK_X11>. A reimplementation of AutoHotkey for
+>   Linux, written in Crystal, by Philip Waritschlager, **GPL-2.0**.
+> - **AHK (this repository)** — AutoHotkey **v2.0.19** in Rust, in three
 >   crates (`ahk`, `ahk-box`, `ahk-cli`), **Apache 2.0**.
 >
-> As fontes de cada afirmação estão no fim do documento. O que é **medido** na
-> caixa (192.168.0.40) está marcado com a data; o que é **lido** de código
-> alheio está marcado como tal; o que é **inferido** está marcado como
-> inferência.
+> The sources of every claim are at the end of the document. What is
+> **measured** on the box (192.168.0.40) is marked with the date; what is
+> **read** from foreign code is marked as such; what is **inferred** is marked
+> as an inference.
 
 ---
 
-## 0. Como ler este documento
+## 0. How to read this document
 
-O AHK_X11 e o nosso tree não são a mesma coisa, e a comparação só faz sentido
-depois de dizer **o que cada um é**:
+The AHK_X11 and our tree are not the same thing, and the comparison only makes
+sense after saying **what each one is**:
 
-| | AHK_X11 | AHK (nosso) |
+| | AHK_X11 | AHK (ours) |
 |---|---|---|
-| Objectivo | Trazer o AutoHotkey **v1.0.24** (2004) para Linux/X11 | Trazer o AutoHotkey **v2.0.19** (2024) para Linux/Wayland, com portabilidade |
-| Dialeto | **Legacy v1**: `x = 1`, `MsgBox, texto`, `%var%`, pseudo-arrays | **v2.0.19**: `x := 1`, `MsgBox texto`, classes, objetos, métodos, `&` |
-| Linguagem | Crystal 1.5.1 (binário único) | Rust (3 crates, núcleo `no_std`) |
-| Superfície | 226 comandos de v1 — 127 feitos (56%), 15 novos, 11 removidos, 70 por fazer | 725 entradas da superfície de v2.0.19 — **93 built-ins com implementação real**, 253 com recusa motivada |
-| Janelas | X11 completo (xdotool fork): activação, mover, dimensionar, minimizar, fechar | Wayland: **recusa motivada** — o compositor não expõe lista de janelas |
-| Injecção | XTEST (via `x_do`) | **uinput** (teclado e ponteiro próprios) + `grim` para o ecrã |
-| GUI | GTK3 (Janelas, `MsgBox`, `InputBox`, `Menu`, `ToolTip`, `TrayTip`) | `Gui`/`Menu`/`Hotkey` **recusados** com a razão |
-| Classes | Nenhuma (v1 não tem) | `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`, `Hotkey`, `Object` |
-| Concorrência | Threads cooperativas, interrompíveis (`src/run/thread.cr`) | Um script, um fio; guard rails em vez de interrupção |
-| Licença | GPL-2.0 | Apache 2.0 |
+| Goal | Bring AutoHotkey **v1.0.24** (2004) to Linux/X11 | Bring AutoHotkey **v2.0.19** (2024) to Linux/Wayland, with portability |
+| Dialect | **Legacy v1**: `x = 1`, `MsgBox, texto`, `%var%`, pseudo-arrays | **v2.0.19**: `x := 1`, `MsgBox texto`, classes, objects, methods, `&` |
+| Language | Crystal 1.5.1 (single binary) | Rust (3 crates, `no_std` core) |
+| Surface | 226 v1 commands — 127 done (56%), 15 new, 11 removed, 70 to do | 725 entries of the surface of v2.0.19 — **93 built-ins with a real implementation**, 253 with a motivated refusal |
+| Windows | Full X11 (xdotool fork): activation, moving, resizing, minimizing, closing | Wayland: **motivated refusal** — the compositor does not expose a list of windows |
+| Injection | XTEST (through `x_do`) | **uinput** (our own keyboard and pointer) + `grim` for the screen |
+| GUI | GTK3 (windows, `MsgBox`, `InputBox`, `Menu`, `ToolTip`, `TrayTip`) | `Gui`/`Menu`/`Hotkey` **refused** with the reason |
+| Classes | None (v1 has none) | `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`, `Hotkey`, `Object` |
+| Concurrency | Cooperative, interruptible threads (`src/run/thread.cr`) | One script, one thread; guard rails instead of interruption |
+| License | GPL-2.0 | Apache 2.0 |
 
-**A conclusão de uma linha**: o AHK_X11 é *antigo no dialecto e completo no
-ecrã*; nós somos *novos no dialecto e incompletos no ecrã*. As sugestões da
-seção 5 exploitam exactamente essa divisão.
+**The conclusion in one line**: the AHK_X11 is *old in the dialect and complete
+on the screen*; we are *new in the dialect and incomplete on the screen*. The
+suggestions of section 5 exploit exactly that division.
 
 ---
 
-## 1. O AHK_X11 em uma página
+## 1. The AHK_X11 on one page
 
-### 1.1 Ficha técnica
+### 1.1 Technical sheet
 
-- **Repositório**: <https://github.com/phil294/AHK_X11> — branch `master`,
-  Crystal 1.5.1, `shard.yml` na versão **1.0.7**. A documentação descreve o
-  dialecto do AutoHotkey **v1.0.24**, que é o que ele implementa.
-- **Autoria**: Philip Waritschlager, GPL-2.0. A documentação original do
-  AutoHotkey é de Chris Mallett (AutoIt).
-- **Dependências** (todas Crystal, nenhuma de runtime externo para o núcleo):
-  `x11` (fork `phil294/x11-cr`), `xtst` (extensão XTEST), `x_do` (fork do
-  xdotool), `gtk3`, `atspi` (acessibilidade), `notify` (notificações), `tasker`
-  (linha de comandos).
-- **Empacotamento**: binário único; `ahk_x11.AppImage`; `shard` publica o
-  pacote AUR (`ahk_x11`, `ahk_x11-bin`, `ahk_x11-git`); instalador gráfico;
-  ficheiros `.desktop` e `mime.xml` para associar `.ahk`; compilador para
-  executável standalone (`--compile`).
-- **Modos de execução**: `ahk_x11 script.ahk`, `ahk_x11 < script.ahk` (stdin),
-  `--repl` (consola interativa), `--compile`, `--windowspy`, shebang
-  (`#!/caminho/ahk_x11`), e `DISPLAY=` para correr *headless* (sem GUI).
-- **Requisito duro**: **X11**. Wayland não é suportado (issue #2 do
-  projecto). Ubuntu 22.04+ e Wayland por omissão são o caso difícil.
+- **Repository**: <https://github.com/phil294/AHK_X11> — branch `master`,
+  Crystal 1.5.1, `shard.yml` at version **1.0.7**. The documentation describes
+  the dialect of AutoHotkey **v1.0.24**, which is what it implements.
+- **Authorship**: Philip Waritschlager, GPL-2.0. The original AutoHotkey
+  documentation is by Chris Mallett (AutoIt).
+- **Dependencies** (all Crystal, no external runtime for the core): `x11`
+  (fork `phil294/x11-cr`), `xtst` (the XTEST extension), `x_do` (fork of
+  xdotool), `gtk3`, `atspi` (accessibility), `notify` (notifications),
+  `tasker` (command line).
+- **Packaging**: single binary; `ahk_x11.AppImage`; `shard` publishes the AUR
+  package (`ahk_x11`, `ahk_x11-bin`, `ahk_x11-git`); graphical installer;
+  `.desktop` files and `mime.xml` to associate `.ahk`; compiler to a standalone
+  executable (`--compile`).
+- **Execution modes**: `ahk_x11 script.ahk`, `ahk_x11 < script.ahk` (stdin),
+  `--repl` (interactive console), `--compile`, `--windowspy`, shebang
+  (`#!/caminho/ahk_x11`), and `DISPLAY=` to run *headless* (no GUI).
+- **Hard requirement**: **X11**. Wayland is not supported (issue #2 of the
+  project). Ubuntu 22.04+ and Wayland by default are the hard case.
 
-### 1.2 Números oficiais (README do projecto)
+### 1.2 Official numbers (the README of the project)
 
 ```
 DONE      56% (127/226)
@@ -71,239 +71,243 @@ REMOVED   5%  (11/226)
 TO DO     31% (70/226)
 ```
 
-O README diz também: *"Currently about 80% of work of getting there is done"*,
-com o objectivo declarado de 80% de paridade funcional.
+The README also says: *"Currently about 80% of work of getting there is done"*,
+with the declared goal of 80% of functional parity.
 
-### 1.3 O que ele é, e o que ele não é
+### 1.3 What it is, and what it is not
 
-É uma **reimplementação do AHK v1.0.24**, completa o suficiente para correr
-scripts reais, mas sem as invenções modernas do AHK:
+It is a **reimplementation of AHK v1.0.24**, complete enough to run real
+scripts, but without the modern inventions of AHK:
 
-- **Sem expressões** — só a sintaxe legacy (`x = %y%`, `MsgBox, texto`).
-- **Sem classes nem objectos** — `class MyClass {}` não existe; só variáveis.
-- **Sem arrays de verdade** — pseudo-arrays com `StringSplit` +
-  `StringTrimLeft`, exactamente como a documentação original fazia.
-- **Sem functions** — `Gosub` e etiquetas; `#DefineCommand` é o substituto
-  improvisado.
-- **`#NoEnv` é o default** — o ambiente não é injectado nas variáveis.
-- **Todos os argumentos são avaliados em runtime**, mesmo os estáticos.
+- **No expressions** — only the legacy syntax (`x = %y%`, `MsgBox, texto`).
+- **No classes nor objects** — `class MyClass {}` does not exist; only
+  variables.
+- **No real arrays** — pseudo-arrays with `StringSplit` + `StringTrimLeft`,
+  exactly as the original documentation did.
+- **No functions** — `Gosub` and labels; `#DefineCommand` is the improvised
+  substitute.
+- **`#NoEnv` is the default** — the environment is not injected into the
+  variables.
+- **All the arguments are evaluated at runtime**, even the static ones.
 
-Isto é, em si mesmo, a **maior lição** do AHK_X11 para nós: ele prova que a
-parte difícil de um AHK para Linux não é a linguagem, é o **ecrã**. E prova
-também o **custo** de ficar preso a um dialecto morto: metade do esforço
-gasto em compatibilidade v1 é esforço que a v2 resolve de outra maneira.
+That is, in itself, the **biggest lesson** the AHK_X11 has for us: it proves
+that the hard part of an AHK for Linux is not the language, it is the
+**screen**. And it proves the **cost** of being stuck to a dead dialect: half
+of the effort spent on v1 compatibility is effort that v2 solves another way.
 
 ---
 
-## 2. As implementações do AHK_X11, por área
+## 2. The implementations of the AHK_X11, by area
 
-Esta é a lista completa do que o projecto faz, lida do código e da
-documentação. Cada linha diz **o mecanismo** (como ele faz) porque é isso
-que interessa quando se decide o que portar.
+This is the complete list of what the project does, read from the code and the
+documentation. Each line says **the mechanism** (how it does it), because that
+is what matters when one decides what to port.
 
-### 2.1 O runtime
+### 2.1 The runtime
 
-- Binário Crystal único; execução por script, por stdin, por REPL, ou
-  compilado para executável standalone.
-- Parser próprio (`src/build/parser.cr`) e *linker* (`src/build/linker.cr`)
-  que embute o script num executável novo.
-- `src/run/runner.cr` (~15 KB) coordena: **display**, **threads**, **definições**
-  do runner (a "last found window", `detect_hidden_windows`, o pid do som).
-- `src/run/display/` tem **adaptadores** (`display-adapter.cr`) com uma
-  interface abstracta de 6 métodos: `run`, `grab_hotkey`, `ungrab_hotkey`,
-  `block_input`, `unblock_input`. As implementações são `x11.cr` (18 KB) e
-  `gtk.cr` (17 KB).
-- `src/cmd/` tem um comando por ficheiro, ~120 ficheiros, agrupados por
-  família (`control-flow`, `file`, `gtk`, `math`, `misc`, `string`, `unix`,
-  `x11`).
+- Single Crystal binary; execution by script, by stdin, by REPL, or compiled
+  to a standalone executable.
+- Own parser (`src/build/parser.cr`) and *linker* (`src/build/linker.cr`) that
+  embeds the script in a new executable.
+- `src/run/runner.cr` (~15 KB) coordinates: **display**, **threads**, the
+  **settings** of the runner (the "last found window", `detect_hidden_windows`,
+  the pid of the sound).
+- `src/run/display/` has **adapters** (`display-adapter.cr`) with an abstract
+  interface of 6 methods: `run`, `grab_hotkey`, `ungrab_hotkey`, `block_input`,
+  `unblock_input`. The implementations are `x11.cr` (18 KB) and `gtk.cr`
+  (17 KB).
+- `src/cmd/` has one command per file, ~120 files, grouped by family
+  (`control-flow`, `file`, `gtk`, `math`, `misc`, `string`, `unix`, `x11`).
 
-### 2.2 Hotkeys e hotstrings
+### 2.2 Hotkeys and hotstrings
 
-- **Hotkeys** (`src/run/display/hotkey.cr`, 5 KB): `XGrabKey` directo sobre o
-  servidor X, com os modificadores e as opções do AHK v1 (`t` — transparent,
+- **Hotkeys** (`src/run/display/hotkey.cr`, 5 KB): `XGrabKey` straight on the X
+  server, with the modifiers and the options of AHK v1 (`t` — transparent,
   `c` — *context-sensitive*, `p` — *physical*, `i` — *ignore all modifiers*,
   `w` — *wildcard*).
-- **Remap de teclas** — `F1::LButton` funciona; um botão do rato acionado
-  por outro botão não pode ser reenviado (limitação do X11, documentada).
-- **Hotstrings** (`src/run/display/hotstring.cr`, 2 KB): motor de reconhecimento
-  de palavra, com expansões `::btw::By the way`, `:R:` (literal), `:C:` etc.
-- **`BlockInput`** (`src/cmd/x11/block-input.cr`): bloqueia a entrada do
-  utilizador.
-- **`Pause`**, **`Suspend`**, **`Reload`**: o script pode ser pausado,
-  suspenso ou recarregado.
-- **Teclas capturadas**: `src/run/display/pressed-keys.cr`.
+- **Key remapping** — `F1::LButton` works; a mouse button triggered by another
+  button cannot be sent again (a limitation of X11, documented).
+- **Hotstrings** (`src/run/display/hotstring.cr`, 2 KB): a word recognition
+  engine, with expansions `::btw::By the way`, `:R:` (literal), `:C:` etc.
+- **`BlockInput`** (`src/cmd/x11/block-input.cr`): blocks the input of the
+  user.
+- **`Pause`**, **`Suspend`**, **`Reload`**: the script can be paused,
+  suspended or reloaded.
+- **Captured keys**: `src/run/display/pressed-keys.cr`.
 
-### 2.3 Envio de teclas
+### 2.3 Sending keys
 
-- **`Send`** (`src/cmd/x11/keyboard/send.cr`, 4,8 KB) e **`SendRaw`**: injectam
-  por **XTEST**, com o parser de chaves do AHK (`{Ctrl}`, `{F1}`, `{Blind}`…).
-- **`Send` é limitado pelo layout**: `§` não sai; a nota do README é usar
-  `SendRaw`.
-- **`Input`** (`src/cmd/x11/keyboard/input.cr`, 3 KB): lê o que o utilizador
-  escreve, com `EndKeys` e `MatchList`.
+- **`Send`** (`src/cmd/x11/keyboard/send.cr`, 4,8 KB) and **`SendRaw`**: inject
+  through **XTEST**, with the key parser of AHK (`{Ctrl}`, `{F1}`, `{Blind}`…).
+- **`Send` is limited by the layout**: `§` does not come out; the note of the
+  README is to use `SendRaw`.
+- **`Input`** (`src/cmd/x11/keyboard/input.cr`, 3 KB): reads what the user
+  types, with `EndKeys` and `MatchList`.
 - **`KeyWait`**, **`GetKeyState`**, **`SetKeyDelay`**.
 
-### 2.4 Rato
+### 2.4 Mouse
 
 - **`MouseMove`, `MouseClick`, `MouseClickDrag`, `MouseGetPos`,
-  `SetMouseDelay`** (`src/cmd/x11/mouse/`), por XTEST.
-- **`ControlClick`** (`src/cmd/x11/mouse/control-click.cr`): clique num
-  controlo, via posição + AT-SPI.
-- **`Click`** é um comando *novo* (v2-like) que o projecto acrescenta.
+  `SetMouseDelay`** (`src/cmd/x11/mouse/`), through XTEST.
+- **`ControlClick`** (`src/cmd/x11/mouse/control-click.cr`): a click on a
+  control, through position + AT-SPI.
+- **`Click`** is a *new* command (v2-like) that the project adds.
 
-### 2.5 Janelas
+### 2.5 Windows
 
-Este é o subsystema mais completo do AHK_X11, e vale a pena ler
-`src/cmd/x11/window/win-util.cr` (4,5 KB) com atenção:
+This is the most complete subsystem of the AHK_X11, and it is worth reading
+`src/cmd/x11/window/win-util.cr` (4,5 KB) with attention:
 
-- **Busca de janelas** pelo `x_do` (fork do xdotool): por nome (regex), por
-  classe (`ahk_class`), por `ahk_id`, pelo desktop actual, e só as visíveis
-  quando `DetectHiddenWindows` está off.
-- **`WinText` / `ExcludeText`** são resolvidos por **AT-SPI**, não por X11.
-- **Comandos**: `WinActivate`, `WinActivateBottom` (por fazer), `WinClose`,
+- **Window search** through `x_do` (fork of xdotool): by name (regex), by
+  class (`ahk_class`), by `ahk_id`, by the current desktop, and only the
+  visible ones when `DetectHiddenWindows` is off.
+- **`WinText` / `ExcludeText`** are resolved through **AT-SPI**, not through
+  X11.
+- **Commands**: `WinActivate`, `WinActivateBottom` (to do), `WinClose`,
   `WinGet` (`id`, `pid`, `processname`, `controllist`, `count`, `list`),
   `WinGetPos`, `WinGetText`, `WinGetTitle`, `WinGetClass`, `WinHide`,
   `WinKill`, `WinMaximize`, `WinMinimize`, `WinMinimizeAll`/`Undo`,
   `WinMove`, `WinRestore`, `WinSet`, `WinSetTitle`, `WinShow`, `WinWait`,
   `WinWaitActive`, `WinWaitClose`, `WinWaitNotActive`.
 - **`IfWinExist` / `IfWinNotExist` / `IfWinActive` / `IfWinNotActive`**.
-- **A "last found window"** — conceito do v1 que o v2 abandonou.
+- **The "last found window"** — a v1 concept that v2 abandoned.
 
-### 2.6 Controlos — a camada de acessibilidade
+### 2.6 Controls — the accessibility layer
 
-O ficheiro `src/run/display/at-spi.cr` tem **20 KB** e é o mais substancial
-fora do núcleo X11. Ele implementa:
+The file `src/run/display/at-spi.cr` has **20 KB** and is the most substantial
+one outside the X11 core. It implements:
 
 - **`ControlGetText`**, **`ControlSetText`**, **`ControlGetPos`**
   (`src/cmd/x11/control/`), **`ControlSend` / `ControlSendRaw`**.
-- Leitura do texto de uma janela inteira, para o `WinGetText` e para o
+- Reading the text of a whole window, for the `WinGetText` and for the
   `WinText`.
-- **`ControlClick`** (posição + AT-SPI).
+- **`ControlClick`** (position + AT-SPI).
 
-**Esta é a peça mais valiosa do AHK_X11 para nós** — ver a seção 5.4. O
-AT-SPI é um protocolo **D-Bus**, não um protocolo X11: funciona em Wayland.
+**This is the most valuable piece of the AHK_X11 for us** — see section 5.4.
+The AT-SPI is a **D-Bus** protocol, not an X11 protocol: it works on Wayland.
 
-### 2.7 Ecrã
+### 2.7 Screen
 
-- **`PixelGetColor`** (`src/cmd/misc/pixel-get-color.cr`) e
-  **`PixelSearch`** (`src/cmd/misc/pixel-search.cr`): leem a imagem do ecrã por
-  `XGetImage` e procuram a cor.
-- **`CoordMode`**: `Screen` ou `Relative` para rato, pixel e tooltip.
-- **`Screenshot`** não existe (é nome do v2 — nós temos, e é a única
-  invenção do nosso dialeto; ver AGENTS.md §14).
+- **`PixelGetColor`** (`src/cmd/misc/pixel-get-color.cr`) and
+  **`PixelSearch`** (`src/cmd/misc/pixel-search.cr`): read the image of the
+  screen through `XGetImage` and look for the color.
+- **`CoordMode`**: `Screen` or `Relative` for mouse, pixel and tooltip.
+- **`Screenshot`** does not exist (it is a v2 name — we have it, and it is the
+  only invention of our dialect; see AGENTS.md §14).
 
-### 2.8 GUI e diálogos (GTK3)
+### 2.8 GUI and dialogs (GTK3)
 
-- **`Gui`** completo (`src/cmd/gtk/gui/`, 7,8 KB só no `gui-add.cr`):
-  `Add` com ~30 tipos de controlo (`Text`, `Edit`, `Button`, `ComboBox`,
+- **`Gui`** complete (`src/cmd/gtk/gui/`, 7,8 KB in `gui-add.cr` alone):
+  `Add` with ~30 control types (`Text`, `Edit`, `Button`, `ComboBox`,
   `ListView`, `TreeView`, `Tab`, `Picture`, `Progress`, `Slider`, `DateTime`,
   `MonthCal`, `GroupBox`, `Link`, `Hotkey`, `DDL`, `UpDown`…), `Show`, `Hide`,
   `Submit`, `Cancel`, `Destroy`, `Color`, `Option`, `Scroll`.
 - **`GuiControl`**: `Add`, `Show`, `Hide`, `Enable`, `Disable`, `Focus`,
   `Choose`, `ChooseString`, `ChooseIndex`.
-- **Diálogos**: **`MsgBox`** (com os botões e os ícones do AHK v1),
+- **Dialogs**: **`MsgBox`** (with the buttons and the icons of AHK v1),
   **`InputBox`**, **`FileSelectFile`**, **`FileSelectFolder`**,
   **`IfMsgBox`**.
-- **`Menu`** (`src/cmd/gtk/menu.cr`): **só o menu da bandeja** — o comando recusa
-  qualquer nome que não seja `TRAY`. Sub-comandos: `Add` (que também cria o
-  ícone), `Icon`, `NoIcon`, `Tip`.
-- **`ToolTip`** (`src/cmd/gtk/tooltip.cr`) e **`TrayTip`**
-  (libnotify).
+- **`Menu`** (`src/cmd/gtk/menu.cr`): **only the tray menu** — the command
+  refuses any name that is not `TRAY`. Sub-commands: `Add` (which also creates
+  the icon), `Icon`, `NoIcon`, `Tip`.
+- **`ToolTip`** (`src/cmd/gtk/tooltip.cr`) and **`TrayTip`** (libnotify).
 
-### 2.9 Ficheiros
+### 2.9 Files
 
 - `FileAppend`, `FileCopy`, `FileCreateDir`, `FileDelete`, `FileGetSize`,
-  `FileRead`, `FileReadLine`, `FileRecycle` (mete no lixo),
+  `FileRead`, `FileReadLine`, `FileRecycle` (puts it in the trash),
   `FileRecycleEmpty`, `FileSetAttrib`, `FileSetTime`, `FileGetAttrib`.
 - `IniRead`, `IniWrite`, `IniDelete`.
 - `SplitPath`, `SetWorkingDir`, `DriveSpaceFree`.
-- `Loop Files` (com `R` recursivo), `Loop Read`, `Loop Parse`.
+- `Loop Files` (with `R` recursive), `Loop Read`, `Loop Parse`.
 
-### 2.10 Som
+### 2.10 Sound
 
-- **`SoundPlay`** (`src/cmd/misc/sound-play.cr`): uma escada de reprodutores,
-  por ordem de preferência — `ffplay` → `cvlc` → `paplay` → `mpg123` →
-  `aplay`. Mata o anterior antes de tocar.
-- **`SoundGet` / `SoundSet`** (`src/cmd/misc/sound-get.cr`): o volume sai de
-  `amixer` (ALSA), não do PulseAudio.
-- **`SoundGetWaveVolume` / `SoundSetWaveVolume`**: por fazer.
+- **`SoundPlay`** (`src/cmd/misc/sound-play.cr`): a ladder of players, in order
+  of preference — `ffplay` → `cvlc` → `paplay` → `mpg123` → `aplay`. Kills the
+  previous one before playing.
+- **`SoundGet` / `SoundSet`** (`src/cmd/misc/sound-get.cr`): the volume comes
+  from `amixer` (ALSA), not from PulseAudio.
+- **`SoundGetWaveVolume` / `SoundSetWaveVolume`**: to do.
 
-### 2.11 Processos e ambiente
+### 2.11 Processes and environment
 
 - **`Run` / `RunWait`** (`src/cmd/misc/run.cr`, 6,8 KB), **`RunAs`**,
   **`Shutdown`**, **`URLDownloadToFile`**, **`Edit`**.
-- **`EnvGet`** (comando *novo* no AHK_X11), **`EnvSet`**, `EnvAdd`, `EnvSub`,
-  `EnvMult`, `EnvDiv`.
+- **`EnvGet`** (a *new* command in the AHK_X11), **`EnvSet`**, `EnvAdd`,
+  `EnvSub`, `EnvMult`, `EnvDiv`.
 
-### 2.12 `DllCall` — a ponte para as librarias do sistema
+### 2.12 `DllCall` — the bridge to the system libraries
 
-`src/cmd/misc/dll-call.cr` (3,6 KB) usa o **FFI do Crystal**:
-`Crystal::Loader` (que é `dlopen`/`dlsym`) e `Crystal::FFI::CallInterface`.
-Tipos: `Int`, `Int64`, `Short`, `Char`, `Float`, `Double`, `Str`, `Ptr`, com
-sufixo `P`/`*` para endereço. O `Str` é lido de volta como texto.
+`src/cmd/misc/dll-call.cr` (3,6 KB) uses the **FFI of Crystal**:
+`Crystal::Loader` (which is `dlopen`/`dlsym`) and `Crystal::FFI::CallInterface`.
+Types: `Int`, `Int64`, `Short`, `Char`, `Float`, `Double`, `Str`, `Ptr`, with
+the `P`/`*` suffix for an address. The `Str` is read back as text.
 
-Limitações declaradas no código: as variáveis do AHK_X11 são **só texto**, e
-cada valor não-`Ptr` é serializado e deserializado — "a lot of conversion
-going on which isn't optimal but necessary due to ahkx11's string-only vars".
+Limitations declared in the code: the variables of the AHK_X11 are **text
+only**, and every non-`Ptr` value is serialized and deserialized — "a lot of
+conversion going on which isn't optimal but necessary due to ahkx11's
+string-only vars".
 
-### 2.13 Sombreamento em binário
+### 2.13 Binary shadowing
 
-Três comandos que o AHK_X11 acrescenta para manipular memória:
+Three commands that the AHK_X11 adds to manipulate memory:
 
-- **`NumGet`** (`src/cmd/misc/num-get.cr`): lê um número de um buffer.
-- **`NumPut`** (`src/cmd/misc/num-put.cr`): escreve um número num buffer.
-- **`VarSetCapacity`** (`src/cmd/misc/var-set-capacity.cr`): dimensiona o
-  buffer de uma variável.
-- A base é `src/util/ahk-bin-var.cr`, que mapeia entre o texto da variável e
-  os bytes.
+- **`NumGet`** (`src/cmd/misc/num-get.cr`): reads a number from a buffer.
+- **`NumPut`** (`src/cmd/misc/num-put.cr`): writes a number into a buffer.
+- **`VarSetCapacity`** (`src/cmd/misc/var-set-capacity.cr`): sizes the buffer
+  of a variable.
+- The base is `src/util/ahk-bin-var.cr`, which maps between the text of the
+  variable and the bytes.
 
-### 2.14 Threads — o modelo v1
+### 2.14 Threads — the v1 model
 
-`src/run/thread.cr` (9,2 KB) implementa as threads **cooperativas** do AHK v1:
+`src/run/thread.cr` (9,2 KB) implements the **cooperative** threads of AHK v1:
 
-- Uma thread nova **interrompe** a corrente; as interrompidas ficam dormentes
-  e são retomadas por ordem inversa.
-- Cada thread tem as suas próprias definições (ErrorLevel, SetKeyDelay).
-- **Prioridades** (`Thread`, `SetTimer` com prioridade): uma thread de
-  prioridade menor não interrompe a corrente.
-- `OnExit` corre sempre, independentemente da prioridade.
+- A new thread **interrupts** the current one; the interrupted ones stay
+  asleep and are resumed in reverse order.
+- Each thread has its own settings (ErrorLevel, SetKeyDelay).
+- **Priorities** (`Thread`, `SetTimer` with a priority): a thread of lesser
+  priority does not interrupt the current one.
+- `OnExit` always runs, whatever the priority.
 
-### 2.15 Empacotamento e ferramentas
+### 2.15 Packaging and tools
 
-- **Compilador** (`src/build/`): script → executável standalone, com o
-  *parser* e o *linker* próprios; o binário gerado tem hotkeys e GUIs.
-- **Window Spy** (`src/window-spy.ahk`): mostra a janela e o controlo sob o
-  rato.
-- **Instalador gráfico** (`src/installer.ahk`, 5,8 KB) + `ahk_x11-compiler.desktop`,
-  `ahk_x11-windowspy.desktop`, `ahk_x11.desktop`, `ahk_x11-mime.xml`.
-- **REPL**: depois do auto-execute, aceita comandos de uma linha; cada linha
-  corre na sua thread.
-- **`Echo`** (`src/cmd/unix/echo.cr`): imprime no stdout — o "modo Unix".
-- **`Eval`** (`src/cmd/misc/eval.cr`): avalia código em runtime.
+- **Compiler** (`src/build/`): script → standalone executable, with its own
+  *parser* and *linker*; the generated binary has hotkeys and GUIs.
+- **Window Spy** (`src/window-spy.ahk`): shows the window and the control
+  under the mouse.
+- **Graphical installer** (`src/installer.ahk`, 5,8 KB) +
+  `ahk_x11-compiler.desktop`, `ahk_x11-windowspy.desktop`, `ahk_x11.desktop`,
+  `ahk_x11-mime.xml`.
+- **REPL**: after the auto-run, it accepts one-line commands; each line runs
+  in its own thread.
+- **`Echo`** (`src/cmd/unix/echo.cr`): prints on stdout — the "Unix mode".
+- **`Eval`** (`src/cmd/misc/eval.cr`): evaluates code at runtime.
 
-### 2.16 Os comandos que o AHK_X11 acrescenta (15)
+### 2.16 The commands that the AHK_X11 adds (15)
 
 `Echo`, `Eval`, `#DefineCommand`, `DllCall`, `NumGet`, `NumPut`,
 `VarSetCapacity`, `FileRead`, `RegExGetPos`, `RegExReplace`, `EnvGet`,
 `Click`, `ahk_x11_print_vars`, `ahk_x11_track_performance_start`,
 `ahk_x11_track_performance_stop`.
 
-### 2.17 O que o AHK_X11 remove (11)
+### 2.17 What the AHK_X11 removes (11)
 
 `EnvUpdate`, `PostMessage`, `RegDelete`, `RegRead`, `RegWrite`, `SendMessage`,
 `#InstallKeybdHook`, `#InstallMouseHook`, `#UseHook`, `Loop (registry)` —
 *"those that simply make no sense in Linux"*.
 
-`AutoTrim` foi posto de parte por uma razão que vale a pena copiar: *"It's
-always Off. It would not differentiate between %a_space% and %some_var%. It's
-possible but needs significant work."*
+`AutoTrim` was set aside for a reason that is worth copying: *"It's always Off.
+It would not differentiate between %a_space% and %some_var%. It's possible but
+needs significant work."*
 
-### 2.18 O que fica por fazer (70)
+### 2.18 What is left to do (70)
 
-As famílias: `Drive*`, `FileCopyDir`/`FileMove`/`FileMoveDir`/`FileRemoveDir`,
+The families: `Drive*`, `FileCopyDir`/`FileMove`/`FileMoveDir`/`FileRemoveDir`,
 `FileGetShortcut`/`FileCreateShortcut`/`FileGetVersion`/`FileInstall`,
 `FileGetTime`/`FileGetAttrib`, `FormatTime`, `SetFormat`, `StringCaseSense`,
-`Process`, `SysGet`, `Thread` (o comando, não o modelo), `SetBatchLines`,
+`Process`, `SysGet`, `Thread` (the command, not the model), `SetBatchLines`,
 `OnExit`, `Progress`/`SplashImage`/`SplashTextOn`, `GuiControlGet`,
 `GroupAdd`/`GroupActivate`/`GroupClose`/`GroupDeactivate`,
 `StatusBarGetText`/`StatusBarWait`, `WinMenuSelectItem`,
@@ -311,48 +315,49 @@ As famílias: `Drive*`, `FileCopyDir`/`FileMove`/`FileMoveDir`/`FileRemoveDir`,
 `DetectHiddenText`, `SetTitleMatchMode`, `SetWinDelay`, `SetControlDelay`,
 `SetDefaultMouseSpeed`, `SetNumScrollCapsLockState`/`SetStoreCapslockMode`,
 `KeyHistory`, `ListHotkeys`/`ListLines`/`ListVars`, `SoundGetWaveVolume`/
-`SoundSetWaveVolume`, `FormatTime`, e as directivas `#CommentFlag`,
+`SoundSetWaveVolume`, `FormatTime`, and the directives `#CommentFlag`,
 `#ErrorStdOut`, `#EscapeChar`, `#HotkeyInterval`, `#HotkeyModifierTimeout`,
 `#MaxHotkeysPerInterval`, `#MaxMem`, `#MaxThreads`, `#MaxThreadsBuffer`,
 `#MaxThreadsPerHotkey`, `#WinActivateForce`.
 
 ---
 
-## 3. O nosso tree, pela mesma lista
+## 3. Our tree, by the same list
 
-### 3.1 A arquitectura
+### 3.1 The architecture
 
 ```
 ahk-cli  (runner)  →  ahk-box (primitivas do Linux)  →  ahk (linguagem)
 ```
 
-- **`ahk`** — lexer, AST, parser, runtime. **Não faz I/O.** Compila sem
-  `std` (`cargo build -p ahk --no-default-features --target thumbv7em-none-eabihf`).
-  A linguagem é **v2.0.19**, lida do binário: 725 entradas de superfície
-  (644 nomes distintos), 11 tabelas de classe, tabela de operadores.
-- **`ahk-box`** — a caixa: teclado uinput, ponteiro uinput, `grim`, `xprop`,
-  `dlopen`, o *raven*, ficheiros.
-- **`ahk-cli`** — o runner: script no stdin, relatório JSON no stdout, ficheiro
-  de pid para a paragem de emergência.
+- **`ahk`** — lexer, AST, parser, runtime. **It does no I/O.** It compiles
+  without `std`
+  (`cargo build -p ahk --no-default-features --target thumbv7em-none-eabihf`).
+  The language is **v2.0.19**, read from the binary: 725 entries of surface
+  (644 distinct names), 11 class tables, operator table.
+- **`ahk-box`** — the box: uinput keyboard, uinput pointer, `grim`, `xprop`,
+  `dlopen`, the *raven*, files.
+- **`ahk-cli`** — the runner: script on stdin, JSON report on stdout, pid file
+  for the emergency stop.
 
-O runtime é entregue a um `Desktop`, que é a soma de **dez** capacidades:
+The runtime is handed a `Desktop`, which is the sum of **ten** capabilities:
 `Keyboard`, `Pointer`, `Screen`, `Windows`, `Processes`, `Files`, `Clipboard`,
-`Timers`, `Hotkeys`, `Native`. Não há implementação por omissão: cada
-implementador escreve as dez.
+`Timers`, `Hotkeys`, `Native`. There is no default implementation: every
+implementor writes the ten.
 
-### 3.2 O que responde com valor, e o que responde com a razão
+### 3.2 What answers with a value, and what answers with the reason
 
-A tabela de built-ins (`crates/ahk/src/builtins.rs`) tem **346 entradas**. A
-medição de hoje:
+The table of built-ins (`crates/ahk/src/builtins.rs`) has **346 entries**. The
+measurement of today:
 
-| Estado | Quantos | O que é |
+| State | How many | What it is |
 |---|---|---|
-| Handler a sério | **93** | O comando trabalha |
-| `not_carried` | **253** | O nome existe e responde **com a razão** |
+| A serious handler | **93** | The command works |
+| `not_carried` | **253** | The name exists and answers **with the reason** |
 
-As cinco razões de `not_carried`:
+The five reasons of `not_carried`:
 
-| Variante | Razão | Nomes típicos |
+| Variant | Reason | Typical names |
 |---|---|---|
 | 0 | *"this is a name of Windows, and this desktop is not Windows."* | `WinMove`, `ControlClick`, `ToolTip`, `SoundPlay`, `MenuSelect` |
 | 1 | *"this runtime has no hotkeys yet."* | `Hotkey`, `Hotstring`, `HotIf`, `HotIfWinActive` |
@@ -360,396 +365,403 @@ As cinco razões de `not_carried`:
 | 3 | *"this runtime is one script that ends when it ends, and it cannot do that."* | `Persistent`, `Reload`, `Suspend`, `Pause`, `OnExit` |
 | 4 | *"this desktop cannot serve that with the files it has."* | `FileCopy`, `FileMove`, `FileGetSize`, `IniRead`, `IniWrite`, `DirCopy` |
 
-Os 93 com implementação real, por família: matemática (`Abs`, `Ceil`,
+The 93 with a real implementation, by family: mathematics (`Abs`, `Ceil`,
 `Floor`, `Round`, `Max`, `Min`, `Mod`, `Sqrt`, `Exp`, `Ln`, `Log`, `Sin`,
-`Cos`, `Tan`, `ASin`, `ACos`, `ATan`, `Random`), texto (`Chr`, `Ord`, `Format`,
+`Cos`, `Tan`, `ASin`, `ACos`, `ATan`, `Random`), text (`Chr`, `Ord`, `Format`,
 `StrLen`, `StrUpper`, `StrLower`, `SubStr`, `StrReplace`, `InStr`, `Trim`,
 `LTrim`, `RTrim`, `StrCompare`, `StrSplit`, `Sort`, `RegExMatch`,
-`RegExReplace`), objectos (`Type`, `IsObject`, `HasProp`, `HasMethod`,
+`RegExReplace`), objects (`Type`, `IsObject`, `HasProp`, `HasMethod`,
 `GetMethod`, `HasBase`, `IsSetRef`, `ObjGetBase`, `ObjSetBase`,
 `ObjOwnProps`, `ObjOwnPropCount`, `ObjHasOwnProp`, `ObjGetCapacity`,
-`ObjSetCapacity`, `ObjAddRef`), ficheiros (`FileAppend`, `FileDelete`,
-`FileExist`, `FileRead`, `DirCreate`, `DirDelete`, `DirExist`), ecrã e rato
-(`PixelGetColor`, `PixelSearch`, `Screenshot`, `Click`, `MouseMove`,
-`MouseGetPos`), janelas (`WinActive`, `WinExist`, `WinGetTitle`), e o resto
+`ObjSetCapacity`, `ObjAddRef`), files (`FileAppend`, `FileDelete`,
+`FileExist`, `FileRead`, `DirCreate`, `DirDelete`, `DirExist`), screen and
+mouse (`PixelGetColor`, `PixelSearch`, `Screenshot`, `Click`, `MouseMove`,
+`MouseGetPos`), windows (`WinActive`, `WinExist`, `WinGetTitle`), and the rest
 (`MsgBox`, `Send`, `KeyWait`, `SendMode`, `SetKeyDelay`, `SetTimer`, `Sleep`,
 `Run`, `RunWait`, `Exit`, `ExitApp`, `EnvGet`, `EnvSet`, `SplitPath`,
 `VarSetStrCapacity`, `DllCall`).
 
-As **131 variáveis** de v2 estão todas carryadas: as 40 que o runtime sabe
+The **131 variables** of v2 are all carried: the 40 that the runtime knows
 (`A_AhkVersion`, `A_Index`, `A_ScreenWidth`, `A_ScreenHeight`, `A_TickCount`,
-`A_PtrSize`, `A_Space`, `A_Tab`, `A_EndChar`, `A_ThisFunc`, …) e as outras
-com a razão.
+`A_PtrSize`, `A_Space`, `A_Tab`, `A_EndChar`, `A_ThisFunc`, …) and the others
+with the reason.
 
-### 3.3 O que a caixa faz no Linux, medido
+### 3.3 What the box does on Linux, measured
 
-| Primitiva | Mecanismo | Medição (2026-10-25 / 27 / 28) |
+| Primitive | Mechanism | Measurement (2026-10-25 / 27 / 28) |
 |---|---|---|
-| Texto e teclas | teclado **uinput** próprio, layout US | `Send "Teste-Ahk 42!"` escreve a string inteira, maiúsculas e pontuação incluído |
-| Modificadores | descem antes da tecla, sobem depois | `ctrl+a` selecciona o texto de um campo GTK e o backspace apaga |
-| Ponteiro | **uinput** absoluto, `INPUT_PROP_DIRECT` | clique em `(830, 316)` atravessa o ponteiro |
-| Ecrã | `grim` | `PixelGet 100, 100` → `#12101b` |
-| Janelas | `xprop` (Xwayland do gamescope) | `WinExist`/`WinActive` → *"unknown"*, com a razão |
-| Chamadas nativas | `dlopen`/`dlsym` + trampolim em `asm!` | 13 casos verdes no Windows, 14 verdes na caixa |
-| DLLs do Windows | **raven** (PE de 18 KB, freestanding) | a caixa passa a chamar DLLs do Windows |
-| Ficheiros | `std::fs` | `FileAppend("hello", "ahk_probe.txt")` escreve no directório de trabalho |
+| Text and keys | our own **uinput** keyboard, US layout | `Send "Teste-Ahk 42!"` writes the whole string, capitals and punctuation included |
+| Modifiers | they go down before the key, and up after | `ctrl+a` selects the text of a GTK field and the backspace deletes it |
+| Pointer | absolute **uinput**, `INPUT_PROP_DIRECT` | a click at `(830, 316)` goes through the pointer |
+| Screen | `grim` | `PixelGet 100, 100` → `#12101b` |
+| Windows | `xprop` (the Xwayland of gamescope) | `WinExist`/`WinActive` → *"unknown"*, with the reason |
+| Native calls | `dlopen`/`dlsym` + trampoline in `asm!` | 13 green cases on Windows, 14 green on the box |
+| Windows DLLs | **raven** (an 18 KB PE, freestanding) | the box gets to call Windows DLLs |
+| Files | `std::fs` | `FileAppend("hello", "ahk_probe.txt")` writes in the working directory |
 
-Limites de segurança: `MAX_STEPS` 20 000, `MAX_ITERATIONS` 1 000,
-`MAX_DEPTH` 1 000, `MAX_STACK` 512 KB, `Sleep` ≤ 60 000 ms, timeout do runner
-60 s. Relatório JSON: `ok`, `steps`, `output`, `notes`, `error`, `error_line`,
-`exit_code`, `elapsed_ms`, `variables`.
+Safety limits: `MAX_STEPS` 20 000, `MAX_ITERATIONS` 1 000, `MAX_DEPTH` 1 000,
+`MAX_STACK` 512 KB, `Sleep` ≤ 60 000 ms, timeout of the runner 60 s. JSON
+report: `ok`, `steps`, `output`, `notes`, `error`, `error_line`, `exit_code`,
+`elapsed_ms`, `variables`.
 
-### 3.4 O que ainda são esboços
+### 3.4 What is still a sketch
 
-Na árvore de trabalho de hoje:
+In the working tree of today:
 
-| Ficheiro | Estado |
+| File | State |
 |---|---|
-| `crates/ahk/src/hotkeys.rs` | esboço — `run_fired` devolve `Ok(())` |
-| `crates/ahk-box/src/hotkeys.rs` | esboço |
-| `crates/ahk/src/files.rs` | esboço (só o cabeçalho) |
-| `crates/ahk-box/src/files.rs` | esboço |
-| `crates/ahk/src/date.rs` | `DateTime` e `WallClock` definidos; `system_wall_clock()` devolve `None` |
-| `crates/ahk/src/settings.rs` | esboço |
+| `crates/ahk/src/hotkeys.rs` | sketch — `run_fired` returns `Ok(())` |
+| `crates/ahk-box/src/hotkeys.rs` | sketch |
+| `crates/ahk/src/files.rs` | sketch (only the header) |
+| `crates/ahk-box/src/files.rs` | sketch |
+| `crates/ahk/src/date.rs` | `DateTime` and `WallClock` defined; `system_wall_clock()` returns `None` |
+| `crates/ahk/src/settings.rs` | sketch |
 
-E as Classes: `Map`, `Array`, `Buffer` e `File` **funcionam**; `Gui`, `Menu` e
-`Hotkey` são carryadas e **recusam** com a razão
+And the classes: `Map`, `Array`, `Buffer` and `File` **work**; `Gui`, `Menu`
+and `Hotkey` are carried and **refuse** with the reason
 (*"a menu is the menu bar of a Windows window, and this desktop is a Wayland
 session without one"*).
 
 ---
 
-## 4. Comparação
+## 4. Comparison
 
-### 4.1 Cobertura por área
+### 4.1 Coverage by area
 
-| Área | AHK_X11 | AHK (nosso) | Estado do nosso lado |
+| Area | AHK_X11 | AHK (ours) | State on our side |
 |---|---|---|---|
-| **Hotkeys** | ✅ XGrabKey, opções v1, remap, BlockInput | ❌ recusa (variante 1) | **a maior lacuna** |
-| **Hotstrings** | ✅ motor de palavra | ❌ recusa (variante 1) | depende dos hotkeys |
-| **Threads** | ✅ cooperativas, interrupção, prioridade | ❌ um fio | grande mudança de modelo |
-| **Envio de teclas** | ✅ XTEST, `Send`/`SendRaw` | ✅ **uinput** (melhor para Wayland) | ✅ à frente |
-| **Rato** | ✅ XTEST | ✅ **uinput** absoluto | ✅ à frente |
-| **Ecrã** | ✅ `XGetImage` | ✅ **`grim`** (Wayland) | ✅ à frente |
-| **Janelas** | ✅ completo (xdotool fork) | ❌ *"unknown"* (Wayland sem lista) | precisa de backends |
-| **Controlos (AT-SPI)** | ✅ texto, posição, clique | ❌ recusa (variante 0) | **oportunidade** |
-| **GUI / diálogos** | ✅ GTK3 completo | ❌ recusa (variante 0) | precisa de toolkit |
-| **Ficheiros** | ✅ 15 comandos | ⚠️ 12 dos 30 métodos do trait `Files` | trabalho mecânico |
-| **INI** | ✅ | ❌ recusa (variante 4) | trabalho mecânico |
-| **Som** | ✅ ffplay/vlc/paplay/amixer | ❌ recusa (variante 0) | **capacidade nova** |
-| **Ambiente** | ✅ `EnvGet`/`EnvSet` | ✅ | ✅ igual |
-| **Processos** | ✅ `Run`/`RunWait`/`RunAs`/`Shutdown` | ⚠️ `Run`/`RunWait` reais, o resto recusa | fácil |
-| **`DllCall`** | ✅ FFI do Crystal (v1) | ✅ **dlopen + trampolim, v2, e o raven** | ✅ muito à frente |
-| **Binário (`NumGet`/`NumPut`)** | ✅ | ❌ recusa (variante 0) | sobre a classe `Buffer` |
-| **Clipboard** | ✅ GTK + back-off exponencial | ❌ recusa (variante 0) | **o mais barato de todos** |
-| **Compilador para .exe** | ✅ | ❌ (o runner é o binário) | baixo valor para nós |
-| **REPL / Window Spy / instalador** | ✅ | ❌ | opcional |
+| **Hotkeys** | ✅ XGrabKey, v1 options, remapping, BlockInput | ❌ refusal (variant 1) | **the biggest gap** |
+| **Hotstrings** | ✅ word engine | ❌ refusal (variant 1) | depends on the hotkeys |
+| **Threads** | ✅ cooperative, interruption, priority | ❌ one thread | a big change of model |
+| **Sending keys** | ✅ XTEST, `Send`/`SendRaw` | ✅ **uinput** (better for Wayland) | ✅ ahead |
+| **Mouse** | ✅ XTEST | ✅ absolute **uinput** | ✅ ahead |
+| **Screen** | ✅ `XGetImage` | ✅ **`grim`** (Wayland) | ✅ ahead |
+| **Windows** | ✅ complete (xdotool fork) | ❌ *"unknown"* (Wayland without a list) | needs backends |
+| **Controls (AT-SPI)** | ✅ text, position, click | ❌ refusal (variant 0) | **opportunity** |
+| **GUI / dialogs** | ✅ complete GTK3 | ❌ refusal (variant 0) | needs a toolkit |
+| **Files** | ✅ 15 commands | ⚠️ 12 of the 30 methods of the trait `Files` | mechanical work |
+| **INI** | ✅ | ❌ refusal (variant 4) | mechanical work |
+| **Sound** | ✅ ffplay/vlc/paplay/amixer | ❌ refusal (variant 0) | **new capability** |
+| **Environment** | ✅ `EnvGet`/`EnvSet` | ✅ | ✅ the same |
+| **Processes** | ✅ `Run`/`RunWait`/`RunAs`/`Shutdown` | ⚠️ real `Run`/`RunWait`, the rest refuses | easy |
+| **`DllCall`** | ✅ the FFI of Crystal (v1) | ✅ **dlopen + trampoline, v2, and the raven** | ✅ far ahead |
+| **Binary (`NumGet`/`NumPut`)** | ✅ | ❌ refusal (variant 0) | over the `Buffer` class |
+| **Clipboard** | ✅ GTK + exponential back-off | ❌ refusal (variant 0) | **the cheapest of all** |
+| **Compiler for .exe** | ✅ | ❌ (the runner is the binary) | low value for us |
+| **REPL / Window Spy / installer** | ✅ | ❌ | optional |
 
-### 4.2 Os nomes que mudaram do v1 para o v2
+### 4.2 The names that changed from v1 to v2
 
-Um script do AHK_X11 **não** corre no nosso tree, e quase sempre por causa de
-um nome:
+A script of the AHK_X11 does **not** run in our tree, and almost always
+because of a name:
 
-| v1 (AHK_X11) | v2 (nosso) | Nota |
+| v1 (AHK_X11) | v2 (ours) | Note |
 |---|---|---|
-| `MsgBox, texto` | `MsgBox texto` | vírgula já não é separador |
+| `MsgBox, texto` | `MsgBox texto` | the comma is no longer a separator |
 | `PixelGet` | `PixelGetColor` | |
 | `Upper` / `Lower` | `StrUpper` / `StrLower` | |
 | `StringLen` | `StrLen` | |
-| `StringMid` / `StringLeft` / `StringRight` | `SubStr` | três num só |
+| `StringMid` / `StringLeft` / `StringRight` | `SubStr` | three in one |
 | `StringTrimLeft` / `StringTrimRight` | `LTrim` / `RTrim` | |
 | `StringSplit` | `StrSplit` | |
-| `StringReplace` | `StrReplace` | assinatura diferente (a v2 tem o *case sense* e escreve o número de trocas) |
+| `StringReplace` | `StrReplace` | different signature (v2 has the *case sense* and writes the number of replacements) |
 | `StringGetPos` | `InStr` | |
 | `IfWinExist` | `WinExist` | |
 | `IfWinActive` | `WinActive` | |
 | `MouseClick` | `Click` | |
 | `FileSelectFile` | `FileSelect` | |
 | `FileSelectFolder` | `DirSelect` | |
-| `VarSetCapacity` | `VarSetStrCapacity` | só o de texto |
-| `IfMsgBox` | — | não existe em v2 |
-| `Transform` | — | não existe em v2 |
-| `RegExGetPos` | — | não existe em v2 |
-| `EnvGet` | `EnvGet` | em v1 era preciso; em v2 também |
-| `Hotstring` | `Hotstring` | comando, não directiva |
-| `Gui, Add` | `Gui.Add` | classe, não comando |
-| `Menu` | `Menu` | classe, não comando |
+| `VarSetCapacity` | `VarSetStrCapacity` | only the text one |
+| `IfMsgBox` | — | does not exist in v2 |
+| `Transform` | — | does not exist in v2 |
+| `RegExGetPos` | — | does not exist in v2 |
+| `EnvGet` | `EnvGet` | in v1 it was needed; in v2 as well |
+| `Hotstring` | `Hotstring` | a command, not a directive |
+| `Gui, Add` | `Gui.Add` | a class, not a command |
+| `Menu` | `Menu` | a class, not a command |
 
-### 4.3 O que o AHK_X11 faz que nós recusamos — e porquê
+### 4.3 What the AHK_X11 does that we refuse — and why
 
-Três recusas nossas que **não** devem ser revertidas:
+Three refusals of ours that **must not** be reverted:
 
-1. **Janelas.** Recusamos porque a sessão da caixa é Wayland e o compositor
-   não expõe lista de janelas. O AHK_X11 consegue porque o X11 expõe. Não é
-   uma falha: é o sintoma correcto numa sessão Wayland.
-2. **Injeção por XTEST.** O AHK_X11 injecta por XTEST porque vive em X11. Nós
-   usamos uinput, que é o que funciona em Wayland — e que a caixa mediu.
-3. **`DllCall` em estilo v1.** O AHK_X11 serializa tudo em texto porque as
-   suas variáveis são texto. O nosso `DllCall` tem tipos, convenções, e
-   escreve de volta — é a versão v2.
+1. **Windows.** We refuse because the session of the box is Wayland and the
+   compositor does not expose a list of windows. The AHK_X11 manages because
+   X11 exposes it. It is not a failure: it is the correct symptom in a Wayland
+   session.
+2. **Injection through XTEST.** The AHK_X11 injects through XTEST because it
+   lives in X11. We use uinput, which is what works on Wayland — and what the
+   box measured.
+3. **`DllCall` in the v1 style.** The AHK_X11 serializes everything as text
+   because its variables are text. Our `DllCall` has types, conventions, and
+   writes back — it is the v2 version.
 
-Uma recusa nossa que **deve** ser revista:
+One refusal of ours that **should** be reviewed:
 
-4. **Clipboard.** Recusamos por omissão do trait, não por uma limitação real
-   da plataforma. `wl-paste`/`wl-copy` resolvem em Wayland, `xclip`/`xsel` em
-   X11. Não há motivo técnico.
+4. **Clipboard.** We refuse for want of the trait, not because of a real
+   limitation of the platform. `wl-paste`/`wl-copy` solve it on Wayland,
+   `xclip`/`xsel` on X11. There is no technical reason.
 
-### 4.4 O que nós fazemos que o AHK_X11 não faz
+### 4.4 What we do that the AHK_X11 does not
 
-- **O dialecto completo de v2.0.19**: expressões, classes, objectos, métodos,
-  referência por `&`, `Prototype`/`Base`, o operador `is`, a família `Obj*`.
-- **Nove tipos de classe registados** — que cobrem as onze tabelas do binário:
-  `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`, `Hotkey`, `Object`.
-- **Precedência e semântica medidas contra o binário** (`-2 ** 2` é -4;
-  `"a" 1 + 2` é `"a3"`).
-- **Núcleo `no_std`**: a linguagem compila para um alvo sem biblioteca padrão.
-- **O relatório JSON**: cada passo, cada nota, a linha do erro, os limites.
-- **Guard rails** em vez de threads: um script que se perde é parado com a
-  linha do erro.
-- **O `DllCall`** que fala com `.so` **e** com DLLs do Windows, no Linux, por
-  um PE próprio.
+- **The full dialect of v2.0.19**: expressions, classes, objects, methods,
+  reference by `&`, `Prototype`/`Base`, the `is` operator, the `Obj*` family.
+- **Nine registered class types** — which cover the eleven tables of the
+  binary: `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`, `Hotkey`,
+  `Object`.
+- **Precedence and semantics measured against the binary** (`-2 ** 2` is -4;
+  `"a" 1 + 2` is `"a3"`).
+- **`no_std` core**: the language compiles for a target without a standard
+  library.
+- **The JSON report**: every step, every note, the line of the error, the
+  limits.
+- **Guard rails** instead of threads: a script that gets lost is stopped with
+  the line of the error.
+- **The `DllCall`** that talks to `.so` **and** to Windows DLLs, on Linux,
+  through a PE of its own.
 
-### 4.5 As lições de método
+### 4.5 The lessons of method
 
-1. **O ecrã é o trabalho; a linguagem é o que já está feito.** O AHK_X11 gastou anos em
-   X11/GTK/AT-SPI e continua a ser um v1. Nós temos a linguagem certa e
-   faltam as capacidades.
-2. **Recusar com a razão é uma decisão de produto, não de engenharia.**
-   O AHK_X11 recusa o que não faz (`EnvUpdate`, `RegRead`) removendo o
-   comando. Nós respondemos com a razão — mais honesto, e é a regra do
-   projecto (AGENTS.md: *"A question that cannot be answered fails, with the
+1. **The screen is the work; the language is what is already done.** The
+   AHK_X11 spent years on X11/GTK/AT-SPI and is still a v1. We have the right
+   language, and the capabilities are missing.
+2. **Refusing with the reason is a product decision, not an engineering one.**
+   The AHK_X11 refuses what it does not do (`EnvUpdate`, `RegRead`) by removing
+   the command. We answer with the reason — more honest, and it is the rule of
+   the project (AGENTS.md: *"A question that cannot be answered fails, with the
    reason. It does not answer false."*).
-3. **A acessibilidade é o caminho para as janelas em Wayland.** O AT-SPI é
-   D-Bus, não X11. O AHK_X11 tem essa peça feita e medida.
-4. **Hotkeys sem um servidor de janelas é metade do valor.** A AHK_X11 tem
-   ambos; nós temos o input mas não o hook.
+3. **Accessibility is the way to the windows on Wayland.** The AT-SPI is D-Bus,
+   not X11. The AHK_X11 has that piece done and measured.
+4. **Hotkeys without a window server are half the value.** The AHK_X11 has
+   both; we have the input but not the hook.
 
 ---
 
-## 5. Sugestões: como dar suporte ao AHK_X11
+## 5. Suggestions: how to support the AHK_X11
 
-### 5.0 A regra: portam-se as **capacidades**, não o mecanismo
+### 5.0 The rule: the **capabilities** are ported, not the mechanism
 
-O mecanismo do AHK_X11 (XTEST, XGrabKey, `XGetImage`, GTK3, `dlopen` do
-Crystal) é o mecanismo do **X11**, e o nosso alvo é **Wayland**. Portar o
-mecanismo seria um retrocesso.
+The mechanism of the AHK_X11 (XTEST, XGrabKey, `XGetImage`, GTK3, the
+`dlopen` of Crystal) is the mechanism of **X11**, and our target is
+**Wayland**. Porting the mechanism would be a step backwards.
 
-O que se porta é o **contrato**:
+What is ported is the **contract**:
 
-- O que cada comando faz, com que argumentos e que erro dá.
-- As **opções** que o comando aceita (`CoordMode`, `SendMode`, `SetKeyDelay`,
-  `DetectHiddenWindows`, as opções de hotkey `t/c/p/i/w`).
-- As **receitas** que os utilizadores escrevem (§5.4).
+- What each command does, with which arguments, and which error it gives.
+- The **options** that the command accepts (`CoordMode`, `SendMode`,
+  `SetKeyDelay`, `DetectHiddenWindows`, the hotkey options `t/c/p/i/w`).
+- The **recipes** that the users write (§5.4).
 
-E a **costura** onde a capacidade assenta já existe: os traits de `Desktop` são o
-fio. `Hotkeys`, `Clipboard` e `Windows` já têm o método e a assinatura
-certas — falta o corpo.
+And the **seam** where the capability sits already exists: the traits of
+`Desktop` are the thread. `Hotkeys`, `Clipboard` and `Windows` already have the
+right method and the right signature — the body is missing.
 
-### 5.1 Onda 1 — o que dá resultado já, com pouco risco
+### 5.1 Wave 1 — what gives results already, with little risk
 
-| # | Sugestão | Onde | Esforço | Impacto |
+| # | Suggestion | Where | Effort | Impact |
 |---|---|---|---|---|
-| 1 | **Clipboard real** — `wl-paste`/`wl-copy` (Wayland), `xclip`/`xsel` (X11) | `crates/ahk-box/src/desktop.rs`, `impl Clipboard` | **S** | `Clipboard`, `ClipWait` (com timeout), e a receita de "copiar, transformar, colar" |
-| 2 | **Som** — `amixer` para o volume, `ffplay`/`paplay`/`aplay` para tocar, exactamente a escada do AHK_X11 | novo trait `Sound` no `ahk::desktop`, `impl Sound for LabDesktop` | **S** | `SoundGet`, `SoundSet`, `SoundPlay`, `SoundBeep` saem da recusa |
-| 3 | **`NumGet` / `NumPut`** — sobre a classe `Buffer`, que já existe e funciona | `builtins.rs`, `classes/buffer.rs` | **S** | Sai da recusa de dois nomes que a v2 tem e o `Buffer` já dá soporte |
-| 4 | **Acabar com os `Files`** — `copy_file`, `move_file`, `copy_dir`, `move_dir`, `file_attributes`, `set_file_attributes`, `file_times`, `set_file_times`, `ini_read`, `ini_write`, `ini_delete` | `crates/ahk-box/src/desktop.rs` + `crates/ahk/src/files.rs` | **M** | `FileCopy`, `FileMove`, `FileGetAttrib`, `FileSetAttrib`, `FileGetTime`, `FileSetTime`, `IniRead`, `IniWrite`, `IniDelete` saem da recusa. `std::fs` cobre quase tudo |
-| 5 | **`FormatTime` / `DateAdd` / `DateDiff`** — `system_wall_clock()` deixou de devolver `None` | `crates/ahk/src/date.rs` | **M** | A data real, e `A_Year`, `A_Month`, `A_Day`, `A_Hour`, `A_Min`, `A_Sec`, `A_MSec`, `A_Now`, `A_NowUTC` |
-| 6 | **`ahk --surface`** — um comando que imprima a tabela de 725 nomes com o estado de cada um (real / recusa / motivo) | `crates/ahk-cli/src/main.rs` | **S** | Torna visível a dívida; a medição de hoje é 93/253 e está numa linha de código |
+| 1 | **Real clipboard** — `wl-paste`/`wl-copy` (Wayland), `xclip`/`xsel` (X11) | `crates/ahk-box/src/desktop.rs`, `impl Clipboard` | **S** | `Clipboard`, `ClipWait` (with a timeout), and the "copy, transform, paste" recipe |
+| 2 | **Sound** — `amixer` for the volume, `ffplay`/`paplay`/`aplay` to play, exactly the ladder of the AHK_X11 | new trait `Sound` in `ahk::desktop`, `impl Sound for LabDesktop` | **S** | `SoundGet`, `SoundSet`, `SoundPlay`, `SoundBeep` come out of the refusal |
+| 3 | **`NumGet` / `NumPut`** — over the `Buffer` class, which already exists and works | `builtins.rs`, `classes/buffer.rs` | **S** | Two names that v2 has, and that the `Buffer` already supports, come out of the refusal |
+| 4 | **Finish the `Files`** — `copy_file`, `move_file`, `copy_dir`, `move_dir`, `file_attributes`, `set_file_attributes`, `file_times`, `set_file_times`, `ini_read`, `ini_write`, `ini_delete` | `crates/ahk-box/src/desktop.rs` + `crates/ahk/src/files.rs` | **M** | `FileCopy`, `FileMove`, `FileGetAttrib`, `FileSetAttrib`, `FileGetTime`, `FileSetTime`, `IniRead`, `IniWrite`, `IniDelete` come out of the refusal. `std::fs` covers almost everything |
+| 5 | **`FormatTime` / `DateAdd` / `DateDiff`** — `system_wall_clock()` stopped returning `None` | `crates/ahk/src/date.rs` | **M** | The real date, and `A_Year`, `A_Month`, `A_Day`, `A_Hour`, `A_Min`, `A_Sec`, `A_MSec`, `A_Now`, `A_NowUTC` |
+| 6 | **`ahk --surface`** — a command that prints the table of 725 names with the state of each one (real / refusal / reason) | `crates/ahk-cli/src/main.rs` | **S** | It makes the debt visible; the measurement of today is 93/253 and it is in one line of code |
 
-O item 6 é o mais barato de todos e o mais útil: transforma "o que falta" de
-opinião em número.
+Item 6 is the cheapest of all and the most useful: it turns "what is missing"
+from an opinion into a number.
 
-**O estado desta onda (2026-10-29).** Os seis itens estão feitos: o
-clipboard (1), o som (2), o `NumGet` e o `NumPut` (3), os `Files` (4) e o
-`FormatTime` com o `DateAdd` e o `DateDiff` (5) saíram da recusa no bloco da
-secção 25 das notas, e o `ahk --surface` (6) imprime agora o estado de
-cada um dos nomes de v2.
+**The state of this wave (2026-10-29).** The six items are done: the clipboard
+(1), the sound (2), the `NumGet` and the `NumPut` (3), the `Files` (4) and the
+`FormatTime` with the `DateAdd` and the `DateDiff` (5) came out of the refusal
+in the block of section 25 of the notes, and the `ahk --surface` (6) now
+prints the state of each of the v2 names.
 
-### 5.2 Onda 2 — hotkeys, threads, hotstrings
+### 5.2 Wave 2 — hotkeys, threads, hotstrings
 
-Esta é a onda que **muda o produto**: sem hotkeys, um AHK é um programa de
-linha de comandos que mexe no rato.
+This is the wave that **changes the product**: without hotkeys, an AHK is a
+command line program that fiddles with the mouse.
 
-**A costura já existe.** `ahk::desktop::Hotkeys` já tem
-`register_hotkey`, `unregister_hotkey`, `hotkeys` e `fired_hotkey`, e o
-documente do trait diz o que o runtime espera:
+**The seam already exists.** `ahk::desktop::Hotkeys` already has
+`register_hotkey`, `unregister_hotkey`, `hotkeys` and `fired_hotkey`, and the
+documentation of the trait says what the runtime expects:
 
 > *"the desktop watches the keyboard and says which of the hotkeys it
 > registered was pressed; the runtime owns the function that the hotkey runs,
 > and asks this between the statements of the script."*
 
-O gancho está desenhado; **o corpo é que não existe**.
+The hook is drawn; **the body does not exist**.
 
-| # | Sugestão | Detalhe |
+| # | Suggestion | Detail |
 |---|---|---|
-| 7 | **Backend de hotkeys para X11** | `XRecord` (ou `XGrabKey` como o AHK_X11) + `XTest`. Serve para X11 puro, e é o que permite testar sem Wayland |
-| 8 | **Backend de hotkeys para Wayland** | Não existe grab global em Wayland. O caminho é o **uinput** + um watcher de `evdev` (o `ydotool`/`wtype` fazem isto), ou um portal. O custo é o mesmo que já pagámos no teclado: é um dispositivo |
-| 9 | **Hotstrings** | `Hotstring` é um comando da v2 e está na recusa (variante 1). Depende dos hotkeys: é um hook que reescreve o texto quando a palavra bate |
-| 10 | **Opções de hotkey** | `t` (transparent), `c` (context-sensitive), `p` (physical), `i` (ignore modifiers), `w` (wildcard), `x` (custom), `h` (hook). São o contrato do v1 e a v2 renomeou-as — mas o **conjunto** é o que os utilizadores conhecem |
-| 11 | **`Hotkey` como classe** | A classe `Hotkey` de v2 tem 35 métodos (`Start`, `Stop`, `Wait`, `KeyOpt`, `OnKeyDown`, …). A AHK_X11 não tem esta noção; nós temos o esboço. Fazer a classe real é o caminho do v2 |
-| 12 | **Threads: o modelo do AHK_X11 é a referência** | `src/run/thread.cr` é um guia concreto: interrupção cooperativa, prioridades, definições por thread. Mas o nosso runtime é "executa até ao fim" e o relatório JSON assume um fio |
+| 7 | **Hotkey backend for X11** | `XRecord` (or `XGrabKey` as the AHK_X11) + `XTest`. It serves plain X11, and it is what allows testing without Wayland |
+| 8 | **Hotkey backend for Wayland** | There is no global grab in Wayland. The way is **uinput** + an `evdev` watcher (what `ydotool`/`wtype` do), or a portal. The cost is the same that we already paid for the keyboard: it is a device |
+| 9 | **Hotstrings** | `Hotstring` is a v2 command and it is in the refusal (variant 1). It depends on the hotkeys: it is a hook that rewrites the text when the word matches |
+| 10 | **Hotkey options** | `t` (transparent), `c` (context-sensitive), `p` (physical), `i` (ignore modifiers), `w` (wildcard), `x` (custom), `h` (hook). They are the contract of v1 and v2 renamed them — but the **set** is what the users know |
+| 11 | **`Hotkey` as a class** | The v2 `Hotkey` class has 35 methods (`Start`, `Stop`, `Wait`, `KeyOpt`, `OnKeyDown`, …). The AHK_X11 does not have this notion; we have the sketch. Making the real class is the way of v2 |
+| 12 | **Threads: the model of the AHK_X11 is the reference** | `src/run/thread.cr` is a concrete guide: cooperative interruption, priorities, settings per thread. But our runtime is "runs to the end" and the JSON report assumes one thread |
 
-Sobre o item 12, a recomendação é **não** correr atrás do modelo v1. O v2
-também não tem threads: o v2 substituiu-as por **eventos e callbacks**
-(`OnMessage`, `OnClipboardChange`, `OnExit`, timers). O caminho do v2 é:
+About item 12, the recommendation is **not** to chase the v1 model. v2 does not
+have threads either: v2 replaced them with **events and callbacks**
+(`OnMessage`, `OnClipboardChange`, `OnExit`, timers). The way of v2 is:
 
-1. Um **loop de eventos** no runtime: entre os statements, o runtime pergunta
-   ao desktop por um hotkey disparado, um timer vencido, ou um evento.
-2. O script continua a ser um script — a diferença é que o runtime pode
-   *interromper* o statement corrente para despachar o evento.
-3. O relatório JSON ganha um `thread`/`task` por passo, para que a
-   interrogação continue a ser legível por máquina.
+1. An **event loop** in the runtime: between the statements, the runtime asks
+   the desktop for a fired hotkey, an expired timer, or an event.
+2. The script keeps being a script — the difference is that the runtime can
+   *interrupt* the current statement to dispatch the event.
+3. The JSON report gains a `thread`/`task` per step, so that the interrogation
+   keeps being readable by machine.
 
-Isto é um trabalho de fundo, não uma tarefa. Vale a pena **depois** dos
-hotkeys, e não antes.
+This is background work, not a task. It is worth doing **after** the hotkeys,
+and not before.
 
-### 5.3 Onda 3 — janelas, controlos e GUI
+### 5.3 Wave 3 — windows, controls and GUI
 
-**A recusa de janelas continua correcta na caixa.** O compositor Wayland da
-caixa não expõe lista de janelas ao D-Bus, e o Xwayland do gamescope reporta
-uma lista de clientes vazia. A resposta certa continua a ser *"unknown"* com
-a razão — não `false`.
+**The refusal of windows is still correct on the box.** The Wayland compositor
+of the box does not expose a list of windows to D-Bus, and the Xwayland of
+gamescope reports an empty list of clients. The right answer is still
+*"unknown"* with the reason — not `false`.
 
-O que a AHK_X11 ensina é que há **três caminhos**, e nós só temos o pior:
+What the AHK_X11 teaches is that there are **three ways**, and we only have the
+worst:
 
-| Caminho | Mecanismo | Funciona em Wayland? | Esforço |
+| Way | Mechanism | Works on Wayland? | Effort |
 |---|---|---|---|
-| **A. Backend X11** | `xprop` + `xdotool`/`x_do` | Não (mas funciona em X11) | **S** — a caixa já fala `xprop` |
-| **B. Portal / compositor** | `xdg-desktop-portal`, D-Bus do COSMIC | Sim, se o compositor expõe | **M** — depende do compositor |
-| **C. AT-SPI** | D-Bus, protocolo de acessibilidade | **Sim** | **M** — o AHK_X11 tem 20 KB de referência |
+| **A. X11 backend** | `xprop` + `xdotool`/`x_do` | No (but it works on X11) | **S** — the box already speaks `xprop` |
+| **B. Portal / compositor** | `xdg-desktop-portal`, the D-Bus of COSMIC | Yes, if the compositor exposes it | **M** — depends on the compositor |
+| **C. AT-SPI** | D-Bus, the accessibility protocol | **Yes** | **M** — the AHK_X11 has 20 KB of reference |
 
-**O caminho C é o mais interessante.** O AT-SPI é a camada que a AHK_X11 usa
-para `ControlGetText`, `ControlSetText`, `ControlGetPos`, `ControlClick` e
-para o `WinText` do `WinGetText`. E é um protocolo **D-Bus**, que é
-exactamente o que o Wayland preserva. Com ele, uma sessão Wayland ganha:
+**Way C is the most interesting.** The AT-SPI is the layer that the AHK_X11
+uses for `ControlGetText`, `ControlSetText`, `ControlGetPos`, `ControlClick`
+and for the `WinText` of `WinGetText`. And it is a **D-Bus** protocol, which
+is exactly what Wayland preserves. With it, a Wayland session gains:
 
-- `ControlGetText` / `ControlSetText` — ler e escrever o texto de um campo.
-- `ControlGetPos` — a geometria de um controlo.
-- `ControlClick` — clicar num controlo pelo nome, sem coordenadas.
-- `WinGetText` — o texto de uma janela, que hoje recusamos.
+- `ControlGetText` / `ControlSetText` — read and write the text of a field.
+- `ControlGetPos` — the geometry of a control.
+- `ControlClick` — click a control by name, without coordinates.
+- `WinGetText` — the text of a window, which we refuse today.
 
-O `xdotool` (caminho A) resolve o resto: activação, mover, dimensionar,
-minimizar, fechar, esperar. É exactamente o `win-util.cr` do AHK_X11, e o
-fork dele (`phil294/x_do.cr`) resolve o bug do `XGetWindowProperty` que faz
-crashar o `xdotool` em alguns casos.
+The `xdotool` (way A) solves the rest: activation, moving, resizing,
+minimizing, closing, waiting. It is exactly the `win-util.cr` of the AHK_X11,
+and its fork (`phil294/x_do.cr`) solves the bug of the `XGetWindowProperty`
+that makes `xdotool` crash in some cases.
 
-**Sugestão concreta:** um trait novo, `Accessibility`, com
-`control_text`, `set_control_text`, `control_position`, `control_click` e
-`window_text`, implementado por AT-SPI, com uma implementação por omissão
-que recusa com a razão. Mais um trait na soma de `Desktop` — a regra do
-projecto é que "uma capacidade nova vai no seu próprio trait, e o `Desktop`
-cresce por a nomear".
+**Concrete suggestion:** a new trait, `Accessibility`, with `control_text`,
+`set_control_text`, `control_position`, `control_click` and `window_text`,
+implemented by AT-SPI, with a default implementation that refuses with the
+reason. One more trait in the sum of `Desktop` — the rule of the project is
+that "a new capability goes in its own trait, and the `Desktop` grows by
+naming it".
 
-**GUI (GTK).** O AHK_X11 faz `Gui`, `GuiControl`, `MsgBox`, `InputBox`,
-`FileSelect`, `DirSelect`, `Menu`, `ToolTip` e `TrayTip` com GTK3. Para nós:
+**GUI (GTK).** The AHK_X11 does `Gui`, `GuiControl`, `MsgBox`, `InputBox`,
+`FileSelect`, `DirSelect`, `Menu`, `ToolTip` and `TrayTip` with GTK3. For us:
 
-- `gtk4-rs` é a escolha (GTK4 é o que corre em Wayland sem XWayland).
-- O `MsgBox` actual escreve no `output` do relatório JSON — **isso não deve
-  mudar**: o runner tem de continuar a poder correr *headless* e a ser
-  interrogável. A GUI tem de ser um **opt-in** (`--gui`), não o default.
-- A classe `Gui` de v2 tem 59 nomes na superfície, e `Gui.Control` mais 29 —
-  é uma API grande, e vale a pena um mapeamento directo de `gui-add.cr` do
-  AHK_X11 para a nossa tabela de `Gui`.
+- `gtk4-rs` is the choice (GTK4 is what runs on Wayland without XWayland).
+- The current `MsgBox` writes in the `output` of the JSON report — **that must
+  not change**: the runner has to keep being able to run *headless* and to be
+  interrogable. The GUI has to be an **opt-in** (`--gui`), not the default.
+- The v2 `Gui` class has 59 names in the surface, and `Gui.Control` 29 more —
+  it is a big API, and it is worth a direct mapping of `gui-add.cr` of the
+  AHK_X11 to our `Gui` table.
 
-### 5.4 Onda 4 — as receitas, que são o produto
+### 5.4 Wave 4 — the recipes, which are the product
 
-O AHK_X11 traz **14 scripts de exemplo** em `docs/`:
+The AHK_X11 brings **14 example scripts** in `docs/`:
 `ContextSensitiveHelp`, `EasyWindowDrag`, `FavoriteFolders`, `JoystickMouse`,
 `JoystickTest`, `KeyboardOnScreen`, `MinimizeToTrayMenu`, `MsgBoxButtonNames`,
 `Numpad000`, `NumpadMouse`, `Seek`, `TooltipMouseMenu`, `VolumeOSD`,
 `WindowShading`.
 
-São scripts **v1**, e o nosso tree é **v2**: não correm. Mas são o melhor
-corpus de requisitos que existe, porque cada um exercita uma combinação
-real:
+They are **v1** scripts, and our tree is **v2**: they do not run. But they are
+the best corpus of requirements that exists, because each one exercises a real
+combination:
 
-| Script | O que exige |
+| Script | What it requires |
 |---|---|
-| `VolumeOSD` | som + `Progress` + `SetTimer` + `SoundGet`/`SoundSet` |
+| `VolumeOSD` | sound + `Progress` + `SetTimer` + `SoundGet`/`SoundSet` |
 | `Seek` | `Gui` + `File` + `Loop Files` + `StringSplit` + `Run` |
-| `KeyboardOnScreen` | hotkeys + desenho de teclas + `Input` |
-| `NumpadMouse` | hotkeys + rato + `KeyWait` |
-| `JoystickMouse` | leitura de dispositivo + rato |
-| `MinimizeToTrayMenu` | `Menu` + `TrayTip` + eventos |
-| `WindowShading` | `WinGet`/`WinMove`/`WinWait` + estado |
-| `EasyWindowDrag` | rato + janelas em contínuo |
+| `KeyboardOnScreen` | hotkeys + drawing of keys + `Input` |
+| `NumpadMouse` | hotkeys + mouse + `KeyWait` |
+| `JoystickMouse` | reading of a device + mouse |
+| `MinimizeToTrayMenu` | `Menu` + `TrayTip` + events |
+| `WindowShading` | `WinGet`/`WinMove`/`WinWait` + state |
+| `EasyWindowDrag` | mouse + windows in a row |
 | `ContextSensitiveHelp` | `WinGetText` + `MouseGetPos` + `ToolTip` |
-| `FavoriteFolders` | `IniRead`/`IniWrite` + `Run` + pastas |
+| `FavoriteFolders` | `IniRead`/`IniWrite` + `Run` + folders |
 
-**Sugestão:** portar cada um para v2 e usá-los como **casos de conformidade**
-do nosso lado — em `crates/ahk/tests/language.rs` (o que é linguagem) e nos
-scripts de verificação na caixa (o que é ecrã). O `AGENTS.md` já diz onde
-cada caso deve morar; estes são casos de **ponta a ponta**, e por isso
-pertencem à caixa, não ao crate da linguagem.
+**Suggestion:** port each one to v2 and use them as **conformance cases** on
+our side — in `crates/ahk/tests/language.rs` (what is language) and in the
+verification scripts on the box (what is screen). The `AGENTS.md` already says
+where each case should live; these are **end to end** cases, and therefore
+they belong to the box, not to the crate of the language.
 
-Isto também resolve o problema do "não sei o que falta": cada script é uma
-lista de nomes que a árvore ainda recusa.
+This also solves the problem of the "I do not know what is missing": each
+script is a list of names that the tree still refuses.
 
-### 5.5 Onda 5 — o empacotamento
+### 5.5 Wave 5 — the packaging
 
-| # | Sugestão | Nota |
+| # | Suggestion | Note |
 |---|---|---|
-| 13 | **`ahk --compile script.ahk`** | Embutir o script no binário do runner e escrever um executável. É o que o AHK_X11 promete ("stand-alone binaries with no dependencies") e o que um utilizador final quer levar. Custo baixo: é um `include_bytes!` com um pequeno executor |
-| 14 | **Window Spy** | O AHK_X11 tem o dele, em AHK. Nós temos as peças (leitura de pixel, posição do ponteiro) e a classe `Hotkey`. Um TTY simples que imprima a janela sob o rato e as teclas premidas |
-| 15 | **REPL** | O AHK_X11 tem `--repl`. É útil para quem não está a desenvolver o runtime. Alternativa mais barata: um `--check` que faz *parse* e diz o que falha, sem executar |
+| 13 | **`ahk --compile script.ahk`** | Embed the script in the binary of the runner and write an executable. It is what the AHK_X11 promises ("stand-alone binaries with no dependencies") and what an end user wants to carry. Low cost: it is an `include_bytes!` with a small executor |
+| 14 | **Window Spy** | The AHK_X11 has its own, in AHK. We have the pieces (pixel reading, position of the pointer) and the `Hotkey` class. A simple TTY that prints the window under the mouse and the pressed keys |
+| 15 | **REPL** | The AHK_X11 has `--repl`. It is useful for who is not developing the runtime. Cheaper alternative: a `--check` that does the *parse* and says what fails, without executing |
 
-### 5.6 O que **não** se porta
+### 5.6 What is **not** ported
 
-| Não portar | Porquê |
+| Not ported | Why |
 |---|---|
-| A sintaxe legacy v1 | O nosso dialeto é v2.0.19, e é essa a vantagem competitiva. **Isto é verdade do v2, e só do v2**: o v1 passa a ser uma opção atrás de um gate, e a decisão vive em `docs/ahk-v1-dialect.md` |
-| A convenção "output var" (`StringLen, out, in`) | Em v2 a resposta é o valor de retorno; a referência por `&` resolve o caso em que é preciso escrever |
-| `#NoEnv` como default | Em v2 o ambiente é explícito; `EnvGet` está lá |
-| O compilador Crystal e o *linker* | O item 13 cobre o essencial com muito menos |
-| `x_do` (fork do xdotool) como dependência | Preferir o `xdotool` de sistema, ou implementar o X11 backend sobre `x11` + `xcb` em Rust |
-| `AutoTrim` | A AHK_X11 pôs-o de parte pelo mesmo motivo: é ambíguo |
-| O `PostMessage`/`SendMessage`/`Reg*` | São APIs do Windows. No v2 recusam com a razão, que é a resposta certa |
+| The v1 legacy syntax | Our dialect is v2.0.19, and that is the competitive advantage. **This is true of v2, and only of v2**: v1 becomes an option behind a gate, and the decision lives in `docs/ahk-v1-dialect.md` |
+| The "output var" convention (`StringLen, out, in`) | In v2 the answer is the return value; the reference by `&` solves the case where it is needed to write |
+| `#NoEnv` as the default | In v2 the environment is explicit; `EnvGet` is there |
+| The Crystal compiler and the *linker* | Item 13 covers the essential with much less |
+| `x_do` (fork of xdotool) as a dependency | Prefer the system `xdotool`, or implement the X11 backend over `x11` + `xcb` in Rust |
+| `AutoTrim` | The AHK_X11 set it aside for the same reason: it is ambiguous |
+| The `PostMessage`/`SendMessage`/`Reg*` | They are Windows APIs. In v2 they refuse with the reason, which is the right answer |
 
-### 5.7 A nota da licença — **importante**
+### 5.7 The note about the license — **important**
 
-O AHK_X11 é **GPL-2.0**. Este projecto é **Apache 2.0**.
+The AHK_X11 is **GPL-2.0**. This project is **Apache 2.0**.
 
-- **Pode**-se ler o código dele, estudá-lo, e implementar as *ideias*, as
-  *receitas* e o *comportamento* de forma independente.
-- **Não** se pode copiar o código-fonte dele para dentro deste repositório:
-  a GPL-2.0 é copyleft e a Apache 2.0 é compatível com GPL-3.0, mas não com
-  GPL-2.0. Uma cópia de código GPL-2.0 nesta árvore contaminaria a licença do
-  projecto inteiro.
+- You **can** read its code, study it, and implement the *ideas*, the *recipes*
+  and the *behaviour* independently.
+- You **cannot** copy its source code into this repository: GPL-2.0 is copyleft
+  and Apache 2.0 is compatible with GPL-3.0, but not with GPL-2.0. A copy of
+  GPL-2.0 code in this tree would contaminate the license of the whole
+  project.
 
-Isto não é um detalhe: `win-util.cr`, `at-spi.cr`, `send.cr` e `gui-add.cr`
-são ~50 KB de código que **dá para ler e reescrever**, mas não para copiar.
-Toda a sugestão acima foi escrita para ser implementada **de raiz**, a partir
-da *descrição do comportamento* e do nosso próprio desenho.
+This is not a detail: `win-util.cr`, `at-spi.cr`, `send.cr` and `gui-add.cr`
+are ~50 KB of code that **can be read and rewritten**, but not copied. Every
+suggestion above was written to be implemented **from scratch**, from the
+*description of the behaviour* and from our own design.
 
 ---
 
-## 6. Um plano por fases
+## 6. A plan by phases
 
-| Fase | Conteúdo | Resultado verificável |
+| Phase | Content | Verifiable result |
 |---|---|---|
-| **F0 — medir** | `ahk --surface`; a tabela de 725 nomes com o estado | 93/253 hoje; o número passa a ser visível em cada commit |
-| **F1 — o que é barato** | Clipboard, Som, `NumGet`/`NumPut`, `Files` completo, `FormatTime`/`Date*` | ~25 nomes saem da recusa; o `Clipboard` e o `Sound` ganham traits próprios |
-| **F2 — os hooks** | Backend de hotkeys (X11 e Wayland), `Hotstring`, a classe `Hotkey` real | `Hotkey`, `Hotstring`, `HotIf*` saem da recusa; um script passa a reagir a teclas |
-| **F3 — o ecrã** | Backend X11 de janelas (`xdotool`), trait `Accessibility` por AT-SPI | `WinExist`/`WinActive`/`WinGetText`/`Control*` ganham resposta real |
-| **F4 — as janelas** | `Gui`/`Menu`/`ToolTip`/`TrayTip` por GTK4, com `--gui` opt-in | a classe `Gui` deixa de recusar |
-| **F5 — o corpo** | Loop de eventos, interrupção cooperativa, `OnExit`, `OnMessage` | o relatório JSON ganha a tarefa; os timers passam a ser reais |
-| **F6 — as receitas** | Portar os 14 scripts de exemplo para v2 e usá-los como casos | a paridade passa a ser demonstrada, não afirmada |
-| **F7 — o pacote** | `--compile`, Window Spy, `--check` | o entregável é um ficheiro |
+| **F0 — measure** | `ahk --surface`; the table of 725 names with the state | 93/253 today; the number becomes visible in every commit |
+| **F1 — what is cheap** | Clipboard, Sound, `NumGet`/`NumPut`, the whole `Files`, `FormatTime`/`Date*` | ~25 names come out of the refusal; the `Clipboard` and the `Sound` get traits of their own |
+| **F2 — the hooks** | Hotkey backend (X11 and Wayland), `Hotstring`, the real `Hotkey` class | `Hotkey`, `Hotstring`, `HotIf*` come out of the refusal; a script starts reacting to keys |
+| **F3 — the screen** | X11 backend of windows (`xdotool`), trait `Accessibility` by AT-SPI | `WinExist`/`WinActive`/`WinGetText`/`Control*` get a real answer |
+| **F4 — the windows** | `Gui`/`Menu`/`ToolTip`/`TrayTip` by GTK4, with `--gui` opt-in | the `Gui` class stops refusing |
+| **F5 — the body** | Event loop, cooperative interruption, `OnExit`, `OnMessage` | the JSON report gains the task; the timers become real |
+| **F6 — the recipes** | Port the 14 example scripts to v2 and use them as cases | the parity becomes demonstrated, not asserted |
+| **F7 — the package** | `--compile`, Window Spy, `--check` | the deliverable is a file |
 
-As fases F0 e F1 são as que dão mais por hora. A F2 é a que muda o que o
-projecto **é**. A F4 é a maior e a mais dependente do ambiente.
+The phases F0 and F1 are the ones that give the most per hour. F2 is the one
+that changes what the project **is**. F4 is the biggest and the most
+dependent on the environment.
 
 ---
 
-## 7. Como medir a paridade
+## 7. How to measure the parity
 
-O tree já tem a mecânica: `crates/ahk/tests/surface.rs` lê a tabela da
-superfície e pergunta à árvore, nome a nome, se ela o carrega. A regra é
-que a resposta pode ser um valor **ou a razão**, e um nome que a árvore não
-carrega tem de estar na tabela de pendentes.
+The tree already has the machinery: `crates/ahk/tests/surface.rs` reads the
+table of the surface and asks the tree, name by name, if it carries it. The
+rule is that the answer may be a value **or the reason**, and a name that the
+tree does not carry has to be in the table of pendents.
 
-**O comando já existe.** `ahk --surface` imprime o estado de cada nome de v2,
-sem script, e um resumo no fim:
+**The command already exists.** `ahk --surface` prints the state of each v2
+name, without a script, and a summary at the end:
 
 ```
 name                 kind      state
@@ -760,39 +772,41 @@ Hotkey               command   value
 the surface of v2 has 725 entries: 479 answer with a value, 246 are refused, 0 are pending.
 ```
 
-Com isso, "o que falta" deixa de ser uma opinião e passa a ser um número que
-**não pode piorar sem se ver**. O JSON para o CI ainda não existe: é a mesma
-informação, noutro formato, e o comando é o ponto de entrada.
+With that, "what is missing" stops being an opinion and becomes a number that
+**cannot get worse without being seen**. The JSON for the CI does not exist
+yet: it is the same information, in another format, and the command is the
+entry point.
 
-Um segundo número merece atenção: **quantos nomes da superfície de v2 estão
-implementados a sério** — hoje 479 de 725 entradas. A meta não é 725: v2 tem
-nomes que são Windows e não vão acontecer aqui. A meta honesta é: *nenhum
-nome que o AHK_X11 faz no Linux devia estar na recusa por falta de
-implementação*. A AHK_X11 faz ~127 comandos de v1 num ambiente comparável;
-muitos deles têm equivalente directo em v2. Essa é a régua de paridade que
-propomos.
+A second number deserves attention: **how many names of the surface of v2 are
+really implemented** — today 479 of 725 entries. The goal is not 725: v2 has
+names that are Windows and that will not happen here. The honest goal is:
+*no name that the AHK_X11 does on Linux should be in the refusal for lack of
+implementation*. The AHK_X11 does ~127 v1 commands in a comparable
+environment; many of them have a direct equivalent in v2. That is the parity
+rule we propose.
 
 ---
 
-## 8. As fontes
+## 8. The sources
 
-- **AHK_X11** — documentação: <https://phil294.github.io/AHK_X11/>;
-  código: <https://github.com/phil294/AHK_X11> (branch `master`,
-  `shard.yml` versão 1.0.7). Lidos: `README.md`, `docs/list of commands.txt`,
-  `src/ahk_x11.cr`, `src/run/display/{x11,gtk,at-spi,hotkey,hotstring,display-adapter}.cr`,
+- **AHK_X11** — documentation: <https://phil294.github.io/AHK_X11/>;
+  code: <https://github.com/phil294/AHK_X11> (branch `master`,
+  `shard.yml` version 1.0.7). Read: `README.md`, `docs/list of commands.txt`,
+  `src/ahk_x11.cr`,
+  `src/run/display/{x11,gtk,at-spi,hotkey,hotstring,display-adapter}.cr`,
   `src/run/thread.cr`, `src/build/{parser,linker}.cr`,
   `src/cmd/**`, `src/util/ahk-bin-var.cr`.
-- **AHK (este repositório)** — `AGENTS.md` (as notas de trabalho, §12–§23),
+- **AHK (this repository)** — `AGENTS.md` (the working notes, §12–§23),
   `crates/ahk/src/{builtins,desktop,lib}.rs`,
   `crates/ahk/src/classes/*.rs`, `crates/ahk/src/{hotkeys,files,date,settings}.rs`,
   `crates/ahk/src/variables.rs`, `crates/ahk/reference/ahk-v2.0.19.surface.tsv`,
   `crates/ahk-box/src/{desktop,keyboard,pointer,native,raven}.rs`,
   `crates/ahk-cli/src/main.rs`.
-- **Medições da caixa** — 2026-10-25, 2026-10-27 e 2026-10-28, em
-  192.168.0.40 (CachyOS, Wayland, COSMIC). O registo completo está no
+- **Measurements of the box** — 2026-10-25, 2026-10-27 and 2026-10-28, on
+  192.168.0.40 (CachyOS, Wayland, COSMIC). The full record is in the
   `AGENTS.md` (§13).
-- **Contagens desta comparação** — 725 entradas de superfície (644 nomes
-  distintos): 242 comandos, 103 funções, 131 variáveis, 249 métodos; 346
-  built-ins na tabela, 141 com handler real e 205 com `not_carried`. Das 725
-  entradas, 479 respondem com um valor e 246 recusam com a razão — o
-  `ahk --surface` é quem conta.
+- **Counts of this comparison** — 725 entries of surface (644 distinct names):
+  242 commands, 103 functions, 131 variables, 249 methods; 346 built-ins in the
+  table, 141 with a real handler and 205 with `not_carried`. Of the 725
+  entries, 479 answer with a value and 246 refuse with the reason — the
+  `ahk --surface` is what counts.

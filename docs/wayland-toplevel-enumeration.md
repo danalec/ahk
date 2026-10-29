@@ -1,100 +1,103 @@
-# Enumerar janelas num compositor Wayland
+# Enumerating windows in a Wayland compositor
 
-> Guia técnico e exemplo funcional em Rust, com `ext-foreign-toplevel-list-v1`.
+> Technical guide and working example in Rust, with
+> `ext-foreign-toplevel-list-v1`.
 >
-> O código deste guia foi **compilado e executado** na caixa do laboratório
-> (192.168.0.40, CachyOS, Wayland, COSMIC) a 2026-10-28. A saída real está
-> na secção 7.
+> The code of this guide was **compiled and run** on the box of the laboratory
+> (192.168.0.40, CachyOS, Wayland, COSMIC) on 2026-10-28. The real output is
+> in section 7.
 
 ---
 
-## 1. O modelo: porquê é que o Wayland não tem uma lista de janelas
+## 1. The model: why Wayland has no list of windows
 
-O Wayland foi desenhado ao contrário do X11. No X11, qualquer cliente pode
-perguntar ao servidor pela árvore de janelas inteira e receives os
-identificadores de todas elas — é um problema de segurança conhecido, e é a
-razão pela qual o `xprop`/`xdotool`/`wmctrl` funcionam em qualquer sessão X11
-sem permissão nenhuma.
+Wayland was designed the other way around from X11. In X11, any client can
+ask the server for the whole tree of windows and receives the identifiers of
+all of them — that is a known security problem, and it is the reason why
+`xprop`/`xdotool`/`wmctrl` work in any X11 session without any permission.
 
-No Wayland, um cliente só vê **as superfícies que ele mesmo criou**. As
-janelas dos outros programas são de outro cliente, e o compositor não as
-annuncia a ninguém. Não existe `wl_display.get_windows()` e nunca vai
-existir: o objectivo do protocolo é que um cliente malicioso não possa
-descobrir o que está no ecrã do utilizador nem interferir com as janelas dos
-outros.
+In Wayland, a client sees only **the surfaces it created itself**. The
+windows of the other programs belong to another client, and the compositor
+does not announce them to anybody. There is no `wl_display.get_windows()` and
+there never will be: the aim of the protocol is that a malicious client
+cannot discover what is on the screen of the user nor interfere with the
+windows of the others.
 
-A consequência prática é que **enumerar janelas é uma permissão, não um
-direito**. O compositor concede essa permissão por um protocolo de
-extensão, e o cliente tem de o pedir explicitamente — e o compositor pode
-recusá-lo.
+The practical consequence is that **enumerating windows is a permission, not
+a right**. The compositor grants that permission through an extension
+protocol, and the client has to ask for it explicitly — and the compositor
+may refuse it.
 
-### 1.1 Os dois protocolos que interessam
+### 1.1 The two protocols that matter
 
-| Protocolo | Lista | Controla | Quem publica |
+| Protocol | Lists | Controls | Who publishes it |
 |---|---|---|---|
-| `ext-foreign-toplevel-list-v1` | sim | **não** | compositor que implemente a listagem |
-| `zwlr-foreign-toplevel-management-unstable-v1` | sim | **sim** | wlroots (Sway, Hyprland, Wayfire, riverlab, ...) |
-| `zcosmic_toplevel_manager_v1` | sim | **sim** | COSMIC |
+| `ext-foreign-toplevel-list-v1` | yes | **no** | a compositor that implements the listing |
+| `zwlr-foreign-toplevel-management-unstable-v1` | yes | **yes** | wlroots (Sway, Hyprland, Wayfire, riverlab, ...) |
+| `zcosmic_toplevel_manager_v1` | yes | **yes** | COSMIC |
 
-A diferença é o ponto inteiro:
+The difference is the whole point:
 
-- **`ext-foreign-toplevel-list-v1`** é o protocolo **mínimo e portátil**. O
-  compositor entrega uma *handle* por cada toplevel mapeado, e a handle diz
-  o que a janela é: `title`, `app_id` e um `identifier` estável. **Não há
-  nenhum request de acção** — o cliente não pode activar, mover, minimizar
-  nem fechar nada. É um protocolo de *observação*.
-- **`zwlr-foreign-toplevel-management-unstable-v1`** (e o equivalente da
-  COSMIC) acrescenta os requests de acção: `activate`, `minimize`,
-  `unmaximize`, `maximize`, `close`, `move`, `resize`, além dos eventos de
-  estado (`activated`, `fullscreen`, `minimized`) e de output. É um
-  protocolo de *controlo*.
+- **`ext-foreign-toplevel-list-v1`** is the **minimal and portable**
+  protocol. The compositor hands out one *handle* for every mapped toplevel,
+  and the handle says what the window is: `title`, `app_id` and a stable
+  `identifier`. **There is not a single action request** — the client cannot
+  activate, move, minimize nor close anything. It is a protocol of
+  *observation*.
+- **`zwlr-foreign-toplevel-management-unstable-v1`** (and the equivalent of
+  COSMIC) adds the action requests: `activate`, `minimize`, `unmaximize`,
+  `maximize`, `close`, `move`, `resize`, besides the state events
+  (`activated`, `fullscreen`, `minimized`) and the output ones. It is a
+  protocol of *control*.
 
-O `ext-` é a versão **staging** do protocolo, levada para o
-wayland-protocols para substituir o `zwlr-` unstable. É o mesmo desenho, sem o poder de agir.
-A razão de o `ext-` existir é a mesma que fez o X11 ser considerado
-inseguro: a lista é útil, o controlo é perigoso, e um compositor pode
-querer dar a primeira e negar o segundo.
+The `ext-` is the **staging** version of the protocol, brought into
+wayland-protocols to replace the unstable `zwlr-`. It is the same design,
+without the power to act. The reason why the `ext-` exists is the same one
+that made X11 be considered unsafe: the list is useful, the control is
+dangerous, and a compositor may want to give the first and refuse the
+second.
 
-> **Medido na caixa (2026-10-28).** O compositor é o `cosmic-comp`. Publica
-> `ext_foreign_toplevel_list_v1` (versão 1), `zcosmic_toplevel_manager_v1`,
-> `zcosmic_toplevel_info_v1`, `ext_data_control_manager_v1`,
-> `ext_workspace_manager_v1`, `ext_foreign_toplevel_image_capture_source_manager_v1`,
-> `cosmic_a11y_manager_v1` e `wp_pointer_warp_v1`. **Não** publica
-> `zwlr_foreign_toplevel_management_v1` — o COSMIC não é wlroots — mas
-> publica o seu equivalente, com os mesmos poderes.
+> **Measured on the box (2026-10-28).** The compositor is `cosmic-comp`. It
+> publishes `ext_foreign_toplevel_list_v1` (version 1),
+> `zcosmic_toplevel_manager_v1`, `zcosmic_toplevel_info_v1`,
+> `ext_data_control_manager_v1`, `ext_workspace_manager_v1`,
+> `ext_foreign_toplevel_image_capture_source_manager_v1`,
+> `cosmic_a11y_manager_v1` and `wp_pointer_warp_v1`. It does **not** publish
+> `zwlr_foreign_toplevel_management_v1` — COSMIC is not wlroots — but it
+> publishes its equivalent, with the same powers.
 
-### 1.2 O que isto muda para o nosso runtime
+### 1.2 What this changes for our runtime
 
-O `AGENTS.md` dizia que `WinExist` e `WinActive` respondiam *"unknown"* na
-caixa, porque o compositor Wayland não expõe lista de janelas ao D-Bus e o
-Xwayland do gamescope reporta uma lista vazia. **Isso continua verdadeiro
-para o D-Bus, e deixa de ser verdade para o Wayland**: o `cosmic-comp`
-publica `ext_foreign_toplevel_list_v1`, e o programa deste guia enumera as
-janelas da caixa sem dificuldade nenhuma. O que faltava era o caminho
-Wayland-native, não a permissão.
+The `AGENTS.md` said that `WinExist` and `WinActive` answered *"unknown"* on
+the box, because the Wayland compositor does not expose a list of windows to
+D-Bus and the Xwayland of gamescope reports an empty list. **That is still
+true for D-Bus, and it is not true for Wayland anymore**: the `cosmic-comp`
+publishes `ext_foreign_toplevel_list_v1`, and the program of this guide
+enumerates the windows of the box without any difficulty. What was missing
+was the Wayland-native path, not the permission.
 
-**Esse caminho está feito (2026-10-29).** O cliente vive em
-`crates/ahk-box/src/wayland.rs`, e `WinGetTitle`, `WinExist` e `WinActive`
-respondem com valor na caixa. Duas coisas que este guia não cobre e que o
-cliente teve de aprender:
+**That path is done (2026-10-29).** The client lives in
+`crates/ahk-box/src/wayland.rs`, and `WinGetTitle`, `WinExist` and `WinActive`
+answer with a value on the box. Two things this guide does not cover and
+that the client had to learn:
 
-- **A janela activa vem de um segundo protocolo.** O `ext-foreign-toplevel-list-v1`
-  não diz qual das janelas tem o foco. Quem diz é o
-  `zcosmic-toplevel-info-v1`, que *estende* a listagem: `get_cosmic_toplevel`
-  recebe a handle da listagem e devolve uma handle do COSMIC, e essa é que
-  carrega o `state`. A correlação é pela handle, portanto é exacta — e não
-  um palpite pelo título.
-- **O `state` chega um frame depois.** O compositor diz o estado da janela
-  no seu próximo refresco, e um refresco é um frame: medido na caixa, a
-  resposta estava na segunda pergunta, dez milissegundos depois da
-  primeira. O cliente espera — com limite — antes de dizer que a janela
-  activa é uma ou outra.
+- **The active window comes from a second protocol.** The
+  `ext-foreign-toplevel-list-v1` does not say which of the windows has the
+  focus. The one that says is the `zcosmic-toplevel-info-v1`, which
+  *extends* the listing: `get_cosmic_toplevel` receives the handle of the
+  listing and returns a handle of COSMIC, and that one is the one that
+  carries the `state`. The correlation is by the handle, so it is exact —
+  and not a guess by the title.
+- **The `state` arrives one frame later.** The compositor says the state of
+  the window in its next refresh, and a refresh is a frame: measured on the
+  box, the answer was in the second question, ten milliseconds after the
+  first. The client waits — with a limit — before saying that the active
+  window is one or the other.
 
-O XML dos dois protocolos está vendorizado em
-`crates/ahk-box/protocols/` (MIT), e as ligações são geradas pelo
-`wayland-scanner` em tempo de compilação. O crate `cosmic-protocols` é
-GPL-3.0 e **não** é dependência desta árvore: o comportamento é portado, o
-código não é copiado.
+The XML of the two protocols is vendored in `crates/ahk-box/protocols/`
+(MIT), and the bindings are generated by the `wayland-scanner` at compile
+time. The crate `cosmic-protocols` is GPL-3.0 and **not** a dependency of
+this tree: the behaviour is ported, the code is not copied.
 
 ---
 
@@ -122,19 +125,20 @@ opt-level = "s"
 lto = true
 ```
 
-Três notas sobre o manifesto:
+Three notes about the manifest:
 
-1. **`features = ["client", "staging"]` é obrigatório.** O
-   `ext-foreign-toplevel-list-v1` é um protocolo *staging*, e o crate
-   `wayland-protocols` esconde os protocolos staging atrás dessa feature.
-   Sem ela, `wayland_protocols::ext::foreign_toplevel_list` nem existe, e o
-   erro é um `unresolved import` que não diz nada sobre a causa.
-2. **`wayland-scanner` não é uma dependência.** O `wayland-protocols` já
-   traz o código gerado; o `wayland-scanner` só seria preciso para um
-   protocolo que não esteja no crate (ver a secção 8).
-3. **`rustix`** entra pelo `event`: é o `poll(2)` que o `wayland-client` usa
-   por dentro, e é ele que permite esperar pelo compositor com um tempo
-   limite em vez de bloquear para sempre.
+1. **`features = ["client", "staging"]` is mandatory.** The
+   `ext-foreign-toplevel-list-v1` is a *staging* protocol, and the crate
+   `wayland-protocols` hides the staging protocols behind that feature.
+   Without it, `wayland_protocols::ext::foreign_toplevel_list` does not even
+   exist, and the error is an `unresolved import` that says nothing about the
+   cause.
+2. **`wayland-scanner` is not a dependency.** The `wayland-protocols` already
+   brings the generated code; the `wayland-scanner` would only be needed for
+   a protocol that is not in the crate (see section 8).
+3. **`rustix`** comes in through the `event`: it is the `poll(2)` that the
+   `wayland-client` uses inside, and it is what allows waiting for the
+   compositor with a time limit instead of blocking forever.
 
 ---
 
@@ -554,175 +558,178 @@ impl Dispatch<ExtForeignToplevelHandleV1, ()> for App {
 
 ---
 
-## 4. Compilar e executar
+## 4. Compiling and running
 
-O crate é **Linux-only**: o `wayland-sys` usa `std::os::unix`, e por isso
-não compila no Windows. Na caixa:
+The crate is **Linux-only**: the `wayland-sys` uses `std::os::unix`, and so it
+does not compile on Windows. On the box:
 
 ```sh
-# 1. o código vai para a caixa primeiro: um build sem a cópia compila
-#    o que a caixa ainda tem, e o resultado é um binário velho sem erro.
+# 1. the code goes to the box first: a build without the copy compiles
+#    what the box still has, and the result is an old binary with no error.
 ssh danalec@192.168.0.40 'mkdir -p ~/src/wl-toplevels/src'
 scp Cargo.toml danalec@192.168.0.40:~/src/wl-toplevels/Cargo.toml
 scp src/main.rs danalec@192.168.0.40:~/src/wl-toplevels/src/main.rs
 
-# 2. o build
+# 2. the build
 ssh danalec@192.168.0.40 'cd ~/src/wl-toplevels && cargo build --release'
 
-# 3. a execução, na sessão do utilizador
+# 3. the run, in the session of the user
 ssh danalec@192.168.0.40 'cd ~/src/wl-toplevels && \
     XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 \
     ./target/release/wl-toplevels'
 ```
 
-Numa sessão gráfica normal (terminal dentro do Wayland), basta:
+In a normal graphical session (a terminal inside Wayland), it is enough:
 
 ```sh
 cargo run --release
 ```
 
-O `Connection::connect_to_env()` lê `WAYLAND_DISPLAY` e `XDG_RUNTIME_DIR`.
-Sem `WAYLAND_DISPLAY`, ele falha com *"cannot connect to the Wayland
-display"* — e isso é o sintoma de um `ssh` sem o ambiente da sessão, não um
-erro do programa.
+The `Connection::connect_to_env()` reads `WAYLAND_DISPLAY` and
+`XDG_RUNTIME_DIR`. Without `WAYLAND_DISPLAY`, it fails with *"cannot connect
+to the Wayland display"* — and that is the symptom of an `ssh` without the
+environment of the session, not an error of the program.
 
-**Ctrl+C** põe a flag, o loop vê-a à próxima volta, e o programa sai pelo
-caminho limpo: pede `stop`, espera o `finished`, e fecha a ligação. O código
-de saída é 0.
+**Ctrl+C** sets the flag, the loop sees it on the next turn, and the program
+leaves by the clean path: it asks for `stop`, waits for the `finished`, and
+closes the connection. The exit code is 0.
 
 ---
 
-## 5. Os eventos: o que é snapshot e o que é incremental
+## 5. The events: what is snapshot and what is incremental
 
-Esta é a parte que engana, e a fonte de quase todos os erros neste
-protocolo.
+This is the part that misleads, and the source of almost every mistake in
+this protocol.
 
-### 5.1 O snapshot inicial
+### 5.1 The initial snapshot
 
 ```
-bind no global
+bind the global
    │
    ├── event  ext_foreign_toplevel_list_v1.toplevel   (handle #1)
    │     ├── event  handle.identifier = "P6jNlxgK..."     ┐
-   │     ├── event  handle.title      = "Firefox"        ├─ as propriedades
+   │     ├── event  handle.title      = "Firefox"        ├─ the properties
    │     ├── event  handle.app_id     = "firefox"        ┘
-   │     └── event  handle.done                          ← confirma
+   │     └── event  handle.done                          ← confirms
    │
    ├── event  ext_foreign_toplevel_list_v1.toplevel   (handle #2)
-   │     └── ... idem ...
+   │     └── ... likewise ...
    │
-   └── roundtrip (wl_display.sync)                        ← o snapshot acabou
+   └── roundtrip (wl_display.sync)                        ← the snapshot is over
 ```
 
-O compositor envia **um `toplevel` por cada toplevel mapeado**, e logo a
-seguir as propriedades de cada handle (`identifier`, `title`, `app_id`),
-seguidas de `done`.
+The compositor sends **one `toplevel` for every mapped toplevel**, and right
+after it the properties of each handle (`identifier`, `title`, `app_id`),
+followed by `done`.
 
-**O fim do snapshot é marcado pelo roundtrip, não por um evento.** O
-protocolo diz exactamente isso:
+**The end of the snapshot is marked by the roundtrip, not by an event.** The
+protocol says exactly that:
 
 > Clients which only care about the current state can perform a roundtrip
 > after binding this global.
 
-Um `wl_display.sync` que o compositor responde depois de ter processado tudo
-o que havia antes garante que os eventos do snapshot já chegaram. Por isso
-o programa faz `queue.roundtrip(&mut app)?` logo depois do bind, e só
-depois imprime a tabela.
+A `wl_display.sync` that the compositor answers after it has processed
+everything that came before it guarantees that the events of the snapshot
+have already arrived. That is why the program does
+`queue.roundtrip(&mut app)?` right after the bind, and only then prints the
+table.
 
-> **Erro comum.** O evento `finished` **não** marca o fim do snapshot. O
-> `finished` é a resposta ao request `stop`, e o compositor só o envia
-> depois de o cliente pedir para parar de receber eventos. Confundir os dois
-> dá um programa que nunca imprime a tabela inicial.
+> **Common mistake.** The `finished` event does **not** mark the end of the
+> snapshot. The `finished` is the answer to the `stop` request, and the
+> compositor only sends it after the client asks to stop receiving events.
+> Confusing the two gives a program that never prints the initial table.
 
-### 5.2 As propriedades aplicam-se no `done`
+### 5.2 The properties are applied at the `done`
 
-O protocolo é explícito: *"The configured state must not be applied
-immediately"* — o `title` e o `app_id` que chegam **não** se aplicam no
-momento em que chegam, mas no `done` que os confirma. Assim, um título e um
-`app_id` que mudam juntos são vistos juntos, e o programa nunca mostra um
-estado intermédio que o utilizador nunca viu.
+The protocol is explicit: *"The configured state must not be applied
+immediately"* — the `title` and the `app_id` that arrive are **not** applied
+at the moment they arrive, but at the `done` that confirms them. That way, a
+title and an `app_id` that change together are seen together, and the
+program never shows an intermediate state that the user never saw.
 
-É por isso que o código tem os campos `pending_title`, `pending_app_id` e
-`pending_identifier`: o que chegou espera, e o `done` move o pendente para
-o aplicado.
+That is why the code has the fields `pending_title`, `pending_app_id` and
+`pending_identifier`: what arrived waits, and the `done` moves the pending
+one into the applied one.
 
-### 5.3 As Actualizações incrementais
+### 5.3 The incremental updates
 
-Depois do roundtrip, os mesmos eventos passam a querer dizer outra coisa:
+After the roundtrip, the same events come to mean another thing:
 
-| Evento | Antes do roundtrip | Depois do roundtrip |
+| Event | Before the roundtrip | After the roundtrip |
 |---|---|---|
-| `toplevel` | uma janela do inventário | **uma janela nova** foi mapeada |
-| `identifier`/`title`/`app_id` | as propriedades iniciais | uma propriedade **mudou** |
-| `done` | confirma o inicial | confirma a mudança |
-| `closed` | — | **a janela foi fechada** |
+| `toplevel` | a window of the inventory | **a new window** was mapped |
+| `identifier`/`title`/`app_id` | the initial properties | a property **changed** |
+| `done` | confirms the initial | confirms the change |
+| `closed` | — | **the window was closed** |
 
-O programa distingue os dois regimes com a flag `snapshot_done`: durante o
-snapshot, nada é impresso (a tabela é impressa de uma vez, no fim); depois,
-cada `done` imprime a linha com `+` (janela nova) ou `~` (janela que mudou),
-e o `closed` imprime `-`.
+The program tells the two regimes apart with the `snapshot_done` flag:
+during the snapshot, nothing is printed (the table is printed all at once,
+at the end); afterwards, each `done` prints the line with `+` (new window)
+or `~` (window that changed), and the `closed` prints `-`.
 
-O `identifier` merece uma nota: é **estável** e o compositor só o envia
-quando a handle é criada. Ele serve para dizer se duas handles são a mesma
-janela, e é o mesmo valor em processos diferentes — é o `id` que se escreve
-num log e se usa mais tarde.
+The `identifier` deserves a note: it is **stable** and the compositor only
+sends it when the handle is created. It serves to say whether two handles
+are the same window, and it is the same value in different processes — it is
+the `id` that goes into a log and that is used later.
 
-### 5.4 `closed` e a destruição da handle
+### 5.4 `closed` and the destruction of the handle
 
-Depois do `closed`, o compositor não envia mais nada naquela handle, e o
-protocolo pede ao cliente que a destrua. O programa faz as duas coisas:
-imprime a linha e chama `destroy()` na handle, tirando-a da lista.
-
----
-
-## 6. Como não bloquear a event queue
-
-`EventQueue::blocking_dispatch()` é o caminho fácil, e é o errado para um
-programa que precisa de responder a Ctrl+C: ele bloqueia dentro do
-`read(2)` do socket, e o `SIGINT` chega ao processo, mas o programa não
-volta a correr para o ver.
-
-O padrão certo é o **prepare-read** (é o que a própria documentação do
-crate descreve):
-
-1. `queue.prepare_read()` — devolve um guard. Este passo **não** bloqueia.
-   O guard é o que coordena com as outras threads da queue: só uma thread
-   pode ler do socket, e o guard garante isso.
-2. `conn.flush()` — envia o que está pendente. Sem isto, um request feito
-   antes da espera nunca chega ao compositor.
-3. `poll(2)` no `guard.connection_fd()`, **com um tempo limite**. O
-   `poll` com timeout é o que dá ao programa a chance de olhar para a flag
-   do Ctrl+C mesmo quando o compositor está calado.
-4. `guard.read()` — só quando o `poll` disse que há dados. A leitura põe os
-   eventos na queue; os handlers correm em `dispatch_pending()`.
-5. Se o `poll` expirou, o guard é largado, e o `prepare_read` é cancelado.
-
-O resultado é que **o programa nunca está dentro de uma leitura da qual
-não possa sair**, e o loop é o mesmo para o `poll` que expira e para o que
-devolve eventos.
-
-Dois erros que só aparecem em execução:
-
-- **`EINTR`.** O `SIGINT` interrompe o `poll(2)` e ele devolve
-  `ErrorKind::Interrupted`. Se isso não for tratado, o programa morre com
-  *"Interrupted system call"* em vez de sair limpo. O código trata-o como
-  "não aconteceu nada", e o loop olha para a flag à volta seguinte.
-- **`WouldBlock` no `read()`.** Se outra thread da queue leu os eventos
-  entre o `poll` e o `read`, o `read` devolve `WouldBlock`. Também não é um
-  erro.
-
-E uma armadilha do protocolo, não do Rust: **um proxy Wayland que é
-largado destrói o objecto no servidor.** Por isso o programa guarda as
-handles em `state.handles` e o objecto da lista em `state.list`: sem isso,
-o handle é destruído no instante em que chega, e a janela desaparece do
-inventário antes de mandar o `title`.
+After the `closed`, the compositor sends nothing else on that handle, and
+the protocol asks the client to destroy it. The program does both things:
+it prints the line and calls `destroy()` on the handle, taking it out of
+the list.
 
 ---
 
-## 7. Saída esperada (medida na caixa)
+## 6. How not to block the event queue
 
-Medido a 2026-10-28, na caixa do laboratório (COSMIC, sessão Wayland), com
-uma janela do Chromium e dois terminais abertos:
+`EventQueue::blocking_dispatch()` is the easy path, and it is the wrong one
+for a program that has to answer Ctrl+C: it blocks inside the `read(2)` of
+the socket, and the `SIGINT` reaches the process, but the program does not
+run again to see it.
+
+The right pattern is the **prepare-read** (that is what the documentation of
+the crate itself describes):
+
+1. `queue.prepare_read()` — returns a guard. This step does **not** block.
+   The guard is what coordinates with the other threads of the queue: only
+   one thread can read from the socket, and the guard guarantees that.
+2. `conn.flush()` — sends what is pending. Without this, a request made
+   before the wait never reaches the compositor.
+3. `poll(2)` on the `guard.connection_fd()`, **with a time limit**. The
+   `poll` with a timeout is what gives the program the chance to look at the
+   Ctrl+C flag even when the compositor is quiet.
+4. `guard.read()` — only when the `poll` said that there is data. The read
+   puts the events in the queue; the handlers run in `dispatch_pending()`.
+5. If the `poll` expired, the guard is dropped, and the `prepare_read` is
+   cancelled.
+
+The result is that **the program is never inside a read that it cannot
+leave**, and the loop is the same for the `poll` that expires and for the
+one that returns events.
+
+Two errors that only show up at runtime:
+
+- **`EINTR`.** The `SIGINT` interrupts the `poll(2)` and it returns
+  `ErrorKind::Interrupted`. If that is not handled, the program dies with
+  *"Interrupted system call"* instead of leaving cleanly. The code treats it
+  as "nothing happened", and the loop looks at the flag on the next turn.
+- **`WouldBlock` in the `read()`.** If another thread of the queue read the
+  events between the `poll` and the `read`, the `read` returns `WouldBlock`.
+  That is not an error either.
+
+And a trap of the protocol, not of Rust: **a Wayland proxy that is dropped
+destroys the object on the server.** That is why the program keeps the
+handles in `state.handles` and the object of the list in `state.list`:
+without that, the handle is destroyed at the moment it arrives, and the
+window leaves the inventory before it sends the `title`.
+
+---
+
+## 7. Expected output (measured on the box)
+
+Measured on 2026-10-28, on the box of the laboratory (COSMIC, Wayland
+session), with a Chromium window and two terminals open:
 
 ```
 --- snapshot: 3 mapped toplevel(s) ---
@@ -732,7 +739,7 @@ uma janela do Chromium e dois terminais abertos:
 --- the snapshot is over; the changes follow ---
 ```
 
-E, com uma janela que abre e fecha enquanto o programa corre:
+And, with a window that opens and closes while the program runs:
 
 ```
 + [0xff000003] identifier=G5OripXB5z4rDaCWM0ovuxIEpHuzxRj5 title="wl-probe-2" app_id="kitty"
@@ -741,18 +748,18 @@ E, com uma janela que abre e fecha enquanto o programa corre:
 Ctrl+C: stopping.
 ```
 
-O `identifier` tem 32 caracteres ASCII imprimíveis, como o protocolo
-promete. O `0xff000000` é o id do objecto Wayland da handle, e só serve
-para distinguir handles dentro da mesma sessão.
+The `identifier` has 32 printable ASCII characters, as the protocol
+promises. The `0xff000000` is the id of the Wayland object of the handle, and
+it only serves to tell handles apart inside the same session.
 
 ---
 
-## 8. Limitações, e como testar o support
+## 8. Limitations, and how to test the support
 
-### 8.1 Se o compositor não publica o global
+### 8.1 If the compositor does not publish the global
 
-Não há enumeração possível por Wayland nativo. O programa diz isso na
-saída de erro:
+There is no enumeration possible through native Wayland. The program says
+that in the error output:
 
 ```
 the compositor does not publish ext_foreign_toplevel_list_v1:
@@ -760,12 +767,13 @@ the compositor does not publish ext_foreign_toplevel_list_v1:
  `wayland-info` says which globals it does publish.
 ```
 
-E continua a correr, porque um compositor pode publicar o global mais
-tarde; o handler do registry apanha-o quando isso acontecer.
+And it keeps running, because a compositor may publish the global later;
+the registry handler picks it up when that happens.
 
-### 8.2 Como detectar o support
+### 8.2 How to detect the support
 
-Com o `wayland-info`, que é o modo canónico -- o formato da saída é este:
+With the `wayland-info`, which is the canonical way -- the format of the
+output is this:
 
 ```
 ext_foreign_toplevel_list_v1 (v1):
@@ -773,85 +781,87 @@ ext_foreign_toplevel_list_v1 (v1):
     version: 1
 ```
 
-Sem o `wayland-info` instalado -- e na caixa ele **não** está instalado --
-o `WAYLAND_DEBUG=1` de qualquer cliente Wayland imprime o registry inteiro:
+Without the `wayland-info` installed -- and on the box it is **not**
+installed -- the `WAYLAND_DEBUG=1` of any Wayland client prints the whole
+registry:
 
 ```sh
-WAYLAND_DEBUG=1 <qualquer-cliente-wayland> 2>&1 | grep 'wl_registry@.*global'
+WAYLAND_DEBUG=1 <any-wayland-client> 2>&1 | grep 'wl_registry@.*global'
 ```
 
-E o que a caixa responde (2026-10-28), em ordem:
+And what the box answers (2026-10-28), in order:
 
 ```
 wl_compositor, wl_subcompositor, wl_data_device_manager, wl_shm, wl_output,
 wl_seat, xdg_wm_base, xdg_activation_v1, wl_drm, wl_fixes,
-ext_foreign_toplevel_list_v1,          <-- a listagem
-ext_data_control_manager_v1,           <-- a clipboard
-ext_workspace_manager_v1,              <-- as workspaces
-ext_foreign_toplevel_image_capture_source_manager_v1,   <-- a captura de uma janela
+ext_foreign_toplevel_list_v1,          <-- the listing
+ext_data_control_manager_v1,           <-- the clipboard
+ext_workspace_manager_v1,              <-- the workspaces
+ext_foreign_toplevel_image_capture_source_manager_v1,   <-- the capture of one window
 ext_image_copy_capture_manager_v1, ext_output_image_capture_source_manager_v1,
 ext_idle_notifier_v1, ext_session_lock_manager_v1, ext_background_effect_manager_v1,
-zcosmic_toplevel_manager_v1,           <-- o controlo das janelas
+zcosmic_toplevel_manager_v1,           <-- the control of the windows
 zcosmic_toplevel_info_v1, zcosmic_workspace_manager_v1, zcosmic_workspace_manager_v2,
 zcosmic_output_manager_v1, zcosmic_overlap_notify_v1, zcosmic_keyboard_layout_manager_v1,
 zwlr_output_manager_v1, zwlr_output_power_manager_v1, zwlr_layer_shell_v1,
-zwlr_data_control_manager_v1, zwp_* (os do wayland-protocols unstable),
+zwlr_data_control_manager_v1, zwp_* (the ones of wayland-protocols unstable),
 wp_pointer_warp_v1, wp_presentation, wp_fractional_scale_manager_v1, ...
 ```
 
-### 8.3 O X11 e o XWayland não são a resposta
+### 8.3 The X11 and the XWayland are not the answer
 
-O `xprop`, o `xdotool` e o `wmctrl` continuam a funcionar numa sessão X11, e
-o XWayland expõe as janelas X11. Mas:
+The `xprop`, the `xdotool` and the `wmctrl` keep working in an X11 session,
+and the XWayland exposes the X11 windows. But:
 
-- O XWayland só conhece as janelas **X11**. Numa sessão Wayland pura, um
-  cliente nativo não aparece lá.
-- Na caixa, o Xwayland é o do gamescope (rootless) e reporta uma lista de
-  clientes **vazia** — é o que o `AGENTS.md` regista.
-- Um programa que resolve a enumeração por X11 deixa de funcionar no
-  momento em que a sessão passa a Wayland, e é exactamente o que a caixa
-  é.
+- The XWayland only knows the **X11** windows. In a pure Wayland session, a
+  native client does not show up there.
+- On the box, the Xwayland is the one of gamescope (rootless) and reports a
+  list of clients that is **empty** — that is what the `AGENTS.md` records.
+- A program that resolves the enumeration through X11 stops working at the
+  moment the session becomes Wayland, and that is exactly what the box is.
 
-O caminho Wayland-native é o certo. O X11 fica como o *outro* backend, para
-as máquinas que ainda são X11 — não como o universal.
+The Wayland-native path is the right one. The X11 stays as the *other*
+backend, for the machines that are still X11 — not as the universal one.
 
-### 8.4 Listar não é controlar
+### 8.4 Listing is not controlling
 
-`ext-foreign-toplevel-list-v1` **não tem um único request de acção**. Com ele
-o programa sabe que a janela existe, como se chama e qual é a sua aplicação,
-e nada mais. Não a pode activar, nem fechar, nem mover.
+`ext-foreign-toplevel-list-v1` **does not have a single action request**.
+With it the program knows that the window exists, what it is called and
+what its application is, and nothing more. It cannot activate it, nor close
+it, nor move it.
 
-Para isso é preciso um dos protocolos de gestão:
+For that one of the management protocols is needed:
 
-- `zwlr-foreign-toplevel_management_v1` nos compositores **wlroots**
-  (Sway, Hyprland, Wayfire, riverlab, ...). Traz `activate`, `close`,
-  `minimize`, `unmaximize`, `maximize`, `move`, `resize`, e os eventos de
-  estado (`activated`, `fullscreen`, `minimized`) e de output.
-- `zcosmic_toplevel_manager_v1` no **COSMIC**, que é o compositor da caixa.
-  Traz `close`, `activate`, `set_maximized`/`unset_maximized`,
+- `zwlr-foreign-toplevel_management_v1` on the **wlroots** compositors
+  (Sway, Hyprland, Wayfire, riverlab, ...). It brings `activate`, `close`,
+  `minimize`, `unmaximize`, `maximize`, `move`, `resize`, and the state
+  events (`activated`, `fullscreen`, `minimized`) and the output ones.
+- `zcosmic_toplevel_manager_v1` on **COSMIC**, which is the compositor of the
+  box. It brings `close`, `activate`, `set_maximized`/`unset_maximized`,
   `set_minimized`/`unset_minimized`, `set_fullscreen`/`unset_fullscreen`,
   `set_rectangle`, `set_sticky`/`unset_sticky`.
 
-O `zcosmic_toplevel_info_v1` acrescenta ao que o `ext-` dá: os eventos
-`state` (maximizado, minimizado, em ecrã inteiro) e `geometry` (a posição e
-o tamanho da janela), além de `output_enter`/`output_leave` e
+The `zcosmic_toplevel_info_v1` adds to what the `ext-` gives: the `state`
+events (maximized, minimized, fullscreen) and `geometry` (the position and
+the size of the window), besides `output_enter`/`output_leave` and
 `workspace_enter`/`workspace_leave`.
 
-**Estes protocolos não são portáveis entre compositores.** É a tensão
-permanente do Wayland: a listagem pode ser padronizada, o controlo não, e
-cada compositor faz as suas.
+**These protocols are not portable between compositors.** It is the
+permanent tension of Wayland: the listing can be standardized, the control
+cannot, and each compositor does its own.
 
-### 8.5 O `identifier` é estável, mas só enquanto a janela vive
+### 8.5 The `identifier` is stable, but only while the window lives
 
-O protocolo é explícito: o identificador *"is only valid as long as the
-toplevel is mapped"*, não pode ser reutilizado, e deve incluir um valor de
-geração opaco. Serve para ligar duas handles à mesma janela, dentro ou
-entre processos. Não serve como identificador permanente de uma aplicação.
+The protocol is explicit: the identifier *"is only valid as long as the
+toplevel is mapped"*, it cannot be reused, and it must carry an opaque
+generation value. It serves to join two handles to the same window, inside
+or between processes. It does not serve as a permanent identifier of an
+application.
 
-### 8.6 Um protocolo que não está no `wayland-protocols`
+### 8.6 A protocol that is not in the `wayland-protocols`
 
-Se um dia for preciso um protocolo que o crate não traz (o
-`zcosmic_toplevel_manager_v1` é um caso), o caminho é o `wayland-scanner`:
+If one day a protocol that the crate does not bring is needed (the
+`zcosmic_toplevel_manager_v1` is one case), the path is the `wayland-scanner`:
 
 ```toml
 [build-dependencies]
@@ -865,50 +875,51 @@ fn main() {
 }
 ```
 
-O XML do protocolo é a *especificação*; o `cosmic-protocols` (o crate) é
-**GPL-3.0**, e esta árvore é **Apache 2.0**. A mesma regra do AHK_X11
-aplica-se: o protocolo pode ser implementado, o código do outro projecto
-não pode ser copiado. Gerar as ligações a partir do XML com o
-`wayland-scanner` é escrever código nosso, e é o que se deve fazer.
+The XML of the protocol is the *specification*; the `cosmic-protocols` (the
+crate) is **GPL-3.0**, and this tree is **Apache 2.0**. The same rule of
+AHK_X11 applies: the protocol may be implemented, the code of the other
+project may not be copied. Generating the bindings from the XML with the
+`wayland-scanner` is writing our own code, and it is what should be done.
 
 ---
 
-## 9. O que isto dá ao runtime
+## 9. What this gives to the runtime
 
-O `AGENTS.md` (§7 e §23) diz que `WinExist` e `WinActive` respondem
-*"unknown"* na caixa. A medição de 2026-10-28 diz que **essa recusa já não
-é a única resposta possível**: o compositor da caixa publica a listagem.
+The `AGENTS.md` (§7 and §23) says that `WinExist` and `WinActive` answer
+*"unknown"* on the box. The measurement of 2026-10-28 says that **that
+refusal is not the only possible answer anymore**: the compositor of the box
+publishes the listing.
 
-O caminho para o tree, quando chegar a hora:
+The path into the tree, when the time comes:
 
-1. Uma capacidade nova em `ahk::desktop` — `Windows` já existe e já é
-   recusado; o que falta é a implementação de `window_exists`,
-   `window_active` e `window_title` por detrás do
-   `ext-foreign-toplevel-list-v1`, com um `foreign_toplevel_list` no
+1. A new capability in `ahk::desktop` — `Windows` already exists and is
+   already refused; what is missing is the implementation of
+   `window_exists`, `window_active` and `window_title` behind the
+   `ext-foreign-toplevel-list-v1`, with a `foreign_toplevel_list` in the
    `ahk-box`.
-2. Um `ahk-box` que ligue ao Wayland. Isto **não** é o `ahk-box` de hoje: o
-   crate não fala Wayland, e o compositor é outra coisa. Pode ser uma
-   dependência nova (`wayland-client` + `wayland-protocols`), ou um
-   subprocesso que fala com o compositor e responde em JSON.
-3. O `Clipboard`, que hoje recusa por omissão do trait, e que a caixa
-   resolve com `ext_data_control_manager_v1`.
-4. A captura de **uma janela** — `ext_foreign_toplevel_image_capture_source_manager_v1`
-   dá a imagem de uma janela específica, o que o `grim` de hoje não dá
-   (o `grim` dá o ecrã inteiro).
+2. An `ahk-box` that talks to Wayland. This is **not** the `ahk-box` of
+   today: the crate does not speak Wayland, and the compositor is another
+   thing. It can be a new dependency (`wayland-client` + `wayland-protocols`),
+   or a subprocess that talks to the compositor and answers in JSON.
+3. The `Clipboard`, which today refuses by omission of the trait, and which
+   the box resolves with `ext_data_control_manager_v1`.
+4. The capture of **one window** — `ext_foreign_toplevel_image_capture_source_manager_v1`
+   gives the image of a specific window, which the `grim` of today does not
+   give (the `grim` gives the whole screen).
 
-E uma nota de método: o `AGENTS.md` diz que *"a question that cannot be
-answered fails, with the reason"*. A recusa de `WinExist` foi correcta
-**enquanto** não houvesse caminho. A medição de hoje é o caminho, e a
-recusa passa a ser uma resposta errada.
+And a note of method: the `AGENTS.md` says that *"a question that cannot be
+answered fails, with the reason"*. The refusal of `WinExist` was right
+**while** there was no path. The measurement of today is the path, and the
+refusal becomes a wrong answer.
 
 ---
 
-## 10. As fontes
+## 10. The sources
 
-- O protocolo: <https://phil294.github.io/protocols/ext-foreign-toplevel-list-v1/>
-  e <https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml>
-- O crate: `wayland-client` 0.31.15, `wayland-protocols` 0.32.13,
+- The protocol: <https://phil294.github.io/protocols/ext-foreign-toplevel-list-v1/>
+  and <https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml>
+- The crate: `wayland-client` 0.31.15, `wayland-protocols` 0.32.13,
   `wayland-backend` 0.3.17, `wayland-scanner` 0.31.11, `rustix` 1.1.6.
-- A caixa: 192.168.0.40, CachyOS, `cosmic-comp`, socket `wayland-1`.
-  Build em `~/src/wl-toplevels`, com Rust 1.98.1.
-- O registo: 2026-10-28.
+- The box: 192.168.0.40, CachyOS, `cosmic-comp`, socket `wayland-1`.
+  Build in `~/src/wl-toplevels`, with Rust 1.98.1.
+- The record: 2026-10-28.
