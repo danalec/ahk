@@ -2363,8 +2363,14 @@ impl<'a> Runtime<'a> {
             // 2026-10-30, `super.value` refuses when the base only has
             // `this.value := ...`.
             if let Some((defining, method)) = self.find_method_in(&base, "__get") {
-                let argument = Node::Literal { value: LiteralValue::Text(name.to_string()), line };
-                return self.call_method(&defining, &method, &this, &[argument], line);
+                let params = self.the_params(&[], line)?;
+                return self.call_method_with(
+                    &defining,
+                    &method,
+                    &this,
+                    &[Value::Text(name.to_string()), params],
+                    line,
+                );
             }
         }
         Err(RuntimeFailure::Error(RuntimeError {
@@ -2799,6 +2805,36 @@ impl<'a> Runtime<'a> {
 
     /// A property of a value.
     fn read_property(&mut self, target: &Value, name: &str, line: u32) -> Result<Value, RuntimeFailure> {
+        self.read_property_with(target, name, &[], line)
+    }
+
+    /// A property of a value, with the parameters of the access.
+    ///
+    /// The parameters are the ones between the brackets of the access:
+    /// `x.y[z]` asks the `__Get` of `x.y` with the index `z`.
+    fn read_property_with(
+        &mut self,
+        target: &Value,
+        name: &str,
+        params: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        self.read_property_fully(target, name, params, line)
+            .map(|(value, _)| value)
+    }
+
+    /// A property of a value, with the parameters of the access.
+    ///
+    /// The answer says whether a meta-function answered it: the
+    /// meta-function of a class handles the whole access, and the
+    /// brackets of the access are its parameters.
+    fn read_property_fully(
+        &mut self,
+        target: &Value,
+        name: &str,
+        params: &[Value],
+        line: u32,
+    ) -> Result<(Value, bool), RuntimeFailure> {
         // The name is written as the script wrote it, and the lookup is in
         // lower case: the tree does not know the case of a property.
         let written = name.to_string();
@@ -2810,23 +2846,31 @@ impl<'a> Runtime<'a> {
         // A class type of the runtime has properties of its own, and it
         // owns the whole of them.
         if let Some(result) = crate::classes::property(&class, &name, target, self, line) {
-            return result;
+            return result.map(|value| (value, false));
         }
         if let Some(value) = object.borrow().properties.get(&name) {
-            return Ok(value.clone());
+            return Ok((value.clone(), false));
         }
         // A method of the class is a value: v2 hands it over as a
         // function whose first parameter is `this`. A class is not an
         // instance, and its methods are not handed over.
         if self.class_name_of(target).is_none() {
             if let Some((defining, method)) = self.find_method_in(&class, &name) {
-                return Ok(self.method_reference(&defining, &method));
+                return Ok((self.method_reference(&defining, &method), false));
             }
         }
-        // `__Get` is asked when the property is not there.
+        // `__Get` is asked when the property is not there. It takes the
+        // name of the property and the parameters of the access.
         if let Some((defining, method)) = self.find_method_in(&class, "__get") {
-            let argument = Node::Literal { value: LiteralValue::Text(name), line };
-            return self.call_method(&defining, &method, target, &[argument], line);
+            let params = self.the_params(params, line)?;
+            let value = self.call_method_with(
+                &defining,
+                &method,
+                target,
+                &[Value::Text(written), params],
+                line,
+            )?;
+            return Ok((value, true));
         }
         Err(self.no_property(target, &written, line))
     }
@@ -2836,6 +2880,21 @@ impl<'a> Runtime<'a> {
         &mut self,
         target: &Value,
         name: &str,
+        value: Value,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        self.write_property_with(target, name, &[], value, line)
+    }
+
+    /// A property of a value that is written, with the parameters of the
+    /// access.
+    ///
+    /// The parameters are the ones between the brackets of the access.
+    fn write_property_with(
+        &mut self,
+        target: &Value,
+        name: &str,
+        params: &[Value],
         value: Value,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
@@ -2855,16 +2914,32 @@ impl<'a> Runtime<'a> {
         // own inside `__Set` would otherwise call itself for ever.
         if !self.declares_property(&class, &name) {
             if let Some((defining, method)) = self.find_method_in(&class, "__set") {
-                let arguments = [
-                    Node::Literal { value: LiteralValue::Text(name), line },
-                    Node::Literal { value: LiteralValue::Number(0.0), line },
-                ];
-                self.call_method(&defining, &method, target, &arguments, line)?;
+                // `__Set` takes the name of the property, the parameters
+                // of the access, and the value that is written.
+                let params = self.the_params(params, line)?;
+                self.call_method_with(
+                    &defining,
+                    &method,
+                    target,
+                    &[Value::Text(written), params, value],
+                    line,
+                )?;
                 return Ok(());
             }
         }
         object.borrow_mut().properties.insert(name, value);
         Ok(())
+    }
+
+    /// The parameters of an access, as an array.
+    ///
+    /// v2 hands them to the meta-functions as an array, and it is empty
+    /// when the access has no parameters.
+    fn the_params(&mut self, params: &[Value], line: u32) -> Result<Value, RuntimeFailure> {
+        match crate::classes::construct("array", params, self, line) {
+            Some(result) => result,
+            None => Ok(Value::List(params.to_vec())),
+        }
     }
 
     /// Whether a class declares a property.
@@ -3067,6 +3142,33 @@ impl<'a> Runtime<'a> {
             "This local variable has not been assigned a value.".to_string()
         } else {
             "This global variable has not been assigned a value.".to_string()
+        }
+    }
+
+    /// The item of a value, at a position.
+    ///
+    /// An object is asked for its item: the class of the script first,
+    /// and then the class types of the runtime. The other values have no
+    /// item, and v2 refuses the index of one.
+    fn index_a_value(
+        &mut self,
+        target: &Value,
+        key: &Value,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        if let Value::Object(_) = target {
+            return self.read_item(target, key, line);
+        }
+        let position = key.to_number().unwrap_or(0.0) as i64;
+        // The positions count from one, the way AutoHotkey counts them.
+        let position = position.max(1) as usize;
+        match target {
+            Value::List(items) => items.get(position - 1).cloned().ok_or_else(|| {
+                RuntimeFailure::Error(RuntimeError { message: "Invalid index.".into(), line })
+            }),
+            // A text has no item, and v2 refuses the index of one:
+            // `SubStr` is the way to take a letter out.
+            _ => Err(self.no_item(target, line)),
         }
     }
 
@@ -4062,25 +4164,29 @@ impl<'a> Runtime<'a> {
                     let key = self.evaluate(index)?;
                     return self.read_the_item_of_the_base(&key, *line);
                 }
-                let target = self.evaluate(target)?;
                 let key = self.evaluate(index)?;
-                // An object is asked for its item: the class of the
-                // script first, then the class types of the runtime.
-                if let Value::Object(_) = &target {
-                    return self.read_item(&target, &key, *line);
+                // `x.y[z]`: the `__Get` of `x.y` is asked with the
+                // parameters of the access, and the value it answers is
+                // the one that is indexed.
+                if let Node::Property { target: object, name, line: property_line } = &**target {
+                    let object_value = self.evaluate(object)?;
+                    let (value, by_meta) =
+                        self.read_property_fully(
+                            &object_value,
+                            name,
+                            core::slice::from_ref(&key),
+                            *property_line,
+                        )?;
+                    // The meta-function of a class handles the whole
+                    // access: the brackets are its parameters and its
+                    // answer is the answer.
+                    if by_meta {
+                        return Ok(value);
+                    }
+                    return self.index_a_value(&value, &key, *line);
                 }
-                let position = key.to_number().unwrap_or(0.0) as i64;
-                // The positions count from one, the way AutoHotkey counts
-                // them.
-                let position = position.max(1) as usize;
-                match target {
-                    Value::List(items) => items.get(position - 1).cloned().ok_or_else(|| {
-                        RuntimeFailure::Error(RuntimeError { message: "Invalid index.".into(), line: *line })
-                    }),
-                    // A text has no item, and v2 refuses the index of
-                    // one: `SubStr` is the way to take a letter out.
-                    _ => Err(self.no_item(&target, *line)),
-                }
+                let target = self.evaluate(target)?;
+                self.index_a_value(&target, &key, *line)
             }
             Node::Ternary { condition, then, otherwise, .. } => {
                 if self.evaluate(condition)?.truthy() {

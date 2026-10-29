@@ -210,6 +210,14 @@ the box: it does no I/O, and it has to keep building without `std`.
   `__Set` is not called for it, and `x[y]` asks only the `__Item`, which
   reads and never writes. The tree follows that, and a class that cannot
   write an item fails the statement with the reason.
+- **The meta-functions take the parameters of the access.** Measured on the
+  binary of v2.0.19 on 2026-10-30: `__Get(Name, Params)` and
+  `__Set(Name, Params, Value)`, where `Params` is an array of the
+  parameters between the brackets. The name is the name the script wrote.
+  The meta-function handles the whole access: the answer of `__Get` is the
+  answer of `x.y[z]` and not an item of it. The tree asked `__Get` with
+  the name alone, and `__Set` with the name and a zero instead of the
+  value that is written.
 - **A variable that has no value is named after its kind.** Measured on the
   binary of v2.0.19 on 2026-10-30: "This global variable has not been
   assigned a value." for a variable of the script, and "This local

@@ -533,21 +533,59 @@ fn a_new_may_build_the_object() {
 #[test]
 fn a_get_is_asked_when_the_property_is_not_there() {
     let (report, desktop) = run(
-        "class Box {\n  __Get(name) {\n    return \"asked for %name%\"\n  }\n}\n\
+        "class Box {\n  __Get(name, params) {\n    return \"asked for %name%\"\n  }\n}\n\
          b := Box()\nSend b.Whatever",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.types(), vec!["asked for whatever"]);
+    // The name is the name the script wrote.
+    assert_eq!(desktop.types(), vec!["asked for Whatever"]);
 }
 
 #[test]
 fn a_set_is_told_when_the_property_is_written() {
     let (report, desktop) = run(
-        "class Box {\n  __Set(name, value) {\n    this.seen := name\n  }\n  seen := \"\"\n}\n\
-         b := Box()\nb.thing := 1\nSend b.seen",
+        "class Box {\n  __Set(name, params, value) {\n    this.seen := name\n    this.written := value\n  }\n\
+         seen := \"\"\n  written := \"\"\n}\n\
+         b := Box()\nb.thing := 1\nSend b.seen \" \" b.written",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.types(), vec!["thing"]);
+    // The value that is written goes with the name.
+    assert_eq!(desktop.types(), vec!["thing 1"]);
+}
+
+#[test]
+fn a_get_takes_the_parameters_of_the_access() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the brackets of
+    // the access are the parameters of the meta-function.
+    let (report, desktop) = run(
+        "class Box {\n  __Get(name, params) {\n    return \"%name% %params.Length%\"\n  }\n}\n\
+         b := Box()\nSend b.Whatever[1]",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["Whatever 1"]);
+}
+
+#[test]
+fn a_get_handles_the_whole_access() {
+    // The answer of the meta-function is the answer of the access: the
+    // brackets are its parameters and not an index of its answer.
+    let (report, desktop) = run(
+        "class Box {\n  __Get(name, params) {\n    return \"the answer\"\n  }\n}\n\
+         b := Box()\nSend b.Whatever[1]",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["the answer"]);
+}
+
+#[test]
+fn a_set_takes_the_value_that_is_written() {
+    let (report, desktop) = run(
+        "class Box {\n  __Set(name, params, value) {\n    this.written := value\n  }\n\
+         written := \"\"\n}\n\
+         b := Box()\nb.thing := 7\nSend b.written",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["7"]);
 }
 
 #[test]
@@ -2215,7 +2253,7 @@ fn a_super_in_a_grandchild_asks_the_middle() {
 fn a_super_reads_the_property_of_the_base_through_its_getter() {
     let (report, _) = run(concat!(
         "class Base {\n",
-        "  __Get(name) {\n",
+        "  __Get(name, params) {\n",
         "    return \"the value of \" . name\n",
         "  }\n",
         "}\n",
