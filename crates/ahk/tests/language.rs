@@ -1749,6 +1749,44 @@ fn a_token_that_is_not_wanted_is_refused() {
 }
 
 #[test]
+fn the_static_variable_of_a_class_is_the_class_that_has_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a variable that
+    // belongs to the class is the class that has it, and an instance does
+    // not see it.
+    let (report, _desktop) = run("class Thing {\n    static x := 1\n}\nMsgBox Thing.x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    let (report, _desktop) = run("class Thing {\n    static x := 1\n}\nt := Thing()\nMsgBox t.x");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Thing\" has no property named \"x\".")
+    );
+}
+
+#[test]
+fn the_class_of_v2_is_initialised_when_it_is_first_used() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the class is
+    // initialised when it is first used, and the `__New` that is static is
+    // the one that runs: once.
+    let (report, _desktop) = run(
+        "count := 0\nclass Thing {\n    static __New() {\n        global count\n        count := count + 1\n    }\n}\nt := Thing()\nu := Thing()\nMsgBox count",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_method_of_a_class_is_read_only() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    let (report, _desktop) = run(
+        "class Thing {\n    static Say() {\n        return \"said\"\n    }\n}\nThing.Say := () => 1",
+    );
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Property is read-only."));
+}
+
+#[test]
 fn the_concatenation_of_an_object_is_refused() {
     let (report, _desktop) = run("x := {}\nMsgBox \"a\" . x");
     assert!(!report.ok);

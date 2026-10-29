@@ -250,6 +250,12 @@ The built-ins that have a sense of the case want a boolean: a zero or a one.
 A number that is another one, a float and a text are refused, and the name
 of the built-in says which parameter it is.
 
+A class of the script is initialised when it is first used: the statement
+that defines it and the first reference to it. The variables that belong to
+the class are assigned to the class then, and the `__New` that is static is
+the one that runs. The variables of an instance are assigned when the
+instance is made.
+
 The scope of the runtime is shared: a function that is written inside another
 one closes over the scope of the one around it, and the write of the closure
 is seen by the scope it closes over. A name that the scope around the call

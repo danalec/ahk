@@ -2641,3 +2641,24 @@ built-in there.
 
 Ten cases of the booleans, nine of the case sense and ten of the replace are
 the same in the tree and in the dialect.
+
+## 50. A class of v2 is initialised when it is first used
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree gave every
+variable of a class to the instance, and the class itself had none.
+
+- **A class is initialised when it is first used.** The statement that
+  defines it and the first reference to it are both uses, and the first one
+  that comes is the one that initialises it.
+- **The variables that belong to the class are the class's.** `Thing.x` is 1,
+  and an instance does not see it: `t.x` answers "This value of type
+  \"Thing\" has no property named \"x\".".
+- **The `__New` that is static is the one that runs when the class is
+  initialised.** It runs once, and an instance does not run it again.
+- **The variables of an instance are the ones of the instance.** They are
+  assigned when the instance is made, and not when the class is initialised.
+- **The methods of a class are read-only.** `Thing.Say := () => 1` answers
+  "Property is read-only.".
+
+Twelve cases of the classes and nine of the initialisation are the same in
+the tree and in the dialect.

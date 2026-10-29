@@ -31,6 +31,7 @@
 //! quietly take the wrong branch.
 
 use alloc::collections::BTreeMap;
+use alloc::collections::BTreeSet;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::boxed::Box;
@@ -771,6 +772,12 @@ pub struct Runtime<'a> {
     /// are the same object, and that is what tells a class from an
     /// instance of one.
     class_values: RefCell<BTreeMap<String, Value>>,
+    /// The classes that are already initialised.
+    ///
+    /// A class of v2 is initialised when it is first used: its variables
+    /// that belong to it are assigned then, and the `__New` that is static
+    /// is the one that runs.
+    initialised: RefCell<BTreeSet<String>>,
     steps: Vec<Step>,
     output: Vec<String>,
     notes: Vec<String>,
@@ -859,6 +866,7 @@ impl<'a> Runtime<'a> {
             closures: 0,
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
+            initialised: RefCell::new(BTreeSet::new()),
             steps: Vec::new(),
             output: Vec::new(),
             notes: Vec::new(),
@@ -905,6 +913,7 @@ impl<'a> Runtime<'a> {
             closures: 0,
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
+            initialised: RefCell::new(BTreeSet::new()),
             steps: Vec::new(),
             output: Vec::new(),
             notes: Vec::new(),
@@ -1447,7 +1456,11 @@ impl<'a> Runtime<'a> {
                 let stored = self.write_a_variable(name, *op, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
             }
-            Node::ClassDef { name, .. } => {
+            Node::ClassDef { name, line, .. } => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the class
+                // is initialised when it is first used, and the statement
+                // that defines it is a use.
+                self.initialise_the_class(name, *line)?;
                 detail = format!("the class {name} is defined");
             }
             Node::ArrayLiteral { .. } => {
@@ -2329,7 +2342,7 @@ impl<'a> Runtime<'a> {
         self.call_the_init(class, &object, line)?;
         // `__New` runs with the new object as `this`, and may answer an
         // object of its own.
-        if let Some((defining, method)) = self.find_method_in(class, "__new") {
+        if let Some((defining, method)) = self.find_the_instance_method_in(class, "__new") {
             let result = self.call_method(&defining, &method, &object, arguments, line)?;
             return Ok(match result {
                 Value::Object(_) => result,
@@ -2350,6 +2363,83 @@ impl<'a> Runtime<'a> {
     fn call_the_init(&mut self, class: &str, object: &Value, line: u32) -> Result<(), RuntimeFailure> {
         let chain = self.class_chain(class);
         self.call_the_init_of(&chain, object, line)
+    }
+
+    /// The initialisation of a class of v2.
+    ///
+    /// A class is initialised when it is first used: the statement that
+    /// defines it and the first reference to it. The variables that belong
+    /// to the class are assigned then, and the `__New` that is static is
+    /// the one that runs.
+    fn initialise_the_class(&mut self, class: &str, line: u32) -> Result<(), RuntimeFailure> {
+        let key = class.to_lowercase();
+        // A class of the runtime has no variables of its own.
+        if !self.classes.contains_key(&key) {
+            return Ok(());
+        }
+        if !self.initialised.borrow_mut().insert(key.clone()) {
+            // The class is already initialised.
+            return Ok(());
+        }
+        self.assign_the_static_variables(&key)?;
+        if let Some((defining, method)) = self.find_the_static_method_in(&key, "__new") {
+            if let Some(value) = self.class_value_of(&key) {
+                self.call_method(&defining, &method, &value, &[], line)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// The variables that belong to a class, assigned to the class.
+    fn assign_the_static_variables(&mut self, class: &str) -> Result<(), RuntimeFailure> {
+        let Some(definition) = self.classes.get(class).cloned() else { return Ok(()) };
+        let Some(value) = self.class_value_of(class) else { return Ok(()) };
+        let Value::Object(object) = value else { return Ok(()) };
+        for property in &definition.properties {
+            if !property.is_static {
+                continue;
+            }
+            let value = match &property.value {
+                Some(node) => self.evaluate(node)?,
+                None => Value::Text(String::new()),
+            };
+            object.borrow_mut().properties.insert(property.name.to_lowercase(), value);
+        }
+        Ok(())
+    }
+
+    /// The method a name asks for, on a class, and that is static.
+    ///
+    /// A method that belongs to the class is not one of an instance: the
+    /// `__New` that is static is the initialiser of the class, and it does
+    /// not run when an instance is made.
+    fn find_the_static_method_in(&self, class: &str, name: &str) -> Option<(String, MethodDef)> {
+        let name = name.to_lowercase();
+        for class in self.class_chain(class) {
+            if let Some(definition) = self.classes.get(&class) {
+                if let Some(method) = definition.methods.get(&name) {
+                    if method.is_static {
+                        return Some((class.clone(), method.clone()));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// The method a name asks for, on a class, and that is not static.
+    fn find_the_instance_method_in(&self, class: &str, name: &str) -> Option<(String, MethodDef)> {
+        let name = name.to_lowercase();
+        for class in self.class_chain(class) {
+            if let Some(definition) = self.classes.get(&class) {
+                if let Some(method) = definition.methods.get(&name) {
+                    if !method.is_static {
+                        return Some((class.clone(), method.clone()));
+                    }
+                }
+            }
+        }
+        None
     }
 
     /// The `__Init` of an instance, over the chain of the classes.
@@ -2387,6 +2477,11 @@ impl<'a> Runtime<'a> {
         let Some(definition) = self.classes.get(class).cloned() else { return Ok(()) };
         let Value::Object(object) = object else { return Ok(()) };
         for property in &definition.properties {
+            // A variable that belongs to the class is not one of the
+            // instance: it is the class that has it.
+            if property.is_static {
+                continue;
+            }
             let value = match &property.value {
                 Some(node) => self.evaluate(node)?,
                 None => Value::Text(String::new()),
@@ -3173,6 +3268,20 @@ impl<'a> Runtime<'a> {
         // A class type of the runtime owns the whole of its properties.
         if let Some(result) = crate::classes::set_property(&class, &name, target, value.clone(), self, line) {
             return result;
+        }
+        // Measured on the binary of v2.0.19 on 2026-10-31: the methods of a
+        // class are read-only, and so are the properties that the class
+        // itself carries.
+        if self.class_name_of(target).is_some()
+            && (self.find_method_in(&class, &name).is_some()
+                || name == "name"
+                || name == "base"
+                || name == "prototype")
+        {
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message: "Property is read-only.".to_string(), line },
+                Detail { what: String::new(), extra: written },
+            ));
         }
         // A property the class declares is written straight away. The
         // others are the ones `__Set` is asked about, and it is the one
@@ -4382,7 +4491,14 @@ impl<'a> Runtime<'a> {
                 }))
             }
             Node::Var { name, line } => match self.lookup(name) {
-                Some(value) => Ok(value),
+                Some(value) => {
+                    // A class of v2 is initialised when it is first used.
+                    if let Value::Object(object) = &value {
+                        let class = object.borrow().class.clone();
+                        self.initialise_the_class(&class, *line)?;
+                    }
+                    Ok(value)
+                }
                 // The name may be one of the built-in variables: the
                 // table of them knows whether it is one, and the runtime
                 // may not be able to answer it.
