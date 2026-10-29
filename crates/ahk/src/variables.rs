@@ -79,7 +79,7 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
         Kind::Known => Some(Ok(known_value(&name, rt))),
         Kind::State => Some(match crate::settings::value_of(&name) {
             Some(Ok(value)) => Ok(value),
-            Some(Err(why)) => Err(reason(&why)),
+            Some(Err(why)) => Err(reason(why)),
             None => Err(reason(NO_STATE)),
         }),
         Kind::Date => Some(crate::date::variable_value(&name, rt)),
@@ -192,7 +192,13 @@ pub fn refusal_of(name: &str) -> Option<&'static str> {
         // The hotkeys answer with a value of their own, and the date
         // answers when the clock of the host knows it.
         Kind::Known | Kind::Date | Kind::Hotkey | Kind::Screen | Kind::Clipboard => None,
-        Kind::State => Some(NO_STATE),
+        // The settings are kept by the module of the settings, and that
+        // module says which of them it cannot answer.
+        Kind::State => match crate::settings::value_of(&name) {
+            Some(Ok(_)) => None,
+            Some(Err(why)) => Some(why),
+            None => Some(NO_STATE),
+        },
         Kind::Machine => Some(NO_MACHINE),
     }
 }

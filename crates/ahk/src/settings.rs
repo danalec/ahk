@@ -166,13 +166,13 @@ static STATE: State = State {
 /// without the `A_` prefix. `None` means the name is not one of the
 /// settings of this module. `Some(Err(reason))` means the name is one
 /// of them and the tree cannot answer it: the reason says why.
-pub fn value_of(name: &str) -> Option<Result<Value, String>> {
+pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
     let value = match name {
         "coordmodemouse" => mode_text(STATE.coord_mouse.load(Ordering::Relaxed)),
         "coordmodepixel" => mode_text(STATE.coord_pixel.load(Ordering::Relaxed)),
-        "coordmodecaret" => return Some(Err(NO_CARET.to_string())),
-        "coordmodemenu" => return Some(Err(NO_MENU.to_string())),
-        "coordmodetooltip" => return Some(Err(NO_TOOLTIP.to_string())),
+        "coordmodecaret" => return Some(Err(NO_CARET)),
+        "coordmodemenu" => return Some(Err(NO_MENU)),
+        "coordmodetooltip" => return Some(Err(NO_TOOLTIP)),
         "defaultmousespeed" => Value::Int(STATE.mouse_speed.load(Ordering::Relaxed) as i64),
         "fileencoding" => Value::Text(encoding_text()),
         "keydelay" => Value::Int(STATE.key_delay.load(Ordering::Relaxed) as i64),

@@ -757,7 +757,7 @@ Abs                  function  value
 WinMove              command   refusal: this is a name of Windows, and this desktop is not Windows.
 Hotkey               command   value
 ...
-the surface of v2 has 725 entries: 457 answer with a value, 268 are refused, 0 are pending.
+the surface of v2 has 725 entries: 479 answer with a value, 246 are refused, 0 are pending.
 ```
 
 Com isso, "o que falta" deixa de ser uma opinião e passa a ser um número que
@@ -765,7 +765,7 @@ Com isso, "o que falta" deixa de ser uma opinião e passa a ser um número que
 informação, noutro formato, e o comando é o ponto de entrada.
 
 Um segundo número merece atenção: **quantos nomes da superfície de v2 estão
-implementados a sério** — hoje 457 de 725 entradas. A meta não é 725: v2 tem
+implementados a sério** — hoje 479 de 725 entradas. A meta não é 725: v2 tem
 nomes que são Windows e não vão acontecer aqui. A meta honesta é: *nenhum
 nome que o AHK_X11 faz no Linux devia estar na recusa por falta de
 implementação*. A AHK_X11 faz ~127 comandos de v1 num ambiente comparável;
@@ -794,5 +794,5 @@ propomos.
 - **Contagens desta comparação** — 725 entradas de superfície (644 nomes
   distintos): 242 comandos, 103 funções, 131 variáveis, 249 métodos; 346
   built-ins na tabela, 141 com handler real e 205 com `not_carried`. Das 725
-  entradas, 457 respondem com um valor e 268 recusam com a razão — o
+  entradas, 479 respondem com um valor e 246 recusam com a razão — o
   `ahk --surface` é quem conta.

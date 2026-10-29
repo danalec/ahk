@@ -375,9 +375,9 @@ what the dialect meant before the port to v2, and the port to v2 is why
 the two do not agree any more.
 
 The archive is **not** the v1 of AutoHotkey: it is a dialect of our own,
-com v1 nos nomes e v2 na sintaxe, e a sua própria nota diz isso
-(`archived/ahk-python/AGENTS.md:38-41`). O v1 de verdade mede-se no
-binário do v1.1.37.02, e o plano de o pôr ao lado do v2 está em
+with v1 in the names and v2 in the syntax, and its own note says so
+(`archived/ahk-python/AGENTS.md:38-41`). The real v1 is measured on the
+binary of v1.1.37.02, and the plan to put it beside the v2 is in
 `docs/ahk-v1-dialect.md`.
 
 The rule that the two have to speak the same dialect held until the port
@@ -1706,5 +1706,36 @@ coming.
   them.
 
 Measured on the box on 2026-10-29: the flag printed 725 lines and the
-summary `the surface of v2 has 725 entries: 457 answer with a value, 268
+summary `the surface of v2 has 725 entries: 479 answer with a value, 246
 are refused, 0 are pending`.
+
+## 30. The tables of the binary put seven names in the wrong place
+
+Seven names of v2 refused with the reason of a *method* -- "a method of
+this runtime is not bound to an object." -- and none of them is a method.
+They are global names, and the extraction read them in a table of classes.
+
+- **`StrTitle`, `VerCompare`, `IsLabel`, `SetWorkingDir`, `MouseClick` and
+  `MouseClickDrag` are globals**, and the file of the comparison with the
+  AHK_X11 and the guide of the compositor say why: the table of classes of
+  the binary was read at the wrong place, and the tree followed the table.
+- **`ObjBindMethod` is a function**, and the right reason is the one of a
+  name that the tree does not carry yet. The reason of the method stays in
+  the list: a dialect may bring methods that the tree does not carry, and
+  their reason is the same.
+- **The `Click` and the `MouseClick` are the same thing.** The words of the
+  parameters are read in any order, and the button comes first in the
+  `MouseClick` and after in the `Click` -- the same handler answers both.
+- **The `StrTitle` is the title case**: the first letter of each word in
+  upper case and the rest of the word in lower case. A word is a run of
+  letters and of digits, and `GONE with the WIND` becomes `Gone With The
+  Wind`.
+- **The `VerCompare` follows the rule of the `#Requires`**: the numbers of
+  the two versions are compared one by one, and the component that is
+  missing is a zero. A version with a pre-release suffix is older than the
+  same version without it.
+
+And a correction to the `--surface`: it said that the names of the
+*settings* refused, and they answer -- the module of the *settings* is the
+one that knows which of them it cannot answer. The refusal of a name is the
+one of the module, and not a generic reason.

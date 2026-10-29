@@ -123,6 +123,19 @@ impl ahk::desktop::Files for LabDesktop {
         Ok(format!("deleted the directory {path}"))
     }
 
+    fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
+        // The name of the directory is a subfolder of the working
+        // directory when it is not an absolute path, the way v2 says it.
+        let path = if Path::new(directory).is_absolute() {
+            PathBuf::from(directory)
+        } else {
+            let here = std::env::current_dir().map_err(|error| error.to_string())?;
+            here.join(directory)
+        };
+        std::env::set_current_dir(&path).map_err(|error| error.to_string())?;
+        Ok(format!("the working directory is now {}", path.display()))
+    }
+
     fn working_directory(&mut self) -> Result<String, String> {
         std::env::current_dir()
             .map(|path| path.to_string_lossy().to_string())

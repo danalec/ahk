@@ -225,7 +225,7 @@ The traits the runtime is handed:
 | `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
 | `Windows` | `window_active`, `window_exists`; `active_window_title` has a default that answers with the reason it cannot |
 | `Processes` | `run`; `env_get`, `env_set` have a default that answers with the reason it cannot |
-| `Files` | `open_file`, `read_file_at`, `write_file_at`, `file_size`, `close_file`; `list_files`, `working_directory`, `read_file`, `write_file`, `append_file`, `file_exists`, `delete_file`, `create_dir`, `dir_exists` and `dir_delete` have a default that answers with the reason it cannot |
+| `Files` | `open_file`, `read_file_at`, `write_file_at`, `file_size`, `close_file`; `list_files`, `working_directory`, `set_working_directory`, `read_file`, `write_file`, `append_file`, `file_exists`, `delete_file`, `create_dir`, `dir_exists` and `dir_delete` have a default that answers with the reason it cannot |
 | `Files` (the files of v2) | `copy_file`, `move_file`, `copy_dir`, `move_dir`, `file_attributes`, `set_file_attributes`, `file_times`, `set_file_times`, `ini_read`, `ini_write` and `ini_delete` have a default that answers with the reason it cannot |
 | `Clipboard` | `clipboard_read`, `clipboard_write` have a default that answers with the reason it cannot |
 | `Timers` | `takes_over_timers` has a default that answers with the reason it cannot |

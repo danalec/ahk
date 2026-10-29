@@ -60,6 +60,10 @@ impl Sound for Fake {
 impl Windows for Fake {}
 
 impl Files for Fake {
+    fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
+        self.calls.push(("working-dir".into(), directory.into()));
+        Ok(format!("the working directory is now {directory}"))
+    }
     fn file_exists(&mut self, path: &str) -> Result<bool, String> {
         Ok(path.ends_with(".txt"))
     }
@@ -110,7 +114,20 @@ impl Keyboard for Fake {
 
 impl Pointer for Fake {
     fn click(&mut self, x: i64, y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        self.calls.push(("click".into(), format!("{x} {y}")));
         Ok(format!("clicked ({x}, {y})"))
+    }
+    fn mouse_down(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
+        self.calls.push(("down".into(), format!("{x:?} {y:?} {button}")));
+        Ok("down".to_string())
+    }
+    fn mouse_up(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
+        self.calls.push(("up".into(), format!("{x:?} {y:?} {button}")));
+        Ok("up".to_string())
+    }
+    fn move_pointer(&mut self, x: i64, y: i64) -> Result<String, String> {
+        self.calls.push(("move".into(), format!("{x} {y}")));
+        Ok("moved".to_string())
     }
 }
 
@@ -363,6 +380,84 @@ fn a_sound_that_the_desktop_cannot_answer_fails_the_script() {
 fn the_names_of_the_sound_that_are_windows_fail_with_the_reason() {
     let report = run("SoundGetName()");
     assert_eq!(failure_of(&report), "this is a name of Windows, and this desktop is not Windows.");
+}
+
+#[test]
+fn a_string_in_title_case_has_the_first_letter_of_each_word_up() {
+    let report = run("a := StrTitle(\"This is a test.\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("This Is A Test.".into()));
+}
+
+#[test]
+fn the_title_case_lowercases_the_rest_of_the_word() {
+    let report = run("a := StrTitle(\"GONE with the WIND\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("Gone With The Wind".into()));
+}
+
+#[test]
+fn the_versions_are_compared_by_their_numbers() {
+    let report = run("a := VerCompare(\"1.20.0\", \"1.3\")");
+    assert!(report.ok, "{:?}", report.error);
+    // The numbers are compared one by one, and twenty is bigger than three.
+    assert_eq!(int_of(&report, "a"), 1);
+}
+
+#[test]
+fn a_version_with_a_pre_release_is_older_than_the_same_version() {
+    let report = run(
+        "a := VerCompare(\"2.0-a137\", \"2.0\")\nb := VerCompare(\"2.0-a137\", \"2.0-a136\")",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), -1);
+    assert_eq!(int_of(&report, "b"), 1);
+}
+
+#[test]
+fn the_second_version_may_carry_an_operator() {
+    let report = run("a := VerCompare(\"2.0.1\", \">=2.0\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 1);
+}
+
+#[test]
+fn a_label_is_not_there() {
+    // The tree has no labels: there is nothing to jump to.
+    let report = run("a := IsLabel(\"there\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 0);
+}
+
+#[test]
+fn the_working_directory_of_the_script_can_be_changed() {
+    let mut desktop = Fake::default();
+    let report = run_on("SetWorkingDir \"there\"", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("working-dir".to_string(), "there".to_string())]);
+}
+
+#[test]
+fn the_click_of_v2_takes_the_button_first() {
+    let mut desktop = Fake::default();
+    let report = run_on("MouseClick \"Right\", 10, 20", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("click".to_string(), "10 20".to_string())]);
+}
+
+#[test]
+fn a_drag_goes_down_in_one_place_and_comes_up_in_another() {
+    let mut desktop = Fake::default();
+    let report = run_on("MouseClickDrag \"Left\", 10, 20, 30, 40", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![
+            ("down".to_string(), "Some(10) Some(20) left".to_string()),
+            ("move".to_string(), "30 40".to_string()),
+            ("up".to_string(), "None None left".to_string()),
+        ]
+    );
 }
 
 #[test]
@@ -770,10 +865,15 @@ fn the_names_of_com_fail_with_the_reason() {
     );
 }
 
+/// `ObjBindMethod` is a name of v2, and not a method of a class: the
+/// tables that were read out of the binary had it in a table of methods,
+/// and the tree carried the reason of that mistake. The name is a
+/// function of the object model, and the tree does not have the bound
+/// functions of v2 yet.
 #[test]
-fn a_method_of_this_runtime_is_not_bound_to_an_object() {
+fn a_name_that_the_tree_does_not_carry_yet_says_so() {
     let report = run("class Box {}\nb := Box()\na := ObjBindMethod(b, \"x\")");
-    assert_eq!(failure_of(&report), "a method of this runtime is not bound to an object.");
+    assert_eq!(failure_of(&report), "this runtime does not carry that name yet.");
 }
 
 #[test]

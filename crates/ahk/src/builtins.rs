@@ -276,7 +276,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "MonitorGetPrimary", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
     Builtin { name: "MonitorGetWorkArea", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, handler: not_carried },
     Builtin { name: "ObjAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: obj_add_ref },
-    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 1, max: 255, variant: 106, handler: not_carried },
+    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 1, max: 255, variant: 107, handler: not_carried },
     // -- the object model ---------------------------------------------------------
     Builtin { name: "ObjFromPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
     Builtin { name: "ObjFromPtrAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, handler: not_carried },
@@ -422,12 +422,12 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "IniRead", kind: BuiltinKind::Command, min: 2, max: 4, variant: 4, handler: ini_read },
     Builtin { name: "IniWrite", kind: BuiltinKind::Command, min: 3, max: 4, variant: 4, handler: ini_write },
     Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 106, handler: not_carried },
+    Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: is_label },
     Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 255, variant: 106, handler: not_carried },
-    Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 255, variant: 106, handler: not_carried },
+    Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: click },
+    Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: mouse_click_drag },
     Builtin { name: "OnError", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "Pause", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
@@ -441,11 +441,11 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "SetDefaultMouseSpeed", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: set_default_mouse_speed },
     Builtin { name: "SetMouseDelay", kind: BuiltinKind::Command, min: 1, max: 2, variant: 5, handler: set_mouse_delay },
     Builtin { name: "SetStoreCapsLockMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: set_store_caps_lock_mode },
-    Builtin { name: "SetWorkingDir", kind: BuiltinKind::Command, min: 0, max: 255, variant: 106, handler: not_carried },
-    Builtin { name: "StrTitle", kind: BuiltinKind::Function, min: 1, max: 1, variant: 106, handler: not_carried },
+    Builtin { name: "SetWorkingDir", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_working_dir },
+    Builtin { name: "StrTitle", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, handler: str_title },
     Builtin { name: "Suspend", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
     Builtin { name: "Thread", kind: BuiltinKind::Command, min: 0, max: 255, variant: 103, handler: not_carried },
-    Builtin { name: "VerCompare", kind: BuiltinKind::Function, min: 2, max: 2, variant: 106, handler: not_carried },
+    Builtin { name: "VerCompare", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, handler: ver_compare },
 ];
 
 /// The parameters of a built-in that take a reference.
@@ -692,6 +692,11 @@ fn refusal_message(variant: u8) -> &'static str {
         3 => "this runtime is one script that ends when it ends, and it cannot do that.",
         4 => "this desktop cannot serve that with the files it has.",
         5 => "the pointer and the keyboard of this runtime are the ones of the box, and they have no setting of that kind.",
+        // The reason of a method: a name of a class that the tree does
+        // not carry. The names of v2 that were in this slot were not
+        // methods at all -- the tables that were read out of the binary
+        // had them in a table of methods -- and the reason moved with
+        // them.
         6 => "a method of this runtime is not bound to an object.",
         _ => "this runtime does not carry that name yet.",
     }
@@ -2570,6 +2575,253 @@ fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Res
     };
     let detail = rt.desktop().click(x, y, &button, count).map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Text(detail))
+}
+
+/// `MouseClickDrag`: a click that drags.
+///
+/// The button goes down at the first place, the pointer moves to the
+/// second one, and the button comes up there.
+fn mouse_click_drag(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let words = words_of(values);
+    let mut at = 0usize;
+    let mut button = "left".to_string();
+    if let Some(word) = words.first() {
+        if let Some(name) = button_of(word) {
+            button = name.to_string();
+            at = 1;
+        } else if word.parse::<f64>().is_err() {
+            // The button comes first, and the tree carries the three
+            // buttons of a mouse and not the fourth, the fifth or the
+            // wheel.
+            return Err(RuntimeError {
+                message: format!(
+                    "{word} is not a button of a mouse: the tree carries the left, the right and the middle one."
+                ),
+                line,
+            });
+        }
+    }
+    let mut numbers: Vec<i64> = Vec::new();
+    for word in &words[at..] {
+        match word.parse::<f64>() {
+            Ok(number) => numbers.push(number as i64),
+            Err(_) => {
+                // The tree carries the two places of the drag and not the
+                // speed or the relative mode.
+                return Err(RuntimeError {
+                    message: format!(
+                        "{word} is not a part of a drag: the tree carries the two places and not the speed or the relative mode."
+                    ),
+                    line,
+                });
+            }
+        }
+    }
+    if numbers.len() < 4 {
+        return Err(RuntimeError {
+            message: "a drag wants the two places: the one where the button goes down and the one where it comes up."
+                .into(),
+            line,
+        });
+    }
+    let (x1, y1, x2, y2) = (numbers[0], numbers[1], numbers[2], numbers[3]);
+    rt.desktop().mouse_down(Some(x1), Some(y1), &button).map_err(|e| desktop_failure(e, line))?;
+    rt.desktop().move_pointer(x2, y2).map_err(|e| desktop_failure(e, line))?;
+    rt.desktop().mouse_up(None, None, &button).map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(1))
+}
+
+/// `SetWorkingDir`: the working directory of the script.
+///
+/// The name of the directory is a subfolder of the working directory when
+/// it is not an absolute path, the way v2 says it.
+fn set_working_dir(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let directory = text_of(values, 0);
+    if directory.is_empty() {
+        return Err(RuntimeError {
+            message: "the name of the directory is missing.".into(),
+            line,
+        });
+    }
+    rt.desktop().set_working_directory(&directory).map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(1))
+}
+
+/// `StrTitle`: a string in title case.
+///
+/// The rule is the one of the title case: the first letter of each word
+/// is uppercased and the rest of the word is lowercased. A word is a run
+/// of letters and of digits, so `GONE with the WIND` becomes `Gone With
+/// The Wind`.
+fn str_title(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let text = text_of(values, 0);
+    let mut out = String::with_capacity(text.len());
+    let mut first = true;
+    for character in text.chars() {
+        if character.is_alphanumeric() {
+            if first {
+                out.extend(character.to_uppercase());
+            } else {
+                out.extend(character.to_lowercase());
+            }
+            first = false;
+        } else {
+            out.push(character);
+            first = true;
+        }
+    }
+    Ok(Value::Text(out))
+}
+
+/// `VerCompare`: two version strings, compared.
+///
+/// The rule is the one of `#Requires`: the numbers of the two versions
+/// are compared one by one, and the component that is missing is a zero.
+/// A version with a pre-release suffix is older than the same version
+/// without it.
+///
+/// The second version may carry an operator -- `<`, `<=`, `>`, `>=` or
+/// `=` -- and then the answer is whether the relation holds.
+fn ver_compare(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let first = text_of(values, 0);
+    let second = text_of(values, 1);
+    if let Some((operator, wanted)) = split_operator(&second) {
+        let order = compare_versions(&first, wanted.trim());
+        let answer = match operator {
+            "<" => order < 0,
+            "<=" => order <= 0,
+            ">" => order > 0,
+            ">=" => order >= 0,
+            _ => order == 0,
+        };
+        return Ok(Value::Int(answer as i64));
+    }
+    Ok(Value::Int(compare_versions(&first, second.trim()) as i64))
+}
+
+/// `IsLabel`: whether a label of the script is there.
+///
+/// The tree has no labels: a script of this tree is a list of statements
+/// and there is nothing to jump to. So the answer is that the label is
+/// not there.
+fn is_label(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    if text_of(values, 0).is_empty() {
+        return Err(RuntimeError {
+            message: "the name of a label is missing.".into(),
+            line,
+        });
+    }
+    Ok(Value::Int(0))
+}
+
+/// The words of the arguments, one by one.
+///
+/// v2 writes the parts of a command in the parameters and the parameters
+/// may hold more than one of them.
+fn words_of(values: &[Value]) -> Vec<String> {
+    let mut words = Vec::new();
+    for value in values {
+        for word in value.to_text().split_whitespace() {
+            words.push(word.to_string());
+        }
+    }
+    words
+}
+
+/// The button that a word names, when it names one.
+fn button_of(word: &str) -> Option<&'static str> {
+    match word.to_lowercase().as_str() {
+        "left" | "l" => Some("left"),
+        "right" | "r" => Some("right"),
+        "middle" | "m" => Some("middle"),
+        _ => None,
+    }
+}
+
+/// The operator of a comparison, when the second version carries one.
+fn split_operator(version: &str) -> Option<(&'static str, &str)> {
+    let trimmed = version.trim_start();
+    for operator in ["<=", ">=", "<", ">", "="] {
+        if let Some(rest) = trimmed.strip_prefix(operator) {
+            return Some((operator, rest));
+        }
+    }
+    None
+}
+
+/// The order of two version strings.
+///
+/// The numbers are compared one by one, and the component that is missing
+/// is a zero. A version with a pre-release suffix is older than the same
+/// version without one.
+///
+/// The known limitation of v2 is carried: a component that is bigger
+/// than 2147483647 is the same as 2147483647.
+fn compare_versions(first: &str, second: &str) -> i32 {
+    let (first_numbers, first_pre) = split_version(first);
+    let (second_numbers, second_pre) = split_version(second);
+    let order = compare_numbers(&first_numbers, &second_numbers);
+    if order != 0 {
+        return order;
+    }
+    match (first_pre, second_pre) {
+        (None, None) => 0,
+        (Some(_), None) => -1,
+        (None, Some(_)) => 1,
+        (Some(first_pre), Some(second_pre)) => compare_pre(first_pre, second_pre),
+    }
+}
+
+/// The numbers of a version, and its pre-release suffix.
+fn split_version(version: &str) -> (Vec<u64>, Option<&str>) {
+    let trimmed = version.trim();
+    let (numbers, pre) = match trimmed.split_once('-') {
+        Some((numbers, pre)) => (numbers, Some(pre)),
+        None => (trimmed, None),
+    };
+    let numbers = numbers
+        .split('.')
+        .map(|part| part.trim().parse::<u64>().unwrap_or(0).min(2147483647))
+        .collect();
+    (numbers, pre)
+}
+
+/// The order of the numbers of two versions.
+fn compare_numbers(first: &[u64], second: &[u64]) -> i32 {
+    let count = first.len().max(second.len());
+    for index in 0..count {
+        let left = first.get(index).copied().unwrap_or(0);
+        let right = second.get(index).copied().unwrap_or(0);
+        if left != right {
+            return if left < right { -1 } else { 1 };
+        }
+    }
+    0
+}
+
+/// The order of two pre-release suffixes.
+///
+/// A suffix of numbers is compared as a number, and a suffix of text is
+/// compared as text.
+fn compare_pre(first: &str, second: &str) -> i32 {
+    match (first.parse::<u64>(), second.parse::<u64>()) {
+        (Ok(left), Ok(right)) => {
+            if left == right {
+                0
+            } else if left < right {
+                -1
+            } else {
+                1
+            }
+        }
+        (Ok(_), Err(_)) => -1,
+        (Err(_), Ok(_)) => 1,
+        (Err(_), Err(_)) => match first.cmp(second) {
+            core::cmp::Ordering::Less => -1,
+            core::cmp::Ordering::Equal => 0,
+            core::cmp::Ordering::Greater => 1,
+        },
+    }
 }
 
 /// `MouseGetPos`: where the pointer is.

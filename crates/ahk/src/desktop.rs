@@ -172,6 +172,14 @@ pub trait Processes {
 
 /// The files of the desktop.
 pub trait Files {
+    /// The directory the script is in.
+    ///
+    /// The name of the directory is a subfolder of the working directory
+    /// when it is not an absolute path.
+    fn set_working_directory(&mut self, _directory: &str) -> Result<String, String> {
+        Err("this desktop cannot change the working directory".to_string())
+    }
+
     /// The files of a directory that match a pattern.
     ///
     /// The mode is v2's: "R" walks into the subfolders as well, and "D"
