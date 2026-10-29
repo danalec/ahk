@@ -202,7 +202,7 @@ Medido nos dois binários:
 | `ClipboardAll` | **variável** (um objecto com todos os formatos) | não existe |
 | `Length` do array | **método**: `a.Length()` | **propriedade**: `a.Length` |
 
-O clipboard é o caso maisганho: no v1 o texto é `A_Clipboard` e o
+O clipboard é o caso que mais muda: no v1 o texto é `A_Clipboard` e o
 objecto completo é `ClipboardAll`, e **não existe** nenhum nome
 `Clipboard` — medido: `Clipboard, 0, hello` → *"This line does not
 contain a recognized action. Specifically: Clipboard, 0, hello"*, e
