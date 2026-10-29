@@ -21,8 +21,12 @@ stdout.
         x := Name()      # a function?  "Call to nonexistent function" says no
     x := IsSet(Name)    # a variable?  the value 1 says yes
 
-The rules that came out of the measurement, and the two blind spots of the
-questions, are written down in `docs/ahk-v1-dialect.md` (the section 1.3).
+The arity comes out of the same binary: a scan of the count of the
+parameters, and the complaint that says that the count is short or long.
+
+The rules that came out of the measurement, and the two blind spots the
+questions have, are written down in `docs/ahk-v1-dialect.md` (the section
+1.3).
 """
 import pathlib
 import re
@@ -37,6 +41,13 @@ PARAM_COMPLAINT = re.compile(
     r"|Parameters? \d+( through \d+)? must not be blank"
     r"|requires at least \d+ parameter"
     r"|Too few parameters")
+TOO_FEW = re.compile(r"requires at least \d+ parameter|Too few parameters passed to function"
+                     r"|Parameter #\d+ required")
+TOO_MANY = re.compile(r"requires at most \d+ parameter|Too many parameters passed to function")
+
+# The most parameters a scan looks for. A name that takes more than this is
+# a name that takes any number of them.
+LIMIT = 8
 
 # The statements of the language of the v1.  The probe sees them as commands
 # in one case only; the others it separates by their own message.
@@ -50,10 +61,10 @@ def decompile(directory):
     chm = directory / "chm"
     if (chm / "Index.hhk").exists():
         return chm
-    chm.mkdir(exist_ok=True)
     source = directory / "AutoHotkey.chm"
     if not source.exists():
         source = directory / "bin" / "AutoHotkey.chm"
+    chm.mkdir(exist_ok=True)
     subprocess.run(["hh.exe", "-decompile", str(chm), str(source)], check=True)
     return chm
 
@@ -153,6 +164,33 @@ class Probe:
             return True, msg
         return False, msg
 
+    def arity(self, name, form):
+        """The fewest and the most parameters, by a scan of the count.
+
+        The count is what the binary complains about, and the complaint is a
+        different one for each case: "requires at least N parameters" and
+        "Too few parameters passed to function" say that the count is short,
+        "requires at most N parameters" and "Too many parameters passed to
+        function" say that it is long. Every other answer -- a value that is
+        not accepted, a name that is not a variable, a label that does not
+        exist -- says that the count was fine, and the scan moves on.
+        """
+        accepted = []
+        for count in range(LIMIT + 1):
+            args = ", ".join(["0"] * count)
+            if form == "command":
+                body = f"if (0)\n    {name}, {args}" if count else f"if (0)\n    {name}"
+            else:
+                body = f"if (0)\n    x := {name}({args})"
+            message = self.message(self.run(f"ar_{form}_{name}_{count}", body)[0])
+            if not TOO_FEW.search(message) and not TOO_MANY.search(message):
+                accepted.append(count)
+        if not accepted:
+            return None, None
+        low, high = accepted[0], accepted[-1]
+        # A name that takes any number of them has the 255 of the table of v2.
+        return low, (255 if high == LIMIT else high)
+
 
 def kind_of(probe, name):
     if name.startswith("#"):
@@ -185,16 +223,18 @@ HEADER = """\
 # kind      command, function, variable or directive
 # class     the class a method belongs to; the v1 has no runtime classes,
 #           and the column is empty for every row
-# min       the fewest parameters: not measured yet
-# max       the most parameters: not measured yet
+# min       the fewest parameters, measured on 2026-10-29
+# max       the most parameters, 255 for any number: the v1 ignores the
+#           parameters that a command does not need, and a function that
+#           takes any number of them says so
 # shape     the shape of each parameter (Value, Variable, Output): not
 #           measured yet
 #
 # The names come from the documentation of the v1 -- the pages of the CHM
-# and the page of the built-in variables -- and the kind of each one was
-# measured on the binary on 2026-10-29 with the probe beside this table.
-# The rules of the three questions, and the two blind spots they have, are
-# written down in docs/ahk-v1-dialect.md, the section 1.3.
+# and the page of the built-in variables -- and the kind and the arity of
+# each one were measured on the binary on 2026-10-29 with the probe beside
+# this table. The rules of the questions, and the two blind spots they
+# have, are written down in docs/ahk-v1-dialect.md, the section 1.3.
 #
 # A name that is a command and a function (GetKeyState) has two rows, the
 # way the table of the v2 carries a name twice when it is two things:
@@ -224,16 +264,36 @@ def main():
     with ThreadPoolExecutor(max_workers=8) as pool:
         kinds = list(pool.map(lambda n: kind_of(probe, n), names))
 
+    # The arity of the names that are commands or functions.
+    calls = [(n, k[0]) for n, k in zip(names, kinds)
+             if k[0] in ("command", "function", "command and function")]
+
+    def bounds(entry):
+        name, kind = entry
+        low, high = probe.arity(name, "command" if kind == "command" else "function")
+        if kind == "command and function":
+            low_f, high_f = probe.arity(name, "function")
+            if low_f is not None:
+                low = low if low is not None else low_f
+                high = high_f if high is None else max(high, high_f)
+        return name, low, high
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        arities = {name: (low, high) for name, low, high in pool.map(bounds, calls)}
+
     lines = []
     for name, (kind, _) in zip(names, kinds):
         if kind == "-":
             continue
+        low, high = arities.get(name, (None, None))
+        low = "" if low is None else low
+        high = "" if high is None else high
         if kind == "command and function":
             # One name, two rows: the way the v2 carries a name twice.
-            lines.append("command\t\t%s\t\t\t" % name)
-            lines.append("function\t\t%s\t\t\t" % name)
+            lines.append("command\t\t%s\t%s\t%s\t" % (name, low, high))
+            lines.append("function\t\t%s\t%s\t%s\t" % (name, low, high))
             continue
-        lines.append("%s\t\t%s\t\t\t" % (kind, name))
+        lines.append("%s\t\t%s\t%s\t%s\t" % (kind, name, low, high))
 
     table = HEADER + "\n".join(lines) + "\n"
     if len(sys.argv) > 2:

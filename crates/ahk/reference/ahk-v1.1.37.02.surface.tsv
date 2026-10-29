@@ -3,239 +3,241 @@
 # kind      command, function, variable or directive
 # class     the class a method belongs to; the v1 has no runtime classes,
 #           and the column is empty for every row
-# min       the fewest parameters: not measured yet
-# max       the most parameters: not measured yet
+# min       the fewest parameters, measured on 2026-10-29
+# max       the most parameters, 255 for any number: the v1 ignores the
+#           parameters that a command does not need, and a function that
+#           takes any number of them says so
 # shape     the shape of each parameter (Value, Variable, Output): not
 #           measured yet
 #
 # The names come from the documentation of the v1 -- the pages of the CHM
-# and the page of the built-in variables -- and the kind of each one was
-# measured on the binary on 2026-10-29 with the probe beside this table.
-# The rules of the three questions, and the two blind spots they have, are
-# written down in docs/ahk-v1-dialect.md, the section 1.3.
+# and the page of the built-in variables -- and the kind and the arity of
+# each one were measured on the binary on 2026-10-29 with the probe beside
+# this table. The rules of the questions, and the two blind spots they
+# have, are written down in docs/ahk-v1-dialect.md, the section 1.3.
 #
 # A name that is a command and a function (GetKeyState) has two rows, the
 # way the table of the v2 carries a name twice when it is two things:
 # SendMode is a command and a variable of the v2.
 kind	class	name	min	max	shape
-function		Asc			
-command		AutoTrim			
-command		BlockInput			
-function		Chr			
-command		Click			
-command		ClipWait			
-function		ComObjActive			
-function		ComObjArray			
-function		ComObjConnect			
-function		ComObjCreate			
-function		ComObjError			
-function		ComObjFlags			
-function		ComObjGet			
-function		ComObjQuery			
-function		ComObjType			
-function		ComObjValue			
-command		Control			
-command		ControlClick			
-command		ControlFocus			
-command		ControlGet			
-command		ControlGetFocus			
-command		ControlGetPos			
-command		ControlGetText			
-command		ControlMove			
-command		ControlSend			
-command		ControlSetText			
-command		CoordMode			
-command		Critical			
-command		DetectHiddenText			
-command		DetectHiddenWindows			
-function		DllCall			
-command		Drive			
-command		DriveGet			
-command		DriveSpaceFree			
-command		Edit			
-command		EnvAdd			
-command		EnvDiv			
-command		EnvGet			
-command		EnvMult			
-command		EnvSet			
-command		EnvSub			
-command		EnvUpdate			
-command		Exit			
-command		ExitApp			
-command		FileAppend			
-command		FileCopy			
-command		FileCopyDir			
-command		FileCreateDir			
-command		FileCreateShortcut			
-command		FileDelete			
-command		FileEncoding			
-function		FileExist			
-command		FileGetAttrib			
-command		FileGetShortcut			
-command		FileGetSize			
-command		FileGetTime			
-command		FileGetVersion			
-command		FileInstall			
-command		FileMove			
-command		FileMoveDir			
-function		FileOpen			
-command		FileRead			
-command		FileReadLine			
-command		FileRecycle			
-command		FileRecycleEmpty			
-command		FileRemoveDir			
-command		FileSelectFile			
-command		FileSelectFolder			
-command		FileSetAttrib			
-command		FileSetTime			
-function		Format			
-command		FormatTime			
-function		Func			
-command		GetKeyState			
-function		GetKeyState			
-command		GroupActivate			
-command		GroupAdd			
-command		GroupClose			
-command		GroupDeactivate			
-command		Gui			
-command		GuiControl			
-command		GuiControlGet			
-command		Hotkey			
-function		Hotstring			
-command		IfInString			
-command		IfMsgBox			
-command		ImageSearch			
-function		InStr			
-command		IniDelete			
-command		IniRead			
-command		IniWrite			
-command		Input			
-command		InputBox			
-function		InputHook			
-function		IsByRef			
-function		IsFunc			
-function		IsLabel			
-function		IsObject			
-function		IsSet			
-command		KeyHistory			
-command		KeyWait			
-command		ListHotkeys			
-command		ListLines			
-command		ListVars			
-function		LoadPicture			
-command		Menu			
-function		MenuGetHandle			
-function		MenuGetName			
-command		MouseClick			
-command		MouseClickDrag			
-command		MouseGetPos			
-command		MouseMove			
-command		MsgBox			
-function		NumGet			
-function		NumPut			
-function		ObjAddRef			
-function		ObjBindMethod			
-function		Object			
-function		OnError			
-function		OnMessage			
-function		Ord			
-command		OutputDebug			
-command		Pause			
-command		PixelGetColor			
-command		PixelSearch			
-command		PostMessage			
-command		Process			
-command		Progress			
-command		Random			
-command		RegDelete			
-function		RegExMatch			
-function		RegExReplace			
-command		RegRead			
-command		RegWrite			
-function		RegisterCallback			
-command		Reload			
-command		Run			
-command		RunAs			
-command		Send			
-command		SendLevel			
-command		SendMode			
-command		SetBatchLines			
-command		SetControlDelay			
-command		SetDefaultMouseSpeed			
-command		SetEnv			
-command		SetFormat			
-command		SetKeyDelay			
-command		SetMouseDelay			
-command		SetRegView			
-command		SetStoreCapsLockMode			
-command		SetTimer			
-command		SetTitleMatchMode			
-command		SetWinDelay			
-command		SetWorkingDir			
-command		Shutdown			
-command		Sleep			
-command		Sort			
-command		SoundBeep			
-command		SoundGet			
-command		SoundGetWaveVolume			
-command		SoundPlay			
-command		SoundSet			
-command		SoundSetWaveVolume			
-command		SplashTextOn			
-command		SplitPath			
-command		StatusBarGetText			
-command		StatusBarWait			
-function		StrGet			
-function		StrLen			
-function		StrPut			
-function		StrReplace			
-function		StrSplit			
-command		StringCaseSense			
-command		StringGetPos			
-command		StringLeft			
-command		StringLen			
-command		StringLower			
-command		StringMid			
-command		StringReplace			
-command		StringSplit			
-command		StringTrimLeft			
-function		SubStr			
-command		Suspend			
-command		SysGet			
-command		Thread			
-command		ToolTip			
-command		Transform			
-command		TrayTip			
-function		Trim			
-command		URLDownloadToFile			
-function		VarSetCapacity			
-function		VerCompare			
-command		WinActivate			
-command		WinActivateBottom			
-function		WinActive			
-command		WinClose			
-function		WinExist			
-command		WinGet			
-command		WinGetActiveStats			
-command		WinGetActiveTitle			
-command		WinGetClass			
-command		WinGetPos			
-command		WinGetText			
-command		WinGetTitle			
-command		WinHide			
-command		WinKill			
-command		WinMaximize			
-command		WinMenuSelectItem			
-command		WinMinimize			
-command		WinMinimizeAll			
-command		WinMove			
-command		WinRestore			
-command		WinSet			
-command		WinSetTitle			
-command		WinShow			
-command		WinWait			
-command		WinWaitActive			
-command		WinWaitClose			
+function		Asc	1	1	
+command		AutoTrim	1	255	
+command		BlockInput	1	255	
+function		Chr	1	1	
+command		Click	0	255	
+command		ClipWait	0	255	
+function		ComObjActive	0	3	
+function		ComObjArray	2	255	
+function		ComObjConnect	1	2	
+function		ComObjCreate	1	2	
+function		ComObjError	0	1	
+function		ComObjFlags	1	3	
+function		ComObjGet	1	1	
+function		ComObjQuery	2	3	
+function		ComObjType	1	2	
+function		ComObjValue	1	1	
+command		Control	1	255	
+command		ControlClick	0	255	
+command		ControlFocus	0	255	
+command		ControlGet	2	255	
+command		ControlGetFocus	1	255	
+command		ControlGetPos	0	255	
+command		ControlGetText	1	255	
+command		ControlMove	0	255	
+command		ControlSend	2	255	
+command		ControlSetText	0	255	
+command		CoordMode	1	255	
+command		Critical	0	255	
+command		DetectHiddenText	1	255	
+command		DetectHiddenWindows	1	255	
+function		DllCall	1	255	
+command		Drive	1	255	
+command		DriveGet	0	255	
+command		DriveSpaceFree	2	255	
+command		Edit	0	255	
+command		EnvAdd	2	255	
+command		EnvDiv	2	255	
+command		EnvGet	2	255	
+command		EnvMult	2	255	
+command		EnvSet	1	255	
+command		EnvSub	2	255	
+command		EnvUpdate	0	255	
+command		Exit	0	255	
+command		ExitApp	0	255	
+command		FileAppend	0	255	
+command		FileCopy	2	255	
+command		FileCopyDir	2	255	
+command		FileCreateDir	1	255	
+command		FileCreateShortcut	2	255	
+command		FileDelete	1	255	
+command		FileEncoding	0	255	
+function		FileExist	1	1	
+command		FileGetAttrib	1	255	
+command		FileGetShortcut	1	255	
+command		FileGetSize	1	255	
+command		FileGetTime	1	255	
+command		FileGetVersion	1	255	
+command		FileInstall	2	255	
+command		FileMove	2	255	
+command		FileMoveDir	2	255	
+function		FileOpen	2	3	
+command		FileRead	2	255	
+command		FileReadLine	3	255	
+command		FileRecycle	1	255	
+command		FileRecycleEmpty	0	255	
+command		FileRemoveDir	1	255	
+command		FileSelectFile	1	255	
+command		FileSelectFolder	1	255	
+command		FileSetAttrib	1	255	
+command		FileSetTime	0	255	
+function		Format	1	255	
+command		FormatTime	1	255	
+function		Func	1	1	
+command		GetKeyState	1	2	
+function		GetKeyState	1	2	
+command		GroupActivate	1	255	
+command		GroupAdd	1	255	
+command		GroupClose	1	255	
+command		GroupDeactivate	1	255	
+command		Gui	1	255	
+command		GuiControl	2	255	
+command		GuiControlGet	1	255	
+command		Hotkey	1	255	
+function		Hotstring	1	3	
+command		IfInString	2	255	
+command		IfMsgBox	1	255	
+command		ImageSearch	0	255	
+function		InStr	2	5	
+command		IniDelete	2	255	
+command		IniRead	2	255	
+command		IniWrite	3	255	
+command		Input	0	255	
+command		InputBox	1	255	
+function		InputHook	0	3	
+function		IsByRef	1	1	
+function		IsFunc	1	1	
+function		IsLabel	1	1	
+function		IsObject	1	255	
+function		IsSet	1	1	
+command		KeyHistory	0	255	
+command		KeyWait	1	255	
+command		ListHotkeys	0	255	
+command		ListLines	0	255	
+command		ListVars	0	255	
+function		LoadPicture	1	3	
+command		Menu	2	255	
+function		MenuGetHandle	1	1	
+function		MenuGetName	1	1	
+command		MouseClick	0	255	
+command		MouseClickDrag	1	255	
+command		MouseGetPos	0	255	
+command		MouseMove	2	255	
+command		MsgBox	0	255	
+function		NumGet	1	3	
+function		NumPut	2	4	
+function		ObjAddRef	1	1	
+function		ObjBindMethod	2	255	
+function		Object	0	255	
+function		OnError	1	2	
+function		OnMessage	1	3	
+function		Ord	1	1	
+command		OutputDebug	1	255	
+command		Pause	0	255	
+command		PixelGetColor	3	255	
+command		PixelSearch	0	255	
+command		PostMessage	1	255	
+command		Process	1	255	
+command		Progress	0	255	
+command		Random	0	255	
+command		RegDelete	0	255	
+function		RegExMatch	2	4	
+function		RegExReplace	2	6	
+command		RegRead	1	255	
+command		RegWrite	0	255	
+function		RegisterCallback	1	4	
+command		Reload	0	255	
+command		Run	1	255	
+command		RunAs	0	255	
+command		Send	1	255	
+command		SendLevel	1	255	
+command		SendMode	1	255	
+command		SetBatchLines	1	255	
+command		SetControlDelay	1	255	
+command		SetDefaultMouseSpeed	1	255	
+command		SetEnv	1	255	
+command		SetFormat	2	255	
+command		SetKeyDelay	0	255	
+command		SetMouseDelay	1	255	
+command		SetRegView	1	255	
+command		SetStoreCapsLockMode	1	255	
+command		SetTimer	0	255	
+command		SetTitleMatchMode	1	255	
+command		SetWinDelay	1	255	
+command		SetWorkingDir	1	255	
+command		Shutdown	1	255	
+command		Sleep	1	255	
+command		Sort	1	255	
+command		SoundBeep	0	255	
+command		SoundGet	1	255	
+command		SoundGetWaveVolume	1	255	
+command		SoundPlay	1	255	
+command		SoundSet	1	255	
+command		SoundSetWaveVolume	1	255	
+command		SplashTextOn	0	255	
+command		SplitPath	1	255	
+command		StatusBarGetText	1	255	
+command		StatusBarWait	0	255	
+function		StrGet	1	3	
+function		StrLen	1	1	
+function		StrPut	1	4	
+function		StrReplace	2	5	
+function		StrSplit	1	4	
+command		StringCaseSense	1	255	
+command		StringGetPos	3	255	
+command		StringLeft	3	255	
+command		StringLen	2	255	
+command		StringLower	2	255	
+command		StringMid	3	255	
+command		StringReplace	3	255	
+command		StringSplit	2	255	
+command		StringTrimLeft	3	255	
+function		SubStr	2	3	
+command		Suspend	0	255	
+command		SysGet	2	255	
+command		Thread	1	255	
+command		ToolTip	0	255	
+command		Transform	2	255	
+command		TrayTip	0	255	
+function		Trim	1	2	
+command		URLDownloadToFile	2	255	
+function		VarSetCapacity	1	3	
+function		VerCompare	2	2	
+command		WinActivate	0	255	
+command		WinActivateBottom	0	255	
+function		WinActive	0	4	
+command		WinClose	0	255	
+function		WinExist	0	4	
+command		WinGet	1	255	
+command		WinGetActiveStats	5	255	
+command		WinGetActiveTitle	1	255	
+command		WinGetClass	1	255	
+command		WinGetPos	0	255	
+command		WinGetText	1	255	
+command		WinGetTitle	1	255	
+command		WinHide	0	255	
+command		WinKill	0	255	
+command		WinMaximize	0	255	
+command		WinMenuSelectItem	3	255	
+command		WinMinimize	0	255	
+command		WinMinimizeAll	0	255	
+command		WinMove	0	255	
+command		WinRestore	0	255	
+command		WinSet	1	255	
+command		WinSetTitle	0	255	
+command		WinShow	0	255	
+command		WinWait	0	255	
+command		WinWaitActive	0	255	
+command		WinWaitClose	0	255	
 directive		#ClipboardTimeout			
 directive		#CommentFlag			
 directive		#ErrorStdOut			

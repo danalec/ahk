@@ -414,6 +414,22 @@ same dialect:
 | `StringTrimLeft` (command) | `Trim` (function) |
 | `SetFormat` (command) | `Format` (function) |
 
+**The arity is measured too, and it comes out of the same binary.** The count
+of the parameters is what the binary complains about, and the complaint is a
+different one for each case: *"requires at least N parameters"* and *"Too few
+parameters passed to function"* say that the count is short, *"requires at
+most N parameters"* and *"Too many parameters passed to function"* say that it
+is long, and every other answer — a value that is not accepted, a name
+that is not a variable, a label that does not exist — says that the
+count was fine. A scan of the count gives the two bounds: `StrLen` is 1..1 ,
+`InStr` is 2..5 , `SubStr` is 2..3 , `RegExReplace` is 2..6 , `FileRead` is
+2..any , `MsgBox` is 0..any.
+
+**The commands have no upper bound, and that is a fact of the v1.** The
+parameters that a command does not need are ignored: `MsgBox, a, b, c, d, e`
+loads. The table carries 255 for those, the way the table of the v2 carries
+it for a function that takes any number of them.
+
 This is what a dialect that is a **hybrid** looks like from the inside: the
 v1.1 kept the command of the v1.0 and put the function of the v2 beside it.
 The tree carries the names of the v2; the table of the v1 has to carry
@@ -594,11 +610,19 @@ names, 383 of them of the surface** , in
 the v1 are measured too, and the one that the documentation still carries and
 that the binary removed is written down.
 
-**Left.** The **arity** and the **shape of the parameters** of each name: the
-columns `min` , `max` and the shape (`Value` , `Variable` , `Output` ) are
-empty in the table, and they are the next measurement. The v1 has three shapes
-and the v2 has two (§3.2) , and the shape of a name is what decides whether
-the handler writes into a variable of the script or returns a value.
+The **arity** of every name is measured as well, on the same day and with the
+same probe: the columns `min` and `max` of the table are filled.
+
+**Left.** The **shape of the parameters** : the column `shape` is empty, and
+it is the last thing that F1 needs. The v1 has three shapes and the v2 has
+two (§3.2) , and the shape of a name is what decides whether the handler
+writes into a variable of the script or returns a value. The binary says
+that a parameter is the *name* of a variable when the value is not one (the
+error is *"The following variable name contains an illegal character"*) , and
+the documentation says whether that name is written into or read from ---
+`OutputVar` is written into, `Var` is read. That last step is a reading of
+the documentation and not a measurement of the binary, and it is the one
+part of F1 that is not a measurement.
 
 **Result.** `ahk --surface --dialect=v1` prints the list with the state of
 each name — the command that the wave of 2026-10-29 built for the v2, with one
