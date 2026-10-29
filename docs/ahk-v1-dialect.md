@@ -166,6 +166,19 @@ x := StrLen("abc")     # existe: o ficheiro recebe "3"
 x := Upper("abc")      # não existe: "Call to nonexistent function."
 ```
 
+E o **género** de cada nome sai de três perguntas que o v1 faz de
+maneiras diferentes (medido em 2026-10-29):
+
+| Pergunta | O que responde |
+|---|---|
+| `Nome, arg` | é um **comando**? — *"This line does not contain a recognized action"* diz que não é |
+| `x := Nome()` | é uma **função**? — *"Call to nonexistent function"* diz que não é |
+| `x := IsSet(Nome)` | é uma **variável** do runtime? — 1 diz que é, e 0 que não é (um nome inventado dá 0) |
+
+É com estas três perguntas que a F1 preenche a coluna do género da
+tabela do v1. E é por isso que uma sondagem por nome é mais do que um
+sim ou não: o mesmo nome responde diferente conforme a forma.
+
 Quarenta e sete nomes medidos em 2026-10-28 levaram um minuto. Para a
 superfície inteira do v1 (a do v2 tem **725** nomes — a tabela de
 `crates/ahk/reference/ahk-v2.0.19.surface.tsv`, que a onda de
