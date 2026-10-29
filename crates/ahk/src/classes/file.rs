@@ -75,7 +75,11 @@ pub(crate) fn names() -> Vec<&'static str> {
     PROPERTIES.iter().chain(METHODS.iter()).copied().collect()
 }
 
-pub(crate) fn construct(
+/// Open a file, and answer the object of it.
+///
+/// The class of v2 is not made: `File(...)` answers "Invalid base.". The
+/// file is made by the `FileOpen` built-in, and this is what it asks.
+pub(crate) fn open_file(
     arguments: &[Value],
     rt: &mut Runtime,
     line: u32,

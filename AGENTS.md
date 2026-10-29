@@ -323,6 +323,23 @@ the box: it does no I/O, and it has to keep building without `std`.
   instance: `Map.Clear` answers "This value of type \"Class\" has no
   property named \"Clear\".". The table of the numbers is in
   `classes::METHODS`.
+- **A class type is made the way v2 makes it.** Measured on the binary
+  of v2.0.19 on 2026-10-30: a function and a file are not made at all,
+  and the call answers "Invalid base.", of the class `ValueError`, with
+  the name "Object.Call" in the `What` -- the call goes through the base
+  object, and the base of them has no such thing. The number of the
+  arguments of a constructor is checked, and the failure carries the
+  call in the `What` ("Buffer.Call", "Gui.Call", "Menu.Call",
+  "Object.Call") and the constructor in the `Extra`
+  ("Buffer.Prototype.__New", "Error.Prototype.__New"). The type of an
+  argument is checked too: `Buffer("x")` answers "Parameter #1 of
+  Buffer.Prototype.__New requires a Number, but received a String.", of
+  the class `TypeError`, with the value in the `Extra`. The number of the
+  parameter counts the base of the class in the `Gui` and not in the
+  `Buffer`. The table of the constructors is in
+  `classes::CONSTRUCTORS`. The options of a `Gui` are not read yet: the
+  tree takes any text, and v2 refuses the ones it cannot read with
+  "Invalid option.".
 - **The refusal of an object is the wording of v2.** Measured on the binary
   of v2.0.19 on 2026-10-30: `x.nothing` on a number answers "This value of
   type \"Integer\" has no property named \"nothing\".", `x.nothing()` answers

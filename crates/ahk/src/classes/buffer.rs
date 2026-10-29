@@ -26,7 +26,9 @@ use core::cell::RefCell;
 
 use crate::classes::object_with;
 use crate::dll::NativeType;
-use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_type};
+use crate::runtime::{
+    Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_type,
+};
 
 /// The key the state of a buffer lives under.
 ///
@@ -225,12 +227,46 @@ fn fail(message: impl Into<String>, line: u32) -> RuntimeFailure {
 
 /// The whole number an argument holds.
 ///
-/// A float is truncated, the way AutoHotkey truncates it.
+/// A float is truncated, the way AutoHotkey truncates it. A value that is
+/// not a number is refused the way v2 refuses it, and the value that was
+/// given goes in the `Extra` of the error.
 fn whole(value: &Value, line: u32) -> Result<i64, RuntimeFailure> {
     match value {
         Value::Int(number) => Ok(*number),
         Value::Float(number) => Ok(*number as i64),
-        other => Err(fail(expected_type(TypeName::Integer, other.type_name()), line)),
+        other => Err(RuntimeFailure::Detailed(
+            RuntimeError {
+                message: expected_type(TypeName::Number, other.type_name()),
+                line,
+            },
+            Detail { what: String::new(), extra: other.to_text() },
+        )),
+    }
+}
+
+/// The whole number an argument of the constructor holds.
+///
+/// v2 names the constructor in the message, and the number of the
+/// parameter is the number of the argument the script wrote.
+fn whole_argument(value: &Value, index: usize, line: u32) -> Result<i64, RuntimeFailure> {
+    match value {
+        Value::Int(number) => Ok(*number),
+        Value::Float(number) => Ok(*number as i64),
+        other => Err(RuntimeFailure::Detailed(
+            RuntimeError {
+                message: crate::runtime::requires(
+                    index + 1,
+                    "Buffer.Prototype.__New",
+                    TypeName::Number,
+                    other,
+                ),
+                line,
+            },
+            Detail {
+                what: "Buffer.Prototype.__New".to_string(),
+                extra: other.to_text(),
+            },
+        )),
     }
 }
 
@@ -275,17 +311,17 @@ fn restore(this: &Value, buffer: &Buffer) {
 /// A new buffer: the bytes, and the position at the start of them.
 fn new(arguments: &[Value], line: u32) -> Result<Buffer, RuntimeFailure> {
     let size = match arguments.first() {
-        Some(value) => whole(value, line)?,
+        Some(value) => whole_argument(value, 0, line)?,
         None => 0,
     };
     if size < 0 {
-        return Err(fail("the size of a buffer cannot be negative.", line));
+        return Err(fail("Invalid value.", line));
     }
     // The bytes of a new buffer are zero, unless the script asks for
     // another byte to fill them with.
     let fill = match arguments.get(1) {
         Some(value) => {
-            let byte = whole(value, line)?;
+            let byte = whole_argument(value, 1, line)?;
             if !(0..=255).contains(&byte) {
                 return Err(fail(
                     "the fill of a buffer is a byte: it must be between 0 and 255.",

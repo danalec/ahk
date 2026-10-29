@@ -109,9 +109,14 @@ fn a_buffer_may_be_made_again_by_its_constructor() {
 
 #[test]
 fn a_buffer_of_a_negative_size_fails() {
-    let report = run("b := Buffer(-1)");
-    assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the size of a buffer cannot be negative."));
+    // Measured on the binary of v2.0.19 on 2026-10-30: `Buffer(-1)`
+    // answers "Invalid value.", of the class `ValueError`, and the
+    // constructor is named in the `What`.
+    let report = run(
+        "try {\n    b := Buffer(-1)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Invalid value. | Buffer.Prototype.__New | "]);
 }
 
 #[test]
@@ -351,4 +356,30 @@ fn num_put_wants_a_type_a_number_and_a_target() {
         Some("Too few parameters passed to function. Specifically: NumPut")
     );
     assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn the_number_of_the_arguments_of_the_constructor_of_a_buffer_is_checked() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the call is in the
+    // `What` of the error, and the constructor is in the `Extra`.
+    let report = run(
+        "try {\n    x := Buffer(1, 2, 3)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Too many parameters passed to function. | Buffer.Call | Buffer.Prototype.__New"]
+    );
+}
+
+#[test]
+fn the_size_of_a_buffer_is_a_number() {
+    let report = run(
+        "try {\n    x := Buffer(\"x\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of Buffer.Prototype.__New requires a Number, but received a String. | Buffer.Prototype.__New | x"]
+    );
 }

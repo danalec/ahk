@@ -162,3 +162,30 @@ fn a_name_that_is_not_in_the_table_is_not_a_property() {
         "This value of type \"Gui\" has no property named \"Nonsense\"."
     );
 }
+
+#[test]
+fn the_events_of_a_gui_are_an_object() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the third argument
+    // of the constructor is the object that receives the events, and v2
+    // checks it before the options.
+    let report = run(
+        "try {\n    x := Gui(0, \"the title\", 5)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #4 of Gui.Prototype.__New requires an Object, but received an Integer. | Gui.Prototype.__New | 5"]
+    );
+}
+
+#[test]
+fn the_options_of_a_gui_are_a_text() {
+    let report = run(
+        "try {\n    x := Gui(1.5)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Invalid option. | Gui.Prototype.__New | 1.5"]
+    );
+}

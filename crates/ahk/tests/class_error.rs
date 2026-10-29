@@ -255,3 +255,18 @@ fn the_stack_of_an_error_is_empty() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec![""]);
 }
+
+#[test]
+fn the_number_of_the_arguments_of_the_constructor_of_an_error_is_checked() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the errors are made
+    // the way the root of them is, and the call goes through the base
+    // object.
+    let report = run(
+        "try {\n    x := Error(\"a\", \"b\", \"c\", \"d\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Too many parameters passed to function. | Object.Call | Error.Prototype.__New"]
+    );
+}

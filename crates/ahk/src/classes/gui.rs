@@ -11,9 +11,10 @@
 //! method of the class, and the runtime says so.
 
 use alloc::format;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value};
+use crate::runtime::{Detail, Runtime, RuntimeError, RuntimeFailure, TypeName, Value};
 
 /// The names of the `Gui` class, with the thing each one does.
 ///
@@ -207,11 +208,66 @@ pub(crate) fn names(class: &str) -> Vec<&'static str> {
 /// is there. What it cannot do is the thing that fails.
 pub(crate) fn construct(
     class: &str,
-    _arguments: &[Value],
+    arguments: &[Value],
     _rt: &mut Runtime,
-    _line: u32,
+    line: u32,
 ) -> Result<Value, RuntimeFailure> {
+    // The third argument of v2 is the object that receives the events of
+    // the window, and v2 checks it before the options.
+    if let Some(events) = arguments.get(2) {
+        if !matches!(events, Value::Object(_)) {
+            return Err(the_type_failure(4, "Gui.Prototype.__New", TypeName::Object, events, line));
+        }
+    }
+    // The options are a text, or the number of a window that already
+    // exists. A number with a point is a text of options that v2 cannot
+    // read.
+    if let Some(options) = arguments.first() {
+        match options {
+            Value::Text(_) | Value::Int(_) => {}
+            Value::Float(_) => {
+                return Err(the_failure_of_an_argument(
+                    "Invalid option.".to_string(),
+                    "Gui.Prototype.__New",
+                    options,
+                    line,
+                ));
+            }
+            other => {
+                return Err(the_type_failure(2, "Gui.Prototype.__New", TypeName::String, other, line));
+            }
+        }
+    }
     Ok(crate::classes::object(class))
+}
+
+/// The failure of an argument of the constructor that is of the wrong
+/// type.
+///
+/// The number of the parameter of v2 counts the base of the class, and
+/// the value that was given goes in the `Extra` of the error.
+fn the_type_failure(
+    number: usize,
+    name: &str,
+    wants: TypeName,
+    value: &Value,
+    line: u32,
+) -> RuntimeFailure {
+    let message = crate::runtime::requires(number, name, wants, value);
+    the_failure_of_an_argument(message, name, value, line)
+}
+
+/// The failure of an argument of the constructor.
+fn the_failure_of_an_argument(
+    message: String,
+    name: &str,
+    value: &Value,
+    line: u32,
+) -> RuntimeFailure {
+    RuntimeFailure::Detailed(
+        RuntimeError { message, line },
+        Detail { what: name.to_string(), extra: value.to_text() },
+    )
 }
 
 /// A method of a class of the windows.

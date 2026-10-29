@@ -179,21 +179,21 @@ fn run_with_file(path: &str, text: &str, source: &str) -> (Report, Fake) {
 
 #[test]
 fn a_file_reads_a_line() {
-    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := File(\"notes.txt\", \"r\")\nline := f.ReadLine()\nMsgBox \"%line%\"");
+    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := FileOpen(\"notes.txt\", \"r\")\nline := f.ReadLine()\nMsgBox \"%line%\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one"]);
 }
 
 #[test]
 fn a_file_reads_a_number_of_characters() {
-    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := File(\"notes.txt\", \"r\")\ntext := f.Read(3)\nMsgBox \"%text%\"");
+    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := FileOpen(\"notes.txt\", \"r\")\ntext := f.Read(3)\nMsgBox \"%text%\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one"]);
 }
 
 #[test]
 fn a_file_reads_the_rest_of_it() {
-    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := File(\"notes.txt\", \"r\")\ntext := f.Read()\nMsgBox \"%text%\"");
+    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := FileOpen(\"notes.txt\", \"r\")\ntext := f.Read()\nMsgBox \"%text%\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one\ntwo\n"]);
 }
@@ -203,7 +203,7 @@ fn a_file_writes_and_reads_back() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"out.txt\", \"w\")\nf.WriteLine(\"hello\")\nf.WriteLine(\"world\")\nf.Close()\ng := File(\"out.txt\", \"r\")\nfirst := g.ReadLine()\nsecond := g.ReadLine()\nMsgBox \"%first% / %second%\"",
+        "f := FileOpen(\"out.txt\", \"w\")\nf.WriteLine(\"hello\")\nf.WriteLine(\"world\")\nf.Close()\ng := FileOpen(\"out.txt\", \"r\")\nfirst := g.ReadLine()\nsecond := g.ReadLine()\nMsgBox \"%first% / %second%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["hello / world"]);
@@ -215,7 +215,7 @@ fn a_file_writes_without_a_newline() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"out.txt\", \"w\")\nf.Write(\"hello\")\nf.Close()\ng := File(\"out.txt\", \"r\")\ntext := g.Read()\nMsgBox \"%text%\"",
+        "f := FileOpen(\"out.txt\", \"w\")\nf.Write(\"hello\")\nf.Close()\ng := FileOpen(\"out.txt\", \"r\")\ntext := g.Read()\nMsgBox \"%text%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["hello"]);
@@ -227,7 +227,7 @@ fn a_file_that_is_opened_to_be_appended_to_starts_at_its_end() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"out.txt\", \"w\")\nf.Write(\"one\")\nf.Close()\ng := File(\"out.txt\", \"a\")\ng.Write(\"two\")\ng.Close()\nh := File(\"out.txt\", \"r\")\ntext := h.Read()\nMsgBox \"%text%\"",
+        "f := FileOpen(\"out.txt\", \"w\")\nf.Write(\"one\")\nf.Close()\ng := FileOpen(\"out.txt\", \"a\")\ng.Write(\"two\")\ng.Close()\nh := FileOpen(\"out.txt\", \"r\")\ntext := h.Read()\nMsgBox \"%text%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["onetwo"]);
@@ -238,7 +238,7 @@ fn a_file_reports_its_length_and_its_position() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\ntwo\n",
-        "f := File(\"notes.txt\", \"r\")\nf.Read(3)\nMsgBox \"%f.Length% %f.Pos%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nf.Read(3)\nMsgBox \"%f.Length% %f.Pos%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["8 3"]);
@@ -249,7 +249,7 @@ fn a_file_knows_when_it_is_at_its_end() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\ntwo\n",
-        "f := File(\"notes.txt\", \"r\")\nbefore := f.AtEOF\nf.Read(8)\nafter := f.AtEOF\nMsgBox \"%before% %after%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nbefore := f.AtEOF\nf.Read(8)\nafter := f.AtEOF\nMsgBox \"%before% %after%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["0 1"]);
@@ -260,7 +260,7 @@ fn a_file_seeks() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\ntwo\n",
-        "f := File(\"notes.txt\", \"r\")\nmoved := f.Seek(4)\nMsgBox \"%moved% %f.Pos%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nmoved := f.Seek(4)\nMsgBox \"%moved% %f.Pos%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 4"]);
@@ -271,7 +271,7 @@ fn a_file_writes_a_number_and_reads_it_back() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"nums.bin\", \"w\")\nwritten := f.WriteUInt(42)\nf.Close()\ng := File(\"nums.bin\", \"r\")\nnumber := g.ReadUInt()\nMsgBox \"%written% %number%\"",
+        "f := FileOpen(\"nums.bin\", \"w\")\nwritten := f.WriteUInt(42)\nf.Close()\ng := FileOpen(\"nums.bin\", \"r\")\nnumber := g.ReadUInt()\nMsgBox \"%written% %number%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["4 42"]);
@@ -284,7 +284,7 @@ fn a_file_reads_the_bytes_into_a_buffer() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"raw.bin\", \"w\")\nf.RawWrite(\"abc\")\nf.Close()\ng := File(\"raw.bin\", \"r\")\nc := Buffer(3)\ncount := g.RawRead(c)\nMsgBox \"%count% %g.Pos%\"",
+        "f := FileOpen(\"raw.bin\", \"w\")\nf.RawWrite(\"abc\")\nf.Close()\ng := FileOpen(\"raw.bin\", \"r\")\nc := Buffer(3)\ncount := g.RawRead(c)\nMsgBox \"%count% %g.Pos%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["3 3"]);
@@ -296,7 +296,7 @@ fn a_file_writes_a_string_as_the_bytes_of_it() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"out.txt\", \"w\")\nf.RawWrite(\"abc\")\nf.Close()\ng := File(\"out.txt\", \"r\")\ntext := g.Read()\nMsgBox \"%text%\"",
+        "f := FileOpen(\"out.txt\", \"w\")\nf.RawWrite(\"abc\")\nf.Close()\ng := FileOpen(\"out.txt\", \"r\")\ntext := g.Read()\nMsgBox \"%text%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["abc"]);
@@ -308,7 +308,7 @@ fn a_closed_file_fails() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := File(\"notes.txt\", \"r\")\nf.Close()\nline := f.ReadLine()",
+        "f := FileOpen(\"notes.txt\", \"r\")\nf.Close()\nline := f.ReadLine()",
     );
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("the file is closed."));
@@ -318,7 +318,7 @@ fn a_closed_file_fails() {
 #[test]
 fn a_file_that_is_not_there_fails() {
     let mut desktop = Fake::default();
-    let report = run(&mut desktop, "f := File(\"nope.txt\", \"r\")");
+    let report = run(&mut desktop, "f := FileOpen(\"nope.txt\", \"r\")");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -332,7 +332,7 @@ fn a_read_past_the_end_of_a_file_fails() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := File(\"notes.txt\", \"r\")\nf.Read(4)\nnumber := f.ReadUInt()",
+        "f := FileOpen(\"notes.txt\", \"r\")\nf.Read(4)\nnumber := f.ReadUInt()",
     );
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("the read is past the end of the file."));
@@ -344,7 +344,7 @@ fn a_file_has_an_encoding() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := File(\"notes.txt\", \"r\")\nMsgBox \"%f.Encoding%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nMsgBox \"%f.Encoding%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["UTF-8"]);
@@ -355,7 +355,7 @@ fn a_file_may_change_its_encoding() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"out.txt\", \"w\")\nf.Encoding := \"UTF-16\"\nf.Write(\"hi\")\nf.Close()\ng := File(\"out.txt\", \"r\", \"UTF-16\")\ntext := g.Read(2)\nMsgBox \"%text%\"",
+        "f := FileOpen(\"out.txt\", \"w\")\nf.Encoding := \"UTF-16\"\nf.Write(\"hi\")\nf.Close()\ng := FileOpen(\"out.txt\", \"r\", \"UTF-16\")\ntext := g.Read(2)\nMsgBox \"%text%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["hi"]);
@@ -366,7 +366,7 @@ fn an_encoding_that_is_not_carried_fails() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := File(\"notes.txt\", \"r\")\nf.Encoding := \"CP1252\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nf.Encoding := \"CP1252\"",
     );
     assert!(!report.ok);
     assert_eq!(
@@ -381,7 +381,7 @@ fn a_file_has_a_handle() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := File(\"notes.txt\", \"r\")\nMsgBox \"%f.Handle%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nMsgBox \"%f.Handle%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["0"]);
@@ -392,7 +392,7 @@ fn a_file_may_be_made_longer() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"out.txt\", \"w\")\nf.Length := 4\nf.Close()\ng := File(\"out.txt\", \"r\")\nMsgBox \"%g.Length%\"",
+        "f := FileOpen(\"out.txt\", \"w\")\nf.Length := 4\nf.Close()\ng := FileOpen(\"out.txt\", \"r\")\nMsgBox \"%g.Length%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["4"]);
@@ -403,7 +403,7 @@ fn a_file_that_is_made_shorter_fails() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := File(\"out.txt\", \"w\")\nf.Write(\"hello\")\nf.Length := 2",
+        "f := FileOpen(\"out.txt\", \"w\")\nf.Write(\"hello\")\nf.Length := 2",
     );
     assert!(!report.ok);
     assert_eq!(
@@ -418,7 +418,7 @@ fn a_file_has_the_methods_of_the_base_object() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := File(\"notes.txt\", \"r\")\nmethod := f.HasMethod(\"ReadLine\")\nprop := f.HasProp(\"Length\")\nbase := f.HasBase(\"Object\")\nMsgBox \"%method% %prop% %base%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nmethod := f.HasMethod(\"ReadLine\")\nprop := f.HasProp(\"Length\")\nbase := f.HasBase(\"Object\")\nMsgBox \"%method% %prop% %base%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 1 1"]);
@@ -429,7 +429,7 @@ fn the_inside_of_a_file_is_not_a_property_of_it() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := File(\"notes.txt\", \"r\")\nprops := f.OwnProps()\ninside := f.HasOwnProp(\"file state\")\nMsgBox \"%props% %inside%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nprops := f.OwnProps()\ninside := f.HasOwnProp(\"file state\")\nMsgBox \"%props% %inside%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec![" 0"]);
@@ -489,4 +489,18 @@ fn a_file_is_not_made_again() {
         report.error.as_deref(),
         Some("This value of type \"File\" has no method named \"__New\".")
     );
+}
+
+#[test]
+fn a_file_is_not_made() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: v2 does not make
+    // a file either, and the call goes through the base object. The file
+    // is made by the `FileOpen` built-in.
+    let mut desktop = Fake::default();
+    let report = run(
+        &mut desktop,
+        "try {\n    x := File(\"out.txt\", \"w\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Invalid base. | Object.Call | "]);
 }

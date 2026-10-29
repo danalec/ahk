@@ -168,6 +168,31 @@ const CALLS: [(&str, &str, i64, i64); 58] = [
     ("file", "close", 0, 0),
 ];
 
+/// The class types that v2 makes with a call of their own.
+///
+/// The arity is the number of the arguments that the constructor takes,
+/// and the two names are the ones that v2 puts in the `What` and in the
+/// `Extra` of the failure when the call has too many arguments.
+const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 4] = [
+    ("buffer", 0, 2, "Buffer.Call", "Buffer.Prototype.__New"),
+    ("gui", 0, 3, "Gui.Call", "Gui.Prototype.__New"),
+    ("menu", 0, 0, "Menu.Call", ""),
+    ("error", 0, 3, "Object.Call", "Error.Prototype.__New"),
+];
+
+/// The class types that v2 does not make.
+///
+/// A function is written in the script or it is one of the built-ins,
+/// and a file is made by the `FileOpen` built-in. Neither of the two is
+/// a class that can be made, and v2 answers "Invalid base." to both.
+const NOT_MADE: [&str; 2] = ["file", "func"];
+
+/// The name v2 gives to the call of the base object.
+///
+/// The classes of the runtime that v2 does not make are called through
+/// the base object, and the base of them has no such thing.
+const THE_CALL_OF_THE_BASE: &str = "Object.Call";
+
 /// The names of the methods of the base object, the way v2 spells them.
 ///
 /// The binary spells five of them with the class in front, and the four
@@ -350,6 +375,48 @@ pub(crate) fn the_arity_failure_of_a_method(
     )
 }
 
+/// The number of the arguments that the constructor of a class type
+/// takes, and the names that v2 puts in a failure of it.
+///
+/// `None` means that the class type is made with any number of
+/// arguments, or that the runtime does not know the number.
+fn the_constructor_of(class: &str) -> Option<(i64, i64, &'static str, &'static str)> {
+    let class = class.to_lowercase();
+    // The classes of the errors are made the way the root of them is.
+    let owner = if error::is_a_class(&class) { "error" } else { class.as_str() };
+    CONSTRUCTORS
+        .iter()
+        .find(|(name, _, _, _, _)| *name == owner)
+        .map(|(_, min, max, what, extra)| (*min, *max, *what, *extra))
+}
+
+/// The failure of a class type that v2 does not make.
+///
+/// The call goes through the base object, and the base of the class has
+/// no such thing: "Invalid base.".
+fn the_failure_of_a_class_that_is_not_made(line: u32) -> RuntimeFailure {
+    RuntimeFailure::Detailed(
+        RuntimeError { message: "Invalid base.".to_string(), line },
+        Detail { what: THE_CALL_OF_THE_BASE.to_string(), extra: String::new() },
+    )
+}
+
+/// The failure of a constructor that has too many arguments.
+///
+/// v2 names the call in the `What` of the error, and the constructor in
+/// the `Extra`.
+fn the_arity_failure_of_a_constructor(
+    what: &str,
+    extra: &str,
+    message: &str,
+    line: u32,
+) -> RuntimeFailure {
+    RuntimeFailure::Detailed(
+        RuntimeError { message: message.to_string(), line },
+        Detail { what: what.to_string(), extra: extra.to_string() },
+    )
+}
+
 /// The class types the runtime carries.
 ///
 /// `Object` is the root of every class: v2 has it, and every object of
@@ -433,6 +500,24 @@ pub(crate) fn construct(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // A class type that v2 does not make: the call goes through the
+    // base object, and the base of the class has no such thing.
+    if NOT_MADE.contains(&class.to_lowercase().as_str()) {
+        return Some(Err(the_failure_of_a_class_that_is_not_made(line)));
+    }
+    // The number of the arguments of the constructor is checked before
+    // the object is made.
+    if let Some((min, max, what, extra)) = the_constructor_of(class) {
+        let count = arguments.len() as i64;
+        if count < min || (max >= 0 && count > max) {
+            let message = if count < min {
+                "Too few parameters passed to function."
+            } else {
+                "Too many parameters passed to function."
+            };
+            return Some(Err(the_arity_failure_of_a_constructor(what, extra, message, line)));
+        }
+    }
     // The errors of v2 are a tree of classes, and every one of them is
     // made the way the root of it is.
     if error::is_a_class(class) {
@@ -443,8 +528,6 @@ pub(crate) fn construct(
     let made = match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
         "buffer" => Some(buffer::construct(arguments, rt, line)),
-        "file" => Some(file::construct(arguments, rt, line)),
-        "func" => Some(func::construct(arguments, rt, line)),
         "hotkey" => Some(hotkey::construct(arguments, rt, line)),
         "map" => Some(map::construct(arguments, rt, line)),
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {

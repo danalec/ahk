@@ -106,3 +106,14 @@ fn a_function_is_not_made_again() {
         Some("This value of type \"Func\" has no method named \"__New\".")
     );
 }
+
+#[test]
+fn a_function_is_not_made() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: v2 does not make
+    // a function, and the call goes through the base object.
+    let report = run(
+        "try {\n    x := Func()\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Invalid base. | Object.Call | "]);
+}

@@ -33,21 +33,6 @@ pub(crate) fn names() -> Vec<&'static str> {
     PROPERTIES.iter().chain(METHODS.iter()).copied().collect()
 }
 
-/// The object a `Func` makes.
-///
-/// A function is not made: it is written in the script, or it is one of
-/// the built-ins. There is nothing to build here.
-pub(crate) fn construct(
-    _arguments: &[Value],
-    _rt: &mut Runtime,
-    line: u32,
-) -> Result<Value, RuntimeFailure> {
-    Err(RuntimeFailure::Error(RuntimeError {
-        message: "a function is a value of the script; there is no way to make one here.".into(),
-        line,
-    }))
-}
-
 /// A method of a `Func`.
 pub(crate) fn call(
     method: &str,

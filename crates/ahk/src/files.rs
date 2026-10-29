@@ -315,7 +315,7 @@ pub fn file_open(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
         // script does not say which one it wants.
         arguments.push(Value::Text(encoding().to_string()));
     }
-    match crate::classes::file::construct(&arguments, rt, line) {
+    match crate::classes::file::open_file(&arguments, rt, line) {
         Ok(value) => Ok(value),
         Err(RuntimeFailure::Error(error)) => Err(error),
         Err(RuntimeFailure::Detailed(error, _)) => Err(error),
