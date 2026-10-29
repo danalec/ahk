@@ -83,6 +83,11 @@ pub(crate) fn call(
     let failure = |message: &str| {
         Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
     };
+    // The failure of a member that complains about a value carries the
+    // value in the `Extra` of the error.
+    let failure_with = |message: &str, extra: &str| {
+        Some(Err(crate::classes::the_failure_with(message, extra, line)))
+    };
     match method.as_str() {
         // `Set` and `__New` are the same thing in v2: both put the pairs
         // in, and both answer the map, so that the calls can be chained.
@@ -105,7 +110,7 @@ pub(crate) fn call(
                     Some(default) => Some(Ok(default.clone())),
                     None => match default_property(this) {
                         Some(default) => Some(Ok(default)),
-                        None => failure("Item has no value."),
+                        None => failure_with("Item has no value.", &key.to_text()),
                     },
                 },
             }
@@ -121,7 +126,7 @@ pub(crate) fn call(
             let sense = case_sense(&state);
             let mut pairs = entries(&state);
             let Some(index) = pairs.iter().position(|(existing, _)| same_key(existing, key, sense)) else {
-                return failure("Item has no value.");
+                return failure_with("Item has no value.", &key.to_text());
             };
             let (_, value) = pairs.remove(index);
             set_entries(&mut state, pairs);
@@ -205,6 +210,11 @@ pub(crate) fn set_property(
     let failure = |message: &str| {
         Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
     };
+    // The failure of a member that complains about a value carries the
+    // value in the `Extra` of the error.
+    let failure_with = |message: &str, extra: &str| {
+        Some(Err(crate::classes::the_failure_with(message, extra, line)))
+    };
     match name {
         "capacity" => {
             let wanted = match rt.integer(&value, line) {
@@ -224,7 +234,9 @@ pub(crate) fn set_property(
             Some(Ok(()))
         }
         "casesense" => {
-            let Some(sense) = case_sense_of(&value) else { return failure("Invalid value.") };
+            let Some(sense) = case_sense_of(&value) else {
+                return failure_with("Invalid value.", &value.to_text());
+            };
             let state = state(this)?;
             let mut state = state.borrow_mut();
             // The keys are compared as the map says, and the map has keys
@@ -253,10 +265,11 @@ pub(crate) fn item(
         Some(value) => Some(Ok(value)),
         None => match default_property(this) {
             Some(default) => Some(Ok(default)),
-            None => Some(Err(RuntimeFailure::Error(RuntimeError {
-                message: "Item has no value.".into(),
+            None => Some(Err(crate::classes::the_failure_with(
+                "Item has no value.",
+                &key.to_text(),
                 line,
-            }))),
+            ))),
         },
     }
 }

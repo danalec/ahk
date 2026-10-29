@@ -262,3 +262,39 @@ fn an_array_knows_the_methods_it_has() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 0"]);
 }
+
+#[test]
+fn the_failure_of_an_item_of_an_array_names_the_method_and_the_place() {
+    let report = run(
+        "try {\n    a := [1]\n    x := a[9]\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Invalid index. | Array.Prototype.__Item.Get | 9"]
+    );
+}
+
+#[test]
+fn the_delete_of_a_place_that_is_not_there_names_the_method() {
+    let report = run(
+        "try {\n    a := [1]\n    x := a.Delete(9)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of Array.Prototype.Delete is invalid. | Array.Prototype.Delete | 9"]
+    );
+}
+
+#[test]
+fn the_length_of_an_array_that_is_negative_names_the_property() {
+    let report = run(
+        "try {\n    a := [1]\n    a.Length := -1\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Invalid value. | Array.Prototype.Length.Set | "]
+    );
+}

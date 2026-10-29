@@ -265,6 +265,17 @@ the box: it does no I/O, and it has to keep building without `std`.
   is missing in its `Extra`, or the name of the method. A runtime error
   in an expression carries no name at all. The stack of v2 is not
   carried: the script of the runner has no file.
+- **The failure of a class type names the member that raised it.**
+  Measured on the binary of v2.0.19 on 2026-10-30: the failure of a
+  method of a class type carries the name of the method in the `What` --
+  "Map.Prototype.Get", "Map.Prototype.__Item.Get",
+  "Array.Prototype.Length.Set" -- and the value that failed in the
+  `Extra`: the key of a map, the place of an array. The number of the
+  arguments of a call is checked when the script writes it, and the
+  failure carries the name of the method in the `Extra` and nothing in
+  the `What`: "Map.Prototype.Get". The call of the `Call` method of a
+  value carries that method in the `What`: "Func.Prototype.Call". The
+  numbers of the arguments are in `classes::CALLS`.
 - **The errors of v2 are a tree of classes.** Measured on the binary of
   v2.0.19 on 2026-10-29: the classes are `Error`, `MemoryError`,
   `OSError`, `TargetError`, `TimeoutError`, `TypeError`, `UnsetError`,

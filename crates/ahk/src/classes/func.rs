@@ -55,13 +55,7 @@ pub(crate) fn call(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
-    let Value::Object(object) = this else { return None };
-    let name = object
-        .borrow()
-        .properties
-        .get("name")
-        .map(|value| value.to_text())
-        .unwrap_or_default();
+    let Value::Object(_) = this else { return None };
     let failure = |message: String| {
         Some(Err(RuntimeFailure::Error(RuntimeError { message, line })))
     };
@@ -74,42 +68,7 @@ pub(crate) fn call(
         // The call of the function the value holds. A method of a
         // class of the script is a reference to the method: the first
         // argument of the call is `this`.
-        "call" => {
-            let values = arguments.to_vec();
-            let reference = {
-                let borrowed = object.borrow();
-                match (
-                    borrowed.properties.get(METHOD_CLASS),
-                    borrowed.properties.get(METHOD_NAME),
-                ) {
-                    (Some(class), Some(method)) => {
-                        Some((class.to_text(), method.to_text()))
-                    }
-                    _ => None,
-                }
-            };
-            if let Some((class, method)) = reference {
-                // A method of a class type of the runtime: the object is
-                // the first argument of the call, and the method is the
-                // one the class answers.
-                if crate::classes::is_type(&class) {
-                    let Some((this, rest)) = values.split_first() else {
-                        return Some(Err(rt.the_arity_failure(
-                            "Too few parameters passed to function.",
-                            &method,
-                            Route::ThroughValue,
-                            line,
-                        )));
-                    };
-                    return Some(match crate::classes::call(&class, &method, this, rest, rt, line) {
-                        Some(result) => result,
-                        None => Err(rt.no_method(this, &method, line)),
-                    });
-                }
-                return Some(rt.call_a_method_reference(&class, &method, &values, line));
-            }
-            Some(rt.call_named(&name, &values, line, Route::ThroughValue))
-        }
+        "call" => call_the_function(this, arguments, rt, line, Route::ThroughTheCall),
         // The values of the class that the function carries.
         "isoptional" => Some(Ok(Value::Int(0))),
         "isbyref" => Some(Ok(Value::Int(0))),
@@ -122,6 +81,86 @@ pub(crate) fn call(
         "size" => failure("this runtime does not know the size of a function.".to_string()),
         _ => None,
     }
+}
+
+/// The call of a value of a function.
+///
+/// The value is called, and not the `Call` method of it: v2 tells the
+/// two apart in the failure of the number of the arguments.
+pub(crate) fn call_the_value(
+    this: &Value,
+    arguments: &[Value],
+    rt: &mut Runtime,
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    call_the_function(this, arguments, rt, line, Route::ThroughValue)
+}
+
+/// The call of the function that a value holds.
+///
+/// The route says whether the value was called or its `Call` method was:
+/// v2 names the method in the failure of the number of the arguments,
+/// and the call of the value itself carries no name.
+fn call_the_function(
+    this: &Value,
+    arguments: &[Value],
+    rt: &mut Runtime,
+    line: u32,
+    route: Route,
+) -> Option<Result<Value, RuntimeFailure>> {
+    let Value::Object(object) = this else { return None };
+    let name = object
+        .borrow()
+        .properties
+        .get("name")
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let reference = {
+        let borrowed = object.borrow();
+        match (
+            borrowed.properties.get(METHOD_CLASS),
+            borrowed.properties.get(METHOD_NAME),
+        ) {
+            (Some(class), Some(method)) => Some((class.to_text(), method.to_text())),
+            _ => None,
+        }
+    };
+    if let Some((class, method)) = reference {
+        // A method of a class type of the runtime: the object is
+        // the first argument of the call, and the method is the
+        // one the class answers.
+        if crate::classes::is_type(&class) {
+            // The number of the arguments is checked here: the call
+            // goes through a value, and the object is one of the
+            // arguments of it.
+            let failure = |message: &str| match route {
+                Route::ThroughTheCall => crate::classes::the_arity_failure_of_a_method(
+                    &class, &method, message, line,
+                ),
+                _ => crate::classes::the_arity_failure(&class, &method, message, line),
+            };
+            if let Some((min, max)) = crate::classes::the_arity_of(&class, &method) {
+                let count = arguments.len() as i64;
+                if count < min + 1 || (max >= 0 && count > max + 1) {
+                    let message = if count < min + 1 {
+                        "Too few parameters passed to function."
+                    } else {
+                        "Too many parameters passed to function."
+                    };
+                    return Some(Err(failure(message)));
+                }
+            }
+            let Some((this, rest)) = arguments.split_first() else {
+                return Some(Err(failure("Too few parameters passed to function.")));
+            };
+            return Some(match crate::classes::call(&class, &method, this, rest, rt, line) {
+                Some(result) => result,
+                None => Err(rt.no_method(this, &method, line)),
+            });
+        }
+        return Some(rt.call_a_method_reference(&class, &method, arguments, line));
+    }
+    Some(rt.call_named(&name, arguments, line, route))
 }
 
 /// A property of a `Func`.

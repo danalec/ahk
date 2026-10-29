@@ -2591,3 +2591,30 @@ fn a_declaration_may_name_several_variables() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2 1, 2 1"]);
 }
+
+#[test]
+fn the_call_of_the_call_method_of_a_value_names_that_method() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the failure of
+    // the call of the `Call` method of a value carries the name of that
+    // method in the `What`, and the name of the callee in the `Extra`.
+    let (report, _desktop) = run(
+        "try {\n    f := Abs\n    f.Call()\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Too few parameters passed to function. | Func.Prototype.Call | Abs"]
+    );
+}
+
+#[test]
+fn the_call_of_a_value_carries_no_name_of_a_method() {
+    let (report, _desktop) = run(
+        "try {\n    f := Abs\n    x := f()\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Too few parameters passed to function. |  | Abs"]
+    );
+}

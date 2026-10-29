@@ -19,13 +19,14 @@
 //! script calls the class `Menu`, so the registry answers for both.
 
 use alloc::collections::BTreeMap;
+use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 use alloc::rc::Rc;
 use alloc::string::ToString;
 
-use crate::runtime::{Object, Runtime, RuntimeFailure, Value};
+use crate::runtime::{Detail, Object, Runtime, RuntimeError, RuntimeFailure, Value};
 
 pub(crate) mod array;
 pub(crate) mod buffer;
@@ -96,6 +97,121 @@ const METHODS: [(&str, &str, &str, i64, i64); 50] = [
     ("file", "close", "Close", 1, 1),
 ];
 
+/// The number of the arguments of the calls of the members.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-30. The numbers are the
+/// ones of the call the script writes: `m.Get("a")` takes one argument,
+/// and `m.Get` as a value takes two, because the object is one of the
+/// arguments of that one. A number of `-1` means that the call takes any
+/// number of arguments.
+///
+/// The methods of the base object are the ones every object has, and the
+/// class of them is `object`.
+const CALLS: [(&str, &str, i64, i64); 58] = [
+    ("object", "ownprops", 0, 0),
+    ("object", "hasownprop", 1, 1),
+    ("object", "defineprop", 2, 2),
+    ("object", "deleteprop", 1, 1),
+    ("object", "getownpropdesc", 1, 1),
+    ("object", "hasprop", 1, 1),
+    ("object", "hasmethod", 0, 2),
+    ("object", "getmethod", 0, 2),
+    ("object", "hasbase", 1, 1),
+    ("map", "set", 0, -1),
+    ("map", "get", 1, 2),
+    ("map", "has", 1, 1),
+    ("map", "delete", 1, 1),
+    ("map", "clear", 0, 0),
+    ("map", "clone", 0, 0),
+    ("map", "__new", 0, -1),
+    ("map", "__enum", 0, 1),
+    ("array", "push", 0, -1),
+    ("array", "pop", 0, 0),
+    ("array", "insertat", 1, -1),
+    ("array", "removeat", 1, 2),
+    ("array", "delete", 1, 1),
+    ("array", "get", 1, 2),
+    ("array", "has", 1, 1),
+    ("array", "clone", 0, 0),
+    ("array", "__new", 0, -1),
+    ("array", "__enum", 0, 1),
+    ("buffer", "__new", 0, 2),
+    ("func", "isoptional", 0, -1),
+    ("func", "isbyref", 0, -1),
+    ("func", "bind", 0, -1),
+    ("error", "__new", 0, 3),
+    ("file", "read", 0, 1),
+    ("file", "readline", 0, 0),
+    ("file", "readchar", 0, 0),
+    ("file", "readuchar", 0, 0),
+    ("file", "readshort", 0, 0),
+    ("file", "readushort", 0, 0),
+    ("file", "readint", 0, 0),
+    ("file", "readuint", 0, 0),
+    ("file", "readint64", 0, 0),
+    ("file", "readfloat", 0, 0),
+    ("file", "readdouble", 0, 0),
+    ("file", "write", 1, 1),
+    ("file", "writeline", 0, 1),
+    ("file", "writechar", 1, 1),
+    ("file", "writeuchar", 1, 1),
+    ("file", "writeshort", 1, 1),
+    ("file", "writeushort", 1, 1),
+    ("file", "writeint", 1, 1),
+    ("file", "writeuint", 1, 1),
+    ("file", "writeint64", 1, 1),
+    ("file", "writefloat", 1, 1),
+    ("file", "writedouble", 1, 1),
+    ("file", "rawread", 1, 2),
+    ("file", "rawwrite", 1, 2),
+    ("file", "seek", 1, 2),
+    ("file", "close", 0, 0),
+];
+
+/// The names of the methods of the base object, the way v2 spells them.
+///
+/// The binary spells five of them with the class in front, and the four
+/// that the script asks about every day plainly.
+const BASE: [(&str, &str); 9] = [
+    ("ownprops", "Object.Prototype.OwnProps"),
+    ("hasownprop", "Object.Prototype.HasOwnProp"),
+    ("defineprop", "Object.Prototype.DefineProp"),
+    ("deleteprop", "Object.Prototype.DeleteProp"),
+    ("getownpropdesc", "Object.Prototype.GetOwnPropDesc"),
+    ("hasprop", "HasProp"),
+    ("hasmethod", "HasMethod"),
+    ("getmethod", "GetMethod"),
+    ("hasbase", "HasBase"),
+];
+
+/// The names of the properties of the class types, the way v2 spells
+/// them.
+const PROPERTIES: [(&str, &str, &str); 23] = [
+    ("map", "count", "Count"),
+    ("map", "capacity", "Capacity"),
+    ("map", "casesense", "CaseSense"),
+    ("array", "length", "Length"),
+    ("array", "capacity", "Capacity"),
+    ("buffer", "size", "Size"),
+    ("buffer", "ptr", "Ptr"),
+    ("func", "name", "Name"),
+    ("func", "minparams", "MinParams"),
+    ("func", "maxparams", "MaxParams"),
+    ("func", "isbuiltin", "IsBuiltin"),
+    ("func", "isvariadic", "IsVariadic"),
+    ("file", "pos", "Pos"),
+    ("file", "length", "Length"),
+    ("file", "ateof", "AtEOF"),
+    ("file", "encoding", "Encoding"),
+    ("file", "handle", "Handle"),
+    ("error", "message", "Message"),
+    ("error", "what", "What"),
+    ("error", "extra", "Extra"),
+    ("error", "file", "File"),
+    ("error", "line", "Line"),
+    ("error", "stack", "Stack"),
+];
+
 /// The name and the number of the arguments of a method of a class type.
 ///
 /// `None` means that the class type has no method of that name.
@@ -106,6 +222,132 @@ pub(crate) fn the_method_of(class: &str, method: &str) -> Option<(&'static str, 
         .iter()
         .find(|(owner, name, _, _, _)| *owner == class && *name == method)
         .map(|(_, _, spelled, min, max)| (*spelled, *min, *max))
+}
+
+/// The number of the arguments of the call the script writes.
+///
+/// `None` means that the runtime does not know the number of the
+/// arguments of that member.
+pub(crate) fn the_arity_of(class: &str, method: &str) -> Option<(i64, i64)> {
+    let class = class.to_lowercase();
+    let method = method.to_lowercase();
+    let own = CALLS.iter().find(|(owner, name, _, _)| *owner == class && *name == method);
+    let found = match own {
+        Some(found) => Some(found),
+        // Every object has the methods of the base object.
+        None => CALLS.iter().find(|(owner, name, _, _)| *owner == "object" && *name == method),
+    };
+    found.map(|(_, _, min, max)| (*min, *max))
+}
+
+/// The name of a member of a class, the way v2 names it in a failure.
+///
+/// A method of a class type is "Map.Prototype.Get", and a method of the
+/// base object keeps the name it has: "Object.Prototype.OwnProps", or
+/// "HasProp" for the four that the script asks about every day.
+pub(crate) fn the_name_of(class: &str, member: &str) -> String {
+    format!("{}.Prototype.{}", the_spelling_of(class), member)
+}
+
+/// The name of the method of a class, the way v2 spells it.
+///
+/// The methods of the base object have a name of their own, and the
+/// methods of the class types are in the table of the methods.
+fn the_spelling_of_the_method(class: &str, method: &str) -> String {
+    let lower = method.to_lowercase();
+    if let Some((_, spelled)) = BASE.iter().find(|(name, _)| *name == lower) {
+        return spelled.to_string();
+    }
+    the_method_of(class, method)
+        .map(|(spelled, _, _)| spelled.to_string())
+        .unwrap_or_else(|| method.to_string())
+}
+
+/// The name of the property of a class, the way v2 spells it.
+fn the_spelling_of_the_property(class: &str, property: &str) -> String {
+    let lower = property.to_lowercase();
+    PROPERTIES
+        .iter()
+        .find(|(owner, name, _)| *owner == class && *name == lower)
+        .map(|(_, _, spelled)| spelled.to_string())
+        .unwrap_or_else(|| property.to_string())
+}
+
+/// The name of a method of a class, the way v2 names it in a failure.
+///
+/// The methods of the base object keep the name they have, and the
+/// methods of the class types carry the class in front.
+fn the_full_name_of(class: &str, method: &str) -> String {
+    let lower = method.to_lowercase();
+    if BASE.iter().any(|(name, _)| *name == lower) {
+        return the_spelling_of_the_method(class, method);
+    }
+    the_name_of(class, &the_spelling_of_the_method(class, method))
+}
+
+/// The failure of a member of a class, with the name of the member in
+/// it.
+///
+/// v2 carries the name of the member in the `What` of the error. A
+/// failure that carries a name of its own keeps it.
+fn named(failure: RuntimeFailure, what: &str) -> RuntimeFailure {
+    match failure {
+        RuntimeFailure::Error(error) => RuntimeFailure::Detailed(
+            error,
+            Detail { what: what.to_string(), extra: String::new() },
+        ),
+        RuntimeFailure::Detailed(error, mut detail) => {
+            if detail.what.is_empty() {
+                detail.what = what.to_string();
+            }
+            RuntimeFailure::Detailed(error, detail)
+        }
+        other => other,
+    }
+}
+
+/// The failure of a member of a class, with the value that failed.
+///
+/// v2 carries the value the member complained about in the `Extra` of
+/// the error: the key of a map, the place of an array.
+pub(crate) fn the_failure_with(message: &str, extra: &str, line: u32) -> RuntimeFailure {
+    RuntimeFailure::Detailed(
+        RuntimeError { message: message.to_string(), line },
+        Detail { what: String::new(), extra: extra.to_string() },
+    )
+}
+
+/// The failure of a call that does not have the number of the arguments
+/// the member wants.
+///
+/// v2 checks the number of the arguments when the script writes the
+/// call, and the name of the member goes in the `Extra` of the error,
+/// and nothing goes in the `What`.
+pub(crate) fn the_arity_failure(class: &str, method: &str, message: &str, line: u32) -> RuntimeFailure {
+    RuntimeFailure::Detailed(
+        RuntimeError { message: message.to_string(), line },
+        Detail { what: String::new(), extra: the_full_name_of(class, method) },
+    )
+}
+
+/// The failure of a call that goes through a value of a method of a
+/// class type.
+///
+/// v2 names the method that made the call in the `What` of the error,
+/// and the method that was called in the `Extra`.
+pub(crate) fn the_arity_failure_of_a_method(
+    class: &str,
+    method: &str,
+    message: &str,
+    line: u32,
+) -> RuntimeFailure {
+    RuntimeFailure::Detailed(
+        RuntimeError { message: message.to_string(), line },
+        Detail {
+            what: the_name_of("func", "Call"),
+            extra: the_full_name_of(class, method),
+        },
+    )
 }
 
 /// The class types the runtime carries.
@@ -194,9 +436,11 @@ pub(crate) fn construct(
     // The errors of v2 are a tree of classes, and every one of them is
     // made the way the root of it is.
     if error::is_a_class(class) {
-        return Some(error::construct(class, arguments, rt, line));
+        return Some(error::construct(class, arguments, rt, line).map_err(|failure| {
+            named(failure, &the_name_of(class, "__New"))
+        }));
     }
-    match class.to_lowercase().as_str() {
+    let made = match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
         "buffer" => Some(buffer::construct(arguments, rt, line)),
         "file" => Some(file::construct(arguments, rt, line)),
@@ -207,7 +451,8 @@ pub(crate) fn construct(
             Some(gui::construct(class, arguments, rt, line))
         }
         _ => None,
-    }
+    };
+    made.map(|result| result.map_err(|failure| named(failure, &the_name_of(class, "__New"))))
 }
 
 /// A method of a class type.
@@ -235,13 +480,17 @@ pub(crate) fn call(
     // the module matches the names of the table of the binary. The
     // second try is the name in lower case.
     match answer {
-        Some(result) => Some(result),
+        Some(result) => Some(result.map_err(|failure| {
+            named(failure, &the_full_name_of(class, method))
+        })),
         None => {
             let lower = method.to_lowercase();
             if lower == method {
                 return None;
             }
-            call_once(class, &lower, this, arguments, rt, line)
+            call_once(class, &lower, this, arguments, rt, line).map(|result| {
+                result.map_err(|failure| named(failure, &the_full_name_of(class, method)))
+            })
         }
     }
 }
@@ -270,10 +519,27 @@ fn call_once(
     }
 }
 
+/// The call of a value.
+///
+/// The value is called, and not the `Call` method of it: v2 tells the two
+/// apart in the failure of the number of the arguments.
+pub(crate) fn call_the_value(
+    class: &str,
+    this: &Value,
+    arguments: &[Value],
+    rt: &mut Runtime,
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    match class.to_lowercase().as_str() {
+        "func" => func::call_the_value(this, arguments, rt, line),
+        _ => call(class, "call", this, arguments, rt, line),
+    }
+}
+
 /// A property of a class type.
 ///
-/// `None` means the name is not a property of this class: the runtime
-/// then looks in the property table of the object.
+/// `None` means the name is not a property of this class: the runtime then
+/// looks in the property table of the object.
 pub(crate) fn property(
     class: &str,
     name: &str,
@@ -308,7 +574,7 @@ pub(crate) fn set_property(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
-    match class.to_lowercase().as_str() {
+    let written = match class.to_lowercase().as_str() {
         "array" => array::set_property(name, this, value, rt, line),
         "buffer" => buffer::set_property(name, this, value, rt, line),
         "error" => error::set_property(name, this, value, rt, line),
@@ -320,7 +586,9 @@ pub(crate) fn set_property(
             gui::set_property(class, name, this, value, rt, line)
         }
         _ => None,
-    }
+    };
+    let what = the_name_of(class, &format!("{}.Set", the_spelling_of_the_property(class, name)));
+    written.map(|result| result.map_err(|failure| named(failure, &what)))
 }
 
 /// The item of an object: the `__Item` of the class.
@@ -333,12 +601,14 @@ pub(crate) fn item(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
-    match class.to_lowercase().as_str() {
+    let read = match class.to_lowercase().as_str() {
         "array" => array::item(key, this, rt, line),
         "file" => file::item(key, this, rt, line),
         "map" => map::item(key, this, rt, line),
         _ => None,
-    }
+    };
+    let what = the_name_of(class, "__Item.Get");
+    read.map(|result| result.map_err(|failure| named(failure, &what)))
 }
 
 /// Write an item of an object of a class type.
@@ -352,11 +622,13 @@ pub(crate) fn set_item(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
-    match class {
+    let written = match class {
         "array" => array::set_item(key, this, value, rt, line),
         "map" => map::set_item(key, this, value, rt, line),
         _ => None,
-    }
+    };
+    let what = the_name_of(class, "__Item.Set");
+    written.map(|result| result.map_err(|failure| named(failure, &what)))
 }
 
 /// The names of v2 that a class type answers.

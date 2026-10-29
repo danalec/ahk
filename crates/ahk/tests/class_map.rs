@@ -297,3 +297,64 @@ fn a_map_knows_the_properties_it_has() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 0"]);
 }
+
+#[test]
+fn the_failure_of_an_item_of_a_map_names_the_method_and_the_key() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the failure of a
+    // member of a class type carries the name of it in the `What`, and
+    // the value that failed in the `Extra`.
+    let report = run(
+        "try {\n    m := Map()\n    x := m[\"nope\"]\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Item has no value. | Map.Prototype.__Item.Get | nope"]
+    );
+}
+
+#[test]
+fn the_number_of_the_arguments_of_a_method_of_a_map_is_checked() {
+    let report = run(
+        "try {\n    m := Map()\n    x := m.Get()\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Too few parameters passed to function. |  | Map.Prototype.Get"]
+    );
+}
+
+#[test]
+fn a_method_of_a_map_with_too_many_arguments_is_an_error() {
+    let report = run("m := Map()\nm.Get(\"a\", \"b\", \"c\")");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too many parameters passed to function.")
+    );
+}
+
+#[test]
+fn the_failure_of_a_method_of_the_base_object_names_the_method() {
+    let report = run(
+        "try {\n    m := Map()\n    m.HasProp()\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Too few parameters passed to function. |  | HasProp"]
+    );
+}
+
+#[test]
+fn the_failure_of_the_casesense_of_a_map_carries_the_value() {
+    let report = run(
+        "try {\n    m := Map()\n    m.CaseSense := 5\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Invalid value. | Map.Prototype.CaseSense.Set | 5"]
+    );
+}

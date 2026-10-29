@@ -5,6 +5,7 @@
 //! its own.
 
 use alloc::collections::BTreeMap;
+use alloc::format;
 use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 use alloc::vec;
@@ -67,6 +68,19 @@ pub(crate) fn call(
     let failure = |message: &str| {
         Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
     };
+    // The failure of a member that complains about a value carries the
+    // value in the `Extra` of the error.
+    let failure_with = |message: &str, extra: &str| {
+        Some(Err(crate::classes::the_failure_with(message, extra, line)))
+    };
+    // The place of an array is a parameter of the methods that take one,
+    // and a place that is not there is an invalid parameter.
+    let invalid_place = |method: &str, index: i64| {
+        failure_with(
+            &format!("Parameter #1 of {} is invalid.", crate::classes::the_name_of("array", method)),
+            &index.to_string(),
+        )
+    };
     match method.as_str() {
         // `Push` and `__New` are the same thing in v2: both put the values
         // at the end, and both answer the array, so that the calls can be
@@ -102,7 +116,9 @@ pub(crate) fn call(
             let length = items.len() as i64;
             // A zero is the end of the array, and a negative index counts
             // from the end.
-            let Some(place) = insert_place(index, length) else { return failure("Invalid index.") };
+            let Some(place) = insert_place(index, length) else {
+                return invalid_place("InsertAt", index);
+            };
             for (offset, value) in arguments.iter().skip(1).enumerate() {
                 items.insert(place + offset, element(Some(value.clone())));
             }
@@ -119,7 +135,9 @@ pub(crate) fn call(
             let mut state = state.borrow_mut();
             let mut items = items(&state);
             let length = items.len() as i64;
-            let Some(place) = place(index, length) else { return failure("Invalid index.") };
+            let Some(place) = place(index, length) else {
+                return invalid_place("RemoveAt", index);
+            };
             match arguments.get(1) {
                 // One place: the value that was there is the answer.
                 None => {
@@ -159,7 +177,9 @@ pub(crate) fn call(
             let mut state = state.borrow_mut();
             let mut items = items(&state);
             let length = items.len() as i64;
-            let Some(place) = place(index, length) else { return failure("Invalid index.") };
+            let Some(place) = place(index, length) else {
+                return invalid_place("Delete", index);
+            };
             // The place stays, and it has no value of its own any more.
             let removed = element_value(&items[place]).unwrap_or(Value::Text(String::new()));
             items[place] = element(None);
@@ -176,7 +196,9 @@ pub(crate) fn call(
             let state = state.borrow();
             let items = items(&state);
             let length = items.len() as i64;
-            let Some(place) = place(index, length) else { return failure("Invalid index.") };
+            let Some(place) = place(index, length) else {
+                return failure_with("Invalid index.", &index.to_string());
+            };
             match element_value(&items[place]) {
                 Some(value) => Some(Ok(value)),
                 // The default of the call comes first, and then the default
@@ -252,19 +274,21 @@ pub(crate) fn set_item(
         Err(failure) => return Some(Err(failure)),
     };
     let Some(state) = state(this) else {
-        return Some(Err(RuntimeFailure::Error(RuntimeError {
-            message: "Invalid index.".into(),
+        return Some(Err(crate::classes::the_failure_with(
+            "Invalid index.",
+            &index.to_string(),
             line,
-        })));
+        )));
     };
     let mut state = state.borrow_mut();
     let mut items = items(&state);
     let length = items.len() as i64;
     let Some(place) = place(index, length) else {
-        return Some(Err(RuntimeFailure::Error(RuntimeError {
-            message: "Invalid index.".into(),
+        return Some(Err(crate::classes::the_failure_with(
+            "Invalid index.",
+            &index.to_string(),
             line,
-        })));
+        )));
     };
     items[place] = element(Some(value));
     set_items(&mut state, items);
@@ -359,19 +383,21 @@ pub(crate) fn item(
         Err(failure) => return Some(Err(failure)),
     };
     let Some(state) = state(this) else {
-        return Some(Err(RuntimeFailure::Error(RuntimeError {
-            message: "Invalid index.".into(),
+        return Some(Err(crate::classes::the_failure_with(
+            "Invalid index.",
+            &index.to_string(),
             line,
-        })));
+        )));
     };
     let state = state.borrow();
     let items = items(&state);
     let length = items.len() as i64;
     let Some(place) = place(index, length) else {
-        return Some(Err(RuntimeFailure::Error(RuntimeError {
-            message: "Invalid index.".into(),
+        return Some(Err(crate::classes::the_failure_with(
+            "Invalid index.",
+            &index.to_string(),
             line,
-        })));
+        )));
     };
     match element_value(&items[place]) {
         Some(value) => Some(Ok(value)),

@@ -2451,6 +2451,20 @@ impl<'a> Runtime<'a> {
             Value::Object(object) => object.borrow().class.clone(),
             _ => String::new(),
         };
+        // The number of the arguments is checked here: v2 checks it when
+        // the script writes the call, and the failure carries the name of
+        // the method.
+        if let Some((min, max)) = crate::classes::the_arity_of(&class, name) {
+            let count = values.len() as i64;
+            if count < min || (max >= 0 && count > max) {
+                let message = if count < min {
+                    "Too few parameters passed to function."
+                } else {
+                    "Too many parameters passed to function."
+                };
+                return Err(crate::classes::the_arity_failure(&class, name, message, line));
+            }
+        }
         if let Some(result) = crate::classes::call(&class, name, target, &values, self, line) {
             return result;
         }
@@ -2840,6 +2854,36 @@ impl<'a> Runtime<'a> {
         arguments: &[Value],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // A method of a class type of the runtime is answered by the
+        // class that owns it, and not by the runtime.
+        if crate::classes::is_type(class) {
+            // The number of the arguments is checked here: the call goes
+            // through a value, and the object is one of the arguments of
+            // it.
+            if let Some((min, max)) = crate::classes::the_arity_of(class, method) {
+                let count = arguments.len() as i64;
+                if count < min + 1 || (max >= 0 && count > max + 1) {
+                    let message = if count < min + 1 {
+                        "Too few parameters passed to function."
+                    } else {
+                        "Too many parameters passed to function."
+                    };
+                    return Err(crate::classes::the_arity_failure(class, method, message, line));
+                }
+            }
+            let Some((this, rest)) = arguments.split_first() else {
+                return Err(crate::classes::the_arity_failure(
+                    class,
+                    method,
+                    "Too few parameters passed to function.",
+                    line,
+                ));
+            };
+            return match crate::classes::call(class, method, this, rest, self, line) {
+                Some(result) => result,
+                None => Err(self.no_method(this, method, line)),
+            };
+        }
         let Some((defining, definition)) = self.find_method_in(class, method) else {
             return Err(RuntimeFailure::Error(RuntimeError {
                 message: format!("There is no method named {method:?} in this class."),
@@ -3343,7 +3387,9 @@ impl<'a> Runtime<'a> {
                     return self.call_method(&defining, &method, &value, arguments, line);
                 }
                 let values = self.evaluate_all(arguments)?;
-                if let Some(result) = crate::classes::call(&class, "call", &value, &values, self, line) {
+                if let Some(result) =
+                    crate::classes::call_the_value(&class, &value, &values, self, line)
+                {
                     return result;
                 }
                 return Err(self.no_method(&value, "Call", line));
@@ -3592,6 +3638,12 @@ impl<'a> Runtime<'a> {
             Route::ThroughValue => RuntimeFailure::Detailed(
                 RuntimeError { message: message.to_string(), line },
                 Detail { what: String::new(), extra: name.to_string() },
+            ),
+            Route::ThroughTheCall => RuntimeFailure::Detailed(
+                RuntimeError { message: message.to_string(), line },
+                // The call went through the `Call` method of a value, and
+                // v2 names that method in the `What`.
+                Detail { what: "Func.Prototype.Call".to_string(), extra: name.to_string() },
             ),
         }
     }
@@ -4955,6 +5007,11 @@ pub(crate) enum Route {
     /// The call goes through a value, and the name of the function is
     /// not known when the script loads.
     ThroughValue,
+    /// The call went through the `Call` method of a value of a function.
+    ///
+    /// v2 names that method in the `What` of the failure of the number
+    /// of the arguments, and the call of the value itself does not.
+    ThroughTheCall,
 }
 
 impl From<RuntimeError> for RuntimeFailure {
