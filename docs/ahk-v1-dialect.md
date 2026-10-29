@@ -66,7 +66,8 @@ uma dessas perguntas passa a levar o dialecto, e `entries()` passa a ser
 E o `Pending` é o que a F1 precisa: a tabela de pendentes do v2 está
 **vazia** — o port carrega o v2 inteiro — e a do v1 vai ser a primeira
 que não está. É aí que entram os nomes do v1 que o v2 não tem, e o
-`Pending` é a resposta certa para cada um deles.
+`Pending` é a resposta certa para cada um deles. O primeiro deles é o
+`SetBatchLines` (§5).
 
 ### A autoridade
 
@@ -137,7 +138,7 @@ valores que o v2 não partilha:
 | `A_DetectHiddenWindows` / `A_DetectHiddenText` | `Off` / `On` | não existem |
 | `A_TitleMatchMode` | `1` | não existe |
 | `A_FormatFloat` / `A_FormatInteger` | `0.6` / `D` | não existem |
-| `A_IsAdmin`, `A_IsCompiled`, `A_IsCritical`, `A_IsPaused`, `A_IsSuspended` | existem | não existem |
+| `A_IsAdmin`, `A_IsCompiled`, `A_IsCritical`, `A_IsPaused`, `A_IsSuspended` | existem | existem **sem o prefixo**: `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended` |
 | `A_IconFile`, `A_IconHidden`, `A_IconNumber`, `A_IconTip` | existem | não existem |
 | `A_ToolTipDelay`, `A_ToolTipTimeout` | existem | não existem |
 | `A_LineFile`, `A_LineNumber`, `A_LoopFile*`, `A_LoopReg*`, `A_LoopReadLine` | existem | alguns existem |
@@ -188,6 +189,9 @@ Medido nos dois binários:
   não são do v1.1 (os dois primeiros são de v1.0 ou do v2). `HasProp` e
   `HasMethod` também não — e o v1 não tem `ObjHasProp` tampoco (medido:
   *"Call to nonexistent function. Specifically: ObjHasProp(o, "a")"*).
+  `SetBatchLines` é ao contrário: é um nome do v1 que o v2 não tem
+  (medido em 2026-10-29: `SetBatchLines, 10` corre, e `SetBatchLines(10)`
+  dá *"Call to nonexistent function"*).
 - **O mesmo nome, outro género** — e é aqui que o gate dói:
 
 | Nome | no v1.1.37.02 | no v2.0.19 |
@@ -490,7 +494,7 @@ não piora sem se ver.
 
 | Risco | Gravidade | O que se faz |
 |---|---|---|
-| **As threads do v1.** O v1 corre cada hotkey no seu thread, com `#MaxThreads` e `#MaxThreadsBuffer`; o v2 é cooperativo e tem guard rails. | **Alta** | Duas saídas: (a) o v1 corre no modelo cooperativo da árvore e `Thread`, `#MaxThreads*` e `SetTimer` com thread são recusados com a razão; (b) um modelo de threads real, que é outro projecto. **A (a) é a deste plano** — e é uma divergência que fica escrita. |
+| **As threads do v1.** O v1 corre cada hotkey no seu thread, com `#MaxThreads` e `#MaxThreadsBuffer`; o v2 é cooperativo e tem guard rails. | **Alta** | **Decidido: o v1 corre no modelo cooperativo da árvore**, e o critério é o do resto da árvore — *o dialecto decide os nomes; o que cada nome faz é do runtime, e é o mesmo nos dois dialectos*. `Thread` e `Critical` são **comandos do v1** (medido em 2026-10-29) e o v2 também os tem como comandos: a superfície do v1 carrega os dois e **recusa-os com a razão** que o v2 usa — *"this runtime is one script that ends when it ends, and it cannot do that."*. O `SetBatchLines`, que o v1 tem e a árvore não, vai para a **tabela de pendentes**. Um modelo de threads a sério é outro projecto, e não é este. |
 | **O `=` do v1.** Atribuição e comparação com o mesmo token. | Alta | O parser decide pela posição (a instrução começa com `=` → atribui; dentro de uma expressão → compara). Medido: `"ABC" = "abc"` é verdade. |
 | **`%nome%` é a variável de ambiente no v1.** | Média | A árvore interpola a variável do script. Com o dialecto v1 passa a ser a de ambiente, e o `#NoEnv` desliga a substituição. É uma mudança de *sentido* de uma regra que a árvore já tem. |
 | **A superfície não sai do binário.** Os nomes do v1 estão ofuscados. | Média | A lista vem da documentação e é verificada pelo binário, na caixa — §1.3. |
@@ -504,7 +508,11 @@ não piora sem se ver.
 
 ## 6. O que fica de fora
 
-- **As threads do v1** (acima): o v1 corre no modelo cooperativo.
+- **As threads do v1** (acima): o v1 corre no modelo cooperativo. Os
+  nomes que o v1 tem sobre threads são carregados e **recusados com a
+  razão do runtime** — `Thread` e `Critical` — e o `SetBatchLines`, que a
+  árvore não tem, fica **pendente**. As directivas `#MaxThreads` e
+  `#MaxThreadsBuffer` são recusadas com a mesma razão.
 - **As classes do v2** (`Map`, `Array`, `Buffer`, `Func`, `Gui`, `Menu`,
   `Hotkey`) não existem no v1 — e o v1 não ganha classes novas.
 - **O `Gui`, o `Menu` e o `TrayTip`**: no v1 são comandos e menus do
@@ -548,13 +556,13 @@ responde, e um nome que o dialecto ainda não carrega. Os números do
 resumo são o que interessa — e o do meio é o que diz o que falta. A
 superfície do v1 ainda não foi contada: sai da sondagem da F1.
 
-A linha de base é a do v2, no commit `0375057` (2026-10-29):
+A linha de base é a do v2, no commit `aa28156` (2026-10-29):
 
 ```
-the surface of v2 has 725 entries: 457 answer with a value, 268 are refused, 0 are pending.
+the surface of v2 has 725 entries: 479 answer with a value, 246 are refused, 0 are pending.
 ```
 
-As 268 recusas são quase todas nomes de Windows — e a recusa é a
+As 246 recusas são quase todas nomes de Windows — e a recusa é a
 resposta certa para eles. A régua do plano é a do outro lado: nenhum
 nome que o v1 faz e que a caixa consegue fazer devia estar na recusa por
 falta de implementação.
