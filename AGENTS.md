@@ -1929,3 +1929,39 @@ Measured on the box on 2026-10-29: a script with `OnExit Bye` and a function
 `Bye` that writes "bye" ended with "the script ends" and then "bye", and
 `Critical` refused with the reason of its own thing. The surface answers 507
 names with a value and refuses 218.
+
+## 35. The error handling of the dialect
+
+The tree did not have `try`, `catch`, `finally` or `throw`: a script of v2
+that used them did not even parse. They are carried now, the way v2.0.19
+carries them, and the failure of the runtime has two kinds -- the error,
+which a catch takes, and the value that `throw` throws, which only a catch
+of `Any` takes.
+
+- **`try { }` guards the statements of its block** against the errors of
+  the runtime and against the values that `throw` throws.
+- **A catch names the class it takes.** `catch { }` takes the class
+  `Error`, which is the class of the errors of the runtime; `catch Any { }`
+  takes everything; `catch <Class> { }` takes the objects of that class and
+  of the classes that extend it. A class that the tree does not know fails
+  with the reason.
+- **`catch as e { }` binds the value.** An error of the runtime is an object
+  of the class `error`, and it has the properties of v2: `What`, `Message`,
+  `Extra`, `File` and `Line`.
+- **`else { }` runs when nothing was thrown, and `finally { }` always
+  runs.** The value is thrown again after the `finally`.
+- **`throw value` throws a value, and `throw` alone throws again what the
+  catch took.** A value that no catch took is the error of the run:
+  "Unhandled exception. Specifically: the text that was thrown".
+
+Measured on the binary of v2.0.19 on 2026-10-29: a `try` with a `catch`
+takes an error of the runtime, and a `throw` of a text is not taken by a
+catch without a class -- the binary answers "Unhandled exception.
+Specifically: the error of the script", and the stack of the error shows the
+`Catch` under the `Throw`. A catch of `Any` takes it. The documentation of
+v2 says the same: "If no classes are specified, the default is Error", and
+a text is not an `Error`.
+
+And a name that is not a word of the dialect is a word of nothing: `gosub`
+and `var` are not in v2, and the binary answers "Call to nonexistent
+function" for them.

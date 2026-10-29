@@ -35,7 +35,7 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::ast::{
+use crate::ast::{Catch, 
     AssignOp, BinaryOp, Branch, Case, CastType, LiteralValue, LoopKind, MethodDef, Node, Parameter,
     PropertyDef, UnaryOp,
 };
@@ -277,6 +277,8 @@ impl Parser {
                     return Ok(vec![Node::Continue { line: token.line }]);
                 }
                 "class" => return Ok(vec![self.parse_class()?]),
+                "try" => return Ok(vec![self.parse_try()?]),
+                "throw" => return Ok(vec![self.parse_throw()?]),
                 "return" => return Ok(vec![self.parse_return()?]),
                 "exitapp" => return Ok(vec![self.parse_exitapp()?]),
                 _ => {}
@@ -743,6 +745,95 @@ impl Parser {
         };
         self.end_of_statement()?;
         Ok(Node::ExitApp { code, line: token.line })
+    }
+
+    /// `try { } catch { } else { } finally { }`.
+    fn parse_try(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        self.end_of_block()?;
+        let body = self.parse_block()?;
+        let mut catches = Vec::new();
+        loop {
+            self.skip_newlines();
+            if !self.at_keyword(&["catch"]) {
+                break;
+            }
+            catches.push(self.parse_catch()?);
+        }
+        let mut otherwise = Vec::new();
+        self.skip_newlines();
+        if self.at_keyword(&["else"]) {
+            self.next();
+            self.end_of_block()?;
+            otherwise = self.parse_block()?;
+        }
+        let mut finally = Vec::new();
+        self.skip_newlines();
+        if self.at_keyword(&["finally"]) {
+            self.next();
+            self.end_of_block()?;
+            finally = self.parse_block()?;
+        }
+        Ok(Node::Try { body, catches, otherwise, finally, line: token.line })
+    }
+
+    /// `catch { }`, `catch as e { }`, `catch Error { }`, `catch Error as e { }`.
+    ///
+    /// The class is a name and not an expression: the prototype of the
+    /// class is resolved when the script is read.
+    fn parse_catch(&mut self) -> Result<Catch, SyntaxError> {
+        let token = self.next();
+        let mut class = "error".to_string();
+        let mut variable = None;
+        // The list of the parameters may be between parentheses.
+        let mut in_parentheses = false;
+        if self.at_op(&["("]) {
+            self.next();
+            in_parentheses = true;
+        }
+        if self.at_keyword(&["as"]) {
+            self.next();
+            variable = Some(self.parse_catch_variable()?);
+        } else if self.peek().kind == TokenKind::Name {
+            let name = self.next();
+            class = name.value;
+            if self.at_keyword(&["as"]) {
+                self.next();
+                variable = Some(self.parse_catch_variable()?);
+            }
+        }
+        if in_parentheses {
+            self.expect_op(")")?;
+        }
+        self.end_of_block()?;
+        let body = self.parse_block()?;
+        let _ = token;
+        Ok(Catch { class, variable, body })
+    }
+
+    /// The name of the variable that holds the value that was caught.
+    fn parse_catch_variable(&mut self) -> Result<String, SyntaxError> {
+        let token = self.next();
+        if token.kind != TokenKind::Name {
+            return Err(SyntaxError {
+                message: "the variable of a catch needs a name".into(),
+                line: token.line,
+                column: token.column,
+            });
+        }
+        Ok(token.value)
+    }
+
+    /// `throw value`, or `throw` alone.
+    fn parse_throw(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let value = if self.at_end_of_statement() {
+            None
+        } else {
+            Some(Box::new(self.parse_expression()?))
+        };
+        self.end_of_statement()?;
+        Ok(Node::Throw { value, line: token.line })
     }
 
     fn parse_while(&mut self) -> Result<Node, SyntaxError> {

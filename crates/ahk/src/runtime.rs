@@ -697,6 +697,10 @@ pub struct Runtime<'a> {
     /// The script asks for it with `OnExit`, and the runtime calls it when
     /// the script ends, whatever the reason the script ended.
     exit_callback: Option<ExitCallback>,
+    /// The value that the catch of the running `try` took.
+    ///
+    /// `throw` without a value throws it again, the way v2 does.
+    caught_value: Option<Value>,
 }
 
 impl<'a> Runtime<'a> {
@@ -749,6 +753,7 @@ impl<'a> Runtime<'a> {
             hotkeys: Vec::new(),
             exit_requested: None,
             exit_callback: None,
+            caught_value: None,
         }
     }
 
@@ -787,6 +792,7 @@ impl<'a> Runtime<'a> {
             hotkeys: Vec::new(),
             exit_requested: None,
             exit_callback: None,
+            caught_value: None,
         }
     }
 
@@ -833,6 +839,10 @@ impl<'a> Runtime<'a> {
             Err(RuntimeFailure::Timeout(timeout)) => {
                 error = Some(timeout.to_string());
             }
+            // A value that was thrown and that no catch took.
+            Err(RuntimeFailure::Thrown(value)) => {
+                error = Some(thrown_message(&value));
+            }
         }
         // The script has ended. The function it asked to run at its exit
         // runs now: the end is the moment the runtime knows, and it knows
@@ -845,6 +855,7 @@ impl<'a> Runtime<'a> {
             if let Err(failure) = self.call_function_by_name(&callback.name, callback.line) {
                 let (message, line) = match failure {
                     RuntimeFailure::Error(error) => (error.message, error.line),
+                    RuntimeFailure::Thrown(value) => (thrown_message(&value), 0),
                     RuntimeFailure::Timeout(timeout) => (timeout.to_string(), 0),
                     RuntimeFailure::Flow(_) => (
                         "the function of the exit left the script in the middle of a block.".to_string(),
@@ -929,6 +940,14 @@ impl<'a> Runtime<'a> {
                     }
                 }
                 Node::While { body, .. } | Node::Loop { body, .. } => self.collect_functions(body),
+                Node::Try { body, catches, otherwise, finally, .. } => {
+                    self.collect_functions(body);
+                    for catch in catches {
+                        self.collect_functions(&catch.body);
+                    }
+                    self.collect_functions(otherwise);
+                    self.collect_functions(finally);
+                }
                 _ => {}
             }
         }
@@ -954,6 +973,120 @@ impl<'a> Runtime<'a> {
             }
         }
         Ok(())
+    }
+
+    /// The `try` of the dialect: the block is guarded, the catches take
+    /// the values that were thrown, the `else` runs when nothing was
+    /// thrown, and the `finally` always runs.
+    fn run_try(
+        &mut self,
+        body: &[Node],
+        catches: &[crate::ast::Catch],
+        otherwise: &[Node],
+        finally: &[Node],
+    ) -> Result<(), RuntimeFailure> {
+        let mut failure = self.run_block(body).err();
+        let mut taken = false;
+        // The value that the catch sees: the error of the runtime is an
+        // object of the class `error`, and a thrown value is the value
+        // itself.
+        let thrown = match failure.as_ref() {
+            Some(RuntimeFailure::Error(error)) => Some(self.error_value(error)),
+            Some(RuntimeFailure::Thrown(value)) => Some(value.clone()),
+            _ => None,
+        };
+        if let Some(value) = thrown {
+            for catch in catches {
+                if !self.catch_takes(catch, &value)? {
+                    continue;
+                }
+                taken = true;
+                if let Some(variable) = &catch.variable {
+                    self.assign(variable, value.clone());
+                }
+                // The `throw` without a value throws again what this catch
+                // took.
+                let before = self.caught_value.replace(value);
+                let result = self.run_block(&catch.body);
+                self.caught_value = before;
+                failure = result.err();
+                break;
+            }
+        }
+        if !taken && failure.is_none() {
+            // Nothing was thrown: the `else` runs.
+            failure = self.run_block(otherwise).err();
+        }
+        // The `finally` always runs, and the failure it leaves is the one
+        // that is left.
+        if let Err(other) = self.run_block(finally) {
+            failure = Some(other);
+        }
+        match failure {
+            Some(failure) => Err(failure),
+            None => Ok(()),
+        }
+    }
+
+    /// Whether the catch takes the value that was thrown.
+    ///
+    /// The class of the catch is a name: `any` takes everything, `error`
+    /// takes the errors of the runtime, and a class of the script takes the
+    /// objects of that class and of the classes that extend it.
+    fn catch_takes(&self, catch: &crate::ast::Catch, value: &Value) -> Result<bool, RuntimeFailure> {
+        let class = catch.class.to_lowercase();
+        if class == "any" {
+            return Ok(true);
+        }
+        if class == "error" {
+            return Ok(matches!(value, Value::Object(object) if object.borrow().class == "error"));
+        }
+        // A class of the script. A class that the tree does not know is a
+        // question it cannot answer, and it says so.
+        let known = self.classes.contains_key(&class)
+            || crate::classes::is_type(&class)
+            || class == "object";
+        if !known {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: format!(
+                    "the class of a catch is not a class of this runtime: {}",
+                    catch.class
+                ),
+                line: 0,
+            }));
+        }
+        Ok(self.value_has_class(value, &class))
+    }
+
+    /// Whether the value is an object of the class, or of one that extends
+    /// it.
+    fn value_has_class(&self, value: &Value, class: &str) -> bool {
+        let Value::Object(object) = value else { return false };
+        let mut name = object.borrow().class.clone();
+        loop {
+            if name.eq_ignore_ascii_case(class) {
+                return true;
+            }
+            match self.classes.get(&name.to_lowercase()) {
+                Some(definition) => match &definition.extends {
+                    Some(base) => name = base.clone(),
+                    None => return false,
+                },
+                None => return false,
+            }
+        }
+    }
+
+    /// The error of the runtime as a value: an object of the class `error`,
+    /// the way v2 hands it to a catch.
+    fn error_value(&self, error: &RuntimeError) -> Value {
+        let mut properties = BTreeMap::new();
+        properties.insert("what".to_string(), Value::Text(String::new()));
+        properties.insert("message".to_string(), Value::Text(error.message.clone()));
+        properties.insert("extra".to_string(), Value::Text(String::new()));
+        properties.insert("file".to_string(), Value::Text(String::new()));
+        properties.insert("line".to_string(), Value::Int(error.line as i64));
+        Value::Object(Rc::new(RefCell::new(Object { class: "error".to_string(), properties })))
     }
 
     /// The timers that are due.
@@ -1146,6 +1279,26 @@ impl<'a> Runtime<'a> {
                         Err(other) => return Err(other),
                     }
                 }
+            }
+            Node::Try { body, catches, otherwise, finally, .. } => {
+                self.run_try(body, catches, otherwise, finally)?;
+            }
+            Node::Throw { value, line } => {
+                // A `throw` without a value throws again the value that the
+                // catch of the running `try` took.
+                let value = match value {
+                    Some(value) => self.evaluate(value)?,
+                    None => match self.caught_value.clone() {
+                        Some(value) => value,
+                        None => {
+                            return Err(RuntimeFailure::Error(RuntimeError {
+                                message: "there is nothing to throw again: no catch took a value.".into(),
+                                line: *line,
+                            }))
+                        }
+                    },
+                };
+                return Err(RuntimeFailure::Thrown(value));
             }
             Node::Loop { mode, arguments, body, line } => {
                 match mode {
@@ -3151,6 +3304,8 @@ impl<'a> Runtime<'a> {
             Node::If { .. }
             | Node::Switch { .. }
             | Node::While { .. }
+            | Node::Try { .. }
+            | Node::Throw { .. }
             | Node::Loop { .. }
             | Node::Break { .. }
             | Node::Continue { .. }
@@ -3669,6 +3824,17 @@ fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
 }
 
 
+/// The message of a value that was thrown and that nobody caught.
+///
+/// A text is the message of the exception, the way v2 shows it, and
+/// anything else is the message of an exception without a name.
+fn thrown_message(value: &Value) -> String {
+    match value {
+        Value::Text(text) => format!("Unhandled exception. Specifically: {text}"),
+        _ => "Unhandled exception.".to_string(),
+    }
+}
+
 /// The name a statement is reported under.
 pub fn op_name(statement: &Node) -> &str {
     match statement {
@@ -3683,6 +3849,8 @@ pub fn op_name(statement: &Node) -> &str {
         Node::If { .. } => "If",
         Node::Switch { .. } => "Switch",
         Node::While { .. } => "While",
+        Node::Try { .. } => "Try",
+        Node::Throw { .. } => "Throw",
         Node::Loop { .. } => "Loop",
         Node::ArrayLiteral { .. } => "ArrayLiteral",
         Node::For { .. } => "For",
@@ -3708,6 +3876,8 @@ pub fn op_name(statement: &Node) -> &str {
 
 pub(crate) enum RuntimeFailure {
     Error(RuntimeError),
+    /// A value that the script threw.
+    Thrown(Value),
     Timeout(Timeout),
     Flow(Flow),
 }

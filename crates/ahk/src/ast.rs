@@ -220,6 +220,20 @@ pub struct Case {
     pub body: Vec<Node>,
 }
 
+/// One `catch` of a `try`.
+///
+/// The class says what the catch takes: the class of the errors of the
+/// runtime when the catch names none, and `any` takes everything.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Catch {
+    /// The class of the value that the catch takes.
+    pub class: String,
+    /// The variable that holds the value that was thrown.
+    pub variable: Option<String>,
+    /// What runs when the catch is the one that took the value.
+    pub body: Vec<Node>,
+}
+
 /// One node of the tree.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -309,6 +323,26 @@ pub enum Node {
     /// the array of nothing. The values go in the order they are
     /// written, and the places of an array count from one.
     ArrayLiteral { items: Vec<Node>, line: u32 },
+    /// `try { } catch { } else { } finally { }`.
+    ///
+    /// The block of the `try` is guarded against the errors of the runtime
+    /// and the values that `throw` throws. The catches take the values
+    /// whose class they name, the `else` runs when nothing was thrown, and
+    /// the `finally` always runs.
+    Try {
+        /// The statements that are guarded.
+        body: Vec<Node>,
+        /// The catches, in the order they are written.
+        catches: Vec<Catch>,
+        /// What runs when nothing was thrown.
+        otherwise: Vec<Node>,
+        /// What runs always.
+        finally: Vec<Node>,
+        /// The line of the `try`.
+        line: u32,
+    },
+    /// `throw value`, or `throw` alone to throw again what was caught.
+    Throw { value: Option<Box<Node>>, line: u32 },
     /// `for x, y in z { }`: the loop over what an object enumerates.
     ///
     /// The variables are the ones the enumerator gives, and a name that
@@ -368,6 +402,8 @@ impl Node {
             | Node::Property { line, .. }
             | Node::AssignProperty { line, .. }
             | Node::ArrayLiteral { line, .. }
+            | Node::Try { line, .. }
+            | Node::Throw { line, .. }
             | Node::For { line, .. } => *line,
         }
     }

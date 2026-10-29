@@ -261,6 +261,15 @@ answers with a wrong value and says nothing is the worst outcome.
 The built-in variables of v2 are in `variables.rs`: the ones the runtime
 knows, and the ones the runtime writes where it runs.
 
+#### The error handling
+
+The runtime has two kinds of failure: `RuntimeFailure::Error` is an error
+of the runtime, and `RuntimeFailure::Thrown` is a value that the script
+threw. A catch names the class it takes -- `error` (the default) takes the
+errors of the runtime, `any` takes everything, and a class of the script
+takes the objects of that class -- and the value it binds is an object of
+the class `error` when it is an error of the runtime.
+
 ### The key table (`keys.rs`)
 
 - `EVDEV: &[(&str, u16)]` -- the key names and their evdev codes.

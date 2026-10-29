@@ -638,6 +638,9 @@ fn native_number(rt: &Runtime<'_>, value: &Value, line: u32) -> Result<f64, Runt
         Err(RuntimeFailure::Flow(_)) => {
             Err(RuntimeError { message: "a number was expected.".into(), line })
         }
+        Err(RuntimeFailure::Thrown(_)) => {
+            Err(RuntimeError { message: "a number was expected.".into(), line })
+        }
     }
 }
 

@@ -1552,3 +1552,139 @@ fn a_for_that_runs_too_long_fails_with_the_reason() {
     let error = report.error.unwrap_or_default();
     assert!(error.contains("the loop ran more than 1000 times"), "{error}");
 }
+
+// -- the error handling --------------------------------------------------------
+
+#[test]
+fn a_try_catches_the_error_of_the_runtime() {
+    let (report, _desktop) = run(concat!(
+        "try {\n",
+        "  MsgBox NoSuchVariable\n",
+        "} catch {\n",
+        "  MsgBox \"caught\"\n",
+        "}\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["caught", "after"]);
+}
+
+#[test]
+fn a_catch_binds_the_value_that_was_thrown() {
+    let (report, _desktop) = run(concat!(
+        "try {\n",
+        "  MsgBox NoSuchVariable\n",
+        "} catch as e {\n",
+        "  MsgBox e.Message\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["This variable has not been assigned a value. Specifically: NoSuchVariable"]
+    );
+}
+
+#[test]
+fn the_else_of_a_try_runs_when_nothing_was_thrown() {
+    let (report, _desktop) = run(concat!(
+        "try {\n",
+        "  MsgBox \"in the try\"\n",
+        "} catch {\n",
+        "  MsgBox \"in the catch\"\n",
+        "} else {\n",
+        "  MsgBox \"in the else\"\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["in the try", "in the else"]);
+}
+
+#[test]
+fn the_finally_of_a_try_always_runs() {
+    let (report, _desktop) = run(concat!(
+        "try {\n",
+        "  MsgBox \"in the try\"\n",
+        "} catch {\n",
+        "  MsgBox \"in the catch\"\n",
+        "} finally {\n",
+        "  MsgBox \"in the finally\"\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["in the try", "in the finally"]);
+}
+
+#[test]
+fn a_thrown_value_is_not_an_error_and_a_catch_of_error_does_not_take_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: a catch without a
+    // class takes the class `Error`, and a text that is thrown is not one.
+    let (report, _desktop) = run(concat!(
+        "try {\n",
+        "  throw \"the error of the script\"\n",
+        "} catch {\n",
+        "  MsgBox \"in the catch\"\n",
+        "}\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Unhandled exception. Specifically: the error of the script")
+    );
+}
+
+#[test]
+fn a_catch_of_any_takes_a_thrown_value() {
+    let (report, _desktop) = run(concat!(
+        "try {\n",
+        "  throw \"the error of the script\"\n",
+        "} catch Any as e {\n",
+        "  MsgBox e\n",
+        "}\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the error of the script", "after"]);
+}
+
+#[test]
+fn a_throw_without_a_value_throws_again_what_the_catch_took() {
+    let (report, _desktop) = run(concat!(
+        "try {\n",
+        "  throw \"the error of the script\"\n",
+        "} catch Any as e {\n",
+        "  throw\n",
+        "}\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Unhandled exception. Specifically: the error of the script")
+    );
+}
+
+#[test]
+fn the_error_of_the_runtime_that_nobody_catches_is_the_error_of_the_run() {
+    let (report, _desktop) = run("MsgBox NoSuchVariable\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
+    );
+}
+
+#[test]
+fn a_catch_of_a_class_that_the_tree_does_not_know_fails_with_the_reason() {
+    let (report, _desktop) = run(concat!(
+        "try {\n",
+        "  MsgBox NoSuchVariable\n",
+        "} catch NoSuchClass {\n",
+        "  MsgBox \"caught\"\n",
+        "}\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the class of a catch is not a class of this runtime: NoSuchClass")
+    );
+}
