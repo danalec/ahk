@@ -141,6 +141,14 @@ impl ahk::desktop::Files for LabDesktop {
             .map(|path| path.to_string_lossy().to_string())
             .map_err(|error| format!("the working directory cannot be read: {error}"))
     }
+
+    fn initial_working_directory(&mut self) -> Result<String, String> {
+        // The desktop read it when it was made, and it kept it: a script
+        // that changes the working directory does not change this one.
+        self.initial_working_dir.clone().ok_or_else(|| {
+            "the directory where the run started cannot be read".to_string()
+        })
+    }
     fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
         let mut files: Vec<String> = Vec::new();
         crate::desktop::walk_the_folder(Path::new(folder), pattern, &mode.to_ascii_uppercase(), &mut files)?;

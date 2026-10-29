@@ -46,7 +46,7 @@ use crate::ast::{
     UnaryOp,
 };
 
-pub use crate::desktop::{Desktop, WindowAnswer};
+pub use crate::desktop::{Desktop, Files, WindowAnswer};
 
 /// The type of a value.
 ///
@@ -644,6 +644,12 @@ pub struct Runtime<'a> {
     clock: ClockSource<'a>,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
+    /// The directory where the run started.
+    ///
+    /// The runtime asks the desktop for it when it is made, and it keeps
+    /// it: a script that changes the working directory does not change the
+    /// one where the run began.
+    initial_working_dir: Option<String>,
     scopes: Vec<BTreeMap<String, Value>>,
     functions: BTreeMap<String, Function>,
     classes: BTreeMap<String, Class>,
@@ -703,11 +709,13 @@ impl<'a> Runtime<'a> {
     /// the system clock.
     #[cfg(feature = "std")]
     pub fn new(desktop: &'a mut dyn Desktop, timeout: Duration) -> Self {
+        let initial_working_dir = desktop.initial_working_directory().ok();
         Self {
             desktop,
             clock: ClockSource::System(SystemClock::new()),
             timeout,
             variables: BTreeMap::new(),
+            initial_working_dir,
             scopes: Vec::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
@@ -738,11 +746,13 @@ impl<'a> Runtime<'a> {
         timeout: Duration,
     ) -> Self {
         let started_ms = clock.now_ms();
+        let initial_working_dir = desktop.initial_working_directory().ok();
         Self {
             desktop,
             clock: ClockSource::Borrowed(clock),
             timeout,
             variables: BTreeMap::new(),
+            initial_working_dir,
             scopes: Vec::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
@@ -975,7 +985,14 @@ impl<'a> Runtime<'a> {
                 // script: the clipboard is the one.
                 match crate::variables::write(name, *op, &value, *line, self) {
                     Some(written) => {
-                        let stored = written.map_err(RuntimeFailure::Error)?;
+                        // The reason of a write carries no line: the
+                        // statement that asked is the one that carries it.
+                        let stored = written.map_err(|mut error| {
+                            if error.line == 0 {
+                                error.line = *line;
+                            }
+                            RuntimeFailure::Error(error)
+                        })?;
                         detail = format!("{name} = {}", stored.to_text());
                     }
                     None => {
@@ -2612,6 +2629,15 @@ impl<'a> Runtime<'a> {
     /// The desktop the script drives.
     pub(crate) fn desktop(&mut self) -> &mut (dyn crate::runtime::Desktop + 'a) {
         &mut *self.desktop
+    }
+
+    /// The directory where the run started, when the runtime knows it.
+    ///
+    /// The desktop says it when the runtime is made, and the runtime keeps
+    /// it: a script that changes the working directory does not change the
+    /// one where the run began.
+    pub(crate) fn initial_working_dir(&self) -> Option<&str> {
+        self.initial_working_dir.as_deref()
     }
 
     /// The pause the script asked for.

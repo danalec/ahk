@@ -125,20 +125,12 @@ const NO_TRAY_ICON: &str = "this runtime has no tray icon.";
 /// The runtime does not keep it.
 const NO_INITIAL_WORKING_DIR: &str = "this runtime does not keep the directory where the run started.";
 
-/// The reason the directory of the script is not answered.
+/// The reason the title of the messages is not carried.
 ///
-/// The runtime does not know it.
-const NO_SCRIPT_DIR: &str = "this runtime does not know the directory of the script.";
-
-/// The reason the name of the script is not answered.
-///
-/// The runtime does not know it.
-const NO_SCRIPT_NAME: &str = "this runtime does not know the name of the script.";
-
-/// The reason the path of the script is not answered.
-///
-/// The runtime does not know it.
-const NO_SCRIPT_FULL_PATH: &str = "this runtime does not know the path of the script.";
+/// The name of the script is the title that the messages of v2 carry, and
+/// the box has no window to show a message in.
+const NO_SCRIPT_TITLE: &str =
+    "this runtime has no title for the messages: the box has no window to show them in.";
 
 /// The reason a name of the machine is not answered.
 ///
@@ -206,10 +198,42 @@ pub(crate) fn write(
     line: u32,
     rt: &mut Runtime,
 ) -> Option<Result<Value, RuntimeError>> {
-    if spelled(name) != "clipboard" {
-        return None;
+    match spelled(name).as_str() {
+        "clipboard" => Some(write_to_the_clipboard(op, value, line, rt)),
+        // The working directory of the run is the one of the desktop, and
+        // the script changes it by writing the name.
+        "workingdir" => Some(write_the_working_directory(op, value, line, rt)),
+        // The name of the script is the title that the messages of v2
+        // carry, and the box has no window to show a message in.
+        "scriptname" => Some(Err(reason(NO_SCRIPT_TITLE))),
+        _ => None,
     }
-    Some(write_to_the_clipboard(op, value, line, rt))
+}
+
+/// Change the working directory of the run.
+///
+/// The directory is the one of the desktop, and the assignment answers the
+/// value that was written.
+fn write_the_working_directory(
+    op: AssignOp,
+    value: &Value,
+    line: u32,
+    rt: &mut Runtime,
+) -> Result<Value, RuntimeError> {
+    match op {
+        AssignOp::Set => {}
+        _ => {
+            return Err(RuntimeError {
+                message: "the working directory is set with the assignment, and the other operators do not make a path of it.".into(),
+                line,
+            })
+        }
+    }
+    let path = value.to_text();
+    rt.desktop()
+        .set_working_directory(&path)
+        .map_err(|why| reason(&why))?;
+    Ok(Value::Text(path))
 }
 
 /// Write a value on the clipboard.
@@ -394,6 +418,17 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         "osversion" => text(rt.desktop().os_version()),
         "language" => text(rt.desktop().language()),
         "isadmin" => rt.desktop().is_admin().map(|yes| Value::Int(yes as i64)).map_err(|why| reason(&why)),
+        // The directory where the run started is the one of the run, and
+        // the script does not change it.
+        "initialworkingdir" | "scriptdir" => match rt.initial_working_dir() {
+            Some(directory) => Ok(Value::Text(directory.to_string())),
+            None => Err(reason(NO_INITIAL_WORKING_DIR)),
+        },
+        // The script of this runtime comes on the standard input, and v2
+        // says what the names of a script that comes from there are: the
+        // directory of the script is the directory where the run started,
+        // and the name and the path are an asterisk.
+        "scriptname" | "scriptfullpath" => Ok(Value::Text("*".to_string())),
         "appdata" | "appdatacommon" | "desktop" | "desktopcommon" | "startmenu" | "startmenucommon"
         | "programs" | "programscommon" | "startup" | "startupcommon" | "mydocuments" | "temp" => {
             folder(rt, name)
@@ -420,10 +455,6 @@ fn machine_refusal(name: &str) -> Option<&'static str> {
         "eventinfo" => NO_EVENT_INFO,
         "lasterror" => NO_LAST_ERROR,
         "iconfile" | "iconhidden" | "iconnumber" | "icontip" | "traymenu" => NO_TRAY_ICON,
-        "initialworkingdir" => NO_INITIAL_WORKING_DIR,
-        "scriptdir" => NO_SCRIPT_DIR,
-        "scriptname" => NO_SCRIPT_NAME,
-        "scriptfullpath" => NO_SCRIPT_FULL_PATH,
         _ => return None,
     })
 }

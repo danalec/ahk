@@ -225,7 +225,7 @@ The traits the runtime is handed:
 | `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
 | `Windows` | `window_active`, `window_exists`; `active_window_title` has a default that answers with the reason it cannot |
 | `Processes` | `run`; `env_get`, `env_set` have a default that answers with the reason it cannot |
-| `Files` | `open_file`, `read_file_at`, `write_file_at`, `file_size`, `close_file`; `list_files`, `working_directory`, `set_working_directory`, `read_file`, `write_file`, `append_file`, `file_exists`, `delete_file`, `create_dir`, `dir_exists` and `dir_delete` have a default that answers with the reason it cannot |
+| `Files` | `open_file`, `read_file_at`, `write_file_at`, `file_size`, `close_file`; `list_files`, `working_directory`, `initial_working_directory`, `set_working_directory`, `read_file`, `write_file`, `append_file`, `file_exists`, `delete_file`, `create_dir`, `dir_exists` and `dir_delete` have a default that answers with the reason it cannot |
 | `Files` (the files of v2) | `copy_file`, `move_file`, `copy_dir`, `move_dir`, `file_attributes`, `set_file_attributes`, `file_times`, `set_file_times`, `ini_read`, `ini_write` and `ini_delete` have a default that answers with the reason it cannot |
 | `Clipboard` | `clipboard_read`, `clipboard_write` have a default that answers with the reason it cannot |
 | `Timers` | `takes_over_timers` has a default that answers with the reason it cannot |
@@ -417,6 +417,10 @@ The names of the machine are the desktop's: the user, the computer, the
 shell, the folders, the version of the operating system, the language, the
 rights of the script and the idle times are asked of the desktop, and the
 reason of a question the desktop cannot answer is the one of the desktop.
+The facts of the script are the ones of the run: the directory where the
+run started is asked of the desktop when the runtime is made, and the name
+and the path of a script that comes from the standard input are an
+asterisk, the way v2 has them.
 The names that the tree does not carry refuse with the reason of the name,
 and that reason is written once: the read of the name and the refusal of
 the name say the same thing.

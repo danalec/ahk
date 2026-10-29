@@ -1710,7 +1710,7 @@ coming.
   them.
 
 Measured on the box on 2026-10-29: the flag printed 725 lines and the
-summary `the surface of v2 has 725 entries: 502 answer with a value, 223
+summary `the surface of v2 has 725 entries: 506 answer with a value, 219
 are refused, 0 are pending`.
 
 ## 30. The tables of the binary put seven names in the wrong place
@@ -1804,3 +1804,46 @@ script writes one. The documentation of v2 says that the variables have the
 prefix, and that the `Clipboard` is the only one that does not, and the
 binary of v2.0.19 is not on the box: whether the binary answers the two
 spellings is a measurement that is still to be made.
+
+## 32. The facts of the script
+
+Four names of v2 refused with the reason that the runtime does not know the
+script, and the runtime does know it: the script of this tree comes on the
+standard input, and v2 says what the names of a script that comes from there
+are.
+
+- **The directory where the run started is the one of the run.** The runtime
+  asks the desktop for it when it is made, and it keeps it: a script that
+  changes the working directory does not change the one where the run began.
+  The question is its own -- `Files::initial_working_directory` -- and the
+  box reads it when the desktop is made. `A_InitialWorkingDir` answers with
+  it, and `A_ScriptDir` answers with it too -- that is the rule of v2 for a
+  script that comes from the standard input.
+- **The name and the path of the script are an asterisk.** `A_ScriptName` and
+  `A_ScriptFullPath` answer with `*`, which is what v2 answers for a script
+  that comes from the standard input.
+- **The working directory is written by the script.** `A_WorkingDir` answers
+  with the directory of the desktop, and writing it changes the directory of
+  the run: the desktop has `set_working_directory` for that, and the
+  assignment answers the value that was written. The other operators do not
+  make a path of it, and they refuse with the reason.
+- **The name of the script cannot be written.** In v2 it is the title that
+  the messages carry, and the box has no window to show a message in: the
+  write refuses with that reason.
+
+And the error of a write of a built-in variable now carries the line of the
+statement that asked, like every other error of the tree: the reason of a
+write carries no line, and the caller is the one that puts it there.
+
+Measured on the box on 2026-10-29: `A_WorkingDir` is `/home/danalec`,
+`A_InitialWorkingDir` and `A_ScriptDir` are the same, and `A_ScriptName`
+and `A_ScriptFullPath` are `*`. Writing `A_WorkingDir` moves the run --
+`A_WorkingDir := "/tmp"` leaves the script in `/tmp` and the run where it
+started in `/home/danalec` -- and writing `A_ScriptName` fails at the line
+of the statement.
+
+What is still open in this group: the other built-in variables that v2 lets
+a script write -- the settings of the runtime, and the names of the machine
+-- are written into the table of the script, and the write of a name that
+v2 does not let a script write should refuse with the reason of the name.
+That is the next block, and it needs the measurement of the v2 binary.

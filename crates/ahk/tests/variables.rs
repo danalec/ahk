@@ -20,6 +20,8 @@ struct Fake {
     clipboard: String,
     /// The folders of the machine.
     folders: Folders,
+    /// The working directory of the run.
+    working_dir: String,
 }
 
 /// The folders of the machine of the test.
@@ -45,7 +47,11 @@ fn the_folders() -> Folders {
 
 impl Default for Fake {
     fn default() -> Self {
-        Fake { clipboard: String::new(), folders: the_folders() }
+        Fake {
+            clipboard: String::new(),
+            folders: the_folders(),
+            working_dir: "/work".to_string(),
+        }
     }
 }
 
@@ -81,7 +87,16 @@ impl Machine for Fake {
 
 impl Files for Fake {
     fn working_directory(&mut self) -> Result<String, String> {
+        Ok(self.working_dir.clone())
+    }
+
+    fn initial_working_directory(&mut self) -> Result<String, String> {
         Ok("/work".to_string())
+    }
+
+    fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
+        self.working_dir = directory.to_string();
+        Ok(format!("the working directory is now {directory}"))
     }
 }
 
@@ -282,11 +297,11 @@ fn each_setting_that_the_runtime_does_not_keep_refuses_with_its_own_reason() {
 
 #[test]
 fn a_name_that_the_runtime_does_not_carry_refuses_with_the_reason_of_the_contract() {
-    let report = run("MsgBox A_ScriptName");
+    let report = run("MsgBox A_ScriptHwnd");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("this runtime does not know the name of the script.")
+        Some("this runtime has no window of its own: it is a script that runs and ends.")
     );
     assert_eq!(report.error_line, Some(1));
 }
@@ -300,7 +315,7 @@ fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
         "A_Cursor",
         "A_RegView",
         "A_AhkPath",
-        "A_ScriptName",
+        "A_ScriptHwnd",
         "A_IconFile",
     ] {
         let refusal = match ahk::variables::refusal_of(name) {
@@ -346,4 +361,44 @@ fn the_clipboard_is_not_a_variable_of_the_script() {
     let (report, _) = run_with_clipboard("Clipboard := \"the new text\"", "");
     assert!(report.ok, "{:?}", report.error);
     assert!(!report.variables.contains_key("Clipboard"), "{:?}", report.variables);
+}
+
+#[test]
+fn the_directory_where_the_run_started_is_the_one_of_the_run() {
+    // The runtime asks the desktop when it is made, and it keeps it.
+    let report = run("MsgBox A_InitialWorkingDir \", \" A_ScriptDir");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["/work, /work"]);
+}
+
+#[test]
+fn a_script_that_comes_from_the_standard_input_has_no_file_of_its_own() {
+    // v2 says what the names of a script that comes from there are: the
+    // name and the path are an asterisk.
+    let report = run("MsgBox A_ScriptName \", \" A_ScriptFullPath");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["*, *"]);
+}
+
+#[test]
+fn the_script_writes_the_working_directory() {
+    // The directory is the one of the desktop, and the script changes it.
+    let report = run("A_WorkingDir := \"/tmp\"\nMsgBox A_WorkingDir \", \" A_InitialWorkingDir");
+    assert!(report.ok, "{:?}", report.error);
+    // The working directory moved, and the one where the run started did
+    // not.
+    assert_eq!(report.output, vec!["/tmp, /work"]);
+}
+
+#[test]
+fn the_write_of_the_name_of_the_script_refuses_with_the_reason() {
+    // The name of the script is the title of the messages, and the box has
+    // no window to show a message in.
+    let report = run("A_ScriptName := \"x\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this runtime has no title for the messages: the box has no window to show them in.")
+    );
+    assert_eq!(report.error_line, Some(1));
 }

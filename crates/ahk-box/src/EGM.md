@@ -169,7 +169,9 @@ of the operating system, the language of the session, whether the script is
 elevated and how long the session has been idle.
 
 The answers are read where Linux keeps them: the environment of the session,
-the files of the XDG base directories and the release of the kernel. The name
+the files of the XDG base directories and the release of the kernel. The
+directory where the run started is read when the desktop is made and kept:
+a script that changes the working directory does not change that one. The name
 of the computer is asked to the kernel and not to the environment, because a
 run that comes from `ssh` has no `HOSTNAME` in it. The folders are the ones
 of the XDG: the application data is the data directory, the start menu is the

@@ -188,6 +188,15 @@ pub trait Files {
         Err("this desktop cannot list the files of a directory".to_string())
     }
 
+    /// The directory where the run started.
+    ///
+    /// It is the directory the run began in, and not the one that the run
+    /// is in now: a script that changes the working directory does not
+    /// change this one.
+    fn initial_working_directory(&mut self) -> Result<String, String> {
+        Err("this desktop cannot say where the run started".to_string())
+    }
+
     /// The directory the script runs in.
     fn working_directory(&mut self) -> Result<String, String> {
         Err("this desktop cannot tell where the script runs".to_string())
