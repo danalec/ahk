@@ -2734,7 +2734,7 @@ impl<'a> Runtime<'a> {
     }
 
     /// The refusal of a method that a value does not have.
-    fn no_method(&self, target: &Value, name: &str, line: u32) -> RuntimeFailure {
+    pub(crate) fn no_method(&self, target: &Value, name: &str, line: u32) -> RuntimeFailure {
         RuntimeFailure::Error(RuntimeError {
             message: format!(
                 "This value of type \"{}\" has no method named {name:?}.",
@@ -2798,6 +2798,34 @@ impl<'a> Runtime<'a> {
         // The class and the name of the method: the reference calls them.
         properties.insert(METHOD_CLASS.to_string(), Value::Text(class.to_string()));
         properties.insert(METHOD_NAME.to_string(), Value::Text(method.name.clone()));
+        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+    }
+
+    /// The reference to a method of a class type of the runtime.
+    ///
+    /// v2 hands a method over as a function whose first parameter is
+    /// `this`: the reference is the method itself, and the object is one
+    /// of the arguments of the call.
+    pub(crate) fn method_reference_of_a_class_type(
+        &self,
+        class: &str,
+        spelled: &str,
+        min: i64,
+        max: i64,
+    ) -> Value {
+        let mut properties = BTreeMap::new();
+        let owner = crate::classes::the_spelling_of(class);
+        properties.insert(
+            "name".to_string(),
+            Value::Text(format!("{owner}.Prototype.{spelled}")),
+        );
+        properties.insert("minparams".to_string(), Value::Int(min));
+        properties.insert("maxparams".to_string(), Value::Int(max));
+        properties.insert("isbuiltin".to_string(), Value::Int(0));
+        properties.insert("isvariadic".to_string(), Value::Int(0));
+        // The class and the name of the method: the reference calls them.
+        properties.insert(METHOD_CLASS.to_string(), Value::Text(class.to_string()));
+        properties.insert(METHOD_NAME.to_string(), Value::Text(spelled.to_string()));
         Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
     }
 
@@ -2883,6 +2911,13 @@ impl<'a> Runtime<'a> {
         if self.class_name_of(target).is_none() {
             if let Some((defining, method)) = self.find_method_in(&class, &name) {
                 return Ok((self.method_reference(&defining, &method), false));
+            }
+            // A method of a class type of the runtime is a value too: v2
+            // hands it over as a function whose first parameter is
+            // `this`.
+            if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name) {
+                let reference = self.method_reference_of_a_class_type(&class, spelled, min, max);
+                return Ok((reference, false));
             }
         }
         // `__Get` is asked when the property is not there. It takes the
@@ -3542,7 +3577,7 @@ impl<'a> Runtime<'a> {
     /// to function. Specifically: Abs". A call that goes through a
     /// value is checked when the call runs, and the failure is the one
     /// of the run: the name of the function goes in the `Extra`.
-    fn the_arity_failure(
+    pub(crate) fn the_arity_failure(
         &self,
         message: &str,
         name: &str,

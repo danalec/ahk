@@ -2001,6 +2001,14 @@ fn an_item_that_is_a_statement_is_read() {
 }
 
 #[test]
+fn the_call_of_a_function_is_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-29.
+    let (report, _) = run("f := Abs.Call\nMsgBox f.Name");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Func.Prototype.Call"]);
+}
+
+#[test]
 fn a_method_held_in_a_variable_is_called_with_the_object() {
     let (report, desktop) = run(
         "class Thing {\n  Method() {\n    return \"the answer\"\n  }\n}\nt := Thing()\nf := t.Method\nSend f(t)",

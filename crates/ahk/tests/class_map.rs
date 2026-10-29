@@ -137,6 +137,45 @@ fn the_item_of_a_key_that_is_not_there_is_an_error() {
 }
 
 #[test]
+fn a_method_of_a_map_is_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: a method is handed
+    // over as a function whose first parameter is `this`.
+    let report = run(
+        "m := Map()\nf := m.Clear\nMsgBox f.Name . \" \" . f.MinParams . \" \" . f.MaxParams",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Map.Prototype.Clear 1 1"]);
+}
+
+#[test]
+fn a_method_of_a_map_is_called_with_the_object() {
+    let report = run("m := Map(\"a\", 1)\nf := m.Clear\nf.Call(m)\nMsgBox m.Count");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn a_method_of_a_map_called_without_the_object_fails() {
+    let report = run("m := Map()\nf := m.Clear\nf.Call()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too few parameters passed to function.")
+    );
+}
+
+#[test]
+fn the_class_of_a_map_has_no_method_to_hand_over() {
+    // A class is not an instance: v2 does not hand its methods over.
+    let report = run("f := Map.Clear");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Class\" has no property named \"Clear\".")
+    );
+}
+
+#[test]
 fn a_map_says_whether_it_has_a_key() {
     let report = run("m := Map()\nm.Set(\"a\", 1)\nMsgBox m.Has(\"a\") . \" \" . m.Has(\"b\")");
     assert!(report.ok, "{:?}", report.error);

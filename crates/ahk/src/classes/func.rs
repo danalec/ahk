@@ -89,6 +89,23 @@ pub(crate) fn call(
                 }
             };
             if let Some((class, method)) = reference {
+                // A method of a class type of the runtime: the object is
+                // the first argument of the call, and the method is the
+                // one the class answers.
+                if crate::classes::is_type(&class) {
+                    let Some((this, rest)) = values.split_first() else {
+                        return Some(Err(rt.the_arity_failure(
+                            "Too few parameters passed to function.",
+                            &method,
+                            Route::ThroughValue,
+                            line,
+                        )));
+                    };
+                    return Some(match crate::classes::call(&class, &method, this, rest, rt, line) {
+                        Some(result) => result,
+                        None => Err(rt.no_method(this, &method, line)),
+                    });
+                }
                 return Some(rt.call_a_method_reference(&class, &method, &values, line));
             }
             Some(rt.call_named(&name, &values, line, Route::ThroughValue))

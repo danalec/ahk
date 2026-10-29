@@ -295,7 +295,16 @@ the box: it does no I/O, and it has to keep building without `std`.
   "Missing a required parameter.". The method of the class and not of an
   instance is not handed over: `Thing.Method` answers "This value of type
   \"Class\" has no property named \"Method\".". The methods of the class
-  types of the runtime are not handed over yet.
+  types of the runtime are handed over as well, since 2026-10-29.
+- **A method of a class type is a value, with the name and the arity of
+  v2.** Measured on the binary of v2.0.19 on 2026-10-29: `m.Clear` hands
+  over a function whose name is "Map.Prototype.Clear", and the first
+  argument of the call is the object itself. The number of the arguments
+  is the one of the binary: `m.Get` takes two and gives three, because
+  the default of the key is an argument as well. A class is not an
+  instance: `Map.Clear` answers "This value of type \"Class\" has no
+  property named \"Clear\".". The table of the numbers is in
+  `classes::METHODS`.
 - **The refusal of an object is the wording of v2.** Measured on the binary
   of v2.0.19 on 2026-10-30: `x.nothing` on a number answers "This value of
   type \"Integer\" has no property named \"nothing\".", `x.nothing()` answers

@@ -36,6 +36,78 @@ pub(crate) mod gui;
 pub(crate) mod hotkey;
 pub(crate) mod map;
 
+/// The methods of the class types, with the name v2 spells them and
+/// the number of the arguments they take.
+///
+/// The names are the ones of the binary of v2.0.19 and the numbers were
+/// measured on it on 2026-10-29. The first argument of every one of them
+/// is the object itself: the reference is the method, and the object is
+/// one of the arguments of the call.
+const METHODS: [(&str, &str, &str, i64, i64); 50] = [
+    ("map", "set", "Set", 1, 1),
+    ("map", "get", "Get", 2, 3),
+    ("map", "has", "Has", 2, 2),
+    ("map", "delete", "Delete", 2, 2),
+    ("map", "clear", "Clear", 1, 1),
+    ("map", "clone", "Clone", 1, 1),
+    ("map", "__new", "__New", 1, 1),
+    ("map", "__enum", "__Enum", 1, 2),
+    ("array", "push", "Push", 1, 1),
+    ("array", "pop", "Pop", 1, 1),
+    ("array", "insertat", "InsertAt", 2, 2),
+    ("array", "removeat", "RemoveAt", 2, 3),
+    ("array", "delete", "Delete", 2, 2),
+    ("array", "get", "Get", 2, 3),
+    ("array", "has", "Has", 2, 2),
+    ("array", "clone", "Clone", 1, 1),
+    ("array", "__new", "__New", 1, 1),
+    ("array", "__enum", "__Enum", 1, 2),
+    ("buffer", "__new", "__New", 1, 3),
+    ("func", "call", "Call", 1, 1),
+    ("func", "isoptional", "IsOptional", 1, 1),
+    ("func", "isbyref", "IsByRef", 1, 1),
+    ("func", "bind", "Bind", 1, 1),
+    ("error", "__new", "__New", 1, 4),
+    ("file", "read", "Read", 1, 2),
+    ("file", "readline", "ReadLine", 1, 1),
+    ("file", "readchar", "ReadChar", 1, 1),
+    ("file", "readuchar", "ReadUChar", 1, 1),
+    ("file", "readshort", "ReadShort", 1, 1),
+    ("file", "readushort", "ReadUShort", 1, 1),
+    ("file", "readint", "ReadInt", 1, 1),
+    ("file", "readuint", "ReadUInt", 1, 1),
+    ("file", "readint64", "ReadInt64", 1, 1),
+    ("file", "readfloat", "ReadFloat", 1, 1),
+    ("file", "readdouble", "ReadDouble", 1, 1),
+    ("file", "write", "Write", 2, 2),
+    ("file", "writeline", "WriteLine", 1, 2),
+    ("file", "writechar", "WriteChar", 2, 2),
+    ("file", "writeuchar", "WriteUChar", 2, 2),
+    ("file", "writeshort", "WriteShort", 2, 2),
+    ("file", "writeushort", "WriteUShort", 2, 2),
+    ("file", "writeint", "WriteInt", 2, 2),
+    ("file", "writeuint", "WriteUInt", 2, 2),
+    ("file", "writeint64", "WriteInt64", 2, 2),
+    ("file", "writefloat", "WriteFloat", 2, 2),
+    ("file", "writedouble", "WriteDouble", 2, 2),
+    ("file", "rawread", "RawRead", 2, 3),
+    ("file", "rawwrite", "RawWrite", 2, 3),
+    ("file", "seek", "Seek", 2, 3),
+    ("file", "close", "Close", 1, 1),
+];
+
+/// The name and the number of the arguments of a method of a class type.
+///
+/// `None` means that the class type has no method of that name.
+pub(crate) fn the_method_of(class: &str, method: &str) -> Option<(&'static str, i64, i64)> {
+    let class = class.to_lowercase();
+    let method = method.to_lowercase();
+    METHODS
+        .iter()
+        .find(|(owner, name, _, _, _)| *owner == class && *name == method)
+        .map(|(_, _, spelled, min, max)| (*spelled, *min, *max))
+}
+
 /// The class types the runtime carries.
 ///
 /// `Object` is the root of every class: v2 has it, and every object of

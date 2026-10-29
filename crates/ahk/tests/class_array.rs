@@ -154,6 +154,16 @@ fn a_value_can_be_deleted_and_the_place_stays() {
 }
 
 #[test]
+fn a_method_of_an_array_is_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-29.
+    let report = run(
+        "a := [1]\nf := a.Get\nMsgBox f.Name . \" \" . f.MinParams . \" \" . f.MaxParams",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Array.Prototype.Get 2 3"]);
+}
+
+#[test]
 fn a_place_without_a_value_is_an_error() {
     let report = run("a := Array(\"x\", \"y\")\na.Delete(1)\nMsgBox a[1]");
     assert!(!report.ok);
