@@ -576,13 +576,13 @@ summary are what matters — and the middle one is what says what is missing.
 The surface of the v1 has not been counted yet: it comes out of the probing of
 F1.
 
-The baseline is the one of the v2, at the commit `aa28156` (2026-10-29):
+The baseline is the one of the v2, at the commit `feb0d5a` (2026-10-29):
 
 ```
-the surface of v2 has 725 entries: 479 answer with a value, 246 are refused, 0 are pending.
+the surface of v2 has 725 entries: 502 answer with a value, 223 are refused, 0 are pending.
 ```
 
-The 246 refusals are almost all names of Windows — and the refusal is the
+The 223 refusals are almost all names of Windows — and the refusal is the
 right answer for them. The rule of the plan is on the other side: no name that
 the v1 does and that the box can do should be in the refusal for lack of
 implementation.
