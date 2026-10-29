@@ -139,12 +139,19 @@ have, and values that the v2 does not share:
 | `A_DetectHiddenWindows` / `A_DetectHiddenText` | `Off` / `On` | do not exist |
 | `A_TitleMatchMode` | `1` | does not exist |
 | `A_FormatFloat` / `A_FormatInteger` | `0.6` / `D` | do not exist |
-| `A_IsAdmin`, `A_IsCompiled`, `A_IsCritical`, `A_IsPaused`, `A_IsSuspended` | exist | exist **without the prefix**: `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended` |
+| `A_IsAdmin`, `A_IsCompiled`, `A_IsCritical`, `A_IsPaused`, `A_IsSuspended` | exist | exist, with the same prefix |
 | `A_IconFile`, `A_IconHidden`, `A_IconNumber`, `A_IconTip` | exist | do not exist |
 | `A_ToolTipDelay`, `A_ToolTipTimeout` | exist | do not exist |
 | `A_LineFile`, `A_LineNumber`, `A_LoopFile*`, `A_LoopReg*`, `A_LoopReadLine` | exist | some exist |
 | `A_KeyDelay`, `A_MouseDelay`, `A_Now`, `A_NowUTC`, `A_WDay`, `A_YWeek`, `A_MMM`, `A_MMMM` | the same | the same |
 | `A_CoordModeCaret`, `A_CoordModeMenu`, `A_FileEncoding` | do not exist | exist |
+
+The names of the variables of v2 are the ones of its documentation --
+`A_IsAdmin`, `A_AppData`, `A_ScreenWidth` -- and the table of the tree
+carries them **without** the prefix. That is the convention of the table,
+and not the spelling of the dialect: `variables::spelled` drops the `A_`
+when the script writes a name, and the table holds what is left. The
+`Clipboard` is the one variable of v2 that has no prefix at all.
 
 ### 1.3 The surface: what is measured, and how
 
