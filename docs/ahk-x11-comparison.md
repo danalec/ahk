@@ -697,7 +697,7 @@ lista de nomes que a árvore ainda recusa.
 
 | Não portar | Porquê |
 |---|---|
-| A sintaxe legacy v1 | O nosso dialeto é v2.0.19, e é essa a vantagem competitiva |
+| A sintaxe legacy v1 | O nosso dialeto é v2.0.19, e é essa a vantagem competitiva. **Isto é verdade do v2, e só do v2**: o v1 passa a ser uma opção atrás de um gate, e a decisão vive em `docs/ahk-v1-dialect.md` |
 | A convenção "output var" (`StringLen, out, in`) | Em v2 a resposta é o valor de retorno; a referência por `&` resolve o caso em que é preciso escrever |
 | `#NoEnv` como default | Em v2 o ambiente é explícito; `EnvGet` está lá |
 | O compilador Crystal e o *linker* | O item 13 cobre o essencial com muito menos |
@@ -748,21 +748,24 @@ superfície e pergunta à árvore, nome a nome, se ela o carrega. A regra é
 que a resposta pode ser um valor **ou a razão**, e um nome que a árvore não
 carrega tem de estar na tabela de pendentes.
 
-Falta um comando, não uma biblioteca. `ahk --surface` deveria imprimir:
+**O comando já existe.** `ahk --surface` imprime o estado de cada nome de v2,
+sem script, e um resumo no fim:
 
 ```
-name                 kind      state      reason
-Abs                  function  implemented
-WinMove              command   refused    this is a name of Windows, and this desktop is not Windows.
-Hotkey               command   refused    this runtime has no hotkeys yet.
+name                 kind      state
+Abs                  function  value
+WinMove              command   refusal: this is a name of Windows, and this desktop is not Windows.
+Hotkey               command   value
 ...
+the surface of v2 has 725 entries: 457 answer with a value, 268 are refused, 0 are pending.
 ```
 
-E o mesmo em JSON, para o CI. Com isso, "o que falta" deixa de ser uma
-opinião e passa a ser um número que **não pode piorar sem se ver**.
+Com isso, "o que falta" deixa de ser uma opinião e passa a ser um número que
+**não pode piorar sem se ver**. O JSON para o CI ainda não existe: é a mesma
+informação, noutro formato, e o comando é o ponto de entrada.
 
 Um segundo número merece atenção: **quantos nomes da superfície de v2 estão
-implementados a sério** — hoje 93 de 725 entradas. A meta não é 725: v2 tem
+implementados a sério** — hoje 457 de 725 entradas. A meta não é 725: v2 tem
 nomes que são Windows e não vão acontecer aqui. A meta honesta é: *nenhum
 nome que o AHK_X11 faz no Linux devia estar na recusa por falta de
 implementação*. A AHK_X11 faz ~127 comandos de v1 num ambiente comparável;
@@ -790,4 +793,6 @@ propomos.
   `AGENTS.md` (§13).
 - **Contagens desta comparação** — 725 entradas de superfície (644 nomes
   distintos): 242 comandos, 103 funções, 131 variáveis, 249 métodos; 346
-  built-ins na tabela, 93 com handler real e 253 com `not_carried`.
+  built-ins na tabela, 141 com handler real e 205 com `not_carried`. Das 725
+  entradas, 457 respondem com um valor e 268 recusam com a razão — o
+  `ahk --surface` é quem conta.

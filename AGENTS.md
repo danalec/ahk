@@ -78,8 +78,9 @@ and the result is a stale binary with no error.
   code may not.
 - `docs/wayland-toplevel-enumeration.md` -- how a Wayland compositor
   lists its windows, and the Rust that does it. Read it before touching
-  `WinExist`, `WinActive` or the clipboard: the compositor of the box
-  publishes the protocol, and this is the code that speaks it.
+  `WinExist` or `WinActive`: the compositor of the box publishes the
+  protocol, and this is the code that speaks it. The clipboard is not
+  spoken through it (section 27).
 - `docs/ahk-v1-dialect.md` -- the plan for the v1 dialect beside the v2:
   the gate, the phases, and what was measured on the binary of v1.1.37.02
   on 2026-10-28. Read it before touching the parser or the built-in
@@ -1651,6 +1652,10 @@ value now.
   terminal; and `wl-paste --no-newline --type text/plain` answers
   `Nothing is copied` when the clipboard is empty, which is a value and
   not a failure.
+- **The compositor publishes `ext_data_control_manager_v1`, and the tree
+  does not speak it.** The tools of `wl-clipboard` do the same work, and
+  they are on the box already. The protocol of the compositor is the
+  right way when the tools are not there.
 - **The X11 path is kept.** An X11 session reads with `xclip` or `xsel`,
   and the box has neither: the answer there is the reason, and not an
   empty text.
