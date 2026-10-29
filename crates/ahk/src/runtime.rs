@@ -1629,12 +1629,17 @@ impl<'a> Runtime<'a> {
                     }));
                 }
             }
+            Node::Index { .. } => {
+                // An item that is a statement is read, and the value it
+                // leaves behind is not used: v2 reads it.
+                self.evaluate(statement)?;
+                detail = "the item was read".into();
+            }
             Node::Literal { .. }
             | Node::Var { .. }
             | Node::Binary { .. }
             | Node::Ternary { .. }
-            | Node::Cast { .. }
-            | Node::Index { .. } => {
+            | Node::Cast { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
                     line: statement.line(),

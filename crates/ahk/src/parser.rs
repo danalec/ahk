@@ -656,7 +656,18 @@ impl Parser {
                 }]);
             }
             self.end_of_statement()?;
-            return Ok(vec![target]);
+            // A name that is a statement is a call: `m.Method` calls the
+            // method, and the parentheses may be left out. An item is
+            // not a call: `m["a"]` reads it.
+            return Ok(vec![match target {
+                Node::Property { target, name, line } => Node::MethodCall {
+                    target,
+                    name,
+                    arguments: Vec::new(),
+                    line,
+                },
+                other => other,
+            }]);
         }
         // A name that is neither a call nor an assignment is a call
         // statement: `Send "hello"`. The parentheses may be left out, and
@@ -2252,8 +2263,16 @@ mod tests {
         // Measured on the binary of v2.0.19 on 2026-10-30: the space that
         // comes after the dot is what tells, and the one that comes before
         // it does not matter.
+        let statements = parse("y := o .x").expect("parses");
+        assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(&**value, Node::Property { name, .. } if name == "x")));
+    }
+
+    #[test]
+    fn a_name_that_is_a_statement_calls_the_method() {
+        // Measured on the binary of v2.0.19 on 2026-10-29: a name that is a
+        // statement is a call, and the parentheses may be left out.
         let statements = parse("o .x").expect("parses");
-        assert!(matches!(&statements[0], Node::Property { name, .. } if name == "x"));
+        assert!(matches!(&statements[0], Node::MethodCall { name, arguments, .. } if name == "x" && arguments.is_empty()));
     }
 
     #[test]

@@ -216,6 +216,15 @@ the box: it does no I/O, and it has to keep building without `std`.
   and the v2 documentation says that every function may be written that
   way -- a built-in and a function of the script alike. `Abs 5` is a
   valid v2 script.
+- **A name that is a statement is a call.** Measured on the binary of
+  v2.0.19 on 2026-10-29: `m.Method` as a statement calls the method with no
+  arguments, and the parentheses may be left out -- `t.Method` answers
+  "Missing a required parameter." when the method wants one. A property is
+  not a method: `m.Count` as a statement answers "This value of type
+  \"Map\" has no method named \"Count\".". An item is not a call:
+  `m["a"]` as a statement reads the item, and the value it leaves behind is
+  not used. In an expression the rule is the other way round: `y := m.Count`
+  reads the property, and `y := t.Method` hands the method over.
 - **A parameter that the tree cannot honour fails with the reason.** The
   arity in a row is the arity of the binary, so a call that asks for
   more than the tree can do is taken by the table and refused by the

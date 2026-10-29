@@ -1966,6 +1966,41 @@ fn a_method_of_the_script_is_a_value() {
 }
 
 #[test]
+fn a_name_that_is_a_statement_calls_the_method() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: a name that is a
+    // statement is a call, and the parentheses may be left out.
+    let (report, _) = run(
+        "class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method",
+    );
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Missing a required parameter.")
+    );
+}
+
+#[test]
+fn a_name_that_is_a_statement_of_a_property_says_that_it_is_a_method() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: `m.Count` is a
+    // call of a method, and `Count` is a property.
+    let (report, _) = run("m := Map()\nm.Count");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Map\" has no method named \"Count\".")
+    );
+}
+
+#[test]
+fn an_item_that_is_a_statement_is_read() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: `m["a"]` reads the
+    // item, and the value it leaves behind is not used.
+    let (report, _) = run("m := Map()\nm[\"a\"]");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Item has no value."));
+}
+
+#[test]
 fn a_method_held_in_a_variable_is_called_with_the_object() {
     let (report, desktop) = run(
         "class Thing {\n  Method() {\n    return \"the answer\"\n  }\n}\nt := Thing()\nf := t.Method\nSend f(t)",
