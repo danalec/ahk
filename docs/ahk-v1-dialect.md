@@ -11,7 +11,7 @@
 A árvore é o v2.0.19. Este plano propõe um **segundo dialeto**, com o v1
 encerrado atrás de um *gate*, e o v2 a ser o default.
 
-Isto inverte uma linha escrita em `docs/ahk-x11-comparison.md` §5.6:
+Isto inverte uma linha escrita em `docs/ahk-x11-comparison.md`:
 
 > | Não portar | Porquê |
 > |---|---|
@@ -19,8 +19,46 @@ Isto inverte uma linha escrita em `docs/ahk-x11-comparison.md` §5.6:
 
 A razão continua válida para o **v2**: o v2 é o dialeto principal e a
 vantagem competitiva. A mudança é que o v1 passa a ser uma **opção** —
-para os scripts que já existem e que ninguém vai reescrever. A inversão
-fica escrita aqui para ficar registada.
+para os scripts que já existem e que ninguém vai reescrever.
+
+**A comparação está em revisão** — a onda de 2026-10-29 reescreve esse
+documento, e os números das suas secções mudam com ele. Por isso a
+decisão **não mora lá**: mora aqui e no `AGENTS.md`, e a linha de lá é
+citada, não referenciada. Duas outras linhas da mesma tabela também
+ficam invertidas — para o dialecto do v1, e só para ele:
+
+| Linha da comparação | Para o v2 | Para o v1 |
+|---|---|---|
+| A convenção "output var" (`StringLen, out, in`) | o valor de retorno, e o `&` quando é preciso escrever | a convenção é a do v1 medido, e a tabela dos built-ins ganha a coluna da forma do parâmetro (§3.2) |
+| `#NoEnv` como default | o ambiente é explícito, `EnvGet` está lá | o `#NoEnv` existe e desliga a substituição (§3) |
+
+### A coordenação com a onda de 2026-10-29
+
+Outra sessão trabalha nesta árvore ao mesmo tempo, e o trabalho dela é
+**outro**: fechar as lacunas do port para dentro do **v2** — o clipboard,
+o som, o `NumGet` e o `NumPut`, os ficheiros, a data — e construir o
+comando `ahk --surface`, que imprime o estado de cada nome de v2. Está a
+reescrever `docs/ahk-x11-comparison.md` ao mesmo tempo.
+
+Os dois planos são **ortogonais**: a onda porta *capacidades* para
+dentro do v2; este plano acrescenta um *dialecto* ao lado do v2, sem
+mexer em nenhuma capacidade. Duas coisas ficam acordadas:
+
+1. **O `--surface` é da onda, e este plano usa-o.** As fases F1 e F5
+   precisam do estado de cada nome — e o comando já existe
+   (`crates/ahk/src/surface.rs`, `ahk --surface`). Este plano
+   **estende-o com um parâmetro**; não faz um segundo comando.
+2. **A comparação é reescrita, e o plano não depende do número das
+   secções.** O plano cita o texto; o `AGENTS.md` aponta para o plano.
+
+A extensão que a F1 precisa é pequena. O `surface::entries()` de hoje lê
+a tabela de v2 que está embutida e pergunta à árvore, nome a nome —
+`builtins::find`, `builtins::refusal_of`, `variables::carries`,
+`classes::carries`. Com um dialecto, essas quatro perguntas passam a
+levar o dialecto, e `entries()` passa a ser `entries_for(dialect)`. O
+vocabulário fica como está — `Value`, `Refusal(reason)`,
+`Pending(reason)`; é a frase do resumo que troca o "de v2" pelo nome do
+dialecto.
 
 ### A autoridade
 
@@ -28,7 +66,7 @@ fica escrita aqui para ficar registada.
 |---|---|---|
 | `AutoHotkeyU64.exe` (v1.1.37.02) | a verdade: as mensagens, as formas, os nomes | descarregado de `autohotkey.com/download/1.1/` a 2026-10-28; portátil, nada instalado |
 | `autohotkey.com/docs/v1/` | a lista dos comandos e das funções, e a gramática |idem |
-| `docs/ahk-x11-comparison.md` §4.2 | os nomes que mudaram do v1 para o v2 | no repositório |
+| `docs/ahk-x11-comparison.md` | os nomes que mudaram do v1 para o v2 (a secção "Os nomes que mudaram do v1 para o v2") | no repositório, em revisão |
 | `AutoHotkey.chm` (no zip do v1.1) | a documentação offline | no zip |
 
 **O arquivo `../archived/ahk-python` não serve de referência.** Não é uma
@@ -120,9 +158,15 @@ x := Upper("abc")      # não existe: "Call to nonexistent function."
 ```
 
 Quarenta e sete nomes medidos em 2026-10-28 levaram um minuto. Para a
-superfície inteira do v1 (a do v2 tem 645 nomes) são ~250 sondas: **dois
+superfície inteira do v1 (a do v2 tem **725** nomes — a tabela de
+`crates/ahk/reference/ahk-v2.0.19.surface.tsv`, que a onda de
+2026-10-29 já imprime com `ahk --surface`) são ~250 sondas: **dois
 minutos** — na caixa, onde um comando perdido (um `Click` sem parâmetros
 clica onde o rato estiver) não faz mal.
+
+A sondagem tem uma utilidade a mais: o `--surface` da onda imprime o
+estado de cada nome **de v2**; a mesma mecânica, com a tabela do v1 por
+dentro, imprime o do v1 — e a sondagem é o que preenche essa tabela.
 
 ### 1.4 Os nomes: a maior parte coincide, o género não
 
@@ -250,10 +294,12 @@ pub enum Parameter {
 }
 ```
 
-A tabela do v2 passa a ter `parameters: &[Parameter]` por linha (o
-`reference_parameters` actual — `builtins.rs:457` — passa a ser lido
-dessa coluna). A tabela do v1 preenche a coluna com a forma que o v1
-medido tiver.
+A linha de hoje é `Builtin { name, kind, min, max, variant, handler }` —
+o `variant` é o tempero do handler (`Ceil` e `Floor` são o mesmo
+handler com dois sabores). A coluna nova entra ao lado:
+`parameters: &[Parameter]`. O `reference_parameters` actual —
+`builtins.rs:457` — passa a ser lido dessa coluna. A tabela do v1
+preenche a coluna com a forma que o v1 medido tiver.
 
 ### 3.3 O que **não** muda
 
@@ -291,9 +337,10 @@ hoje sem as mover), o parser e o runtime a perguntá-lo, o
 `--dialect=v2` no runner, e a tabela dos parâmetros na tabela dos
 built-ins (preenchida com `Value`/`Variable`, que é o que o v2 já faz).
 
-**Resultado.** Os 622 casos continuam verdes sem mudar de corpo; o
-`--dialect=v1` ainda responde *"this runtime does not speak that
-dialect"*.
+**Resultado.** A suite continua verde sem mudar de corpo — os 622
+casos do commit `6def58f` (a onda de 2026-10-29 também os mudou, e o
+número só sobe); o `--dialect=v1` ainda responde *"this runtime does
+not speak that dialect"*.
 
 **Risco.** Baixo. É a fase que prova que o gate não custa nada ao v2.
 
@@ -307,7 +354,9 @@ variáveis do v1 (§1.2). As classes do v1: `Object`, `File`,
 a razão de cada nome que não é carregado.
 
 **Resultado.** `ahk --surface --dialect=v1` imprime a lista com o estado
-de cada nome; o número de "carregados a sério" é visível em cada commit.
+de cada nome — o comando que a onda de 2026-10-29 construiu para o v2,
+com o dialecto a mais; o número de "carregados a sério" é visível em
+cada commit.
 
 **Risco.** Médio: é trabalho mecânico, mas é trabalho. E é a fase de que
 depende a F2.
@@ -392,8 +441,9 @@ não piora sem se ver.
 | **`%nome%` é a variável de ambiente no v1.** | Média | A árvore interpola a variável do script. Com o dialecto v1 passa a ser a de ambiente, e o `#NoEnv` desliga a substituição. É uma mudança de *sentido* de uma regra que a árvore já tem. |
 | **A superfície não sai do binário.** Os nomes do v1 estão ofuscados. | Média | A lista vem da documentação e é verificada pelo binário, na caixa — §1.3. |
 | **Duas tabelas para manter.** | Média | O teste de paridade por dialecto e o `--surface` tornam a deriva visível. |
+| **A onda e o plano no mesmo `--surface`.** A onda de 2026-10-29 construiu o comando; este plano estende-o. | Média | A extensão é um parâmetro e quatro perguntas que passam a levar o dialecto. Não há um segundo comando, e o `AGENTS.md` diz qual é a peça de cada um. |
 | **Duas gramáticas no mesmo parser.** | Média | A gramática legacy fica atrás do predicado do dialecto; o v2 não a vê. |
-| **A licença do AHK_X11.** GPL-2.0. | Baixa | Já está escrito (§5.7 da comparação): o *comportamento* pode ser portado, o código não. Este plano só usa a lista de nomes e o comportamento medido. |
+| **A licença do AHK_X11.** GPL-2.0. | Baixa | Já está escrito na comparação (a nota da licença): o *comportamento* pode ser portado, o código não. Este plano só usa a lista de nomes e o comportamento medido. |
 | **O `v1` e o `v2` a divergirem com o tempo.** | Baixa | O gate é o dialecto, não a versão: uma tabela nova do v1 (1.1.37.03) é uma linha a mais. |
 
 ---
@@ -417,23 +467,34 @@ não piora sem se ver.
 
 ## 7. Como se mede a paridade
 
-A mecânica já existe: `crates/ahk/tests/surface.rs` lê a tabela da
-superfície e pergunta à árvore, nome a nome, se a carrega. Com o gate,
-a mesma pergunta corre para os dois dialetos.
+A mecânica já existe dos dois lados:
 
-Falta um comando — o mesmo que a comparação com o X11 propôs
-(§7, "Como medir a paridade"), e que o gate torna possível:
+- `crates/ahk/tests/surface.rs` lê a tabela da superfície e pergunta à
+  árvore, nome a nome, se a carrega. Com o gate, a mesma pergunta corre
+  para os dois dialetos.
+- O **comando** também já existe: a onda de 2026-10-29 construiu o
+  `ahk --surface` (`crates/ahk/src/surface.rs`), que imprime uma linha
+  por nome e o resumo no fim. O gate não cria um segundo comando — dá-lhe
+  um parâmetro:
 
 ```
 ahk --surface --dialect=v1
 
-name                 kind      state      reason
-StrSplit             function  refused    this dialect has no function with this name.
-FileExist            function  refused    this dialect has no function with this name.
-WinActivate          command   refused    this is a name of Windows, and this desktop is not Windows.
+WinActivate command refusal: this is a name of Windows, and this desktop is not Windows.
+MsgBox command value
+StringLen function pending: this runtime does not carry that name yet.
+...
+the surface of v1 has <n> entries: <v> answer with a value, <r> are refused, <p> are pending.
 ```
 
-E o mesmo em JSON, para o CI.
+A forma é a de hoje: o nome, o género, e o estado — `value`,
+`refusal: ...` ou `pending: ...`, com a razão quando a há. As três
+linhas são o formato: um nome recusado com a razão, um nome que
+responde, e um nome que o dialecto ainda não carrega. Os números do
+resumo são o que interessa — e o do meio é o que diz o que falta. A
+superfície do v1 ainda não foi contada: sai da sondagem da F1.
+
+O JSON, para o CI, é uma peça da F5: o comando de hoje imprime o texto.
 
 O segundo número: **quantos nomes da superfície do v1 estão implementados
 a sério**. A régua honesta é a mesma da comparação com o X11 — *nenhum
@@ -453,3 +514,5 @@ falta de implementação*.
 | **O que não muda** | o v2, o `Desktop`, a caixa, o relatório, os guard rails |
 | **A divergência que fica escrita** | o v1 corre no modelo cooperativo: sem threads |
 | **A autoridade** | o binário do v1.1.37.02 e a documentação do v1 |
+| **A dependência** | o `--surface` da onda de 2026-10-29, com o dialecto a mais |
+| **A coordenação** | a onda porta capacidades para dentro do v2; este plano acrescenta o dialecto ao lado |

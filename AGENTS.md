@@ -83,7 +83,10 @@ and the result is a stale binary with no error.
 - `docs/ahk-v1-dialect.md` -- the plan for the v1 dialect beside the v2:
   the gate, the phases, and what was measured on the binary of v1.1.37.02
   on 2026-10-28. Read it before touching the parser or the built-in
-  table: it says where the dialect is woven into the tree.
+  table: it says where the dialect is woven into the tree. The comparison
+  with the AHK_X11 says that the legacy v1 syntax is not ported; that
+  line is inverted for the v1 dialect alone, and this plan is where the
+  decision lives.
 
 EGM artifact directory: `egm-review/`
 
