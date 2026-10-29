@@ -1795,3 +1795,12 @@ portal of the box does not publish the interface
 And the name of the computer is asked to the kernel, not to the environment:
 a run that comes from `ssh` has no `HOSTNAME` in its environment, and the
 computer is `pod158c`.
+
+One question of the machine is still open, and the box cannot settle it: the
+tree answers the name of a variable with and without the prefix --
+`A_IsAdmin` and `IsAdmin` are the same question -- because the table of the
+variables carries the names without the prefix and the read drops it when the
+script writes one. The documentation of v2 says that the variables have the
+prefix, and that the `Clipboard` is the only one that does not, and the
+binary of v2.0.19 is not on the box: whether the binary answers the two
+spellings is a measurement that is still to be made.
