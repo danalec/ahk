@@ -1184,6 +1184,21 @@ impl Parser {
             extends = Some(base.value);
         }
         let (methods, properties) = self.parse_class_body()?;
+        // A class may not have an `__Init` of its own and variables of its
+        // own: v2 makes the `__Init` that carries the variables, and the
+        // two cannot both be there.
+        if let Some(method) = methods.iter().find(|method| method.name.eq_ignore_ascii_case("__init")) {
+            if !properties.is_empty() {
+                return Err(SyntaxError {
+                    message: format!(
+                        "Duplicate declaration. Specifically: {}.Prototype.__Init",
+                        name_token.value
+                    ),
+                    line: method.line,
+                    column: 1,
+                });
+            }
+        }
         self.defined.insert(name_token.value.to_lowercase());
         Ok(Node::ClassDef {
             name: name_token.value,
@@ -2175,6 +2190,18 @@ mod tests {
         let Node::FunctionDef { declarations, .. } = &statements[0] else { panic!("a definition") };
         assert!(declarations.assume_global);
         assert!(declarations.globals.is_empty());
+    }
+
+    #[test]
+    fn a_class_with_an_init_and_variables_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-30: v2 makes the
+        // `__Init` that carries the variables, and the two cannot both be
+        // there.
+        let error = parse("class Thing {\n  value := 1\n  __Init() {\n  }\n}").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Duplicate declaration. Specifically: Thing.Prototype.__Init"
+        );
     }
 
     #[test]

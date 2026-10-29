@@ -2132,6 +2132,31 @@ entirely".
 
 Measured on the binary of v2.0.19 on 2026-10-30.
 
-What is not carried yet: the tree does not call the `__Init` of a class when
-an instance is made, so the `super.__Init()` of v2 has nothing to give the
-base yet.
+## 41. The `__Init` of v2 runs when an instance is made
+
+The tree never called the `__Init` of a class: an instance was made with its
+variables and its `__New`, and the `__Init` was a method that nothing called.
+Measured on the binary of v2.0.19 on 2026-10-30, and against the
+documentation of v2, which says that the variables of a class are "evaluated
+each time a new instance of the class is created with ClassName(), after all
+base-class declarations are evaluated but before __New is called".
+
+- **The `__Init` runs before the `__New`.** The `__New` is the constructor of
+  the instance and it takes the arguments of the constructor; the `__Init`
+  takes none.
+- **The most derived `__Init` is the one that runs.** It is the explicit one
+  of the class, or the automatic one that carries the variables of the class.
+  The automatic one calls the `__Init` of the base before it assigns the
+  variables, and the explicit one calls nothing at all: the variables of the
+  base are **not** assigned when the derived has an `__Init` of its own.
+- **Every class has an `__Init`.** So `super.__Init()` never fails for want
+  of a method: it runs the one of the base, the explicit one or the
+  automatic one. And the instance has it too: `d.__Init()` runs it again.
+- **A class may not have an `__Init` of its own and variables of its own.**
+  v2 makes the `__Init` that carries the variables, and the two cannot both
+  be there: "Duplicate declaration. Specifically: Thing.Prototype.__Init".
+  It is a refusal of the grammar, so it is a load error.
+
+What is not carried yet: the class of v2 is initialized when it is first
+referenced -- the static `__Init` and the static `__New` are called then --
+and the tree does not do that.

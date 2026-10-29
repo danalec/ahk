@@ -1713,6 +1713,162 @@ fn a_parameter_read_in_another_case_is_the_same_parameter() {
 }
 
 #[test]
+fn the_init_of_a_class_runs_when_the_instance_is_made() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let (report, _) = run(concat!(
+        "class Thing {\n",
+        "  __Init() {\n",
+        "    MsgBox \"init\"\n",
+        "  }\n",
+        "}\n",
+        "t := Thing()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["init"]);
+}
+
+#[test]
+fn the_init_of_a_class_runs_before_the_new() {
+    let (report, _) = run(concat!(
+        "class Thing {\n",
+        "  __New() {\n",
+        "    MsgBox \"new\"\n",
+        "  }\n",
+        "  __Init() {\n",
+        "    MsgBox \"init\"\n",
+        "  }\n",
+        "}\n",
+        "t := Thing()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["init", "new"]);
+}
+
+#[test]
+fn the_init_of_the_derived_replaces_the_one_of_the_base() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  __Init() {\n",
+        "    MsgBox \"base init\"\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  __Init() {\n",
+        "    MsgBox \"derived init\"\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["derived init"]);
+}
+
+#[test]
+fn the_init_of_the_base_runs_when_the_derived_has_none() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  __Init() {\n",
+        "    MsgBox \"base init\"\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "}\n",
+        "d := Derived()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["base init"]);
+}
+
+#[test]
+fn the_init_of_the_base_runs_when_the_derived_calls_super() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  __Init() {\n",
+        "    MsgBox \"base init\"\n",
+        "  }\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  __Init() {\n",
+        "    MsgBox \"derived init\"\n",
+        "    super.__Init()\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["derived init", "base init"]);
+}
+
+#[test]
+fn the_variables_of_the_base_are_not_assigned_when_the_derived_has_an_init() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  value := \"the value of the base\"\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  __Init() {\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.value\n",
+    ));
+    assert!(!report.ok);
+    assert!(
+        report.error.as_deref().unwrap_or("").contains("value"),
+        "{:?}",
+        report.error
+    );
+}
+
+#[test]
+fn the_variables_of_the_base_are_assigned_when_the_derived_calls_super() {
+    let (report, _) = run(concat!(
+        "class Base {\n",
+        "  value := \"the value of the base\"\n",
+        "}\n",
+        "class Derived extends Base {\n",
+        "  __Init() {\n",
+        "    super.__Init()\n",
+        "  }\n",
+        "}\n",
+        "d := Derived()\n",
+        "MsgBox d.value\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the value of the base"]);
+}
+
+#[test]
+fn the_init_of_a_class_runs_for_every_instance() {
+    let (report, _) = run(concat!(
+        "class Thing {\n",
+        "  __Init() {\n",
+        "    MsgBox \"init\"\n",
+        "  }\n",
+        "}\n",
+        "a := Thing()\n",
+        "b := Thing()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["init", "init"]);
+}
+
+#[test]
+fn the_init_of_a_class_does_not_run_when_the_class_is_only_referenced() {
+    let (report, _) = run(concat!(
+        "class Thing {\n",
+        "  __Init() {\n",
+        "    MsgBox \"init\"\n",
+        "  }\n",
+        "}\n",
+        "x := Thing\n",
+        "MsgBox \"after the reference\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["after the reference"]);
+}
+
+#[test]
 fn a_super_calls_the_method_of_the_base() {
     // Measured on the binary of v2.0.19 on 2026-10-30.
     let (report, _) = run(concat!(

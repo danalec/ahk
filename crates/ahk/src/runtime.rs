@@ -1305,13 +1305,23 @@ impl<'a> Runtime<'a> {
                 self.for_loop(variables, source, body, *line)?;
             }
             Node::MethodCall { target, name, arguments, line } => {
-                let target_value = self.evaluate(target)?;
-                let value = self.call_method_on(&target_value, name, arguments, *line)?;
+                // `super.m()`: the method of the base.
+                let value = if let Node::Super { .. } = &**target {
+                    self.call_the_method_of_the_base(name, arguments, *line)?
+                } else {
+                    let target_value = self.evaluate(target)?;
+                    self.call_method_on(&target_value, name, arguments, *line)?
+                };
                 detail = value.to_text();
             }
             Node::Property { target, name, line } => {
-                let target_value = self.evaluate(target)?;
-                let value = self.read_property(&target_value, name, *line)?;
+                // `super.value`: the property of the base.
+                let value = if let Node::Super { .. } = &**target {
+                    self.read_the_property_of_the_base(name, *line)?
+                } else {
+                    let target_value = self.evaluate(target)?;
+                    self.read_property(&target_value, name, *line)?
+                };
                 detail = value.to_text();
             }
             Node::AssignProperty { target, name, op, value, line } => {
@@ -2136,23 +2146,13 @@ impl<'a> Runtime<'a> {
                 return result;
             }
         }
-        let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-        // The properties of the classes it extends come first: the
-        // class that extends another may change one.
-        for name in self.class_chain(class).into_iter().rev() {
-            let Some(definition) = self.classes.get(&name).cloned() else { continue };
-            for property in &definition.properties {
-                let value = match &property.value {
-                    Some(node) => self.evaluate(node)?,
-                    None => Value::Text(String::new()),
-                };
-                properties.insert(property.name.to_lowercase(), value);
-            }
-        }
         let object = Value::Object(Rc::new(RefCell::new(Object {
             class: class.to_lowercase(),
-            properties,
+            properties: BTreeMap::new(),
         })));
+        // The `__Init` of v2 runs before the `__New`, and the variables of
+        // the class are assigned in it.
+        self.call_the_init(class, &object, line)?;
         // `__New` runs with the new object as `this`, and may answer an
         // object of its own.
         if let Some((defining, method)) = self.find_method_in(class, "__new") {
@@ -2163,6 +2163,63 @@ impl<'a> Runtime<'a> {
             });
         }
         Ok(object)
+    }
+
+    /// The `__Init` of an instance, the way v2 calls it.
+    ///
+    /// The most derived `__Init` is the one that runs: the explicit one of
+    /// the class, or the automatic one that carries the variables of the
+    /// class. The automatic one calls the `__Init` of the base before it
+    /// assigns the variables, and the explicit one calls nothing: the
+    /// variables of the base are not assigned when the derived has an
+    /// `__Init` of its own.
+    fn call_the_init(&mut self, class: &str, object: &Value, line: u32) -> Result<(), RuntimeFailure> {
+        let chain = self.class_chain(class);
+        self.call_the_init_of(&chain, object, line)
+    }
+
+    /// The `__Init` of an instance, over the chain of the classes.
+    ///
+    /// The chain goes from the class itself to the base of it.
+    fn call_the_init_of(
+        &mut self,
+        chain: &[String],
+        object: &Value,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        for (index, name) in chain.iter().enumerate() {
+            let Some(definition) = self.classes.get(name).cloned() else { continue };
+            if let Some(method) = definition.methods.get("__init").cloned() {
+                // The `__Init` of this class: it runs, and the ones of the
+                // base do not.
+                self.call_method(name, &method, object, &[], line)?;
+                return Ok(());
+            }
+            if !definition.properties.is_empty() {
+                // The automatic `__Init`: the base comes first, and then
+                // the variables of this class.
+                if index + 1 < chain.len() {
+                    self.call_the_init_of(&chain[index + 1..], object, line)?;
+                }
+                self.assign_the_variables(name, object)?;
+                return Ok(());
+            }
+        }
+        Ok(())
+    }
+
+    /// The variables of a class, assigned to the object.
+    fn assign_the_variables(&mut self, class: &str, object: &Value) -> Result<(), RuntimeFailure> {
+        let Some(definition) = self.classes.get(class).cloned() else { return Ok(()) };
+        let Value::Object(object) = object else { return Ok(()) };
+        for property in &definition.properties {
+            let value = match &property.value {
+                Some(node) => self.evaluate(node)?,
+                None => Value::Text(String::new()),
+            };
+            object.borrow_mut().properties.insert(property.name.to_lowercase(), value);
+        }
+        Ok(())
     }
 
     /// The values of a list of arguments.
@@ -2207,6 +2264,17 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Every class of v2 has an `__Init`: the automatic one that carries
+        // the variables of the class. So `super.__Init()` runs the one of
+        // the base, and it never fails for want of a method.
+        if name.eq_ignore_ascii_case("__init") {
+            let this = self.the_this();
+            if let Some(base) = self.the_base_of_the_running_method() {
+                let chain = self.class_chain(&base);
+                self.call_the_init_of(&chain, &this, line)?;
+            }
+            return Ok(Value::Text(String::new()));
+        }
         let found = self
             .the_base_of_the_running_method()
             .and_then(|base| self.find_method_in(&base, name));
@@ -2292,6 +2360,16 @@ impl<'a> Runtime<'a> {
     ) -> Result<Value, RuntimeFailure> {
         if let Some((defining, method)) = self.find_method_on(target, name) {
             return self.call_method(&defining, &method, target, arguments, line);
+        }
+        // The automatic `__Init` of the class, the one that carries the
+        // variables: `d.__Init()` runs it again.
+        if name.eq_ignore_ascii_case("__init") {
+            if let Value::Object(object) = target {
+                let class = object.borrow().class.clone();
+                let chain = self.class_chain(&class);
+                self.call_the_init_of(&chain, target, line)?;
+                return Ok(Value::Text(String::new()));
+            }
         }
         let values = self.evaluate_all(arguments)?;
         let class = match target {
