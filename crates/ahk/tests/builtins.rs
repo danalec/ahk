@@ -1404,7 +1404,7 @@ fn the_function_of_the_exit_runs_when_the_script_fails() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
+        Some("This global variable has not been assigned a value.")
     );
     assert_eq!(report.output, vec!["Error"]);
 }
@@ -1415,7 +1415,7 @@ fn a_function_of_the_exit_that_fails_fails_the_run() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
+        Some("This local variable has not been assigned a value.")
     );
     // The line is the line of the statement that failed, inside the
     // function.
@@ -1432,7 +1432,7 @@ fn a_function_of_the_exit_that_fails_when_the_script_already_failed_is_a_note() 
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
+        Some("This global variable has not been assigned a value.")
     );
     assert!(
         report.notes.iter().any(|note| note.contains("the function of the exit failed")),

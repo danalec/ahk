@@ -210,6 +210,11 @@ the box: it does no I/O, and it has to keep building without `std`.
   `__Set` is not called for it, and `x[y]` asks only the `__Item`, which
   reads and never writes. The tree follows that, and a class that cannot
   write an item fails the statement with the reason.
+- **A variable that has no value is named after its kind.** Measured on the
+  binary of v2.0.19 on 2026-10-30: "This global variable has not been
+  assigned a value." for a variable of the script, and "This local
+  variable has not been assigned a value." for a variable of a function.
+  The tree named the variable and not its kind.
 - **The error object carries the `What` and the `Extra` of v2.** Measured
   on the binary of v2.0.19 on 2026-10-30: `Error(Message, What, Extra)`
   makes an error, and the catch holds it. An error thrown inside a

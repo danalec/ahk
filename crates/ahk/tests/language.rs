@@ -1577,7 +1577,7 @@ fn a_for_leaves_no_variable_behind() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This variable has not been assigned a value. Specifically: v")
+        Some("This global variable has not been assigned a value.")
     );
 }
 
@@ -1638,6 +1638,19 @@ fn a_try_catches_the_error_of_the_runtime() {
 }
 
 #[test]
+fn a_variable_of_a_function_that_has_no_value_is_a_local_one() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let (report, _) = run(
+        "Helper()\n\nHelper() {\n    for answer in [\"a\"] {\n    }\n    MsgBox answer\n}",
+    );
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This local variable has not been assigned a value.")
+    );
+}
+
+#[test]
 fn a_catch_binds_the_value_that_was_thrown() {
     let (report, _desktop) = run(concat!(
         "try {\n",
@@ -1649,7 +1662,7 @@ fn a_catch_binds_the_value_that_was_thrown() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["This variable has not been assigned a value. Specifically: NoSuchVariable"]
+        vec!["This global variable has not been assigned a value."]
     );
 }
 
@@ -1737,7 +1750,7 @@ fn the_error_of_the_runtime_that_nobody_catches_is_the_error_of_the_run() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
+        Some("This global variable has not been assigned a value.")
     );
 }
 

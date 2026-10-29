@@ -40,7 +40,7 @@ use crate::settings::{
 };
 use crate::dll::{Convention, NativeArg, NativeCall, NativeType, NativeValue};
 use crate::runtime::{
-    expected_type, unassigned, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, WindowAnswer,
+    expected_type, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, WindowAnswer,
 };
 use core::cmp::Ordering;
 use core::sync::atomic::{AtomicU32, Ordering as AtomicOrder};
@@ -592,7 +592,7 @@ fn marshal(
     let (value, reference) = match value {
         Value::Reference(reference) => {
             let Some(current) = rt.read_reference(reference) else {
-                return Err(RuntimeError { message: unassigned(&reference.name), line });
+                return Err(RuntimeError { message: rt.the_unassigned(&reference.name), line });
             };
             (current, Some(value.clone()))
         }
@@ -2170,7 +2170,7 @@ fn var_set_str_capacity(rt: &mut Runtime<'_>, values: &[Value], line: u32, _vari
         });
     };
     let Some(current) = rt.read_reference(reference) else {
-        return Err(RuntimeError { message: crate::runtime::unassigned(&reference.name), line });
+        return Err(RuntimeError { message: rt.the_unassigned(&reference.name), line });
     };
     let Some(capacity) = values.get(1) else {
         return Ok(Value::Int(current.to_text().chars().count() as i64));

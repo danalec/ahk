@@ -183,14 +183,6 @@ pub fn the_kind_of(value: &Value) -> String {
     }
 }
 
-/// The message v2 gives for a variable that has no value.
-///
-/// The kind is the first word and the name comes after: v2 names the
-/// variable that has no value, and not the name of the variable.
-pub fn unassigned(name: &str) -> String {
-    format!("This variable has not been assigned a value. Specifically: {name}")
-}
-
 /// The message v2 gives for a parameter that has no value.
 ///
 /// A parameter that is an alias of a variable of the caller says that
@@ -3060,6 +3052,24 @@ impl<'a> Runtime<'a> {
         })
     }
 
+    /// The message v2 gives for a variable that has no value.
+    ///
+    /// v2 names the kind of the variable and not the name of it: a
+    /// variable of the script and a variable of a function are told
+    /// apart.
+    pub(crate) fn the_unassigned(&self, name: &str) -> String {
+        let key = the_key_of(name);
+        // A name that lives in the scope of the script is a global one,
+        // and a name that lives in the scope of the function is a local
+        // one.
+        let local = self.declarations.last().is_some() && !self.lives_in_the_script(&key);
+        if local {
+            "This local variable has not been assigned a value.".to_string()
+        } else {
+            "This global variable has not been assigned a value.".to_string()
+        }
+    }
+
     /// The value of a variable that has to be there.
     pub(crate) fn assigned(
         &self,
@@ -3067,7 +3077,9 @@ impl<'a> Runtime<'a> {
         value: Option<Value>,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
-        value.ok_or_else(|| RuntimeFailure::Error(RuntimeError { message: unassigned(name), line }))
+        value.ok_or_else(|| {
+            RuntimeFailure::Error(RuntimeError { message: self.the_unassigned(name), line })
+        })
     }
 
     /// The value as a number, the way the maths operations want it.
@@ -3117,7 +3129,7 @@ impl<'a> Runtime<'a> {
             }));
         };
         let current = self.lookup(name).ok_or_else(|| {
-            RuntimeFailure::Error(RuntimeError { message: unassigned(name), line })
+            RuntimeFailure::Error(RuntimeError { message: self.the_unassigned(name), line })
         })?;
         let step = match op {
             UnaryOp::PreIncrement | UnaryOp::PostIncrement => 1,
@@ -3744,7 +3756,7 @@ impl<'a> Runtime<'a> {
                         // the parameter that has no value.
                         message: match self.alias_of(name) {
                             Some(_) => unassigned_parameter(name),
-                            None => unassigned(name),
+                            None => self.the_unassigned(name),
                         },
                         line: *line,
                     })),

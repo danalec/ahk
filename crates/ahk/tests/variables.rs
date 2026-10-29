@@ -373,7 +373,7 @@ fn the_name_without_the_prefix_is_a_variable_of_the_script() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This variable has not been assigned a value. Specifically: Clipboard")
+        Some("This global variable has not been assigned a value.")
     );
     assert_eq!(report.error_line, Some(1));
 }
@@ -387,7 +387,7 @@ fn the_name_of_the_elevation_without_the_prefix_is_a_variable_of_the_script() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This variable has not been assigned a value. Specifically: IsAdmin")
+        Some("This global variable has not been assigned a value.")
     );
 }
 
