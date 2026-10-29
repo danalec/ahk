@@ -186,6 +186,11 @@ the answer of the call is thrown away. The names that are neither are
 checked at the end of the parse, because the script may define a
 function further down.
 
+The answer of a call is a value, and the members of it are read the way
+the members of any other value are: `StrLen("abc").__Class` is "Integer",
+and `Map().Count` is 0. The assignment of an expression is refused at the
+load, and the text of it is named: "Invalid assignment. Specifically: := 1".
+
 The bracket with a space opens the array and the bracket without one is
 the item of the value: `f [1, 2]` is a call whose argument is the array,
 and `f[1, 2]` is the item of the value `f`. The space is the reason, the

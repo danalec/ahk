@@ -2726,3 +2726,25 @@ and the tree refuses it with "requires a value, but received a VarRef.".
 Thirty-seven of the fifty-three cases of the text parameters, fifteen of
 the references and sixteen of the numbers are the same in the tree and in
 the dialect.
+
+## 53. The answer of a call is a value, and the members of it are read
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree read the
+answer of a call and stopped there. `StrLen("abc").__Class` was a load
+error -- "Unexpected \".\"" -- and the members of it were read only
+through a parenthesis.
+
+- **The answer of a call is a value.** The members of it are read the way
+  the members of any other value are: `StrLen("abc").__Class` is
+  "Integer", and `Map().Count` is 0.
+- **The assignment of an expression is refused at the load.** v2 says
+  "Invalid assignment. Specifically: := 1", and the text that is named
+  is the operator and the value that was written.
+
+Two differences are left, and they are the load errors of v2 that the
+tree does not carry: a literal at the start of a statement is "Syntax
+error. Specifically: 1", and the parenthesis of the group of an
+assignment is named in the text of it ("Specifically: := 2)").
+
+Thirteen of the thirteen cases of the members of a call and five of the
+nine of the assignments are the same in the tree and in the dialect.

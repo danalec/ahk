@@ -659,6 +659,12 @@ impl Parser {
             }
             let arguments = self.parse_arguments()?;
             self.expect_op(")")?;
+            // Measured on the binary of v2.0.19 on 2026-10-31: the
+            // assignment of a call is refused at the load, and the text
+            // of it is named.
+            if self.at_an_assignment_operator() {
+                return Err(self.the_invalid_assignment(name_token.line)?);
+            }
             self.end_of_statement()?;
             return Ok(vec![Node::Call {
                 name: name_token.value.to_lowercase(),
@@ -1755,7 +1761,8 @@ impl Parser {
                     // -- is a call. The parenthesis that is spaced is not
                     // one: the concatenation of v2 takes the name and the
                     // value that follows it.
-                    return self.parse_call(token.value.to_lowercase(), token.line);
+                    let call = self.parse_call(token.value.to_lowercase(), token.line)?;
+                    return self.parse_suffixes(call, true);
                 } else {
                     // The words that are values are the two below.
                     match token.value.to_lowercase().as_str() {
@@ -1786,7 +1793,11 @@ impl Parser {
                 // concatenation of v2 takes the name and the value that
                 // follows it, and the space is what tells them apart.
                 if self.at_op(&["("]) && !self.peek().spaced {
-                    return self.parse_call(token.value.to_lowercase(), token.line);
+                    // The answer of a call is a value, and the members of
+                    // it are read the way the members of any other value
+                    // are: `StrLen("abc").__Class`.
+                    let call = self.parse_call(token.value.to_lowercase(), token.line)?;
+                    return self.parse_suffixes(call, true);
                 }
                 let name = token.value;
                 // The arrow function of v2 with one parameter: `a => a + 1`.
@@ -1988,7 +1999,9 @@ impl Parser {
                 column: operator.column,
             });
         };
+        let start = self.position;
         let value = self.parse_expression()?;
+        let end = self.position;
         let line = target.line();
         Ok(match target {
             Node::Var { name, .. } => Node::Assign { name, op, value: Box::new(value), line },
@@ -1999,12 +2012,41 @@ impl Parser {
                 Node::AssignIndex { target, index, op, value: Box::new(value), line }
             }
             _ => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // assignment of an expression is refused at the load, and
+                // the text of it is named.
                 return Err(SyntaxError {
-                    message: "the left side of an assignment is not a variable".into(),
+                    message: format!(
+                        "Invalid assignment. Specifically: {} {}",
+                        operator.value,
+                        the_source_of_the_tokens(self, start, end)
+                    ),
                     line,
                     column: operator.column,
                 });
             }
+        })
+    }
+
+    /// The refusal of an assignment whose left side is not a variable.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the message names
+    /// the operator and the value that was written.
+    fn the_invalid_assignment(&mut self, line: u32) -> Result<SyntaxError, SyntaxError> {
+        let operator = self.next();
+        let start = self.position;
+        // The value is read to name it, and a value that does not parse is
+        // the failure that v2 says.
+        let _value = self.parse_expression()?;
+        let end = self.position;
+        Ok(SyntaxError {
+            message: format!(
+                "Invalid assignment. Specifically: {} {}",
+                operator.value,
+                the_source_of_the_tokens(self, start, end)
+            ),
+            line,
+            column: operator.column,
         })
     }
 

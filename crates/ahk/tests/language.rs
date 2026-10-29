@@ -3060,6 +3060,31 @@ fn the_class_of_an_object_can_be_written_and_it_shadows_the_class() {
 }
 
 #[test]
+fn the_member_of_the_answer_of_a_call_is_read() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the answer of a
+    // call is a value, and the members of it are read the way the members
+    // of any other value are.
+    let (report, _desktop) = run("x := StrLen(\"abc\").__Class\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Integer"]);
+}
+
+#[test]
+fn the_item_of_the_answer_of_a_call_is_read() {
+    let (report, _desktop) = run("m := Map()\nm.Set(\"a\", 1)\nMsgBox m.Get(\"a\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_assignment_of_a_call_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the assignment of
+    // an expression is refused at the load, and the text of it is named.
+    let error = parse("StrLen(\"abc\") := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment. Specifically: := 1");
+}
+
+#[test]
 fn every_object_has_the_property_of_the_class_of_it() {
     let (report, _desktop) = run(
         "m := Map()\nMsgBox m.HasProp(\"__Class\") \" \" m.HasOwnProp(\"__Class\")",
