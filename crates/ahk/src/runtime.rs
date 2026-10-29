@@ -495,6 +495,16 @@ pub trait Clock {
 
     /// Wait for the given number of milliseconds.
     fn sleep_ms(&mut self, millis: u64);
+
+    /// The date and the time of the machine, when it knows them.
+    ///
+    /// The clock of a run counts from an arbitrary origin, and it does not
+    /// know the date. A host that knows the date says so here; a host that
+    /// does not leaves it at nothing, and the names of the date answer with
+    /// the reason.
+    fn wall_clock(&self) -> Option<crate::date::WallClock> {
+        None
+    }
 }
 
 /// The clock of a hosted platform: the monotonic clock, and the system sleep.
@@ -528,6 +538,10 @@ impl Clock for SystemClock {
     fn sleep_ms(&mut self, millis: u64) {
         std::thread::sleep(Duration::from_millis(millis));
     }
+
+    fn wall_clock(&self) -> Option<crate::date::WallClock> {
+        crate::date::system_wall_clock()
+    }
 }
 
 /// Where the runtime gets the time from.
@@ -553,6 +567,14 @@ impl ClockSource<'_> {
             ClockSource::Borrowed(clock) => clock.sleep_ms(millis),
             #[cfg(feature = "std")]
             ClockSource::System(clock) => clock.sleep_ms(millis),
+        }
+    }
+
+    fn wall_clock(&self) -> Option<crate::date::WallClock> {
+        match self {
+            ClockSource::Borrowed(clock) => clock.wall_clock(),
+            #[cfg(feature = "std")]
+            ClockSource::System(clock) => clock.wall_clock(),
         }
     }
 }
@@ -645,6 +667,11 @@ pub struct Runtime<'a> {
     stack_budget: usize,
     /// The timers the script set.
     timers: Vec<Timer>,
+    /// The hotkeys the script set.
+    ///
+    /// The runtime owns the function that a hotkey runs; the desktop owns
+    /// the watching of the keyboard, and says which hotkey was pressed.
+    hotkeys: Vec<crate::hotkeys::Hotkey>,
     /// The code the script asked to stop with.
     exit_requested: Option<i32>,
 }
@@ -694,6 +721,7 @@ impl<'a> Runtime<'a> {
             stack_base: Self::stack_here(),
             stack_budget: Self::MAX_STACK,
             timers: Vec::new(),
+            hotkeys: Vec::new(),
             exit_requested: None,
         }
     }
@@ -728,6 +756,7 @@ impl<'a> Runtime<'a> {
             stack_base: Self::stack_here(),
             stack_budget: Self::MAX_STACK,
             timers: Vec::new(),
+            hotkeys: Vec::new(),
             exit_requested: None,
         }
     }
@@ -841,6 +870,11 @@ impl<'a> Runtime<'a> {
             // only there: a function of the script is not the script.
             if self.scopes.is_empty() {
                 self.run_timers()?;
+                // The hotkeys of the script run between its statements,
+                // and only there: a function of the script is not the
+                // script, and a hotkey runs with the scope of the script
+                // and not with the scope of the function.
+                crate::hotkeys::run_fired(self)?;
             }
             // A script that asked to stop, stops at the end of the
             // statement it asked in.
@@ -2574,6 +2608,28 @@ impl<'a> Runtime<'a> {
     /// built-in that wants the date and the time cannot use it.
     pub(crate) fn now_ms(&self) -> u64 {
         self.clock.now_ms()
+    }
+
+    /// The hotkeys of the script.
+    pub(crate) fn hotkeys(&mut self) -> &mut Vec<crate::hotkeys::Hotkey> {
+        &mut self.hotkeys
+    }
+
+    /// Call a function of the script by name, with no arguments.
+    ///
+    /// A name that is not a function of the script is a name that does
+    /// nothing: the caller of this is a hotkey, and the hotkey of a
+    /// function that the script does not have is a hotkey of nothing.
+    pub(crate) fn call_function_by_name(&mut self, name: &str, line: u32) -> Result<(), RuntimeFailure> {
+        let Some(function) = self.functions.get(&name.to_lowercase()).cloned() else {
+            return Ok(());
+        };
+        self.call_function(&function, &[], line).map(|_| ())
+    }
+
+    /// The date and the time of the machine, when the clock knows them.
+    pub(crate) fn wall_clock(&self) -> Option<crate::date::WallClock> {
+        self.clock.wall_clock()
     }
 
     /// A variable of the script, by name.

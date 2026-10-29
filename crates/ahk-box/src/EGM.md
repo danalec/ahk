@@ -2,7 +2,7 @@
 
 ## Overview
 
-`src` is the whole of `ahk-box`: five modules and the module root that names them.
+`src` is the whole of `ahk-box`: seven modules and the module root that names them.
 
 | File | What it holds |
 | --- | --- |
@@ -11,6 +11,8 @@
 | `pointer.rs` | An absolute uinput pointer, for driving a Wayland session exactly. |
 | `native.rs` | The call into a library of the machine: the loader, the trampoline and the marshalling of the arguments. |
 | `raven.rs` | The call into a library of Windows: the raven, the helper that runs inside it, and the protocol between them. |
+| `files.rs` | The files of the machine: the copy, the move, the attributes, the times, the directories and the ini files. |
+| `hotkeys.rs` | The watcher of the keyboard: the device that is read, and the hotkeys and the hotstrings that are registered. |
 | `desktop.rs` | The lab box as the runtime sees it: the `ahk::desktop::Desktop` implementation that ties the keyboard, the pointer, the screen and the shell together. |
 
 The crate does no parsing and no interpreting: a script is already parsed by the language crate `ahk`, and this crate only answers what the runtime asks of the desktop. It depends on `ahk` for the `Desktop` trait, for the key names and for the keymap of the US layout, and on `libc`, `png` and `thiserror` for the rest. `serde` and `serde_json` are declared in the manifest and used by nothing here: the report is written by the runner, which is where the serialisation lives. Nothing here depends on the runner, and the runner depends on this crate in one direction only.
@@ -21,6 +23,8 @@ The crate does no parsing and no interpreting: a script is already parsed by the
 
 ```rust
 pub mod desktop;
+pub mod files;
+pub mod hotkeys;
 pub mod keyboard;
 pub mod native;
 pub mod pointer;
@@ -153,6 +157,47 @@ The reasons are the messages of v2.0.19 — "Failed to load DLL.",
 return type." — and the box does not answer with a reason of its own
 where v2 has one.
 
+### `files.rs` — the files of the machine
+
+The operations of v2 that are not the file handles: the copy, the move,
+the attributes, the times, the directories and the ini files.
+
+| Item | Signature | Notes |
+| --- | --- | --- |
+| `impl Files for LabDesktop` | — | The `Files` capability of the runtime, as the box answers it. The file handles stay in `desktop.rs`; the two cannot be in the same file, because Rust has one `impl` of a trait for a type. |
+| `copy_file` / `move_file` | `(from, to, overwrite) -> Result<String, String>` | The copy writes the bytes; the move renames when it can. |
+| `copy_dir` / `move_dir` | `(from, to, overwrite) -> Result<String, String>` | The copy takes the *contents* of the folder: the folder that is there is the one that holds the files. |
+| `file_attributes` / `set_file_attributes` | `(path) / (path, attributes)` | The letters of v2: `R` for the read-only, `A` for the archive, `D` for the folder. The box has no bit of its own for the archive. |
+| `file_times` / `set_file_times` | `(path) / (path, times)` | The three times of a file: the change, the access and the change of the metadata. |
+| `ini_read` / `ini_write` / `ini_delete` | `(file, section, key)` and so on | An ini of Windows: `[section]`, `key=value`, and `;` for a comment. |
+| `file_exists` / `delete_file` / `create_dir` / `dir_exists` | `(path)` | The four that answer whether something is there, and that take it away or make it. |
+| `letters_of` | private fn | The attributes of a file, in the order of v2. |
+
+The wildcards and the recursion are not carried: `FileCopy "a*.txt", "b"`
+and the folders that hold the folders are not in the tree, and the names
+that would ask for them say so.
+
+### `hotkeys.rs` — the watcher of the keyboard
+
+The box watches the keyboard that *reads*: the keyboard of the box writes
+(the uinput), and the hotkeys need the events of the physical one.
+
+| Item | Signature | Notes |
+| --- | --- | --- |
+| `Watcher` | struct | The watcher: the device, the keys that are down, the hotkeys and the hotstrings that are registered, and the text that was typed. |
+| `Watcher::open` | `() -> Result<Watcher, String>` | The watcher without a device: the device is opened when the first events are wanted. |
+| `register` / `unregister` | `(name)` | The hotkeys and the hotstrings that the script registered. |
+| `fired` | `() -> Result<Option<String>, String>` | The hotkey that fired, and the reason when the device cannot be read. |
+| `key_is_down` / `keys_down` | `(code)` | The keys that are down right now. |
+| `device_path` | private fn | The device the events are read from: the path of the variable, or the name of the device. |
+| `device_named` | private fn | The event node of a device, by its name in `/proc/bus/input/devices`. |
+| `DEVICE_VARIABLE` | `&str` | `AHK_HOTKEY_DEVICE`: the device to watch, by path or by name. |
+
+The virtual devices are skipped when the device is found by itself: a
+hotkey that fires on what the script writes is a hotkey in a loop. The
+variable is the way around that, and it is how the hotkeys are proved on
+the box without a person at the keyboard.
+
 ### `desktop.rs` — the box as the runtime sees it
 
 | Item | Signature | Notes |
@@ -171,13 +216,15 @@ where v2 has one.
 
 The `Desktop` of the crate is the sum of the ten capability traits of
 `ahk::desktop`, and the box writes the ten of them: `Keyboard`
-(`type_text`, `press_key`, `mouse_down`, `mouse_up`, `key_down`, `key_up`),
-`Pointer` (`click`, `move_pointer`, `mouse_position`), `Screen` (`capture`,
+(`type_text`, `press_key`, `mouse_down`, `mouse_up`, `key_down`, `key_up`,
+`key_is_down`, `keys_down`), `Pointer` (`click`, `move_pointer`,
+`mouse_position`, `set_mouse_speed`, `set_mouse_delay`), `Screen` (`capture`,
 `pixel`, `pixel_search`, `screen_size`), `Windows` (`window_active`,
 `window_exists`, `active_window_title`), `Processes` (`run`), `Files` (the
-file handles, and the whole-file writes), `Clipboard`, `Timers` and
-`Hotkeys` and `Native` (the call into a library of the machine, which
-`native.rs` answers). The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
+file handles, the whole-file writes, and the operations of `files.rs`),
+`Clipboard`, `Timers`, `Hotkeys` (`register_hotkey`, `unregister_hotkey`,
+`hotkeys`, `fired_hotkey`) and `Native` (the call into a library of the
+machine, which `native.rs` answers). The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
 
 ## Invariants
 
@@ -201,6 +248,8 @@ file handles, and the whole-file writes), `Clipboard`, `Timers` and
   their own: thirteen cases on Windows and fourteen on the box.
 - **A question the box cannot answer fails; it does not answer `false`.** The session is Wayland, the COSMIC services answer `Introspect` with an empty list, and the rootless Xwayland of gamescope reports an empty client list, so `WinActive` and `WinExist` answer "unknown" and say out loud how to check the focus instead. `WinGetTitle` is the exception: with no active X11 window it answers an empty string, because there is no X11 window to ask about.
 - **The screen is the focus check.** `PixelGet` and `PixelSearch` are read from the frame the compositor draws, so they work whatever window is in front, Wayland or not.
+- **The hotkeys watch the keyboard that reads.** The keyboard of the box writes; the watcher reads the event node of the physical keyboard. The virtual devices are skipped when the device is found by itself, because a hotkey that fires on what the script writes is a hotkey in a loop. The variable `AHK_HOTKEY_DEVICE` names the device to read, by path or by name, and it is how the hotkeys are proved on the box without a person at the keyboard.
+- **The device of the watcher is opened when the first events are wanted.** The keyboard of the box is made when the script types for the first time, and a watcher that wanted a device that is not there yet would say that the hotkeys cannot be watched. The device that cannot be read is a failure with the reason, and not a watcher that never fires.
 
 - **A library of this machine is called here, and a library of Windows is
   called by the raven.** The name of the library decides: a slash or a
@@ -250,6 +299,7 @@ file handles, and the whole-file writes), `Clipboard`, `Timers` and
 - **Opens `/dev/uinput`** twice over the life of a run, once per device, with `O_NONBLOCK`. The user has to be in the `input` group; no privilege beyond that is asked for.
 - **Creates two uinput devices** and writes their events: `EV_KEY`, `EV_REL`, `EV_MSC`, `EV_ABS` and `EV_SYN`, as 24-byte `input_event` structs. The timeval's second field is written in microseconds, because nanoseconds there are a thousand times too large and the compositor would see an event from the far future.
 - **Reads the event node of the pointer** under `/dev/input/event*`, through `EVIOCGABS` on the two axes, and lists `/sys/class/input` to find it.
+- **Reads the event node of the keyboard** for the hotkeys, and lists `/proc/bus/input/devices` to find it. The node is opened with `O_NONBLOCK`: the watcher must not wait for an event that may never come.
 - **Sleeps**: four seconds after each device creation, 200 ms between a motion and a press, 40 ms per button, 20 ms per key and 20 ms between keys, 60 ms between the two clicks of a double click.
 - **Runs the environment probe.** `ensure_session_env` reads `/run/user/<uid>`, sets `XDG_RUNTIME_DIR` to it, and sets `WAYLAND_DISPLAY` to the first `wayland-*` socket it finds — but only when `WAYLAND_DISPLAY` is not set already. Over SSH the display variables are empty and `grim` refuses to run without them.
 - **Calls out to `grim`** for the screen captures: `grim <path>` for the size of the screen, and `grim -g <x,y> <w>x<h> <path>` for a region. It writes PNG files, reads the pixel data back through the `png` crate, and removes the temporary ones afterwards; the file of a `capture` stays where it was written, for the caller to read.

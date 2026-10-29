@@ -1,9 +1,12 @@
 //! The `Hotkey` class, against a fake desktop.
 //!
-//! A hotkey is a key the script watches for, and this runtime has no
-//! hotkeys yet: the box has a keyboard of its own but nothing that
-//! watches it. So what a script gets here is the object and the reason:
-//! the object is made, and every name of it says why it cannot work.
+//! A hotkey is a key the script watches for, and the runtime carries
+//! them: the object is made, the desktop is told to watch the key, and
+//! the options of the object are read back.
+//!
+//! The action of a hotkey is a function of the script, and the binary of
+//! v2.0.19 refuses a text there: the callback has to be the object of
+//! the function.
 
 use ahk::desktop::{
     Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
@@ -14,18 +17,18 @@ use ahk::runtime::{Report, Runtime, Value};
 use std::time::Duration;
 
 /// A desktop that records what it was asked to do.
-///
-/// The class of the hotkeys asks it nothing: this runtime has no hotkeys
-/// yet. The fake is here because `Desktop` is the sum of the nine
-/// capabilities, and the runtime wants all of them.
 #[derive(Debug, Default)]
-struct Fake;
+struct Fake {
+    /// The hotkeys that were registered.
+    hotkeys: Vec<String>,
+}
 
-/// Run a script, and give the report back.
-fn run(source: &str) -> Report {
-    let mut desktop = Fake;
+/// Run a script, and give the report and the desktop back.
+fn run(source: &str) -> (Report, Fake) {
+    let mut desktop = Fake::default();
     let statements = parse(source).expect("parses");
-    Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements)
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    (report, desktop)
 }
 
 /// The class of the object a variable holds.
@@ -49,7 +52,25 @@ impl Clipboard for Fake {}
 
 impl Timers for Fake {}
 
-impl Hotkeys for Fake {}
+impl Hotkeys for Fake {
+    fn register_hotkey(&mut self, name: &str) -> Result<String, String> {
+        self.hotkeys.push(name.to_string());
+        Ok(format!("{name} is watched"))
+    }
+
+    fn unregister_hotkey(&mut self, name: &str) -> Result<String, String> {
+        self.hotkeys.retain(|held| held != name);
+        Ok(format!("{name} is not watched"))
+    }
+
+    fn hotkeys(&mut self) -> Result<Vec<String>, String> {
+        Ok(self.hotkeys.clone())
+    }
+
+    fn fired_hotkey(&mut self) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+}
 
 impl Keyboard for Fake {
     fn type_text(&mut self, _text: &str) -> Result<String, String> {
@@ -88,35 +109,48 @@ impl Windows for Fake {}
 impl Native for Fake {}
 
 #[test]
-fn a_hotkey_is_made() {
-    let report = run("hk := Hotkey(\"^!a\", \"TheCallback\")");
+fn a_hotkey_is_made_and_the_desktop_is_told_to_watch_the_key() {
+    let (report, desktop) = run("Callback() {
+    return 0
+}\nhk := Hotkey(\"^!a\", Callback)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(class_of(&report, "hk"), "hotkey");
+    assert_eq!(desktop.hotkeys, vec!["^!a".to_string()]);
 }
 
 #[test]
-fn a_hotkey_that_starts_says_why_it_cannot() {
-    let report = run("hk := Hotkey(\"^!a\", \"TheCallback\")\nhk.Start()");
+fn an_action_that_is_not_a_function_is_refused_the_way_v2_refuses_it() {
+    let (report, _) = run("hk := Hotkey(\"^!a\", \"TheCallback\")");
     assert!(!report.ok);
-    let error = error_of(&report);
-    assert!(error.contains("Hotkey cannot start watching for the key"), "{error}");
-    assert!(error.contains("this runtime has no hotkeys yet"), "{error}");
-    assert_eq!(report.error_line, Some(2));
+    assert_eq!(error_of(&report), "Parameter #2 of Hotkey is invalid.");
 }
 
 #[test]
-fn a_property_of_a_hotkey_says_why_it_cannot() {
-    let report = run("hk := Hotkey(\"^!a\", \"TheCallback\")\ntimeout := hk.Timeout");
-    assert!(!report.ok);
-    let error = error_of(&report);
-    assert!(error.contains("Hotkey cannot read or set the timeout of the hotkey"), "{error}");
-    assert_eq!(report.error_line, Some(2));
+fn a_hotkey_that_starts_is_watched() {
+    let (report, desktop) = run("Callback() {
+    return 0
+}\nhk := Hotkey(\"^!a\", Callback)\nhk.Start()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.hotkeys, vec!["^!a".to_string()]);
+}
+
+#[test]
+fn a_property_of_a_hotkey_is_read_back() {
+    let (report, _) = run("Callback() {
+    return 0
+}\nhk := Hotkey(\"^!a\", Callback)\ntimeout := hk.Timeout");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("timeout"), Some(&Value::Int(0)));
 }
 
 #[test]
 fn a_name_that_is_not_in_the_table_is_not_a_method() {
-    let report = run("hk := Hotkey(\"^!a\", \"TheCallback\")\nhk.Nonsense()");
+    let (report, _) = run("Callback() {
+    return 0
+}\nhk := Hotkey(\"^!a\", Callback)\nhk.Nonsense()");
     assert!(!report.ok);
     assert_eq!(error_of(&report), "\"Nonsense\" is not a method of this value.");
-    assert_eq!(report.error_line, Some(2));
+    // The function of the script takes three lines, and the call is the
+    // fifth.
+    assert_eq!(report.error_line, Some(5));
 }

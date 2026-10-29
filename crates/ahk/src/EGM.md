@@ -24,10 +24,15 @@ The files, in the order the data moves through them:
 | `variables.rs` | the built-in variables of v2 |
 | `keys.rs` | the key table: the evdev codes, the aliases and the key specs |
 | `regex.rs` | the regular expressions of `RegExMatch` and `RegExReplace` |
+| `date.rs` | the date and the time: the arithmetic, and the format of v2 |
+| `files.rs` | the files of the machine, in the dialect of v2 |
+| `settings.rs` | the settings of the script, and the state that keeps them |
+| `hotkeys.rs` | the hotkeys of the script: the registry and the watcher |
 
 The dependency between them runs one way: `parser.rs` reads `ast.rs` and
 `lexer.rs`, and `runtime.rs` reads `ast.rs`, `builtins.rs`, `classes/`,
-`variables.rs` and `regex.rs`. `dll.rs` depends on nothing inside the
+`variables.rs`, `regex.rs`, `date.rs`, `files.rs`, `settings.rs` and
+`hotkeys.rs`. `dll.rs` depends on nothing inside the
 crate: it is the marshalling of a native call, and it is pure. `ast.rs`, `lexer.rs`, `keys.rs` and `regex.rs`
 depend on
 nothing inside the crate. The key table is the odd one out: the runtime
@@ -45,13 +50,17 @@ re-exports the symbols that a caller is expected to use:
 pub mod ast;
 pub mod builtins;
 pub mod classes;
+pub mod date;
 pub mod desktop;
 pub mod dll;
+pub mod files;
+pub mod hotkeys;
 pub mod keys;
 pub mod lexer;
 pub mod parser;
 pub mod regex;
 pub mod runtime;
+pub mod settings;
 pub mod variables;
 
 pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, UnaryOp};
@@ -209,19 +218,20 @@ The traits the runtime is handed:
 
 | Trait | Methods |
 | --- | --- |
-| `Desktop` | the sum of the nine capability traits below: it has no method of its own, and there is no blanket implementation |
-| `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up` have a default that answers with the reason it cannot |
-| `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position` have a default that answers with the reason it cannot |
+| `Desktop` | the sum of the ten capability traits below: it has no method of its own, and there is no blanket implementation |
+| `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up`, `key_is_down` and `keys_down` have a default that answers with the reason it cannot |
+| `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position`, `set_mouse_speed` and `set_mouse_delay` have a default that answers with the reason it cannot |
 | `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
 | `Windows` | `window_active`, `window_exists`; `active_window_title` has a default that answers with the reason it cannot |
 | `Processes` | `run`; `env_get`, `env_set` have a default that answers with the reason it cannot |
 | `Files` | `open_file`, `read_file_at`, `write_file_at`, `file_size`, `close_file`; `list_files`, `working_directory`, `read_file`, `write_file`, `append_file`, `file_exists`, `delete_file`, `create_dir`, `dir_exists` and `dir_delete` have a default that answers with the reason it cannot |
+| `Files` (the files of v2) | `copy_file`, `move_file`, `copy_dir`, `move_dir`, `file_attributes`, `set_file_attributes`, `file_times`, `set_file_times`, `ini_read`, `ini_write` and `ini_delete` have a default that answers with the reason it cannot |
 | `Clipboard` | `clipboard_read`, `clipboard_write` have a default that answers with the reason it cannot |
 | `Timers` | `takes_over_timers` has a default that answers with the reason it cannot |
-| `Hotkeys` | `register_hotkey`, `unregister_hotkey`, `hotkeys` have a default that answers with the reason it cannot |
-| `Clock` | `now_ms() -> u64` (the milliseconds since an arbitrary origin, never backwards) and `sleep_ms(u64)` (waits at least that long) |
+| `Hotkeys` | `register_hotkey`, `unregister_hotkey`, `hotkeys`, `fired_hotkey` have a default that answers with the reason it cannot |
+| `Clock` | `now_ms() -> u64` (the milliseconds since an arbitrary origin, never backwards), `sleep_ms(u64)` (waits at least that long) and `wall_clock() -> Option<WallClock>` (the date of the machine, and nothing when the host does not know it) |
 
-Every implementor writes the nine of them: there is no blanket
+Every implementor writes the ten of them: there is no blanket
 implementation, so a desktop that grows a capability grows with it.
 
 `SystemClock` is the clock of a hosted platform -- the monotonic clock and the
@@ -323,6 +333,38 @@ the call into a library of the machine. Every method that a
 capability does not have has a default that answers with the reason it
 cannot.
 
+### The date, the files, the settings and the hotkeys
+
+Four modules that answer what the runtime used to answer with a reason.
+
+- `date.rs` -- the date and the time. The arithmetic is pure and lives
+  here: `date_add`, `date_diff`, `format_time` and the number of fourteen
+  digits that is the date of v2. The date of the machine comes from the
+  host, through the `Clock` trait: the host reads the zone (`/etc/localtime`
+  or the `TZ`) and says whether it knows it, and the module asks the clock
+  for the moment. A host that does not know the date has no answer, and
+  the names of the date say so. The units of v2 are `d`, `h`, `m` and `s`,
+  and the unit comes last: `DateAdd(date, amount, unit)`.
+- `files.rs` -- the files of the machine, in the dialect of v2: the copy,
+  the move, the attributes, the times, the directories and the ini files.
+  The names that *set* something take the value first
+  (`FileSetTime "20000101000000", file, "M"`), and the ones that *read* it
+  take the file first. `FileExist` answers with the attributes of the file
+  and not with a number. The encoding of the files is one state, and it
+  lives in `settings.rs`.
+- `settings.rs` -- the settings of the script: the mode of the
+  coordinates, the delays, the method of the send, the speed of the
+  pointer, the mode of the caps lock and the encoding of the files. The
+  state is in the module and not in the runtime: the runtime has no field
+  for it, and the crate runs without the standard library, so there is no
+  mutex of the standard library either. The modes of the coordinates that
+  need windows answer with the reason.
+- `hotkeys.rs` -- the hotkeys of the script. The runtime holds the
+  registry and the desktop holds the watcher: the script says which
+  function a hotkey runs, and the machine says which key was pressed. The
+  runtime asks between the statements of the script, and only at the top
+  level.
+
 ### The marshalling of a native call (`dll.rs`)
 
 The shapes of a call into a library of the machine, and the marshalling of
@@ -423,6 +465,18 @@ that asks for another one is refused with the reason.
   loop.** The code is written compactly, with a struct variant and a line of
   logic on one line, and `cargo fmt --all` would rewrite it into something
   else. Match the code next door.
+- **The state of the settings lives in the module.** The mode of the
+  coordinates, the delays, the method of the send, the speed of the pointer
+  and the encoding of the files are in the statics of `settings.rs`: the
+  runtime has no field for them, and the crate runs without the standard
+  library, so there is no mutex of the standard library either. The
+  encoding of the files has one truth: `files.rs` asks `settings.rs` for it.
+- **The date comes from the host.** The crate does not read the clock of
+  the machine: it asks the `Clock` trait for it, and a host that does not
+  know the date has the names of the date answer with the reason.
+- **The hotkeys run between the instructions of the script, at the top
+  level.** A hotkey runs with the scope of the script and not with the one
+  of a function.
 
 ## Side Effects
 

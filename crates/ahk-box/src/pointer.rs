@@ -39,6 +39,8 @@ use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::time::Duration;
 
+use core::sync::atomic::{AtomicI64, Ordering};
+
 /// The kernel ABI.
 ///
 /// The numbers are the same everywhere; only the calls are Linux-only, so
@@ -129,6 +131,39 @@ pub const POSITION_ATTEMPTS: usize = 20;
 /// The gap between the tries.
 pub const POSITION_RETRY: Duration = Duration::from_millis(100);
 
+/// The speed of the pointer: the number of steps a movement is made of.
+///
+/// The speed of v2 is from 0 to 100, and 0 moves the pointer at once:
+/// a movement of one step is the movement itself. The default is the
+/// default of v2, which is 2.
+///
+/// The state is here and not in the device because the device is opened
+/// on the first movement, and the speed may be set before it is.
+static SPEED: AtomicI64 = AtomicI64::new(2);
+
+/// The pause between two movements of the pointer, in milliseconds.
+///
+/// The delay of v2 is -1 when there is no pause at all, and 0 when the
+/// pause is the smallest there is. The default is the default of v2,
+/// which is 10.
+static DELAY: AtomicI64 = AtomicI64::new(10);
+
+/// The number of steps a movement is made of.
+///
+/// The speed of v2 is the number of steps, and a speed of 0 is a
+/// movement at once: one step.
+pub fn steps(speed: i64) -> usize {
+    speed.max(1) as usize
+}
+
+/// The place of a step of a movement.
+///
+/// The movement from one place to another is made of `steps` steps, and
+/// the last of them is the place itself.
+fn step_of(from: i64, to: i64, index: usize, steps: usize) -> i64 {
+    from + (to - from) * index as i64 / steps as i64
+}
+
 /// The pointer device could not be created or driven.
 #[derive(Debug, thiserror::Error)]
 pub enum PointerError {
@@ -180,13 +215,44 @@ impl Pointer {
     }
 
     /// Put the pointer at an absolute screen position.
+    ///
+    /// The movement is made of the steps of the speed, and the pause
+    /// between two movements is the delay.
     pub fn move_to(&mut self, x: i64, y: i64) -> Result<(), PointerError> {
+        self.move_in_steps(x, y)?;
+        self.pause();
+        Ok(())
+    }
+
+    /// Put the pointer at an absolute screen position, in steps.
+    ///
+    /// The speed of v2 is the number of steps the movement is made of,
+    /// and a speed of 0 is a movement at once.
+    fn move_in_steps(&mut self, x: i64, y: i64) -> Result<(), PointerError> {
         let (x, y) = clamp_to_screen(x, y, self.width, self.height);
-        self.write(abi::EV_ABS, abi::ABS_X, x as i32)?;
-        self.write(abi::EV_ABS, abi::ABS_Y, y as i32)?;
-        self.sync()?;
+        let (from_x, from_y) = self.last;
+        let steps = steps(SPEED.load(Ordering::Relaxed));
+        for index in 1..=steps {
+            let step_x = step_of(from_x, x, index, steps);
+            let step_y = step_of(from_y, y, index, steps);
+            self.write(abi::EV_ABS, abi::ABS_X, step_x as i32)?;
+            self.write(abi::EV_ABS, abi::ABS_Y, step_y as i32)?;
+            self.sync()?;
+        }
         self.last = (x, y);
         Ok(())
+    }
+
+    /// The pause between two movements of the pointer.
+    ///
+    /// A delay of -1 is no pause at all, and a delay of 0 is the
+    /// smallest pause there is: the box has no way of yielding, so it
+    /// is no pause.
+    fn pause(&self) {
+        let delay = DELAY.load(Ordering::Relaxed);
+        if delay > 0 {
+            std::thread::sleep(Duration::from_millis(delay as u64));
+        }
     }
 
     /// Press a button.
@@ -205,13 +271,17 @@ impl Pointer {
 
     /// Move to a position and click there.
     pub fn click(&mut self, x: i64, y: i64, button: &str) -> Result<(), PointerError> {
-        self.move_to(x, y)?;
+        self.move_in_steps(x, y)?;
         // The pause matters: without it the press is delivered in the same
         // frame as the motion and lands at the previous position.
         std::thread::sleep(PRESS_SETTLE);
         self.button_down(button)?;
         std::thread::sleep(PRESS_HOLD);
-        self.button_up(button)
+        self.button_up(button)?;
+        // The delay of v2 is after the click, the way it is after a
+        // movement.
+        self.pause();
+        Ok(())
     }
 
     /// Where the kernel says the pointer is.
@@ -380,6 +450,27 @@ fn clamp_to_screen(x: i64, y: i64, width: i64, height: i64) -> (i64, i64) {
     (x.clamp(0, (width - 1).max(0)), y.clamp(0, (height - 1).max(0)))
 }
 
+/// The speed of the pointer of the box.
+///
+/// The speed of v2 is the number of steps a movement is made of, and a
+/// speed of 0 is a movement at once.
+///
+/// The state is here and not in the module of the desktop because the
+/// pointer of the box is where the movements are made, and the speed
+/// belongs with them. The impl of the trait of the pointer is in the
+/// module of the desktop, and it calls this setter.
+pub fn set_speed(speed: i64) {
+    SPEED.store(speed, Ordering::Relaxed);
+}
+
+/// The pause between two movements of the pointer of the box.
+///
+/// The delay of v2 is -1 when there is no pause at all, and 0 when the
+/// pause is the smallest there is.
+pub fn set_delay(delay: i64) {
+    DELAY.store(delay, Ordering::Relaxed);
+}
+
 /// The code of a mouse button.
 fn button_code(button: &str) -> u16 {
     match button {
@@ -438,7 +529,7 @@ mod tests {
 
     use super::abi;
     use super::clamp_to_screen;
-    use super::{Pointer, PointerError};
+    use super::{step_of, steps, Pointer, PointerError};
 
     /// `_IO('U', nr)`: the direction and the size are both zero.
     fn io(nr: u8) -> u64 {
@@ -512,6 +603,29 @@ mod tests {
         assert_eq!(clamp_to_screen(5000, 5000, 1920, 1080), (1919, 1079));
         assert_eq!(clamp_to_screen(-40, -40, 1920, 1080), (0, 0));
         assert_eq!(clamp_to_screen(10, 10, 1920, 1080), (10, 10));
+    }
+
+    #[test]
+    fn the_speed_is_the_number_of_steps_of_a_movement() {
+        // The speed of v2 is from 0 to 100, and 0 moves the pointer at
+        // once: one step is the movement itself.
+        assert_eq!(steps(0), 1);
+        assert_eq!(steps(1), 1);
+        assert_eq!(steps(2), 2);
+        assert_eq!(steps(20), 20);
+        assert_eq!(steps(100), 100);
+    }
+
+    #[test]
+    fn the_steps_of_a_movement_end_at_the_place() {
+        assert_eq!(step_of(0, 100, 1, 4), 25);
+        assert_eq!(step_of(0, 100, 2, 4), 50);
+        assert_eq!(step_of(0, 100, 4, 4), 100);
+        // The movement the other way round.
+        assert_eq!(step_of(100, 0, 1, 4), 75);
+        assert_eq!(step_of(100, 0, 4, 4), 0);
+        // One step is the movement itself.
+        assert_eq!(step_of(10, 90, 1, 1), 90);
     }
 
     #[cfg(not(target_os = "linux"))]

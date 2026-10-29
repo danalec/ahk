@@ -26,10 +26,11 @@ The parser is portable and does no I/O of its own. The runtime runs
   standard library: turn the `std` feature off and the crate builds for
   a target that has no `std` at all, and the host supplies the clock.
 - **`ahk-box`** -- the lab box as a script target: a keyboard of our own
-  (uinput), an absolute pointer, and the screen captures (grim). The code
-  uinput syscalls are behind `#[cfg(target_os = "linux")]`, so a Windows
-  build leaves them out and the device answers `NotLinux` when it is
-  used. `desktop.rs` is not behind that gate at all, and the native call
+  (uinput), an absolute pointer, the screen captures (grim), the files of
+  the machine and the watcher of the keyboard that the hotkeys need. The
+  code uinput syscalls are behind `#[cfg(target_os = "linux")]`, so a
+  Windows build leaves them out and the device answers `NotLinux` when it
+  is used. `desktop.rs` is not behind that gate at all, and the native call
   is not either: it loads a library of the machine and calls into it, on
   both platforms.
 - **`ahk-cli`** -- the runner. A script on stdin, a report on stdout. The
@@ -171,6 +172,36 @@ Send "{a down}"   ; the key goes down and stays down
 Send "{Raw}text"  ; the text is sent as it is written
 Send "{DEL 4}"    ; the key four times
 ```
+
+**The date.** `A_Now` is the date of the machine and `A_NowUTC` is the
+same moment in UTC, and the date is a number of fourteen digits, the way
+v2 writes it. `DateAdd` and `DateDiff` do the arithmetic -- and the unit
+comes **last**: `DateAdd("20260101", 1, "d")` is the second of January,
+and the units are `d`, `h`, `m` and `s`. `FormatTime` writes the date the
+way v2 writes it.
+
+**The files.** The names are v2's: `FileCopy`, `FileMove`, `FileDelete`,
+`FileGetTime`, `FileSetTime`, `FileGetAttrib`, `FileSetAttrib`,
+`FileGetSize`, `DirCreate`, `DirDelete`, `DirCopy`, `DirMove`, `IniRead`,
+`IniWrite` and `IniDelete`. The names that *set* something take the value
+first -- `FileSetTime "20000101000000", file, "M"` -- and the ones that
+*read* it take the file first. `FileExist` answers with the attributes of
+the file and not with a number: `A` for a file, `D` for a folder, and the
+empty text when the file is not there.
+
+**The settings.** The mode of the coordinates, the delays, the method of
+the send, the speed of the pointer and the mode of the caps lock belong
+to the script, and they are read back with `A_CoordModeMouse`,
+`A_KeyDelay`, `A_MouseDelay`, `A_SendMode`, `A_DefaultMouseSpeed` and
+`A_StoreCapsLockMode`.
+
+**The hotkeys.** The script registers a hotkey with the object of the
+function it runs -- `Hotkey("^a", Callback)` -- and the box watches the
+keyboard that reads. A hotstring is written between two of the same
+character -- `Hotstring(":btw:", Callback)` -- and the name is checked
+before the action. The hotkeys run between the instructions of the
+script, at the top level.
+
 
 **Strings.** A string is text, and a `%name%` inside it is the value of
 the name. The name is read where the string is written, so a string a

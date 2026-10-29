@@ -1227,14 +1227,13 @@ fn a_builtin_variable_can_be_in_a_string() {
 }
 
 #[test]
-fn a_builtin_variable_that_cannot_be_answered_fails_the_string() {
-    // The clock of the runtime does not know the date, and the string
-    // says so the way the bare name does.
-    let (report, _desktop) = run("Send \"%A_Now%\"");
-    assert!(!report.ok);
-    let error = report.error.unwrap_or_default();
-    assert!(error.contains("does not know the date"), "{error}");
-    assert_eq!(report.error_line, Some(1));
+fn a_builtin_variable_of_the_date_is_answered_in_a_string() {
+    // The clock of the host knows the date, and the name of the date is
+    // answered with the fourteen digits of v2.
+    let (report, desktop) = run("Send \"%A_Now%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types().len(), 1);
+    assert_eq!(desktop.types()[0].len(), 14);
 }
 
 #[test]

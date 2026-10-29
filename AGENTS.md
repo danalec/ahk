@@ -44,16 +44,20 @@ and the result is a stale binary with no error.
   `lexer.rs`, `ast.rs`, `parser.rs`, `runtime.rs`, `keys.rs`,
   `builtins.rs` (the built-in table), `classes/` (the class types),
   `desktop.rs` (the capability traits), `variables.rs` (the built-in
-  variables), `regex.rs` (the regular expressions). No I/O of its own.
+  variables), `regex.rs` (the regular expressions), `date.rs` (the date
+  and the time), `files.rs` (the files of the machine), `settings.rs`
+  (the settings of the script) and `hotkeys.rs` (the hotkeys of the
+  script). No I/O of its own.
 - `crates/ahk/reference/` -- the tables of v2.0.19: the surface, the
   operators and the pending list. They are read when the tests are
   compiled.
 - `crates/ahk-box/` -- the box primitives: `lib.rs` (the public surface),
   `keyboard.rs` (the uinput keyboard), `pointer.rs` (the absolute
   pointer), `desktop.rs` (the captures and the screen reads),
-  `native.rs` (the call into a library of the machine) and `raven.rs`
-  (the call into a library of Windows). The helper that the raven runs
-  is in `crates/ahk-box/helper/`.
+  `native.rs` (the call into a library of the machine), `raven.rs`
+  (the call into a library of Windows), `files.rs` (the files of the
+  machine) and `hotkeys.rs` (the watcher of the keyboard). The helper
+  that the raven runs is in `crates/ahk-box/helper/`.
 - `crates/ahk-cli/` -- the runner. The binary is `ahk`.
 - `crates/ahk/tests/language.rs` -- the dialect tests.
 - `crates/ahk/tests/builtins.rs` -- the cases of the built-ins.
@@ -102,7 +106,10 @@ the box: it does no I/O, and it has to keep building without `std`.
   `Runtime::with_clock(desktop, clock, timeout)`; `Runtime::new` and
   `SystemClock` exist only with the feature. `ahk-box` and `ahk-cli`
   always pull `std` in, so the path without it is `-p ahk` alone. The
-  crate's own doc has a worked example of the trait.
+  crate's own doc has a worked example of the trait. The trait also
+  carries the date of the machine, in `wall_clock`: it answers with
+  nothing when the host does not know it, and a runtime without `std`
+  that does not answer it says that it does not know the date.
 - A float function that `std` owns -- `sqrt`, `floor`, `ceil`, `round`,
   `fract` -- goes through the helper in `runtime.rs`, which is `libm`
   under `no_std`. Only `abs`, `min`, `max` and `clamp` may be called on an
@@ -1386,6 +1393,133 @@ have to ride in AL, and the helper does not write it there.
 The `Str*` of the tree passes the address of the bytes of the text, and
 v2 passes the address of the pointer to it: the difference is measured
 in section 23, and it is the same on the two paths.
+
+## 25. The date, the files, the settings and the hotkeys
+
+Four blocks of names answered with a reason where they should answer with
+a value. They answer now, and each one is a module of its own.
+
+### The date and the time
+
+- **The date comes from the host, through the `Clock` trait.** The trait
+  gained `wall_clock`: it answers with the local time of the machine and
+  with the same moment in UTC, and it answers with nothing when the host
+  does not know the date. The names of the date answer with the reason
+  then: "the clock of this runtime does not know the date of the machine."
+- **The zone of the machine is not in the standard library.** The host
+  reads the file of the zone (`/etc/localtime`) or the `TZ` of the
+  environment, and says whether the machine knows it. A machine that does
+  not know has UTC as its local time, and the runtime says so.
+- **The arithmetic is in the language crate, and it is pure.** The crate
+  builds without the standard library, and the date is not an exception:
+  a crate that has no `std` has no `time` either.
+
+Measured on the binary of v2.0.19 on 2026-10-28: `DateAdd` takes the
+date, the amount and the unit, and **the unit comes last**
+(`DateAdd("20260101", 1, "d")` is the second of January); the units are
+`d`, `h`, `m` and `s`, and there are no years and no months; the date is
+fourteen digits and has no milliseconds; `A_Now` is the local time and
+`A_NowUTC` is the UTC one; `A_WDay` counts the Sunday as one; `A_YWeek`
+is `YYYYWW`.
+
+On the lab box on 2026-10-29 the date answered `20261029000412`, and the
+format of v2 answered `2026-10-29 00:04:12`.
+
+### The files of the machine
+
+- **The operations on the files are the `Files` capability.** The copy,
+  the move, the attributes, the times, the directories and the ini files.
+- **An ini is an ini of Windows.** `[section]`, `key=value`, and `;` for a
+  comment.
+- **The two that open a dialogue are not carried.** `DirSelect` and
+  `FileSelect` ask the script to choose a file, and a box without windows
+  has no way to ask.
+
+Measured on the binary of v2.0.19 on 2026-10-28: the names that *set*
+something take the value first -- `FileSetTime "20000101000000", file, "M"`
+-- and the ones that *read* it take the file first; `FileGetTime` answers
+with fourteen digits; `FileExist` answers with the **attributes** of the
+file and not with a number: `A` for a file, `D` for a folder, and the
+empty text when the file is not there; `IniRead` without a default fails
+with "The requested key, section or file was not found."
+
+The `FileEncoding` of the tree keeps the name the way v2 keeps it:
+`utf-8` becomes `UTF-8`, and the suffix `-RAW` is kept. The box has no
+code pages, so a name of a code page -- `CP1252`, the one v2 accepts and
+resolves -- is refused with the message v2 gives for a name it does not
+know. The bytes of a file are UTF-16 when the encoding says so, and
+UTF-8 otherwise: the default of v2 is the code page of the machine, and
+the machine of the box has none.
+
+### The settings of the pointer and of the keyboard
+
+- **The state belongs to the script, and not to the machine.** The mode of
+  the coordinates, the delays, the method of the send, the speed of the
+  pointer and the mode of the caps lock are the script's own, and the
+  module of the settings keeps them. The state is in the module and not
+  in the runtime: the runtime has no field for it, and the crate runs
+  without the standard library, so there is no mutex of the standard
+  library either.
+- **The modes of the coordinates that need windows answer with the
+  reason.** The mouse and the pixels are the two that a box without
+  windows has. v2 answers "Client" for the three others, and the tree
+  says that it cannot do them.
+- **The names of the keys are in `keys.rs`.** `GetKeySC` is the code of
+  the Linux input event and `GetKeyVK` is the virtual code of Windows.
+
+Measured on the binary of v2.0.19 on 2026-10-28: the speed of the
+pointer is from 0 to 100 and its default is 2; `A_KeyDelay` is 10;
+`A_SendMode` is `Input`; `A_MenuMaskKey` is `vk11sc01D`; `A_FileEncoding`
+is `CP0`.
+
+### The hotkeys
+
+- **The runtime holds the registry and the machine holds the watcher.**
+  The script says which function a hotkey runs; the machine says which
+  key was pressed. The runtime asks between the statements of the script,
+  and only at the top level: a hotkey runs with the scope of the script
+  and not with the one of a function.
+- **The box reads the physical keyboard.** The keyboard of the box
+  *writes* (the uinput); the hotkeys need the keyboard that *reads*, and
+  that is the physical one. The virtual devices are skipped: a hotkey
+  that fires on what the script writes is a hotkey in a loop.
+- **The device may be named.** `AHK_HOTKEY_DEVICE` says which one to
+  read, and it is how the hotkeys are proved on the box without a person
+  at the keyboard. The variable may hold the path of the device or its
+  name, and the device is opened when the first events are wanted: the
+  keyboard of the box is made when the script types for the first time,
+  and a watcher that wanted a device that is not there yet would say
+  that the hotkeys cannot be watched.
+
+Measured on the binary of v2.0.19 on 2026-10-28: the callback receives
+the name of the hotkey; the action of a hotkey has to be the object of
+the function -- `Hotkey "a", "b"` is "Parameter #2 of Hotkey is
+invalid."; the name of a hotstring is written between two of the same
+character and it is checked before the action -- `Hotstring "btw", "b"`
+is "Parameter #1 of Hotstring is invalid."; `HotIf` only takes the object
+of a function.
+
+The action of a hotstring may also be a text -- v2 takes the name of a
+label of the script, and the tree has no labels: the text is the name of
+a function of the script, and a hotstring of a function that the script
+does not have is a hotstring of nothing.
+
+### What the box answered
+
+The thirty-five cases of the harness went through the runner on the lab
+box on 2026-10-29, and all of them passed: the date of the machine and
+the arithmetic of the date, the file written and read, its size, its
+time, its attributes, the ini written and read, the copy, the file taken
+away, the file that is not there, the directory made and taken away, the
+encoding of the files, the speed of the pointer, the mode of the
+coordinates, the delay of the keys, the delay of the mouse, the method
+of the send, the codes of a key, the hotkey that fired, the hotstring
+that fired, the two hotkeys registered, and the seven that fail with the
+reason of v2 or with the reason of the box.
+
+Two of the cases are the ones that the box cannot do and that say so:
+the mode of the coordinates of the caret, and the device that is not one
+of the devices of the machine.
 
 ## Where to read more
 

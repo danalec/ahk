@@ -45,6 +45,16 @@ pub trait Keyboard {
     fn key_up(&mut self, _name: &str) -> Result<String, String> {
         Err("this desktop cannot hold a key down".to_string())
     }
+
+    /// Whether a key is down right now.
+    fn key_is_down(&mut self, _name: &str) -> Result<bool, String> {
+        Err("this desktop cannot tell which keys are down".to_string())
+    }
+
+    /// The keys that are down right now.
+    fn keys_down(&mut self) -> Result<Vec<String>, String> {
+        Err("this desktop cannot tell which keys are down".to_string())
+    }
 }
 
 /// The pointer of the desktop.
@@ -74,6 +84,20 @@ pub trait Pointer {
     /// Where the pointer is, in screen pixels.
     fn mouse_position(&mut self) -> Result<(i64, i64), String> {
         Err("this desktop cannot tell where the pointer is".to_string())
+    }
+
+    /// The speed of the pointer, from 0 to 100.
+    ///
+    /// The number is the number of steps of a movement, and the speed of
+    /// v2 is 0 to 100 with a default of 2: the 1 to 20 of the mouse of
+    /// Windows is not the setting of v2.
+    fn set_mouse_speed(&mut self, _speed: i64) -> Result<String, String> {
+        Err("this desktop cannot change the speed of the pointer".to_string())
+    }
+
+    /// The delay between two movements of the pointer, in milliseconds.
+    fn set_mouse_delay(&mut self, _delay: i64) -> Result<String, String> {
+        Err("this desktop cannot change the delay of the pointer".to_string())
     }
 }
 
@@ -222,6 +246,70 @@ pub trait Files {
     fn close_file(&mut self, _handle: i64) -> Result<(), String> {
         Err("this desktop cannot close a file".to_string())
     }
+
+    /// Take a copy of a file.
+    fn copy_file(&mut self, _from: &str, _to: &str, _overwrite: bool) -> Result<String, String> {
+        Err("this desktop cannot copy a file".to_string())
+    }
+
+    /// Move a file.
+    fn move_file(&mut self, _from: &str, _to: &str, _overwrite: bool) -> Result<String, String> {
+        Err("this desktop cannot move a file".to_string())
+    }
+
+    /// Take a copy of a folder and of everything in it.
+    fn copy_dir(&mut self, _from: &str, _to: &str, _overwrite: bool) -> Result<String, String> {
+        Err("this desktop cannot copy a folder".to_string())
+    }
+
+    /// Move a folder.
+    fn move_dir(&mut self, _from: &str, _to: &str, _overwrite: bool) -> Result<String, String> {
+        Err("this desktop cannot move a folder".to_string())
+    }
+
+    /// The attributes of a file.
+    fn file_attributes(&mut self, _path: &str) -> Result<Vec<String>, String> {
+        Err("this desktop cannot read the attributes of a file".to_string())
+    }
+
+    /// Change the attributes of a file.
+    fn set_file_attributes(&mut self, _path: &str, _attributes: &[String]) -> Result<String, String> {
+        Err("this desktop cannot change the attributes of a file".to_string())
+    }
+
+    /// The times of a file: when it was made, when it was changed, when it
+    /// was read.
+    fn file_times(&mut self, _path: &str) -> Result<(i64, i64, i64), String> {
+        Err("this desktop cannot read the times of a file".to_string())
+    }
+
+    /// Change the times of a file.
+    ///
+    /// A time of nothing is a time that does not change.
+    fn set_file_times(
+        &mut self,
+        _path: &str,
+        _created: Option<i64>,
+        _modified: Option<i64>,
+        _accessed: Option<i64>,
+    ) -> Result<String, String> {
+        Err("this desktop cannot change the times of a file".to_string())
+    }
+
+    /// The value of a key of an ini file.
+    fn ini_read(&mut self, _path: &str, _section: &str, _key: &str, _default: &str) -> Result<String, String> {
+        Err("this desktop cannot read an ini file".to_string())
+    }
+
+    /// Write a key of an ini file.
+    fn ini_write(&mut self, _path: &str, _section: &str, _key: &str, _value: &str) -> Result<String, String> {
+        Err("this desktop cannot write an ini file".to_string())
+    }
+
+    /// Take a key of an ini file away.
+    fn ini_delete(&mut self, _path: &str, _section: &str, _key: &str) -> Result<String, String> {
+        Err("this desktop cannot write an ini file".to_string())
+    }
 }
 
 /// The clipboard of the desktop.
@@ -264,6 +352,15 @@ pub trait Hotkeys {
     /// The hotkeys that are registered.
     fn hotkeys(&mut self) -> Result<Vec<String>, String> {
         Err("this desktop cannot list the hotkeys".to_string())
+    }
+
+    /// The hotkey that was pressed since the last question.
+    ///
+    /// The desktop watches the keyboard and says which of the hotkeys it
+    /// registered was pressed; the runtime owns the function that the
+    /// hotkey runs, and asks this between the statements of the script.
+    fn fired_hotkey(&mut self) -> Result<Option<String>, String> {
+        Err("this desktop cannot watch the keyboard".to_string())
     }
 }
 

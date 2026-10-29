@@ -95,13 +95,17 @@ extern crate alloc;
 pub mod ast;
 pub mod builtins;
 pub mod classes;
-pub mod dll;
+pub mod date;
 pub mod desktop;
+pub mod dll;
+pub mod files;
+pub mod hotkeys;
 pub mod keys;
 pub mod lexer;
 pub mod parser;
 pub mod regex;
 pub mod runtime;
+pub mod settings;
 pub mod variables;
 
 pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, Parameter, UnaryOp};

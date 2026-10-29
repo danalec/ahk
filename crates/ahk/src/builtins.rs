@@ -24,6 +24,20 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
+use crate::date::{date_add, date_diff, format_time};
+use crate::files::{
+    dir_copy, dir_move, file_copy, file_encoding, file_get_attrib, file_get_size, file_get_time,
+    file_install, file_move, file_open, file_set_attrib, file_set_time, ini_delete, ini_read,
+    ini_write,
+};
+use crate::hotkeys::{
+    get_key_state, hotif, hotif_window, hotkey, hotstring, install_hook, key_history,
+    list_hotkeys,
+};
+use crate::settings::{
+    coord_mode, get_key_name, get_key_sc, get_key_vk, send_event, send_input, send_level, send_play,
+    send_text, set_default_mouse_speed, set_key_delay, set_mouse_delay, set_store_caps_lock_mode,
+};
 use crate::dll::{Convention, NativeArg, NativeCall, NativeType, NativeValue};
 use crate::runtime::{
     expected_type, unassigned, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, WindowAnswer,
@@ -367,46 +381,46 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "WinWaitClose", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
     Builtin { name: "WinWaitNotActive", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: not_carried },
     // -- the hotkeys --------------------------------------------------------
-    Builtin { name: "GetKeyState", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "HotIf", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "HotIfWinActive", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "HotIfWinExist", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "HotIfWinNotActive", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "HotIfWinNotExist", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "Hotkey", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "Hotstring", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "InstallKeybdHook", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "InstallMouseHook", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "KeyHistory", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
-    Builtin { name: "ListHotkeys", kind: BuiltinKind::Command, min: 0, max: 255, variant: 1, handler: not_carried },
+    Builtin { name: "GetKeyState", kind: BuiltinKind::Command, min: 1, max: 2, variant: 1, handler: get_key_state },
+    Builtin { name: "HotIf", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, handler: hotif },
+    Builtin { name: "HotIfWinActive", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: hotif_window },
+    Builtin { name: "HotIfWinExist", kind: BuiltinKind::Command, min: 1, max: 1, variant: 1, handler: hotif_window },
+    Builtin { name: "HotIfWinNotActive", kind: BuiltinKind::Command, min: 1, max: 1, variant: 2, handler: hotif_window },
+    Builtin { name: "HotIfWinNotExist", kind: BuiltinKind::Command, min: 1, max: 1, variant: 3, handler: hotif_window },
+    Builtin { name: "Hotkey", kind: BuiltinKind::Command, min: 1, max: 3, variant: 1, handler: hotkey },
+    Builtin { name: "Hotstring", kind: BuiltinKind::Command, min: 1, max: 3, variant: 1, handler: hotstring },
+    Builtin { name: "InstallKeybdHook", kind: BuiltinKind::Command, min: 0, max: 1, variant: 0, handler: install_hook },
+    Builtin { name: "InstallMouseHook", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, handler: install_hook },
+    Builtin { name: "KeyHistory", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, handler: key_history },
+    Builtin { name: "ListHotkeys", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, handler: list_hotkeys },
     // -- the names of the script that this runtime cannot answer -----------------
-    Builtin { name: "CoordMode", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
+    Builtin { name: "CoordMode", kind: BuiltinKind::Command, min: 1, max: 2, variant: 5, handler: coord_mode },
     Builtin { name: "Critical", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "DateAdd", kind: BuiltinKind::Command, min: 0, max: 255, variant: 2, handler: not_carried },
-    Builtin { name: "DateDiff", kind: BuiltinKind::Command, min: 0, max: 255, variant: 2, handler: not_carried },
-    Builtin { name: "DirCopy", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "DirMove", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
+    Builtin { name: "DateAdd", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, handler: date_add },
+    Builtin { name: "DateDiff", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, handler: date_diff },
+    Builtin { name: "DirCopy", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_copy },
+    Builtin { name: "DirMove", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_move },
     Builtin { name: "DirSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
     Builtin { name: "Download", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "FileCopy", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
-    Builtin { name: "FileEncoding", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "FileGetAttrib", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "FileGetSize", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "FileGetTime", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "FileInstall", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "FileMove", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
-    Builtin { name: "FileOpen", kind: BuiltinKind::Function, min: 2, max: 3, variant: 4, handler: not_carried },
+    Builtin { name: "FileCopy", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, handler: file_copy },
+    Builtin { name: "FileEncoding", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_encoding },
+    Builtin { name: "FileGetAttrib", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_get_attrib },
+    Builtin { name: "FileGetSize", kind: BuiltinKind::Command, min: 1, max: 2, variant: 4, handler: file_get_size },
+    Builtin { name: "FileGetTime", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: file_get_time },
+    Builtin { name: "FileInstall", kind: BuiltinKind::Command, min: 2, max: 3, variant: 4, handler: file_install },
+    Builtin { name: "FileMove", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, handler: file_move },
+    Builtin { name: "FileOpen", kind: BuiltinKind::Function, min: 2, max: 3, variant: 4, handler: file_open },
     Builtin { name: "FileSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "FileSetAttrib", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "FileSetTime", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "FormatTime", kind: BuiltinKind::Function, min: 0, max: 2, variant: 2, handler: not_carried },
-    Builtin { name: "GetKeyName", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "GetKeySC", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "GetKeyVK", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
+    Builtin { name: "FileSetAttrib", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: file_set_attrib },
+    Builtin { name: "FileSetTime", kind: BuiltinKind::Command, min: 3, max: 3, variant: 4, handler: file_set_time },
+    Builtin { name: "FormatTime", kind: BuiltinKind::Function, min: 0, max: 2, variant: 2, handler: format_time },
+    Builtin { name: "GetKeyName", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_name },
+    Builtin { name: "GetKeySC", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_sc },
+    Builtin { name: "GetKeyVK", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: get_key_vk },
     Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "IniDelete", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
-    Builtin { name: "IniRead", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
-    Builtin { name: "IniWrite", kind: BuiltinKind::Command, min: 0, max: 255, variant: 4, handler: not_carried },
+    Builtin { name: "IniDelete", kind: BuiltinKind::Command, min: 1, max: 3, variant: 6, handler: ini_delete },
+    Builtin { name: "IniRead", kind: BuiltinKind::Command, min: 2, max: 4, variant: 4, handler: ini_read },
+    Builtin { name: "IniWrite", kind: BuiltinKind::Command, min: 3, max: 4, variant: 4, handler: ini_write },
     Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
     Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
     Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
@@ -419,14 +433,14 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "Pause", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
     Builtin { name: "Persistent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
     Builtin { name: "Reload", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
-    Builtin { name: "SendEvent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "SendInput", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "SendLevel", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "SendPlay", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "SendText", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "SetDefaultMouseSpeed", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "SetMouseDelay", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
-    Builtin { name: "SetStoreCapsLockMode", kind: BuiltinKind::Command, min: 0, max: 255, variant: 5, handler: not_carried },
+    Builtin { name: "SendEvent", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_event },
+    Builtin { name: "SendInput", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_input },
+    Builtin { name: "SendLevel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_level },
+    Builtin { name: "SendPlay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_play },
+    Builtin { name: "SendText", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: send_text },
+    Builtin { name: "SetDefaultMouseSpeed", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: set_default_mouse_speed },
+    Builtin { name: "SetMouseDelay", kind: BuiltinKind::Command, min: 1, max: 2, variant: 5, handler: set_mouse_delay },
+    Builtin { name: "SetStoreCapsLockMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, handler: set_store_caps_lock_mode },
     Builtin { name: "SetWorkingDir", kind: BuiltinKind::Command, min: 0, max: 255, variant: 6, handler: not_carried },
     Builtin { name: "StrTitle", kind: BuiltinKind::Function, min: 1, max: 1, variant: 6, handler: not_carried },
     Builtin { name: "Suspend", kind: BuiltinKind::Command, min: 0, max: 255, variant: 3, handler: not_carried },
@@ -687,17 +701,34 @@ fn env_set(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> R
 // -- the files of the disk ----------------------------------------------------------
 
 /// `FileExist`: whether a file is there.
+///
+/// v2 answers with the attributes of the file and not with a number: a
+/// file that is there is `A`, a folder is `D`, and a file that is not
+/// there is the empty text.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-28.
 fn file_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let path = text_of(values, 0);
     let there = rt.desktop().file_exists(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Int(there as i64))
+    if !there {
+        return Ok(Value::Text(String::new()));
+    }
+    let attributes = rt.desktop().file_attributes(&path).map_err(|reason| RuntimeError { message: reason, line })?;
+    Ok(Value::Text(attributes.join("")))
 }
 
 /// `DirExist`: whether a directory is there.
+///
+/// The answer of v2 is `D` when it is there, and the empty text when it
+/// is not.
 fn dir_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let path = text_of(values, 0);
     let there = rt.desktop().dir_exists(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Int(there as i64))
+    if !there {
+        return Ok(Value::Text(String::new()));
+    }
+    let attributes = rt.desktop().file_attributes(&path).map_err(|reason| RuntimeError { message: reason, line })?;
+    Ok(Value::Text(attributes.join("")))
 }
 
 /// `FileRead`: the lines of a file.
@@ -996,17 +1027,6 @@ fn send_mode(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) ->
             line,
         }),
     }
-}
-
-/// `SetKeyDelay`: the pause between the keys.
-///
-/// The gap between the keys is the one of the box: it was measured on
-/// 2026-10-25, and it is the gap that makes every key of a burst count.
-fn set_key_delay(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "the gap between the keys is the one of the box; it was measured, and it is the gap that makes every key of a burst count.".into(),
-        line,
-    })
 }
 
 /// `KeyWait`: wait for a key to be up, or to go down.

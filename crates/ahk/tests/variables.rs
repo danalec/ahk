@@ -105,14 +105,11 @@ fn a_script_that_asks_for_the_tick_count_is_told_a_number_of_milliseconds() {
 }
 
 #[test]
-fn a_script_that_asks_for_the_date_fails_with_the_reason_of_the_clock() {
+fn a_script_that_asks_for_the_date_is_told_the_date() {
     let report = run("MsgBox A_Now");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error.as_deref(),
-        Some("the clock of this runtime counts from an arbitrary origin and does not know the date.")
-    );
-    assert_eq!(report.error_line, Some(1));
+    assert!(report.ok, "{:?}", report.error);
+    // The date of v2 is a number of fourteen digits.
+    assert_eq!(report.output[0].len(), 14);
 }
 
 #[test]

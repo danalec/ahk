@@ -45,26 +45,12 @@ pub const THE_RUNTIME_OWNS: &[&str] = &[
 /// The version of the dialect this runtime carries.
 const AHK_VERSION: &str = "2.0.19";
 
-/// The reason the date and the time are not answered.
-///
-/// The clock of the runtime counts the milliseconds of a run, and it counts
-/// them from an arbitrary origin: it does not know the date.
-const NO_DATE: &str =
-    "the clock of this runtime counts from an arbitrary origin and does not know the date.";
-
 /// The reason the machine and the session are not answered.
 ///
 /// The desktop has questions for the screen and for the clipboard, but
 /// none for the user, for the folders or for the idle time, and the
 /// runtime carries nothing of its own about them.
 const NO_MACHINE: &str = "the machine and the session are not carried by this runtime.";
-
-/// The reason the hotkeys are not answered.
-///
-/// The hotkey system of v2 is a Windows keyboard hook. The box has a
-/// keyboard of its own, but nothing that watches it.
-const NO_HOTKEYS: &str =
-    "the hotkey system is not carried by this runtime: nothing watches the keyboard.";
 
 /// The reason a setting of the runtime is not answered.
 ///
@@ -87,10 +73,14 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
     let name = spelled.strip_prefix("a_").unwrap_or(spelled.as_str());
     match kind_of(name)? {
         Kind::Known => Some(Ok(known_value(name, rt))),
-        Kind::State => Some(Err(reason(NO_STATE))),
-        Kind::Date => Some(Err(reason(NO_DATE))),
+        Kind::State => Some(match crate::settings::value_of(name) {
+            Some(Ok(value)) => Ok(value),
+            Some(Err(why)) => Err(reason(&why)),
+            None => Err(reason(NO_STATE)),
+        }),
+        Kind::Date => Some(crate::date::variable_value(name, rt)),
         Kind::Machine => Some(Err(reason(NO_MACHINE))),
-        Kind::Hotkey => Some(Err(reason(NO_HOTKEYS))),
+        Kind::Hotkey => crate::hotkeys::variable(name, rt),
         Kind::Screen => Some(match rt.desktop().screen_size() {
             Ok((width, height)) => {
                 Ok(Value::Int(if name == "screenwidth" { width } else { height }))
@@ -131,13 +121,12 @@ fn kind_of(name: &str) -> Option<Kind> {
         | "issuspended" | "tickcount" | "endchar" | "space" | "tab" => Some(Kind::Known),
         // -- the settings the runtime keeps ---------------------------------------
         "allowmainwindow" | "coordmodecaret" | "coordmodemenu" | "coordmodemouse" | "coordmodepixel"
-        | "coordmodetooltip" | "dd" | "ddd" | "dddd" | "defaultmousespeed" | "fileencoding"
-        | "keydelay" | "keydelayplay" | "keyduration" | "keydurationplay" | "listlines"
-        | "menumaskkey" | "mousedelay" | "mousedelayplay" | "sendlevel" | "sendmode"
-        | "storecapslockmode" => Some(Kind::State),
+        | "coordmodetooltip" | "defaultmousespeed" | "fileencoding" | "keydelay" | "keydelayplay"
+        | "keyduration" | "keydurationplay" | "listlines" | "menumaskkey" | "mousedelay"
+        | "mousedelayplay" | "sendlevel" | "sendmode" | "storecapslockmode" => Some(Kind::State),
         // -- the date and the time ------------------------------------------------
-        "hour" | "mday" | "min" | "mm" | "mmm" | "mmmm" | "mon" | "msec" | "now" | "nowutc" | "sec"
-        | "wday" | "yday" | "year" | "yweek" | "yyyy" => Some(Kind::Date),
+        "dd" | "ddd" | "dddd" | "hour" | "mday" | "min" | "mm" | "mmm" | "mmmm" | "mon" | "msec"
+        | "now" | "nowutc" | "sec" | "wday" | "yday" | "year" | "yweek" | "yyyy" => Some(Kind::Date),
         // -- the machine and the session -------------------------------------------
         "ahkpath" | "appdata" | "appdatacommon" | "clipboard" | "computername" | "comspec"
         | "controldelay" | "cursor" | "desktop" | "desktopcommon" | "detecthiddentext"
@@ -210,6 +199,11 @@ mod tests {
         Clipboard, Desktop, Files, Hotkeys, Keyboard, Native, Pointer, Processes, Screen, Timers,
         Windows,
     };
+    /// The reason the date and the time are not answered.
+    ///
+    /// The clock of the runtime counts the milliseconds of a run, and it
+    /// counts them from an arbitrary origin: it does not know the date.
+    use crate::date::NO_DATE;
     use crate::runtime::Clock;
     use alloc::string::String;
     use core::time::Duration;
@@ -400,16 +394,27 @@ mod tests {
     }
 
     #[test]
-    fn a_script_that_asks_for_a_hotkey_is_told_that_nothing_watches_the_keyboard() {
-        assert_eq!(reason("a_thishotkey"), NO_HOTKEYS);
-        assert_eq!(reason("a_hotkeyinterval"), NO_HOTKEYS);
+    fn a_script_that_asks_for_a_hotkey_is_answered_by_the_hotkey_system() {
+        // The hotkeys are carried: the numbers are the ones of v2,
+        // measured on the binary on 2026-10-28.
+        assert_eq!(value("a_hotkeyinterval"), Value::Int(2000));
+        assert_eq!(value("a_hotkeymodifiertimeout"), Value::Int(50));
+        assert_eq!(value("a_maxhotkeysperinterval"), Value::Int(70));
+        // Until a hotkey fires, the two names are empty.
+        assert_eq!(value("a_thishotkey"), Value::Text(String::new()));
+        assert_eq!(value("a_priorkey"), Value::Text(String::new()));
     }
 
     #[test]
-    fn a_script_that_asks_for_a_setting_is_told_the_runtime_keeps_no_such_state() {
-        assert_eq!(reason("a_coordmodemouse"), NO_STATE);
-        assert_eq!(reason("a_sendmode"), NO_STATE);
-        assert_eq!(reason("a_keydelay"), NO_STATE);
+    fn a_script_that_asks_for_a_setting_is_answered_with_the_setting() {
+        // The settings of the script are answered: the module of the
+        // settings keeps them, and the three that are the coordinates of
+        // a window answer with the reason.
+        let _turn = crate::settings::Turn::take();
+        assert_eq!(value("a_coordmodemouse"), Value::Text("Client".to_string()));
+        assert_eq!(value("a_sendmode"), Value::Text("Input".to_string()));
+        assert_eq!(value("a_keydelay"), Value::Int(10));
+        assert!(reason("a_coordmodecaret").contains("window"));
     }
 
     #[test]

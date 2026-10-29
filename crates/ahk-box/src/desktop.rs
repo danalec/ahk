@@ -65,7 +65,7 @@ pub struct LabDesktop {
     notes: Vec<String>,
     /// The files that are open. A handle is the place of the file in
     /// this list, and a closed file is a hole in it.
-    files: Vec<Option<std::fs::File>>,
+    pub(crate) files: Vec<Option<std::fs::File>>,
     /// The libraries that are loaded. A library is loaded once and
     /// kept: a script that calls the same library twice does not load
     /// it twice.
@@ -297,7 +297,20 @@ impl ahk::desktop::Clipboard for LabDesktop {}
 
 impl ahk::desktop::Timers for LabDesktop {}
 
-impl ahk::desktop::Hotkeys for LabDesktop {}
+impl ahk::desktop::Hotkeys for LabDesktop {
+    fn register_hotkey(&mut self, name: &str) -> Result<String, String> {
+        crate::hotkeys::register(name)
+    }
+    fn unregister_hotkey(&mut self, name: &str) -> Result<String, String> {
+        crate::hotkeys::unregister(name)
+    }
+    fn hotkeys(&mut self) -> Result<Vec<String>, String> {
+        crate::hotkeys::list()
+    }
+    fn fired_hotkey(&mut self) -> Result<Option<String>, String> {
+        crate::hotkeys::fired()
+    }
+}
 
 impl ahk::desktop::Native for LabDesktop {
     fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
@@ -380,6 +393,12 @@ impl ahk::desktop::Keyboard for LabDesktop {
         self.keyboard().map_err(|error| error.to_string())?.up(code).map_err(|error| error.to_string())?;
         Ok(format!("{name} is up (code {code})"))
     }
+    fn key_is_down(&mut self, name: &str) -> Result<bool, String> {
+        crate::hotkeys::key_is_down(name)
+    }
+    fn keys_down(&mut self) -> Result<Vec<String>, String> {
+        crate::hotkeys::keys_down()
+    }
 }
 
 impl ahk::desktop::Pointer for LabDesktop {
@@ -452,6 +471,16 @@ impl ahk::desktop::Pointer for LabDesktop {
                 Ok(last)
             }
         }
+    }
+    fn set_mouse_speed(&mut self, speed: i64) -> Result<String, String> {
+        // The speed of v2 is the number of steps of a movement, and the
+        // pointer of the box moves in steps.
+        crate::pointer::set_speed(speed);
+        Ok(format!("the speed of the pointer is {speed}"))
+    }
+    fn set_mouse_delay(&mut self, delay: i64) -> Result<String, String> {
+        crate::pointer::set_delay(delay);
+        Ok(format!("the delay of the pointer is {delay}ms"))
     }
 }
 
@@ -623,127 +652,12 @@ impl ahk::desktop::Processes for LabDesktop {
     }
 }
 
-impl ahk::desktop::Files for LabDesktop {
-    fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
-        let mut options = std::fs::OpenOptions::new();
-        match mode {
-            "r" => {
-                options.read(true);
-            }
-            "w" => {
-                options.write(true).create(true).truncate(true);
-            }
-            "a" => {
-                options.append(true).create(true);
-            }
-            "rw" | "r+" => {
-                options.read(true).write(true).create(true);
-            }
-            other => return Err(format!("the mode {other:?} is not one this desktop knows")),
-        }
-        let file = options.open(path).map_err(|error| error.to_string())?;
-        self.files.push(Some(file));
-        Ok((self.files.len() - 1) as i64)
-    }
-
-    fn read_file_at(&mut self, handle: i64, pos: i64, count: i64) -> Result<Vec<u8>, String> {
-        use std::io::{Read, Seek, SeekFrom};
-        let file = self
-            .files
-            .get_mut(handle.max(0) as usize)
-            .and_then(|file| file.as_mut())
-            .ok_or_else(|| format!("the file {handle} is not open"))?;
-        file.seek(SeekFrom::Start(pos.max(0) as u64)).map_err(|error| error.to_string())?;
-        let mut buffer = vec![0u8; count.max(0) as usize];
-        let read = file.read(&mut buffer).map_err(|error| error.to_string())?;
-        buffer.truncate(read);
-        Ok(buffer)
-    }
-
-    fn write_file_at(&mut self, handle: i64, pos: i64, bytes: &[u8]) -> Result<usize, String> {
-        use std::io::{Seek, SeekFrom, Write};
-        let file = self
-            .files
-            .get_mut(handle.max(0) as usize)
-            .and_then(|file| file.as_mut())
-            .ok_or_else(|| format!("the file {handle} is not open"))?;
-        file.seek(SeekFrom::Start(pos.max(0) as u64)).map_err(|error| error.to_string())?;
-        file.write_all(bytes).map_err(|error| error.to_string())?;
-        Ok(bytes.len())
-    }
-
-    fn file_size(&mut self, handle: i64) -> Result<i64, String> {
-        let file = self
-            .files
-            .get(handle.max(0) as usize)
-            .and_then(|file| file.as_ref())
-            .ok_or_else(|| format!("the file {handle} is not open"))?;
-        let length = file.metadata().map_err(|error| error.to_string())?.len();
-        Ok(length as i64)
-    }
-
-    fn close_file(&mut self, handle: i64) -> Result<(), String> {
-        let slot = self
-            .files
-            .get_mut(handle.max(0) as usize)
-            .ok_or_else(|| format!("the file {handle} is not open"))?;
-        *slot = None;
-        Ok(())
-    }
-
-    fn dir_delete(&mut self, path: &str) -> Result<String, String> {
-        std::fs::remove_dir_all(path).map_err(|error| error.to_string())?;
-        Ok(format!("deleted the directory {path}"))
-    }
-
-    fn working_directory(&mut self) -> Result<String, String> {
-        std::env::current_dir()
-            .map(|path| path.to_string_lossy().to_string())
-            .map_err(|error| format!("the working directory cannot be read: {error}"))
-    }
-    fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
-        let mut files: Vec<String> = Vec::new();
-        walk_the_folder(Path::new(folder), pattern, &mode.to_ascii_uppercase(), &mut files)?;
-        // The order of a directory is not the order of its name, and a
-        // script that loops over the files wants the same order every
-        // time.
-        files.sort();
-        Ok(files)
-    }
-    fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
-        let text = std::fs::read_to_string(path)
-            .map_err(|error| format!("the file {path:?} cannot be read: {error}"))?;
-        let mut lines: Vec<String> = text.lines().map(|line| line.to_string()).collect();
-        // A file that ends with a newline has no last empty line: the
-        // newline is the end of the last line, not a line of its own.
-        if text.ends_with('\n') {
-            lines.pop();
-        }
-        Ok(lines)
-    }
-    fn write_file(&mut self, path: &str, text: &str) -> Result<String, String> {
-        std::fs::write(path, text)
-            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
-        Ok(text.to_string())
-    }
-    fn append_file(&mut self, path: &str, text: &str) -> Result<String, String> {
-        use std::io::Write;
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
-        file.write_all(text.as_bytes())
-            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
-        Ok(text.to_string())
-    }
-}
 
 /// The files of a folder that match a pattern.
 ///
 /// The mode is v2's: "R" walks into the subfolders as well, and "D"
 /// gives the directories instead of the files.
-fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &mut Vec<String>) -> Result<(), String> {
+pub(crate) fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &mut Vec<String>) -> Result<(), String> {
     let entries = std::fs::read_dir(folder)
         .map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?;
     for entry in entries {
@@ -915,7 +829,7 @@ pub fn modifier_names() -> Vec<String> {
 /// The pattern of a `Loop Files` is a glob: `*` is any number of
 /// characters and `?` is one. The matcher is the same in every
 /// language, so it is written out here.
-fn name_matches(pattern: &str, name: &str) -> bool {
+pub(crate) fn name_matches(pattern: &str, name: &str) -> bool {
     let pattern: Vec<char> = pattern.chars().collect();
     let name: Vec<char> = name.chars().collect();
     let mut table = vec![vec![false; name.len() + 1]; pattern.len() + 1];

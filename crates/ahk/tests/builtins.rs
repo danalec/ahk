@@ -37,6 +37,9 @@ impl Files for Fake {
     fn dir_exists(&mut self, path: &str) -> Result<bool, String> {
         Ok(path == "/tmp")
     }
+    fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
+        Ok(if path.ends_with(".txt") { vec!["A".to_string()] } else { vec!["D".to_string()] })
+    }
     fn read_file(&mut self, _path: &str) -> Result<Vec<String>, String> {
         Ok(vec!["one".to_string(), "two".to_string()])
     }
@@ -213,18 +216,27 @@ fn a_name_of_windows_fails_with_the_reason() {
 }
 
 #[test]
-fn a_hotkey_fails_with_the_reason() {
+fn a_hotstring_that_v2_would_refuse_fails_with_the_reason_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-28: the name of a
+    // hotstring is written between two of the same character, and the
+    // name is checked before the action.
     let report = run("Hotstring(\"a\", \"b\")");
-    assert_eq!(failure_of(&report), "this runtime has no hotkeys yet.");
+    assert_eq!(failure_of(&report), "Parameter #1 of Hotstring is invalid.");
 }
 
 #[test]
-fn a_name_of_the_script_that_the_runtime_cannot_answer_fails_with_the_reason() {
+fn the_date_is_answered_the_way_v2_answers_it() {
+    // The date of v2 is a number of fourteen digits, and the unit comes
+    // last: DateAdd("20260101", 1, "d") is the second of January.
+    let report = run("a := DateAdd(\"20260101\", 1, \"d\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("20260102000000".into()));
+}
+
+#[test]
+fn a_unit_that_v2_does_not_have_fails_with_the_reason_of_v2() {
     let report = run("DateAdd(\"20260101\", 1, \"days\")");
-    assert_eq!(
-        failure_of(&report),
-        "the clock of this runtime counts from an arbitrary origin, and it does not know the date."
-    );
+    assert_eq!(failure_of(&report), "Parameter #3 of DateAdd is invalid.");
 }
 
 #[test]
@@ -244,10 +256,11 @@ fn the_files_are_asked_of_the_desktop() {
         "\nd := DirExist(\"/nowhere\")",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(int_of(&report, "a"), 1);
-    assert_eq!(int_of(&report, "b"), 0);
-    assert_eq!(int_of(&report, "c"), 1);
-    assert_eq!(int_of(&report, "d"), 0);
+    // v2 answers with the attributes and not with a number.
+    assert_eq!(value_of(&report, "a"), Value::Text("A".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("D".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("".into()));
 }
 
 #[test]
