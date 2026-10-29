@@ -33,6 +33,8 @@
 use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
+use alloc::boxed::Box;
+use alloc::vec;
 use alloc::vec::Vec;
 use core::time::Duration;
 
@@ -275,10 +277,23 @@ pub(crate) const METHOD_CLASS: &str = "method class";
 /// The name of the method a reference points at.
 pub(crate) const METHOD_NAME: &str = "method name";
 
+/// The name under which the runtime keeps a closure.
+///
+/// The name of a closure of v2 is empty, and the name the runtime keeps it
+/// under is not one a script can reach.
+pub(crate) const CLOSURE: &str = "function closure";
+
 /// Where a variable lives.
 ///
 /// The scopes of the script are a stack: the global one is under the
 /// ones of the functions. A reference says which one it points at.
+/// A scope of the runtime: the names of a function.
+///
+/// The table is shared: a function that is written inside another one
+/// closes over the scope of the one around it, and the write of the
+/// closure is seen by the scope it closes over.
+type ScopeTable = Rc<RefCell<BTreeMap<String, Value>>>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Scope {
     /// The global scope of the script.
@@ -632,6 +647,11 @@ struct Function {
     body: Vec<Node>,
     /// The declarations of the function.
     declarations: Declarations,
+    /// The scopes the function closes over.
+    ///
+    /// A function that is written inside another one sees the variables of
+    /// the one around it, and it writes them there too.
+    closure: Vec<ScopeTable>,
 }
 
 /// A timer the script set.
@@ -676,7 +696,7 @@ pub struct Runtime<'a> {
     /// it: a script that changes the working directory does not change the
     /// one where the run began.
     initial_working_dir: Option<String>,
-    scopes: Vec<BTreeMap<String, Value>>,
+    scopes: Vec<ScopeTable>,
     /// The declarations of the functions that run.
     ///
     /// The frame of a function says where its names live: the ones it
@@ -695,6 +715,11 @@ pub struct Runtime<'a> {
     /// one.
     frames: Vec<String>,
     functions: BTreeMap<String, Function>,
+    /// How many closures the runtime made.
+    ///
+    /// The name of a closure is empty, and the runtime keeps every one of
+    /// them under a name of its own.
+    closures: usize,
     classes: BTreeMap<String, Class>,
     /// The class values the runtime made.
     ///
@@ -788,6 +813,7 @@ impl<'a> Runtime<'a> {
             current_classes: Vec::new(),
             frames: Vec::new(),
             functions: BTreeMap::new(),
+            closures: 0,
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
             steps: Vec::new(),
@@ -833,6 +859,7 @@ impl<'a> Runtime<'a> {
             current_classes: Vec::new(),
             frames: Vec::new(),
             functions: BTreeMap::new(),
+            closures: 0,
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
             steps: Vec::new(),
@@ -1020,6 +1047,7 @@ impl<'a> Runtime<'a> {
                             parameters: parameters.clone(),
                             body: body.clone(),
                             declarations: declarations.clone(),
+                            closure: Vec::new(),
                         },
                     );
                 }
@@ -1042,6 +1070,51 @@ impl<'a> Runtime<'a> {
                     }
                     self.collect_functions(otherwise);
                     self.collect_functions(finally);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// The functions that are written inside a function.
+    ///
+    /// v2 knows them when the function is read: a function that is written
+    /// inside another one is there before the statement that defines it
+    /// runs, and it closes over the scope of the function that has it.
+    fn collect_the_nested_functions(&mut self, statements: &[Node]) {
+        for statement in statements {
+            match statement {
+                Node::FunctionDef { name, parameters, body, declarations, .. } => {
+                    let function = Function {
+                        name: name.clone(),
+                        parameters: parameters.clone(),
+                        body: body.clone(),
+                        declarations: declarations.clone(),
+                        closure: self.scopes.clone(),
+                    };
+                    let closure = self.make_a_closure(function.clone());
+                    let value = closure_value(&closure, &function);
+                    self.assign_in_the_scope(name, value);
+                }
+                Node::If { branches, otherwise, .. } => {
+                    for branch in branches {
+                        self.collect_the_nested_functions(&branch.body);
+                    }
+                    self.collect_the_nested_functions(otherwise);
+                }
+                Node::Switch { cases, .. } => {
+                    for case in cases {
+                        self.collect_the_nested_functions(&case.body);
+                    }
+                }
+                Node::While { body, .. } | Node::Loop { body, .. } => self.collect_the_nested_functions(body),
+                Node::Try { body, catches, otherwise, finally, .. } => {
+                    self.collect_the_nested_functions(body);
+                    for catch in catches {
+                        self.collect_the_nested_functions(&catch.body);
+                    }
+                    self.collect_the_nested_functions(otherwise);
+                    self.collect_the_nested_functions(finally);
                 }
                 _ => {}
             }
@@ -1328,28 +1401,8 @@ impl<'a> Runtime<'a> {
         match statement {
             Node::Assign { name, op, value, line } => {
                 let value = self.evaluate(value)?;
-                // A built-in variable that is not a variable of the script
-                // is written where it lives, and not in the table of the
-                // script: the clipboard is the one.
-                match crate::variables::write(name, *op, &value, *line, self) {
-                    Some(written) => {
-                        // The reason of a write carries no line: the
-                        // statement that asked is the one that carries it.
-                        let stored = written.map_err(|mut error| {
-                            if error.line == 0 {
-                                error.line = *line;
-                            }
-                            RuntimeFailure::Error(error)
-                        })?;
-                        detail = format!("{name} = {}", stored.to_text());
-                    }
-                    None => {
-                        let current = self.lookup(name);
-                        let stored = self.apply_assign(*op, name, current, value, *line)?;
-                        self.assign(name, stored);
-                        detail = format!("{name} = {}", self.lookup(name).map(|v| v.to_text()).unwrap_or_default());
-                    }
-                }
+                let stored = self.write_a_variable(name, *op, value, *line)?;
+                detail = format!("{name} = {}", stored.to_text());
             }
             Node::ClassDef { name, .. } => {
                 detail = format!("the class {name} is defined");
@@ -1360,6 +1413,9 @@ impl<'a> Runtime<'a> {
             }
             Node::ObjectLiteral { .. } => {
                 // The literal of an object is an expression too.
+            }
+            Node::Lambda { .. } => {
+                // The literal of a function is an expression too.
             }
             Node::For { variables, source, body, line } => {
                 self.for_loop(variables, source, body, *line)?;
@@ -1385,11 +1441,8 @@ impl<'a> Runtime<'a> {
                 detail = value.to_text();
             }
             Node::AssignProperty { target, name, op, value, line } => {
-                let target_value = self.evaluate(target)?;
                 let value = self.evaluate(value)?;
-                let current = self.read_property(&target_value, name, *line).ok();
-                let stored = self.apply_assign(*op, name, current, value, *line)?;
-                self.write_property(&target_value, name, stored.clone(), *line)?;
+                let stored = self.write_a_property(target, name, *op, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
             }
             Node::AssignIndex { target, index, op, value, line } => {
@@ -1836,9 +1889,9 @@ impl<'a> Runtime<'a> {
     fn restore_variable(&mut self, name: &str, value: Option<Value>) {
         match value {
             Some(value) => self.assign(name, value),
-            None => match self.scopes.last_mut() {
+            None => match self.scopes.last() {
                 Some(scope) => {
-                    scope.remove(the_key_of(name).as_str());
+                    scope.borrow_mut().remove(the_key_of(name).as_str());
                 }
                 None => {
                     self.variables.remove(the_key_of(name).as_str());
@@ -2027,7 +2080,7 @@ impl<'a> Runtime<'a> {
     fn lookup_variable(&self, name: &str) -> Option<Value> {
         let name = the_key_of(name);
         for scope in self.scopes.iter().rev() {
-            match scope.get(&name) {
+            match scope.borrow().get(&name) {
                 Some(Value::Reference(reference)) if reference.alias => {
                     return self.read_reference(reference);
                 }
@@ -2042,17 +2095,16 @@ impl<'a> Runtime<'a> {
     ///
     /// A parameter written `&x` in the definition of a function is an
     /// alias of the variable of the caller.
-    fn alias_of(&self, name: &str) -> Option<&Reference> {
+    fn alias_of(&self, name: &str) -> Option<Reference> {
         let name = the_key_of(name);
         for scope in self.scopes.iter().rev() {
-            if let Some(value) = scope.get(&name) {
-                if let Value::Reference(reference) = value {
-                    if reference.alias {
-                        return Some(reference);
-                    }
+            let Some(found) = scope.borrow().get(&name).cloned() else { continue };
+            if let Value::Reference(reference) = found {
+                if reference.alias {
+                    return Some(reference);
                 }
-                return None;
             }
+            return None;
         }
         None
     }
@@ -2065,7 +2117,7 @@ impl<'a> Runtime<'a> {
         let name = the_key_of(&reference.name);
         match reference.scope {
             Scope::Global => self.variables.get(&name).cloned(),
-            Scope::Local(depth) => self.scopes.get(depth)?.get(&name).cloned(),
+            Scope::Local(depth) => self.scopes.get(depth)?.borrow().get(&name).cloned(),
         }
     }
 
@@ -2081,8 +2133,8 @@ impl<'a> Runtime<'a> {
                 self.variables.insert(name, written);
             }
             Scope::Local(depth) => {
-                if let Some(scope) = self.scopes.get_mut(depth) {
-                    scope.insert(name, written);
+                if let Some(scope) = self.scopes.get(depth) {
+                    scope.borrow_mut().insert(name, written);
                 }
             }
         }
@@ -2095,7 +2147,7 @@ impl<'a> Runtime<'a> {
     /// A parameter that is an alias of a variable of the caller writes
     /// there: the alias and the variable are the same thing.
     fn assign(&mut self, name: &str, value: Value) {
-        if let Some(reference) = self.alias_of(name).cloned() {
+        if let Some(reference) = self.alias_of(name) {
             self.write_reference(&Value::Reference(reference), value);
             return;
         }
@@ -2108,9 +2160,18 @@ impl<'a> Runtime<'a> {
             self.variables.insert(name, value);
             return;
         }
-        match self.scopes.last_mut() {
+        // A name that a scope around the call has is shared with it: v2
+        // writes there, and not in the scope of the function that closes
+        // over it.
+        for scope in self.scopes.iter().rev().skip(1) {
+            if scope.borrow().contains_key(&name) {
+                scope.borrow_mut().insert(name, value);
+                return;
+            }
+        }
+        match self.scopes.last() {
             Some(scope) => {
-                scope.insert(name, value);
+                scope.borrow_mut().insert(name, value);
             }
             None => {
                 self.variables.insert(name, value);
@@ -2310,7 +2371,7 @@ impl<'a> Runtime<'a> {
     /// The value the method that runs was called on.
     fn the_this(&self) -> Value {
         for scope in self.scopes.iter().rev() {
-            if let Some(value) = scope.get("this") {
+            if let Some(value) = scope.borrow().get("this") {
                 return value.clone();
             }
         }
@@ -2595,7 +2656,10 @@ impl<'a> Runtime<'a> {
         }
         let frame = self.the_name_of_the_method(class, method);
         self.enter_call(line)?;
-        self.scopes.push(scope);
+        self.scopes.push(Rc::new(RefCell::new(scope)));
+        // The functions that are written inside the method are there
+        // before the body runs.
+        self.collect_the_nested_functions(&method.body);
         self.declarations.push(method.declarations.clone());
         self.current_classes.push(class.to_lowercase());
         self.frames.push(frame);
@@ -3568,13 +3632,25 @@ impl<'a> Runtime<'a> {
             scope.insert(the_key_of(&function.parameters[index].name), array);
         }
         self.enter_call(line)?;
-        self.scopes.push(scope);
+        // A function that was written inside another one closes over the
+        // scope of the one around it: the scopes go under the scope of the
+        // call.
+        for closed in &function.closure {
+            self.scopes.push(closed.clone());
+        }
+        self.scopes.push(Rc::new(RefCell::new(scope)));
+        // The functions that are written inside this one are there before
+        // the body runs.
+        self.collect_the_nested_functions(&function.body);
         self.declarations.push(function.declarations.clone());
         self.frames.push(function.name.clone());
         let outcome = self.run_block(&function.body);
         self.frames.pop();
         self.declarations.pop();
         self.scopes.pop();
+        for _ in &function.closure {
+            self.scopes.pop();
+        }
         self.leave_call();
         match outcome {
             Ok(()) => Ok(Value::Text(String::new())),
@@ -3583,6 +3659,83 @@ impl<'a> Runtime<'a> {
             }
             Err(other) => Err(other),
         }
+    }
+
+    /// Keep a closure under a name of its own, and answer with the name.
+    ///
+    /// The name of a closure of v2 is empty, and the runtime keeps it under
+    /// a name that a script cannot reach.
+    fn make_a_closure(&mut self, function: Function) -> String {
+        self.closures += 1;
+        let name = format!("\u{1}closure {}", self.closures);
+        self.functions.insert(name.to_lowercase(), function);
+        name
+    }
+
+    /// Set a variable in the innermost scope, and not in the scope around
+    /// it.
+    ///
+    /// The name of a function that is written inside another one is local
+    /// to the function that has it.
+    fn assign_in_the_scope(&mut self, name: &str, value: Value) {
+        let name = the_key_of(name);
+        match self.scopes.last() {
+            Some(scope) => {
+                scope.borrow_mut().insert(name, value);
+            }
+            None => {
+                self.variables.insert(name, value);
+            }
+        }
+    }
+
+    /// The write of a variable, and the value that was written.
+    ///
+    /// A built-in variable that is not a variable of the script is written
+    /// where it lives, and not in the table of the script: the clipboard is
+    /// the one.
+    fn write_a_variable(
+        &mut self,
+        name: &str,
+        op: AssignOp,
+        value: Value,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        match crate::variables::write(name, op, &value, line, self) {
+            Some(written) => {
+                // The reason of a write carries no line: the statement
+                // that asked is the one that carries it.
+                let stored = written.map_err(|mut error| {
+                    if error.line == 0 {
+                        error.line = line;
+                    }
+                    RuntimeFailure::Error(error)
+                })?;
+                Ok(stored)
+            }
+            None => {
+                let current = self.lookup(name);
+                let stored = self.apply_assign(op, name, current, value, line)?;
+                self.assign(name, stored.clone());
+                Ok(stored)
+            }
+        }
+    }
+
+    /// The write of a property, and the value that was written.
+    fn write_a_property(
+        &mut self,
+        target: &Node,
+        name: &str,
+        op: AssignOp,
+        value: Value,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let target_value = self.evaluate(target)?;
+        let current = self.read_property(&target_value, name, line).ok();
+        let stored = self.apply_assign(op, name, current, value, line)?;
+        self.write_property(&target_value, name, stored.clone(), line)?;
+        Ok(stored)
     }
 
     /// The recursion is a rail: a script that calls itself for ever stops
@@ -3635,6 +3788,11 @@ impl<'a> Runtime<'a> {
         line: u32,
         route: Route,
     ) -> Result<Value, RuntimeFailure> {
+        // A function that is written inside another one is a variable of
+        // the scope around it, and the call finds it there.
+        if let Some(function) = self.function_in_a_variable(name) {
+            return self.call_function_with(&function, values, line, route);
+        }
         if let Some(function) = self.functions.get(&name.to_lowercase()).cloned() {
             return self.call_function_with(&function, values, line, route);
         }
@@ -3648,6 +3806,10 @@ impl<'a> Runtime<'a> {
         let object = object.borrow();
         if object.class != "func" {
             return None;
+        }
+        // A closure is kept under a name of its own.
+        if let Some(closure) = object.properties.get(CLOSURE) {
+            return self.functions.get(&closure.to_text().to_lowercase()).cloned();
         }
         let function_name = object.properties.get("name")?.to_text().to_lowercase();
         self.functions.get(&function_name).cloned()
@@ -4030,6 +4192,22 @@ impl<'a> Runtime<'a> {
 
     fn evaluate(&mut self, node: &Node) -> Result<Value, RuntimeFailure> {
         match node {
+            Node::Assign { name, op, value, line } => {
+                // The assignment of v2 is an expression, and the value of
+                // it is the value that was written.
+                let value = self.evaluate(value)?;
+                self.write_a_variable(name, *op, value, *line)
+            }
+            Node::AssignProperty { target, name, op, value, line } => {
+                let value = self.evaluate(value)?;
+                self.write_a_property(target, name, *op, value, *line)
+            }
+            Node::AssignIndex { target, index, op, value, line } => {
+                let target_value = self.evaluate(target)?;
+                let key = self.evaluate(index)?;
+                let value = self.evaluate(value)?;
+                self.set_item(&target_value, &key, *op, value, *line)
+            }
             Node::Literal { value, line } => Ok(match value {
                 // The shape of the literal is the shape of the value: the
                 // whole number of v2 is a whole number, and a number with
@@ -4053,6 +4231,20 @@ impl<'a> Runtime<'a> {
                     }
                 }
                 Ok(object)
+            }
+            Node::Lambda { parameters, body, line } => {
+                // The arrow function of v2: a function that closes over the
+                // scope where it was written, and whose body is an
+                // expression.
+                let function = Function {
+                    name: String::new(),
+                    parameters: parameters.clone(),
+                    body: vec![Node::Return { value: Some(Box::new((**body).clone())), line: *line }],
+                    declarations: Declarations::default(),
+                    closure: self.scopes.clone(),
+                };
+                let name = self.make_a_closure(function.clone());
+                Ok(closure_value(&name, &function))
             }
             Node::ArrayLiteral { items, line } => {
                 // The literal is the array the `Array` built-in makes:
@@ -4474,9 +4666,7 @@ impl<'a> Runtime<'a> {
             | Node::FunctionDef { .. }
             | Node::Directive { .. }
             | Node::ClassDef { .. }
-            | Node::AssignProperty { .. }
-            | Node::AssignIndex { .. }
-            | Node::Assign { .. } => Err(RuntimeFailure::Error(RuntimeError {
+            => Err(RuntimeFailure::Error(RuntimeError {
                 message: "this is a statement, not an expression".into(),
                 line: node.line(),
             })),
@@ -4874,6 +5064,18 @@ fn func_value(name: &str, function: &Function) -> Value {
     Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
 }
 
+/// The value of a closure: an object of the class `Func`.
+///
+/// The name of a closure of v2 is empty, and the name under which the
+/// runtime keeps it is in the object and not in the name.
+fn closure_value(name: &str, function: &Function) -> Value {
+    let value = func_value("", function);
+    if let Value::Object(object) = &value {
+        object.borrow_mut().properties.insert(CLOSURE.to_string(), Value::Text(name.to_string()));
+    }
+    value
+}
+
 /// The value of a built-in: an object of the class `Func`.
 ///
 /// A built-in is a function of the runtime, and it is a value like any
@@ -5046,6 +5248,7 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Loop { .. } => "Loop",
         Node::ArrayLiteral { .. } => "ArrayLiteral",
         Node::ObjectLiteral { .. } => "ObjectLiteral",
+        Node::Lambda { .. } => "Lambda",
         Node::For { .. } => "For",
         Node::Directive { name, .. } => name,
         Node::Break { .. } => "Break",

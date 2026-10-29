@@ -99,8 +99,8 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   `Unary`, `Binary`, `Ternary`, `Cast`, `Assign`, `Index`, `AssignIndex`,
   `Call`, `If`, `Switch`, `While`, `Loop`, `For`, `Directive`, `Break`,
   `Continue`, `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`,
-  `Property`, `AssignProperty`, `ArrayLiteral` and `ObjectLiteral`. Every
-  variant carries its line.
+  `Property`, `AssignProperty`, `ArrayLiteral`, `ObjectLiteral` and
+  `Lambda`. Every variant carries its line.
 
   The statements that v2 spells as commands -- `Send`, `Click`, `Sleep`,
   `Run`, `MsgBox` -- are not variants of the tree: they are names of the
@@ -121,6 +121,9 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   a property is a name of the script, and the names of the properties do not
   know their case. A comma at the end of the list of an array, of an object
   and of the arguments of a call is allowed.
+- `Lambda { parameters, body, line }` -- the literal of a function:
+  `(a, b) => a + b`. The body is an expression and not a block of
+  statements, and the function closes over the scope where it was written.
 - `For { variables, source, body, line }` -- the loop that walks what an
   object enumerates. A name the script left out is an empty string in
   the list, so `for , value in map` is two names and the first one is
@@ -198,6 +201,16 @@ arguments -- `Name(a, rest*)` -- and it may be written by reference --
 reference: `Name(&x)`. A parameter written that way is an alias of the
 variable of the caller.
 
+The arrow function of v2 is `(a, b) => a + b`: the body is an expression and
+not a block of statements, and the parenthesis may be left out when there is
+one parameter -- `a => a + 1`. The token that follows the closing parenthesis
+is what tells a list of parameters from the parenthesis of an expression.
+
+The assignment of v2 is an expression: `(x := 1)` is a value, and the value of
+it is the value that was written. The equal sign of v1 is not an assignment:
+`x = 1` does not load, and the parser says "Syntax error. Did you mean to use
+\":=\"?".
+
 ### The runtime (`runtime.rs`)
 
 The interpreter and everything it reports:
@@ -226,6 +239,18 @@ The interpreter and everything it reports:
 | `Timeout { seconds }` | the script ran for longer than the caller allowed |
 | `WindowAnswer` | `Active`, `NotActive`, `Unknown(String)` -- and the third case is the point |
 | `op_name(&Node) -> &'static str` | the name of a statement, for the report |
+
+The scope of the runtime is shared: a function that is written inside another
+one closes over the scope of the one around it, and the write of the closure
+is seen by the scope it closes over. A name that the scope around the call
+already has is written there -- v2 assumes it is local unless the scope around
+it has the name -- and the name of a function that is written inside another
+one is local to the function that has it. The functions that are written
+inside a function are collected when the function around them is called, and
+not when the statement that defines them runs: a function that is called
+before it is defined finds it. The name of a closure of v2 is empty, and the
+runtime keeps every one of them under a name of its own, that a script cannot
+reach.
 
 The traits the runtime is handed:
 

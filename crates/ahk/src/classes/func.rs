@@ -7,7 +7,7 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use crate::runtime::{Route, Runtime, RuntimeError, RuntimeFailure, Value, METHOD_CLASS, METHOD_NAME};
+use crate::runtime::{CLOSURE, Route, Runtime, RuntimeError, RuntimeFailure, Value, METHOD_CLASS, METHOD_NAME};
 
 /// The properties a function owns.
 ///
@@ -88,12 +88,18 @@ fn call_the_function(
     route: Route,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let Value::Object(object) = this else { return None };
-    let name = object
-        .borrow()
-        .properties
-        .get("name")
-        .map(|value| value.to_text())
-        .unwrap_or_default();
+    // A closure is called by the name the runtime keeps it under, and not
+    // by the name the script sees: the name of a closure of v2 is empty.
+    let kept = object.borrow().properties.get(CLOSURE).map(|value| value.to_text());
+    let name = match kept {
+        Some(kept) => kept,
+        None => object
+            .borrow()
+            .properties
+            .get("name")
+            .map(|value| value.to_text())
+            .unwrap_or_default(),
+    };
     let reference = {
         let borrowed = object.borrow();
         match (

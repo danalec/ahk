@@ -606,17 +606,20 @@ impl Parser {
         // value and not a name.
         if self.at_member_dot() || self.at_member_bracket() {
             let target = Node::Var { name: name_token.value.clone(), line: name_token.line };
-            let target = self.parse_suffixes(target)?;
+            let target = self.parse_suffixes(target, false)?;
             let operator = self.peek().clone();
+            if operator.kind == TokenKind::Op && operator.value == "=" {
+                return Err(self.the_equal_sign_is_not_an_assignment(name_token.line));
+            }
             let is_assignment = operator.kind == TokenKind::Op
                 && matches!(
                     operator.value.as_str(),
-                    "=" | ":=" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<="
-                        | ">>=" | ">>>="
+                    ":=" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<=" | ">>="
+                        | ">>>="
                 );
             if is_assignment {
                 let op = match operator.value.as_str() {
-                    "=" | ":=" => AssignOp::Set,
+                    ":=" => AssignOp::Set,
                     "+=" => AssignOp::Add,
                     "-=" => AssignOp::Subtract,
                     "*=" => AssignOp::Multiply,
@@ -673,10 +676,12 @@ impl Parser {
         // statement: `Send "hello"`. The parentheses may be left out, and
         // the rest of the line is the list of the parameters.
         let operator = self.peek().clone();
+        if operator.kind == TokenKind::Op && operator.value == "=" {
+            return Err(self.the_equal_sign_is_not_an_assignment(name_token.line));
+        }
         if !matches!(
             operator.value.as_str(),
-            "=" | ":=" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<=" | ">>="
-                | ">>>="
+            ":=" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>="
         ) {
             return Ok(vec![self.parse_call_statement(name_token)?]);
         }
@@ -770,7 +775,7 @@ impl Parser {
     fn parse_assignment(&mut self, name_token: Token) -> Result<Node, SyntaxError> {
         let operator = self.peek().clone();
         let op = match operator.value.as_str() {
-            "=" | ":=" => AssignOp::Set,
+            ":=" => AssignOp::Set,
             "+=" => AssignOp::Add,
             "-=" => AssignOp::Subtract,
             "*=" => AssignOp::Multiply,
@@ -795,6 +800,59 @@ impl Parser {
         let value = self.parse_expression()?;
         self.end_of_statement()?;
         Ok(Node::Assign { name: name_token.value, op, value: Box::new(value), line: name_token.line })
+    }
+
+    /// The equal sign of v1 is not the equal sign of v2.
+    ///
+    /// The assignment of v2 is `:=`, and v2 says so when the script writes
+    /// the equal sign of v1.
+    fn the_equal_sign_is_not_an_assignment(&self, line: u32) -> SyntaxError {
+        let start = self.position - 1;
+        let mut end = start;
+        while end < self.tokens.len() && self.tokens[end].kind != TokenKind::Newline {
+            end += 1;
+        }
+        SyntaxError {
+            message: format!(
+                "Syntax error. Did you mean to use \":=\"?\n  Specifically: {}",
+                the_source_of_the_tokens(self, start, end)
+            ),
+            line,
+            column: self.tokens.get(start).map(|token| token.column).unwrap_or(1),
+        }
+    }
+
+    /// Whether the parenthesis that is open is the list of the parameters
+    /// of an arrow function.
+    ///
+    /// The arrow function of v2 is `(a, b) => a + b`, and the parenthesis
+    /// of an expression is `(a + b)`. The token that follows the closing
+    /// parenthesis says which one it is.
+    fn at_the_parameters_of_an_arrow_function(&self) -> bool {
+        let mut depth = 0usize;
+        let mut index = self.position;
+        while index < self.tokens.len() {
+            let token = &self.tokens[index];
+            if token.kind == TokenKind::Op {
+                match token.value.as_str() {
+                    "(" | "[" | "{" => depth += 1,
+                    ")" | "]" | "}" => {
+                        if depth == 0 {
+                            // The parenthesis that is open ends here.
+                            return self
+                                .tokens
+                                .get(index + 1)
+                                .map(|next| next.kind == TokenKind::Op && next.value == "=>")
+                                .unwrap_or(false);
+                        }
+                        depth -= 1;
+                    }
+                    _ => {}
+                }
+            }
+            index += 1;
+        }
+        false
     }
 
     /// The arguments of a call, between the parentheses.
@@ -1634,6 +1692,13 @@ impl Parser {
                     return self.parse_call(token.value.to_lowercase(), token.line);
                 }
                 let name = token.value;
+                // The arrow function of v2 with one parameter: `a => a + 1`.
+                if self.at_op(&["=>"]) {
+                    self.position += 1;
+                    let body = self.parse_expression()?;
+                    let parameters = vec![Parameter { name: name.clone(), default: None, variadic: false, by_ref: false }];
+                    return Ok(Node::Lambda { parameters, body: Box::new(body), line: token.line });
+                }
                 // `x++` and `x--`: the operator comes after the name.
                 if self.at_op(&["++", "--"]) {
                     let operator = self.next();
@@ -1646,6 +1711,16 @@ impl Parser {
                     return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
                 }
                 Node::Var { name, line: token.line }
+            }
+            TokenKind::Op if token.value == "(" && self.at_the_parameters_of_an_arrow_function() => {
+                // The arrow function of v2: `(a, b) => a + b`. The body is
+                // an expression, and the function closes over the scope
+                // where it was written.
+                let parameters = self.parse_parameters()?;
+                self.expect_op(")")?;
+                self.expect_op("=>")?;
+                let body = self.parse_expression()?;
+                Node::Lambda { parameters, body: Box::new(body), line: token.line }
             }
             TokenKind::Op if token.value == "(" => {
                 let node = self.parse_expression()?;
@@ -1719,11 +1794,14 @@ impl Parser {
                 });
             }
         };
-        self.parse_suffixes(node)
+        self.parse_suffixes(node, true)
     }
 
     /// The `[...]` and the `as` that may follow a value.
-    fn parse_suffixes(&mut self, target: Node) -> Result<Node, SyntaxError> {
+    ///
+    /// The assignment is a suffix too, when the value is an expression: the
+    /// assignment of v2 is an expression, and `(x := 1)` is a value.
+    fn parse_suffixes(&mut self, target: Node, assignment: bool) -> Result<Node, SyntaxError> {
         let mut node = target;
         loop {
             if self.at_op(&["["]) {
@@ -1786,9 +1864,51 @@ impl Parser {
                 node = Node::Cast { value: Box::new(node), target: target_type, line: token.line };
                 continue;
             }
+            if assignment && self.at_an_assignment_operator() {
+                return self.parse_the_assignment(node);
+            }
             break;
         }
         Ok(node)
+    }
+
+    /// Whether the token is the operator of an assignment.
+    fn at_an_assignment_operator(&self) -> bool {
+        let token = self.peek();
+        token.kind == TokenKind::Op && the_assignment_operator(&token.value).is_some()
+    }
+
+    /// The assignment of a value, when the value is an expression.
+    ///
+    /// The left side is a variable, a property or an item, and the value of
+    /// the assignment is the value that was written.
+    fn parse_the_assignment(&mut self, target: Node) -> Result<Node, SyntaxError> {
+        let operator = self.next();
+        let Some(op) = the_assignment_operator(&operator.value) else {
+            return Err(SyntaxError {
+                message: format!("expected an assignment operator after {:?}", operator.value),
+                line: operator.line,
+                column: operator.column,
+            });
+        };
+        let value = self.parse_expression()?;
+        let line = target.line();
+        Ok(match target {
+            Node::Var { name, .. } => Node::Assign { name, op, value: Box::new(value), line },
+            Node::Property { target, name, .. } => {
+                Node::AssignProperty { target, name, op, value: Box::new(value), line }
+            }
+            Node::Index { target, index, .. } => {
+                Node::AssignIndex { target, index, op, value: Box::new(value), line }
+            }
+            _ => {
+                return Err(SyntaxError {
+                    message: "the left side of an assignment is not a variable".into(),
+                    line,
+                    column: operator.column,
+                });
+            }
+        })
     }
 
     /// The `super` of v2: the base of the class where the method was
@@ -1878,6 +1998,29 @@ fn the_number_of(text: &str) -> LiteralValue {
         // A whole number that does not fit in the machine is a float.
         Err(_) => LiteralValue::Float(text.parse::<f64>().unwrap_or(0.0)),
     }
+}
+
+/// The operator of an assignment, if the word is one.
+///
+/// The operators are the ones of v2: `:=` writes, and the others write
+/// the value of the operation with the one that is there.
+fn the_assignment_operator(value: &str) -> Option<AssignOp> {
+    Some(match value {
+        ":=" => AssignOp::Set,
+        "+=" => AssignOp::Add,
+        "-=" => AssignOp::Subtract,
+        "*=" => AssignOp::Multiply,
+        "/=" => AssignOp::Divide,
+        "//=" => AssignOp::IntegerDivide,
+        ".=" => AssignOp::Concat,
+        "&=" => AssignOp::BitwiseAnd,
+        "|=" => AssignOp::BitwiseOr,
+        "^=" => AssignOp::BitwiseXor,
+        "<<=" => AssignOp::ShiftLeft,
+        ">>=" => AssignOp::ShiftRight,
+        ">>>=" => AssignOp::ShiftRightUnsigned,
+        _ => return None,
+    })
 }
 
 /// A button is a word: `Click 10, 20, right`. A word that is not one of

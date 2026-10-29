@@ -2516,3 +2516,32 @@ The parameters of a function are not one of them: v2 refuses a comma at the end
 of them with "Missing parameter name.", and the tree says that the name is not
 one. The words are the ones of the tree, and the gap is in the notes of the
 tree.
+
+## 46. A closure of v2 closes over the scope where it was written
+
+The tree read a function of the script and gave it a scope of its own. Measured
+on the binary of v2.0.19 on 2026-10-30, a function that is written inside
+another one sees the variables of the one around it, and writes them there too.
+
+- **The arrow function of v2 is `(a, b) => a + b`.** The body is an expression
+  and not a block of statements, and the parenthesis may be left out when there
+  is one parameter: `a => a + 1` is the same function.
+- **The name of a closure is empty.** `f.Name` answers an empty text, and the
+  runtime keeps every closure under a name of its own, that a script cannot
+  reach.
+- **A function that is written inside another one is there before the statement
+  that defines it runs.** The functions are collected when the function around
+  them is called, and not when the statement that defines them is reached: a
+  function that calls itself before it is defined finds it.
+- **The write of a closure goes to the scope it closes over.** A name that the
+  scope around the call already has is written there, and not in the scope of
+  the closure. The name of the function that is written inside another one is
+  local to the function that has it.
+- **The assignment of v2 is an expression.** `(x := 1)` is a value, and the
+  value of it is the value that was written.
+- **The equal sign of v1 is not the assignment of v2.** `x = 1` does not load:
+  "Syntax error. Did you mean to use \":=\"?\n  Specifically: x = 1". The
+  equal sign is the equality of an expression and nothing else.
+
+Fifteen cases of the closures and six of the assignment are the same in the
+tree and in the dialect.

@@ -1588,6 +1588,81 @@ fn a_comma_at_the_end_of_a_list_is_allowed() {
 }
 
 #[test]
+fn the_arrow_function_of_v2_is_a_function() {
+    let (report, _desktop) = run("f := (a) => a + 1\nMsgBox f(1)");
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: the arrow
+    // function of v2 is a function, and it takes the parameters it names.
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_arrow_function_without_parentheses_is_a_function() {
+    let (report, _desktop) = run("f := a => a + 1\nMsgBox f(1)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_arrow_function_closes_over_the_scope_where_it_was_written() {
+    let (report, _desktop) = run(
+        "Outer() {\n    n := 10\n    f := (a) => a + n\n    return f(1)\n}\nMsgBox Outer()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["11"]);
+}
+
+#[test]
+fn the_function_that_is_written_inside_another_one_closes_over_it() {
+    let (report, _desktop) = run(
+        "Outer() {\n    n := 10\n    Inner() {\n        return n\n    }\n    return Inner()\n}\nMsgBox Outer()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: a function that is
+    // written inside another one sees the variables of the one around it.
+    assert_eq!(report.output, vec!["10"]);
+}
+
+#[test]
+fn the_function_that_is_written_inside_another_one_is_there_before_it_is_defined() {
+    let (report, _desktop) = run(
+        "Outer() {\n    return Inner()\n    Inner() {\n        return \"inner\"\n    }\n}\nMsgBox Outer()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["inner"]);
+}
+
+#[test]
+fn the_closure_writes_the_variable_of_the_scope_it_closes_over() {
+    let (report, _desktop) = run(
+        "Outer() {\n    n := 10\n    Inner() {\n        n := 20\n    }\n    Inner()\n    return n\n}\nMsgBox Outer()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["20"]);
+}
+
+#[test]
+fn the_assignment_of_v2_is_an_expression() {
+    let (report, _desktop) = run("x := (y := 1)\nMsgBox x\nMsgBox y");
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: the assignment of
+    // v2 is an expression, and its value is the value that was written.
+    assert_eq!(report.output, vec!["1", "1"]);
+}
+
+#[test]
+fn the_equal_sign_of_v1_is_not_the_assignment_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the script does
+    // not load at all.
+    let error = parse("x = 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Syntax error. Did you mean to use \":=\"?\n  Specifically: x = 1"
+    );
+    assert_eq!(error.line, 1);
+}
+
+#[test]
 fn the_hex_of_v2_is_a_whole_number() {
     let (report, desktop) = run("x := 0xE9\nSend \"%x%\"");
     assert!(report.ok, "{:?}", report.error);

@@ -397,6 +397,12 @@ pub enum Node {
     /// object of nothing. The name of a property is a name of the script,
     /// and the names of the properties do not know their case.
     ObjectLiteral { properties: Vec<(String, Node)>, line: u32 },
+    /// `(a, b) => a + b`: the literal of a function.
+    ///
+    /// The body of the arrow function of v2 is an expression, and not a
+    /// block of statements, and the function closes over the scope where it
+    /// was written.
+    Lambda { parameters: Vec<Parameter>, body: Box<Node>, line: u32 },
     /// `try { } catch { } else { } finally { }`.
     ///
     /// The block of the `try` is guarded against the errors of the runtime
@@ -477,6 +483,7 @@ impl Node {
             | Node::AssignProperty { line, .. }
             | Node::ArrayLiteral { line, .. }
             | Node::ObjectLiteral { line, .. }
+            | Node::Lambda { line, .. }
             | Node::Try { line, .. }
             | Node::Throw { line, .. }
             | Node::Declare { line, .. }
