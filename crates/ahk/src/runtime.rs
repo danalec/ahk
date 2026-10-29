@@ -1747,7 +1747,7 @@ impl<'a> Runtime<'a> {
                 line,
             }));
         }
-        let count = Node::Literal { value: LiteralValue::Number(wanted as f64), line };
+        let count = Node::Literal { value: LiteralValue::Integer(wanted as i64), line };
         let enumerator = self.call_method_on(object, "__enum", &[count], line)?;
         match enumerator {
             Value::List(items) => Ok(items),
@@ -1755,7 +1755,7 @@ impl<'a> Runtime<'a> {
             // a class of the script, for one -- and it is walked the way
             // the source is.
             Value::Object(_) => {
-                let count = Node::Literal { value: LiteralValue::Number(wanted as f64), line };
+                let count = Node::Literal { value: LiteralValue::Integer(wanted as i64), line };
                 match self.call_method_on(&enumerator, "__enum", &[count], line)? {
                     Value::List(items) => Ok(items),
                     _ => Err(RuntimeFailure::Error(RuntimeError {
@@ -4028,7 +4028,11 @@ impl<'a> Runtime<'a> {
     fn evaluate(&mut self, node: &Node) -> Result<Value, RuntimeFailure> {
         match node {
             Node::Literal { value, line } => Ok(match value {
-                LiteralValue::Number(number) => Value::from_number(*number),
+                // The shape of the literal is the shape of the value: the
+                // whole number of v2 is a whole number, and a number with
+                // a point or with an exponent is a float.
+                LiteralValue::Integer(number) => Value::Int(*number),
+                LiteralValue::Float(number) => Value::Float(*number),
                 // A string is read where it is written: the names it
                 // holds are the names of the scope that writes it.
                 LiteralValue::Text(text) => Value::Text(self.interpolate(text, *line)?),

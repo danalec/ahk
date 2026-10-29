@@ -85,6 +85,10 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   token, with the place it came from.
 - `TokenKind` -- `Name`, `Keyword`, `Number`, `String`, `Op`, `Newline`,
   `Eof`.
+- The number of v2 is a decimal, a hex -- `0x` and the digits of the base of
+  sixteen -- or a decimal with an exponent, like `1e3`. A number has one
+  point, and the point of `1.5.2` is the member operator. A name that begins
+  with a number is refused at the load, with the message of v2.
 - `KEYWORDS: &[&str]` -- the words the language gives a meaning to.
 - `SyntaxError { message, line, column }` -- the error the lexer and the
   parser raise.
@@ -118,9 +122,12 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   nobody's.
 - `Node::line(&self) -> u32` -- the line of the node, which is the line the
   report blames.
-- `LiteralValue` -- `Number(f64)`, `Text(String)`, `Bool(bool)`. The
-  boolean keeps its own kind so that the parser can tell `true` from `1`;
-  v2 has no boolean type, and the runtime folds it into the integer.
+- `LiteralValue` -- `Integer(i64)`, `Float(f64)`, `Text(String)`,
+  `Bool(bool)`. The shape of the literal is the shape of the value: the
+  whole number of v2 is a whole number, and a number with a point or
+  with an exponent is a float. The boolean keeps its own kind so that the
+  parser can tell `true` from `1`; v2 has no boolean type, and the
+  runtime folds it into the integer.
 - `UnaryOp` -- `Not`, `NotWord`, `Negate`, `BitwiseNot`, `BitwiseAnd`,
   `BitwiseOr`, `BitwiseXor`, `Plus`, `Address`, `PreIncrement`,
   `PostIncrement`, `PreDecrement` and `PostDecrement`. `Address` is the

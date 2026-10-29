@@ -10,8 +10,13 @@ use serde::Serialize;
 /// A value written in the script.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum LiteralValue {
-    /// A number: `42`, `3.5`.
-    Number(f64),
+    /// A whole number: `42`, `0x1F`.
+    ///
+    /// The whole number of v2 is a whole number of the machine, and it
+    /// keeps every digit of it.
+    Integer(i64),
+    /// A number with a point or with an exponent: `3.5`, `1e3`.
+    Float(f64),
     /// A string: `"hello"`.
     Text(String),
     /// A boolean: `true`, `false`.

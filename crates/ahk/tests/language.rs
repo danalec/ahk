@@ -1532,6 +1532,50 @@ fn a_name_that_is_neither_a_built_in_nor_a_function_does_not_parse() {
 }
 
 #[test]
+fn the_hex_of_v2_is_a_whole_number() {
+    let (report, desktop) = run("x := 0xE9\nSend \"%x%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["233"]);
+}
+
+#[test]
+fn the_hex_of_v2_wraps_the_way_the_machine_does() {
+    let (report, desktop) = run("x := 0xFFFFFFFFFFFFFFFF\nSend \"%x%\"");
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: the hex of v2 is
+    // a number of the machine, and it wraps the way the machine does.
+    assert_eq!(desktop.types(), vec!["-1"]);
+}
+
+#[test]
+fn a_number_with_an_exponent_is_a_float() {
+    let (report, desktop) = run("x := 1e3\nSend \"%x%\"");
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-30: the exponent makes
+    // the number a float, and a float keeps its point.
+    assert_eq!(desktop.types(), vec!["1000.0"]);
+}
+
+#[test]
+fn a_number_with_a_point_is_a_float() {
+    let (report, desktop) = run("x := 3.0\nSend \"%x%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["3.0"]);
+}
+
+#[test]
+fn a_name_that_begins_with_a_number_does_not_parse() {
+    // The check is a check of the load, the way v2 has it: the script
+    // does not run at all.
+    let error = parse("x := 12abc").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This variable name starts with a number, which is not allowed:\n   \"12abc\""
+    );
+    assert_eq!(error.line, 1);
+}
+
+#[test]
 fn an_item_may_be_written_with_an_operator() {
     let (report, desktop) = run("m := Map()\nm[\"a\"] := 1\nm[\"a\"] += 2\nv := m[\"a\"]\nSend \"%v%\"");
     assert!(report.ok, "{:?}", report.error);

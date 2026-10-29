@@ -239,9 +239,21 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
         if current.is_ascii_digit() {
             let (start_line, start_column) = (line, column);
             let start = index;
-            while index < chars.len() && (chars[index].is_ascii_digit() || chars[index] == '.') {
-                index += 1;
-                column += 1;
+            index = the_end_of_the_number(&chars, index);
+            column += (index - start) as u32;
+            // A name that begins with a number is not a number: v2 refuses
+            // the script at the load, and it says which name it is.
+            if index < chars.len() && (chars[index].is_alphabetic() || chars[index] == '_') {
+                let mut name = chars[start..index].iter().collect::<String>();
+                while index < chars.len() && (chars[index].is_alphanumeric() || chars[index] == '_') {
+                    name.push(chars[index]);
+                    index += 1;
+                }
+                return Err(SyntaxError::new(
+                    format!("This variable name starts with a number, which is not allowed:\n   {name:?}"),
+                    start_line,
+                    start_column,
+                ));
             }
             tokens.push(Token {
                 kind: TokenKind::Number,
@@ -299,6 +311,57 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
     Ok(tokens)
 }
 
+/// Where a number ends.
+///
+/// The numbers of v2 are the decimals, the hex -- `0x` and the digits of
+/// the base of sixteen -- and the decimals with an exponent, like `1e3`.
+/// There is no binary and no octal: `0b1010` is a name that begins with
+/// a number, and v2 refuses the script that carries it.
+///
+/// A number has one point, and the point is in the middle of it: the
+/// point of `1.5.2` is the member operator of the float.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-30.
+fn the_end_of_the_number(chars: &[char], start: usize) -> usize {
+    // The hex of v2.
+    if chars.get(start) == Some(&'0')
+        && matches!(chars.get(start + 1), Some(&'x') | Some(&'X'))
+        && chars.get(start + 2).is_some_and(|digit| digit.is_ascii_hexdigit())
+    {
+        let mut index = start + 2;
+        while index < chars.len() && chars[index].is_ascii_hexdigit() {
+            index += 1;
+        }
+        return index;
+    }
+    let mut index = start;
+    while index < chars.len() && chars[index].is_ascii_digit() {
+        index += 1;
+    }
+    if chars.get(index) == Some(&'.') {
+        index += 1;
+        while index < chars.len() && chars[index].is_ascii_digit() {
+            index += 1;
+        }
+    }
+    // The exponent of v2: the `e`, the sign and the digits. An `e` that
+    // has no digits after it is not an exponent, and the name that
+    // begins with the number is refused by the caller.
+    if matches!(chars.get(index), Some(&'e') | Some(&'E')) {
+        let mut after = index + 1;
+        if matches!(chars.get(after), Some(&'+') | Some(&'-')) {
+            after += 1;
+        }
+        if chars.get(after).is_some_and(|digit| digit.is_ascii_digit()) {
+            while after < chars.len() && chars[after].is_ascii_digit() {
+                after += 1;
+            }
+            return after;
+        }
+    }
+    index
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -336,6 +399,39 @@ mod tests {
         let tokens = tokenize("x := 3.5").expect("parses");
         assert_eq!(tokens[2].kind, TokenKind::Number);
         assert_eq!(tokens[2].value, "3.5");
+    }
+
+    #[test]
+    fn the_hex_of_v2_is_one_token() {
+        let tokens = tokenize("x := 0xE9").expect("parses");
+        assert_eq!(tokens[2].kind, TokenKind::Number);
+        assert_eq!(tokens[2].value, "0xE9");
+    }
+
+    #[test]
+    fn the_exponent_of_v2_is_one_token() {
+        let tokens = tokenize("x := 1e3").expect("parses");
+        assert_eq!(tokens[2].kind, TokenKind::Number);
+        assert_eq!(tokens[2].value, "1e3");
+    }
+
+    #[test]
+    fn a_number_has_one_point() {
+        let tokens = tokenize("x := 1.5.2").expect("parses");
+        assert_eq!(tokens[2].value, "1.5");
+        assert_eq!(tokens[3].value, ".");
+    }
+
+    #[test]
+    fn a_name_that_begins_with_a_number_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-30: the script
+        // does not load at all.
+        let error = tokenize("x := 12abc").expect_err("fails");
+        assert_eq!(
+            error.message,
+            "This variable name starts with a number, which is not allowed:\n   \"12abc\""
+        );
+        assert_eq!(error.line, 1);
     }
 
     #[test]

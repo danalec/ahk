@@ -2421,3 +2421,32 @@ base-class declarations are evaluated but before __New is called".
 What is not carried yet: the class of v2 is initialized when it is first
 referenced -- the static `__Init` and the static `__New` are called then --
 and the tree does not do that.
+
+## 42. The numbers of v2 are the numbers of v2
+
+The tree read the decimals and nothing else: `0xE9` was the number `0` and
+the name `xE9`, and `1e3` was the number `1` and the name `e3`. Measured on
+the binary of v2.0.19 on 2026-10-30, and against the documentation of v2,
+which says that "numbers are considered to be floating point if they contain
+a decimal point or scientific notation; otherwise, they are integers", and
+that "integers may be written in either hexadecimal or decimal format".
+
+- **The hex is a number of the base of sixteen.** `0xE9` is 233, `0xDeadBeef`
+  is 3735928559, and the number of the machine wraps: `0xFFFFFFFFFFFFFFFF` is
+  `-1`. The hex is written in the expressions and outside them: `Sleep 0xFF`
+  is `Sleep 255`.
+- **The exponent is a number too.** `1e3` is 1000, `1e-3` is 0.001, `1E3` is
+  1000 and `1.5e2` is 150.
+- **The shape of the literal is the shape of the value.** A number with a
+  point or with an exponent is a float, and it keeps its point: `3.0` is
+  `3.0` and not `3`. The others are whole numbers. The tree kept the shape
+  of the value and lost the shape of the literal, and `3.0` was `3`.
+- **There is no binary and no octal.** `0b1010` and `0o17` are names that
+  begin with a number, and the script does not load.
+- **A name that begins with a number is refused at the load.** The script
+  does not run at all: "This variable name starts with a number, which is
+  not allowed:" and the name on the next line. The tree ran the script and
+  failed on the name that was not there.
+- **A number has one point.** The point of `1.5.2` is the member operator,
+  and the member of v2 may be a number: the name of the property is the text
+  of the number, and `1.5.2` asks for the property "2" of the float.

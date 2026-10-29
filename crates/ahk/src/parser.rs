@@ -1586,8 +1586,8 @@ impl Parser {
         let token = self.next();
         let node = match token.kind {
             TokenKind::Number => {
-                let value = token.value.parse::<f64>().unwrap_or(0.0);
-                Node::Literal { value: LiteralValue::Number(value), line: token.line }
+                let value = the_number_of(&token.value);
+                Node::Literal { value, line: token.line }
             }
             TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
             TokenKind::Keyword => {
@@ -1691,7 +1691,13 @@ impl Parser {
             if self.at_member_dot() {
                 let dot = self.next();
                 let name = self.next();
-                if name.kind != TokenKind::Name && name.kind != TokenKind::Keyword {
+                // The member of v2 may be a number: the name of the
+                // property is the text of the number, and `1.5.2` asks for
+                // the property "2" of the float.
+                if name.kind != TokenKind::Name
+                    && name.kind != TokenKind::Keyword
+                    && name.kind != TokenKind::Number
+                {
                     return Err(SyntaxError {
                         message: "a member needs a name".into(),
                         line: name.line,
@@ -1803,6 +1809,31 @@ impl Parser {
 
 /// The button of a click, a mouse down or a mouse up.
 ///
+/// The number of a token, as v2 reads it.
+///
+/// The hex of v2 is a number of the base of sixteen, and it wraps the
+/// way the machine does: `0xFFFFFFFFFFFFFFFF` is `-1`. A number with a
+/// point or with an exponent is a float, and a number without them is a
+/// whole number.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-30.
+fn the_number_of(text: &str) -> LiteralValue {
+    if let Some(digits) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        return match u64::from_str_radix(digits, 16) {
+            Ok(number) => LiteralValue::Integer(number as i64),
+            Err(_) => LiteralValue::Integer(0),
+        };
+    }
+    if text.contains('.') || text.contains('e') || text.contains('E') {
+        return LiteralValue::Float(text.parse::<f64>().unwrap_or(0.0));
+    }
+    match text.parse::<i64>() {
+        Ok(number) => LiteralValue::Integer(number),
+        // A whole number that does not fit in the machine is a float.
+        Err(_) => LiteralValue::Float(text.parse::<f64>().unwrap_or(0.0)),
+    }
+}
+
 /// A button is a word: `Click 10, 20, right`. A word that is not one of
 /// the three buttons is a variable, and the value of that variable is
 /// the name of the button.
@@ -2052,8 +2083,8 @@ mod tests {
         let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
         let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
         assert_eq!(items.len(), 3);
-        assert!(matches!(&items[0], Node::Literal { value: LiteralValue::Number(number), .. } if *number == 1.0));
-        assert!(matches!(&items[2], Node::Literal { value: LiteralValue::Number(number), .. } if *number == 3.0));
+        assert!(matches!(&items[0], Node::Literal { value: LiteralValue::Integer(number), .. } if *number == 1));
+        assert!(matches!(&items[2], Node::Literal { value: LiteralValue::Integer(number), .. } if *number == 3));
     }
 
     #[test]
@@ -2107,7 +2138,7 @@ mod tests {
     fn a_bracket_without_a_space_is_the_item_of_the_value() {
         let statements = parse("x[1] := 2").expect("parses");
         let Node::AssignIndex { index, .. } = &statements[0] else { panic!("an index") };
-        assert!(matches!(index.as_ref(), Node::Literal { value: LiteralValue::Number(number), .. } if *number == 1.0));
+        assert!(matches!(index.as_ref(), Node::Literal { value: LiteralValue::Integer(number), .. } if *number == 1));
     }
 
     #[test]
