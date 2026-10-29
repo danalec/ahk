@@ -166,8 +166,11 @@ the box: it does no I/O, and it has to keep building without `std`.
 - **A function and a method are checked apart.** Measured on the binary
   of v2.0.19 on 2026-10-27: a function of the script called with too few
   arguments fails with "Too few parameters passed to function.
-  Specifically: MyFunc", and a method called with too few arguments runs.
-  The tree does the same, and a parameter may carry a default
+  Specifically: MyFunc". The method is checked at the run and not at the
+  load, and it says so in other words: measured on the binary of v2.0.19
+  on 2026-10-30, a method called with too few arguments answers "Missing
+  a required parameter." and one called with too many answers "Too many
+  parameters passed to function.". A parameter may carry a default
   (`Name(a, b := 1)`) or take the rest of the arguments (`Name(a,
   rest*)`), which is an array.
 - **The marker of a by-reference parameter is in the definition.** v2

@@ -556,6 +556,43 @@ fn a_parameter_may_carry_a_default() {
 }
 
 #[test]
+fn a_method_called_with_too_few_arguments_fails_with_the_reason() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let (report, _desktop) = run("class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Missing a required parameter.")
+    );
+    assert_eq!(report.error_line, Some(7));
+}
+
+#[test]
+fn a_method_called_with_too_many_arguments_fails_with_the_reason() {
+    let (report, _desktop) = run("class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method(1, 2)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too many parameters passed to function.")
+    );
+    assert_eq!(report.error_line, Some(7));
+}
+
+#[test]
+fn a_method_without_parameters_runs_when_none_are_given() {
+    let (report, desktop) = run("class Thing {\n  Method() {\n    return \"the answer\"\n  }\n}\nt := Thing()\nSend t.Method()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["the answer"]);
+}
+
+#[test]
+fn a_method_takes_the_default_of_a_parameter_that_is_not_given() {
+    let (report, desktop) = run("class Thing {\n  Method(a := \"the default\") {\n    return a\n  }\n}\nt := Thing()\nSend t.Method()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["the default"]);
+}
+
+#[test]
 fn a_parameter_may_take_the_rest_of_the_arguments() {
     let (report, desktop) = run("Add(a, rest*) {\n  return a + rest.Length\n}\nSend Add(1, 2, 3)");
     assert!(report.ok, "{:?}", report.error);

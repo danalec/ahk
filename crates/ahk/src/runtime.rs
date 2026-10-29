@@ -2402,12 +2402,46 @@ impl<'a> Runtime<'a> {
         for argument in arguments {
             values.push(self.evaluate(argument)?);
         }
+        self.call_method_with(class, method, this, &values, line)
+    }
+
+    /// A method, called with the values of the arguments.
+    ///
+    /// The number of the arguments is checked the way v2 checks it: a
+    /// parameter that has no default is required, and the call cannot
+    /// give more arguments than the method has parameters.
+    fn call_method_with(
+        &mut self,
+        class: &str,
+        method: &MethodDef,
+        this: &Value,
+        values: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        // The rest of the arguments may be any number of them, and a
+        // method that has one has no maximum.
+        let variadic = method.parameters.iter().any(|parameter| parameter.variadic);
+        if !variadic && values.len() > method.parameters.len() {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "Too many parameters passed to function.".into(),
+                line,
+            }));
+        }
+        // A parameter that has no default is required: v2 refuses the
+        // call and says that the parameter is missing.
+        for (index, parameter) in method.parameters.iter().enumerate() {
+            if values.get(index).is_none() && parameter.default.is_none() && !parameter.variadic {
+                return Err(RuntimeFailure::Error(RuntimeError {
+                    message: "Missing a required parameter.".into(),
+                    line,
+                }));
+            }
+        }
         let mut scope: BTreeMap<String, Value> = BTreeMap::new();
         // The value the method was called on is `this`.
         scope.insert("this".to_string(), this.clone());
-        // The number of the arguments of a method is not checked, the way
-        // v2 does it: the parameters that the call does not give a value
-        // to take their default, and the ones that have none are empty.
+        // The parameters that the call does not give a value to take
+        // their default, and the ones that have none are empty.
         for (index, parameter) in method.parameters.iter().enumerate() {
             let given = values.get(index);
             let value = match given {
