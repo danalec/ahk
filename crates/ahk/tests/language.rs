@@ -812,7 +812,7 @@ fn an_else_if_chain_takes_only_the_first_branch_that_holds() {
 #[test]
 fn a_switch_runs_the_case_that_matches() {
     let (report, desktop) = run(
-        "x := 2\nSwitch x {\n  Case 1 {\n    Send \"one\"\n  }\n  Case 2 {\n    Send \"two\"\n  }\n  Default {\n    Send \"other\"\n  }\n}",
+        "x := 2\nSwitch x {\n  Case 1:\n    Send \"one\"\n  Case 2:\n    Send \"two\"\n  Default:\n    Send \"other\"\n}",
     );
     assert!(report.ok);
     assert_eq!(desktop.types(), vec!["two"]);
@@ -821,7 +821,7 @@ fn a_switch_runs_the_case_that_matches() {
 #[test]
 fn a_switch_without_a_match_runs_the_default() {
     let (report, desktop) = run(
-        "x := 9\nSwitch x {\n  Case 1 {\n    Send \"one\"\n  }\n  Default {\n    Send \"other\"\n  }\n}",
+        "x := 9\nSwitch x {\n  Case 1:\n    Send \"one\"\n  Default:\n    Send \"other\"\n}",
     );
     assert!(report.ok);
     assert_eq!(desktop.types(), vec!["other"]);
@@ -1398,7 +1398,7 @@ fn the_numbers_have_their_functions() {
 #[test]
 fn the_is_operator_says_whether_an_object_is_of_a_class() {
     let (report, _desktop) = run(
-        "class Alpha {}\nclass Beta extends Alpha {}\nb := Beta()\n\
+        "class Alpha {\n}\nclass Beta extends Alpha {\n}\nb := Beta()\n\
          a := b is Beta\nc := b is Alpha\nd := b is Object\ne := 3 is Object",
     );
     assert!(report.ok, "{:?}", report.error);
@@ -1412,14 +1412,14 @@ fn the_is_operator_says_whether_an_object_is_of_a_class() {
 
 #[test]
 fn the_is_operator_wants_a_class() {
-    let (report, _desktop) = run("class Alpha {}\nb := Alpha()\na := b is \"Alpha\"");
+    let (report, _desktop) = run("class Alpha {\n}\nb := Alpha()\na := b is \"Alpha\"");
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("Expected a Class but got a String."));
 }
 
 #[test]
 fn a_class_has_a_prototype() {
-    let (report, _desktop) = run("class Alpha {}\np := Alpha.Prototype\nt := Type(Alpha)");
+    let (report, _desktop) = run("class Alpha {\n}\np := Alpha.Prototype\nt := Type(Alpha)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("t"), Some(&Value::Text("Class".into())));
     match report.variables.get("p") {

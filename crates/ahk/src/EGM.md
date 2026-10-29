@@ -191,6 +191,11 @@ the members of any other value are: `StrLen("abc").__Class` is "Integer",
 and `Map().Count` is 0. The assignment of an expression is refused at the
 load, and the text of it is named: "Invalid assignment. Specifically: := 1".
 
+The body of a block begins on the next line, and the brace that closes it
+is at the start of its line. The word that `parse_block` takes is the
+construct the block belongs to, and it says in its own words that the
+brace is not where it belongs.
+
 The bracket with a space opens the array and the bracket without one is
 the item of the value: `f [1, 2]` is a call whose argument is the array,
 and `f[1, 2]` is the item of the value `f`. The space is the reason, the

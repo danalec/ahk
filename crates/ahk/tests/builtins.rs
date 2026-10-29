@@ -922,7 +922,7 @@ fn a_reference_is_not_an_object_either() {
 #[test]
 fn the_base_of_an_object_is_the_prototype_of_its_class() {
     let report = run(
-        "class Alpha {}\nclass Beta extends Alpha {}\nb := Beta()\nx := ObjGetBase(b)",
+        "class Alpha {\n}\nclass Beta extends Alpha {\n}\nb := Beta()\nx := ObjGetBase(b)",
     );
     assert!(report.ok, "{:?}", report.error);
     match value_of(&report, "x") {
@@ -934,7 +934,7 @@ fn the_base_of_an_object_is_the_prototype_of_its_class() {
 #[test]
 fn a_script_may_set_the_base_of_an_object() {
     let report = run(
-        "class Alpha {}\nclass Beta extends Alpha {}\nb := Beta()\n\
+        "class Alpha {\n}\nclass Beta extends Alpha {\n}\nb := Beta()\n\
          old := ObjSetBase(b, Alpha())\nnow := ObjGetBase(b)",
     );
     assert!(report.ok, "{:?}", report.error);
@@ -949,7 +949,7 @@ fn a_script_may_set_the_base_of_an_object() {
 #[test]
 fn the_own_properties_of_an_object_are_its_own() {
     let report = run(
-        "class Box { x := 1 }\nb := Box()\n\
+        "class Box {\n  x := 1\n}\nb := Box()\n\
          names := ObjOwnProps(b)\ncount := ObjOwnPropCount(b)\nhas := ObjHasOwnProp(b, \"x\")",
     );
     assert!(report.ok, "{:?}", report.error);
@@ -967,7 +967,7 @@ fn the_state_of_a_map_is_not_a_property_of_it() {
 
 #[test]
 fn the_name_that_counts_the_references_is_not_one_of_a_script() {
-    let report = run("class Box {}\nb := Box()\na := ObjAddRef(b)");
+    let report = run("class Box {\n}\nb := Box()\na := ObjAddRef(b)");
     assert_eq!(failure_of(&report), "Parameter #1 of ObjAddRef is invalid.");
 }
 
@@ -987,7 +987,7 @@ fn the_names_of_com_fail_with_the_reason() {
 /// functions of v2 yet.
 #[test]
 fn a_name_that_the_tree_does_not_carry_yet_says_so() {
-    let report = run("class Box {}\nb := Box()\na := ObjBindMethod(b, \"x\")");
+    let report = run("class Box {\n}\nb := Box()\na := ObjBindMethod(b, \"x\")");
     assert_eq!(failure_of(&report), "this runtime does not carry that name yet.");
 }
 
@@ -1340,7 +1340,7 @@ fn type_says_the_name_of_the_type() {
 #[test]
 fn the_type_of_an_object_is_the_name_of_its_class() {
     let report = run(
-        "class Box {}\nb := Box()\n\
+        "class Box {\n}\nb := Box()\n\
          a := Type(b)\nc := Type(Box)\nd := Type(Map())\ne := Type(Box.Prototype)",
     );
     assert!(report.ok, "{:?}", report.error);

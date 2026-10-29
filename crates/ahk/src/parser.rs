@@ -518,8 +518,19 @@ impl Parser {
     }
 
     /// A block: the statements between `{` and `}`.
-    fn parse_block(&mut self) -> Result<Vec<Node>, SyntaxError> {
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the body of a
+    /// block begins on the next line, and the brace that closes it is at
+    /// the start of its line. The word tells the block what it is, and
+    /// every construct says in its own words that the brace is not where
+    /// it belongs.
+    fn parse_block(&mut self, kind: &str) -> Result<Vec<Node>, SyntaxError> {
+        // The brace may be on a line of its own.
+        self.skip_newlines();
         let open = self.expect_op("{")?;
+        if !self.the_body_begins_on_the_next_line() {
+            return Err(self.error(self.the_message_of_the_opening_brace(kind, open.line)));
+        }
         let mut body = Vec::new();
         self.skip_newlines();
         loop {
@@ -538,11 +549,69 @@ impl Parser {
                 });
             }
             if token.kind == TokenKind::Op && token.value == "}" {
+                self.the_closing_brace_is_refused()?;
                 self.position += 1;
                 return Ok(body);
             }
             body.extend(self.parse_statement()?);
             self.skip_newlines();
+        }
+    }
+
+    /// Whether the body of a block begins on the next line.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the brace that
+    /// opens a block is at the end of its line, and the body begins on the
+    /// next one. A comment is not a statement, and it does not count.
+    fn the_body_begins_on_the_next_line(&self) -> bool {
+        matches!(self.peek().kind, TokenKind::Newline | TokenKind::Eof)
+    }
+
+    /// Whether the brace is at the start of its line.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the brace that
+    /// closes a block is at the start of its line, and a brace that is not
+    /// names the line of the script.
+    fn the_brace_is_at_the_start_of_its_line(&self) -> bool {
+        match self.position.checked_sub(1).and_then(|at| self.tokens.get(at)) {
+            Some(token) => token.kind == TokenKind::Newline,
+            None => true,
+        }
+    }
+
+    /// The refusal of a brace that is not at the start of its line.
+    fn the_closing_brace_is_refused(&self) -> Result<(), SyntaxError> {
+        if self.the_brace_is_at_the_start_of_its_line() {
+            return Ok(());
+        }
+        let token = self.peek();
+        Err(self.error(format!(
+            "Unexpected \"}}\"\n     Specifically: {}",
+            the_source_of_the_line(self, token.line)
+        )))
+    }
+
+    /// The message of v2 when the brace that opens a block is not where it
+    /// belongs.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: every construct says
+    /// so in its own words. The function and the `elseif` name the brace,
+    /// the class says that the brace is missing, the method says that the
+    /// definition is not valid, the statements name their word, and the
+    /// blocks that end with a brace say that it is missing.
+    fn the_message_of_the_opening_brace(&self, kind: &str, line: u32) -> String {
+        match kind {
+            "function" | "elseif" => "Unexpected \"{\"".to_string(),
+            "class" => format!(
+                "Missing \"{{\"\n     Specifically: {}",
+                the_source_of_the_line(self, line)
+            ),
+            "method" => format!(
+                "Not a valid method, class or property definition.\n     Specifically: {}",
+                the_source_of_the_line(self, line)
+            ),
+            "If" | "While" | "Loop" | "For" | "Switch" => format!("Unexpected {kind:?}"),
+            _ => "Missing \"}\"".to_string(),
         }
     }
 
@@ -587,8 +656,40 @@ impl Parser {
         // is not wanted is named, and the line of the script says where it
         // was. The brace that closes a block is the one that has no line:
         // v2 says that it is unexpected, and nothing more.
-        let message = if token.kind == TokenKind::Op && token.value == "}" {
-            "Unexpected \"}\"".to_string()
+        //
+        // A literal at the start of a statement is a syntax error, and a
+        // text is a line that holds no action.
+        let message = if token.kind == TokenKind::Number {
+            format!("Syntax error.\n     Specifically: {}", token.value)
+        } else if token.kind == TokenKind::String {
+            format!(
+                "This line does not contain a recognized action.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )
+        } else if token.kind == TokenKind::Op && token.value == "{" {
+            // Measured on the binary of v2.0.19 on 2026-10-31: a brace at
+            // the start of a statement is a line that holds no action, and
+            // the text that is named is the statement itself.
+            let mut end = self.position;
+            while end < self.tokens.len() && self.tokens[end].line == token.line {
+                end += 1;
+            }
+            format!(
+                "This line does not contain a recognized action.\n     Specifically: {}",
+                the_source_of_the_tokens(self, self.position, end).trim_end()
+            )
+        } else if token.kind == TokenKind::Op && token.value == "}" {
+            // Measured on the binary of v2.0.19 on 2026-10-31: a brace that
+            // is not at the start of its line names the line of the script,
+            // and a brace that is alone on its line names nothing.
+            if self.the_brace_is_at_the_start_of_its_line() {
+                "Unexpected \"}\"".to_string()
+            } else {
+                format!(
+                    "Unexpected \"}}\"\n     Specifically: {}",
+                    the_source_of_the_line(self, token.line)
+                )
+            }
         } else {
             format!(
                 "Unexpected {:?}\n     Specifically: {}",
@@ -645,7 +746,7 @@ impl Parser {
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
-                let body = self.parse_block()?;
+                let body = self.parse_block("function")?;
                 self.parameters.pop();
                 let declarations = the_declarations_of_a_body(&body)?;
                 self.defined.insert(name_token.value.to_lowercase());
@@ -1026,9 +1127,19 @@ impl Parser {
                     ")" | "]" => {
                         depth = depth.saturating_sub(1);
                         if depth == 0 {
+                            // The brace may be on a line of its own.
+                            let mut after = at + 1;
+                            while self
+                                .tokens
+                                .get(after)
+                                .map(|token| token.kind == TokenKind::Newline)
+                                .unwrap_or(false)
+                            {
+                                after += 1;
+                            }
                             return self
                                 .tokens
-                                .get(at + 1)
+                                .get(after)
                                 .map(|token| token.value == "{")
                                 .unwrap_or(false);
                         }
@@ -1049,7 +1160,7 @@ impl Parser {
         let mut branches = Vec::new();
         let condition = self.parse_expression()?;
         self.end_of_block()?;
-        let body = self.parse_block()?;
+        let body = self.parse_block("If")?;
         branches.push(Branch { condition, body });
         let mut otherwise = Vec::new();
         loop {
@@ -1058,14 +1169,14 @@ impl Parser {
                 self.next();
                 let condition = self.parse_expression()?;
                 self.end_of_block()?;
-                let body = self.parse_block()?;
+                let body = self.parse_block("elseif")?;
                 branches.push(Branch { condition, body });
                 continue;
             }
             if self.at_keyword(&["else"]) {
                 self.next();
                 self.end_of_block()?;
-                otherwise = self.parse_block()?;
+                otherwise = self.parse_block("else")?;
             }
             break;
         }
@@ -1076,11 +1187,16 @@ impl Parser {
         let token = self.next();
         let subject = self.parse_expression()?;
         self.end_of_block()?;
-        self.expect_op("{")?;
+        self.skip_newlines();
+        let open = self.expect_op("{")?;
+        if !self.the_body_begins_on_the_next_line() {
+            return Err(self.error(self.the_message_of_the_opening_brace("Switch", open.line)));
+        }
         let mut cases = Vec::new();
         loop {
             self.skip_newlines();
             if self.at_op(&["}"]) {
+                self.the_closing_brace_is_refused()?;
                 self.position += 1;
                 break;
             }
@@ -1108,7 +1224,14 @@ impl Parser {
     /// under it. Both are accepted here.
     fn parse_case_body(&mut self) -> Result<Vec<Node>, SyntaxError> {
         if self.at_op(&["{"]) {
-            return self.parse_block();
+            // Measured on the binary of v2.0.19 on 2026-10-31: the body of
+            // a case is the statements under it, and a brace is not one:
+            // "This line does not contain a recognized action."
+            let token = self.peek().clone();
+            return Err(self.error(format!(
+                "This line does not contain a recognized action.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )));
         }
         if self.at_op(&[":"]) {
             self.position += 1;
@@ -1164,7 +1287,7 @@ impl Parser {
     fn parse_try(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
         self.end_of_block()?;
-        let body = self.parse_block()?;
+        let body = self.parse_block("try")?;
         let mut catches = Vec::new();
         loop {
             self.skip_newlines();
@@ -1178,14 +1301,14 @@ impl Parser {
         if self.at_keyword(&["else"]) {
             self.next();
             self.end_of_block()?;
-            otherwise = self.parse_block()?;
+            otherwise = self.parse_block("else")?;
         }
         let mut finally = Vec::new();
         self.skip_newlines();
         if self.at_keyword(&["finally"]) {
             self.next();
             self.end_of_block()?;
-            finally = self.parse_block()?;
+            finally = self.parse_block("finally")?;
         }
         Ok(Node::Try { body, catches, otherwise, finally, line: token.line })
     }
@@ -1219,7 +1342,7 @@ impl Parser {
             self.expect_op(")")?;
         }
         self.end_of_block()?;
-        let body = self.parse_block()?;
+        let body = self.parse_block("catch")?;
         let _ = token;
         Ok(Catch { class, variable, body })
     }
@@ -1312,7 +1435,7 @@ impl Parser {
         let token = self.next();
         let condition = self.parse_expression()?;
         self.end_of_block()?;
-        let body = self.parse_block()?;
+        let body = self.parse_block("While")?;
         Ok(Node::While { condition: Box::new(condition), body, line: token.line })
     }
 
@@ -1351,7 +1474,7 @@ impl Parser {
             }
             extends = Some(base.value);
         }
-        let (methods, properties) = self.parse_class_body()?;
+        let (methods, properties) = self.parse_class_body(name_token.line)?;
         // A class may not have an `__Init` of its own and variables of its
         // own: v2 makes the `__Init` that carries the variables, and the
         // two cannot both be there.
@@ -1378,8 +1501,13 @@ impl Parser {
     }
 
     /// The members of a class: the methods and the properties.
-    fn parse_class_body(&mut self) -> Result<(Vec<MethodDef>, Vec<PropertyDef>), SyntaxError> {
+    fn parse_class_body(&mut self, line: u32) -> Result<(Vec<MethodDef>, Vec<PropertyDef>), SyntaxError> {
+        // The brace may be on a line of its own.
+        self.skip_newlines();
         self.expect_op("{")?;
+        if !self.the_body_begins_on_the_next_line() {
+            return Err(self.error(self.the_message_of_the_opening_brace("class", line)));
+        }
         let mut methods = Vec::new();
         let mut properties = Vec::new();
         // The body of a class is inside a class, and the `super` of v2 is
@@ -1397,6 +1525,7 @@ impl Parser {
                 });
             }
             if token.kind == TokenKind::Op && token.value == "}" {
+                self.the_closing_brace_is_refused()?;
                 self.position += 1;
                 break;
             }
@@ -1419,7 +1548,7 @@ impl Parser {
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
-                let body = self.parse_block()?;
+                let body = self.parse_block("method")?;
                 self.parameters.pop();
                 let declarations = the_declarations_of_a_body(&body)?;
                 methods.push(MethodDef {
@@ -1503,7 +1632,7 @@ impl Parser {
             }
         }
         self.end_of_block()?;
-        let body = self.parse_block()?;
+        let body = self.parse_block("Loop")?;
         Ok(Node::Loop { mode: kind, arguments, body, line: token.line })
     }
 
@@ -1531,7 +1660,7 @@ impl Parser {
             self.expect_op(")")?;
         }
         self.end_of_block()?;
-        let body = self.parse_block()?;
+        let body = self.parse_block("For")?;
         Ok(Node::For { variables, source: Box::new(source), body, line: token.line })
     }
 
@@ -2249,11 +2378,22 @@ mod tests {
 
     #[test]
     fn a_switch_holds_its_cases() {
-        let statements = parse("Switch x {\n  Case 1 {\n    MsgBox \"one\"\n  }\n  Default {\n    MsgBox \"other\"\n  }\n}")
+        let statements = parse("Switch x {\n  Case 1:\n    MsgBox \"one\"\n  Default:\n    MsgBox \"other\"\n}")
             .expect("parses");
         let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
         assert_eq!(cases.len(), 2);
         assert!(cases[1].value.is_none());
+    }
+
+    #[test]
+    fn a_case_of_v2_has_no_brace() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the body of a
+        // case is the statements under it, and a brace is not one.
+        let error = parse("Switch x {\n  Case 1 {\n    MsgBox \"one\"\n  }\n}").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: Case 1 {"
+        );
     }
 
     #[test]
@@ -2263,6 +2403,38 @@ mod tests {
         let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
         assert_eq!(cases.len(), 2);
         assert_eq!(cases[0].body.len(), 1);
+    }
+
+    #[test]
+    fn the_body_of_a_function_begins_on_the_next_line() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the body of a
+        // block begins on the next line, and the function names the brace.
+        let error = parse("f() { x := 1 }").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected \"{\"");
+    }
+
+    #[test]
+    fn the_body_of_a_class_begins_on_the_next_line() {
+        let error = parse("class Thing { x := 1 }").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"{\"\n     Specifically: class Thing { x := 1 }");
+    }
+
+    #[test]
+    fn the_body_of_a_statement_begins_on_the_next_line() {
+        let error = parse("if (x) { y := 1 }").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected \"If\"");
+    }
+
+    #[test]
+    fn the_brace_that_closes_a_block_is_alone_on_its_line() {
+        let error = parse("if (x) {\n    y := 1 }").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected \"}\"\n     Specifically: y := 1 }");
+    }
+
+    #[test]
+    fn the_brace_that_opens_a_block_may_be_on_a_line_of_its_own() {
+        let statements = parse("f()\n{\n    x := 1\n}").expect("parses");
+        assert_eq!(statements.len(), 1);
     }
 
     #[test]

@@ -2606,9 +2606,7 @@ with its own words -- "expected \")\", found \"1\"", "unterminated block",
   x := 1 )". The brace that ends a block is the one that has no line: "Unexpected
   \"}\"".
 
-One gap is left in the parser, and it is the block: v2 wants the brace that
-opens it at the end of its line, and the body begins on the next one. The
-tree takes `f() { x := 1 }`, and v2 refuses it with "Unexpected \"{\"".
+The gap of the parser that was left, the block, is filled in section 54.
 
 Seventeen of the load errors are the same in the tree and in the dialect.
 
@@ -2748,3 +2746,38 @@ assignment is named in the text of it ("Specifically: := 2)").
 
 Thirteen of the thirteen cases of the members of a call and five of the
 nine of the assignments are the same in the tree and in the dialect.
+
+## 54. The block of v2 begins on the next line
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree took a block
+whose body was on the line of the brace, and v2 refuses it.
+
+- **The body of a block begins on the next line.** The brace that opens
+  it is at the end of its line, and every construct says so in its own
+  words: the function and the `elseif` name the brace ("Unexpected
+  \"{\""), the class says that the brace is missing ("Missing \"{\"\n
+  Specifically: class Thing { x := 1 }"), the method says that the
+  definition is not valid ("Not a valid method, class or property
+  definition."), the statements name their word ("Unexpected \"If\"",
+  "Unexpected \"While\"", "Unexpected \"Loop\"", "Unexpected \"For\"",
+  "Unexpected \"Switch\""), and the blocks that end with a brace say
+  that it is missing ("Missing \"}\").
+- **The brace that closes a block is at the start of its line.** A brace
+  that is not names the line of the script: "Unexpected \"}\"\n
+  Specifically: y := 1 }". A brace that is alone on its line names
+  nothing: "Unexpected \"}\"".
+- **The brace may be on a line of its own.** `f()` and then the brace on
+  the next line is a definition, and v2 takes it.
+- **A case has no brace.** The body of a case is the statements under
+  it, and a brace is not one: "This line does not contain a recognized
+  action.\n     Specifically: { y := 1 }".
+- **A literal at the start of a statement is a syntax error**, and a
+  text is a line that holds no action: "Syntax error.\n     Specifically:
+  1" and "This line does not contain a recognized action.\n
+  Specifically: \"a\" := 1".
+
+The v1 dialect is the one that takes a block on one line, and the rule
+that refuses it is in one place: `the_body_begins_on_the_next_line`.
+
+Twenty-five of the twenty-five cases of the blocks are the same in the
+tree and in the dialect.
