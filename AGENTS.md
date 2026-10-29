@@ -2025,3 +2025,41 @@ Measured on the binary of v2.0.19 on 2026-10-30: `x := 1` and then `X`
 answers 1, `X := 2` writes the variable `x`, a parameter read in another
 case is the same parameter, and a global declared in another case is the
 same global.
+
+## 38. The declarations of v2: `global` and `local`
+
+`global` and `local` are declarations of v2, and the tree carries them. The
+words are keywords of the dialect: a script cannot use them as names.
+
+- **A function assigns a local by default, and the tree already did.** The
+  reading of a name that was never assigned in the function falls back to
+  the scope of the script, and that is the rule of v2: "any variable
+  reference in an assume-local function may resolve to a global variable if
+  it is only read".
+- **A declaration names where the name lives.** `global g` makes the
+  assignments to `g` inside the function write the scope of the script, and
+  `local l` makes the name local. The declaration may name several
+  variables -- `global a, b := 1` gives the value to `b` -- and it may
+  give a value: `global g := 1` writes the global right away.
+- **The names are read when the script is read.** v2 says so: "the words
+  local, global, and static are processed immediately when the script
+  launches", so a declaration inside a block takes effect for the whole
+  function. Only the value waits for the statement that carries it. The
+  parser reads the names of a body -- `the_declarations_of_a_body` -- and
+  the frame of the function carries them.
+- **A bare `global` is the mode of the function.** On the first line of a
+  body, every name the function does not name lives in the scope of the
+  script. Anywhere else it is refused, and so is a bare `local`, which is
+  never a thing.
+- **The refusals are the wording of v2.** "Unexpected declaration.
+  Specifically: local l" for a `local` outside a function, "Unexpected
+  declaration. Specifically: global" for a bare `global` that is not the
+  mode, and "This global variable declaration conflicts with an existing
+  parameter. Specifically: p" for a declaration of a parameter. They are
+  refusals of the grammar, so they are load errors: the runner answers 2.
+
+Measured on the binary of v2.0.19 on 2026-10-30.
+
+What is not carried yet: `static`, which is the third declaration of v2 and
+keeps the value of a name between the calls of a function, and the `super`
+of a class, which calls the method of the base.

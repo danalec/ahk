@@ -36,10 +36,127 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::ast::{
-    AssignOp, BinaryOp, Branch, Case, CastType, Catch, LiteralValue, LoopKind, MethodDef, Node,
-    Parameter, PropertyDef, UnaryOp,
+    AssignOp, BinaryOp, Branch, Case, CastType, Catch, DeclareKind, Declared, Declarations,
+    LiteralValue, LoopKind, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
 use crate::lexer::{SyntaxError, Token, TokenKind};
+
+/// The text of a declaration, the way v2 writes it when it refuses.
+fn the_text_of_a_declaration(kind: DeclareKind, names: &[Declared]) -> String {
+    let mut text = kind.word().to_string();
+    for declared in names {
+        text.push(' ');
+        text.push_str(&declared.text);
+    }
+    text
+}
+
+/// The text of the tokens of a range, the way the script wrote them.
+fn the_text_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String {
+    let mut text = String::new();
+    for token in parser.tokens.get(start..end).unwrap_or(&[]) {
+        if !text.is_empty() {
+            text.push(' ');
+        }
+        if token.kind == TokenKind::String {
+            text.push('"');
+            text.push_str(&token.value);
+            text.push('"');
+        } else {
+            text.push_str(&token.value);
+        }
+    }
+    text
+}
+
+/// The declarations of a body, and the bare `global` that is not the mode.
+///
+/// The mode of a function is the bare `global` of its first line, and v2
+/// refuses any other one. The names of the declarations are read when the
+/// script is read: a declaration inside a block takes effect for the whole
+/// function.
+fn the_declarations_of_a_body(body: &[Node]) -> Result<Declarations, SyntaxError> {
+    let mut declarations = Declarations::default();
+    let mut first = true;
+    for statement in body {
+        // The mode is the bare `global` of the first line.
+        if first {
+            first = false;
+            if let Node::Declare { scope: DeclareKind::Global, names, .. } = statement {
+                if names.is_empty() {
+                    declarations.assume_global = true;
+                    continue;
+                }
+            }
+        }
+        the_declarations_of_a_statement(statement, &mut declarations)?;
+    }
+    Ok(declarations)
+}
+
+/// The declarations of a statement, and the bare `global` that is refused.
+fn the_declarations_of_a_statement(
+    statement: &Node,
+    declarations: &mut Declarations,
+) -> Result<(), SyntaxError> {
+    match statement {
+        Node::Declare { scope: kind, names, line } => {
+            if *kind == DeclareKind::Global && names.is_empty() {
+                // A bare `global` that is not the mode of the function.
+                return Err(SyntaxError {
+                    message: "Unexpected declaration. Specifically: global".into(),
+                    line: *line,
+                    column: 1,
+                });
+            }
+            for declared in names {
+                match kind {
+                    DeclareKind::Global => {
+                        declarations.globals.insert(declared.name.to_lowercase());
+                    }
+                    DeclareKind::Local => {
+                        declarations.locals.insert(declared.name.to_lowercase());
+                    }
+                }
+            }
+        }
+        Node::If { branches, otherwise, .. } => {
+            for branch in branches {
+                the_declarations_of_a_body_of(&branch.body, declarations)?;
+            }
+            the_declarations_of_a_body_of(otherwise, declarations)?;
+        }
+        Node::Switch { cases, .. } => {
+            for case in cases {
+                the_declarations_of_a_body_of(&case.body, declarations)?;
+            }
+        }
+        Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+            the_declarations_of_a_body_of(body, declarations)?;
+        }
+        Node::Try { body, catches, otherwise, finally, .. } => {
+            the_declarations_of_a_body_of(body, declarations)?;
+            for catch in catches {
+                the_declarations_of_a_body_of(&catch.body, declarations)?;
+            }
+            the_declarations_of_a_body_of(otherwise, declarations)?;
+            the_declarations_of_a_body_of(finally, declarations)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// The declarations of the statements of a block.
+fn the_declarations_of_a_body_of(
+    body: &[Node],
+    declarations: &mut Declarations,
+) -> Result<(), SyntaxError> {
+    for statement in body {
+        the_declarations_of_a_statement(statement, declarations)?;
+    }
+    Ok(())
+}
 
 /// The precedence of the operators.
 ///
@@ -113,12 +230,22 @@ pub struct Parser {
     /// the script, and the script may define one further down, so the
     /// check waits for the end of the parse.
     pending: Vec<(String, u32, u32)>,
+    /// The parameters of the functions that are being parsed.
+    ///
+    /// A declaration may not name a parameter: v2 says so.
+    parameters: Vec<Vec<String>>,
 }
 
 impl Parser {
     /// A parser over the tokens.
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, position: 0, defined: BTreeSet::new(), pending: Vec::new() }
+        Self {
+            tokens,
+            position: 0,
+            defined: BTreeSet::new(),
+            pending: Vec::new(),
+            parameters: Vec::new(),
+        }
     }
 
     // -- helpers ------------------------------------------------------------------
@@ -278,6 +405,8 @@ impl Parser {
                 }
                 "class" => return Ok(vec![self.parse_class()?]),
                 "try" => return Ok(vec![self.parse_try()?]),
+                "global" => return Ok(vec![self.parse_declaration(DeclareKind::Global)?]),
+                "local" => return Ok(vec![self.parse_declaration(DeclareKind::Local)?]),
                 "throw" => return Ok(vec![self.parse_throw()?]),
                 "return" => return Ok(vec![self.parse_return()?]),
                 "exitapp" => return Ok(vec![self.parse_exitapp()?]),
@@ -328,12 +457,16 @@ impl Parser {
             if self.a_definition_follows() {
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
+                self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
                 let body = self.parse_block()?;
+                self.parameters.pop();
+                let declarations = the_declarations_of_a_body(&body)?;
                 self.defined.insert(name_token.value.to_lowercase());
                 return Ok(vec![Node::FunctionDef {
                     name: name_token.value,
                     parameters,
                     body,
+                    declarations,
                     line: name_token.line,
                 }]);
             }
@@ -824,6 +957,65 @@ impl Parser {
         Ok(token.value)
     }
 
+    /// `global name` or `local name`: a declaration of v2.
+    ///
+    /// The names are read when the script is read, and the values wait for
+    /// the statement that carries them.
+    fn parse_declaration(&mut self, kind: DeclareKind) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let mut names = Vec::new();
+        while !self.at_end_of_statement() {
+            let name = self.next();
+            if name.kind != TokenKind::Name {
+                return Err(self.error(format!("a declaration needs a name, not {:?}", name.value)));
+            }
+            // A declaration may not name a parameter of the function: v2
+            // says so.
+            if self
+                .parameters
+                .last()
+                .map(|parameters| parameters.iter().any(|parameter| parameter.eq_ignore_ascii_case(&name.value)))
+                .unwrap_or(false)
+            {
+                return Err(self.error(format!(
+                    "This {} variable declaration conflicts with an existing parameter. Specifically: {}",
+                    kind.word(),
+                    name.value
+                )));
+            }
+            // The value of the declaration: `global g := 1`.
+            let mut text = name.value.clone();
+            let value = if self.at_op(&[":="]) {
+                self.next();
+                let start = self.position;
+                let value = self.parse_expression()?;
+                text.push_str(" := ");
+                text.push_str(&the_text_of_the_tokens(self, start, self.position));
+                Some(Box::new(value))
+            } else {
+                None
+            };
+            names.push(Declared { name: name.value, value, text });
+            if !self.at_op(&[","]) {
+                break;
+            }
+            self.next();
+        }
+        // A bare `local` is never a thing: only `global` has a mode.
+        if kind == DeclareKind::Local && names.is_empty() {
+            return Err(self.error("Unexpected declaration. Specifically: local"));
+        }
+        // A `local` outside a function has no scope to live in.
+        if kind == DeclareKind::Local && self.parameters.is_empty() {
+            return Err(self.error(format!(
+                "Unexpected declaration. Specifically: {}",
+                the_text_of_a_declaration(kind, &names)
+            )));
+        }
+        self.end_of_statement()?;
+        Ok(Node::Declare { scope: kind, names, line: token.line })
+    }
+
     /// `throw value`, or `throw` alone.
     fn parse_throw(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
@@ -916,11 +1108,15 @@ impl Parser {
                 self.next();
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
+                self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
                 let body = self.parse_block()?;
+                self.parameters.pop();
+                let declarations = the_declarations_of_a_body(&body)?;
                 methods.push(MethodDef {
                     name: name_token.value,
                     parameters,
                     body,
+                    declarations,
                     is_static,
                     line: name_token.line,
                 });
@@ -1771,3 +1967,59 @@ mod tests {
         assert!(parse("for 1 in items {\n}").is_err());
     }
 }
+
+    #[test]
+    fn a_declaration_names_a_variable_and_may_give_it_a_value() {
+        let statements = parse("global g, h := 1").expect("parses");
+        let Node::Declare { scope, names, .. } = &statements[0] else { panic!("a declaration") };
+        assert_eq!(*scope, DeclareKind::Global);
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0].name, "g");
+        assert!(names[0].value.is_none());
+        assert_eq!(names[1].name, "h");
+        assert!(names[1].value.is_some());
+    }
+
+    #[test]
+    fn a_bare_global_is_the_mode_of_the_function() {
+        let statements = parse("f() {\n  global\n  g := 1\n}").expect("parses");
+        let Node::FunctionDef { declarations, .. } = &statements[0] else { panic!("a definition") };
+        assert!(declarations.assume_global);
+        assert!(declarations.globals.is_empty());
+    }
+
+    #[test]
+    fn a_bare_global_that_is_not_the_first_line_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-30.
+        let error = parse("f() {\n  x := 1\n  global\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected declaration. Specifically: global");
+    }
+
+    #[test]
+    fn a_bare_local_is_an_error() {
+        let error = parse("f() {\n  local\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected declaration. Specifically: local");
+    }
+
+    #[test]
+    fn a_local_outside_a_function_is_an_error() {
+        let error = parse("local l").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected declaration. Specifically: local l");
+    }
+
+    #[test]
+    fn a_declaration_of_a_parameter_is_an_error() {
+        let error = parse("f(p) {\n  global p\n}").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "This global variable declaration conflicts with an existing parameter. Specifically: p"
+        );
+    }
+
+    #[test]
+    fn the_names_of_a_declaration_are_read_when_the_script_is_read() {
+        // A declaration inside a block takes effect for the whole function.
+        let statements = parse("f() {\n  if 1 {\n    global g\n  }\n}").expect("parses");
+        let Node::FunctionDef { declarations, .. } = &statements[0] else { panic!("a definition") };
+        assert!(declarations.globals.contains("g"));
+    }

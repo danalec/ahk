@@ -1,6 +1,7 @@
 //! The AST: what a script means once it has been parsed.
 
 use alloc::boxed::Box;
+use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -106,6 +107,51 @@ pub enum BinaryOp {
     Coalesce,
 }
 
+/// The kind of a declaration of v2.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum DeclareKind {
+    /// `global`: the name lives in the scope of the script.
+    Global,
+    /// `local`: the name lives in the scope of the function.
+    Local,
+}
+
+impl DeclareKind {
+    /// The word of the dialect that writes the declaration.
+    pub fn word(self) -> &'static str {
+        match self {
+            DeclareKind::Global => "global",
+            DeclareKind::Local => "local",
+        }
+    }
+}
+
+/// A name of a declaration, and the value it starts with.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Declared {
+    /// The name of the variable.
+    pub name: String,
+    /// The value it starts with, when the declaration gives it one.
+    pub value: Option<Box<Node>>,
+    /// The text of the declaration, the way v2 writes it when it refuses.
+    pub text: String,
+}
+
+/// The declarations of a function or of a method.
+///
+/// v2 reads them when the script is read: a declaration inside a block
+/// takes effect for the whole function, and only the value of the
+/// declaration waits for the statement that carries it.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct Declarations {
+    /// The names that live in the scope of the script.
+    pub globals: BTreeSet<String>,
+    /// The names that live in the scope of the function.
+    pub locals: BTreeSet<String>,
+    /// Whether the function assumes the scope of the script.
+    pub assume_global: bool,
+}
+
 /// The definition of a method.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct MethodDef {
@@ -115,6 +161,8 @@ pub struct MethodDef {
     pub parameters: Vec<Parameter>,
     /// What the method does.
     pub body: Vec<Node>,
+    /// The declarations of the method.
+    pub declarations: Declarations,
     /// Whether the method belongs to the class and not to an instance.
     pub is_static: bool,
     /// The line the definition came from.
@@ -283,7 +331,18 @@ pub enum Node {
     /// `ExitApp` or `ExitApp 1`.
     ExitApp { code: Option<Box<Node>>, line: u32 },
     /// `Name(a, b) { }`: the definition of a function.
-    FunctionDef { name: String, parameters: Vec<Parameter>, body: Vec<Node>, line: u32 },
+    FunctionDef {
+        name: String,
+        parameters: Vec<Parameter>,
+        body: Vec<Node>,
+        declarations: Declarations,
+        line: u32,
+    },
+    /// `global name` or `local name`: a declaration of v2.
+    ///
+    /// The names are read when the script is read, and the values wait for
+    /// the statement that carries them.
+    Declare { scope: DeclareKind, names: Vec<Declared>, line: u32 },
     /// `class Name extends Base { }`: the definition of a class.
     ClassDef {
         name: String,
@@ -404,6 +463,7 @@ impl Node {
             | Node::ArrayLiteral { line, .. }
             | Node::Try { line, .. }
             | Node::Throw { line, .. }
+            | Node::Declare { line, .. }
             | Node::For { line, .. } => *line,
         }
     }

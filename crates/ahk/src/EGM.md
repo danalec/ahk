@@ -270,6 +270,23 @@ errors of the runtime, `any` takes everything, and a class of the script
 takes the objects of that class -- and the value it binds is an object of
 the class `error` when it is an error of the runtime.
 
+#### The declarations of v2
+
+`global` and `local` are declarations, and the tree carries them.
+
+| Item | What it is |
+| --- | --- |
+| `Node::Declare { scope, names, line }` | a declaration: the scope it gives to the names, and the names with the value they start with |
+| `DeclareKind` | `Global` or `Local` |
+| `Declared` | a name of a declaration, the value it starts with, and the text of the declaration |
+| `Declarations` | the declarations of a function or of a method: the names that live in the scope of the script, the names that live in the scope of the function, and whether the function assumes the scope of the script |
+| `Runtime::lives_in_the_script` | where a name lives: the frame of the function that runs says |
+
+The names of a declaration are read when the script is read, so a
+declaration inside a block takes effect for the whole function; only the
+value waits for the statement that carries it. The parser reads them
+(`the_declarations_of_a_body`) and refuses what v2 refuses.
+
 #### The handlers of the runtime
 
 `OnExit` and `OnError` register a function of the script, and the runtime

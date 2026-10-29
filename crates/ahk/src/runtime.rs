@@ -42,8 +42,8 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use crate::ast::{
-    AssignOp, BinaryOp, CastType, LiteralValue, LoopKind, MethodDef, Node, Parameter, PropertyDef,
-    UnaryOp,
+    AssignOp, BinaryOp, CastType, Declarations, LiteralValue, LoopKind, MethodDef, Node, Parameter,
+    PropertyDef, UnaryOp,
 };
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
@@ -632,6 +632,8 @@ struct Function {
     /// The parameters it takes.
     parameters: Vec<Parameter>,
     body: Vec<Node>,
+    /// The declarations of the function.
+    declarations: Declarations,
 }
 
 /// A timer the script set.
@@ -677,6 +679,12 @@ pub struct Runtime<'a> {
     /// one where the run began.
     initial_working_dir: Option<String>,
     scopes: Vec<BTreeMap<String, Value>>,
+    /// The declarations of the functions that run.
+    ///
+    /// The frame of a function says where its names live: the ones it
+    /// declares global live in the scope of the script, and the ones it
+    /// declares local live in the scope of the function.
+    declarations: Vec<Declarations>,
     functions: BTreeMap<String, Function>,
     classes: BTreeMap<String, Class>,
     /// The class values the runtime made.
@@ -767,6 +775,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             initial_working_dir,
             scopes: Vec::new(),
+            declarations: Vec::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
@@ -809,6 +818,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             initial_working_dir,
             scopes: Vec::new(),
+            declarations: Vec::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
             class_values: RefCell::new(BTreeMap::new()),
@@ -984,13 +994,14 @@ impl<'a> Runtime<'a> {
                         },
                     );
                 }
-                Node::FunctionDef { name, parameters, body, .. } => {
+                Node::FunctionDef { name, parameters, body, declarations, .. } => {
                     self.functions.insert(
                         name.to_lowercase(),
                         Function {
                             name: name.clone(),
                             parameters: parameters.clone(),
                             body: body.clone(),
+                            declarations: declarations.clone(),
                         },
                     );
                 }
@@ -1370,6 +1381,17 @@ impl<'a> Runtime<'a> {
             }
             Node::Try { body, catches, otherwise, finally, .. } => {
                 self.run_try(body, catches, otherwise, finally)?;
+            }
+            Node::Declare { names, line, .. } => {
+                // The names of the declaration are read when the script is
+                // read; the value waits for the statement that carries it.
+                for declared in names {
+                    if let Some(value) = &declared.value {
+                        let value = self.evaluate(value)?;
+                        self.assign(&declared.name, value);
+                    }
+                }
+                let _ = line;
             }
             Node::Throw { value, line } => {
                 // A `throw` without a value throws again the value that the
@@ -1985,6 +2007,14 @@ impl<'a> Runtime<'a> {
             return;
         }
         let name = the_key_of(name);
+        // A name that a function declares global lives in the scope of the
+        // script, and a name that it declares local lives in the scope of
+        // the function. A function that assumes the scope of the script
+        // says it for every name it does not name.
+        if self.lives_in_the_script(&name) {
+            self.variables.insert(name, value);
+            return;
+        }
         match self.scopes.last_mut() {
             Some(scope) => {
                 scope.insert(name, value);
@@ -1993,6 +2023,22 @@ impl<'a> Runtime<'a> {
                 self.variables.insert(name, value);
             }
         }
+    }
+
+    /// Whether a name lives in the scope of the script.
+    ///
+    /// The frame of the function that runs says: the innermost one that
+    /// names the variable decides, and a function that assumes the scope
+    /// of the script says it for every name it does not name.
+    fn lives_in_the_script(&self, name: &str) -> bool {
+        let Some(frame) = self.declarations.last() else { return false };
+        if frame.globals.contains(name) {
+            return true;
+        }
+        if frame.locals.contains(name) {
+            return false;
+        }
+        frame.assume_global
     }
 
     /// The kind of a name whose reference cannot be taken.
@@ -2203,7 +2249,9 @@ impl<'a> Runtime<'a> {
         }
         self.enter_call(line)?;
         self.scopes.push(scope);
+        self.declarations.push(method.declarations.clone());
         let outcome = self.run_block(&method.body);
+        self.declarations.pop();
         self.scopes.pop();
         self.leave_call();
         match outcome {
@@ -2781,7 +2829,9 @@ impl<'a> Runtime<'a> {
         }
         self.enter_call(line)?;
         self.scopes.push(scope);
+        self.declarations.push(function.declarations.clone());
         let outcome = self.run_block(&function.body);
+        self.declarations.pop();
         self.scopes.pop();
         self.leave_call();
         match outcome {
@@ -3197,6 +3247,14 @@ impl<'a> Runtime<'a> {
                 // where an expression is asked for.
                 Err(RuntimeFailure::Error(RuntimeError {
                     message: "the for loop is not an expression.".into(),
+                    line: *line,
+                }))
+            }
+            Node::Declare { line, .. } => {
+                // A declaration is a statement: the parser never gives one
+                // where an expression is asked for.
+                Err(RuntimeFailure::Error(RuntimeError {
+                    message: "a declaration is not an expression.".into(),
                     line: *line,
                 }))
             }
@@ -4141,6 +4199,7 @@ pub fn op_name(statement: &Node) -> &str {
         Node::While { .. } => "While",
         Node::Try { .. } => "Try",
         Node::Throw { .. } => "Throw",
+        Node::Declare { .. } => "Declare",
         Node::Loop { .. } => "Loop",
         Node::ArrayLiteral { .. } => "ArrayLiteral",
         Node::For { .. } => "For",

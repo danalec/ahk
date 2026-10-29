@@ -1711,3 +1711,106 @@ fn a_parameter_read_in_another_case_is_the_same_parameter() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["the parameter"]);
 }
+
+#[test]
+fn a_global_in_a_function_writes_the_global_of_the_script() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let (report, _) = run(concat!(
+        "g := 0\n",
+        "f() {\n",
+        "  global g\n",
+        "  g := 1\n",
+        "  return g\n",
+        "}\n",
+        "MsgBox f() \", \" g\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1, 1"]);
+}
+
+#[test]
+fn a_global_with_a_value_writes_the_global_of_the_script() {
+    let (report, _) = run("global g := 1\nMsgBox g\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_local_in_a_function_is_local() {
+    let (report, _) = run(concat!(
+        "g := 1\n",
+        "f() {\n",
+        "  local l := 2\n",
+        "  return l\n",
+        "}\n",
+        "MsgBox f() \", \" g\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2, 1"]);
+}
+
+#[test]
+fn a_function_that_assumes_the_scope_of_the_script_writes_the_global() {
+    // The bare `global` of the first line of a function is the mode of the
+    // function.
+    let (report, _) = run(concat!(
+        "g := 0\n",
+        "f() {\n",
+        "  global\n",
+        "  g := 1\n",
+        "  return g\n",
+        "}\n",
+        "MsgBox f() \", \" g\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1, 1"]);
+}
+
+#[test]
+fn a_local_in_a_function_that_assumes_the_scope_of_the_script_is_local() {
+    let (report, _) = run(concat!(
+        "g := 0\n",
+        "f() {\n",
+        "  global\n",
+        "  local l := 2\n",
+        "  g := 1\n",
+        "  return l \" \" g\n",
+        "}\n",
+        "MsgBox f() \", \" g\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 1, 1"]);
+}
+
+#[test]
+fn a_declaration_inside_a_block_takes_effect_for_the_whole_function() {
+    let (report, _) = run(concat!(
+        "g := 0\n",
+        "f() {\n",
+        "  if 1 {\n",
+        "    global g\n",
+        "  }\n",
+        "  g := 1\n",
+        "  return g\n",
+        "}\n",
+        "MsgBox f() \", \" g\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1, 1"]);
+}
+
+#[test]
+fn a_declaration_may_name_several_variables() {
+    let (report, _) = run(concat!(
+        "a := 0\n",
+        "b := 0\n",
+        "f() {\n",
+        "  global a, b := 1\n",
+        "  a := 2\n",
+        "  return a \" \" b\n",
+        "}\n",
+        "MsgBox f() \", \" a \" \" b\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 1, 2 1"]);
+}
