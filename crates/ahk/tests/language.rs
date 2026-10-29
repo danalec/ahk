@@ -1663,6 +1663,88 @@ fn the_equal_sign_of_v1_is_not_the_assignment_of_v2() {
 }
 
 #[test]
+fn the_concatenation_of_an_object_is_refused() {
+    let (report, _desktop) = run("x := {}\nMsgBox \"a\" . x");
+    assert!(!report.ok);
+    // Measured on the binary of v2.0.19 on 2026-10-31: the concatenation
+    // wants a text or a number, and the message names the kind of the value
+    // that arrived.
+    assert_eq!(report.error.as_deref(), Some("Expected a String but got an Object."));
+}
+
+#[test]
+fn the_concatenation_of_an_array_is_refused() {
+    let (report, _desktop) = run("x := [1]\nMsgBox \"a\" . x");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a String but got an Array."));
+}
+
+#[test]
+fn the_concatenation_of_a_function_is_refused() {
+    let (report, _desktop) = run("x := () => 1\nMsgBox \"a\" . x");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a String but got a Func."));
+}
+
+#[test]
+fn the_concatenation_of_a_number_is_a_text() {
+    let (report, _desktop) = run("MsgBox \"a\" 1");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a1"]);
+}
+
+#[test]
+fn the_maths_refuses_an_object() {
+    let (report, _desktop) = run("x := {}\nMsgBox 1 + x");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a Number but got an Object."));
+}
+
+#[test]
+fn the_maths_refuses_an_array() {
+    let (report, _desktop) = run("x := [1]\nMsgBox 1 + x");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a Number but got an Array."));
+}
+
+#[test]
+fn the_maths_refuses_a_text_that_is_not_a_number() {
+    let (report, _desktop) = run("x := \"a\"\nMsgBox 1 + x");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a Number but got a String."));
+}
+
+#[test]
+fn the_parenthesis_may_open_an_argument_of_a_command() {
+    let (report, _desktop) = run("MsgBox (1 + 2)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+}
+
+#[test]
+fn a_name_and_a_parenthesis_with_a_space_are_not_a_call() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the space before
+    // the parenthesis tells a call from the concatenation of v2.
+    let (report, _desktop) = run("x := 1\nMsgBox x (2)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["12"]);
+}
+
+#[test]
+fn the_whole_number_of_the_bitwise_operations_is_a_number_first() {
+    let (report, _desktop) = run("MsgBox 1 & \"2\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn a_number_with_a_point_is_not_a_whole_number() {
+    let (report, _desktop) = run("MsgBox 1 & 1.5");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected an Integer but got a Float."));
+}
+
+#[test]
 fn the_hex_of_v2_is_a_whole_number() {
     let (report, desktop) = run("x := 0xE9\nSend \"%x%\"");
     assert!(report.ok, "{:?}", report.error);

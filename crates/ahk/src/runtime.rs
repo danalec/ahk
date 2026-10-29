@@ -146,6 +146,28 @@ pub fn expected_type(expected: TypeName, got: TypeName) -> String {
     )
 }
 
+/// The message v2 gives when a value of the wrong kind arrives.
+///
+/// The kind of the value that arrived is the name of its class: "an
+/// Object", "an Array", "a Map", "a Func", "a Thing".
+pub fn expected_the_kind(expected: TypeName, got: &str) -> String {
+    format!(
+        "Expected a{} {} but got a{} {}.",
+        expected.article(),
+        expected.name(),
+        the_article_of(got),
+        got
+    )
+}
+
+/// The article that goes with the name of a kind: "an Object", "a String".
+fn the_article_of(name: &str) -> &'static str {
+    match name.chars().next() {
+        Some(first) if "AEIOU".contains(first.to_ascii_uppercase()) => "n",
+        _ => "",
+    }
+}
+
 /// The message v2 gives when a maths operation gets something that is
 /// not a number.
 ///
@@ -179,8 +201,8 @@ pub fn the_kind_of(value: &Value) -> String {
     match value {
         Value::Text(text) if text.is_empty() => "an empty string".to_string(),
         other => {
-            let kind = other.type_name();
-            format!("a{} {}", kind.article(), kind.name())
+            let kind = other.the_kind();
+            format!("a{} {}", the_article_of(&kind), kind)
         }
     }
 }
@@ -434,6 +456,27 @@ impl Value {
         match self {
             Value::Reference(_) => Err(TypeName::VarRef),
             other => Ok(other.to_text()),
+        }
+    }
+
+    /// The kind of the value, the way v2 names it.
+    ///
+    /// An object is named after its class: "Object", "Map", "Func", the
+    /// name of the class of the script. An array is an "Array".
+    pub fn the_kind(&self) -> String {
+        match self {
+            Value::Int(_) => "Integer".to_string(),
+            Value::Float(_) => "Float".to_string(),
+            Value::Text(_) => "String".to_string(),
+            Value::List(_) => "Array".to_string(),
+            Value::Reference(_) => "VarRef".to_string(),
+            Value::Object(object) => {
+                let mut name = object.borrow().class.clone();
+                if let Some(first) = name.get_mut(0..1) {
+                    first.make_ascii_uppercase();
+                }
+                name
+            }
         }
     }
 
@@ -2800,7 +2843,7 @@ impl<'a> Runtime<'a> {
         }
         match self.class_of(value) {
             Some(name) => name,
-            None => value.type_name().name().to_string(),
+            None => value.the_kind(),
         }
     }
 
@@ -3408,20 +3451,79 @@ impl<'a> Runtime<'a> {
     }
 
     /// The value as a number, the way the maths operations want it.
+    ///
+    /// The message names the kind of the value that arrived, and the value
+    /// itself goes in the `Extra` of the failure.
     pub(crate) fn number(&self, value: &Value, line: u32) -> Result<f64, RuntimeFailure> {
         value.to_number_strict().map_err(|_| {
-            RuntimeFailure::Error(RuntimeError { message: expected_number(value), line })
+            RuntimeFailure::Detailed(
+                RuntimeError {
+                    message: expected_the_kind(TypeName::Number, &self.the_type_of(value)),
+                    line,
+                },
+                Detail { what: String::new(), extra: the_extra_of_the_value(value) },
+            )
         })
     }
 
     /// The value as a whole number, the way the bitwise operations want it.
+    ///
+    /// The number comes first: a text that holds a number is a number. A
+    /// number with a point is not a whole one, and v2 says so.
     pub(crate) fn integer(&self, value: &Value, line: u32) -> Result<i64, RuntimeFailure> {
+        self.the_whole_number(value, line, TypeName::Integer)
+    }
+
+    /// The value as a whole number, and the name of the kind it wants.
+    ///
+    /// The bitwise operations want a whole number, and the bitwise not
+    /// says that it wants a number: the message names the one that it says.
+    fn the_whole_number(
+        &self,
+        value: &Value,
+        line: u32,
+        wants: TypeName,
+    ) -> Result<i64, RuntimeFailure> {
+        if let Value::Int(number) = value {
+            return Ok(*number);
+        }
+        let number = self.number(value, line)?;
+        if fract(number) != 0.0 {
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError {
+                    message: expected_the_kind(wants, &self.the_type_of(value)),
+                    line,
+                },
+                Detail { what: String::new(), extra: the_extra_of_the_value(value) },
+            ));
+        }
+        Ok(number as i64)
+    }
+
+    /// The place of an item, the way the index of an array wants it.
+    ///
+    /// v2 wants a number: a text that holds a number is a number, and a
+    /// number with a point is taken as the whole one before it. A value
+    /// that is not a number is not a place at all.
+    pub(crate) fn the_place_of_an_item(&self, value: &Value) -> Option<i64> {
+        value.to_number().map(|number| trunc(number) as i64)
+    }
+
+    /// The text of a value in a concatenation.
+    ///
+    /// v2 wants a text or a number: an object, an array and a function are
+    /// refused, and the message names the kind of the value that arrived.
+    fn the_text_of_the_concat(&self, value: &Value, line: u32) -> Result<String, RuntimeFailure> {
         match value {
-            Value::Int(number) => Ok(*number),
-            other => Err(RuntimeFailure::Error(RuntimeError {
-                message: expected_type(TypeName::Integer, other.type_name()),
-                line,
-            })),
+            Value::Text(text) => Ok(text.clone()),
+            Value::Int(_) | Value::Float(_) => Ok(value.to_text()),
+            other => Err(RuntimeFailure::Detailed(
+                RuntimeError {
+                    message: expected_the_kind(TypeName::String, &self.the_type_of(other)),
+                    line,
+                },
+                Detail { what: String::new(), extra: String::new() },
+            )),
         }
     }
 
@@ -4333,7 +4435,9 @@ impl<'a> Runtime<'a> {
                 // The bitwise not works on the bits of a whole number.
                 UnaryOp::BitwiseNot => {
                     let value = self.evaluate(operand)?;
-                    Ok(Value::Int(!self.integer(&value, *line)?))
+                    // v2 says that the bitwise not wants a number here, and
+                    // not a whole one: the message is the one of the number.
+                    Ok(Value::Int(!self.the_whole_number(&value, *line, TypeName::Number)?))
                 }
                 // The reference operator: `&x`.
                 //
@@ -4527,18 +4631,8 @@ impl<'a> Runtime<'a> {
                         Value::Int((a >> b) as i64)
                     }
                     BinaryOp::Concat => {
-                        let left_text = left_value.as_text().map_err(|got| {
-                            RuntimeFailure::Error(RuntimeError {
-                                message: expected_type(TypeName::String, got),
-                                line,
-                            })
-                        })?;
-                        let right_text = right_value.as_text().map_err(|got| {
-                            RuntimeFailure::Error(RuntimeError {
-                                message: expected_type(TypeName::String, got),
-                                line,
-                            })
-                        })?;
+                        let left_text = self.the_text_of_the_concat(&left_value, line)?;
+                        let right_text = self.the_text_of_the_concat(&right_value, line)?;
                         Value::Text(format!("{left_text}{right_text}"))
                     }
                     BinaryOp::RegexMatch => {
@@ -5022,6 +5116,18 @@ fn fract(value: f64) -> f64 {
     value - libm::trunc(value)
 }
 
+/// The whole part of `value`: the number without its fraction.
+#[cfg(feature = "std")]
+fn trunc(value: f64) -> f64 {
+    value.trunc()
+}
+
+/// The whole part of `value`: the number without its fraction.
+#[cfg(not(feature = "std"))]
+fn trunc(value: f64) -> f64 {
+    libm::trunc(value)
+}
+
 /// `value` raised to a whole power.
 ///
 /// The loop is the same in both configurations, so the two answers agree
@@ -5122,8 +5228,20 @@ fn the_parameter_that_failed(message: &str, values: &[Value]) -> String {
     };
     values
         .get(number.saturating_sub(1))
-        .map(|value| value.to_text())
+        .map(the_extra_of_the_value)
         .unwrap_or_default()
+}
+
+/// The value in the `Extra` of a failure.
+///
+/// v2 carries the value that arrived, and a text and a number have a text
+/// of their own: an object, an array and a function have none.
+pub(crate) fn the_extra_of_the_value(value: &Value) -> String {
+    match value {
+        Value::Text(text) => text.clone(),
+        Value::Int(_) | Value::Float(_) => value.to_text(),
+        Value::List(_) | Value::Object(_) | Value::Reference(_) => String::new(),
+    }
 }
 
 /// The prototype of a class: the object that holds its methods.

@@ -109,6 +109,7 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
         return "ValueError";
     }
     if message.starts_with("Expected a ")
+        || message.starts_with("Expected an ")
         || message.contains(" requires ")
         || message == "Value not enumerable."
     {

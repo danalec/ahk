@@ -269,9 +269,14 @@ pub(crate) fn set_item(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
-    let index = match rt.integer(key, line) {
-        Ok(number) => number,
-        Err(failure) => return Some(Err(failure)),
+    // The place of an item is a number: a value that is not one is not a
+    // place at all, and v2 says that the index is invalid.
+    let Some(index) = rt.the_place_of_an_item(key) else {
+        return Some(Err(crate::classes::the_failure_with(
+            "Invalid index.",
+            &crate::runtime::the_extra_of_the_value(key),
+            line,
+        )));
     };
     let Some(state) = state(this) else {
         return Some(Err(crate::classes::the_failure_with(
@@ -378,9 +383,14 @@ pub(crate) fn item(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
-    let index = match rt.integer(key, line) {
-        Ok(number) => number,
-        Err(failure) => return Some(Err(failure)),
+    // The place of an item is a number: a value that is not one is not a
+    // place at all, and v2 says that the index is invalid.
+    let Some(index) = rt.the_place_of_an_item(key) else {
+        return Some(Err(crate::classes::the_failure_with(
+            "Invalid index.",
+            &crate::runtime::the_extra_of_the_value(key),
+            line,
+        )));
     };
     let Some(state) = state(this) else {
         return Some(Err(crate::classes::the_failure_with(

@@ -650,6 +650,11 @@ that asks for another one is refused with the reason.
 - **The hotkeys run between the instructions of the script, at the top
   level.** A hotkey runs with the scope of the script and not with the one
   of a function.
+- **The kind of a value is the name of its class.** An object is an "Object",
+  a "Map", a "Func" or the name of the class of the script, and the
+  messages of the refusals name it: "Expected a String but got an Array.".
+  The operators refuse a value that they cannot work with: the
+  concatenation wants a text or a number, and the maths wants a number.
 
 ## Side Effects
 

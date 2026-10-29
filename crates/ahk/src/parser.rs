@@ -1591,6 +1591,9 @@ impl Parser {
         let token = self.peek();
         match token.kind {
             TokenKind::Number | TokenKind::String | TokenKind::Name => true,
+            // A parenthesis opens a value: the concatenation of v2 takes it
+            // as the value that follows the one before it.
+            TokenKind::Op if token.value == "(" => true,
             TokenKind::Keyword => {
                 let word = token.value.to_lowercase();
                 if word == "true" || word == "false" {
@@ -1658,9 +1661,11 @@ impl Parser {
                 // neither a value nor a call.
                 if token.value.eq_ignore_ascii_case("super") {
                     self.parse_super(token)?
-                } else if self.at_op(&["("]) {
+                } else if self.at_op(&["("]) && !self.peek().spaced {
                     // A keyword that is a function name -- `PixelGetColor(10, 20)`
-                    // -- is a call.
+                    // -- is a call. The parenthesis that is spaced is not
+                    // one: the concatenation of v2 takes the name and the
+                    // value that follows it.
                     return self.parse_call(token.value.to_lowercase(), token.line);
                 } else {
                     // The words that are values are the two below.
@@ -1688,7 +1693,10 @@ impl Parser {
                 }
             }
             TokenKind::Name => {
-                if self.at_op(&["("]) {
+                // The parenthesis that is spaced is not a call: the
+                // concatenation of v2 takes the name and the value that
+                // follows it, and the space is what tells them apart.
+                if self.at_op(&["("]) && !self.peek().spaced {
                     return self.parse_call(token.value.to_lowercase(), token.line);
                 }
                 let name = token.value;

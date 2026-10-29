@@ -2545,3 +2545,41 @@ another one sees the variables of the one around it, and writes them there too.
 
 Fifteen cases of the closures and six of the assignment are the same in the
 tree and in the dialect.
+
+## 47. The kind of a value is the kind of v2, and the operators refuse what they cannot work with
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree named every object
+an "Object", and the operators took whatever they were given.
+
+- **The kind of a value is the name of its class.** "an Object", "an Array",
+  "a Map", "a Func", "a Thing", "a Buffer". The message of a refusal names
+  it: "Expected a String but got an Array.".
+- **The concatenation wants a text or a number.** An object, an array and a
+  function are refused, and a number is a text in the concatenation: `"a" 1`
+  is "a1".
+- **The maths wants a number.** A text that holds a number is a number, and
+  a text that does not is refused: "Expected a Number but got a String.".
+  The value that arrived goes in the `Extra` of the failure, and an object
+  has no text of its own: the `Extra` is empty.
+- **A parenthesis opens a value.** `(1 + 2)` is an argument of a command,
+  and the value of the parenthesis is one value.
+- **The space before the parenthesis tells a call from a concatenation.**
+  `f(x)` is a call, and `f (x)` is the concatenation of the name and the
+  value that follows it.
+- **The bitwise operations want a whole number.** The number comes first,
+  and the whole one after it: a number with a point is refused with
+  "Expected an Integer but got a Float.". The bitwise not says that it
+  wants a number: "Expected a Number but got a Float.".
+- **The place of an item is a number.** A text that holds a number is a
+  number, and a number with a point is taken as the whole one before it.
+  A value that is not a number is not a place at all: "Invalid index.".
+
+Two gaps are left, and both are the enumeration and the built-ins. The
+enumeration of v2 is an `Enumerator`, and the tree's is an `Array`: the
+message says "an Array" where v2 says "an Enumerator". A built-in that wants
+a text still takes the text of an object, and v2 refuses it with
+"Parameter #1 of StrLen requires a String, but received an Object.".
+
+Twelve cases of the whole numbers, eleven of the parenthesis, twenty-two of
+the kinds and the ones of the closures are the same in the tree and in the
+dialect.

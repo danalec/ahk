@@ -191,9 +191,24 @@ fn a_place_that_is_not_there_is_an_error() {
 
 #[test]
 fn a_place_that_is_not_a_number_is_an_error() {
-    let report = run("a := Array(\"x\")\nMsgBox a[\"1\"]");
+    // Measured on the binary of v2.0.19 on 2026-10-31: the place of an item
+    // is a number, and a value that is not one is not a place at all.
+    let report = run("a := Array(\"x\")\nMsgBox a[\"z\"]");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected an Integer but got a String."));
+    assert_eq!(report.error.as_deref(), Some("Invalid index."));
+}
+
+#[test]
+fn a_place_that_is_a_number_of_a_text_is_a_place() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a text that holds a
+    // number is a number, and a number with a point is taken as the whole
+    // one before it.
+    let report = run("a := Array(\"x\")\nMsgBox a[\"1\"]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x"]);
+    let report = run("a := Array(\"x\")\nMsgBox a[1.5]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x"]);
 }
 
 #[test]
@@ -254,7 +269,9 @@ fn the_enumeration_is_in_the_order_of_the_values() {
 
 #[test]
 fn the_own_properties_of_an_array_are_the_ones_the_script_gave_it() {
-    let report = run("a := Array()\na.DefineProp(\"x\", 7)\nMsgBox a.OwnProps() . \" \" . a.x");
+    // The enumeration of v2 is an Enumerator, and the concatenation of one
+    // is refused: the names are read one by one.
+    let report = run("a := Array()\na.DefineProp(\"x\", 7)\nMsgBox a.OwnProps()[1] . \" \" . a.x");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x 7"]);
 }

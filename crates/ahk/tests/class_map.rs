@@ -282,7 +282,9 @@ fn the_capacity_can_be_set() {
 
 #[test]
 fn the_own_properties_of_a_map_are_the_ones_the_script_gave_it() {
-    let report = run("m := Map()\nm.DefineProp(\"x\", 7)\nMsgBox m.OwnProps() . \" \" . m.x");
+    // The enumeration of v2 is an Enumerator, and the concatenation of
+    // one is refused: the names are read one by one.
+    let report = run("m := Map()\nm.DefineProp(\"x\", 7)\nMsgBox m.OwnProps()[1] . \" \" . m.x");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x 7"]);
 }

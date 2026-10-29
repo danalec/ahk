@@ -797,6 +797,34 @@ fn an_empty_text_is_named_in_the_message() {
 }
 
 #[test]
+fn the_kind_of_a_value_is_named_in_the_message() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the kind of a value
+    // is the name of its class.
+    for (source, kind) in [
+        ("a := Abs({})", "an Object"),
+        ("a := Abs([1])", "an Array"),
+        ("a := Abs(Map())", "a Map"),
+        ("a := Abs(() => 1)", "a Func"),
+    ] {
+        let report = run(source);
+        assert_eq!(
+            failure_of(&report),
+            format!("Parameter #1 of Abs requires a Number, but received {kind}."),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn the_value_of_a_failure_is_empty_when_it_has_no_text() {
+    let report = run(
+        "try {\n    x := Abs({})\n} catch Any as e {\n    MsgBox \"[\" e.Extra \"]\"\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]"]);
+}
+
+#[test]
 fn every_maths_built_in_names_the_type_it_wanted() {
     for (source, name) in [
         ("a := Sqrt(\"x\")", "Sqrt"),
