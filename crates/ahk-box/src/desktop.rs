@@ -901,6 +901,12 @@ impl ahk::desktop::Machine for LabDesktop {
 /// Measured on the box on 2026-10-29: zenity 4.2.2 answers the entry
 /// with the text of the user, and it exits with 5 when the timeout of
 /// the options goes by.
+impl ahk::desktop::Network for LabDesktop {
+    fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
+        crate::network::download(url, file)
+    }
+}
+
 impl ahk::desktop::Dialogs for LabDesktop {
     fn input_box(
         &mut self,

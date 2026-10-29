@@ -149,11 +149,12 @@ the box: it does no I/O, and it has to keep building without `std`.
   that answers it. A name that is shaped for Windows is in the table too,
   and the handler answers it with the reason: a question the desktop cannot
   answer fails, and it does not answer `false`.
-- **The `Desktop` trait is the sum of thirteen capability traits** -- `Keyboard`,
+- **The `Desktop` trait is the sum of fourteen capability traits** -- `Keyboard`,
   `Pointer`, `Screen`, `Windows`, `Processes`, `Files`, `Clipboard`,
-  `Timers`, `Hotkeys`, `Native`, `Sound`, `Machine` and `Dialogs`. There is
+  `Timers`, `Hotkeys`, `Native`, `Sound`, `Machine`, `Dialogs` and
+  `Network`. There is
   no blanket
-  implementation: every implementor writes the thirteen of them, and every
+  implementation: every implementor writes the fourteen of them, and every
   method that a
   capability does not have has a default that says so. A new capability
   goes in its own trait, and `Desktop` grows by naming it.
@@ -375,6 +376,15 @@ the box: it does no I/O, and it has to keep building without `std`.
   class of the value. Every object has the property, and it is not an own
   property: `m.HasProp("__Class")` is 1 and `m.HasOwnProp("__Class")` is
   0.
+- **The download is the machine's.** Measured on the binary of v2.0.19 on
+  2026-10-29: the `Download` takes two parameters -- the url and the
+  name of the file -- and it answers nothing: the answer is an empty
+  text. A file that is not there on the network is not a failure either:
+  the server sends its page of the error, and that page is what is
+  written. A url that cannot be reached at all fails with a failure of
+  the class `OSError`, and the message is the code of the machine in
+  front of what it says: "(12006) ". The network is a capability of the
+  desktop, and the box fetches the file with curl.
 - **The questions of the user are the machine's.** Measured on the binary
   of v2.0.19 on 2026-10-29: the three dialogs of v2 are `InputBox`,
   `FileSelect` and `DirSelect`, and they take four, four and three

@@ -2,7 +2,7 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **721 entries** : **507 answer with a value** , **214 are refused** and **none is pending**.
+The surface of the v2.0.19 has **721 entries** : **508 answer with a value** , **213 are refused** and **none is pending**.
 
 The table has **721 entries and 685 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
@@ -11,7 +11,7 @@ The table has **721 entries and 685 distinct names** : a property with a setter 
 | Area | Names | Answer | Refused |
 |---|---|---|---|
 | Parser and script execution | 36 | 29 | 7 |
-| File and directory operations | 96 | 76 | 20 |
+| File and directory operations | 96 | 77 | 19 |
 | Hotkeys, hotstrings, and input | 102 | 94 | 8 |
 | GUI windows and window automation | 271 | 139 | 132 |
 | Screen capture and pixel functions | 7 | 4 | 3 |
@@ -24,7 +24,7 @@ The table has **721 entries and 685 distinct names** : a property with a setter 
 | The machine, the processes and the environment | 35 | 20 | 15 |
 | The clipboard | 2 | 1 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **721** | **507** | **214** |
+| **The whole of it** | **721** | **508** | **213** |
 
 ## What the numbers do not say
 
@@ -75,14 +75,13 @@ names that the tree answers.
 
 ## 2. File and directory operations
 
-**96 names: 76 answer with a value, 20 are refused.**
+**96 names: 77 answer with a value, 19 are refused.**
 
-**The ones that answer** (76): `DirCopy`, `DirCreate`, `DirDelete`, `DirExist`, `DirMove`, `DirSelect`, `File.AtEOF`, `File.Close`, `File.Encoding`, `File.Encoding`, `File.Handle`, `File.Length`, `File.Length`, `File.Pos`, `File.Pos`, `File.RawRead`, `File.RawWrite`, `File.Read`, `File.ReadChar`, `File.ReadDouble`, `File.ReadFloat`, `File.ReadInt`, `File.ReadInt64`, `File.ReadLine`, `File.ReadShort`, `File.ReadUChar`, `File.ReadUInt`, `File.ReadUShort`, `File.Seek`, `File.Write`, `File.WriteChar`, `File.WriteDouble`, `File.WriteFloat`, `File.WriteInt`, `File.WriteInt64`, `File.WriteLine`, `File.WriteShort`, `File.WriteUChar`, `File.WriteUInt`, `File.WriteUShort`, `FileAppend`, `FileCopy`, `FileDelete`, `FileEncoding`, `FileEncoding`, `FileExist`, `FileGetAttrib`, `FileGetSize`, `FileGetTime`, `FileInstall`, `FileMove`, `FileOpen`, `FileRead`, `FileSelect`, `FileSetAttrib`, `FileSetTime`, `IniDelete`, `IniRead`, `IniWrite`, `LoopField`, `LoopFileAttrib`, `LoopFileDir`, `LoopFileExt`, `LoopFileFullPath`, `LoopFileName`, `LoopFilePath`, `LoopFileShortName`, `LoopFileShortPath`, `LoopFileSize`, `LoopFileSizeKB`, `LoopFileSizeMB`, `LoopFileTimeAccessed`, `LoopFileTimeCreated`, `LoopFileTimeModified`, `LoopReadLine`, `SplitPath`
+**The ones that answer** (77): `DirCopy`, `DirCreate`, `DirDelete`, `DirExist`, `DirMove`, `DirSelect`, `Download`, `File.AtEOF`, `File.Close`, `File.Encoding`, `File.Encoding`, `File.Handle`, `File.Length`, `File.Length`, `File.Pos`, `File.Pos`, `File.RawRead`, `File.RawWrite`, `File.Read`, `File.ReadChar`, `File.ReadDouble`, `File.ReadFloat`, `File.ReadInt`, `File.ReadInt64`, `File.ReadLine`, `File.ReadShort`, `File.ReadUChar`, `File.ReadUInt`, `File.ReadUShort`, `File.Seek`, `File.Write`, `File.WriteChar`, `File.WriteDouble`, `File.WriteFloat`, `File.WriteInt`, `File.WriteInt64`, `File.WriteLine`, `File.WriteShort`, `File.WriteUChar`, `File.WriteUInt`, `File.WriteUShort`, `FileAppend`, `FileCopy`, `FileDelete`, `FileEncoding`, `FileEncoding`, `FileExist`, `FileGetAttrib`, `FileGetSize`, `FileGetTime`, `FileInstall`, `FileMove`, `FileOpen`, `FileRead`, `FileSelect`, `FileSetAttrib`, `FileSetTime`, `IniDelete`, `IniRead`, `IniWrite`, `LoopField`, `LoopFileAttrib`, `LoopFileDir`, `LoopFileExt`, `LoopFileFullPath`, `LoopFileName`, `LoopFilePath`, `LoopFileShortName`, `LoopFileShortPath`, `LoopFileSize`, `LoopFileSizeKB`, `LoopFileSizeMB`, `LoopFileTimeAccessed`, `LoopFileTimeCreated`, `LoopFileTimeModified`, `LoopReadLine`, `SplitPath`
 
-**The ones that are refused** (20), by the reason:
+**The ones that are refused** (19), by the reason:
 
 - *this is a name of Windows, and this desktop is not Windows.* (19): `DriveEject`, `DriveGetCapacity`, `DriveGetFilesystem`, `DriveGetLabel`, `DriveGetList`, `DriveGetSerial`, `DriveGetSpaceFree`, `DriveGetStatus`, `DriveGetStatusCD`, `DriveGetType`, `DriveLock`, `DriveRetract`, `DriveSetLabel`, `DriveUnlock`, `FileCreateShortcut`, `FileGetShortcut`, `FileGetVersion`, `FileRecycle`, `FileRecycleEmpty`
-- *the download is made by the desktop, and this desktop does not reach the network.* (1): `Download`
 
 ## 3. Hotkeys, hotstrings, and input
 

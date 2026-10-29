@@ -400,6 +400,19 @@ pub trait Native {
     }
 }
 
+/// The network of the desktop.
+///
+/// A download is a file that comes from the network, and the network is
+/// the machine's: a desktop that does not reach it says so.
+pub trait Network {
+    /// Fetch a file of the network and write it on the disk.
+    ///
+    /// The answer is the path of the file that was written.
+    fn download(&mut self, _url: &str, _file: &str) -> Result<String, String> {
+        Err("the download is made by the desktop, and this desktop does not reach the network.".to_string())
+    }
+}
+
 /// The sound of the machine.
 ///
 /// The names are the ones of v2: the volume of a device, whether it is
@@ -662,5 +675,6 @@ pub trait Desktop:
     + Sound
     + Machine
     + Dialogs
+    + Network
 {
 }

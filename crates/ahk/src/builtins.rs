@@ -26,7 +26,7 @@ use alloc::vec::Vec;
 
 use crate::date::{date_add, date_diff, format_time};
 use crate::dialogs::{dir_select, file_select, input_box};
-use crate::files::{
+use crate::files::{download, 
     dir_copy, dir_move, file_copy, file_encoding, file_get_attrib, file_get_size, file_get_time,
     file_install, file_move, file_open, file_set_attrib, file_set_time, ini_delete, ini_read,
     ini_write,
@@ -402,7 +402,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "DirCopy", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_copy },
     Builtin { name: "DirMove", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_move },
     Builtin { name: "DirSelect", kind: BuiltinKind::Command, min: 0, max: 3, variant: 0, handler: dir_select },
-    Builtin { name: "Download", kind: BuiltinKind::Command, min: 0, max: 255, variant: 117, handler: not_carried },
+    Builtin { name: "Download", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, handler: download },
     Builtin { name: "FileCopy", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, handler: file_copy },
     Builtin { name: "FileEncoding", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_encoding },
     Builtin { name: "FileGetAttrib", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_get_attrib },

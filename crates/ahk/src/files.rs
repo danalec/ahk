@@ -305,6 +305,43 @@ pub fn file_encoding(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
         .map_err(|message| RuntimeError { message, line })
 }
 
+// -- the network ---------------------------------------------------------------------
+
+/// `Download`: fetch a file of the network.
+///
+/// The answer of v2 is nothing: the command gives no value back, and
+/// the file is written where the script said. A file that is not there
+/// on the network is not a failure either: the server sends its page
+/// of the error, and that page is what is written.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-29: the answer of the
+/// command is an empty text, and a url that is not one fails with a
+/// failure of the class `OSError`.
+pub fn download(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let url = the_url_of_the_download(&text_of(values, 0));
+    let file = text_of(values, 1);
+    rt.desktop()
+        .download(&url, &file)
+        .map_err(|reason| RuntimeError { message: reason, line })?;
+    Ok(Value::Text(String::new()))
+}
+
+/// The url of a download, without the flag of the cache of v2.
+///
+/// v2 writes the flag of the cache in front of the url, with a star:
+/// "*0 https://example.com". The flag is a name of Windows, and the url
+/// is what is left of it.
+fn the_url_of_the_download(url: &str) -> String {
+    let url = url.trim();
+    match url.strip_prefix('*') {
+        Some(rest) => match rest.find(' ') {
+            Some(at) => rest[at + 1..].trim_start().to_string(),
+            None => rest.trim_start().to_string(),
+        },
+        None => url.to_string(),
+    }
+}
+
 // -- the file itself ----------------------------------------------------------------
 
 /// `FileOpen`: open a file and answer it.
@@ -584,7 +621,7 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Pointer,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer,
         Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
@@ -607,6 +644,7 @@ mod tests {
     }
 
     impl Desktop for Fake {}
+    impl Network for Fake {}
     impl Sound for Fake {}
 impl Machine for Fake {}
 impl Dialogs for Fake {}

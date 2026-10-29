@@ -6,7 +6,7 @@
 //! binary of v2.0.19 on 2026-10-29.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Pointer, Processes,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer, Processes,
     Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
@@ -18,6 +18,7 @@ use std::time::Duration;
 struct Fake;
 
 impl Desktop for Fake {}
+impl Network for Fake {}
 impl Sound for Fake {}
 impl Machine for Fake {}
 impl Dialogs for Fake {}

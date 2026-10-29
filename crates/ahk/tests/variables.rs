@@ -6,7 +6,7 @@
 //! names that the tree does not carry refuse with the reason of the name.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Folders, Hotkeys, Idle, Keyboard, Machine, Native, Pointer,
+    Clipboard, Desktop, Dialogs, Files, Folders, Hotkeys, Idle, Keyboard, Machine, Native, Network, Pointer,
     Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::runtime::{Report, Runtime};
@@ -56,6 +56,7 @@ impl Default for Fake {
 }
 
 impl Desktop for Fake {}
+impl Network for Fake {}
 impl Sound for Fake {}
 
 impl Machine for Fake {

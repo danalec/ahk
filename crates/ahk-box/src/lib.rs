@@ -11,6 +11,7 @@ pub mod hotkeys;
 pub mod keyboard;
 pub mod machine;
 pub mod native;
+pub mod network;
 pub mod pointer;
 pub mod raven;
 pub mod wayland;

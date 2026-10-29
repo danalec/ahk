@@ -898,7 +898,7 @@ fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Pointer,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer,
         Processes, Screen, Sound, Timers, WindowAnswer, Windows,
     };
     use crate::runtime::Clock;
@@ -1000,6 +1000,7 @@ mod tests {
 
     impl Native for Fake {}
     impl Desktop for Fake {}
+    impl Network for Fake {}
     impl Sound for Fake {}
 impl Machine for Fake {}
 impl Dialogs for Fake {}

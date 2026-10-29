@@ -6,7 +6,7 @@
 
 use ahk::desktop::{
     Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, InputAnswer, InputOptions,
-    Keyboard, Machine, Native, Pointer, Processes, Screen, Sound, Timers, Windows,
+    Keyboard, Machine, Native, Network, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::dll::{encode_number, NativeCall, NativeResult, NativeType, NativeValue};
 use ahk::runtime::{Report, Runtime, Value};
@@ -29,6 +29,12 @@ struct Fake {
 }
 
 impl Desktop for Fake {}
+impl Network for Fake {
+    fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
+        self.calls.push(("download".into(), format!("{url}|{file}")));
+        Ok(file.to_string())
+    }
+}
 
 impl Sound for Fake {
     fn sound_volume(&mut self, device: &str) -> Result<f64, String> {
@@ -216,6 +222,7 @@ impl Native for Fake {
 struct Blind;
 
 impl Desktop for Blind {}
+impl Network for Blind {}
 impl Sound for Blind {}
 impl Machine for Blind {}
 impl Dialogs for Blind {}
@@ -1374,10 +1381,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "the variables are listed in a window of v2, and this runtime has no window to show them in.",
         ),
         (
-            "Download",
-            "the download is made by the desktop, and this desktop does not reach the network.",
-        ),
-        (
             "LoadPicture",
             "the picture is read by the desktop, and this desktop does not read the images of the machine.",
         ),
@@ -2002,6 +2005,57 @@ fn the_options_of_the_dir_select_are_a_number() {
     assert_eq!(
         report.output,
         vec!["Parameter #2 of DirSelect requires a Number, but received a String. | TypeError | DirSelect | b"]
+    );
+}
+
+
+#[test]
+fn the_download_writes_the_file_and_answers_nothing() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the answer of the
+    // command is an empty text, and the file is written where the script
+    // said.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        "x := Download(\"https://example.com/file.txt\", \"/tmp/file.txt\")\nMsgBox \"[\" x \"]\"",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]"]);
+    assert_eq!(
+        desktop.calls,
+        vec![("download".to_string(), "https://example.com/file.txt|/tmp/file.txt".to_string())]
+    );
+}
+
+#[test]
+fn the_download_of_too_many_arguments_fails_the_way_v2_does() {
+    let report = run("Download(\"a\", \"b\", \"c\")");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too many parameters passed to function. Specifically: Download"
+    );
+}
+
+#[test]
+fn the_download_without_arguments_fails_the_way_v2_does() {
+    let report = run("Download()");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too few parameters passed to function. Specifically: Download"
+    );
+}
+
+#[test]
+fn a_desktop_that_does_not_reach_the_network_says_so() {
+    let mut desktop = Blind;
+    let statements = parse("Download(\"https://example.com/file.txt\", \"/tmp/file.txt\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the download is made by the desktop, and this desktop does not reach the network.")
     );
 }
 

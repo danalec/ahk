@@ -17,7 +17,7 @@
 //!
 //! ```
 //! use ahk::runtime::{Clock, Runtime};
-//! # use ahk::desktop::{Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Pointer, Processes, Screen, Sound, Timers, Windows};
+//! # use ahk::desktop::{Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer, Processes, Screen, Sound, Timers, Windows};
 //! # use core::time::Duration;
 //! # #[derive(Default)]
 //! # struct Fake;
@@ -45,6 +45,7 @@
 //! # impl Sound for Fake {}
 //! # impl Machine for Fake {}
 //! # impl Dialogs for Fake {}
+//! # impl Network for Fake {}
 //! # struct TheClock;
 //! # impl Clock for TheClock {
 //! #     fn now_ms(&self) -> u64 { 0 }
@@ -67,7 +68,7 @@
 //! let report = Runtime::new(&mut desktop, core::time::Duration::from_secs(10)).run(&statements);
 //! assert!(report.ok);
 //! assert_eq!(report.output, vec!["the answer is 42"]);
-//! # use ahk::desktop::{Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Pointer, Processes, Screen, Sound, Timers, Windows};
+//! # use ahk::desktop::{Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pointer, Processes, Screen, Sound, Timers, Windows};
 //! # #[derive(Default)]
 //! # struct Fake;
 //! # impl Desktop for Fake {}
@@ -94,6 +95,7 @@
 //! # impl Sound for Fake {}
 //! # impl Machine for Fake {}
 //! # impl Dialogs for Fake {}
+//! # impl Network for Fake {}
 //! ```
 
 extern crate alloc;
