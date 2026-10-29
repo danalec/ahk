@@ -219,7 +219,7 @@ The traits the runtime is handed:
 
 | Trait | Methods |
 | --- | --- |
-| `Desktop` | the sum of the twelve capability traits below: it has no method of its own, and there is no blanket implementation |
+| `Desktop` | the sum of the thirteen capability traits below: it has no method of its own, and there is no blanket implementation |
 | `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up`, `key_is_down` and `keys_down` have a default that answers with the reason it cannot |
 | `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position`, `set_mouse_speed` and `set_mouse_delay` have a default that answers with the reason it cannot |
 | `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
@@ -232,9 +232,10 @@ The traits the runtime is handed:
 | `Hotkeys` | `register_hotkey`, `unregister_hotkey`, `hotkeys`, `fired_hotkey` have a default that answers with the reason it cannot |
 | `Sound` | `sound_volume`, `sound_set_volume`, `sound_muted`, `sound_set_muted`, `sound_play` and `sound_beep` have a default that answers with the reason it cannot |
 | `Machine` | `user_name`, `computer_name`, `shell`, `folders`, `os_version`, `language`, `is_admin` and `idle_times` have a default that answers with the reason it cannot |
+| `Dialogs` | `input_box`, `file_select` and `dir_select` have a default that answers with the reason it cannot: the question of the user is the machine's |
 | `Clock` | `now_ms() -> u64` (the milliseconds since an arbitrary origin, never backwards), `sleep_ms(u64)` (waits at least that long) and `wall_clock() -> Option<WallClock>` (the date of the machine, and nothing when the host does not know it) |
 
-Every implementor writes the twelve of them: there is no blanket
+Every implementor writes the thirteen of them: there is no blanket
 implementation, so a desktop that grows a capability grows with it.
 
 `SystemClock` is the clock of a hosted platform -- the monotonic clock and the
@@ -382,14 +383,40 @@ none, and the statement fails with that reason.
 
 ### The desktop (`desktop.rs`)
 
-The twelve capability traits, and the `Desktop` that is their sum. Every
-implementor writes the twelve of them: there is no blanket implementation,
+The thirteen capability traits, and the `Desktop` that is their sum. Every
+implementor writes the thirteen of them: there is no blanket implementation,
 so a desktop that grows a capability grows with it. The tenth is `Native`,
 the call into a library of the machine, the eleventh is `Sound`, the
-volume of a device and the playing of a sound, and the twelfth is `Machine`,
-the machine itself: the user, the computer, the folders and the session. Every method that a
+volume of a device and the playing of a sound, the twelfth is `Machine`,
+the machine itself: the user, the computer, the folders and the session,
+and the thirteenth is `Dialogs`, the questions of the user. Every method that a
 capability does not have has a default that answers with the reason it
 cannot.
+
+### The dialogs (`dialogs.rs`)
+
+The three questions the script asks the user: `InputBox`, `FileSelect`
+and `DirSelect`. The options of each one are read here, because they are
+the dialect's, and the window is the machine's: the runtime reads the
+options and hands them to the desktop, and the desktop asks the user.
+
+The `InputBox` answers an object of the class `Object`, and the object
+carries the text of the user in its `Value` and the way the dialog ended
+in its `Result`: "OK", "Cancel" or "Timeout". The `FileSelect` answers
+the path of what the user chose, and it is an array of the paths when the
+user may choose more than one. The `DirSelect` answers the path of the
+folder.
+
+The refusals are the ones of v2, measured on the binary of v2.0.19 on
+2026-10-29: an option of an input box that v2 does not know is refused
+with "Invalid option.", of the class `ValueError`, and the option that
+was not known is in the `Extra` of the failure; an option of a file
+selection that v2 does not know is refused with "Parameter #1 of
+FileSelect is invalid."; the filter of a file selection is not there when
+the user chooses a folder, and it is refused with "Parameter #4 of
+FileSelect is invalid."; and the options of a `DirSelect` are a number,
+and a text that is not one is refused with "Parameter #2 of DirSelect
+requires a Number, but received a String."
 
 ### The date, the files, the settings and the hotkeys
 

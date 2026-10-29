@@ -43,7 +43,9 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ahk::keys::{MODIFIERS, resolve_name};
-use ahk::desktop::{Folders, Idle, Processes, WindowAnswer};
+use ahk::desktop::{
+    FileAnswer, FileOptions, Folders, Idle, InputAnswer, InputOptions, Processes, WindowAnswer,
+};
 use ahk::dll::{NativeCall, NativeResult};
 
 use crate::keyboard::{ENUMERATION_WAIT, Keyboard, KeyboardError};
@@ -888,6 +890,189 @@ impl ahk::desktop::Machine for LabDesktop {
         crate::machine::idle_times()
     }
 }
+
+/// The dialogs of the box.
+///
+/// The box has zenity, and zenity is the window of the session: it
+/// opens the dialog on the display of the user and waits for the
+/// answer. The exit code of zenity says how the dialog ended: 0 is
+/// the OK button, 1 is the Cancel button and 5 is the timeout.
+///
+/// Measured on the box on 2026-10-29: zenity 4.2.2 answers the entry
+/// with the text of the user, and it exits with 5 when the timeout of
+/// the options goes by.
+impl ahk::desktop::Dialogs for LabDesktop {
+    fn input_box(
+        &mut self,
+        prompt: &str,
+        title: &str,
+        options: &InputOptions,
+        default: &str,
+    ) -> Result<InputAnswer, String> {
+        let mut args: Vec<String> = vec!["--entry".to_string()];
+        if !prompt.is_empty() {
+            args.push(format!("--text={prompt}"));
+        }
+        if !title.is_empty() {
+            args.push(format!("--title={title}"));
+        }
+        if !default.is_empty() {
+            args.push(format!("--entry-text={default}"));
+        }
+        if options.password {
+            args.push("--password".to_string());
+        }
+        if let Some(timeout) = options.timeout {
+            args.push(format!("--timeout={timeout}"));
+        }
+        let (text, code) = zenity(&args)?;
+        Ok(InputAnswer {
+            value: match code {
+                0 => text,
+                _ => String::new(),
+            },
+            result: the_result_of_the_dialog(code).to_string(),
+        })
+    }
+
+    fn file_select(
+        &mut self,
+        options: &FileOptions,
+        root: &str,
+        title: &str,
+        filter: &str,
+    ) -> Result<FileAnswer, String> {
+        let mut args: Vec<String> = vec!["--file-selection".to_string()];
+        if options.directory {
+            args.push("--directory".to_string());
+        }
+        if options.multiple {
+            args.push("--multiple".to_string());
+            // The separator of zenity is a bar, and the paths of the
+            // files are read one by one.
+            args.push("--separator=\n".to_string());
+        }
+        if options.save {
+            args.push("--save".to_string());
+        }
+        if !root.is_empty() {
+            args.push(format!("--filename={root}"));
+        }
+        if !title.is_empty() {
+            args.push(format!("--title={title}"));
+        }
+        if let Some(filter) = the_filter_of_zenity(filter) {
+            args.push(format!("--file-filter={filter}"));
+        }
+        let (text, code) = zenity(&args)?;
+        match code {
+            0 => {
+                if options.multiple {
+                    // Zenity writes one path per line.
+                    let paths = text.lines().map(|line| line.to_string()).collect();
+                    Ok(FileAnswer::Many(paths))
+                } else {
+                    Ok(FileAnswer::One(text))
+                }
+            }
+            _ => Ok(FileAnswer::One(String::new())),
+        }
+    }
+
+    fn dir_select(&mut self, starting: &str, options: i64, prompt: &str) -> Result<String, String> {
+        let mut args: Vec<String> = vec!["--file-selection".to_string(), "--directory".to_string()];
+        // The options of v2: 1 is the button that makes a new folder and
+        // 2 is the field where the name is written. The save mode of
+        // zenity has both of them, and it is the only one that has: the
+        // "--create" of the older versions of zenity is not there, and
+        // it is not there with a folder either.
+        if options & 3 != 0 {
+            args.push("--save".to_string());
+        }
+        if !starting.is_empty() {
+            args.push(format!("--filename={starting}"));
+        }
+        if !prompt.is_empty() {
+            args.push(format!("--title={prompt}"));
+        }
+        let (text, code) = zenity(&args)?;
+        match code {
+            0 => Ok(text),
+            _ => Ok(String::new()),
+        }
+    }
+}
+
+/// The dialog of zenity, and how it ended.
+///
+/// The text of the answer is what zenity wrote on its standard output,
+/// and the code is what it exited with.
+fn zenity(args: &[String]) -> Result<(String, i32), String> {
+    let output = Command::new("zenity")
+        .args(args)
+        .output()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "zenity is not on this machine, and the box has no other dialog".to_string()
+            } else {
+                format!("the dialog of the box did not open: {error}")
+            }
+        })?;
+    let code = output.status.code().unwrap_or(-1);
+    if !(0..=5).contains(&code) {
+        // The dialog failed: zenity says why on its error output.
+        let reason = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "the dialog of the box failed: {}",
+            reason.trim()
+        ));
+    }
+    let text = String::from_utf8_lossy(&output.stdout)
+        .trim_end_matches(['\r', '\n'])
+        .to_string();
+    Ok((text, code))
+}
+
+/// How a dialog of the box ended.
+///
+/// The words are the ones of v2: "OK", "Cancel" and "Timeout".
+fn the_result_of_the_dialog(code: i32) -> &'static str {
+    match code {
+        0 => "OK",
+        5 => "Timeout",
+        _ => "Cancel",
+    }
+}
+
+/// The filter of v2, in the spelling of zenity.
+///
+/// v2 writes the name of the filter and its patterns in one string,
+/// between parentheses: "Documents (*.txt; *.doc)". Zenity wants the
+/// name and the patterns apart: "Documents | *.txt *.doc".
+fn the_filter_of_zenity(filter: &str) -> Option<String> {
+    let filter = filter.trim();
+    if filter.is_empty() {
+        return None;
+    }
+    let open = filter.find('(');
+    let close = filter.rfind(')');
+    let (name, patterns) = match (open, close) {
+        (Some(open), Some(close)) if close > open => (
+            filter[..open].trim(),
+            filter[open + 1..close]
+                .split(';')
+                .map(|pattern| pattern.trim())
+                .filter(|pattern| !pattern.is_empty())
+                .collect::<Vec<_>>(),
+        ),
+        _ => (filter, Vec::new()),
+    };
+    if patterns.is_empty() {
+        return Some(format!("{name} | *"));
+    }
+    Some(format!("{name} | {}", patterns.join(" ")))
+}
+
 
 
 /// The files of a folder that match a pattern.

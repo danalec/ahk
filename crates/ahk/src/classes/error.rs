@@ -103,6 +103,11 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
     if message == "Invalid parameter(s)." {
         return "ValueError";
     }
+    // The options of a dialog that v2 does not know are a value that
+    // is not valid.
+    if message == "Invalid option." {
+        return "ValueError";
+    }
     if message.starts_with("Expected a ")
         || message.contains(" requires ")
         || message == "Value not enumerable."

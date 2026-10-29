@@ -149,10 +149,11 @@ the box: it does no I/O, and it has to keep building without `std`.
   that answers it. A name that is shaped for Windows is in the table too,
   and the handler answers it with the reason: a question the desktop cannot
   answer fails, and it does not answer `false`.
-- **The `Desktop` trait is the sum of twelve capability traits** -- `Keyboard`,
+- **The `Desktop` trait is the sum of thirteen capability traits** -- `Keyboard`,
   `Pointer`, `Screen`, `Windows`, `Processes`, `Files`, `Clipboard`,
-  `Timers`, `Hotkeys`, `Native`, `Sound` and `Machine`. There is no blanket
-  implementation: every implementor writes the twelve of them, and every
+  `Timers`, `Hotkeys`, `Native`, `Sound`, `Machine` and `Dialogs`. There is
+  no blanket
+  implementation: every implementor writes the thirteen of them, and every
   method that a
   capability does not have has a default that says so. A new capability
   goes in its own trait, and `Desktop` grows by naming it.
@@ -374,6 +375,27 @@ the box: it does no I/O, and it has to keep building without `std`.
   class of the value. Every object has the property, and it is not an own
   property: `m.HasProp("__Class")` is 1 and `m.HasOwnProp("__Class")` is
   0.
+- **The questions of the user are the machine's.** Measured on the binary
+  of v2.0.19 on 2026-10-29: the three dialogs of v2 are `InputBox`,
+  `FileSelect` and `DirSelect`, and they take four, four and three
+  parameters. The `InputBox` answers an object of the class `Object`, and
+  the object carries the text of the user in its `Value` and the way the
+  dialog ended in its `Result`: "OK", "Cancel" or "Timeout". The
+  `FileSelect` answers the path of what the user chose, and it is an array
+  of the paths when the user may choose more than one. The `DirSelect`
+  answers the path of the folder. The options are read by the runtime,
+  because they are the dialect's: an option of an input box that v2 does
+  not know is refused with "Invalid option.", of the class `ValueError`,
+  and the option that was not known is in the `Extra`; an option of a file
+  selection that v2 does not know is refused with "Parameter #1 of
+  FileSelect is invalid."; the filter of a file selection is not there
+  when the user chooses a folder, and it is refused with "Parameter #4 of
+  FileSelect is invalid."; and the options of a `DirSelect` are a number,
+  and a text that is not one is refused with "Parameter #2 of DirSelect
+  requires a Number, but received a String." The window is the machine's:
+  the `Dialogs` trait is a capability of the desktop, and the box asks
+  the user through zenity -- the exit code of zenity says how the dialog
+  ended, and the timeout of the options of v2 is the timeout of zenity.
 - **The refusal of an object is the wording of v2.** Measured on the binary
   of v2.0.19 on 2026-10-30: `x.nothing` on a number answers "This value of
   type \"Integer\" has no property named \"nothing\".", `x.nothing()` answers

@@ -272,9 +272,12 @@ handle of COSMIC, so the correlation is exact and not a guess by title.
 | `wayland` / `wayland_active` / `wayland_exists` | private fn | The three questions about the windows, by Wayland. |
 | `empty_title` | private fn | The answer to a question about a window with no title: v2 would use the last found window, and this runtime keeps none. |
 | `title_matches` | private fn | The mode 2 of v2: the title of the window has to contain the text, and the case matters. |
+| `zenity` | private fn | The dialog of zenity, and the code it exited with: 0 is the OK button, 1 is the Cancel button and 5 is the timeout. |
+| `the_result_of_the_dialog` | private fn | The words of v2 for the way a dialog ended: "OK", "Cancel" and "Timeout". |
+| `the_filter_of_zenity` | private fn | The filter of v2, "Documents (*.txt)", in the spelling of zenity, "Documents \| *.txt". |
 
-The `Desktop` of the crate is the sum of the twelve capability traits of
-`ahk::desktop`, and the box writes the twelve of them: `Keyboard`
+The `Desktop` of the crate is the sum of the thirteen capability traits of
+`ahk::desktop`, and the box writes the thirteen of them: `Keyboard`
 (`type_text`, `press_key`, `mouse_down`, `mouse_up`, `key_down`, `key_up`,
 `key_is_down`, `keys_down`), `Pointer` (`click`, `move_pointer`,
 `mouse_position`, `set_mouse_speed`, `set_mouse_delay`), `Screen` (`capture`,
@@ -286,7 +289,10 @@ file handles, the whole-file writes, and the operations of `files.rs`),
 machine, which `native.rs` answers), `Sound` (`sound_volume`,
 `sound_set_volume`, `sound_muted`, `sound_set_muted`, `sound_play`,
 `sound_beep`) and `Machine` (`user_name`, `computer_name`, `shell`,
-`folders`, `os_version`, `language`, `is_admin`, `idle_times`). The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
+`folders`, `os_version`, `language`, `is_admin`, `idle_times`), and
+`Dialogs` (`input_box`, `file_select`, `dir_select`), which asks the user
+through zenity: the window of the session is the window of v2, and the
+exit code of zenity says how the dialog ended. The keyboard and the pointer are opened on first use and kept open for the lifetime of the object: the compositor needs a moment to enumerate a new device, and it takes that moment again for every one it opens.
 
 ## Invariants
 

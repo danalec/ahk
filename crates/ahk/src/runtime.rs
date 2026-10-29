@@ -3765,7 +3765,8 @@ impl<'a> Runtime<'a> {
             // The failure of a built-in carries the name of the built-in
             // in the `What`, and the value of the parameter that failed
             // in the `Extra`.
-            let extra = the_parameter_that_failed(&error.message, values);
+            let extra = crate::builtins::the_extra_of(builtin.name, &error.message, values)
+                .unwrap_or_else(|| the_parameter_that_failed(&error.message, values));
             RuntimeFailure::Detailed(
                 error,
                 Detail { what: builtin.name.to_string(), extra },

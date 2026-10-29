@@ -6,7 +6,7 @@
 //! names that the tree does not carry refuse with the reason of the name.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Folders, Hotkeys, Idle, Keyboard, Machine, Native, Pointer,
+    Clipboard, Desktop, Dialogs, Files, Folders, Hotkeys, Idle, Keyboard, Machine, Native, Pointer,
     Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::runtime::{Report, Runtime};
@@ -84,6 +84,8 @@ impl Machine for Fake {
         Ok(Idle { any: 1000, physical: 2000, keyboard: 3000, mouse: 4000 })
     }
 }
+
+impl Dialogs for Fake {}
 
 impl Files for Fake {
     fn working_directory(&mut self) -> Result<String, String> {

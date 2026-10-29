@@ -25,6 +25,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::date::{date_add, date_diff, format_time};
+use crate::dialogs::{dir_select, file_select, input_box};
 use crate::files::{
     dir_copy, dir_move, file_copy, file_encoding, file_get_attrib, file_get_size, file_get_time,
     file_install, file_move, file_open, file_set_attrib, file_set_time, ini_delete, ini_read,
@@ -400,7 +401,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "DateDiff", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, handler: date_diff },
     Builtin { name: "DirCopy", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_copy },
     Builtin { name: "DirMove", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: dir_move },
-    Builtin { name: "DirSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 104, handler: not_carried },
+    Builtin { name: "DirSelect", kind: BuiltinKind::Command, min: 0, max: 3, variant: 0, handler: dir_select },
     Builtin { name: "Download", kind: BuiltinKind::Command, min: 0, max: 255, variant: 117, handler: not_carried },
     Builtin { name: "FileCopy", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, handler: file_copy },
     Builtin { name: "FileEncoding", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, handler: file_encoding },
@@ -410,7 +411,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "FileInstall", kind: BuiltinKind::Command, min: 2, max: 3, variant: 4, handler: file_install },
     Builtin { name: "FileMove", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, handler: file_move },
     Builtin { name: "FileOpen", kind: BuiltinKind::Function, min: 2, max: 3, variant: 4, handler: file_open },
-    Builtin { name: "FileSelect", kind: BuiltinKind::Command, min: 0, max: 255, variant: 104, handler: not_carried },
+    Builtin { name: "FileSelect", kind: BuiltinKind::Command, min: 0, max: 4, variant: 0, handler: file_select },
     Builtin { name: "FileSetAttrib", kind: BuiltinKind::Command, min: 2, max: 2, variant: 4, handler: file_set_attrib },
     Builtin { name: "FileSetTime", kind: BuiltinKind::Command, min: 3, max: 3, variant: 4, handler: file_set_time },
     Builtin { name: "FormatTime", kind: BuiltinKind::Function, min: 0, max: 2, variant: 2, handler: format_time },
@@ -421,7 +422,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "IniDelete", kind: BuiltinKind::Command, min: 1, max: 3, variant: 6, handler: ini_delete },
     Builtin { name: "IniRead", kind: BuiltinKind::Command, min: 2, max: 4, variant: 4, handler: ini_read },
     Builtin { name: "IniWrite", kind: BuiltinKind::Command, min: 3, max: 4, variant: 4, handler: ini_write },
-    Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 255, variant: 116, handler: not_carried },
+    Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 4, variant: 0, handler: input_box },
     Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: is_label },
     Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 114, handler: not_carried },
     Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 255, variant: 115, handler: not_carried },
@@ -486,6 +487,26 @@ pub fn decides_references(name: &str) -> bool {
 pub fn find(name: &str) -> Option<&'static Builtin> {
     let wanted = name.to_lowercase();
     BUILTINS.iter().find(|builtin| builtin.name.to_lowercase() == wanted)
+}
+
+/// The value that a built-in complains about, when its message does
+/// not name the parameter it is about.
+///
+/// v2 carries the value in the `Extra` of the failure, and most of the
+/// messages name the parameter it is about. The message of the options
+/// of an input box that v2 does not know does not: the value there is
+/// the option itself, and the built-in says which one it is.
+pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<String> {
+    if message != "Invalid option." {
+        return None;
+    }
+    match name {
+        "InputBox" => {
+            let options = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+            crate::dialogs::the_option_that_failed(&options)
+        }
+        _ => None,
+    }
 }
 
 /// The built-in with this name, if the language has one, as a command.

@@ -5,8 +5,8 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Files, Hotkeys, Keyboard, Machine, Native, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, InputAnswer, InputOptions,
+    Keyboard, Machine, Native, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::dll::{encode_number, NativeCall, NativeResult, NativeType, NativeValue};
 use ahk::runtime::{Report, Runtime, Value};
@@ -57,6 +57,41 @@ impl Sound for Fake {
     }
 }
 impl Machine for Fake {}
+impl Dialogs for Fake {
+    fn input_box(
+        &mut self,
+        prompt: &str,
+        title: &str,
+        options: &InputOptions,
+        default: &str,
+    ) -> Result<InputAnswer, String> {
+        self.calls.push((
+            "input-box".into(),
+            format!("{prompt}|{title}|{default}|{:?}", options.timeout),
+        ));
+        Ok(InputAnswer { value: "the answer".into(), result: "OK".into() })
+    }
+
+    fn file_select(
+        &mut self,
+        options: &FileOptions,
+        root: &str,
+        title: &str,
+        filter: &str,
+    ) -> Result<FileAnswer, String> {
+        self.calls.push(("file-select".into(), format!("{root}|{title}|{filter}")));
+        if options.multiple {
+            Ok(FileAnswer::Many(vec!["/tmp/one.txt".into(), "/tmp/two.txt".into()]))
+        } else {
+            Ok(FileAnswer::One("/tmp/chosen.txt".into()))
+        }
+    }
+
+    fn dir_select(&mut self, starting: &str, options: i64, prompt: &str) -> Result<String, String> {
+        self.calls.push(("dir-select".into(), format!("{starting}|{options}|{prompt}")));
+        Ok("/tmp/chosen".into())
+    }
+}
 
 impl Windows for Fake {}
 
@@ -183,6 +218,7 @@ struct Blind;
 impl Desktop for Blind {}
 impl Sound for Blind {}
 impl Machine for Blind {}
+impl Dialogs for Blind {}
 
 impl Windows for Blind {}
 
@@ -1338,10 +1374,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "the variables are listed in a window of v2, and this runtime has no window to show them in.",
         ),
         (
-            "InputBox",
-            "the question of the user is asked in a window of v2, and this runtime has no window to ask in.",
-        ),
-        (
             "Download",
             "the download is made by the desktop, and this desktop does not reach the network.",
         ),
@@ -1835,4 +1867,154 @@ fn the_read_of_the_console_answers_an_empty_text() {
     let report = run("f := FileOpen(\"*\", \"r\")\ntext := f.Read()\nMsgBox \"[%text%]\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[]"]);
+}
+
+// -- the dialogs ----------------------------------------------------------------
+
+#[test]
+fn the_input_box_answers_an_object_with_the_text_and_the_result() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the answer of
+    // the InputBox is an object, and it carries the text of the user in
+    // its Value and the way the dialog ended in its Result.
+    let report = run(concat!(
+        "ib := InputBox(\"the prompt\", \"the title\", \"T10\", \"the default\")\n",
+        "a := ib.Value\n",
+        "b := ib.Result\n",
+        "c := ib.__Class\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("the answer".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("OK".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("Object".into()));
+}
+
+#[test]
+fn the_input_box_carries_what_it_was_asked() {
+    let mut desktop = Fake::default();
+    let report = run_on("InputBox(\"the prompt\", \"the title\", \"T10\", \"the default\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("input-box".to_string(), "the prompt|the title|the default|Some(10.0)".to_string())]
+    );
+}
+
+#[test]
+fn the_input_box_of_too_many_arguments_fails_the_way_v2_does() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the InputBox
+    // takes four parameters, and the fifth is too many.
+    let report = run("InputBox(\"a\", \"b\", \"c\", \"d\", \"e\")");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too many parameters passed to function. Specifically: InputBox"
+    );
+}
+
+#[test]
+fn an_option_of_the_input_box_that_v2_does_not_know_is_refused() {
+    // Measured on the binary of v2.0.29 on 2026-10-29: the message is
+    // "Invalid option.", the class of the failure is a ValueError, and
+    // the option that was not known is in the Extra.
+    let report = run(
+        "try {\n    InputBox(\"a\", \"b\", \"z9\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Invalid option. | ValueError | InputBox | z9"]);
+}
+
+#[test]
+fn the_file_select_answers_the_path_of_what_was_chosen() {
+    let report = run("a := FileSelect(\"D\", \"/tmp\", \"the title\")\nMsgBox \"%a%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["/tmp/chosen.txt"]);
+}
+
+#[test]
+fn the_file_select_of_many_files_answers_an_array() {
+    let report = run("a := FileSelect(\"M\")\nMsgBox a.Length \" \" a[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 /tmp/one.txt"]);
+}
+
+#[test]
+fn the_file_select_of_too_many_arguments_fails_the_way_v2_does() {
+    let report = run("FileSelect(\"a\", \"b\", \"c\", \"d\", \"e\")");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too many parameters passed to function. Specifically: FileSelect"
+    );
+}
+
+#[test]
+fn an_option_of_the_file_select_that_v2_does_not_know_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the message is
+    // "Parameter #1 of FileSelect is invalid." and the options are in
+    // the Extra of the failure.
+    let report = run(
+        "try {\n    FileSelect(\"Q\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of FileSelect is invalid. | ValueError | FileSelect | Q"]
+    );
+}
+
+#[test]
+fn the_filter_of_the_file_select_is_not_there_when_a_folder_is_asked_for() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the filter of
+    // the FileSelect is refused when the user chooses a folder.
+    let report = run(
+        "try {\n    FileSelect(\"D\", \"\", \"\", \"Text (*.txt)\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Parameter #4 of FileSelect is invalid. | Text (*.txt)"]);
+}
+
+#[test]
+fn the_dir_select_answers_the_path_of_the_folder() {
+    let report = run("a := DirSelect(\"/tmp\", 3, \"the prompt\")\nMsgBox \"%a%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["/tmp/chosen"]);
+}
+
+#[test]
+fn the_dir_select_of_too_many_arguments_fails_the_way_v2_does() {
+    let report = run("DirSelect(\"a\", \"b\", \"c\", \"d\")");
+    assert!(!report.ok);
+    assert_eq!(
+        failure_of(&report),
+        "Too many parameters passed to function. Specifically: DirSelect"
+    );
+}
+
+#[test]
+fn the_options_of_the_dir_select_are_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the options of
+    // the DirSelect are a number, and a text that is not one is
+    // refused.
+    let report = run(
+        "try {\n    DirSelect(\"a\", \"b\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #2 of DirSelect requires a Number, but received a String. | TypeError | DirSelect | b"]
+    );
+}
+
+#[test]
+fn a_desktop_that_cannot_ask_the_user_says_so() {
+    // The question is the machine's, and a machine that has no window
+    // for it refuses with the reason.
+    let mut desktop = Blind;
+    let statements = parse("InputBox(\"the prompt\")").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this desktop cannot ask the user for a text")
+    );
 }

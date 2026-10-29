@@ -493,6 +493,113 @@ pub trait Machine {
     }
 }
 
+/// The dialogs of the desktop.
+///
+/// A dialog asks the user a question and waits for the answer. The
+/// answer of an input box is the text the user typed and the way the
+/// dialog was closed; the answer of a file selection is the path, or
+/// the paths, of what the user chose.
+///
+/// The options of a dialog are read by the runtime before the question
+/// is asked: an option that v2 does not know is refused there, and the
+/// desktop is never asked about it.
+pub trait Dialogs {
+    /// Ask the user for a text.
+    ///
+    /// The answer carries the text the user typed and the way the
+    /// dialog was closed: "OK", "Cancel" or "Timeout".
+    fn input_box(
+        &mut self,
+        _prompt: &str,
+        _title: &str,
+        _options: &InputOptions,
+        _default: &str,
+    ) -> Result<InputAnswer, String> {
+        Err("this desktop cannot ask the user for a text".to_string())
+    }
+
+    /// Ask the user for a file, or for a folder.
+    ///
+    /// The answer is one path, or many of them when the user may choose
+    /// more than one.
+    fn file_select(
+        &mut self,
+        _options: &FileOptions,
+        _root: &str,
+        _title: &str,
+        _filter: &str,
+    ) -> Result<FileAnswer, String> {
+        Err("this desktop cannot ask the user for a file".to_string())
+    }
+
+    /// Ask the user for a folder.
+    ///
+    /// The options are the number of v2: 1 is the button that makes a
+    /// new folder, 2 is the field where the name is written, and 4 is
+    /// the old style of the dialog.
+    fn dir_select(&mut self, _starting: &str, _options: i64, _prompt: &str) -> Result<String, String> {
+        Err("this desktop cannot ask the user for a folder".to_string())
+    }
+}
+
+/// The answer of an input box.
+#[derive(Clone, Debug, Default)]
+pub struct InputAnswer {
+    /// The text the user typed.
+    pub value: String,
+    /// The way the dialog was closed: "OK", "Cancel" or "Timeout".
+    pub result: String,
+}
+
+/// The answer of a file selection.
+#[derive(Clone, Debug)]
+pub enum FileAnswer {
+    /// One file, or one folder.
+    One(String),
+    /// Many files, or many folders.
+    Many(Vec<String>),
+}
+
+/// The options of an input box.
+///
+/// The options are the ones of v2: where the window is, how big it is,
+/// how long it waits, and whether the text is hidden. The runtime
+/// reads them, and gives the desktop the ones that are about the
+/// machine.
+#[derive(Clone, Debug, Default)]
+pub struct InputOptions {
+    /// The seconds the window waits for the user before it closes itself.
+    pub timeout: Option<f64>,
+    /// Whether the text the user types is hidden.
+    pub password: bool,
+    /// The width of the window, in pixels.
+    pub width: Option<i64>,
+    /// The height of the window, in pixels.
+    pub height: Option<i64>,
+    /// Where the window is, in pixels, from the left of the screen.
+    pub x: Option<i64>,
+    /// Where the window is, in pixels, from the top of the screen.
+    pub y: Option<i64>,
+}
+
+/// The options of a file selection.
+#[derive(Clone, Debug, Default)]
+pub struct FileOptions {
+    /// The number of the flags of v2, when the options were a number.
+    ///
+    /// The flags are the ones of the documentation: 1 is a file that
+    /// must be there, 2 is a path that must be there, 8 asks to make a
+    /// new file, 16 asks to overwrite one and 32 keeps the shortcuts as
+    /// they are.
+    pub flags: i64,
+    /// Whether the user may choose a folder instead of a file.
+    pub directory: bool,
+    /// Whether the user may choose more than one file.
+    pub multiple: bool,
+    /// Whether the dialog is a save dialog.
+    pub save: bool,
+}
+
 /// The folders of the machine, as the names of v2 ask for them.
 ///
 /// A folder that is not there is a folder the machine does not have.
@@ -554,5 +661,6 @@ pub trait Desktop:
     + Native
     + Sound
     + Machine
+    + Dialogs
 {
 }

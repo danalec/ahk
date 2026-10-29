@@ -912,7 +912,7 @@ fn event_of(event: &str) -> u16 {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Files, Hotkeys, Keyboard, Machine, Native, Pointer,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Pointer,
         Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
@@ -934,6 +934,7 @@ mod tests {
     impl Desktop for Fake {}
     impl Sound for Fake {}
 impl Machine for Fake {}
+impl Dialogs for Fake {}
 
     impl Files for Fake {}
 
