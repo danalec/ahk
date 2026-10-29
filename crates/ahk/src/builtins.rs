@@ -775,35 +775,36 @@ fn env_set(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> R
 
 // -- the files of the disk ----------------------------------------------------------
 
-/// `FileExist`: whether a file is there.
+/// `FileExist`: the attributes of the first entry that matches.
 ///
 /// v2 answers with the attributes of the file and not with a number: a
 /// file that is there is `A`, a folder is `D`, and a file that is not
 /// there is the empty text.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-28.
+/// Measured on the binary of v2.0.19 on 2026-10-28 and on 2026-10-31:
+/// the pattern may carry the wildcards `*` and `?`, and the answer is
+/// the attributes of the first entry that matches, a folder among them.
 fn file_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let path = text_of(values, 0);
-    let there = rt.desktop().file_exists(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    if !there {
-        return Ok(Value::Text(String::new()));
-    }
-    let attributes = rt.desktop().file_attributes(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Text(attributes.join("")))
+    let pattern = text_of(values, 0);
+    let attributes = rt
+        .desktop()
+        .attributes_of_the_pattern(&pattern, "")
+        .map_err(|reason| RuntimeError { message: reason, line })?;
+    Ok(Value::Text(attributes.concat()))
 }
 
-/// `DirExist`: whether a directory is there.
+/// `DirExist`: the attributes of the first folder that matches.
 ///
 /// The answer of v2 is `D` when it is there, and the empty text when it
-/// is not.
+/// is not. A file that matches the pattern is not a folder, and the
+/// answer is the empty text.
 fn dir_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let path = text_of(values, 0);
-    let there = rt.desktop().dir_exists(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    if !there {
-        return Ok(Value::Text(String::new()));
-    }
-    let attributes = rt.desktop().file_attributes(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Text(attributes.join("")))
+    let pattern = text_of(values, 0);
+    let attributes = rt
+        .desktop()
+        .attributes_of_the_pattern(&pattern, "D")
+        .map_err(|reason| RuntimeError { message: reason, line })?;
+    Ok(Value::Text(attributes.concat()))
 }
 
 /// `FileRead`: the lines of a file.

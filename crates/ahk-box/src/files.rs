@@ -100,10 +100,6 @@ impl ahk::desktop::Files for LabDesktop {
         Ok(())
     }
 
-    fn file_exists(&mut self, path: &str) -> Result<bool, String> {
-        Ok(Path::new(path).exists())
-    }
-
     fn delete_file(&mut self, path: &str) -> Result<String, String> {
         std::fs::remove_file(path)
             .map_err(|error| format!("the file {path:?} cannot be taken away: {error}"))?;
@@ -114,10 +110,6 @@ impl ahk::desktop::Files for LabDesktop {
         std::fs::create_dir_all(path)
             .map_err(|error| format!("the folder {path:?} cannot be made: {error}"))?;
         Ok(format!("made the directory {path}"))
-    }
-
-    fn dir_exists(&mut self, path: &str) -> Result<bool, String> {
-        Ok(Path::new(path).is_dir())
     }
 
     fn dir_delete(&mut self, path: &str) -> Result<String, String> {
@@ -267,6 +259,44 @@ impl ahk::desktop::Files for LabDesktop {
         fs::rename(source, target)
             .map_err(|error| format!("the folder {from:?} cannot be moved: {error}"))?;
         Ok(format!("moved the folder {from} to {to}"))
+    }
+
+    fn attributes_of_the_pattern(&mut self, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
+        let (folder, name) = split_the_pattern(pattern);
+        // A name without a wildcard is the path itself: the entry is
+        // there or it is not.
+        if !name.contains('*') && !name.contains('?') {
+            let Ok(metadata) = fs::metadata(Path::new(pattern)) else { return Ok(Vec::new()) };
+            if mode.contains('D') && !metadata.is_dir() {
+                return Ok(Vec::new());
+            }
+            return Ok(letters_of(&metadata).into_iter().map(|letter| letter.to_string()).collect());
+        }
+        // A pattern with a wildcard is looked for in the folder of it, and
+        // the first entry that matches is the one that answers.
+        let folder = if folder.is_empty() { PathBuf::from(".") } else { PathBuf::from(&folder) };
+        let Ok(entries) = fs::read_dir(&folder) else { return Ok(Vec::new()) };
+        let mut found: Vec<(String, fs::Metadata)> = Vec::new();
+        for entry in entries.flatten() {
+            let name_of_the_entry = entry.file_name().to_string_lossy().to_string();
+            if !crate::desktop::name_matches(&name, &name_of_the_entry) {
+                continue;
+            }
+            let Ok(metadata) = fs::metadata(entry.path()) else { continue };
+            if mode.contains('D') && !metadata.is_dir() {
+                continue;
+            }
+            found.push((name_of_the_entry, metadata));
+        }
+        // The order is the order of the names, the way v2 takes them: the
+        // case does not count.
+        found.sort_by(|one, other| {
+            one.0.to_lowercase().cmp(&other.0.to_lowercase()).then_with(|| one.0.cmp(&other.0))
+        });
+        Ok(match found.into_iter().next() {
+            Some((_, metadata)) => letters_of(&metadata).into_iter().map(|letter| letter.to_string()).collect(),
+            None => Vec::new(),
+        })
     }
 
     fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
@@ -503,12 +533,26 @@ fn letters_of(metadata: &fs::Metadata) -> Vec<char> {
     }
     if metadata.is_dir() {
         letters.push('D');
-    } else if !readonly {
+    } else {
         // The archive bit is what a file carries on Windows, and the
-        // machine of the box has no bit of its own for it.
+        // machine of the box has no bit of its own for it. A file that is
+        // read-only keeps it: v2 answers "RA" for one.
         letters.push('A');
     }
     letters
+}
+
+/// The folder of a pattern and the name of it.
+///
+/// The name is the last part of the path, and it is the part that may
+/// carry the wildcards. The separators are the ones of the machine: a
+/// slash everywhere, and a backslash on Windows as well.
+fn split_the_pattern(pattern: &str) -> (String, String) {
+    let at = pattern.rfind(|letter: char| letter == '/' || (cfg!(windows) && letter == '\\'));
+    match at {
+        Some(at) => (pattern[..at].to_string(), pattern[at + 1..].to_string()),
+        None => (String::new(), pattern.to_string()),
+    }
 }
 
 /// Put a letter of an attribute in the set, in the order of v2.
@@ -897,9 +941,11 @@ mod tests {
         let mut desktop = LabDesktop::new();
         let answer = desktop.set_file_attributes(&path, &["+R".to_string()]);
         assert!(answer.is_ok(), "{answer:?}");
+        // Measured on the binary of v2.0.19 on 2026-10-31: a file that is
+        // read-only keeps the archive bit, and v2 answers "RA".
         assert_eq!(
             desktop.file_attributes(&path).expect("the attributes"),
-            vec!["R".to_string()]
+            vec!["R".to_string(), "A".to_string()]
         );
         let answer = desktop.set_file_attributes(&path, &["-R".to_string()]);
         assert!(answer.is_ok(), "{answer:?}");
@@ -907,6 +953,48 @@ mod tests {
             desktop.file_attributes(&path).expect("the attributes"),
             vec!["A".to_string()]
         );
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_pattern_answers_the_first_entry_that_matches() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the pattern
+        // may carry the wildcards, and the answer is the attributes of
+        // the first entry that matches, in the order of the names.
+        let folder = scratch("pattern");
+        file_of(&folder, "b.txt");
+        file_of(&folder, "a.txt");
+        let pattern = folder.join("*.txt").to_string_lossy().to_string();
+        let mut desktop = LabDesktop::new();
+        let answer = desktop.attributes_of_the_pattern(&pattern, "").expect("the attributes");
+        assert_eq!(answer, vec!["A".to_string()]);
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_pattern_of_a_folder_skips_the_files() {
+        let folder = scratch("pattern-folder");
+        file_of(&folder, "a.txt");
+        fs::create_dir_all(folder.join("sub")).expect("the folder of the case");
+        let pattern = folder.join("*").to_string_lossy().to_string();
+        let mut desktop = LabDesktop::new();
+        // The file comes first in the order of the names, and it is not a
+        // folder: the mode "D" skips it, and the folder answers.
+        let answer = desktop.attributes_of_the_pattern(&pattern, "D").expect("the attributes");
+        assert_eq!(answer, vec!["D".to_string()]);
+        // Without the mode, the file is the one that answers.
+        let answer = desktop.attributes_of_the_pattern(&pattern, "").expect("the attributes");
+        assert_eq!(answer, vec!["A".to_string()]);
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_pattern_that_matches_nothing_answers_nothing() {
+        let folder = scratch("pattern-empty");
+        let pattern = folder.join("*.nope").to_string_lossy().to_string();
+        let mut desktop = LabDesktop::new();
+        let answer = desktop.attributes_of_the_pattern(&pattern, "").expect("the attributes");
+        assert!(answer.is_empty(), "{answer:?}");
         let _ = fs::remove_dir_all(&folder);
     }
 

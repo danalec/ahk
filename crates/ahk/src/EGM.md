@@ -514,8 +514,10 @@ Four modules that answer what the runtime used to answer with a reason.
   The names that *set* something take the value first
   (`FileSetTime "20000101000000", file, "M"`), and the ones that *read* it
   take the file first. `FileExist` answers with the attributes of the file
-  and not with a number. The encoding of the files is one state, and it
-  lives in `settings.rs`.
+  and not with a number, and the pattern of it may carry the wildcards:
+  the answer is the attributes of the first entry that matches, and
+  `DirExist` takes a folder among them. The encoding of the files is one
+  state, and it lives in `settings.rs`.
 - `settings.rs` -- the settings of the script: the mode of the
   coordinates, the delays, the method of the send, the speed of the
   pointer, the mode of the caps lock and the encoding of the files. The

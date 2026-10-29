@@ -2662,3 +2662,32 @@ variable of a class to the instance, and the class itself had none.
 
 Twelve cases of the classes and nine of the initialisation are the same in
 the tree and in the dialect.
+
+## 51. The pattern of v2 answers the first entry that matches
+
+Measured on the binary of v2.0.19 on 2026-10-31: `FileExist` and
+`DirExist` took a path and looked for the file itself, and the wildcards
+of v2 were not carried at all.
+
+- **The pattern may carry the wildcards.** The last part of it is a
+  pattern of a shell: `*` is any number of characters and `?` is one.
+  The folder of the pattern is not a pattern: `FileExist("C:\dir\*\a.txt")`
+  answers with the empty text.
+- **The answer is the first entry that matches.** The entries are taken
+  in the order of their names, the case does not count, and the answer is
+  the attributes of the first one that matches.
+- **`FileExist` takes any entry and `DirExist` takes a folder.** A file
+  that matches the pattern is not a folder, and `DirExist` answers with
+  the empty text.
+- **The answer is the attributes, and a file that is read-only keeps the
+  archive bit.** v2 answers "RA" for a file that is read-only, and the
+  tree answered "R".
+
+Two differences are left, and they are not the files'. The box has no
+hidden attribute, and v2 answers "AH" for a file that is hidden on
+Windows: the box refuses to set that attribute too, with the reason --
+"the machine of this box has no such attribute: H.". And the tree cannot
+read a member of the answer of a call: `FileExist("a.txt").__Class` is a
+load error, and v2 answers "String".
+
+Thirteen of the eighteen cases are the same in the tree and in the dialect.

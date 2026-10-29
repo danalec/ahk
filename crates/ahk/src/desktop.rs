@@ -217,8 +217,14 @@ pub trait Files {
         Err("this desktop cannot write a file".to_string())
     }
 
-    /// Whether a file is there.
-    fn file_exists(&mut self, _path: &str) -> Result<bool, String> {
+    /// The attributes of the first entry that matches the pattern.
+    ///
+    /// The pattern is v2's: the last part of it may carry the wildcards
+    /// `*` and `?`, and the answer is the attributes of the first entry
+    /// that matches, a folder among them. The empty list is the answer
+    /// when there is none. A folder is asked for with the mode "D", and
+    /// any entry with the empty mode.
+    fn attributes_of_the_pattern(&mut self, _pattern: &str, _mode: &str) -> Result<Vec<String>, String> {
         Err("this desktop cannot look for a file".to_string())
     }
 
@@ -230,11 +236,6 @@ pub trait Files {
     /// Make a directory.
     fn create_dir(&mut self, _path: &str) -> Result<String, String> {
         Err("this desktop cannot make a directory".to_string())
-    }
-
-    /// Whether a directory is there.
-    fn dir_exists(&mut self, _path: &str) -> Result<bool, String> {
-        Err("this desktop cannot look for a directory".to_string())
     }
 
     /// Take a directory away.

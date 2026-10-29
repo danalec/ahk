@@ -128,11 +128,12 @@ impl Files for Fake {
         self.calls.push(("working-dir".into(), directory.into()));
         Ok(format!("the working directory is now {directory}"))
     }
-    fn file_exists(&mut self, path: &str) -> Result<bool, String> {
-        Ok(path.ends_with(".txt"))
-    }
-    fn dir_exists(&mut self, path: &str) -> Result<bool, String> {
-        Ok(path == "/tmp")
+    fn attributes_of_the_pattern(&mut self, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
+        self.calls.push((format!("pattern {mode}"), pattern.into()));
+        if mode.contains('D') {
+            return Ok(if pattern == "/tmp" { vec!["D".to_string()] } else { Vec::new() });
+        }
+        Ok(if pattern.ends_with(".txt") { vec!["A".to_string()] } else { Vec::new() })
     }
     fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
         Ok(if path.ends_with(".txt") { vec!["A".to_string()] } else { vec!["D".to_string()] })
@@ -580,6 +581,24 @@ fn the_files_are_asked_of_the_desktop() {
     assert_eq!(value_of(&report, "b"), Value::Text("".into()));
     assert_eq!(value_of(&report, "c"), Value::Text("D".into()));
     assert_eq!(value_of(&report, "d"), Value::Text("".into()));
+}
+
+#[test]
+fn the_pattern_of_the_files_is_asked_of_the_desktop() {
+    let mut desktop = Fake::default();
+    let report = run_on("a := FileExist(\"*.txt\")\nb := DirExist(\"/tmp\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    // v2 answers with the attributes of the first entry that matches, and
+    // a folder is asked for with the mode "D".
+    assert_eq!(value_of(&report, "a"), Value::Text("A".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("D".into()));
+    assert_eq!(
+        desktop.calls,
+        vec![
+            ("pattern ".to_string(), "*.txt".to_string()),
+            ("pattern D".to_string(), "/tmp".to_string()),
+        ]
+    );
 }
 
 #[test]
