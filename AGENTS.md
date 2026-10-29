@@ -210,6 +210,12 @@ the box: it does no I/O, and it has to keep building without `std`.
   `__Set` is not called for it, and `x[y]` asks only the `__Item`, which
   reads and never writes. The tree follows that, and a class that cannot
   write an item fails the statement with the reason.
+- **An object is called through its `Call` method.** Measured on the binary
+  of v2.0.19 on 2026-10-30: `o(2, 3)` asks the `Call` method of the
+  object, and refuses with "This value of type \"Plain\" has no method
+  named \"Call\"." when there is none. The `__Call` of a class is for a
+  method that is not there: `o.Unknown(2, 3)` asks it with the name of
+  the method and the parameters of the call.
 - **The meta-functions take the parameters of the access.** Measured on the
   binary of v2.0.19 on 2026-10-30: `__Get(Name, Params)` and
   `__Set(Name, Params, Value)`, where `Params` is an array of the

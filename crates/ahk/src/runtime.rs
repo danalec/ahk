@@ -2444,6 +2444,18 @@ impl<'a> Runtime<'a> {
         if let Some(result) = self.base_method(target, name, &values, line) {
             return result;
         }
+        // `__Call` is asked when the method is not there: v2 asks it with
+        // the name of the method and the parameters of the call.
+        if let Some((defining, method)) = self.find_method_in(&class, "__call") {
+            let params = self.the_params(&values, line)?;
+            return self.call_method_with(
+                &defining,
+                &method,
+                target,
+                &[Value::Text(name.to_string()), params],
+                line,
+            );
+        }
         Err(self.no_method(target, name, line))
     }
 
@@ -3272,13 +3284,20 @@ impl<'a> Runtime<'a> {
         if let Some(function) = self.function_in_a_variable(name) {
             return self.call_function(&function, arguments, line);
         }
-        // An object that is called is asked through `__Call`.
+        // An object that is called is asked through its `Call` method:
+        // v2 does not ask the `__Call` of the class when the object
+        // itself is called.
         if let Some(value) = self.lookup_variable(name) {
             if let Value::Object(object) = &value {
                 let class = object.borrow().class.clone();
-                if let Some((defining, method)) = self.find_method_in(&class, "__call") {
+                if let Some((defining, method)) = self.find_method_in(&class, "call") {
                     return self.call_method(&defining, &method, &value, arguments, line);
                 }
+                let values = self.evaluate_all(arguments)?;
+                if let Some(result) = crate::classes::call(&class, "call", &value, &values, self, line) {
+                    return result;
+                }
+                return Err(self.no_method(&value, "Call", line));
             }
         }
         let mut values = Vec::with_capacity(arguments.len());

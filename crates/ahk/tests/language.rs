@@ -456,12 +456,39 @@ fn a_property_can_be_defined_and_taken_away() {
 
 #[test]
 fn an_object_that_is_called_is_asked_through_call() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the object is
+    // asked through its `Call` method.
     let (report, desktop) = run(
-        "class Adder {\n  __Call(a, b) {\n    return a + b\n  }\n}\n\
+        "class Adder {\n  Call(a, b) {\n    return a + b\n  }\n}\n\
          add := Adder()\nSend add(2, 3)",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["5"]);
+}
+
+#[test]
+fn an_object_without_a_call_method_says_so() {
+    let (report, _) = run(
+        "class Plain {\n}\n\
+         p := Plain()\nMsgBox p(2, 3)",
+    );
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Plain\" has no method named \"Call\".")
+    );
+}
+
+#[test]
+fn a_method_that_is_not_there_is_asked_through_the_call_of_the_class() {
+    // The `__Call` of v2 takes the name of the method and the
+    // parameters of the call.
+    let (report, desktop) = run(
+        "class Adder {\n  __Call(name, params) {\n    return \"%name% %params.Length%\"\n  }\n}\n\
+         add := Adder()\nSend add.Unknown(2, 3)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["Unknown 2"]);
 }
 
 #[test]
