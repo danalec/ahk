@@ -1900,12 +1900,9 @@ thing it wants, and the one that the runtime can do is carried.
 
 - **`OnExit` is carried.** The script asks for a function of itself, and the
   runtime calls it when the script ends: the end of the last statement, the
-  code it asked to stop with, or the error that stopped it. The function may
-  be the function itself (`OnExit Bye`) or its name (`OnExit("Bye")`), and a
-  name that is not a function of the script refuses with the reason.
-- **The mode of the exit is not carried.** v2 says when the function is
-  called, and the runtime has one moment: the end of the script. The second
-  parameter refuses with the reason.
+  code it asked to stop with, or the error that stopped it. The callback is
+  a function object, and the shape of it, the order of the callbacks and
+  the answers of a callback are in section 36.
 - **The thread of the runtime is one.** `Critical` and `Thread` say that the
   runtime runs one script in one thread, and that it cannot make it critical
   or start another.
@@ -1917,9 +1914,8 @@ thing it wants, and the one that the runtime can do is carried.
 - **The download, the picture and the search are the desktop's.** `Download`,
   `LoadPicture` and `ImageSearch` say that this desktop does not reach the
   network and does not read the images of the machine.
-- **The handler of an error is not carried.** `OnError` is the handler of the
-  errors that no `try` catches, and this runtime ends the script when it
-  fails.
+- **`OnError` is carried too.** It is the handler of the failures that no
+  `try` catches, and section 36 says what it receives and what it answers.
 
 And a function of the exit that fails does not pass silently: the run fails
 with the failure of the function, and when the script had already failed the
@@ -1927,8 +1923,8 @@ failure of the function is a note of the report.
 
 Measured on the box on 2026-10-29: a script with `OnExit Bye` and a function
 `Bye` that writes "bye" ended with "the script ends" and then "bye", and
-`Critical` refused with the reason of its own thing. The surface answers 507
-names with a value and refuses 218.
+`Critical` refused with the reason of its own thing. The surface answers 508
+names with a value and refuses 217.
 
 ## 35. The error handling of the dialect
 
@@ -1965,3 +1961,49 @@ a text is not an `Error`.
 And a name that is not a word of the dialect is a word of nothing: `gosub`
 and `var` are not in v2, and the binary answers "Call to nonexistent
 function" for them.
+
+## 36. The handlers of the runtime
+
+`OnExit` and `OnError` register a function of the script, and the tree calls
+it the way v2.0.19 calls it. Everything in this section was measured on the
+binary of v2.0.19 on 2026-10-29 and 2026-10-30.
+
+- **The callback is a function object.** A text is refused with the wording
+  of v2: "Parameter #1 of OnExit requires an Object, but received a String.
+  Specifically: Bye".
+- **A value that cannot be called is refused too.** v2 calls the value, and a
+  value that is not callable has no method named "Call": "This value of type
+  "Object" has no method named "Call"."
+- **The prototype has to take the two parameters of the callback**: the
+  reason and the code for the exit, the value and the mode for the error. A
+  prototype that does not fit is refused with "Invalid callback function.".
+  A parameter that takes the rest fits: it takes what is left.
+- **The order is a number that is cut to a whole number, and it is 1, -1 or
+  0.** One calls the callback after the ones that are registered, minus one
+  before them, and zero does not call it at all -- it removes it. Anything
+  else is refused with "Parameter #2 of OnExit is invalid. Specifically: 5",
+  and a text that is not a number with "Parameter #2 of OnExit requires a
+  Number, but received a String. Specifically: x".
+- **The callback of the exit takes the reason and the code.** The reasons the
+  tree carries are "Exit" and "Error"; the reasons of Windows are not
+  carried.
+- **The callback of the error takes the value that was thrown and the mode.**
+  The mode is "Return" for a failure of the runtime, "Exit" for a value that
+  the script threw, and "ExitApp" for the timeout of the tree.
+- **The answer of the callback of the error is what v2 says it is.** Zero
+  lets the failure go on, one hides it, and minus one hides it and lets the
+  thread continue where the failure happened. A callback that answered stops
+  the ones that come after it.
+- **The callback of the exit that answers a number that is not zero keeps the
+  script alive**, and the callbacks that come after it are not called. This
+  runtime has no way to keep a script alive, so the run ends and the note
+  says so; the code the script asked for is not the code of the run.
+- **The functions of the error are called where the failure happened**,
+  before the stack unwinds, and they are not called while the body of a
+  `try` runs: the catch of the script takes the failure first.
+
+Two things are not carried yet. The tree has no reference to a method of the
+script, so a method and a bound function are not callbacks the tree can take
+(the `Bind` of the class `Func` refuses too). And the error object of the
+runtime has an empty `What` and an empty `Extra`: the tree's error does not
+name the built-in that failed and does not carry the value it was given.

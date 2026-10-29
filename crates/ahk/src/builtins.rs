@@ -428,8 +428,8 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 0, max: 255, variant: 118, handler: not_carried },
     Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: click },
     Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: mouse_click_drag },
-    Builtin { name: "OnError", kind: BuiltinKind::Command, min: 0, max: 255, variant: 120, handler: not_carried },
-    Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, handler: on_exit },
+    Builtin { name: "OnError", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, handler: on_error },
+    Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, handler: on_exit },
     Builtin { name: "Pause", kind: BuiltinKind::Command, min: 0, max: 255, variant: 110, handler: not_carried },
     Builtin { name: "Persistent", kind: BuiltinKind::Command, min: 0, max: 255, variant: 111, handler: not_carried },
     Builtin { name: "Reload", kind: BuiltinKind::Command, min: 0, max: 255, variant: 112, handler: not_carried },
@@ -1317,37 +1317,81 @@ fn exit_script(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8)
 /// moment the runtime knows: the function runs then, whatever the reason
 /// the script ended -- the end of the last statement, the code it asked to
 /// stop with, or the error that stopped it.
+///
+/// The callback is a function object, and its prototype has to take the two
+/// parameters of v2: the reason of the exit and the code.
 fn on_exit(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    // The mode of v2 says when the function is called, and the runtime
-    // has one moment: the end of the script.
-    if values.len() > 1 {
-        return Err(RuntimeError {
-            message: "the mode of the exit is not carried: the runtime calls the function when the script ends.".into(),
-            line,
-        });
+    let callback = rt.the_callback(values.first(), "OnExit", line)?;
+    // The order of the callbacks: 1 calls it after the ones that are
+    // registered, -1 before them, and 0 does not call it at all.
+    match the_order(values.get(1), "OnExit", line)? {
+        1 => rt.set_exit_callback(&callback.name, line),
+        -1 => {
+            rt.set_exit_callback(&callback.name, line);
+            rt.order_exit_callback(&callback.name, true);
+        }
+        0 => rt.remove_exit_callback(&callback.name),
+        _ => {
+            return Err(RuntimeError {
+                message: format!(
+                    "{} Specifically: {}",
+                    crate::runtime::invalid_parameter(2, "OnExit"),
+                    values.get(1).map(|value| value.to_text()).unwrap_or_default()
+                ),
+                line,
+            })
+        }
     }
-    let Some(value) = values.first() else {
-        return Err(RuntimeError { message: "the function of the exit is missing.".into(), line });
-    };
-    let Some(name) = the_name_of_a_function(value) else {
-        return Err(RuntimeError {
-            message: format!(
-                "the function of the exit is not a function of the script: {}",
-                value.to_text()
-            ),
-            line,
-        });
-    };
-    // The function has to be one of the script: the runtime calls it by
-    // name, and a name that is not a function is a name of nothing.
-    if !rt.has_function(&name) {
-        return Err(RuntimeError {
-            message: format!("the function of the exit is not a function of the script: {name}"),
-            line,
-        });
-    }
-    rt.set_exit_callback(&name, line);
     Ok(Value::Int(1))
+}
+
+/// `OnError`: the function the script asks to run when a failure is not
+/// caught.
+///
+/// The callback is a function object, and its prototype has to take the two
+/// parameters of v2: the value that was thrown and the mode of the
+/// failure.
+fn on_error(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let callback = rt.the_callback(values.first(), "OnError", line)?;
+    match the_order(values.get(1), "OnError", line)? {
+        1 => rt.set_error_callback(&callback.name, line),
+        -1 => {
+            rt.set_error_callback(&callback.name, line);
+            rt.order_error_callback(&callback.name, true);
+        }
+        0 => rt.remove_error_callback(&callback.name),
+        _ => {
+            return Err(RuntimeError {
+                message: format!(
+                    "{} Specifically: {}",
+                    crate::runtime::invalid_parameter(2, "OnError"),
+                    values.get(1).map(|value| value.to_text()).unwrap_or_default()
+                ),
+                line,
+            })
+        }
+    }
+    Ok(Value::Int(1))
+}
+
+/// The order of the callbacks: 1, -1 or 0.
+///
+/// The order is a number of v2, and it is cut to a whole number: 1.5 is
+/// 1. The order that is not there is 1.
+fn the_order(value: Option<&Value>, name: &str, line: u32) -> Result<i32, RuntimeError> {
+    let Some(value) = value else { return Ok(1) };
+    let number = value.to_number_strict().map_err(|got| RuntimeError {
+        message: crate::runtime::wants_a_reference(
+            2,
+            name,
+            "a Number",
+            got,
+            &value.to_text(),
+            true,
+        ),
+        line,
+    })?;
+    Ok(number as i32)
 }
 
 /// What a parameter of a built-in wants.
@@ -1475,27 +1519,6 @@ fn obj_add_ref(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: u8
 }
 
 // -- the helpers ----------------------------------------------------------------
-
-/// The name of the function that a value names.
-///
-/// The value is the function itself -- v2 resolves a name that is a
-/// function to the function -- or the name of it, as a text.
-fn the_name_of_a_function(value: &Value) -> Option<String> {
-    match value {
-        Value::Text(text) => Some(text.clone()),
-        Value::Object(object) => {
-            let object = object.borrow();
-            if object.class != "func" {
-                return None;
-            }
-            match object.properties.get("name") {
-                Some(Value::Text(name)) => Some(name.clone()),
-                _ => None,
-            }
-        }
-        _ => None,
-    }
-}
 
 /// The text of the argument at this place, or the empty string.
 fn text_of(values: &[Value], index: usize) -> String {

@@ -270,6 +270,25 @@ errors of the runtime, `any` takes everything, and a class of the script
 takes the objects of that class -- and the value it binds is an object of
 the class `error` when it is an error of the runtime.
 
+#### The handlers of the runtime
+
+`OnExit` and `OnError` register a function of the script, and the runtime
+calls it the way v2.0.19 calls it.
+
+| Item | What it is |
+| --- | --- |
+| `Callback { name, line }` | a function of the script that the runtime calls: the name the script wrote, and the line of the statement that registered it |
+| `Runtime::the_callback(value, name, line)` | the callback of a value, and the three refusals of v2: a value that is not an object, a value that cannot be called, and a prototype that does not take the two parameters |
+| `Runtime::set_exit_callback`, `set_error_callback` | the registration; v2 keeps one entry for a callback |
+| `Runtime::remove_exit_callback`, `remove_error_callback` | the removal: the order 0 does not call the callback |
+| `Runtime::order_exit_callback`, `order_error_callback` | the order: the callback of the order -1 runs before the ones that are registered |
+| `Runtime::ask_the_error_callbacks(failure)` | the functions of the error, and what they said: `TheError::Goes`, `TheError::Hidden` and `TheError::Continues` |
+
+The callback of the exit takes the reason and the code, and the callback of
+the error takes the value that was thrown and the mode. The functions of the
+error are called where the failure happened, before the stack unwinds, and
+not while the body of a `try` runs.
+
 ### The key table (`keys.rs`)
 
 - `EVDEV: &[(&str, u16)]` -- the key names and their evdev codes.

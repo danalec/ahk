@@ -1353,10 +1353,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "ImageSearch",
             "the search of a picture is made by the desktop, and this desktop does not read the images of the machine.",
         ),
-        (
-            "OnError",
-            "the handler of an error is not carried: this runtime ends the script when it fails.",
-        ),
     ] {
         let report = run(name);
         assert_eq!(failure_of(&report), reason, "{name}");
@@ -1366,45 +1362,56 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
 }
 
 #[test]
-fn the_function_of_the_exit_runs_when_the_script_ends() {
-    // The callback may be the function itself: v2 resolves a name that is
-    // a function to the function.
-    let report = run("OnExit Bye\nBye() {\n  MsgBox \"bye\"\n}\n");
+fn the_function_of_the_exit_takes_the_reason_and_the_code() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the callback of
+    // the exit takes the reason of the exit and the code.
+    let report = run(concat!(
+        "OnExit Bye\n",
+        "Bye(ExitReason, ExitCode) {\n",
+        "  MsgBox ExitReason \", \" ExitCode\n",
+        "}\n",
+        "MsgBox \"the script ends\"\n",
+    ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["bye"]);
-}
-
-#[test]
-fn the_function_of_the_exit_may_be_given_by_its_name() {
-    let report = run("OnExit(\"Bye\")\nBye() {\n  MsgBox \"bye\"\n}\n");
-    assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["bye"]);
+    assert_eq!(report.output, vec!["the script ends", "Exit, 0"]);
 }
 
 #[test]
 fn the_function_of_the_exit_runs_when_the_script_stops_with_a_code() {
-    let report = run("OnExit(\"Bye\")\nBye() {\n  MsgBox \"bye\"\n}\nExit 3\n");
+    let report = run(concat!(
+        "OnExit Bye\n",
+        "Bye(ExitReason, ExitCode) {\n",
+        "  MsgBox ExitReason \", \" ExitCode\n",
+        "}\n",
+        "Exit 3\n",
+    ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["bye"]);
+    assert_eq!(report.output, vec!["Exit, 3"]);
     assert_eq!(report.exit_code, Some(3));
 }
 
 #[test]
 fn the_function_of_the_exit_runs_when_the_script_fails() {
     // The end of the script is the end of the script, whatever the reason
-    // it ended.
-    let report = run("OnExit(\"Bye\")\nBye() {\n  MsgBox \"bye\"\n}\nMsgBox NoSuchVariable\n");
+    // it ended, and the reason is the one of v2.
+    let report = run(concat!(
+        "OnExit Bye\n",
+        "Bye(ExitReason, ExitCode) {\n",
+        "  MsgBox ExitReason\n",
+        "}\n",
+        "MsgBox NoSuchVariable\n",
+    ));
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
         Some("This variable has not been assigned a value. Specifically: NoSuchVariable")
     );
-    assert_eq!(report.output, vec!["bye"]);
+    assert_eq!(report.output, vec!["Error"]);
 }
 
 #[test]
 fn a_function_of_the_exit_that_fails_fails_the_run() {
-    let report = run("OnExit(\"Bye\")\nBye() {\n  MsgBox NoSuchVariable\n}\n");
+    let report = run("OnExit Bye\nBye(Reason, Code) {\n  MsgBox NoSuchVariable\n}\n");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -1420,7 +1427,7 @@ fn a_function_of_the_exit_that_fails_when_the_script_already_failed_is_a_note() 
     // The error of the script is the error of the run, and the failure of
     // the function is not lost.
     let report = run(
-        "OnExit(\"Bye\")\nBye() {\n  MsgBox NoSuchVariable\n}\nMsgBox NoSuchVariable\n",
+        "OnExit Bye\nBye(Reason, Code) {\n  MsgBox NoSuchVariable\n}\nMsgBox NoSuchVariable\n",
     );
     assert!(!report.ok);
     assert_eq!(
@@ -1435,21 +1442,231 @@ fn a_function_of_the_exit_that_fails_when_the_script_already_failed_is_a_note() 
 }
 
 #[test]
-fn a_function_of_the_exit_that_is_not_a_function_of_the_script_refuses_with_the_reason() {
-    let report = run("OnExit(\"NoSuchFunction\")");
+fn a_text_is_not_a_callback_and_refuses_with_the_reason_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: the callback is a
+    // function object, and a text is refused.
+    let report = run("OnExit(\"Bye\")");
     assert_eq!(
         failure_of(&report),
-        "the function of the exit is not a function of the script: NoSuchFunction"
+        "Parameter #1 of OnExit requires an Object, but received a String. Specifically: Bye"
     );
 }
 
 #[test]
-fn the_mode_of_the_exit_is_not_carried_and_refuses_with_the_reason() {
-    let report = run("OnExit(\"Bye\", 1)\nBye() {\n  MsgBox \"bye\"\n}\n");
+fn a_value_that_cannot_be_called_is_not_a_callback() {
+    // v2 calls the value, and a value that cannot be called has no method
+    // named "Call".
+    let report = run("OnExit Map()");
     assert_eq!(
         failure_of(&report),
-        "the mode of the exit is not carried: the runtime calls the function when the script ends."
+        "This value of type \"Object\" has no method named \"Call\"."
     );
+}
+
+#[test]
+fn a_prototype_that_does_not_take_the_two_parameters_is_not_a_callback() {
+    // Measured on the binary of v2.0.19 on 2026-10-29.
+    let report = run("OnExit Bye\nBye() {\n}\n");
+    assert_eq!(failure_of(&report), "Invalid callback function.");
+}
+
+#[test]
+fn a_callback_that_takes_the_rest_of_the_arguments_is_a_callback() {
+    // The asterisk takes what is left, and it fits.
+    let report = run(concat!(
+        "OnExit Bye\n",
+        "Bye(ExitReason, ExitCode*) {\n",
+        "  MsgBox ExitReason\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Exit"]);
+}
+
+#[test]
+fn the_callback_of_the_exit_is_required() {
+    let report = run("OnExit()");
+    assert_eq!(failure_of(&report), "Too few parameters passed to function. Specifically: OnExit");
+}
+
+#[test]
+fn the_order_of_the_callbacks_is_one_minus_one_or_zero() {
+    let report = run("OnExit Bye, 5\nBye(Reason, Code) {\n}\n");
+    assert_eq!(failure_of(&report), "Parameter #2 of OnExit is invalid. Specifically: 5");
+}
+
+#[test]
+fn an_order_that_is_not_a_number_refuses_with_the_reason_of_v2() {
+    let report = run("OnExit Bye, \"x\"\nBye(Reason, Code) {\n}\n");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of OnExit requires a Number, but received a String. Specifically: x"
+    );
+}
+
+#[test]
+fn the_order_is_cut_to_a_whole_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: 1.5 is 1.
+    let report = run("OnExit Bye, 1.5\nBye(Reason, Code) {\n  MsgBox \"bye\"\n}\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["bye"]);
+}
+
+#[test]
+fn the_callback_that_is_asked_not_to_be_called_is_removed() {
+    let report = run(concat!(
+        "OnExit Bye\n",
+        "OnExit Bye, 0\n",
+        "Bye(Reason, Code) {\n",
+        "  MsgBox \"bye\"\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty(), "{:?}", report.output);
+}
+
+#[test]
+fn the_callbacks_run_in_the_order_the_script_asked_for() {
+    // One is after the ones that are registered, and minus one is before
+    // them.
+    let report = run(concat!(
+        "First(Reason, Code) {\n  MsgBox \"first\"\n}\n",
+        "Second(Reason, Code) {\n  MsgBox \"second\"\n}\n",
+        "OnExit First\n",
+        "OnExit Second\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["first", "second"]);
+}
+
+#[test]
+fn a_callback_that_asks_to_run_before_the_others_runs_before_them() {
+    let report = run(concat!(
+        "First(Reason, Code) {\n  MsgBox \"first\"\n}\n",
+        "Second(Reason, Code) {\n  MsgBox \"second\"\n}\n",
+        "OnExit First\n",
+        "OnExit Second, -1\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["second", "first"]);
+}
+
+#[test]
+fn the_same_callback_registered_twice_runs_once() {
+    // v2 keeps one entry for a callback.
+    let report = run(concat!(
+        "Bye(Reason, Code) {\n  MsgBox \"bye\"\n}\n",
+        "OnExit Bye\n",
+        "OnExit Bye\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["bye"]);
+}
+
+#[test]
+fn a_function_of_the_exit_that_answers_a_number_keeps_the_script_alive() {
+    // v2: the exit does not happen, and the callbacks that come after it
+    // are not called. This runtime has no way to keep a script alive, so
+    // the run ends and the note says so.
+    let report = run(concat!(
+        "Bye(Reason, Code) {\n  return 1\n}\n",
+        "OnExit Bye\n",
+        "Exit 3\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.exit_code, None);
+    assert!(
+        report.notes.iter().any(|note| note.contains("keep the script alive")),
+        "{:?}",
+        report.notes
+    );
+}
+
+#[test]
+fn the_function_of_the_error_takes_the_value_and_the_mode() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the mode of a
+    // failure of the runtime is "Return".
+    let report = run(concat!(
+        "Handler(Thrown, Mode) {\n  MsgBox Mode\n}\n",
+        "OnError Handler\n",
+        "MsgBox NoSuchVariable\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(report.output, vec!["Return"]);
+}
+
+#[test]
+fn the_function_of_the_error_takes_the_value_that_was_thrown() {
+    // A value that the script threw is not a continuable failure: the
+    // mode is "Exit".
+    let report = run(concat!(
+        "Handler(Thrown, Mode) {\n  MsgBox Mode \", \" Thrown\n}\n",
+        "OnError Handler\n",
+        "throw \"the error of the script\"\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(report.output, vec!["Exit, the error of the script"]);
+}
+
+#[test]
+fn a_function_of_the_error_that_answers_one_hides_the_failure() {
+    let report = run(concat!(
+        "Handler(Thrown, Mode) {\n  return 1\n}\n",
+        "OnError Handler\n",
+        "MsgBox NoSuchVariable\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert!(
+        report.notes.iter().any(|note| note.contains("hid the failure")),
+        "{:?}",
+        report.notes
+    );
+}
+
+#[test]
+fn a_function_of_the_error_that_answers_minus_one_lets_the_thread_continue() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the thread goes on
+    // where the failure happened.
+    let report = run(concat!(
+        "Handler(Thrown, Mode) {\n  return -1\n}\n",
+        "OnError Handler\n",
+        "Fail()\n",
+        "MsgBox \"after the call\"\n",
+        "Fail() {\n",
+        "  MsgBox NoSuchVariable\n",
+        "  MsgBox \"inside the function\"\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["inside the function", "after the call"]);
+}
+
+#[test]
+fn the_functions_of_the_error_are_not_called_while_a_try_is_active() {
+    // v2: the catch of the script takes the failure first.
+    let report = run(concat!(
+        "Handler(Thrown, Mode) {\n  MsgBox \"the handler\"\n}\n",
+        "OnError Handler\n",
+        "try {\n",
+        "  MsgBox NoSuchVariable\n",
+        "} catch {\n",
+        "  MsgBox \"in the catch\"\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["in the catch"]);
+}
+
+#[test]
+fn the_function_of_the_error_is_removed_when_the_order_is_zero() {
+    let report = run(concat!(
+        "Handler(Thrown, Mode) {\n  MsgBox \"the handler\"\n}\n",
+        "OnError Handler\n",
+        "OnError Handler, 0\n",
+        "MsgBox NoSuchVariable\n",
+    ));
+    assert!(!report.ok);
+    assert!(report.output.is_empty(), "{:?}", report.output);
 }
 
 #[test]

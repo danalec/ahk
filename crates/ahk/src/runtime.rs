@@ -611,6 +611,19 @@ pub(crate) enum Flow {
     Exit(i32),
 }
 
+/// What the functions of the error said about a failure.
+///
+/// The answers are the ones of v2: 0 lets the failure go on, 1 hides it,
+/// and -1 hides it and lets the thread continue.
+enum TheError {
+    /// The failure goes on: it is the error of the run.
+    Goes,
+    /// The failure is hidden, and the thread ends.
+    Hidden,
+    /// The failure is hidden, and the thread continues.
+    Continues,
+}
+
 /// A function the script defined.
 #[derive(Clone)]
 struct Function {
@@ -634,16 +647,17 @@ struct Timer {
     last: u64,
 }
 
-/// The function the script asked to run when it ends.
+/// A function of the script that the runtime calls.
 ///
-/// The name is the one the script wrote, and the line is the line of the
-/// statement that registered it: a function that fails says where it was
-/// asked for.
-struct ExitCallback {
+/// It is the callback of the exit or of the error. The name is the one the
+/// script wrote, and the line is the line of the statement that registered
+/// it: a function that fails says where it was asked for.
+#[derive(Clone)]
+pub(crate) struct Callback {
     /// The name of the function the script registered.
-    name: String,
+    pub name: String,
     /// The line of the statement that registered it.
-    line: u32,
+    pub line: u32,
 }
 
 /// Executes a script.
@@ -692,11 +706,26 @@ pub struct Runtime<'a> {
     hotkeys: Vec<crate::hotkeys::Hotkey>,
     /// The code the script asked to stop with.
     exit_requested: Option<i32>,
-    /// The function to call when the script ends.
+    /// The functions to call when the script ends.
     ///
-    /// The script asks for it with `OnExit`, and the runtime calls it when
-    /// the script ends, whatever the reason the script ended.
-    exit_callback: Option<ExitCallback>,
+    /// The script asks for them with `OnExit`, and the runtime calls them
+    /// when the script ends, whatever the reason the script ended.
+    exit_callbacks: Vec<Callback>,
+    /// The functions to call when a failure is not caught.
+    ///
+    /// The script asks for them with `OnError`.
+    error_callbacks: Vec<Callback>,
+    /// Whether the body of a `try` is running.
+    ///
+    /// While it runs, the functions of the error are not called: the catch
+    /// of the script takes the failure first, and the functions of the
+    /// error are called only when no catch took it.
+    try_active: usize,
+    /// Whether the functions of the error hid a failure.
+    ///
+    /// A failure that was hidden is not the error of the run: the script
+    /// asked for it to be hidden, and it is.
+    failure_hidden: bool,
     /// The value that the catch of the running `try` took.
     ///
     /// `throw` without a value throws it again, the way v2 does.
@@ -752,7 +781,10 @@ impl<'a> Runtime<'a> {
             timers: Vec::new(),
             hotkeys: Vec::new(),
             exit_requested: None,
-            exit_callback: None,
+            exit_callbacks: Vec::new(),
+            error_callbacks: Vec::new(),
+            try_active: 0,
+            failure_hidden: false,
             caught_value: None,
         }
     }
@@ -791,7 +823,10 @@ impl<'a> Runtime<'a> {
             timers: Vec::new(),
             hotkeys: Vec::new(),
             exit_requested: None,
-            exit_callback: None,
+            exit_callbacks: Vec::new(),
+            error_callbacks: Vec::new(),
+            try_active: 0,
+            failure_hidden: false,
             caught_value: None,
         }
     }
@@ -844,39 +879,70 @@ impl<'a> Runtime<'a> {
                 error = Some(thrown_message(&value));
             }
         }
-        // The script has ended. The function it asked to run at its exit
-        // runs now: the end is the moment the runtime knows, and it knows
+        // A failure that the functions of the error hid is not the error of
+        // the run: the script asked for it to be hidden, and it is.
+        if self.failure_hidden {
+            error = None;
+            error_line = None;
+        }
+        // The script has ended. The functions it asked to run at its exit
+        // run now: the end is the moment the runtime knows, and it knows
         // it whatever the reason the script ended.
-        if let Some(callback) = self.exit_callback.take() {
-            // The script has already stopped: the flag that stops it does
-            // not stop the function of the exit, and the code of the run
-            // is the code the script asked with.
-            self.exit_requested = None;
-            if let Err(failure) = self.call_function_by_name(&callback.name, callback.line) {
-                let (message, line) = match failure {
-                    RuntimeFailure::Error(error) => (error.message, error.line),
-                    RuntimeFailure::Thrown(value) => (thrown_message(&value), 0),
-                    RuntimeFailure::Timeout(timeout) => (timeout.to_string(), 0),
-                    RuntimeFailure::Flow(_) => (
-                        "the function of the exit left the script in the middle of a block.".to_string(),
-                        0,
-                    ),
-                };
-                if error.is_none() {
-                    error = Some(message);
-                    error_line = Some(if line == 0 { callback.line } else { line });
-                } else {
-                    // The script had already failed: its failure is the
-                    // error of the run, and the failure of the function of
-                    // the exit is a note, so that it is not lost.
-                    self.note(format!("the function of the exit failed: {message}"));
+        let reason = if error.is_some() { "Error" } else { "Exit" };
+        let code = exit_code.unwrap_or(0);
+        // The script has already stopped: the flag that stops it does not
+        // stop the functions of the exit, and the code of the run is the
+        // code the script asked with.
+        self.exit_requested = None;
+        let mut prevented = false;
+        let callbacks: Vec<Callback> = core::mem::take(&mut self.exit_callbacks);
+        for callback in callbacks {
+            let values = [Value::Text(reason.to_string()), Value::Int(code as i64)];
+            match self.call_named(&callback.name, &values, callback.line) {
+                Ok(answer) => {
+                    // A function that answers a number that is not zero
+                    // keeps the script alive, and the functions that come
+                    // after it are not called.
+                    if answer.to_number().unwrap_or(0.0) != 0.0 {
+                        prevented = true;
+                        break;
+                    }
+                }
+                Err(failure) => {
+                    let (message, line) = match failure {
+                        RuntimeFailure::Error(error) => (error.message, error.line),
+                        RuntimeFailure::Thrown(value) => (thrown_message(&value), 0),
+                        RuntimeFailure::Timeout(timeout) => (timeout.to_string(), 0),
+                        RuntimeFailure::Flow(_) => (
+                            "the function of the exit left the script in the middle of a block.".to_string(),
+                            0,
+                        ),
+                    };
+                    if error.is_none() {
+                        error = Some(message);
+                        error_line = Some(if line == 0 { callback.line } else { line });
+                    } else {
+                        // The script had already failed: its failure is the
+                        // error of the run, and the failure of the function of
+                        // the exit is a note, so that it is not lost.
+                        self.note(format!("the function of the exit failed: {message}"));
+                    }
                 }
             }
-            // The function of the exit may ask to stop with a code of its
-            // own, and that code is the code of the run.
-            if let Some(code) = self.exit_requested {
-                exit_code = Some(code);
-            }
+        }
+        if prevented {
+            // The exit was prevented, and the code the script asked for is
+            // not the code of the run. This runtime has no way to keep a
+            // script alive, so the run ends anyway.
+            exit_code = None;
+            self.note(
+                "a function of the exit asked to keep the script alive, and this runtime ends the script when its statements end.",
+            );
+        }
+        // A function of the exit may ask to stop with a code of its own,
+        // and that code is the code of the run.
+        if let Some(code) = self.exit_requested {
+            exit_code = Some(code);
         }
         let elapsed_ms = self.elapsed_ms();
         Report {
@@ -955,7 +1021,27 @@ impl<'a> Runtime<'a> {
 
     fn run_block(&mut self, statements: &[Node]) -> Result<(), RuntimeFailure> {
         for statement in statements {
-            self.execute(statement)?;
+            // A failure of the statement is given to the functions that
+            // asked to see it, before the stack unwinds: one of them may
+            // say that the thread continues.
+            match self.execute(statement) {
+                Ok(()) => {}
+                Err(failure) => match self.ask_the_error_callbacks(&failure) {
+                    // The thread continues: the statement that failed is
+                    // over, and the failure is not the error of the run.
+                    TheError::Continues => {}
+                    // The failure is hidden, and the thread ends.
+                    TheError::Hidden => {
+                        self.failure_hidden = true;
+                        self.note(format!(
+                            "the functions of the error hid the failure: {}",
+                            the_message_of(&failure)
+                        ));
+                        return Err(failure);
+                    }
+                    TheError::Goes => return Err(failure),
+                },
+            }
             // The timers of the script run between its statements, and
             // only there: a function of the script is not the script.
             if self.scopes.is_empty() {
@@ -985,7 +1071,9 @@ impl<'a> Runtime<'a> {
         otherwise: &[Node],
         finally: &[Node],
     ) -> Result<(), RuntimeFailure> {
+        self.try_active += 1;
         let mut failure = self.run_block(body).err();
+        self.try_active -= 1;
         let mut taken = false;
         // The value that the catch sees: the error of the runtime is an
         // object of the class `error`, and a thrown value is the value
@@ -2870,13 +2958,186 @@ impl<'a> Runtime<'a> {
     ///
     /// The name is the one the script wrote, and the line is the line of
     /// the statement that registered it.
+    ///
+    /// v2 keeps one entry for a callback: registering the same function
+    /// again does not make it run twice.
     pub(crate) fn set_exit_callback(&mut self, name: &str, line: u32) {
-        self.exit_callback = Some(ExitCallback { name: name.to_string(), line });
+        match self.exit_callbacks.iter_mut().find(|callback| callback.name.eq_ignore_ascii_case(name)) {
+            Some(callback) => callback.line = line,
+            None => self.exit_callbacks.push(Callback { name: name.to_string(), line }),
+        }
     }
 
-    /// Whether the script defined a function of this name.
-    pub(crate) fn has_function(&self, name: &str) -> bool {
-        self.functions.contains_key(&name.to_lowercase())
+    /// The function the script asks to run when a failure is not caught.
+    pub(crate) fn set_error_callback(&mut self, name: &str, line: u32) {
+        match self.error_callbacks.iter_mut().find(|callback| callback.name.eq_ignore_ascii_case(name)) {
+            Some(callback) => callback.line = line,
+            None => self.error_callbacks.push(Callback { name: name.to_string(), line }),
+        }
+    }
+
+    /// The callback of the exit that has this name is not called any more.
+    pub(crate) fn remove_exit_callback(&mut self, name: &str) {
+        self.exit_callbacks.retain(|callback| !callback.name.eq_ignore_ascii_case(name));
+    }
+
+    /// The callback of the error that has this name is not called any more.
+    pub(crate) fn remove_error_callback(&mut self, name: &str) {
+        self.error_callbacks.retain(|callback| !callback.name.eq_ignore_ascii_case(name));
+    }
+
+    /// Put a callback before the ones that are registered, or after them.
+    pub(crate) fn order_exit_callback(&mut self, name: &str, before: bool) {
+        let Some(at) = self.exit_callbacks.iter().position(|callback| callback.name.eq_ignore_ascii_case(name))
+        else {
+            return;
+        };
+        let callback = self.exit_callbacks.remove(at);
+        if before {
+            self.exit_callbacks.insert(0, callback);
+        } else {
+            self.exit_callbacks.push(callback);
+        }
+    }
+
+    /// Put a callback before the ones that are registered, or after them.
+    pub(crate) fn order_error_callback(&mut self, name: &str, before: bool) {
+        let Some(at) = self.error_callbacks.iter().position(|callback| callback.name.eq_ignore_ascii_case(name))
+        else {
+            return;
+        };
+        let callback = self.error_callbacks.remove(at);
+        if before {
+            self.error_callbacks.insert(0, callback);
+        } else {
+            self.error_callbacks.push(callback);
+        }
+    }
+
+    /// The function of the script that a callback names.
+    ///
+    /// v2 wants a function object, and the prototype of the function has
+    /// to take the two parameters of the callback: the reason and the code
+    /// for the exit, the value and the mode for the error.
+    ///
+    /// The three refusals are the ones of v2, measured on its binary: a
+    /// value that is not an object, a value that cannot be called, and a
+    /// prototype that does not take the two parameters.
+    pub(crate) fn the_callback(
+        &self,
+        value: Option<&Value>,
+        name: &str,
+        line: u32,
+    ) -> Result<Callback, RuntimeError> {
+        let Some(value) = value else {
+            return Err(RuntimeError {
+                message: format!("Parameter #1 of {name} requires an Object, but received nothing."),
+                line,
+            });
+        };
+        // A value that is not an object is refused with the kind of the
+        // value it is.
+        let Value::Object(object) = value else {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(
+                    1,
+                    name,
+                    "an Object",
+                    value.type_name(),
+                    &value.to_text(),
+                    true,
+                ),
+                line,
+            });
+        };
+        let object = object.borrow();
+        // v2 calls the value, and a value that cannot be called has no
+        // method named "Call".
+        if object.class != "func" {
+            return Err(RuntimeError {
+                message: format!(
+                    "This value of type \"{}\" has no method named \"Call\".",
+                    value.type_name().name()
+                ),
+                line,
+            });
+        }
+        let function_name = match object.properties.get("name") {
+            Some(Value::Text(text)) => text.clone(),
+            _ => String::new(),
+        };
+        // The prototype has to take the two parameters of the callback. A
+        // parameter that takes the rest fits: it takes what is left.
+        let takes_two = match self.functions.get(&function_name.to_lowercase()) {
+            Some(function) => {
+                let fewest = function
+                    .parameters
+                    .iter()
+                    .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+                    .count();
+                let variadic = function.parameters.iter().any(|parameter| parameter.variadic);
+                fewest <= 2 && (variadic || function.parameters.len() >= 2)
+            }
+            // A built-in has its own arity, and the same rule is asked of
+            // it.
+            None => {
+                let fewest = number_of(&object.properties, "minparams");
+                let most = number_of(&object.properties, "maxparams");
+                fewest <= 2 && most >= 2
+            }
+        };
+        if !takes_two {
+            return Err(RuntimeError { message: "Invalid callback function.".into(), line });
+        }
+        Ok(Callback { name: function_name, line })
+    }
+
+    /// The functions that asked to see the failure, and what they said.
+    ///
+    /// The answers are the ones of v2: 0 lets the failure go on, 1 hides
+    /// it, and -1 hides it and lets the thread continue.
+    fn ask_the_error_callbacks(&mut self, failure: &RuntimeFailure) -> TheError {
+        // While the body of a `try` runs, the functions of the error are
+        // not called: the catch of the script takes the failure first, and
+        // the functions of the error are called only when no catch took
+        // it.
+        if self.error_callbacks.is_empty() || self.try_active > 0 {
+            return TheError::Goes;
+        }
+        let (value, mode) = match failure {
+            // A failure of the runtime is a continuable one: the thread
+            // goes on when a function says so.
+            RuntimeFailure::Error(error) => (self.error_value(error), "Return"),
+            // A value that the script threw is not a continuable failure.
+            RuntimeFailure::Thrown(value) => (value.clone(), "Exit"),
+            // The timeout of the tree stops the program.
+            RuntimeFailure::Timeout(timeout) => (
+                self.error_value(&RuntimeError { message: timeout.to_string(), line: 0 }),
+                "ExitApp",
+            ),
+            _ => return TheError::Goes,
+        };
+        let mut answer = 0;
+        let callbacks = self.error_callbacks.clone();
+        for callback in callbacks {
+            let values = [value.clone(), Value::Text(mode.to_string())];
+            // A function that fails does not hide the failure.
+            if let Ok(said) = self.call_named(&callback.name, &values, callback.line) {
+                let said = said.to_number().unwrap_or(0.0) as i64;
+                if said != 0 {
+                    answer = said;
+                    // A function that answered stops the ones that come
+                    // after it.
+                    break;
+                }
+            }
+        }
+        match answer {
+            1 => TheError::Hidden,
+            -1 if mode == "Return" => TheError::Continues,
+            -1 => TheError::Hidden,
+            _ => TheError::Goes,
+        }
     }
 
     /// Call a function of the script by name, with no arguments.
@@ -3823,6 +4084,21 @@ fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
     }
 }
 
+
+/// The message of a failure, the way the report carries it.
+fn the_message_of(failure: &RuntimeFailure) -> String {
+    match failure {
+        RuntimeFailure::Error(error) => error.message.clone(),
+        RuntimeFailure::Thrown(value) => thrown_message(value),
+        RuntimeFailure::Timeout(timeout) => timeout.to_string(),
+        RuntimeFailure::Flow(_) => "the script left a block in the middle of it.".to_string(),
+    }
+}
+
+/// The number of a property of an object, when it has one.
+fn number_of(properties: &BTreeMap<String, Value>, name: &str) -> i64 {
+    properties.get(name).map(|value| value.to_number().unwrap_or(0.0) as i64).unwrap_or(0)
+}
 
 /// The message of a value that was thrown and that nobody caught.
 ///

@@ -31,13 +31,13 @@
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::ast::{Catch, 
-    AssignOp, BinaryOp, Branch, Case, CastType, LiteralValue, LoopKind, MethodDef, Node, Parameter,
-    PropertyDef, UnaryOp,
+use crate::ast::{
+    AssignOp, BinaryOp, Branch, Case, CastType, Catch, LiteralValue, LoopKind, MethodDef, Node,
+    Parameter, PropertyDef, UnaryOp,
 };
 use crate::lexer::{SyntaxError, Token, TokenKind};
 
