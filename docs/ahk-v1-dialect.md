@@ -22,10 +22,12 @@ vantagem competitiva. A mudança é que o v1 passa a ser uma **opção** —
 para os scripts que já existem e que ninguém vai reescrever.
 
 **A comparação está em revisão** — a onda de 2026-10-29 reescreve esse
-documento, e os números das suas secções mudam com ele. Por isso a
-decisão **não mora lá**: mora aqui e no `AGENTS.md`, e a linha de lá é
-citada, não referenciada. Duas outras linhas da mesma tabela também
-ficam invertidas — para o dialecto do v1, e só para ele:
+documento, e os números das suas secções mudam com ele. A decisão está
+escrita nos dois sítios: a comparação diz que a linha é verdade do v2 e
+só do v2, e aponta para este plano; este plano diz o mesmo e aponta
+para a comparação. E o `AGENTS.md` aponta para aqui. Duas outras linhas
+da mesma tabela também ficam invertidas — para o dialecto do v1, e só
+para ele:
 
 | Linha da comparação | Para o v2 | Para o v1 |
 |---|---|---|
@@ -53,12 +55,18 @@ mexer em nenhuma capacidade. Duas coisas ficam acordadas:
 
 A extensão que a F1 precisa é pequena. O `surface::entries()` de hoje lê
 a tabela de v2 que está embutida e pergunta à árvore, nome a nome —
-`builtins::find`, `builtins::refusal_of`, `variables::carries`,
-`classes::carries`. Com um dialecto, essas quatro perguntas passam a
-levar o dialecto, e `entries()` passa a ser `entries_for(dialect)`. O
-vocabulário fica como está — `Value`, `Refusal(reason)`,
-`Pending(reason)`; é a frase do resumo que troca o "de v2" pelo nome do
-dialecto.
+`builtins::find` e `builtins::refusal_of` para os comandos e as
+funções, `variables::carries` e `variables::refusal_of` para as
+variáveis, e `classes::carries` para os métodos. Com um dialecto, cada
+uma dessas perguntas passa a levar o dialecto, e `entries()` passa a ser
+`entries_for(dialect)`. O vocabulário fica como está — `Value`,
+`Refusal(reason)`, `Pending(reason)`; é a frase do resumo que troca o
+"de v2" pelo nome do dialecto.
+
+E o `Pending` é o que a F1 precisa: a tabela de pendentes do v2 está
+**vazia** — o port carrega o v2 inteiro — e a do v1 vai ser a primeira
+que não está. É aí que entram os nomes do v1 que o v2 não tem, e o
+`Pending` é a resposta certa para cada um deles.
 
 ### A autoridade
 
@@ -177,7 +185,9 @@ Medido nos dois binários:
 - **No v2 e não no v1**: `StrUpper`, `StrLower` — *o v1.1.37.02 não tem
   nenhuma função de caixa*: nem `Upper`, nem `StrUpper`, nem `Lower`,
   nem `StrLower*. `Number`, `Transform`, `StringReplace` e `ComValue` também
-  não são do v1.1 (os dois primeiros são de v1.0 ou do v2).
+  não são do v1.1 (os dois primeiros são de v1.0 ou do v2). `HasProp` e
+  `HasMethod` também não — e o v1 não tem `ObjHasProp` tampoco (medido:
+  *"Call to nonexistent function. Specifically: ObjHasProp(o, "a")"*).
 - **O mesmo nome, outro género** — e é aqui que o gate dói:
 
 | Nome | no v1.1.37.02 | no v2.0.19 |
@@ -187,8 +197,42 @@ Medido nos dois binários:
 | `FileRead` | **comando** (com variável de saída) | **comando** |
 | `GetKeyState` | **função** | **comando** |
 | `StrReplace` | **função** (parâmetros por ordem diferente) | **função** |
+| `Clipboard` | **não existe** | **variável** (o texto do clipboard) |
+| `A_Clipboard` | **variável** (o texto) | não existe |
+| `ClipboardAll` | **variável** (um objecto com todos os formatos) | não existe |
+| `Length` do array | **método**: `a.Length()` | **propriedade**: `a.Length` |
+
+O clipboard é o caso maisганho: no v1 o texto é `A_Clipboard` e o
+objecto completo é `ClipboardAll`, e **não existe** nenhum nome
+`Clipboard` — medido: `Clipboard, 0, hello` → *"This line does not
+contain a recognized action. Specifically: Clipboard, 0, hello"*, e
+`Clipboard()` → *"Call to nonexistent function"*. As duas variáveis do
+v1 foram confirmadas com o `IsSet` do v1: `IsSet(A_Clipboard)` e
+`IsSet(ClipboardAll)` dão 1, e um nome inventado dá 0.
 
 Uma tabela por dialecto, com a coluna do género, é o que resolve isto.
+
+### 1.5 As classes: o v1 não tem classes do runtime
+
+O v2 tem onze classes na superfície — `Map`, `Array`, `Buffer`, `File`,
+`Func`, `Gui` (com `Gui.Control`, `Gui.ListView`, `Gui.Menu` e
+`Gui.StatusBar`) e `Hotkey` — e são **tipos do runtime**: o script não
+as estende, e os métodos são os que o runtime responde.
+
+O v1 não tem nenhum desses tipos. O que tem são **objectos**, e medido
+no binário em 2026-10-29 o `.__Class` deles é **vazio**: o `File` de
+`FileOpen`, o objecto de `Object()`, o literal `{a: 1}` e o objecto da
+variável `ClipboardAll` dão todos `.__Class` vazio. O `Object` do v1
+é uma **função** (`Object()` corre), e o objecto base não tem nome de
+classe. O array do v1 também é um objecto: `a := [1, 2, 3]` dá
+`a.Length()` = 3 (um **método**) e `a.__Class` vazio.
+
+O v1 tem classes, mas são **do script**: `class`, `new`, `this` e
+`__Init` existem — medido: `class Probe { __Init() { this.x := 1 } }`,
+`new Probe`, e `o.x` vale 1 — e aí o `.__Class` é o nome da classe
+("Probe"). O que o v1 não tem é uma *superfície* de classe por trás de
+um nome: o `Map` e o `Array` do v2 são objectos com métodos; no v1 são
+objectos com chaves.
 
 ---
 
@@ -349,9 +393,11 @@ not speak that dialect"*.
 **Conteúdo.** A tabela dos nomes do v1: a lista da documentação, o género
 de cada um, a forma e a aridade de cada parâmetro — **verificadas no
 binário**, com a sondagem de um processo por nome (§1.3), na caixa. As
-variáveis do v1 (§1.2). As classes do v1: `Object`, `File`,
-`ClipboardAll` — e *não* as nove do v2. A tabela de pendentes do v1, com
-a razão de cada nome que não é carregado.
+variáveis do v1 (§1.2). As classes do v1: **nenhuma** (§1.5) — o v1
+não tem classes do runtime, e o que ele tem são objectos e as classes
+do script. A tabela de pendentes do v1, com a razão de cada nome que
+não é carregado — e esta é a primeira tabela de pendentes que não está
+vazia (§0).
 
 **Resultado.** `ahk --surface --dialect=v1` imprime a lista com o estado
 de cada nome — o comando que a onda de 2026-10-29 construiu para o v2,
@@ -376,9 +422,11 @@ depende a F2.
 - As directivas do v1 (`#MaxThreads*`, `#NoEnv`, `#Persistent`,
   `#SingleInstance`, `#UseHook`, `#HotIf`, …).
 
-**Resultado.** Um script v1 da documentação corre no runner: `Msg, text`
-escreve, `StringLen, n, s` preenche `n`, `if (a = b)` compara sem
-distinção de maiúsculas, `goto` salta.
+**Resultado.** Um script v1 da documentação corre no runner: `MsgBox, text`
+escreve a mensagem, `StringLen, n, s` preenche `n`, `if (a = b)` compara
+sem distinção de maiúsculas, `goto` salta. (O `Msg` não é um comando do
+v1 — medido em 2026-10-29: *"This line does not contain a recognized
+action. Specifically: Msg, hello"*. O `MsgBox` é, e abre uma janela.)
 
 **Risco.** Alto — é a fase mais cara. O `=` é o ponto difícil: o mesmo
 token é atribuição ou comparação conforme a posição, e o v1 usa os dois
@@ -411,6 +459,12 @@ medido, e um script v2 não sente nada.
 `IniRead`, `StrReplace`, `StrLen`, `Format`, `RegExMatch`. As
 capacidades que o v1 tem e o v2 não (`Control*`, `Win*`, o registo) são
 recusadas com a razão, como o v2 faz.
+
+O clipboard muda de forma, não de caminho: no v1 o texto é a variável
+`A_Clipboard` e o objecto completo é a variável `ClipboardAll`; no v2 o
+texto é a variável `Clipboard` e `ClipboardAll` não existe. O caminho é
+o mesmo dos dois lados — o `wl-paste` e o `wl-copy` da caixa, e **não**
+o protocolo do compositor (§27 das notas).
 
 **Resultado.** Um script v1 que lê um pixel, escreve um ficheiro e manda
 uma tecla funciona na caixa.
@@ -494,6 +548,17 @@ responde, e um nome que o dialecto ainda não carrega. Os números do
 resumo são o que interessa — e o do meio é o que diz o que falta. A
 superfície do v1 ainda não foi contada: sai da sondagem da F1.
 
+A linha de base é a do v2, no commit `0375057` (2026-10-29):
+
+```
+the surface of v2 has 725 entries: 457 answer with a value, 268 are refused, 0 are pending.
+```
+
+As 268 recusas são quase todas nomes de Windows — e a recusa é a
+resposta certa para eles. A régua do plano é a do outro lado: nenhum
+nome que o v1 faz e que a caixa consegue fazer devia estar na recusa por
+falta de implementação.
+
 O JSON, para o CI, é uma peça da F5: o comando de hoje imprime o texto.
 
 O segundo número: **quantos nomes da superfície do v1 estão implementados
@@ -512,6 +577,7 @@ falta de implementação*.
 | **As fases** | F0 o gate · F1 a superfície · F2 a gramática · F3 a semântica · F4 a caixa · F5 a verificação |
 | **A fase cara** | F2, a gramática legacy |
 | **O que não muda** | o v2, o `Desktop`, a caixa, o relatório, os guard rails |
+| **As classes do v1** | nenhuma: o v1 tem objectos e classes do script, não tipos do runtime |
 | **A divergência que fica escrita** | o v1 corre no modelo cooperativo: sem threads |
 | **A autoridade** | o binário do v1.1.37.02 e a documentação do v1 |
 | **A dependência** | o `--surface` da onda de 2026-10-29, com o dialecto a mais |
