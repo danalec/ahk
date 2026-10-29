@@ -134,24 +134,34 @@ have, and values that the v2 does not share:
 |---|---|---|
 | `A_SendMode` | `Event` | `Input` |
 | `A_StoreCapsLockMode` | `On` | `1` |
-| `A_ControlDelay` | `20` | does not exist |
-| `A_WinDelay` | `100` | does not exist |
-| `A_DetectHiddenWindows` / `A_DetectHiddenText` | `Off` / `On` | do not exist |
-| `A_TitleMatchMode` | `1` | does not exist |
+| `A_ControlDelay` | `20` | `20` — a setting of the tree |
+| `A_WinDelay` | `100` | `100` — a setting of the tree |
+| `A_DetectHiddenWindows` / `A_DetectHiddenText` | `Off` / `On` | `0` / `1` — settings of the tree |
+| `A_TitleMatchMode` / `A_TitleMatchModeSpeed` | they exist | `2` / `Fast` — settings of the tree |
+| `A_RegView` / `A_Cursor` | they exist | `Default` / `Arrow` — settings of the tree |
 | `A_FormatFloat` / `A_FormatInteger` | `0.6` / `D` | do not exist |
-| `A_IsAdmin`, `A_IsCompiled`, `A_IsCritical`, `A_IsPaused`, `A_IsSuspended` | exist | exist, with the same prefix |
-| `A_IconFile`, `A_IconHidden`, `A_IconNumber`, `A_IconTip` | exist | do not exist |
-| `A_ToolTipDelay`, `A_ToolTipTimeout` | exist | do not exist |
-| `A_LineFile`, `A_LineNumber`, `A_LoopFile*`, `A_LoopReg*`, `A_LoopReadLine` | exist | some exist |
+| `A_IsAdmin`, `A_IsCompiled`, `A_IsCritical`, `A_IsPaused`, `A_IsSuspended` | they exist | they exist, with the same names |
+| `A_IconFile`, `A_IconHidden`, `A_IconNumber`, `A_IconTip` | they exist | they exist, with the same names |
+| `A_ToolTipDelay`, `A_ToolTipTimeout` | **do not exist** | do not exist |
+| `A_LineFile`, `A_LineNumber`, `A_LoopFile*`, `A_LoopReg*`, `A_LoopReadLine` | they exist | they exist, with the same names |
 | `A_KeyDelay`, `A_MouseDelay`, `A_Now`, `A_NowUTC`, `A_WDay`, `A_YWeek`, `A_MMM`, `A_MMMM` | the same | the same |
-| `A_CoordModeCaret`, `A_CoordModeMenu`, `A_FileEncoding` | do not exist | exist |
+| `A_CoordModeCaret`, `A_CoordModeMenu`, `A_FileEncoding` | they exist | they exist, with the same names |
+| `A_Clipboard` | the text of the clipboard | the text of the clipboard — the same name |
 
 The names of the variables of v2 are the ones of its documentation --
 `A_IsAdmin`, `A_AppData`, `A_ScreenWidth` -- and the table of the tree
 carries them **without** the prefix. That is the convention of the table,
 and not the spelling of the dialect: `variables::spelled` drops the `A_`
-when the script writes a name, and the table holds what is left. The
-`Clipboard` is the one variable of v2 that has no prefix at all.
+when the script writes a name, and the table holds what is left.
+
+**The spelling of the dialect is the prefix, for every one of them.**
+Measured on the binary of the v2.0.19 on 2026-10-29: `A_IsAdmin` answers
+`0`, and `IsAdmin` answers *"Warning: This global variable appears to
+never be assigned a value. Specifically: IsAdmin"*. The clipboard of the
+v2 is `A_Clipboard`, like the clipboard of the v1: `x := A_Clipboard`
+answers the text of the clipboard, and `x := Clipboard` answers *"Warning:
+This global variable appears to never be assigned a value. Specifically:
+Clipboard"*.
 
 ### 1.3 The surface: what is measured, and how
 
@@ -224,18 +234,21 @@ Measured on the two binaries:
 | `FileRead` | **command** (with an output variable) | **command** |
 | `GetKeyState` | **function** | **command** |
 | `StrReplace` | **function** (parameters in a different order) | **function** |
-| `Clipboard` | **does not exist** | **variable** (the text of the clipboard) |
-| `A_Clipboard` | **variable** (the text) | does not exist |
+| `Clipboard` | **does not exist** | **does not exist** either |
+| `A_Clipboard` | **variable** (the text) | **variable** (the text) — the same name |
 | `ClipboardAll` | **variable** (an object with all the formats) | does not exist |
 | `Length` of the array | **method**: `a.Length()` | **property**: `a.Length` |
 
-The clipboard is the case that changes the most: in the v1 the text is
-`A_Clipboard` and the complete object is `ClipboardAll` , and **no** name
-`Clipboard` exists — measured: `Clipboard, 0, hello` →
+The clipboard is not a difference of names: the two dialects spell the text
+`A_Clipboard` , and what the v1 has and the v2 does not is `ClipboardAll` ,
+the object with all the formats. There is **no** name `Clipboard` in either
+dialect — measured on the v1: `Clipboard, 0, hello` →
 *"This line does not contain a recognized action. Specifically: Clipboard, 0, hello"*
-, and `Clipboard()` → *"Call to nonexistent function"* . The two variables of
-the v1 were confirmed with the `IsSet` of the v1: `IsSet(A_Clipboard)` and
-`IsSet(ClipboardAll)` give 1, and an invented name gives 0.
+, and `Clipboard()` → *"Call to nonexistent function"* ; measured on the
+v2.0.19: `x := Clipboard` answers *"Warning: This global variable appears
+to never be assigned a value. Specifically: Clipboard"*. The two variables
+of the v1 were confirmed with the `IsSet` of the v1: `IsSet(A_Clipboard)`
+and `IsSet(ClipboardAll)` give 1, and an invented name gives 0.
 
 One table per dialect, with the column of the kind, is what solves this.
 
