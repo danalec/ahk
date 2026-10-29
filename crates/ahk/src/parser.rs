@@ -268,12 +268,21 @@ impl Parser {
 
     /// Whether the dot that comes next reaches into a value.
     ///
-    /// A dot with a space around it joins two values; a dot with no
-    /// space before it reaches into one. The two are the same character
-    /// and only the space tells them apart.
+    /// The space that comes after the dot is what tells a member from a
+    /// concatenation: `o.x` reaches into the value, and `o. x` joins two
+    /// values. The space that comes before the dot does not matter: `o .x`
+    /// reaches into the value too.
     fn at_member_dot(&self) -> bool {
         let token = self.peek();
-        token.kind == TokenKind::Op && token.value == "." && !token.spaced
+        token.kind == TokenKind::Op && token.value == "." && !self.the_space_after_is_there()
+    }
+
+    /// Whether a space comes after the token that is being looked at.
+    ///
+    /// The space belongs to the token that comes next, and that is what
+    /// tells a member from a concatenation.
+    fn the_space_after_is_there(&self) -> bool {
+        self.tokens.get(self.position + 1).map(|token| token.spaced).unwrap_or(false)
     }
 
     /// Whether the bracket that comes next reaches into a value.
@@ -1317,9 +1326,10 @@ impl Parser {
     fn peek_binary_op(&self) -> Option<(BinaryOp, u8, bool)> {
         let token = self.peek();
         if token.kind == TokenKind::Op {
-            // The dot with no space before it reaches into a value, and
-            // it is not the operator that joins two values.
-            if token.value == "." && !token.spaced {
+            // The dot that reaches into a value is not the operator that
+            // joins two values, and the operator wants a space on both
+            // sides: `a . b` joins two values, and `a. b` is an error.
+            if token.value == "." && !(token.spaced && self.the_space_after_is_there()) {
                 return None;
             }
             let (op, prec, right) = match token.value.as_str() {
@@ -1986,6 +1996,29 @@ mod tests {
         let Node::FunctionDef { declarations, .. } = &statements[0] else { panic!("a definition") };
         assert!(declarations.assume_global);
         assert!(declarations.globals.is_empty());
+    }
+
+    #[test]
+    fn a_dot_with_a_space_before_it_reaches_into_the_value() {
+        // Measured on the binary of v2.0.19 on 2026-10-30: the space that
+        // comes after the dot is what tells, and the one that comes before
+        // it does not matter.
+        let statements = parse("o .x").expect("parses");
+        assert!(matches!(&statements[0], Node::Property { name, .. } if name == "x"));
+    }
+
+    #[test]
+    fn a_dot_with_a_space_after_it_joins_two_values() {
+        let statements = parse("x := a . b").expect("parses");
+        assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(&**value, Node::Binary { op: BinaryOp::Concat, .. })));
+    }
+
+    #[test]
+    fn a_dot_with_a_space_after_it_and_none_before_it_is_an_error() {
+        // v2 refuses the line: "This line does not contain a recognized
+        // action. Specifically: o. x := 1".
+        let error = parse("o. x := 1").expect_err("does not parse");
+        assert!(!error.message.is_empty());
     }
 
     #[test]

@@ -1085,9 +1085,9 @@ were written against.
   one is the item of the value.** Measured on the binary on 2026-10-28:
   `f [1, 2]` is a call whose argument is the array of two, and `f[1, 2]`
   is the item of the value `f` -- the item of a function is an error in
-  v2, and the tree says the same. The space is the reason, the same way
-  it is for the dot. In an expression the space does not matter: `arr [2]`
-  is the second item of `arr`, in v2 and in the tree.
+  v2, and the tree says the same. The space is the reason, and the dot
+  has a rule of its own (section 39). In an expression the space does not
+  matter: `arr [2]` is the second item of `arr`, in v2 and in the tree.
 - **The enumerator is asked how many variables the loop wants.** v2 gives
   the `__Enum` of the object the number of the variables of the loop: it
   is 0 when the loop wants none, and one more than the number of the
@@ -2063,3 +2063,27 @@ Measured on the binary of v2.0.19 on 2026-10-30.
 What is not carried yet: `static`, which is the third declaration of v2 and
 keeps the value of a name between the calls of a function, and the `super`
 of a class, which calls the method of the base.
+
+## 39. The dot of v2 tells a member from a concatenation
+
+The tree had this the other way round: it said that the space *before* the
+dot tells a member from a concatenation. Measured on the binary of v2.0.19 on
+2026-10-30, it is the space that comes *after* the dot.
+
+- **`o.x` reaches into the value, and `o .x` reaches into it too.** The space
+  that comes before the dot does not matter: `o .x := 1` writes the property
+  `x` of the object `o`, and `1 .2` asks the integer `1` for its property
+  `2`.
+- **`o. x` is neither.** The dot has no space before it and a space after
+  it, and v2 refuses the line: "This line does not contain a recognized
+  action. Specifically: o. x := 1". In an expression it is a load error too:
+  "Syntax error. Specifically: . x".
+- **`o . x` joins two values.** The concatenation wants a space on both
+  sides, and it is looser than the arithmetic.
+
+So the member is the dot with no space after it, and the concatenation is the
+dot with a space on both sides. The bracket keeps its own rule: in an
+expression the space does not matter (`arr [2]` is the second item of `arr`),
+and as the left side of an assignment the bracket without a space is the item
+(`o["a"] := 1`), while the bracket with a space is not ("Invalid assignment.
+Specifically: := 1)").
