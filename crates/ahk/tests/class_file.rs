@@ -465,3 +465,28 @@ fn the_failure_of_a_mode_that_is_not_one_is_of_the_class_of_a_value() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Invalid parameter(s). | FileOpen", "1"]);
 }
+
+#[test]
+fn a_file_has_no_unsigned_number_of_sixty_four_bits() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: v2 has no
+    // `ReadUInt64` and no `WriteUInt64`, and the tree does not carry them
+    // either.
+    let mut desktop = Fake::default();
+    let report = run(&mut desktop, "f := FileOpen(\"out.txt\", \"w\")\nx := f.ReadUInt64()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"File\" has no method named \"ReadUInt64\".")
+    );
+}
+
+#[test]
+fn a_file_is_not_made_again() {
+    let mut desktop = Fake::default();
+    let report = run(&mut desktop, "f := FileOpen(\"out.txt\", \"w\")\nx := f.__New()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"File\" has no method named \"__New\".")
+    );
+}

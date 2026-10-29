@@ -36,11 +36,14 @@ const STATE_CLASS: &str = "file-state";
 const PROPERTIES: [&str; 5] = ["pos", "length", "ateof", "encoding", "handle"];
 
 /// The methods of a file.
-const METHODS: [&str; 38] = [
-    "__new", "read", "readline", "readchar", "readuchar", "readshort", "readushort",
-    "readint", "readuint", "readint64", "readuint64", "readfloat", "readdouble",
+///
+/// The binary of v2.0.19 has no other: a file is not made again, and it
+/// has no unsigned number of sixty-four bits.
+const METHODS: [&str; 35] = [
+    "read", "readline", "readchar", "readuchar", "readshort", "readushort",
+    "readint", "readuint", "readint64", "readfloat", "readdouble",
     "write", "writeline", "writechar", "writeuchar", "writeshort", "writeushort",
-    "writeint", "writeuint", "writeint64", "writeuint64", "writefloat", "writedouble",
+    "writeint", "writeuint", "writeint64", "writefloat", "writedouble",
     "rawread", "rawwrite", "seek", "close",
     "ownprops", "hasownprop", "defineprop", "deleteprop", "getownpropdesc",
     "hasprop", "hasmethod", "getmethod", "hasbase",
@@ -94,7 +97,6 @@ pub(crate) fn call(
 ) -> Option<Result<Value, RuntimeFailure>> {
     let method = method.to_lowercase();
     match method.as_str() {
-        "__new" => Some(reopen(this, arguments, rt, line)),
         "read" => Some(read_text(this, arguments, rt, line)),
         "readline" => Some(read_line(this, rt, line)),
         "readchar" => Some(read_number(rt, this, 1, line, |bytes| Value::Int(bytes[0] as i8 as i64))),
@@ -108,7 +110,6 @@ pub(crate) fn call(
         })),
         "readuint" => Some(read_number(rt, this, 4, line, |bytes| Value::Int(little(bytes) as u32 as i64))),
         "readint64" => Some(read_number(rt, this, 8, line, |bytes| Value::Int(little(bytes) as i64))),
-        "readuint64" => Some(read_number(rt, this, 8, line, |bytes| Value::Int(little(bytes) as i64))),
         "readfloat" => Some(read_number(rt, this, 4, line, |bytes| {
             Value::Float(f32::from_bits(little(bytes) as u32) as f64)
         })),
@@ -136,9 +137,6 @@ pub(crate) fn call(
             little_bytes(value as i64 as u64 & 0xFFFF_FFFF, 4)
         })),
         "writeint64" => Some(write_number(rt, this, arguments, line, |value| {
-            little_bytes(value as i64 as u64, 8)
-        })),
-        "writeuint64" => Some(write_number(rt, this, arguments, line, |value| {
             little_bytes(value as i64 as u64, 8)
         })),
         "writefloat" => Some(write_number(rt, this, arguments, line, |value| {
@@ -352,24 +350,6 @@ fn open(arguments: &[Value], rt: &mut Runtime, line: u32) -> Result<File, Runtim
         0
     };
     Ok(File { handle, pos, encoding })
-}
-
-/// Open the file again, and close the one that was open.
-fn reopen(
-    this: &Value,
-    arguments: &[Value],
-    rt: &mut Runtime,
-    line: u32,
-) -> Result<Value, RuntimeFailure> {
-    let old = state(this, line)?;
-    if old.handle >= 0 {
-        rt.desktop()
-            .close_file(old.handle)
-            .map_err(|reason| fail(reason, line))?;
-    }
-    let file = open(arguments, rt, line)?;
-    restore(this, &file);
-    Ok(Value::Text(String::new()))
 }
 
 /// `Read`: the text of the file at its position.

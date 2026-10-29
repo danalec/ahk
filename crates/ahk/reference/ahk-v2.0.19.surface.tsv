@@ -708,10 +708,6 @@ method	Func	IsVariadic	0x140097d90
 method	Func	MaxParams	0x140097d90				
 method	Func	MinParams	0x140097d90				
 method	Func	Name	0x140097d90				
-method	Func	__New	0x140098dc0				
-method	Func	__New	0x140098b20				
-method	Func	Ptr	0x140098b20				
-method	Func	Size	0x140098b20				
 method	Array	__Item	0x1400967a0				
 method	Array	Capacity	0x1400967a0				
 method	Array	Length	0x1400967a0				

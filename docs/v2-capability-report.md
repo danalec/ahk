@@ -2,9 +2,9 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **725 entries** : **508 answer with a value** , **217 are refused** and **none is pending**.
+The surface of the v2.0.19 has **721 entries** : **504 answer with a value** , **217 are refused** and **none is pending**.
 
-The table has **725 entries and 688 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
+The table has **721 entries and 685 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
 ## The areas
 
@@ -19,12 +19,12 @@ The table has **725 entries and 688 distinct names** : a property with a setter 
 | Registry APIs | 11 | 4 | 7 |
 | COM automation (ComObject) | 15 | 0 | 15 |
 | The core of the language: text, math and patterns | 58 | 55 | 3 |
-| The objects of the language: Array, Map and Func | 52 | 52 | 0 |
+| The objects of the language: Array, Map and Func | 48 | 48 | 0 |
 | Dates and times | 23 | 23 | 0 |
 | The machine, the processes and the environment | 35 | 20 | 15 |
 | The clipboard | 2 | 1 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **725** | **508** | **217** |
+| **The whole of it** | **721** | **504** | **217** |
 
 ## What the numbers do not say
 
@@ -173,9 +173,9 @@ names that the tree answers.
 
 ## 10. The objects of the language: Array, Map and Func
 
-**52 names: 52 answer with a value, 0 are refused.**
+**48 names: 48 answer with a value, 0 are refused.**
 
-**The ones that answer** (52): `Array.Capacity`, `Array.Clone`, `Array.Delete`, `Array.Get`, `Array.Has`, `Array.InsertAt`, `Array.Length`, `Array.Pop`, `Array.Push`, `Array.RemoveAt`, `Array.__Enum`, `Array.__Item`, `Array.__New`, `Func.Bind`, `Func.Call`, `Func.IsBuiltIn`, `Func.IsByRef`, `Func.IsOptional`, `Func.IsVariadic`, `Func.MaxParams`, `Func.MinParams`, `Func.Name`, `Func.Ptr`, `Func.Size`, `Func.__New`, `Func.__New`, `Map.Capacity`, `Map.CaseSense`, `Map.Clear`, `Map.Clone`, `Map.Clone`, `Map.Count`, `Map.DefineProp`, `Map.Delete`, `Map.DeleteProp`, `Map.Get`, `Map.GetOwnPropDesc`, `Map.Has`, `Map.HasOwnProp`, `Map.OwnProps`, `Map.Set`, `Map.__Enum`, `Map.__Item`, `Map.__New`, `ObjAddRef`, `ObjGetBase`, `ObjGetCapacity`, `ObjHasOwnProp`, `ObjOwnPropCount`, `ObjOwnProps`, `ObjSetBase`, `ObjSetCapacity`
+**The ones that answer** (48): `Array.Capacity`, `Array.Clone`, `Array.Delete`, `Array.Get`, `Array.Has`, `Array.InsertAt`, `Array.Length`, `Array.Pop`, `Array.Push`, `Array.RemoveAt`, `Array.__Enum`, `Array.__Item`, `Array.__New`, `Func.Bind`, `Func.Call`, `Func.IsBuiltIn`, `Func.IsByRef`, `Func.IsOptional`, `Func.IsVariadic`, `Func.MaxParams`, `Func.MinParams`, `Func.Name`, `Map.Capacity`, `Map.CaseSense`, `Map.Clear`, `Map.Clone`, `Map.Clone`, `Map.Count`, `Map.DefineProp`, `Map.Delete`, `Map.DeleteProp`, `Map.Get`, `Map.GetOwnPropDesc`, `Map.Has`, `Map.HasOwnProp`, `Map.OwnProps`, `Map.Set`, `Map.__Enum`, `Map.__Item`, `Map.__New`, `ObjAddRef`, `ObjGetBase`, `ObjGetCapacity`, `ObjHasOwnProp`, `ObjOwnPropCount`, `ObjOwnProps`, `ObjSetBase`, `ObjSetCapacity`
 
 ## 11. Dates and times
 

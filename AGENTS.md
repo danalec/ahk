@@ -441,6 +441,11 @@ binary of v2.0.19, and they are the contract of the port.
   not carry yet, with the reason. It is not empty: it is the first pending
   table that is not, and it has 72 names.
 
+**The tree does not carry a name that v2 does not have.** Measured on
+the binary of v2.0.19 on 2026-10-30: a file has no `ReadUInt64` and no
+`WriteUInt64`, and it is not made again. The tree carried all three
+until 2026-10-30, and refuses them the way v2 refuses them now.
+
 **A name is carried when the tree answers it.** The answer may be a value
 or the reason the tree cannot give one. A name that is shaped for Windows
 is carried the same way, and it is not pending: a script that asks for
@@ -479,6 +484,14 @@ the wrong names with it.
   handler for all of them. The names of the array are right, and the
   handlers were not resolved.
 
+- **The `Func` table.** Its last four rows were read at the wrong place:
+  `__New` twice, `Ptr` and `Size`, each with an address of its own.
+  Measured on the binary of v2.0.19 on 2026-10-30: a function has no
+  `Ptr` and no `Size` --- `f.Ptr` answers *"This value of type "Func" has
+  no property named "Ptr"."* --- and it is not made again: `f.__New()`
+  answers *"This value of type "Func" has no method named "__New"."*.
+  The tree does not carry the three names since 2026-10-30, and it
+  refuses them the way v2 refuses them.
 - **Nine class types are not in the table at all.** Measured on the binary
   of v2.0.19 on 2026-10-29: `Menu` , `ComObject` and the seven error
   classes --- `TypeError` , `ValueError` , `OSError` , `TargetError` ,

@@ -21,11 +21,12 @@ const PROPERTIES: [&str; 5] = [
     "isvariadic",
 ];
 
-/// The methods a function has: the ones of the class, and the ones every
-/// object has.
-const METHODS: [&str; 7] = [
-    "call", "isoptional", "isbyref", "bind", "ptr", "size", "__new",
-];
+/// The methods a function has: the ones of the class.
+///
+/// The binary of v2.0.19 has no other: a function has no address and no
+/// size, and it is not made -- it is written in the script, or it is one
+/// of the built-ins.
+const METHODS: [&str; 4] = ["call", "isoptional", "isbyref", "bind"];
 
 /// The names a function answers: its properties and its methods.
 pub(crate) fn names() -> Vec<&'static str> {
@@ -60,11 +61,6 @@ pub(crate) fn call(
         Some(Err(RuntimeFailure::Error(RuntimeError { message, line })))
     };
     match method {
-        // The constructor of the class: a function is not made, it is
-        // written in the script or it is one of the built-ins.
-        "__new" => failure(
-            "a function is a value of the script; there is no way to make one here.".to_string(),
-        ),
         // The call of the function the value holds. A method of a
         // class of the script is a reference to the method: the first
         // argument of the call is `this`.
@@ -72,13 +68,11 @@ pub(crate) fn call(
         // The values of the class that the function carries.
         "isoptional" => Some(Ok(Value::Int(0))),
         "isbyref" => Some(Ok(Value::Int(0))),
-        // The binding of a function to an object, and the address of
-        // one, are things this runtime does not keep.
+        // The binding of a function to an object is a thing this
+        // runtime does not keep.
         "bind" => failure(
             "this runtime does not bind a function to an object.".to_string(),
         ),
-        "ptr" => failure("this runtime does not know the address of a function.".to_string()),
-        "size" => failure("this runtime does not know the size of a function.".to_string()),
         _ => None,
     }
 }
