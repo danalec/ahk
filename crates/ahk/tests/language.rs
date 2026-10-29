@@ -1657,9 +1657,95 @@ fn the_equal_sign_of_v1_is_not_the_assignment_of_v2() {
     let error = parse("x = 1").expect_err("does not parse");
     assert_eq!(
         error.message,
-        "Syntax error. Did you mean to use \":=\"?\n  Specifically: x = 1"
+        "Syntax error. Did you mean to use \":=\"?\n     Specifically: x = 1"
     );
     assert_eq!(error.line, 1);
+}
+
+#[test]
+fn a_parameter_name_that_is_a_number_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name that
+    // begins with a number is refused the way the lexer refuses it.
+    let error = parse("f(1) {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This variable name starts with a number, which is not allowed:\n\"1\""
+    );
+}
+
+#[test]
+fn a_parameter_name_that_is_a_text_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name that is
+    // missing is named, and the line of the script says where it was.
+    let error = parse("f(\"x\") {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Missing parameter name.\n     Specifically: f(\"x\") {"
+    );
+}
+
+#[test]
+fn a_parameter_name_that_is_a_reserved_word_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    let error = parse("f(if) {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a variable name:\n\"if\""
+    );
+}
+
+#[test]
+fn a_parameter_name_that_is_a_comma_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    let error = parse("f(a, b,) {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Missing parameter name.\n     Specifically: f(a, b,) {"
+    );
+}
+
+#[test]
+fn a_class_name_that_is_a_reserved_word_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    let error = parse("class if {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a class name:\n\"if\""
+    );
+}
+
+#[test]
+fn a_class_name_that_is_a_number_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    let error = parse("class 1 {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This class name starts with a number, which is not allowed:\n\"1\""
+    );
+}
+
+#[test]
+fn a_block_that_is_not_closed_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the brace that is
+    // not closed is named, and the line of the script says where the block
+    // began.
+    let error = parse("f(a) {\n").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: f(a) {");
+}
+
+#[test]
+fn a_bracket_that_is_not_closed_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    let error = parse("x := (1\n").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \")\"\n     Specifically: x := (1");
+}
+
+#[test]
+fn a_token_that_is_not_wanted_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the token is named,
+    // and the line of the script says where it was.
+    let error = parse("x := 1 )").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \")\"\n     Specifically: x := 1 )");
 }
 
 #[test]
@@ -1783,7 +1869,7 @@ fn a_name_that_begins_with_a_number_does_not_parse() {
     let error = parse("x := 12abc").expect_err("does not parse");
     assert_eq!(
         error.message,
-        "This variable name starts with a number, which is not allowed:\n   \"12abc\""
+        "This variable name starts with a number, which is not allowed:\n\"12abc\""
     );
     assert_eq!(error.line, 1);
 }

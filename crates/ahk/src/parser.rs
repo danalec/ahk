@@ -149,6 +149,37 @@ fn the_source_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String
     text
 }
 
+/// The source of a line of the script.
+///
+/// v2 shows the line when it refuses a name or a bracket, and the line is
+/// the one that the token is on.
+fn the_source_of_the_line(parser: &Parser, line: u32) -> String {
+    let start = parser.tokens.iter().position(|token| token.line == line).unwrap_or(0);
+    let mut end = start;
+    while end < parser.tokens.len() && parser.tokens[end].line == line {
+        end += 1;
+    }
+    the_source_of_the_tokens(parser, start, end).trim_end().to_string()
+}
+
+/// The line that the parser is on: the one of the last token it read.
+fn the_line_of_the_parser(parser: &Parser) -> u32 {
+    parser
+        .tokens
+        .iter()
+        .rev()
+        .find(|token| token.kind != TokenKind::Eof)
+        .map(|token| token.line)
+        .unwrap_or(1)
+}
+
+/// The name that v2 reads when it begins with a number.
+///
+/// The name stops at the point, because a point is not part of a name.
+fn the_name_that_begins_with_a_number(token: &Token) -> &str {
+    token.value.split('.').next().unwrap_or(&token.value)
+}
+
 /// The text of a declaration, the way v2 writes it when it refuses.
 fn the_text_of_a_declaration(kind: DeclareKind, names: &[Declared]) -> String {
     let mut text = kind.word().to_string();
@@ -416,8 +447,15 @@ impl Parser {
     fn expect_op(&mut self, operator: &str) -> Result<Token, SyntaxError> {
         let token = self.next();
         if token.kind != TokenKind::Op || token.value != operator {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the bracket
+            // that is not there is named, and the line of the script says
+            // where it was.
+            let line = the_line_of_the_parser(self);
             return Err(SyntaxError {
-                message: format!("expected {operator:?}, found {:?}", token.value),
+                message: format!(
+                    "Missing {operator:?}\n     Specifically: {}",
+                    the_source_of_the_line(self, line)
+                ),
                 line: token.line,
                 column: token.column,
             });
@@ -481,14 +519,20 @@ impl Parser {
 
     /// A block: the statements between `{` and `}`.
     fn parse_block(&mut self) -> Result<Vec<Node>, SyntaxError> {
-        self.expect_op("{")?;
+        let open = self.expect_op("{")?;
         let mut body = Vec::new();
         self.skip_newlines();
         loop {
             let token = self.peek();
             if token.kind == TokenKind::Eof {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the brace
+                // that is not closed is named, and the line of the script says
+                // where the block began.
                 return Err(SyntaxError {
-                    message: "unterminated block".into(),
+                    message: format!(
+                        "Missing \"}}\"\n     Specifically: {}",
+                        the_source_of_the_line(self, open.line)
+                    ),
                     line: token.line,
                     column: token.column,
                 });
@@ -539,7 +583,20 @@ impl Parser {
         if token.kind == TokenKind::Name {
             return self.parse_name_statement();
         }
-        Err(self.error(format!("unexpected {:?}", token.value)))
+        // Measured on the binary of v2.0.19 on 2026-10-31: the token that
+        // is not wanted is named, and the line of the script says where it
+        // was. The brace that closes a block is the one that has no line:
+        // v2 says that it is unexpected, and nothing more.
+        let message = if token.kind == TokenKind::Op && token.value == "}" {
+            "Unexpected \"}\"".to_string()
+        } else {
+            format!(
+                "Unexpected {:?}\n     Specifically: {}",
+                token.value,
+                the_source_of_the_line(self, token.line)
+            )
+        };
+        Err(self.error(message))
     }
 
     fn end_of_statement(&mut self) -> Result<(), SyntaxError> {
@@ -554,7 +611,14 @@ impl Parser {
         if token.kind == TokenKind::Op && token.value == "}" {
             return Ok(());
         }
-        Err(self.error(format!("unexpected {:?} after the statement", token.value)))
+        // Measured on the binary of v2.0.19 on 2026-10-31: the token that
+        // is not wanted is named, and the line of the script says where it
+        // was.
+        Err(self.error(format!(
+            "Unexpected {:?}\n     Specifically: {}",
+            token.value,
+            the_source_of_the_line(self, token.line)
+        )))
     }
 
     /// The `::` that may introduce a block. AutoHotkey writes `If (x) {` and
@@ -814,7 +878,7 @@ impl Parser {
         }
         SyntaxError {
             message: format!(
-                "Syntax error. Did you mean to use \":=\"?\n  Specifically: {}",
+                "Syntax error. Did you mean to use \":=\"?\n     Specifically: {}",
                 the_source_of_the_tokens(self, start, end)
             ),
             line,
@@ -900,11 +964,25 @@ impl Parser {
                 name_token = self.next();
             }
             if name_token.kind != TokenKind::Name {
-                return Err(SyntaxError {
-                    message: format!("{:?} is not a parameter name", name_token.value),
-                    line: name_token.line,
-                    column: name_token.column,
-                });
+                // Measured on the binary of v2.0.19 on 2026-10-31: a name
+                // that begins with a number is refused by the lexer, a
+                // reserved word is a word that cannot be a name, and
+                // everything else is a name that is missing.
+                let message = match name_token.kind {
+                    TokenKind::Number => format!(
+                        "This variable name starts with a number, which is not allowed:\n{:?}",
+                        the_name_that_begins_with_a_number(&name_token)
+                    ),
+                    TokenKind::Keyword => format!(
+                        "The following reserved word must not be used as a variable name:\n{:?}",
+                        name_token.value
+                    ),
+                    _ => format!(
+                        "Missing parameter name.\n     Specifically: {}",
+                        the_source_of_the_line(self, name_token.line)
+                    ),
+                };
+                return Err(SyntaxError { message, line: name_token.line, column: name_token.column });
             }
             let mut variadic = false;
             if self.at_op(&["*"]) {
@@ -1237,11 +1315,22 @@ impl Parser {
         let token = self.next();
         let name_token = self.next();
         if name_token.kind != TokenKind::Name {
-            return Err(SyntaxError {
-                message: "a class needs a name".into(),
-                line: name_token.line,
-                column: name_token.column,
-            });
+            // Measured on the binary of v2.0.19 on 2026-10-31: a name that
+            // begins with a number is refused by the lexer, a reserved word
+            // is a word that cannot be a name, and the brace is what is
+            // unexpected when there is no name at all.
+            let message = match name_token.kind {
+                TokenKind::Number => format!(
+                    "This class name starts with a number, which is not allowed:\n{:?}",
+                    the_name_that_begins_with_a_number(&name_token)
+                ),
+                TokenKind::Keyword => format!(
+                    "The following reserved word must not be used as a class name:\n{:?}",
+                    name_token.value
+                ),
+                _ => "Unexpected \"{\"".to_string(),
+            };
+            return Err(SyntaxError { message, line: name_token.line, column: name_token.column });
         }
         let mut extends = None;
         if self.at_keyword(&["extends"]) {

@@ -250,7 +250,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                     index += 1;
                 }
                 return Err(SyntaxError::new(
-                    format!("This variable name starts with a number, which is not allowed:\n   {name:?}"),
+                    format!("This variable name starts with a number, which is not allowed:\n{name:?}"),
                     start_line,
                     start_column,
                 ));
@@ -429,7 +429,7 @@ mod tests {
         let error = tokenize("x := 12abc").expect_err("fails");
         assert_eq!(
             error.message,
-            "This variable name starts with a number, which is not allowed:\n   \"12abc\""
+            "This variable name starts with a number, which is not allowed:\n\"12abc\""
         );
         assert_eq!(error.line, 1);
     }

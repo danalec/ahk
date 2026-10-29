@@ -211,6 +211,12 @@ it is the value that was written. The equal sign of v1 is not an assignment:
 `x = 1` does not load, and the parser says "Syntax error. Did you mean to use
 \":=\"?".
 
+The refusals of the parser are the words of v2: a name that is not there is
+named, and the line of the script says where it was -- "Missing parameter
+name.\n     Specifically: f(a, b,) {". A bracket that is not closed is named
+the same way, and a token that is not wanted is named too: "Unexpected
+\")\"\n     Specifically: x := 1 )".
+
 ### The runtime (`runtime.rs`)
 
 The interpreter and everything it reports:

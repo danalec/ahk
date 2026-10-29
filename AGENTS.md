@@ -2583,3 +2583,31 @@ a text still takes the text of an object, and v2 refuses it with
 Twelve cases of the whole numbers, eleven of the parenthesis, twenty-two of
 the kinds and the ones of the closures are the same in the tree and in the
 dialect.
+
+## 48. The load errors of v2 name the thing that is not there
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree refused a load
+with its own words -- "expected \")\", found \"1\"", "unterminated block",
+"a class needs a name" -- and the words of v2 are the ones of the dialect.
+
+- **A name that is not there is named, and the line of the script says where
+  it was.** "Missing parameter name.\n     Specifically: f(a, b,) {". The
+  five spaces before the `Specifically:` are the ones of v2.
+- **A name that begins with a number is refused by the lexer.** "This
+  variable name starts with a number, which is not allowed:\n\"12abc\"", and
+  the name of a class says "class" instead: "This class name starts with a
+  number, which is not allowed:\n\"1\"".
+- **A reserved word is a word that cannot be a name.** "The following reserved
+  word must not be used as a variable name:\n\"if\"" and "The following
+  reserved word must not be used as a class name:\n\"if\"".
+- **A bracket that is not closed is named.** "Missing \"}\"\n     Specifically:
+  f(a) {" and "Missing \")\"\n     Specifically: x := (1".
+- **A token that is not wanted is named.** "Unexpected \")\"\n     Specifically:
+  x := 1 )". The brace that ends a block is the one that has no line: "Unexpected
+  \"}\"".
+
+One gap is left in the parser, and it is the block: v2 wants the brace that
+opens it at the end of its line, and the body begins on the next one. The
+tree takes `f() { x := 1 }`, and v2 refuses it with "Unexpected \"{\"".
+
+Seventeen of the load errors are the same in the tree and in the dialect.
