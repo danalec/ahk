@@ -2,29 +2,29 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **810 entries** : **619 answer with a value** , **191 are refused** and **none is pending**.
+The surface of the v2.0.19 has **820 entries** : **629 answer with a value** , **191 are refused** and **none is pending**.
 
-The table has **810 entries and 762 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them and the `InputHook` has twelve --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
+The table has **820 entries and 772 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them and the `InputHook` has twelve --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
 ## The areas
 
 | Area | Names | Answer | Refused |
 |---|---|---|---|
-| Parser and script execution | 50 | 43 | 7 |
+| Parser and script execution | 56 | 49 | 7 |
 | File and directory operations | 97 | 78 | 19 |
 | Hotkeys, hotstrings, and input | 138 | 131 | 7 |
 | GUI windows and window automation | 288 | 172 | 116 |
 | Screen capture and pixel functions | 7 | 6 | 1 |
 | Native function calls (DllCall) | 10 | 10 | 0 |
 | Registry APIs | 11 | 6 | 5 |
-| COM automation (ComObject) | 17 | 2 | 15 |
+| COM automation (ComObject) | 18 | 3 | 15 |
 | The core of the language: text, math and patterns | 60 | 57 | 3 |
-| The objects of the language: Array, Map and Func | 63 | 63 | 0 |
+| The objects of the language: Array, Map and Func | 64 | 64 | 0 |
 | Dates and times | 23 | 23 | 0 |
 | The machine, the processes and the environment | 35 | 20 | 15 |
-| The clipboard | 3 | 2 | 1 |
+| The clipboard | 5 | 4 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **810** | **619** | **191** |
+| **The whole of it** | **820** | **629** | **191** |
 
 ## What the numbers do not say
 
@@ -73,9 +73,9 @@ names that the tree answers.
 
 ## 1. Parser and script execution
 
-**50 names: 43 answer with a value, 7 are refused.**
+**56 names: 49 answer with a value, 7 are refused.**
 
-**The ones that answer** (43): `AllowMainWindow`, `CoordMode`, `EndChar`, `EnvGet`, `EnvSet`, `Error`, `Exit`, `ExitApp`, `Index`, `IndexError`, `InitialWorkingDir`, `Is64bitOS`, `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended`, `LineFile`, `LineNumber`, `MemberError`, `MemoryError`, `MethodError`, `OSError`, `OnError`, `OnExit`, `PropertyError`, `ScriptDir`, `ScriptFullPath`, `ScriptName`, `SetTimer`, `SetWorkingDir`, `Sleep`, `Space`, `Tab`, `TargetError`, `ThisFunc`, `TimeoutError`, `TypeError`, `UnsetError`, `UnsetItemError`, `ValueError`, `WorkingDir`, `ZeroDivisionError`
+**The ones that answer** (49): `AllowMainWindow`, `CoordMode`, `EndChar`, `EnvGet`, `EnvSet`, `Error`, `Error.Extra`, `Error.File`, `Error.Line`, `Error.Message`, `Error.Stack`, `Error.What`, `Exit`, `ExitApp`, `Index`, `IndexError`, `InitialWorkingDir`, `Is64bitOS`, `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended`, `LineFile`, `LineNumber`, `MemberError`, `MemoryError`, `MethodError`, `OSError`, `OnError`, `OnExit`, `PropertyError`, `ScriptDir`, `ScriptFullPath`, `ScriptName`, `SetTimer`, `SetWorkingDir`, `Sleep`, `Space`, `Tab`, `TargetError`, `ThisFunc`, `TimeoutError`, `TypeError`, `UnsetError`, `UnsetItemError`, `ValueError`, `WorkingDir`, `ZeroDivisionError`
 
 **The ones that are refused** (7), by the reason:
 
@@ -151,9 +151,9 @@ names that the tree answers.
 
 ## 8. COM automation (ComObject)
 
-**17 names: 2 answer with a value, 15 are refused.**
+**18 names: 3 answer with a value, 15 are refused.**
 
-**The ones that answer** (2): `ComObject`, `ComValue`
+**The ones that answer** (3): `ComObject`, `ComValue`, `ComValue.Ptr`
 
 **The ones that are refused** (15), by the reason:
 
@@ -172,9 +172,9 @@ names that the tree answers.
 
 ## 10. The objects of the language: Array, Map and Func
 
-**63 names: 63 answer with a value, 0 are refused.**
+**64 names: 64 answer with a value, 0 are refused.**
 
-**The ones that answer** (63): `Array`, `Array.Capacity`, `Array.Clone`, `Array.Delete`, `Array.Get`, `Array.Has`, `Array.InsertAt`, `Array.Length`, `Array.Pop`, `Array.Push`, `Array.RemoveAt`, `Array.__Enum`, `Array.__Item`, `Array.__New`, `BoundFunc`, `Closure`, `Enumerator`, `Func`, `Func.Bind`, `Func.Call`, `Func.IsBuiltIn`, `Func.IsByRef`, `Func.IsOptional`, `Func.IsVariadic`, `Func.MaxParams`, `Func.MinParams`, `Func.Name`, `Map`, `Map.Capacity`, `Map.CaseSense`, `Map.Clear`, `Map.Clone`, `Map.Clone`, `Map.Count`, `Map.DefineProp`, `Map.Delete`, `Map.DeleteProp`, `Map.Get`, `Map.GetOwnPropDesc`, `Map.Has`, `Map.HasOwnProp`, `Map.OwnProps`, `Map.Set`, `Map.__Enum`, `Map.__Item`, `Map.__New`, `ObjAddRef`, `ObjGetBase`, `ObjGetCapacity`, `ObjHasOwnProp`, `ObjOwnPropCount`, `ObjOwnProps`, `ObjSetBase`, `ObjSetCapacity`, `Object`, `Object.Base`, `Object.Clone`, `Object.DefineProp`, `Object.DeleteProp`, `Object.GetOwnPropDesc`, `Object.HasOwnProp`, `Object.OwnProps`, `RegExMatchInfo`
+**The ones that answer** (64): `Array`, `Array.Capacity`, `Array.Clone`, `Array.Delete`, `Array.Get`, `Array.Has`, `Array.InsertAt`, `Array.Length`, `Array.Pop`, `Array.Push`, `Array.RemoveAt`, `Array.__Enum`, `Array.__Item`, `Array.__New`, `BoundFunc`, `Closure`, `Enumerator`, `Enumerator.Call`, `Func`, `Func.Bind`, `Func.Call`, `Func.IsBuiltIn`, `Func.IsByRef`, `Func.IsOptional`, `Func.IsVariadic`, `Func.MaxParams`, `Func.MinParams`, `Func.Name`, `Map`, `Map.Capacity`, `Map.CaseSense`, `Map.Clear`, `Map.Clone`, `Map.Clone`, `Map.Count`, `Map.DefineProp`, `Map.Delete`, `Map.DeleteProp`, `Map.Get`, `Map.GetOwnPropDesc`, `Map.Has`, `Map.HasOwnProp`, `Map.OwnProps`, `Map.Set`, `Map.__Enum`, `Map.__Item`, `Map.__New`, `ObjAddRef`, `ObjGetBase`, `ObjGetCapacity`, `ObjHasOwnProp`, `ObjOwnPropCount`, `ObjOwnProps`, `ObjSetBase`, `ObjSetCapacity`, `Object`, `Object.Base`, `Object.Clone`, `Object.DefineProp`, `Object.DeleteProp`, `Object.GetOwnPropDesc`, `Object.HasOwnProp`, `Object.OwnProps`, `RegExMatchInfo`
 
 ## 11. Dates and times
 
@@ -195,9 +195,9 @@ names that the tree answers.
 
 ## 13. The clipboard
 
-**3 names: 2 answer with a value, 1 is refused.**
+**5 names: 4 answer with a value, 1 is refused.**
 
-**The ones that answer** (2): `Clipboard`, `ClipboardAll`
+**The ones that answer** (4): `Clipboard`, `ClipboardAll`, `ClipboardAll.Ptr`, `ClipboardAll.Size`
 
 **The ones that are refused** (1), by the reason:
 

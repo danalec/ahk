@@ -914,6 +914,9 @@ that asks for another one is refused with the reason.
 - **The static methods of a class are handed over as values.** Every
   class has the methods of the base object as static ones, and the call
   of the class is one of them.
+- **The table of the surface carries the members that the binary keeps
+  outside its tables.** The properties of the error object are in it, and
+  the tree answers every one of them.
 
 ## Side Effects
 

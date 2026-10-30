@@ -3822,3 +3822,27 @@ the same) and in `egm-review/compare_static_methods2.py` (12 cases: 11
 are the same, and the one that is not is the `GetMethod("Prototype")`,
 where the words of the binary are about the prototype and not about the
 class).
+
+## 81. The members that the binary keeps outside its tables
+
+Measured on the binary of v2.0.19 on 2026-10-31: the properties of the
+error object, the call of the enumerator, the pointer of the `ComValue`
+and the pointer and the size of the `ClipboardAll` are not in a table of
+the methods of the binary. The table of the surface carries them all the
+same, with no handler.
+
+- **The table is the surface, and not only the tables of the binary.**
+  The rows of them are measured on the binary, and the tree answers
+  every one of them: the properties of the error are the properties of
+  the error object, and the tree carries them.
+- **A class that this runtime does not carry says why.** The pointer of
+  the `ComValue` and the pointer and the size of the `ClipboardAll` are
+  refused with the reason of the runtime -- the COM objects are a thing
+  of Windows -- and not with the words of the dialect.
+- **The `ComValue` has no `ByRef`.** The documentation of v2 names it,
+  and the binary of v2.0.19 does not have it: the value answers `This
+  value of type "ComValue" has no property named "ByRef".`
+
+The comparison of the tree with the binary is in
+`egm-review/compare_missing_members.py` (11 cases: 7 are the same, and
+the four that are not are the members that this runtime does not carry).

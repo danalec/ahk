@@ -237,6 +237,19 @@ const NOT_MADE: [&str; 6] = [
 /// the base object, and the base of them has no such thing.
 const THE_CALL_OF_THE_BASE: &str = "Object.Call";
 
+/// The names of the `ClipboardAll` class.
+///
+/// The class is the buffer of the clipboard, and the binary keeps the
+/// names of it outside its tables of the methods.
+const THE_CLIPBOARD_ALL: [&str; 2] = ["ptr", "size"];
+
+/// The names of the `ComValue` class.
+///
+/// The COM objects are a thing of Windows, and this runtime does not
+/// carry them: the names of the class are here, because they are the
+/// surface of v2.
+const THE_COM_VALUE: [&str; 1] = ["ptr"];
+
 /// The names of the base object.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the table of the
@@ -1014,6 +1027,8 @@ pub fn names(class: &str) -> Vec<&'static str> {
     match class.to_lowercase().as_str() {
         "array" => array::names(),
         "buffer" => buffer::names(),
+        "clipboardall" => THE_CLIPBOARD_ALL.to_vec(),
+        "comvalue" => THE_COM_VALUE.to_vec(),
         "enumerator" => enumerator::names(),
         "error" => error::names(),
         "file" => file::names(),

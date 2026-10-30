@@ -263,7 +263,10 @@ def where_of(rows):
     where = {}
     for kind, name, _ in rows:
         if kind == "method":
-            area = CLASS_AREA.get(name.split(".")[0])
+            owner = name.split(".")[0]
+            # The members of the classes of the failures are the run of
+            # the script: they are what it refuses with.
+            area = "script" if owner in ERROR_CLASSES else CLASS_AREA.get(owner)
         elif kind == "class":
             area = "script" if name in ERROR_CLASSES else CLASS_AREA.get(name)
         else:

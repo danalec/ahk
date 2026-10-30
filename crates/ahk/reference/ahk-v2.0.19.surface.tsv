@@ -21,6 +21,12 @@
 # setter. The table of the `InputHook` is at 0x00125170 and the table of
 # the `Gui.TreeView` is at 0x00126780, both with a stride of forty bytes.
 #
+# The binary keeps some of the members outside its tables of the methods:
+# the properties of the error object, the call of the enumerator, the
+# pointer of the `ComValue` and the pointer and the size of the
+# `ClipboardAll` are not in one. The rows of them carry no handler, and
+# they were measured on the binary on 2026-10-31.
+#
 # The arity of the function entries is in the binary. The arity of the
 # command entries was not: it is kept in a packing that was not decoded,
 # and it was measured on the binary on 2026-10-31 instead -- the call
@@ -840,3 +846,13 @@ method	Object	DeleteProp	0x1400943b0
 method	Object	GetOwnPropDesc	0x140095750				
 method	Object	HasOwnProp	0x140094b50				
 method	Object	OwnProps	0x140094950				
+method	Error	Message					
+method	Error	What					
+method	Error	Extra					
+method	Error	File					
+method	Error	Line					
+method	Error	Stack					
+method	Enumerator	Call					
+method	ComValue	Ptr					
+method	ClipboardAll	Ptr					
+method	ClipboardAll	Size					
