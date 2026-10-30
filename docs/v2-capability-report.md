@@ -2,29 +2,29 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **721 entries** : **530 answer with a value** , **191 are refused** and **none is pending**.
+The surface of the v2.0.19 has **750 entries** : **559 answer with a value** , **191 are refused** and **none is pending**.
 
-The table has **721 entries and 685 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
+The table has **750 entries and 714 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
 ## The areas
 
 | Area | Names | Answer | Refused |
 |---|---|---|---|
-| Parser and script execution | 36 | 29 | 7 |
-| File and directory operations | 96 | 77 | 19 |
-| Hotkeys, hotstrings, and input | 102 | 95 | 7 |
-| GUI windows and window automation | 271 | 155 | 116 |
+| Parser and script execution | 50 | 43 | 7 |
+| File and directory operations | 97 | 78 | 19 |
+| Hotkeys, hotstrings, and input | 103 | 96 | 7 |
+| GUI windows and window automation | 273 | 157 | 116 |
 | Screen capture and pixel functions | 7 | 6 | 1 |
-| Native function calls (DllCall) | 9 | 9 | 0 |
+| Native function calls (DllCall) | 10 | 10 | 0 |
 | Registry APIs | 11 | 6 | 5 |
-| COM automation (ComObject) | 15 | 0 | 15 |
-| The core of the language: text, math and patterns | 58 | 55 | 3 |
-| The objects of the language: Array, Map and Func | 48 | 48 | 0 |
+| COM automation (ComObject) | 17 | 2 | 15 |
+| The core of the language: text, math and patterns | 60 | 57 | 3 |
+| The objects of the language: Array, Map and Func | 53 | 53 | 0 |
 | Dates and times | 23 | 23 | 0 |
 | The machine, the processes and the environment | 35 | 20 | 15 |
-| The clipboard | 2 | 1 | 1 |
+| The clipboard | 3 | 2 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **721** | **530** | **191** |
+| **The whole of it** | **750** | **559** | **191** |
 
 ## What the numbers do not say
 
@@ -38,19 +38,26 @@ The names of `Gui` , of `Gui.Control` , of `Gui.ListView` , of
 one"*. The surface counts these names as answering, because the class
 carries them; the call is what fails.
 
-**The v2 has nine class types that the surface table does not list.**
-`Menu` , `ComObject` and the seven error classes --- `TypeError` ,
-`ValueError` , `OSError` , `TargetError` , `TimeoutError` , `PropertyError`
-and `MethodError` --- are in the binary and are not in
-`crates/ahk/reference/ahk-v2.0.19.surface.tsv` . The extraction read the
-tables of the classes at the wrong place, the same way it read the table of
-the `Buffer` and the table of the `Array` (the notes of the repository say
-so). The tree carries the `Menu` --- it is the menu of a window, and it
-refuses with the reason of the windows --- and it carries **none of the
-other eight** : `ComObject("Shell.Application")` and `TypeError("boom")`
-both fail with *"Call to nonexistent function."* The seven error classes
-each carry the same six properties in the binary --- `Message` , `What` ,
-`Extra` , `File` , `Line` and `Stack` --- and the tree carries none of them.
+**The class types are in the table, and one of them is not a class.**
+The table carries the twenty-nine class types of v2.0.19 --- `Any` ,
+`Array` , `Buffer` , `Class` , `ClipboardAll` , `ComObject` , `ComValue` ,
+`Enumerator` , `Error` , `File` , `Func` , `Gui` , `InputHook` , `Map` ,
+`Menu` , `Object` and the thirteen classes of the failures --- measured on
+the binary of v2.0.19 on 2026-10-31, where a script reads every one of
+them as the class. The `Hotkey` is the exception: the name is a function
+of v2, and the class of a hotkey is the class of the object that the
+function makes.
+
+**The calls of the class types are the calls of v2.**
+The number of the arguments of every constructor is the one of the binary,
+and the refusal of a call that has the wrong number of it carries the name
+of the class the way v2 carries it. The `Any` is not a class that can be
+made --- the call of it answers *"This value of type "Class" has no method
+named "Call"."* --- and the `ComObject` and the `ComValue` are classes of
+Windows that this runtime does not carry: *"the COM objects are a thing of
+Windows, and this runtime does not carry them."* The checks of the dialect
+come first: the number of the arguments and the kind of them are the
+dialect's, and the reason of the machine comes after them.
 
 **The area of the parser is about the surface, not about the grammar.**
 What a script may write is the work of the wave of 2026-10-29
@@ -59,9 +66,9 @@ names that the tree answers.
 
 ## 1. Parser and script execution
 
-**36 names: 29 answer with a value, 7 are refused.**
+**50 names: 43 answer with a value, 7 are refused.**
 
-**The ones that answer** (29): `AllowMainWindow`, `CoordMode`, `EndChar`, `EnvGet`, `EnvSet`, `Exit`, `ExitApp`, `Index`, `InitialWorkingDir`, `Is64bitOS`, `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended`, `LineFile`, `LineNumber`, `OnError`, `OnExit`, `ScriptDir`, `ScriptFullPath`, `ScriptName`, `SetTimer`, `SetWorkingDir`, `Sleep`, `Space`, `Tab`, `ThisFunc`, `WorkingDir`
+**The ones that answer** (43): `AllowMainWindow`, `CoordMode`, `EndChar`, `EnvGet`, `EnvSet`, `Error`, `Exit`, `ExitApp`, `Index`, `IndexError`, `InitialWorkingDir`, `Is64bitOS`, `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended`, `LineFile`, `LineNumber`, `MemberError`, `MemoryError`, `MethodError`, `OSError`, `OnError`, `OnExit`, `PropertyError`, `ScriptDir`, `ScriptFullPath`, `ScriptName`, `SetTimer`, `SetWorkingDir`, `Sleep`, `Space`, `Tab`, `TargetError`, `ThisFunc`, `TimeoutError`, `TypeError`, `UnsetError`, `UnsetItemError`, `ValueError`, `WorkingDir`, `ZeroDivisionError`
 
 **The ones that are refused** (7), by the reason:
 
@@ -75,9 +82,9 @@ names that the tree answers.
 
 ## 2. File and directory operations
 
-**96 names: 77 answer with a value, 19 are refused.**
+**97 names: 78 answer with a value, 19 are refused.**
 
-**The ones that answer** (77): `DirCopy`, `DirCreate`, `DirDelete`, `DirExist`, `DirMove`, `DirSelect`, `Download`, `File.AtEOF`, `File.Close`, `File.Encoding`, `File.Encoding`, `File.Handle`, `File.Length`, `File.Length`, `File.Pos`, `File.Pos`, `File.RawRead`, `File.RawWrite`, `File.Read`, `File.ReadChar`, `File.ReadDouble`, `File.ReadFloat`, `File.ReadInt`, `File.ReadInt64`, `File.ReadLine`, `File.ReadShort`, `File.ReadUChar`, `File.ReadUInt`, `File.ReadUShort`, `File.Seek`, `File.Write`, `File.WriteChar`, `File.WriteDouble`, `File.WriteFloat`, `File.WriteInt`, `File.WriteInt64`, `File.WriteLine`, `File.WriteShort`, `File.WriteUChar`, `File.WriteUInt`, `File.WriteUShort`, `FileAppend`, `FileCopy`, `FileDelete`, `FileEncoding`, `FileEncoding`, `FileExist`, `FileGetAttrib`, `FileGetSize`, `FileGetTime`, `FileInstall`, `FileMove`, `FileOpen`, `FileRead`, `FileSelect`, `FileSetAttrib`, `FileSetTime`, `IniDelete`, `IniRead`, `IniWrite`, `LoopField`, `LoopFileAttrib`, `LoopFileDir`, `LoopFileExt`, `LoopFileFullPath`, `LoopFileName`, `LoopFilePath`, `LoopFileShortName`, `LoopFileShortPath`, `LoopFileSize`, `LoopFileSizeKB`, `LoopFileSizeMB`, `LoopFileTimeAccessed`, `LoopFileTimeCreated`, `LoopFileTimeModified`, `LoopReadLine`, `SplitPath`
+**The ones that answer** (78): `DirCopy`, `DirCreate`, `DirDelete`, `DirExist`, `DirMove`, `DirSelect`, `Download`, `File`, `File.AtEOF`, `File.Close`, `File.Encoding`, `File.Encoding`, `File.Handle`, `File.Length`, `File.Length`, `File.Pos`, `File.Pos`, `File.RawRead`, `File.RawWrite`, `File.Read`, `File.ReadChar`, `File.ReadDouble`, `File.ReadFloat`, `File.ReadInt`, `File.ReadInt64`, `File.ReadLine`, `File.ReadShort`, `File.ReadUChar`, `File.ReadUInt`, `File.ReadUShort`, `File.Seek`, `File.Write`, `File.WriteChar`, `File.WriteDouble`, `File.WriteFloat`, `File.WriteInt`, `File.WriteInt64`, `File.WriteLine`, `File.WriteShort`, `File.WriteUChar`, `File.WriteUInt`, `File.WriteUShort`, `FileAppend`, `FileCopy`, `FileDelete`, `FileEncoding`, `FileEncoding`, `FileExist`, `FileGetAttrib`, `FileGetSize`, `FileGetTime`, `FileInstall`, `FileMove`, `FileOpen`, `FileRead`, `FileSelect`, `FileSetAttrib`, `FileSetTime`, `IniDelete`, `IniRead`, `IniWrite`, `LoopField`, `LoopFileAttrib`, `LoopFileDir`, `LoopFileExt`, `LoopFileFullPath`, `LoopFileName`, `LoopFilePath`, `LoopFileShortName`, `LoopFileShortPath`, `LoopFileSize`, `LoopFileSizeKB`, `LoopFileSizeMB`, `LoopFileTimeAccessed`, `LoopFileTimeCreated`, `LoopFileTimeModified`, `LoopReadLine`, `SplitPath`
 
 **The ones that are refused** (19), by the reason:
 
@@ -85,9 +92,9 @@ names that the tree answers.
 
 ## 3. Hotkeys, hotstrings, and input
 
-**102 names: 95 answer with a value, 7 are refused.**
+**103 names: 96 answer with a value, 7 are refused.**
 
-**The ones that answer** (95): `Click`, `ClipWait`, `CoordModeMouse`, `CoordModePixel`, `DefaultMouseSpeed`, `EventInfo`, `GetKeyName`, `GetKeySC`, `GetKeyState`, `GetKeyVK`, `HotIf`, `HotIfWinActive`, `HotIfWinExist`, `HotIfWinNotActive`, `HotIfWinNotExist`, `Hotkey`, `Hotkey.BackspaceIsUndo`, `Hotkey.BackspaceIsUndo`, `Hotkey.CaseSensitive`, `Hotkey.CaseSensitive`, `Hotkey.EndKey`, `Hotkey.EndMods`, `Hotkey.EndReason`, `Hotkey.FindAnywhere`, `Hotkey.FindAnywhere`, `Hotkey.InProgress`, `Hotkey.Input`, `Hotkey.KeyOpt`, `Hotkey.Match`, `Hotkey.MinSendLevel`, `Hotkey.MinSendLevel`, `Hotkey.NotifyNonText`, `Hotkey.NotifyNonText`, `Hotkey.OnChar`, `Hotkey.OnChar`, `Hotkey.OnEnd`, `Hotkey.OnEnd`, `Hotkey.OnKeyDown`, `Hotkey.OnKeyDown`, `Hotkey.OnKeyUp`, `Hotkey.OnKeyUp`, `Hotkey.Start`, `Hotkey.Stop`, `Hotkey.Timeout`, `Hotkey.Timeout`, `Hotkey.VisibleNonText`, `Hotkey.VisibleNonText`, `Hotkey.VisibleText`, `Hotkey.VisibleText`, `Hotkey.Wait`, `Hotkey.__New`, `HotkeyInterval`, `HotkeyModifierTimeout`, `Hotstring`, `InstallKeybdHook`, `InstallMouseHook`, `IsLabel`, `KeyDelay`, `KeyDelayPlay`, `KeyDuration`, `KeyDurationPlay`, `KeyHistory`, `KeyWait`, `ListHotkeys`, `MaxHotkeysPerInterval`, `MenuMaskKey`, `MouseClick`, `MouseClickDrag`, `MouseDelay`, `MouseDelayPlay`, `MouseGetPos`, `MouseMove`, `PriorHotkey`, `PriorKey`, `Send`, `SendEvent`, `SendInput`, `SendLevel`, `SendLevel`, `SendMode`, `SendMode`, `SendPlay`, `SendText`, `SetDefaultMouseSpeed`, `SetKeyDelay`, `SetMouseDelay`, `SetStoreCapsLockMode`, `StoreCapsLockMode`, `ThisHotkey`, `TimeIdle`, `TimeIdleKeyboard`, `TimeIdleMouse`, `TimeIdlePhysical`, `TimeSincePriorHotkey`, `TimeSinceThisHotkey`
+**The ones that answer** (96): `Click`, `ClipWait`, `CoordModeMouse`, `CoordModePixel`, `DefaultMouseSpeed`, `EventInfo`, `GetKeyName`, `GetKeySC`, `GetKeyState`, `GetKeyVK`, `HotIf`, `HotIfWinActive`, `HotIfWinExist`, `HotIfWinNotActive`, `HotIfWinNotExist`, `Hotkey`, `Hotkey.BackspaceIsUndo`, `Hotkey.BackspaceIsUndo`, `Hotkey.CaseSensitive`, `Hotkey.CaseSensitive`, `Hotkey.EndKey`, `Hotkey.EndMods`, `Hotkey.EndReason`, `Hotkey.FindAnywhere`, `Hotkey.FindAnywhere`, `Hotkey.InProgress`, `Hotkey.Input`, `Hotkey.KeyOpt`, `Hotkey.Match`, `Hotkey.MinSendLevel`, `Hotkey.MinSendLevel`, `Hotkey.NotifyNonText`, `Hotkey.NotifyNonText`, `Hotkey.OnChar`, `Hotkey.OnChar`, `Hotkey.OnEnd`, `Hotkey.OnEnd`, `Hotkey.OnKeyDown`, `Hotkey.OnKeyDown`, `Hotkey.OnKeyUp`, `Hotkey.OnKeyUp`, `Hotkey.Start`, `Hotkey.Stop`, `Hotkey.Timeout`, `Hotkey.Timeout`, `Hotkey.VisibleNonText`, `Hotkey.VisibleNonText`, `Hotkey.VisibleText`, `Hotkey.VisibleText`, `Hotkey.Wait`, `Hotkey.__New`, `HotkeyInterval`, `HotkeyModifierTimeout`, `Hotstring`, `InputHook`, `InstallKeybdHook`, `InstallMouseHook`, `IsLabel`, `KeyDelay`, `KeyDelayPlay`, `KeyDuration`, `KeyDurationPlay`, `KeyHistory`, `KeyWait`, `ListHotkeys`, `MaxHotkeysPerInterval`, `MenuMaskKey`, `MouseClick`, `MouseClickDrag`, `MouseDelay`, `MouseDelayPlay`, `MouseGetPos`, `MouseMove`, `PriorHotkey`, `PriorKey`, `Send`, `SendEvent`, `SendInput`, `SendLevel`, `SendLevel`, `SendMode`, `SendMode`, `SendPlay`, `SendText`, `SetDefaultMouseSpeed`, `SetKeyDelay`, `SetMouseDelay`, `SetStoreCapsLockMode`, `StoreCapsLockMode`, `ThisHotkey`, `TimeIdle`, `TimeIdleKeyboard`, `TimeIdleMouse`, `TimeIdlePhysical`, `TimeSincePriorHotkey`, `TimeSinceThisHotkey`
 
 **The ones that are refused** (7), by the reason:
 
@@ -96,9 +103,9 @@ names that the tree answers.
 
 ## 4. GUI windows and window automation
 
-**271 names: 155 answer with a value, 116 are refused.**
+**273 names: 157 answer with a value, 116 are refused.**
 
-**The ones that answer** (155): `ControlDelay`, `CoordModeCaret`, `CoordModeMenu`, `CoordModeToolTip`, `DetectHiddenText`, `DetectHiddenText`, `DetectHiddenWindows`, `DetectHiddenWindows`, `Gui.Add`, `Gui.AddActiveX`, `Gui.AddButton`, `Gui.AddCheckBox`, `Gui.AddComboBox`, `Gui.AddCustom`, `Gui.AddDDL`, `Gui.AddDateTime`, `Gui.AddDropDownList`, `Gui.AddEdit`, `Gui.AddGroupBox`, `Gui.AddHotkey`, `Gui.AddLink`, `Gui.AddListBox`, `Gui.AddListView`, `Gui.AddMonthCal`, `Gui.AddPic`, `Gui.AddPicture`, `Gui.AddProgress`, `Gui.AddRadio`, `Gui.AddSlider`, `Gui.AddStatusBar`, `Gui.AddTab`, `Gui.AddTab2`, `Gui.AddTab3`, `Gui.AddText`, `Gui.AddTreeView`, `Gui.AddUpDown`, `Gui.BackColor`, `Gui.BackColor`, `Gui.Control.Add`, `Gui.Control.Choose`, `Gui.Control.ClassNN`, `Gui.Control.Delete`, `Gui.Control.Enabled`, `Gui.Control.Enabled`, `Gui.Control.Focus`, `Gui.Control.Focused`, `Gui.Control.GetPos`, `Gui.Control.Gui`, `Gui.Control.Hwnd`, `Gui.Control.Move`, `Gui.Control.Name`, `Gui.Control.Name`, `Gui.Control.OnCommand`, `Gui.Control.OnEvent`, `Gui.Control.OnNotify`, `Gui.Control.Opt`, `Gui.Control.Redraw`, `Gui.Control.SetFont`, `Gui.Control.SetFormat`, `Gui.Control.Text`, `Gui.Control.Text`, `Gui.Control.Type`, `Gui.Control.UseTab`, `Gui.Control.Value`, `Gui.Control.Value`, `Gui.Control.Visible`, `Gui.Control.Visible`, `Gui.Destroy`, `Gui.Flash`, `Gui.FocusedCtrl`, `Gui.GetClientPos`, `Gui.GetPos`, `Gui.Hide`, `Gui.Hwnd`, `Gui.ListView.Add`, `Gui.ListView.Delete`, `Gui.ListView.Get`, `Gui.ListView.GetChild`, `Gui.ListView.GetCount`, `Gui.ListView.GetNext`, `Gui.ListView.GetParent`, `Gui.ListView.GetPrev`, `Gui.ListView.GetSelection`, `Gui.ListView.GetText`, `Gui.ListView.Modify`, `Gui.ListView.SetIcon`, `Gui.ListView.SetImageList`, `Gui.ListView.SetParts`, `Gui.ListView.SetText`, `Gui.MarginX`, `Gui.MarginX`, `Gui.MarginY`, `Gui.MarginY`, `Gui.Maximize`, `Gui.Menu.Add`, `Gui.Menu.AddStandard`, `Gui.Menu.Check`, `Gui.Menu.ClickCount`, `Gui.Menu.ClickCount`, `Gui.Menu.Default`, `Gui.Menu.Default`, `Gui.Menu.Delete`, `Gui.Menu.Disable`, `Gui.Menu.Enable`, `Gui.Menu.Handle`, `Gui.Menu.Insert`, `Gui.Menu.Rename`, `Gui.Menu.SetColor`, `Gui.Menu.SetIcon`, `Gui.Menu.Show`, `Gui.Menu.ToggleCheck`, `Gui.Menu.ToggleEnable`, `Gui.Menu.Uncheck`, `Gui.MenuBar`, `Gui.MenuBar`, `Gui.Minimize`, `Gui.Move`, `Gui.Name`, `Gui.Name`, `Gui.OnEvent`, `Gui.Opt`, `Gui.Restore`, `Gui.SetFont`, `Gui.Show`, `Gui.StatusBar.Add`, `Gui.StatusBar.Delete`, `Gui.StatusBar.DeleteCol`, `Gui.StatusBar.GetCount`, `Gui.StatusBar.GetNext`, `Gui.StatusBar.GetText`, `Gui.StatusBar.Insert`, `Gui.StatusBar.InsertCol`, `Gui.StatusBar.Modify`, `Gui.StatusBar.ModifyCol`, `Gui.StatusBar.SetImageList`, `Gui.Submit`, `Gui.Title`, `Gui.Title`, `Gui.__Enum`, `Gui.__Item`, `Gui.__New`, `IconHidden`, `IconTip`, `InputBox`, `ListLines`, `MsgBox`, `SetControlDelay`, `SetTitleMatchMode`, `SetWinDelay`, `TitleMatchMode`, `TitleMatchModeSpeed`, `WinActive`, `WinDelay`, `WinExist`, `WinGetTitle`
+**The ones that answer** (157): `ControlDelay`, `CoordModeCaret`, `CoordModeMenu`, `CoordModeToolTip`, `DetectHiddenText`, `DetectHiddenText`, `DetectHiddenWindows`, `DetectHiddenWindows`, `Gui`, `Gui.Add`, `Gui.AddActiveX`, `Gui.AddButton`, `Gui.AddCheckBox`, `Gui.AddComboBox`, `Gui.AddCustom`, `Gui.AddDDL`, `Gui.AddDateTime`, `Gui.AddDropDownList`, `Gui.AddEdit`, `Gui.AddGroupBox`, `Gui.AddHotkey`, `Gui.AddLink`, `Gui.AddListBox`, `Gui.AddListView`, `Gui.AddMonthCal`, `Gui.AddPic`, `Gui.AddPicture`, `Gui.AddProgress`, `Gui.AddRadio`, `Gui.AddSlider`, `Gui.AddStatusBar`, `Gui.AddTab`, `Gui.AddTab2`, `Gui.AddTab3`, `Gui.AddText`, `Gui.AddTreeView`, `Gui.AddUpDown`, `Gui.BackColor`, `Gui.BackColor`, `Gui.Control.Add`, `Gui.Control.Choose`, `Gui.Control.ClassNN`, `Gui.Control.Delete`, `Gui.Control.Enabled`, `Gui.Control.Enabled`, `Gui.Control.Focus`, `Gui.Control.Focused`, `Gui.Control.GetPos`, `Gui.Control.Gui`, `Gui.Control.Hwnd`, `Gui.Control.Move`, `Gui.Control.Name`, `Gui.Control.Name`, `Gui.Control.OnCommand`, `Gui.Control.OnEvent`, `Gui.Control.OnNotify`, `Gui.Control.Opt`, `Gui.Control.Redraw`, `Gui.Control.SetFont`, `Gui.Control.SetFormat`, `Gui.Control.Text`, `Gui.Control.Text`, `Gui.Control.Type`, `Gui.Control.UseTab`, `Gui.Control.Value`, `Gui.Control.Value`, `Gui.Control.Visible`, `Gui.Control.Visible`, `Gui.Destroy`, `Gui.Flash`, `Gui.FocusedCtrl`, `Gui.GetClientPos`, `Gui.GetPos`, `Gui.Hide`, `Gui.Hwnd`, `Gui.ListView.Add`, `Gui.ListView.Delete`, `Gui.ListView.Get`, `Gui.ListView.GetChild`, `Gui.ListView.GetCount`, `Gui.ListView.GetNext`, `Gui.ListView.GetParent`, `Gui.ListView.GetPrev`, `Gui.ListView.GetSelection`, `Gui.ListView.GetText`, `Gui.ListView.Modify`, `Gui.ListView.SetIcon`, `Gui.ListView.SetImageList`, `Gui.ListView.SetParts`, `Gui.ListView.SetText`, `Gui.MarginX`, `Gui.MarginX`, `Gui.MarginY`, `Gui.MarginY`, `Gui.Maximize`, `Gui.Menu.Add`, `Gui.Menu.AddStandard`, `Gui.Menu.Check`, `Gui.Menu.ClickCount`, `Gui.Menu.ClickCount`, `Gui.Menu.Default`, `Gui.Menu.Default`, `Gui.Menu.Delete`, `Gui.Menu.Disable`, `Gui.Menu.Enable`, `Gui.Menu.Handle`, `Gui.Menu.Insert`, `Gui.Menu.Rename`, `Gui.Menu.SetColor`, `Gui.Menu.SetIcon`, `Gui.Menu.Show`, `Gui.Menu.ToggleCheck`, `Gui.Menu.ToggleEnable`, `Gui.Menu.Uncheck`, `Gui.MenuBar`, `Gui.MenuBar`, `Gui.Minimize`, `Gui.Move`, `Gui.Name`, `Gui.Name`, `Gui.OnEvent`, `Gui.Opt`, `Gui.Restore`, `Gui.SetFont`, `Gui.Show`, `Gui.StatusBar.Add`, `Gui.StatusBar.Delete`, `Gui.StatusBar.DeleteCol`, `Gui.StatusBar.GetCount`, `Gui.StatusBar.GetNext`, `Gui.StatusBar.GetText`, `Gui.StatusBar.Insert`, `Gui.StatusBar.InsertCol`, `Gui.StatusBar.Modify`, `Gui.StatusBar.ModifyCol`, `Gui.StatusBar.SetImageList`, `Gui.Submit`, `Gui.Title`, `Gui.Title`, `Gui.__Enum`, `Gui.__Item`, `Gui.__New`, `IconHidden`, `IconTip`, `InputBox`, `ListLines`, `Menu`, `MsgBox`, `SetControlDelay`, `SetTitleMatchMode`, `SetWinDelay`, `TitleMatchMode`, `TitleMatchModeSpeed`, `WinActive`, `WinDelay`, `WinExist`, `WinGetTitle`
 
 **The ones that are refused** (116), by the reason:
 
@@ -121,9 +128,9 @@ names that the tree answers.
 
 ## 6. Native function calls (DllCall)
 
-**9 names: 9 answer with a value, 0 are refused.**
+**10 names: 10 answer with a value, 0 are refused.**
 
-**The ones that answer** (9): `Buffer.Ptr`, `Buffer.Size`, `Buffer.__New`, `DllCall`, `LastError`, `NumGet`, `NumPut`, `PtrSize`, `VarSetStrCapacity`
+**The ones that answer** (10): `Buffer`, `Buffer.Ptr`, `Buffer.Size`, `Buffer.__New`, `DllCall`, `LastError`, `NumGet`, `NumPut`, `PtrSize`, `VarSetStrCapacity`
 
 ## 7. Registry APIs
 
@@ -137,7 +144,9 @@ names that the tree answers.
 
 ## 8. COM automation (ComObject)
 
-**15 names: 0 answer with a value, 15 are refused.**
+**17 names: 2 answer with a value, 15 are refused.**
+
+**The ones that answer** (2): `ComObject`, `ComValue`
 
 **The ones that are refused** (15), by the reason:
 
@@ -146,9 +155,9 @@ names that the tree answers.
 
 ## 9. The core of the language: text, math and patterns
 
-**58 names: 55 answer with a value, 3 are refused.**
+**60 names: 57 answer with a value, 3 are refused.**
 
-**The ones that answer** (55): `ACos`, `ASin`, `ATan`, `Abs`, `Ceil`, `Chr`, `Cos`, `Exp`, `Floor`, `Format`, `GetMethod`, `HasBase`, `HasMethod`, `HasProp`, `InStr`, `IsAlnum`, `IsAlpha`, `IsDigit`, `IsFloat`, `IsInteger`, `IsLower`, `IsNumber`, `IsObject`, `IsSetRef`, `IsSpace`, `IsTime`, `IsUpper`, `IsXDigit`, `LTrim`, `Ln`, `Log`, `Max`, `Min`, `Mod`, `Ord`, `RTrim`, `Random`, `RegExMatch`, `RegExReplace`, `Round`, `Sin`, `Sort`, `Sqrt`, `StrCompare`, `StrLen`, `StrLower`, `StrReplace`, `StrSplit`, `StrTitle`, `StrUpper`, `SubStr`, `Tan`, `Trim`, `Type`, `VerCompare`
+**The ones that answer** (57): `ACos`, `ASin`, `ATan`, `Abs`, `Any`, `Ceil`, `Chr`, `Class`, `Cos`, `Exp`, `Floor`, `Format`, `GetMethod`, `HasBase`, `HasMethod`, `HasProp`, `InStr`, `IsAlnum`, `IsAlpha`, `IsDigit`, `IsFloat`, `IsInteger`, `IsLower`, `IsNumber`, `IsObject`, `IsSetRef`, `IsSpace`, `IsTime`, `IsUpper`, `IsXDigit`, `LTrim`, `Ln`, `Log`, `Max`, `Min`, `Mod`, `Ord`, `RTrim`, `Random`, `RegExMatch`, `RegExReplace`, `Round`, `Sin`, `Sort`, `Sqrt`, `StrCompare`, `StrLen`, `StrLower`, `StrReplace`, `StrSplit`, `StrTitle`, `StrUpper`, `SubStr`, `Tan`, `Trim`, `Type`, `VerCompare`
 
 **The ones that are refused** (3), by the reason:
 
@@ -156,9 +165,9 @@ names that the tree answers.
 
 ## 10. The objects of the language: Array, Map and Func
 
-**48 names: 48 answer with a value, 0 are refused.**
+**53 names: 53 answer with a value, 0 are refused.**
 
-**The ones that answer** (48): `Array.Capacity`, `Array.Clone`, `Array.Delete`, `Array.Get`, `Array.Has`, `Array.InsertAt`, `Array.Length`, `Array.Pop`, `Array.Push`, `Array.RemoveAt`, `Array.__Enum`, `Array.__Item`, `Array.__New`, `Func.Bind`, `Func.Call`, `Func.IsBuiltIn`, `Func.IsByRef`, `Func.IsOptional`, `Func.IsVariadic`, `Func.MaxParams`, `Func.MinParams`, `Func.Name`, `Map.Capacity`, `Map.CaseSense`, `Map.Clear`, `Map.Clone`, `Map.Clone`, `Map.Count`, `Map.DefineProp`, `Map.Delete`, `Map.DeleteProp`, `Map.Get`, `Map.GetOwnPropDesc`, `Map.Has`, `Map.HasOwnProp`, `Map.OwnProps`, `Map.Set`, `Map.__Enum`, `Map.__Item`, `Map.__New`, `ObjAddRef`, `ObjGetBase`, `ObjGetCapacity`, `ObjHasOwnProp`, `ObjOwnPropCount`, `ObjOwnProps`, `ObjSetBase`, `ObjSetCapacity`
+**The ones that answer** (53): `Array`, `Array.Capacity`, `Array.Clone`, `Array.Delete`, `Array.Get`, `Array.Has`, `Array.InsertAt`, `Array.Length`, `Array.Pop`, `Array.Push`, `Array.RemoveAt`, `Array.__Enum`, `Array.__Item`, `Array.__New`, `Enumerator`, `Func`, `Func.Bind`, `Func.Call`, `Func.IsBuiltIn`, `Func.IsByRef`, `Func.IsOptional`, `Func.IsVariadic`, `Func.MaxParams`, `Func.MinParams`, `Func.Name`, `Map`, `Map.Capacity`, `Map.CaseSense`, `Map.Clear`, `Map.Clone`, `Map.Clone`, `Map.Count`, `Map.DefineProp`, `Map.Delete`, `Map.DeleteProp`, `Map.Get`, `Map.GetOwnPropDesc`, `Map.Has`, `Map.HasOwnProp`, `Map.OwnProps`, `Map.Set`, `Map.__Enum`, `Map.__Item`, `Map.__New`, `ObjAddRef`, `ObjGetBase`, `ObjGetCapacity`, `ObjHasOwnProp`, `ObjOwnPropCount`, `ObjOwnProps`, `ObjSetBase`, `ObjSetCapacity`, `Object`
 
 ## 11. Dates and times
 
@@ -179,9 +188,9 @@ names that the tree answers.
 
 ## 13. The clipboard
 
-**2 names: 1 answer with a value, 1 is refused.**
+**3 names: 2 answer with a value, 1 is refused.**
 
-**The ones that answer** (1): `Clipboard`
+**The ones that answer** (2): `Clipboard`, `ClipboardAll`
 
 **The ones that are refused** (1), by the reason:
 

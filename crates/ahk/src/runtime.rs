@@ -2276,12 +2276,15 @@ impl<'a> Runtime<'a> {
         if let Some(function) = self.functions.get(&key) {
             return Some(func_value(&function.name, function));
         }
-        if self.classes.contains_key(&key) || crate::classes::is_type(&key) {
-            return self.class_value_of(&key);
-        }
-        // A built-in is a function, and a function is a value.
+        // A built-in is a function, and a function is a value. The name
+        // of it comes before the class: the `Hotkey` is a function of the
+        // dialect, and the class of a hotkey is the class of the object
+        // that the function makes.
         if let Some(builtin) = crate::builtins::find(&key) {
             return Some(builtin_value(builtin.name, builtin.min, builtin.max));
+        }
+        if self.classes.contains_key(&key) || crate::classes::is_type(&key) {
+            return self.class_value_of(&key);
         }
         None
     }
@@ -2291,7 +2294,7 @@ impl<'a> Runtime<'a> {
     /// The class is one object for the whole run, so that the `is`
     /// operator and the base of an object can tell a class from an
     /// instance of one.
-    fn class_value_of(&self, name: &str) -> Option<Value> {
+    pub(crate) fn class_value_of(&self, name: &str) -> Option<Value> {
         let key = name.to_lowercase();
         if let Some(value) = self.class_values.borrow().get(&key) {
             return Some(value.clone());
@@ -4506,6 +4509,14 @@ impl<'a> Runtime<'a> {
                 line,
             }))?;
             if let Value::Object(object) = &value {
+                // A class is a value, and the call of it makes an object of
+                // that class. Measured on the binary of v2.0.19 on 2026-10-31:
+                // `c := Map; c()` makes a map, the way `Map()` does, and the
+                // `Any` is refused because it is not a class that can be
+                // made.
+                if let Some(class) = self.class_name_of(&value) {
+                    return self.construct(&class, arguments, line);
+                }
                 let class = object.borrow().class.clone();
                 if let Some((defining, method)) = self.find_method_in(&class, "call") {
                     return self.call_method(&defining, &method, &value, arguments, line);
@@ -4523,14 +4534,6 @@ impl<'a> Runtime<'a> {
             // kind of it: "This value of type "Integer" has no method named
             // "Call".". The failure is of the class `MethodError`.
             return Err(self.no_method(&value, "Call", line));
-        }
-        // The name is a class of v2 that the binary does not have: the
-        // dialect refuses the call of it with the message of the dialect.
-        if crate::classes::is_a_class_that_is_not_here(name) {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: "Call to nonexistent function.".into(),
-                line,
-            }));
         }
         // The name is not a function of the script, not a class and not a
         // built-in: it is a variable of the script, and v2 reads it. A
@@ -6162,13 +6165,13 @@ pub(crate) fn log10(value: f64) -> f64 {
 
 /// The fractional part of `value`: it keeps the sign of the value.
 #[cfg(feature = "std")]
-fn fract(value: f64) -> f64 {
+pub(crate) fn fract(value: f64) -> f64 {
     value.fract()
 }
 
 /// The fractional part of `value`: it keeps the sign of the value.
 #[cfg(not(feature = "std"))]
-fn fract(value: f64) -> f64 {
+pub(crate) fn fract(value: f64) -> f64 {
     value - libm::trunc(value)
 }
 

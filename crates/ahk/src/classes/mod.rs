@@ -26,10 +26,11 @@ use core::cell::RefCell;
 use alloc::rc::Rc;
 use alloc::string::ToString;
 
-use crate::runtime::{Detail, Object, Runtime, RuntimeError, RuntimeFailure, Value};
+use crate::runtime::{Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value};
 
 pub(crate) mod array;
 pub(crate) mod buffer;
+pub(crate) mod clipboard;
 pub(crate) mod enumerator;
 pub(crate) mod error;
 pub(crate) mod file;
@@ -185,12 +186,27 @@ const CALLS: [(&str, &str, i64, i64); 59] = [
 ///
 /// The arity is the number of the arguments that the constructor takes,
 /// and the two names are the ones that v2 puts in the `What` and in the
-/// `Extra` of the failure when the call has too many arguments.
-const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 4] = [
+/// `Extra` of the failure when the call has the wrong number of
+/// arguments.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31. A number of `-1`
+/// means that the constructor takes any number of arguments: the `Array`
+/// is made out of the values it is given. The classes that go through the
+/// base object -- the `Class`, the `Object` and the classes of the
+/// failures -- carry the name of the base in the `What`, and the `Menu`
+/// carries its own.
+const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 11] = [
+    ("array", 0, -1, "Array.Call", "Array.Prototype.__New"),
     ("buffer", 0, 2, "Buffer.Call", "Buffer.Prototype.__New"),
-    ("gui", 0, 3, "Gui.Call", "Gui.Prototype.__New"),
-    ("menu", 0, 0, "Menu.Call", ""),
+    ("class", 0, 0, "Object.Call", ""),
+    ("clipboardall", 0, 2, "ClipboardAll.Call", "ClipboardAll.Prototype.__New"),
+    ("comobject", 1, 2, "", "ComObject.Call"),
+    ("comvalue", 2, 3, "", "ComValue.Call"),
     ("error", 0, 3, "Object.Call", "Error.Prototype.__New"),
+    ("gui", 0, 3, "Gui.Call", "Gui.Prototype.__New"),
+    ("inputhook", 0, 3, "InputHook.Call", "InputHook.Prototype.__New"),
+    ("menu", 0, 0, "Menu.Call", ""),
+    ("object", 0, 0, "Object.Call", ""),
 ];
 
 /// The class types that v2 does not make.
@@ -451,8 +467,15 @@ fn the_arity_failure_of_a_constructor(
 ///
 /// `Object` is the root of every class: v2 has it, and every object of
 /// the tree is one.
-pub(crate) const TYPES: [&str; 11] = [
-    "array", "buffer", "enumerator", "error", "file", "func", "gui", "hotkey", "map", "menu", "object",
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the classes of the
+/// dialect are the ones that a script can read as a class, and these are
+/// they. The hotkey is the one that is not a name of its own: the name
+/// `Hotkey` is a function of the dialect, and the class of a hotkey is
+/// the class of the object that the function makes.
+pub(crate) const TYPES: [&str; 17] = [
+    "any", "array", "buffer", "class", "clipboardall", "comobject", "comvalue", "enumerator", "error",
+    "file", "func", "gui", "hotkey", "inputhook", "map", "menu", "object",
 ];
 
 /// Whether the name is a class type of the runtime.
@@ -461,20 +484,94 @@ pub(crate) fn is_type(name: &str) -> bool {
     TYPES.contains(&name.as_str()) || error::is_a_class(&name)
 }
 
-/// The classes of v2 that the binary does not have.
+/// Whether the name is a class that a script can read.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the `ComObject` is not
-/// in the binary, and a call of it fails with "Call to nonexistent
-/// function.".
-const THE_CLASSES_THAT_ARE_NOT_HERE: [&str; 1] = ["comobject"];
-
-/// Whether the name is a class of v2 that the tree does not carry.
-///
-/// A name like that is not a variable of the script: v2 refuses the call of
-/// it with the message of the dialect.
-pub(crate) fn is_a_class_that_is_not_here(name: &str) -> bool {
+/// Measured on the binary of v2.0.19 on 2026-10-31: `x := Hotkey` is a
+/// function of the dialect, and not the class of a hotkey. Every other
+/// class of the runtime is a name of its own, and a script reads it as
+/// the class.
+pub fn is_a_name_of_a_class(name: &str) -> bool {
     let name = name.to_lowercase();
-    THE_CLASSES_THAT_ARE_NOT_HERE.contains(&name.as_str())
+    (TYPES.contains(&name.as_str()) && name != "hotkey") || error::is_a_class(&name)
+}
+
+/// The class types the runtime carries, the way v2 spells them.
+pub fn the_class_types() -> Vec<String> {
+    let mut names: Vec<String> = TYPES
+        .iter()
+        .filter(|name| **name != "hotkey")
+        .map(|name| the_spelling_of(name))
+        .collect();
+    for (name, spelled, _) in error::CLASSES.iter() {
+        if *name != "error" {
+            names.push(spelled.to_string());
+        }
+    }
+    names
+}
+
+/// The classes of v2 that this runtime does not carry.
+///
+/// The COM objects are a thing of Windows, and this runtime does not
+/// carry them. A script reads the name of the class -- the `ComObject`
+/// and the `ComValue` are classes of the dialect -- and the call of it
+/// fails with the reason of the machine.
+///
+/// The number of the arguments is checked before that reason: the
+/// dialect checks it first, and a script that calls the `ComObject`
+/// without the name of the class is told that it forgot it.
+const THE_CLASSES_THAT_ARE_NOT_HERE: [&str; 2] = ["comobject", "comvalue"];
+
+/// The reason of a class of v2 that this runtime does not carry.
+///
+/// The COM objects are a thing of Windows, and this runtime does not
+/// carry them.
+fn the_failure_of_a_class_that_is_not_here(line: u32) -> RuntimeFailure {
+    RuntimeFailure::Error(RuntimeError {
+        message: "the COM objects are a thing of Windows, and this runtime does not carry them.".to_string(),
+        line,
+    })
+}
+
+/// The kind of an argument of the `ComValue`.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the first argument
+/// is the type of the value and the third one is the flags of the
+/// wrapper, and the two are numbers. The value in the middle is
+/// anything.
+///
+/// The check of the kind comes before the reason of the machine: the
+/// dialect refuses the call before it tries to make the COM object.
+fn the_kind_of_a_com_value_argument(
+    index: usize,
+    value: Option<&Value>,
+    line: u32,
+) -> Option<RuntimeFailure> {
+    let value = value?;
+    match value {
+        Value::Int(_) | Value::Float(_) => None,
+        other => Some(RuntimeFailure::Detailed(
+            RuntimeError {
+                message: crate::runtime::requires(index, "ComValue.Call", TypeName::Number, other),
+                line,
+            },
+            Detail { what: "ComValue.Call".to_string(), extra: other.to_text() },
+        )),
+    }
+}
+
+/// The failure of a class that a script cannot call.
+///
+/// The `Any` is the type of any value, and it is not a class that can be
+/// made: the call of it goes through the `Call` method of the class, and
+/// a class has none. Measured on the binary of v2.0.19 on 2026-10-31:
+/// "This value of type "Class" has no method named "Call".". The failure
+/// is of the class `MethodError`.
+fn the_failure_of_a_class_that_cannot_be_called(rt: &Runtime, line: u32) -> RuntimeFailure {
+    // The class value of the runtime, so that the refusal names the kind
+    // of it: a class is a "Class".
+    let value = rt.class_value_of("any").unwrap_or_else(|| class_value("any"));
+    rt.no_method(&value, "Call", line)
 }
 
 /// The class a class type of the runtime derives from.
@@ -527,6 +624,18 @@ pub(crate) fn object_with(class: &str, properties: Vec<(&str, Value)>) -> Value 
     })))
 }
 
+/// The class types the runtime carries, and the name that v2 spells them
+/// with.
+///
+/// The dialect spells some of them with more than one capital, and the
+/// name of the class is the name that the dialect uses.
+const THE_SPELLINGS: [(&str, &str); 4] = [
+    ("clipboardall", "ClipboardAll"),
+    ("comobject", "ComObject"),
+    ("comvalue", "ComValue"),
+    ("inputhook", "InputHook"),
+];
+
 /// The name of a class of the runtime, the way v2 spells it.
 ///
 /// The classes of the errors have a spelling of their own: `TypeError`,
@@ -534,6 +643,10 @@ pub(crate) fn object_with(class: &str, properties: Vec<(&str, Value)>) -> Value 
 pub(crate) fn the_spelling_of(name: &str) -> String {
     if let Some(spelled) = error::the_spelling_of(name) {
         return spelled;
+    }
+    let lower = name.to_lowercase();
+    if let Some((_, spelled)) = THE_SPELLINGS.iter().find(|(key, _)| *key == lower) {
+        return spelled.to_string();
     }
     let mut spelled = name.to_string();
     if let Some(first) = spelled.get_mut(0..1) {
@@ -557,7 +670,8 @@ pub(crate) fn construct(
         return Some(Err(the_failure_of_a_class_that_is_not_made(line)));
     }
     // The number of the arguments of the constructor is checked before
-    // the object is made.
+    // the object is made, and before the reason of the machine: the
+    // dialect checks the number of the arguments first.
     if let Some((min, max, what, extra)) = the_constructor_of(class) {
         let count = arguments.len() as i64;
         if count < min || (max >= 0 && count > max) {
@@ -569,6 +683,25 @@ pub(crate) fn construct(
             return Some(Err(the_arity_failure_of_a_constructor(what, extra, message, line)));
         }
     }
+    // The `Any` is the type of any value, and it is not a class that can
+    // be made.
+    if class.eq_ignore_ascii_case("any") {
+        return Some(Err(the_failure_of_a_class_that_cannot_be_called(rt, line)));
+    }
+    // The COM objects are a thing of Windows, and this runtime does not
+    // carry them. The kinds of the arguments are the dialect's, and they
+    // come first.
+    if class.eq_ignore_ascii_case("comvalue") {
+        if let Some(failure) = the_kind_of_a_com_value_argument(1, arguments.first(), line) {
+            return Some(Err(failure));
+        }
+        if let Some(failure) = the_kind_of_a_com_value_argument(3, arguments.get(2), line) {
+            return Some(Err(failure));
+        }
+    }
+    if THE_CLASSES_THAT_ARE_NOT_HERE.contains(&class.to_lowercase().as_str()) {
+        return Some(Err(the_failure_of_a_class_that_is_not_here(line)));
+    }
     // The errors of v2 are a tree of classes, and every one of them is
     // made the way the root of it is.
     if error::is_a_class(class) {
@@ -579,6 +712,7 @@ pub(crate) fn construct(
     let made = match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
         "buffer" => Some(buffer::construct(arguments, rt, line)),
+        "clipboardall" => Some(clipboard::construct(arguments, rt, line)),
         "hotkey" => Some(hotkey::construct(arguments, rt, line)),
         "map" => Some(map::construct(arguments, rt, line)),
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {

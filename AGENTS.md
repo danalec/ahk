@@ -3550,3 +3550,68 @@ continues execution."
 The comparison of the tree with the binary is in
 `egm-review/compare_goto.py` (34 cases): 31 are the same, and the three
 that are not are the hang of the binary.
+
+## 73. The class types are classes of the dialect, and the call of one is the call of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the dialect has
+twenty-nine class types, and a script reads every one of them as the
+class. The table of the surface carries them now, with a kind of their
+own, and the tree reads them the way the binary does.
+
+- **A class type is a name that a script reads as the class.** `x := Map`
+  answers a value whose class is "Class", and the thirty cases that were
+  measured are the same in the binary and in the tree.
+- **The `Hotkey` is the exception.** The name is a function of v2 -- `x :=
+  Hotkey` answers a "Func" -- and the class of a hotkey is the class of
+  the object that the function makes. The tree looks the built-in table
+  before the classes, so that the two do not fight for the name.
+- **A class is a value, and the call of it makes an object of that class.**
+  `c := Map; c()` makes a map, the way `Map()` does, and the sixteen
+  classes that were measured are the same in the binary and in the tree.
+- **The number of the arguments of a constructor is the one of the binary,
+  and the refusal names the class.** `classes::CONSTRUCTORS` carries the
+  arity of every constructor and the two names that go in the `What` and
+  in the `Extra` of the refusal: `ComObject()` answers "Too few parameters
+  passed to function." with the `Extra` "ComObject.Call", `Class(1)`
+  answers "Too many parameters passed to function." with the `What`
+  "Object.Call", and the `Array` takes any number of arguments, because
+  it is made out of the values it is given.
+- **The `Any` is not a class that can be made.** It is the type of any
+  value, and the call of it goes through the `Call` method of the class,
+  and a class has none: "This value of type "Class" has no method named
+  "Call"." is the message of the dialect, and the failure is of the class
+  `MethodError`.
+- **The COM objects are a thing of Windows, and this runtime does not
+  carry them.** The `ComObject` and the `ComValue` are classes of the
+  dialect, and the binary makes the COM object of them. The tree refuses
+  the call with the reason of the machine: "the COM objects are a thing
+  of Windows, and this runtime does not carry them.". The checks of the
+  dialect come first: the number of the arguments and the kind of them
+  are the dialect's, and the reason of the machine comes after them.
+- **The `ClipboardAll` takes the data of the clipboard and the size of
+  it.** The data is an object or the address of the bytes, and the size
+  is optional when the data is an object. The tree carries no binary
+  clipboard data, so the call of the class with data fails with the
+  reason of the machine, and the checks of the dialect come first: a text
+  is refused with "Parameter #1 of ClipboardAll.Prototype.__New requires a
+  Number, but received a String.", the address of nothing is refused with
+  "Parameter #1 of ClipboardAll.Prototype.__New is invalid.", and an
+  address without a size is refused with "Parameter #2 of
+  ClipboardAll.Prototype.__New must not be omitted in this case.".
+- **The word `class` and the class type `Class` are told apart by what
+  follows.** A name makes a declaration -- `class Foo { }` and `Class Foo
+  { }` are both of them -- and anything else makes a call of the class:
+  `Class(1)` is a call, and the binary refuses it at the run.
+- **A class that the dialect does not make is refused with the message of
+  the dialect.** The `File`, the `Func` and the `Enumerator` are not made
+  at all: the call of them goes through the base object, and the base of
+  them has no such thing -- "Invalid base." is the message.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_class_types.py` (30 cases: the same),
+`egm-review/compare_class_constructors.py` (68 cases: 64 are the same,
+and the four that are not are the `ComObject` -- which the binary makes
+on Windows -- and the options of the `Gui`, which the tree does not read
+yet) and `egm-review/compare_class_refusals.py` (22 cases: 21 are the
+same, and the one that is not is the `ComObject` again), and
+`egm-review/compare_class_values.py` (16 cases: the same).

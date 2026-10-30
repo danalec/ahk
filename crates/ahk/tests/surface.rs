@@ -35,7 +35,7 @@ const DIALECT: &[&str] = &["Screenshot"];
 const REASONS: &[&str] = &["windows", "hotkey", "class", "variable", "not-yet"];
 
 /// The kinds a row may carry.
-const KINDS: &[&str] = &["command", "function", "variable", "method"];
+const KINDS: &[&str] = &["command", "function", "variable", "method", "class"];
 
 /// A row of a table: the fields, without the comments.
 ///
@@ -93,6 +93,7 @@ fn carries(kind: &str, class: &str, name: &str) -> bool {
         "command" | "function" => builtin_names().contains(&name.to_lowercase()),
         "variable" => variables::carries(name),
         "method" => classes::carries(class, name),
+        "class" => classes::is_a_name_of_a_class(name),
         _ => false,
     }
 }
@@ -233,6 +234,21 @@ fn the_kind_and_the_arity_of_a_name_are_the_ones_of_the_binary() {
         }
     }
     assert!(wrong.is_empty(), "the rows that drifted: {wrong:?}");
+}
+
+/// Every class type of the tree is a class of v2.
+#[test]
+fn every_class_type_of_the_tree_is_a_class_of_v2() {
+    let surface = surface_names();
+    let invented: Vec<String> = classes::the_class_types()
+        .into_iter()
+        .filter(|name| !surface.contains(name.as_str()))
+        .collect();
+    assert!(
+        invented.is_empty(),
+        "the tree carries classes that v2 does not have: {invented:?}; {}",
+        counts(surface.len(), pending_names().len())
+    );
 }
 
 /// Every name of the surface is carried.

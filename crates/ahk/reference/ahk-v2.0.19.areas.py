@@ -153,16 +153,34 @@ AREAS = [
 ]
 
 # The class of a method says the area, and the class of the windows is the
-# area of the windows.
+# area of the windows. The class types are names of a kind of their own,
+# and they are in the area of the thing they are.
 CLASS_AREA = {
+    "Any": "core",
     "Array": "objects",
     "Buffer": "native",
+    "Class": "core",
+    "ClipboardAll": "clipboard",
+    "ComObject": "com",
+    "ComValue": "com",
+    "Enumerator": "objects",
     "File": "files",
     "Func": "objects",
     "Gui": "gui",
     "Hotkey": "input",
+    "InputHook": "input",
     "Map": "objects",
+    "Menu": "gui",
+    "Object": "objects",
 }
+
+# The classes of the failures are the run of the script: they are what it
+# refuses with.
+ERROR_CLASSES = [
+    "Error", "MemoryError", "OSError", "TargetError", "TimeoutError",
+    "TypeError", "UnsetError", "MemberError", "PropertyError", "MethodError",
+    "UnsetItemError", "ValueError", "IndexError", "ZeroDivisionError",
+]
 
 # A name that is in two kinds: the function `Min` is the math and the
 # variable `Min` is the minute of the clock.
@@ -183,19 +201,26 @@ The names of `Gui` , of `Gui.Control` , of `Gui.ListView` , of
 one"*. The surface counts these names as answering, because the class
 carries them; the call is what fails.
 
-**The v2 has nine class types that the surface table does not list.**
-`Menu` , `ComObject` and the seven error classes --- `TypeError` ,
-`ValueError` , `OSError` , `TargetError` , `TimeoutError` , `PropertyError`
-and `MethodError` --- are in the binary and are not in
-`crates/ahk/reference/ahk-v2.0.19.surface.tsv` . The extraction read the
-tables of the classes at the wrong place, the same way it read the table of
-the `Buffer` and the table of the `Array` (the notes of the repository say
-so). The tree carries the `Menu` --- it is the menu of a window, and it
-refuses with the reason of the windows --- and it carries **none of the
-other eight** : `ComObject("Shell.Application")` and `TypeError("boom")`
-both fail with *"Call to nonexistent function."* The seven error classes
-each carry the same six properties in the binary --- `Message` , `What` ,
-`Extra` , `File` , `Line` and `Stack` --- and the tree carries none of them.
+**The class types are in the table, and one of them is not a class.**
+The table carries the twenty-nine class types of v2.0.19 --- `Any` ,
+`Array` , `Buffer` , `Class` , `ClipboardAll` , `ComObject` , `ComValue` ,
+`Enumerator` , `Error` , `File` , `Func` , `Gui` , `InputHook` , `Map` ,
+`Menu` , `Object` and the thirteen classes of the failures --- measured on
+the binary of v2.0.19 on 2026-10-31, where a script reads every one of
+them as the class. The `Hotkey` is the exception: the name is a function
+of v2, and the class of a hotkey is the class of the object that the
+function makes.
+
+**The calls of the class types are the calls of v2.**
+The number of the arguments of every constructor is the one of the binary,
+and the refusal of a call that has the wrong number of it carries the name
+of the class the way v2 carries it. The `Any` is not a class that can be
+made --- the call of it answers *"This value of type "Class" has no method
+named "Call"."* --- and the `ComObject` and the `ComValue` are classes of
+Windows that this runtime does not carry: *"the COM objects are a thing of
+Windows, and this runtime does not carry them."* The checks of the dialect
+come first: the number of the arguments and the kind of them are the
+dialect's, and the reason of the machine comes after them.
 
 **The area of the parser is about the surface, not about the grammar.**
 What a script may write is the work of the wave of 2026-10-29
@@ -229,6 +254,8 @@ def where_of(rows):
     for kind, name, _ in rows:
         if kind == "method":
             area = CLASS_AREA.get(name.split(".")[0])
+        elif kind == "class":
+            area = "script" if name in ERROR_CLASSES else CLASS_AREA.get(name)
         else:
             area = BY_KIND.get((kind, name), names.get(name))
         if area is None:

@@ -515,6 +515,21 @@ the property table of the object under a reserved key, and only the module
 that owns the class touches it. The module is asked before the base
 object, so a class that answers a name itself is taken at its word.
 
+The table of the surface carries the twenty-nine class types of the dialect,
+and a script reads every one of them as the class. The tree keeps two
+notions apart: `is_type` is the class of an object, and
+`is_a_name_of_a_class` is a name that a script reads as a class. The
+`Hotkey` is the reason: the name is a function of v2, and the class of a
+hotkey is the class of the object that the function makes.
+
+`CONSTRUCTORS` carries the arity of every constructor and the two names that
+go in the `What` and in the `Extra` of the refusal of a call that has the
+wrong number of arguments. The number of the arguments is checked before the
+object is made, and before the reason of the machine: the dialect checks it
+first. The `Any` is not a class that can be made -- the call of it goes
+through the `Call` method of the class, and a class has none -- and the COM
+objects are a thing of Windows, and this runtime does not carry them.
+
 The `Enumerator` is the enumeration of v2: the `__Enum` of a value and the
 `OwnProps` of an object hand one out, and its `Call` writes the turn into
 the variables of the caller. The key and the value under it are the turn,
@@ -533,6 +548,14 @@ measured. The byte order mark of the encoding is written when the file is
 opened to be written, and the bytes of the file decide the encoding of it when
 it is opened: a file that begins with the mark of UTF-8 is read with UTF-8,
 whatever the script asked for.
+
+### The clipboard of the class types (`classes/clipboard.rs`)
+
+The `ClipboardAll` is the class of the dialect that carries everything that
+is on the clipboard. The tree carries no binary clipboard data: the
+clipboard of the desktop is a text. The call of the class with data fails
+with the reason of the machine, and the checks of the dialect come first,
+because the number of the arguments and the kind of them are the dialect's.
 
 ### The desktop (`desktop.rs`)
 

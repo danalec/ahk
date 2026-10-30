@@ -562,6 +562,19 @@ impl Parser {
         token.kind == TokenKind::Op && token.value == "[" && !token.spaced
     }
 
+    /// Whether the token that comes after the one that is there makes a class
+    /// declaration.
+    ///
+    /// A name is the name of the class, and the two things that v2 refuses
+    /// by name -- a reserved word and a number -- are refused as the name of
+    /// a class, so the declaration is what the parser reads.
+    fn a_class_declaration_comes_next(&self) -> bool {
+        match self.tokens.get(self.position + 1) {
+            Some(token) => matches!(token.kind, TokenKind::Name | TokenKind::Keyword | TokenKind::Number),
+            None => false,
+        }
+    }
+
     fn at_op(&self, operators: &[&str]) -> bool {
         let token = self.peek();
         token.kind == TokenKind::Op && operators.contains(&token.value.as_str())
@@ -960,7 +973,32 @@ impl Parser {
                     self.end_of_statement()?;
                     return Ok(vec![Node::Continue { line: token.line }]);
                 }
-                "class" => return Ok(vec![self.parse_class()?]),
+                "class" => {
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // word `class` is the keyword of a class declaration and
+                    // the name of a class type of the dialect, and the two
+                    // are told apart by what follows: a name makes a
+                    // declaration -- `class Foo { }` and `Class Foo { }` are
+                    // both of them -- and anything else makes a call of the
+                    // class. The call of the `Class` with an argument is
+                    // refused at the run, and not at the load.
+                    if self.a_class_declaration_comes_next() {
+                        return Ok(vec![self.parse_class()?]);
+                    }
+                    let keyword = self.next();
+                    let mut arguments = Vec::new();
+                    if self.at_op(&["("]) && !self.peek().spaced {
+                        self.next();
+                        arguments = self.parse_arguments()?;
+                        self.expect_op(")")?;
+                    }
+                    self.end_of_statement()?;
+                    return Ok(vec![Node::Call {
+                        name: keyword.value.to_lowercase(),
+                        arguments,
+                        line: keyword.line,
+                    }]);
+                }
                 "else" | "catch" | "finally" => {
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
                     // `else`, the `catch` and the `finally` are statements of
@@ -2602,6 +2640,10 @@ impl Parser {
                     match token.value.to_lowercase().as_str() {
                         "true" => Node::Literal { value: LiteralValue::Bool(true), line: token.line },
                         "false" => Node::Literal { value: LiteralValue::Bool(false), line: token.line },
+                        // The `Class` is a word of the language and a class
+                        // type of the dialect: a script reads it as the
+                        // class.
+                        "class" => Node::Var { name: token.value.clone(), line: token.line },
                         "in" | "contains" => {
                             return Err(SyntaxError {
                                 message: format!(
@@ -3234,6 +3276,23 @@ mod tests {
         let Node::FunctionDef { parameters, .. } = &statements[0] else { panic!("a definition") };
         assert!(parameters[0].by_ref);
         assert_eq!(parameters[0].name, "a");
+    }
+
+    #[test]
+    fn the_keyword_of_a_class_and_the_class_type_are_told_apart() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a name after the
+        // word `class` makes a declaration, and anything else makes a call
+        // of the class type.
+        let statements = parse("class Foo {\n}").expect("parses");
+        assert!(matches!(&statements[0], Node::ClassDef { .. }));
+        let statements = parse("Class Foo {\n}").expect("parses");
+        assert!(matches!(&statements[0], Node::ClassDef { .. }));
+        let statements = parse("Class(1)").expect("parses");
+        assert!(
+            matches!(&statements[0], Node::Call { name, arguments, .. } if name == "class" && arguments.len() == 1)
+        );
+        let statements = parse("Class").expect("parses");
+        assert!(matches!(&statements[0], Node::Call { name, arguments, .. } if name == "class" && arguments.is_empty()));
     }
 
     #[test]

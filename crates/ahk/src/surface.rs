@@ -50,6 +50,8 @@ pub enum Kind {
     Variable,
     /// A method of a class type.
     Method,
+    /// A class type: a name that a script reads as the class.
+    Class,
 }
 
 impl Kind {
@@ -60,6 +62,7 @@ impl Kind {
             Kind::Function => "function",
             Kind::Variable => "variable",
             Kind::Method => "method",
+            Kind::Class => "class",
         }
     }
 
@@ -69,6 +72,7 @@ impl Kind {
             "command" => Kind::Command,
             "function" => Kind::Function,
             "variable" => Kind::Variable,
+            "class" => Kind::Class,
             _ => Kind::Method,
         }
     }
@@ -225,6 +229,15 @@ fn state_of(kind: Kind, class: &'static str, name: &'static str) -> State {
                 None => State::Value,
                 Some(reason) => State::Refusal(reason),
             }
+        }
+        Kind::Class => {
+            // A class type is a name that a script reads as the class.
+            // Measured on the binary of v2.0.19 on 2026-10-31: the class
+            // is read, and the call of it is a call of its own.
+            if classes::is_a_name_of_a_class(name) {
+                return State::Value;
+            }
+            State::Pending(reason_of_pending(kind, class, name))
         }
         Kind::Method => {
             if classes::carries(class, name) {

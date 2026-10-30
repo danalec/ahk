@@ -1,7 +1,11 @@
 # The AutoHotkey v2.0.19 surface, read out of AutoHotkey64.exe.
 #
-# kind      command, function, variable or method
+# kind      command, function, variable, method or class
 # class     the class a method belongs to, empty otherwise
+#           A row of the kind `class` is a class of the dialect that a
+#           script can read as a class: the name of it is a value, and
+#           its `__Class` is "Class". The class of a hotkey is not one of
+#           them: the name `Hotkey` is a function of the dialect.
 # handler   the address of the handler, in the binary
 # min       the fewest parameters, where the binary states it
 # max       the most parameters, 255 for any number
@@ -17,6 +21,35 @@
 # fewest that the command needs: nine commands need a parameter that
 # the table does not count, and they say so in other words.
 kind	class	name	handler	min	max	variant	flag
+class		Any					
+class		Array					
+class		Buffer					
+class		Class					
+class		ClipboardAll					
+class		ComObject					
+class		ComValue					
+class		Enumerator					
+class		Error					
+class		File					
+class		Func					
+class		Gui					
+class		IndexError					
+class		InputHook					
+class		Map					
+class		MemberError					
+class		MemoryError					
+class		Menu					
+class		MethodError					
+class		Object					
+class		OSError					
+class		PropertyError					
+class		TargetError					
+class		TimeoutError					
+class		TypeError					
+class		UnsetError					
+class		UnsetItemError					
+class		ValueError					
+class		ZeroDivisionError					
 command		BlockInput	0x140024340	1	1		
 command		CallbackCreate	0x140024890	1	3		
 command		CallbackFree	0x140024a30	1	1		
