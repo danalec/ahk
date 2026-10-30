@@ -643,7 +643,7 @@ fn text_of(values: &[Value], index: usize) -> String {
 /// v2 has no boolean: the number one is true and the number zero is
 /// false. An argument that is not a number is the failure of v2, and the
 /// message of v2 names it.
-fn flag_of(values: &[Value], index: usize, name: &str, line: u32) -> Result<bool, RuntimeError> {
+pub(crate) fn flag_of(values: &[Value], index: usize, name: &str, line: u32) -> Result<bool, RuntimeError> {
     let Some(value) = values.get(index) else { return Ok(false) };
     let number = value.to_number_strict().map_err(|_| RuntimeError {
         message: crate::runtime::requires(index + 1, name, TypeName::Number, value),

@@ -310,7 +310,10 @@ pub trait Files {
     }
 
     /// Take a directory away.
-    fn dir_delete(&mut self, _path: &str) -> Result<String, String> {
+    ///
+    /// The flag asks for the folder with the contents of it: v2 has the
+    /// option, and without it a folder that is not empty stays.
+    fn dir_delete(&mut self, _path: &str, _recurse: bool) -> Result<String, String> {
         Err("this desktop cannot delete a directory".to_string())
     }
 

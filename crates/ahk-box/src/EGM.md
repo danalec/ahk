@@ -211,15 +211,18 @@ the attributes, the times, the directories and the ini files.
 | `file_times` / `set_file_times` | `(path) / (path, times)` | The three times of a file: the change, the access and the change of the metadata. |
 | `ini_read` / `ini_write` / `ini_delete` | `(file, section, key)` and so on | An ini of Windows: `[section]`, `key=value`, and `;` for a comment. |
 | `file_exists` / `delete_file` / `create_dir` / `dir_exists` | `(path)` | The four that answer whether something is there, and that take it away or make it. |
+| `dir_delete` | `(path, recurse) -> Result<String, String>` | The folder goes without the contents of it, and the flag asks for the contents too: the delete of a folder of v2 does not take them with it. |
 | `read_the_bytes_of_a_file` | `(path) -> Result<Vec<u8>, String>` | The bytes of a file, as they are: the dialect reads them in the encoding that it asks for, and the machine keeps them as they are. |
 | `append_file` | `(path, bytes, mark) -> Result<String, String>` | The bytes go to the end of the file, and the mark of the encoding is written when the file is made and not when the file is already there. |
 | `letters_of` | private fn | The attributes of a file, in the order of v2. |
 | `the_failure_of_the_machine` | private fn | The failure of the machine, in the words of v2: "(2) The system cannot find the file specified." |
 | `list_files` | `(folder, pattern, mode) -> Result<Vec<String>, String>` | The pattern of v2 is a path: the folder of it is where the files are, and the rest of it is the name of them. The answer comes in the order of the name with the case taken away, and the case of the pattern does not count. |
 
-The wildcards and the recursion are not carried: `FileCopy "a*.txt", "b"`
-and the folders that hold the folders are not in the tree, and the names
-that would ask for them say so.
+The wildcards are not carried: `FileCopy "a*.txt", "b"` and the folders
+that hold the folders are not in the tree, and the names that would ask for
+them say so. The failure of a command is the failure of v2: the copy, the
+move and the delete of a folder fail with "Failed", and the failure of the
+machine is the code of the system in front of what it says.
 
 ### `hotkeys.rs` — the watcher of the keyboard
 

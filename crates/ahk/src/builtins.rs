@@ -873,17 +873,15 @@ fn dir_create(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -
 }
 
 /// `DirDelete`: take a directory away.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the second parameter
+/// is the recursion, and a folder that is not empty stays without it.
 fn dir_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    // The recursive delete of v2 is not carried: the desktop of the box
-    // takes a folder away and says whether it could.
-    if values.len() > 1 {
-        return Err(RuntimeError {
-            message: "the recursive delete is not carried yet.".into(),
-            line,
-        });
-    }
     let path = text_of(values, 0);
-    rt.desktop().dir_delete(&path).map_err(|reason| RuntimeError { message: reason, line })?;
+    let recurse = crate::files::flag_of(values, 1, "DirDelete", line)?;
+    rt.desktop()
+        .dir_delete(&path, recurse)
+        .map_err(|reason| RuntimeError { message: reason, line })?;
     Ok(Value::Text(path))
 }
 

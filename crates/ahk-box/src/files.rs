@@ -23,6 +23,13 @@ use crate::desktop::LabDesktop;
 /// The message of v2 for a key that is not in an ini file.
 const NOT_FOUND: &str = "The requested key, section or file was not found.";
 
+/// The failure of v2 when a copy, a move or the delete of a folder does
+/// not happen.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the dialect does not
+/// say what went wrong, and the failure is of the class `Error`.
+const FAILED: &str = "Failed";
+
 /// The letters of the attributes that the filesystem of the box has.
 ///
 /// The read-only one is the only bit of its own that the machine keeps;
@@ -50,7 +57,7 @@ impl ahk::desktop::Files for LabDesktop {
             }
             _ => return Err(format!("the mode {mode:?} is not one this desktop knows")),
         }
-        let file = options.open(path).map_err(|error| error.to_string())?;
+        let file = options.open(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
         self.files.push(Some(file));
         Ok((self.files.len() - 1) as i64)
     }
@@ -101,19 +108,24 @@ impl ahk::desktop::Files for LabDesktop {
     }
 
     fn delete_file(&mut self, path: &str) -> Result<String, String> {
-        std::fs::remove_file(path)
-            .map_err(|error| format!("the file {path:?} cannot be taken away: {error}"))?;
+        std::fs::remove_file(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
         Ok(format!("deleted the file {path}"))
     }
 
     fn create_dir(&mut self, path: &str) -> Result<String, String> {
-        std::fs::create_dir_all(path)
-            .map_err(|error| format!("the folder {path:?} cannot be made: {error}"))?;
+        std::fs::create_dir_all(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
         Ok(format!("made the directory {path}"))
     }
 
-    fn dir_delete(&mut self, path: &str) -> Result<String, String> {
-        std::fs::remove_dir_all(path).map_err(|error| error.to_string())?;
+    fn dir_delete(&mut self, path: &str, recurse: bool) -> Result<String, String> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the delete of a
+        // folder of v2 does not take the contents of it with it, and a
+        // folder that is not empty is not deleted.
+        if recurse {
+            std::fs::remove_dir_all(path).map_err(|_| FAILED.to_string())?;
+        } else {
+            std::fs::remove_dir(path).map_err(|_| FAILED.to_string())?;
+        }
         Ok(format!("deleted the directory {path}"))
     }
 
@@ -126,7 +138,8 @@ impl ahk::desktop::Files for LabDesktop {
             let here = std::env::current_dir().map_err(|error| error.to_string())?;
             here.join(directory)
         };
-        std::env::set_current_dir(&path).map_err(|error| error.to_string())?;
+        std::env::set_current_dir(&path)
+            .map_err(|error| the_failure_of_the_machine(path.to_string_lossy().as_ref(), &error))?;
         Ok(format!("the working directory is now {}", path.display()))
     }
 
@@ -172,7 +185,7 @@ impl ahk::desktop::Files for LabDesktop {
     }
     fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
         let text = std::fs::read_to_string(path)
-            .map_err(|error| format!("the file {path:?} cannot be read: {error}"))?;
+            .map_err(|error| the_failure_of_the_machine(path, &error))?;
         let mut lines: Vec<String> = text.lines().map(|line| line.to_string()).collect();
         // A file that ends with a newline has no last empty line: the
         // newline is the end of the last line, not a line of its own.
@@ -188,8 +201,7 @@ impl ahk::desktop::Files for LabDesktop {
         }
     }
     fn write_file(&mut self, path: &str, text: &str) -> Result<String, String> {
-        std::fs::write(path, text)
-            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
+        std::fs::write(path, text).map_err(|error| the_failure_of_the_machine(path, &error))?;
         Ok(text.to_string())
     }
     fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
@@ -211,38 +223,33 @@ impl ahk::desktop::Files for LabDesktop {
     fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
         let source = Path::new(from);
         if !source.is_file() {
-            return Err(format!("the file {from:?} is not there."));
+            return Err(FAILED.to_string());
         }
         let target = target_of(source, Path::new(to));
         if target.exists() && !overwrite {
-            return Err(format!("the file {:?} is there already.", target.to_string_lossy()));
+            return Err(FAILED.to_string());
         }
-        fs::copy(source, &target)
-            .map_err(|error| format!("the file {from:?} cannot be copied: {error}"))?;
+        fs::copy(source, &target).map_err(|_| FAILED.to_string())?;
         Ok(format!("copied the file {from} to {}", target.to_string_lossy()))
     }
 
     fn move_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
         let source = Path::new(from);
         if !source.exists() {
-            return Err(format!("the file {from:?} is not there."));
+            return Err(FAILED.to_string());
         }
         let target = target_of(source, Path::new(to));
         if target.exists() {
             if !overwrite {
-                return Err(format!("the file {:?} is there already.", target.to_string_lossy()));
+                return Err(FAILED.to_string());
             }
-            fs::remove_file(&target).map_err(|error| {
-                format!("the file {:?} cannot be taken away: {error}", target.to_string_lossy())
-            })?;
+            fs::remove_file(&target).map_err(|_| FAILED.to_string())?;
         }
         // The rename is the move, unless the file goes to another volume:
         // the copy and the delete are the move then.
         if fs::rename(source, &target).is_err() {
-            fs::copy(source, &target)
-                .map_err(|error| format!("the file {from:?} cannot be moved: {error}"))?;
-            fs::remove_file(source)
-                .map_err(|error| format!("the file {from:?} cannot be taken away: {error}"))?;
+            fs::copy(source, &target).map_err(|_| FAILED.to_string())?;
+            fs::remove_file(source).map_err(|_| FAILED.to_string())?;
         }
         Ok(format!("moved the file {from} to {}", target.to_string_lossy()))
     }
@@ -250,43 +257,40 @@ impl ahk::desktop::Files for LabDesktop {
     fn copy_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
         let source = Path::new(from);
         if !source.is_dir() {
-            return Err(format!("the folder {from:?} is not there."));
+            return Err(FAILED.to_string());
         }
         let target = Path::new(to);
         if target.exists() {
             if !overwrite {
-                return Err(format!("the folder {to:?} is there already."));
+                return Err(FAILED.to_string());
             }
         } else {
-            fs::create_dir_all(target)
-                .map_err(|error| format!("the folder {to:?} cannot be made: {error}"))?;
+            fs::create_dir_all(target).map_err(|_| FAILED.to_string())?;
         }
         // v2 copies the *contents* of the folder: the folder that is
         // there is the one that holds the files.
-        copy_tree(source, target, overwrite)?;
+        copy_tree(source, target, overwrite).map_err(|_| FAILED.to_string())?;
         Ok(format!("copied the folder {from} to {to}"))
     }
 
     fn move_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
         let source = Path::new(from);
         if !source.is_dir() {
-            return Err(format!("the folder {from:?} is not there."));
+            return Err(FAILED.to_string());
         }
         let target = Path::new(to);
         if target.exists() {
             if !overwrite {
-                return Err(format!("the folder {to:?} is there already."));
+                return Err(FAILED.to_string());
             }
             // The folder that is there is merged with the one that
             // comes: the files of the source win, and the ones that are
             // only in the target stay.
-            copy_tree(source, target, true)?;
-            fs::remove_dir_all(source)
-                .map_err(|error| format!("the folder {from:?} cannot be taken away: {error}"))?;
+            copy_tree(source, target, true).map_err(|_| FAILED.to_string())?;
+            fs::remove_dir_all(source).map_err(|_| FAILED.to_string())?;
             return Ok(format!("moved the folder {from} to {to}"));
         }
-        fs::rename(source, target)
-            .map_err(|error| format!("the folder {from:?} cannot be moved: {error}"))?;
+        fs::rename(source, target).map_err(|_| FAILED.to_string())?;
         Ok(format!("moved the folder {from} to {to}"))
     }
 
@@ -330,14 +334,20 @@ impl ahk::desktop::Files for LabDesktop {
     }
 
     fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
-        let metadata =
-            fs::metadata(path).map_err(|error| format!("the file {path:?} cannot be read: {error}"))?;
+        let metadata = fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
         Ok(letters_of(&metadata).into_iter().map(|letter| letter.to_string()).collect())
     }
 
     fn set_file_attributes(&mut self, path: &str, attributes: &[String]) -> Result<String, String> {
-        let metadata =
-            fs::metadata(path).map_err(|error| format!("the file {path:?} cannot be read: {error}"))?;
+        // Measured on the binary of v2.0.19 on 2026-10-31: the attributes of
+        // a file that is not there are not a failure: nothing happens.
+        let metadata = match fs::metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(format!("the attributes of the file {path:?} are not changed"))
+            }
+            Err(error) => return Err(the_failure_of_the_machine(path, &error)),
+        };
         let mut letters = letters_of(&metadata);
         for group in attributes {
             let (operator, wanted) = split_group(group);
@@ -394,8 +404,7 @@ impl ahk::desktop::Files for LabDesktop {
     }
 
     fn file_times(&mut self, path: &str) -> Result<(i64, i64, i64), String> {
-        let metadata =
-            fs::metadata(path).map_err(|error| format!("the file {path:?} cannot be read: {error}"))?;
+        let metadata = fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
         let modified = millis_of(metadata.modified()).unwrap_or(0);
         // The machine that does not keep the time a file was made has
         // none: the time it was changed is the oldest it knows.
@@ -411,10 +420,15 @@ impl ahk::desktop::Files for LabDesktop {
         modified: Option<i64>,
         accessed: Option<i64>,
     ) -> Result<String, String> {
-        let file = fs::OpenOptions::new()
-            .write(true)
-            .open(path)
-            .map_err(|error| format!("the file {path:?} cannot be changed: {error}"))?;
+        // Measured on the binary of v2.0.19 on 2026-10-31: the time of a
+        // file that is not there is not a failure: nothing happens.
+        let file = match fs::OpenOptions::new().write(true).open(path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(format!("the times of the file {path:?} are not changed"))
+            }
+            Err(error) => return Err(the_failure_of_the_machine(path, &error)),
+        };
         let mut times = FileTimes::new();
         if let Some(created) = created {
             times = set_created(times, when_of(created))?;
@@ -888,6 +902,91 @@ mod tests {
         let to = folder.join("b.txt").to_string_lossy().to_string();
         let mut desktop = LabDesktop::new();
         assert!(desktop.copy_file(&from, &to, false).is_err());
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_failure_of_a_copy_is_the_failure_of_v2() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the copy that
+        // does not happen fails with "Failed", and the dialect does not
+        // say what went wrong.
+        let folder = scratch("copy-failed");
+        let from = folder.join("nope.txt").to_string_lossy().to_string();
+        let to = folder.join("b.txt").to_string_lossy().to_string();
+        let mut desktop = LabDesktop::new();
+        assert_eq!(desktop.copy_file(&from, &to, false), Err("Failed".to_string()));
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_failure_of_the_machine_carries_the_code_of_the_system() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the failure of
+        // the machine is the code of the system in front of what it says.
+        let folder = scratch("delete-missing");
+        let path = folder.join("nope.txt").to_string_lossy().to_string();
+        let mut desktop = LabDesktop::new();
+        assert_eq!(
+            desktop.delete_file(&path),
+            Err("(2) The system cannot find the file specified.".to_string())
+        );
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_delete_of_a_folder_that_is_not_empty_fails() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the delete of a
+        // folder of v2 does not take the contents of it with it.
+        let folder = scratch("dir-delete-full");
+        let with = folder.join("with");
+        fs::create_dir_all(&with).expect("the folder of the case");
+        fs::write(with.join("inner.txt"), "hello").expect("the file of the case");
+        let mut desktop = LabDesktop::new();
+        assert_eq!(
+            desktop.dir_delete(&with.to_string_lossy(), false),
+            Err("Failed".to_string())
+        );
+        assert!(with.is_dir(), "the folder is still there");
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_delete_of_a_folder_with_the_recursion_takes_the_contents_with_it() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the second
+        // parameter of the delete of a folder is the recursion.
+        let folder = scratch("dir-delete-recurse");
+        let with = folder.join("with");
+        fs::create_dir_all(&with).expect("the folder of the case");
+        fs::write(with.join("inner.txt"), "hello").expect("the file of the case");
+        let mut desktop = LabDesktop::new();
+        let answer = desktop.dir_delete(&with.to_string_lossy(), true);
+        assert!(answer.is_ok(), "{answer:?}");
+        assert!(!with.exists(), "the folder is gone");
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_attributes_of_a_file_that_is_not_there_are_not_a_failure() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the attributes
+        // of a file that is not there are not a failure: nothing happens.
+        let folder = scratch("attributes-missing");
+        let path = folder.join("nope.txt").to_string_lossy().to_string();
+        let mut desktop = LabDesktop::new();
+        let answer = desktop.set_file_attributes(&path, &["+R".to_string()]);
+        assert!(answer.is_ok(), "{answer:?}");
+        assert!(!Path::new(&path).exists(), "the file was not made");
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_time_of_a_file_that_is_not_there_is_not_a_failure() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the time of a
+        // file that is not there is not a failure: nothing happens.
+        let folder = scratch("times-missing");
+        let path = folder.join("nope.txt").to_string_lossy().to_string();
+        let mut desktop = LabDesktop::new();
+        let answer = desktop.set_file_times(&path, None, Some(1577836800000), None);
+        assert!(answer.is_ok(), "{answer:?}");
+        assert!(!Path::new(&path).exists(), "the file was not made");
         let _ = fs::remove_dir_all(&folder);
     }
 

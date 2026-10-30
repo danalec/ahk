@@ -577,6 +577,9 @@ Four modules that answer what the runtime used to answer with a reason.
   and the unit comes last: `DateAdd(date, amount, unit)`.
 - `files.rs` -- the files of the machine, in the dialect of v2: the copy,
   the move, the attributes, the times, the directories and the ini files.
+  The failure of a command is the failure of v2: the code of the system in
+  front of what it says for the failure of the machine, and "Failed" for a
+  copy, a move or the delete of a folder that does not happen.
   The names that *set* something take the value first
   (`FileSetTime "20000101000000", file, "M"`), and the ones that *read* it
   take the file first. `FileExist` answers with the attributes of the file

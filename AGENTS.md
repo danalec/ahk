@@ -3366,9 +3366,39 @@ The comparison of the tree with the binary is in
 different. The order of the checks is in
 `egm-review/compare_check_order.py`.
 
-One gap is left in the files: the `FileGetAttrib` of a file that is not
-there fails with the reason of the machine, where v2 answers with an empty
-text.
+The gap of the files is closed in section 70: the `FileGetAttrib` of a
+file that is not there fails with the reason of the machine, and v2 fails
+with it too.
+
+## 70. The failure of a file command is the failure of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the dialect does not say
+what went wrong when a copy, a move or the delete of a folder does not
+happen, and the failure of the machine is the code of the system in front of
+what it says.
+
+- **The failure of the machine is the code of the system in front of what
+  it says.** "(2) The system cannot find the file specified." is the
+  message of the dialect, and the failure is of the class `OSError`. The
+  commands that read a file that is not there fail with it: `FileGetAttrib`,
+  `FileGetSize`, `FileGetTime`, `FileRead` and `FileOpen`. The delete of a
+  file that is not there fails with it too, and so does the working
+  directory that is not there.
+- **A copy, a move and the delete of a folder fail with "Failed".** The
+  dialect does not say what went wrong, and the failure is of the class
+  `Error`: the file that is not there, the folder that is not there, the
+  target that is there without the flag of the overwrite, and the folder
+  that is not empty.
+- **The delete of a folder does not take the contents of it with it.** The
+  second parameter of `DirDelete` is the recursion, and a folder that is
+  not empty stays without it.
+- **The time and the attributes of a file that is not there are not a
+  failure.** Nothing happens, and the file is not made.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_files_failures3.py` (15 cases),
+`egm-review/compare_files_failures4.py` (8 cases) and
+`egm-review/compare_files_read2.py` (10 cases).
 
 ## 69. A built-in variable that the dialect lets a script write is written
 
