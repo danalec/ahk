@@ -911,6 +911,9 @@ that asks for another one is refused with the reason.
   `InputHook` and the `Gui.TreeView` are in it, and a name of a class
   that the tree does not carry is refused with the reason of the runtime
   and not with the words of the dialect.
+- **The static methods of a class are handed over as values.** Every
+  class has the methods of the base object as static ones, and the call
+  of the class is one of them.
 
 ## Side Effects
 

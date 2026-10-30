@@ -2770,14 +2770,9 @@ impl<'a> Runtime<'a> {
         // has no class of that name, and cannot extend one.
         if !self.classes.contains_key(&class.to_lowercase()) {
             let values = self.evaluate_all(arguments)?;
-            if let Some(result) = crate::classes::construct(class, &values, self, line) {
-                return result;
-            }
+            return self.construct_with_values(class, &values, line);
         }
-        let object = Value::Object(Rc::new(RefCell::new(Object {
-            class: class.to_lowercase(),
-            properties: BTreeMap::new(),
-        })));
+        let object = self.the_object_of_a_class(class);
         // The `__Init` of v2 runs before the `__New`, and the variables of
         // the class are assigned in it.
         self.call_the_init(class, &object, line)?;
@@ -2791,6 +2786,38 @@ impl<'a> Runtime<'a> {
             });
         }
         Ok(object)
+    }
+
+    /// The object a class makes, with the arguments already read.
+    fn construct_with_values(
+        &mut self,
+        class: &str,
+        values: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        if !self.classes.contains_key(&class.to_lowercase()) {
+            if let Some(result) = crate::classes::construct(class, values, self, line) {
+                return result;
+            }
+        }
+        let object = self.the_object_of_a_class(class);
+        self.call_the_init(class, &object, line)?;
+        if let Some((defining, method)) = self.find_the_instance_method_in(class, "__new") {
+            let result = self.call_method_with(&defining, &method, &object, values, line)?;
+            return Ok(match result {
+                Value::Object(_) => result,
+                _ => object,
+            });
+        }
+        Ok(object)
+    }
+
+    /// The object of a class: an object of that class, with nothing in it.
+    fn the_object_of_a_class(&self, class: &str) -> Value {
+        Value::Object(Rc::new(RefCell::new(Object {
+            class: class.to_lowercase(),
+            properties: BTreeMap::new(),
+        })))
     }
 
     /// The `__Init` of an instance, the way v2 calls it.
@@ -3090,6 +3117,14 @@ impl<'a> Runtime<'a> {
             if name.eq_ignore_ascii_case("clone") {
                 return Ok(self.clone_of_a_class(target));
             }
+            // The methods of a class are the static ones, and the tree
+            // hands them over as values.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31.
+            if name.eq_ignore_ascii_case("getmethod") {
+                let values = self.evaluate_all(arguments)?;
+                return self.the_static_method(target, &values, line);
+            }
         }
         // The automatic `__Init` of the class, the one that carries the
         // variables: `d.__Init()` runs it again.
@@ -3324,6 +3359,61 @@ impl<'a> Runtime<'a> {
         value.borrow().properties.get("prototype").cloned()
     }
 
+    /// The static method of a class, as a value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: every class has
+    /// the methods of the base object as static ones -- `HasProp`,
+    /// `HasMethod`, `GetMethod`, `HasBase`, `OwnProps`, `HasOwnProp`,
+    /// `DefineProp`, `DeleteProp`, `GetOwnPropDesc` and `Clone` -- and
+    /// the call of the class is one of them.
+    fn the_static_method(
+        &mut self,
+        target: &Value,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let Some(name) = arguments.first().map(|value| value.to_text()) else {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "GetMethod needs a name.".to_string(),
+                line,
+            }));
+        };
+        let lower = name.to_lowercase();
+        if !crate::classes::the_static_methods_of_a_class().contains(&lower.as_str()) {
+            // The class does not have the method: the words of the
+            // dialect say so, and the name of the method goes in the
+            // `What`.
+            return Err(crate::classes::named(self.no_method(target, &name, line), "GetMethod"));
+        }
+        // The name of the method is the way v2 spells it, and the object
+        // is one of the arguments of the call.
+        let spelled = if lower == "call" {
+            let class = self.class_name_of(target).unwrap_or_default();
+            format!("{}.Call", crate::classes::the_spelling_of(&class))
+        } else {
+            crate::classes::the_name_of_a_method_of_the_base_object(&lower)
+        };
+        let (min, max) = crate::classes::the_arity_of("object", &lower).unwrap_or((0, 0));
+        Ok(self.method_reference_of_the_base_object(&spelled, &lower, min + 1, max + 1))
+    }
+
+    /// The reference of a static method of a class.
+    ///
+    /// The reference is the method, and the object is one of the
+    /// arguments of the call.
+    fn method_reference_of_the_base_object(&self, spelled: &str, method: &str, min: i64, max: i64) -> Value {
+        let mut properties = BTreeMap::new();
+        properties.insert("name".to_string(), Value::Text(spelled.to_string()));
+        properties.insert("minparams".to_string(), Value::Int(min));
+        properties.insert("maxparams".to_string(), Value::Int(max));
+        properties.insert("isbuiltin".to_string(), Value::Int(1));
+        properties.insert("isvariadic".to_string(), Value::Int(0));
+        // The class and the name of the method: the reference calls them.
+        properties.insert(METHOD_CLASS.to_string(), Value::Text("object".to_string()));
+        properties.insert(METHOD_NAME.to_string(), Value::Text(method.to_string()));
+        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+    }
+
     /// The copy of an object: the state of it is copied, and the class of
     /// it is the same.
     fn clone_of_an_object(&self, target: &Value) -> Value {
@@ -3361,7 +3451,7 @@ impl<'a> Runtime<'a> {
     /// The methods of the base object are the same for every class: they
     /// ask about the object itself. The class of the script inherits them
     /// without writing them.
-    fn base_method(
+    pub(crate) fn base_method(
         &mut self,
         target: &Value,
         name: &str,
@@ -3402,8 +3492,25 @@ impl<'a> Runtime<'a> {
             "clone" => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // copy of an object is an object of the same class, and
-                // the state of it is copied.
+                // the state of it is copied. The copy of the base object
+                // refuses an object of a class of the runtime that has a
+                // copy of its own: the type of the argument is not the
+                // one that is wanted.
+                if crate::classes::the_method_of(&class, "clone").is_some() {
+                    return Some(Err(RuntimeFailure::Error(RuntimeError {
+                        message: "Type mismatch.".to_string(),
+                        line,
+                    })));
+                }
                 Some(Ok(self.clone_of_an_object(target)))
+            }
+            "call" => {
+                // The call of a class value makes an object of the class:
+                // the static method of a class is the call of it.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31.
+                let class = self.class_name_of(target)?;
+                Some(self.construct_with_values(&class, arguments, line))
             }
             "hasprop" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {

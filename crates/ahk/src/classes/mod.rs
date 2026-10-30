@@ -118,8 +118,9 @@ const METHODS: [(&str, &str, &str, i64, i64); 54] = [
 ///
 /// The methods of the base object are the ones every object has, and the
 /// class of them is `object`.
-const CALLS: [(&str, &str, i64, i64); 59] = [
+const CALLS: [(&str, &str, i64, i64); 60] = [
     ("object", "ownprops", 0, 0),
+    ("object", "clone", 0, 0),
     ("object", "hasownprop", 1, 1),
     ("object", "defineprop", 2, 2),
     ("object", "deleteprop", 1, 1),
@@ -256,12 +257,13 @@ const THE_BASE_OBJECT: [&str; 7] = [
 ///
 /// The binary spells five of them with the class in front, and the four
 /// that the script asks about every day plainly.
-const BASE: [(&str, &str); 9] = [
+const BASE: [(&str, &str); 10] = [
     ("ownprops", "Object.Prototype.OwnProps"),
     ("hasownprop", "Object.Prototype.HasOwnProp"),
     ("defineprop", "Object.Prototype.DefineProp"),
     ("deleteprop", "Object.Prototype.DeleteProp"),
     ("getownpropdesc", "Object.Prototype.GetOwnPropDesc"),
+    ("clone", "Object.Prototype.Clone"),
     ("hasprop", "HasProp"),
     ("hasmethod", "HasMethod"),
     ("getmethod", "GetMethod"),
@@ -350,6 +352,29 @@ pub(crate) fn the_arity_of(class: &str, method: &str) -> Option<(i64, i64)> {
         None => CALLS.iter().find(|(owner, name, _, _)| *owner == "object" && *name == method),
     };
     found.map(|(_, _, min, max)| (*min, *max))
+}
+
+/// The methods that every class has as static ones.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
+/// base object are the static methods of every class -- `HasProp`,
+/// `HasMethod`, `GetMethod`, `HasBase`, `OwnProps`, `HasOwnProp`,
+/// `DefineProp`, `DeleteProp`, `GetOwnPropDesc` and `Clone` -- and the
+/// call of the class is one of them.
+pub(crate) fn the_static_methods_of_a_class() -> [&'static str; 11] {
+    [
+        "call",
+        "clone",
+        "defineprop",
+        "deleteprop",
+        "getmethod",
+        "getownpropdesc",
+        "hasbase",
+        "hasmethod",
+        "hasownprop",
+        "hasprop",
+        "ownprops",
+    ]
 }
 
 /// The name of a member of a class, the way v2 names it in a failure.
@@ -851,6 +876,9 @@ fn call_once(
         "func" => func::call(method, this, arguments, rt, line),
         "hotkey" => hotkey::call(method, this, arguments, rt, line),
         "map" => map::call(method, this, arguments, rt, line),
+        // The methods of the base object are the methods of every object,
+        // and they are answered by the runtime.
+        "object" => rt.base_method(this, method, arguments, line),
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::call(class, method, this, arguments, rt, line)
         }

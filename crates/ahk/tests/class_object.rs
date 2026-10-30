@@ -133,6 +133,55 @@ fn the_call_of_a_class_value_makes_an_object() {
 }
 
 #[test]
+fn the_static_methods_of_a_class_are_handed_over_as_values() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: every class has
+    // the methods of the base object as static ones, and the call of the
+    // class is one of them.
+    assert_eq!(the_answer_of("c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f.Name"), "HasProp");
+    assert_eq!(
+        the_answer_of("c := Map\nf := c.GetMethod(\"OwnProps\")\nMsgBox f.Name"),
+        "Object.Prototype.OwnProps"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nf := c.GetMethod(\"Call\")\nMsgBox f.Name"),
+        "Map.Call"
+    );
+    // The object is one of the arguments of the call.
+    assert_eq!(
+        the_answer_of("c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f.MinParams \" \" f.MaxParams"),
+        "2 2"
+    );
+    assert_eq!(the_answer_of("c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f(Map(), \"x\")"), "0");
+    assert_eq!(
+        the_answer_of("c := Map\nf := c.GetMethod(\"Call\")\nMsgBox f(c).__Class"),
+        "Map"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nf := c.GetMethod(\"Clone\")\nMsgBox f(Object()).__Class"),
+        "Object"
+    );
+}
+
+#[test]
+fn the_method_a_class_does_not_have_is_refused_with_the_words_of_the_dialect() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    assert_eq!(
+        the_failure_of("c := Map\nf := c.GetMethod(\"Get\")"),
+        "This value of type \"Class\" has no method named \"Get\". | GetMethod |"
+    );
+}
+
+#[test]
+fn the_copy_of_the_base_object_refuses_a_class_that_has_a_copy_of_its_own() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the type of the
+    // argument is not the one that is wanted.
+    assert_eq!(
+        the_failure_of("c := Map\nf := c.GetMethod(\"Clone\")\nf(Map())"),
+        "Type mismatch. | Object.Prototype.Clone |"
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

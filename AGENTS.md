@@ -3791,3 +3791,34 @@ object is the one that follows the table of the `Map`.
 The table of the surface has 810 entries and 762 distinct names, and the
 parity test of the tree (`crates/ahk/tests/surface.rs`) asks the tree
 about every one of them.
+
+## 80. The static methods of a class are handed over as values
+
+Measured on the binary of v2.0.19 on 2026-10-31: every class has the
+methods of the base object as static ones, and the call of the class is
+one of them. The tree refused them with the reason of the runtime.
+
+- **The static methods of a class are the methods of the base object.**
+  `c.GetMethod("HasProp")` is a value, and so are `OwnProps`,
+  `HasOwnProp`, `DefineProp`, `DeleteProp`, `GetOwnPropDesc`, `Clone`,
+  `HasMethod`, `GetMethod` and `HasBase`. The name of the value is the
+  way v2 spells it: "HasProp" and "Object.Prototype.OwnProps".
+- **The call of the class is one of them.** `c.GetMethod("Call")` is the
+  call of the class, and it makes an object of it.
+- **The object is one of the arguments of the call.** The reference of
+  the `HasProp` takes two arguments, and the reference of the `OwnProps`
+  takes one.
+- **A method that the class does not have is refused with the words of
+  the dialect.** `c.GetMethod("Get")` is refused with `This value of
+  type "Class" has no method named "Get".` and the name of the method
+  goes in the `What`.
+- **The copy of the base object refuses a class that has a copy of its
+  own.** The copy of a `Map` through the static copy is refused with
+  "Type mismatch." and the `What` "Object.Prototype.Clone".
+
+The comparison of the tree with the binary is in
+`egm-review/compare_static_methods.py` (7 cases: every one of them is
+the same) and in `egm-review/compare_static_methods2.py` (12 cases: 11
+are the same, and the one that is not is the `GetMethod("Prototype")`,
+where the words of the binary are about the prototype and not about the
+class).
