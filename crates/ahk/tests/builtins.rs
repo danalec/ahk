@@ -1470,42 +1470,121 @@ fn a_desktop_that_cannot_read_the_clipboard_fails_the_wait_with_the_reason() {
 fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thing() {
     // The fourteen names of the shape shared one reason, and that reason
     // hid fourteen different things.
-    for (name, reason) in [
+    for (name, source, reason) in [
         (
+            "Critical",
             "Critical",
             "this runtime runs one script in one thread, and it cannot make it critical.",
         ),
         (
             "Thread",
+            // v2 refuses a `Thread` that carries no argument, and the
+            // refusal comes before the reason of this runtime: measured on
+            // the binary of v2.0.19 on 2026-10-31.
+            "Thread(1)",
             "this runtime runs one script in one thread, and it cannot start another.",
         ),
         (
+            "Pause",
             "Pause",
             "this runtime cannot wait for a key to continue: the script ends when it ends.",
         ),
         (
             "Persistent",
+            "Persistent",
             "this runtime is a script that ends when it ends, and it cannot be kept alive.",
         ),
         (
             "Reload",
+            "Reload",
             "this runtime runs one script once, and it cannot run itself again.",
         ),
-        ("Suspend", "this runtime cannot stop itself: it would never end."),
+        ("Suspend", "Suspend", "this runtime cannot stop itself: it would never end."),
         (
+            "ListLines",
             "ListLines",
             "the lines are listed in a window of v2, and this runtime has no window to show them in.",
         ),
         (
             "ListVars",
+            "ListVars",
             "the variables are listed in a window of v2, and this runtime has no window to show them in.",
         ),
     ] {
-        let report = run(name);
+        let report = run(source);
         assert_eq!(failure_of(&report), reason, "{name}");
         // The reason of the name is the one that the surface says.
         assert_eq!(ahk::builtins::refusal_of(name), Some(reason), "{name}");
     }
+}
+
+#[test]
+fn a_command_says_how_many_parameters_it_wants() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a command whose
+    // parameters are all needed is refused at the load, and the refusal
+    // is the one of the count.
+    let report = run("PixelGetColor()");
+    assert_eq!(
+        failure_of(&report),
+        "Too few parameters passed to function. Specifically: PixelGetColor"
+    );
+}
+
+#[test]
+fn a_command_says_when_there_are_too_many_parameters() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `MsgBox` takes
+    // three parameters, and a fourth is refused.
+    let report = run("MsgBox(\"a\", \"b\", \"c\", \"d\")");
+    assert_eq!(
+        failure_of(&report),
+        "Too many parameters passed to function. Specifically: MsgBox"
+    );
+}
+
+#[test]
+fn a_parameter_that_may_not_be_left_out_is_named() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `FileGetAttrib`
+    // declares that its parameter may be left out, and the command needs
+    // it. The refusal names the parameter and not the count.
+    let report = run("FileGetAttrib()");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of FileGetAttrib must not be omitted in this case."
+    );
+}
+
+#[test]
+fn the_drag_names_the_parameter_it_needs() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the drag needs the
+    // place where it ends, and it names the first one that is missing.
+    let report = run("MouseClickDrag()");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #4 of MouseClickDrag must not be omitted in this case."
+    );
+    let report = run("MouseClickDrag(\"Left\", 1, 2, 3)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #5 of MouseClickDrag must not be omitted in this case."
+    );
+}
+
+#[test]
+fn the_failure_of_an_omitted_parameter_carries_no_name() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
+    // parameter that may not be left out has an empty `What` and an empty
+    // `Extra`: the message carries the whole of it.
+    let report = run(concat!(
+        "try\n",
+        "  FileGetAttrib()\n",
+        "catch as e\n",
+        "  MsgBox e.What \"|\" e.Extra \"|\" e.Message\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["||Parameter #1 of FileGetAttrib must not be omitted in this case."]
+    );
 }
 
 #[test]

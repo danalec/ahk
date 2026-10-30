@@ -4109,6 +4109,25 @@ impl<'a> Runtime<'a> {
                 line,
             ));
         }
+        // A command may declare fewer parameters than it needs: the table
+        // of the binary says how many the command takes, and the command
+        // says which one it cannot do without. The refusal of v2 names
+        // the parameter and not the count, and it comes before the kind
+        // of the values that are there.
+        for number in crate::builtins::required_parameters(builtin.name) {
+            if values.len() < *number as usize {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError {
+                        message: format!(
+                            "Parameter #{number} of {} must not be omitted in this case.",
+                            builtin.name
+                        ),
+                        line,
+                    },
+                    Detail { what: String::new(), extra: String::new() },
+                ));
+            }
+        }
         // A reference is for the parameters that are written back: the
         // rest want a value, and v2 says which parameter got one and what
         // the built-in wanted there.

@@ -8,251 +8,257 @@
 # variant   the byte that picks the flavour of a shared handler
 # flag      the byte beside it
 #
-# The command entries keep their arity in a packing that was not
-# decoded, so their arity columns are empty rather than wrong.
+# The arity of the function entries is in the binary. The arity of the
+# command entries was not: it is kept in a packing that was not decoded,
+# and it was measured on the binary on 2026-10-31 instead -- the call
+# that asks for too few is refused at the load, and the call that asks
+# for too many is refused as well, so the two refusals say where the
+# bounds are. The fewest that the binary declares is not always the
+# fewest that the command needs: nine commands need a parameter that
+# the table does not count, and they say so in other words.
 kind	class	name	handler	min	max	variant	flag
-command		BlockInput	0x140024340				
-command		CallbackCreate	0x140024890				
-command		CallbackFree	0x140024a30				
-command		ClipWait	0x14003f038				
-command		ControlAddItem	0x14006e160				
-command		ControlChooseIndex	0x14006e490				
-command		ControlChooseString	0x14006e6a0				
-command		ControlClick	0x1400407f0				
-command		ControlDeleteItem	0x14006e270				
-command		ControlFindItem	0x14006e940				
-command		ControlFocus	0x140041840				
-command		ControlGetChecked	0x14006dd60				
-command		ControlGetChoice	0x14006eb20				
-command		ControlGetClassNN	0x1400415d0				
-command		ControlGetEnabled	0x140041c20				
-command		ControlGetExStyle	0x14006dec0				
-command		ControlGetFocus	0x140041530				
-command		ControlGetHwnd	0x14006f6a0				
-command		ControlGetIndex	0x14006ea40				
-command		ControlGetItems	0x14006ecf0				
-command		ControlGetPos	0x1400413f0				
-command		ControlGetStyle	0x14006de60				
-command		ControlGetText	0x1400419c0				
-command		ControlGetVisible	0x1400411c0				
-command		ControlHide	0x140041150				
-command		ControlHideDropDown	0x14006dff0				
-command		ControlMove	0x140041220				
-command		ControlSend	0x140040710				
-command		ControlSendText	0x140040780				
-command		ControlSetChecked	0x14006dae0				
-command		ControlSetEnabled	0x140041c10				
-command		ControlSetExStyle	0x14006de30				
-command		ControlSetStyle	0x14006de00				
-command		ControlSetText	0x140041920				
-command		ControlShow	0x1400410e0				
-command		ControlShowDropDown	0x14006dfd0				
-command		CoordMode	0x14003a890				
-command		Critical	0x14006a190				
-command		DateAdd	0x14002fd40				
-command		DateDiff	0x14002fed0				
-command		DetectHiddenText	0x14003b990				
-command		DetectHiddenWindows	0x14003b8c0				
-command		DirCopy	0x140029880				
-command		DirCreate	0x140029980				
-command		DirDelete	0x1400299d0				
-command		DirExist	0x140029870				
-command		DirMove	0x1400298d0				
-command		DirSelect	0x14006fb70				
-command		Download	0x14006f700				
-command		DriveEject	0x140026bb4				
-command		DriveGetCapacity	0x140026a6c				
-command		DriveGetFilesystem	0x140026e54				
-command		DriveGetLabel	0x140026ed0				
-command		DriveGetList	0x140026cf8				
-command		DriveGetSerial	0x140026f50				
-command		DriveGetSpaceFree	0x140026a74				
-command		DriveGetStatus	0x1400270ac				
-command		DriveGetStatusCD	0x140027158				
-command		DriveGetType	0x140026fc8				
-command		DriveLock	0x140026ce8				
-command		DriveRetract	0x140026bbc				
-command		DriveSetLabel	0x140026bc4				
-command		DriveUnlock	0x140026cf0				
-command		Edit	0x1400470c0				
-command		EditGetCurrentCol	0x14006f130				
-command		EditGetCurrentLine	0x14006f090				
-command		EditGetLine	0x14006f270				
-command		EditGetLineCount	0x14006f000				
-command		EditGetSelectedText	0x14006f420				
-command		EditPaste	0x14006e880				
-command		EnvGet	0x14002728c				
-command		EnvSet	0x140027368				
-command		Exit	0x1400473f0				
-command		ExitApp	0x140047420				
-command		FileAppend	0x140027fe0				
-command		FileCopy	0x1400288c0				
-command		FileCreateShortcut	0x1400701d0				
-command		FileDelete	0x140028560				
-command		FileEncoding	0x14003c6b0				
-command		FileExist	0x140029860				
-command		FileGetAttrib	0x1400289c0				
-command		FileGetShortcut	0x14006ff30				
-command		FileGetSize	0x140029520				
-command		FileGetTime	0x140029170				
-command		FileGetVersion	0x1400704b0				
-command		FileInstall	0x140028870				
-command		FileMove	0x140028940				
-command		FileRead	0x140027880				
-command		FileRecycle	0x1400703a0				
-command		FileRecycleEmpty	0x140070480				
-command		FileSelect	0x140067a00				
-command		FileSetAttrib	0x140028a40				
-command		FileSetTime	0x140029300				
-command		GetKeyName	0x140069440				
-command		GetKeySC	0x140069370				
-command		GetKeyState	0x140069140				
-command		GetKeyVK	0x140069230				
-command		GroupActivate	0x140040280				
-command		GroupAdd	0x140040200				
-command		GroupClose	0x1400403d0				
-command		GroupDeactivate	0x140040310				
-command		GuiCtrlFromHwnd	0x14007c840				
-command		GuiFromHwnd	0x14007c760				
-command		HotIf	0x140069ca0				
-command		HotIfWinActive	0x140069eb0				
-command		HotIfWinExist	0x140069f10				
-command		HotIfWinNotActive	0x140069ee0				
-command		HotIfWinNotExist	0x140069f40				
-command		Hotkey	0x140069ad0				
-command		Hotstring	0x14001bc00				
-command		IL_Add	0x14006aa00				
-command		IL_Create	0x14006a940				
-command		IL_Destroy	0x14006a9e0				
-command		ImageSearch	0x140030a50				
-command		IniDelete	0x14009c8e0				
-command		IniRead	0x14009c440				
-command		IniWrite	0x14009c780				
-command		InputBox	0x14002cdc0				
-command		InstallKeybdHook	0x140068900				
-command		InstallMouseHook	0x140068910				
-command		IsLabel	0x140068b50				
-command		KeyHistory	0x140066780				
-command		KeyWait	0x14003f0ec				
-command		ListHotkeys	0x140066770				
-command		ListLines	0x1400666f0				
-command		ListVars	0x140066760				
-command		ListViewGetContent	0x140041c80				
-command		LoadPicture	0x14006ab30				
-command		MenuFromHandle	0x14006a900				
-command		MenuSelect	0x14006d640				
-command		MonitorGet	0x14002756c				
-command		MonitorGetCount	0x1400273e0				
-command		MonitorGetName	0x1400275bc				
-command		MonitorGetPrimary	0x14002742c				
-command		MonitorGetWorkArea	0x140027594				
-command		MouseClick	0x140023ff0				
-command		MouseClickDrag	0x140024180				
-command		MouseGetPos	0x140067530				
-command		MouseMove	0x140024290				
-command		MsgBox	0x140066df0				
-command		OnClipboardChange	0x14006a850				
-command		OnError	0x14006a8c0				
-command		OnExit	0x14006a8e0				
-command		OnMessage	0x14006a3a0				
-command		OutputDebug	0x14006a350				
-command		Pause	0x140063370				
-command		Persistent	0x140068810				
-command		PixelGetColor	0x14006d460				
-command		PixelSearch	0x1400309f0				
-command		PostMessage	0x140042860				
-command		ProcessClose	0x1400317a8				
-command		ProcessExist	0x140031758				
-command		ProcessGetName	0x1400318c0				
-command		ProcessGetParent	0x140031770				
-command		ProcessGetPath	0x1400318c8				
-command		ProcessSetPriority	0x14003199c				
-command		ProcessWait	0x14003198c				
-command		ProcessWaitClose	0x140031994				
-command		Reload	0x1400472f0				
-command		Run	0x140031ac8				
-command		RunAs	0x14006cfd0				
-command		Send	0x140023f00				
-command		SendEvent	0x140023f80				
-command		SendInput	0x140023f40				
-command		SendLevel	0x14003a980				
-command		SendMessage	0x140042850				
-command		SendMode	0x14003a8a0				
-command		SendPlay	0x140023f70				
-command		SendText	0x140023f20				
-command		SetCapsLockState	0x140023fb0				
-command		SetControlDelay	0x14003abb0				
-command		SetDefaultMouseSpeed	0x14003a9b0				
-command		SetKeyDelay	0x14003a9e0				
-command		SetMouseDelay	0x14003aad0				
-command		SetNumLockState	0x140023f90				
-command		SetRegView	0x14003c960				
-command		SetScrollLockState	0x140023fd0				
-command		SetStoreCapsLockMode	0x14003c1c0				
-command		SetTimer	0x140069f70				
-command		SetTitleMatchMode	0x14003b4a0				
-command		SetWinDelay	0x14003ab80				
-command		SetWorkingDir	0x140067900				
-command		Shutdown	0x1400710f0				
-command		Sleep	0x14006a180				
-command		SoundBeep	0x140035170				
-command		SoundPlay	0x140034fe8				
-command		StatusBarGetText	0x140042410				
-command		StatusBarWait	0x140042480				
-command		StrSplit	0x140036810				
-command		Suspend	0x140063320				
-command		SysGet	0x140027388				
-command		SysGetIPAddresses	0x14006d050				
-command		Thread	0x14006a240				
-command		ToolTip	0x140067080				
-command		TraySetIcon	0x1400469f0				
-command		TrayTip	0x140065140				
-command		WinActivate	0x140040140				
-command		WinActivateBottom	0x1400401a0				
-command		WinClose	0x140040040				
-command		WinGetClass	0x140042ef0				
-command		WinGetClientPos	0x140044490				
-command		WinGetControls	0x140043fb0				
-command		WinGetControlsHwnd	0x140043fd0				
-command		WinGetCount	0x1400431d0				
-command		WinGetExStyle	0x140043670				
-command		WinGetID	0x1400433e0				
-command		WinGetIDLast	0x140043420				
-command		WinGetList	0x140043280				
-command		WinGetMinMax	0x1400435b0				
-command		WinGetPID	0x140043460				
-command		WinGetPos	0x1400443d0				
-command		WinGetProcessName	0x140043570				
-command		WinGetProcessPath	0x140043590				
-command		WinGetStyle	0x140043620				
-command		WinGetText	0x1400441b0				
-command		WinGetTitle	0x140042e20				
-command		WinGetTransColor	0x140043910				
-command		WinGetTransparent	0x1400438a0				
-command		WinHide	0x1400400c0				
-command		WinKill	0x140040070				
-command		WinMaximize	0x1400400e0				
-command		WinMinimize	0x140040100				
-command		WinMinimizeAll	0x140044f30				
-command		WinMinimizeAllUndo	0x140044f80				
-command		WinMove	0x140040600				
-command		WinMoveBottom	0x140042d60				
-command		WinMoveTop	0x140042cf0				
-command		WinRedraw	0x140042cb0				
-command		WinRestore	0x140040120				
-command		WinSetAlwaysOnTop	0x140042bf0				
-command		WinSetEnabled	0x140041be0				
-command		WinSetExStyle	0x140043870				
-command		WinSetRegion	0x1400428b0				
-command		WinSetStyle	0x140043840				
-command		WinSetTitle	0x140042dd0				
-command		WinSetTransColor	0x140043b30				
-command		WinSetTransparent	0x140043ac0				
-command		WinShow	0x1400400a0				
-command		WinWait	0x14003f600				
-command		WinWaitActive	0x14003f658				
-command		WinWaitClose	0x14003f62c				
-command		WinWaitNotActive	0x14003f684				
+command		BlockInput	0x140024340	1	1		
+command		CallbackCreate	0x140024890	1	3		
+command		CallbackFree	0x140024a30	1	1		
+command		ClipWait	0x14003f038	0	2		
+command		ControlAddItem	0x14006e160	2	6		
+command		ControlChooseIndex	0x14006e490	2	6		
+command		ControlChooseString	0x14006e6a0	2	6		
+command		ControlClick	0x1400407f0	0	8		
+command		ControlDeleteItem	0x14006e270	2	6		
+command		ControlFindItem	0x14006e940	2	6		
+command		ControlFocus	0x140041840	1	5		
+command		ControlGetChecked	0x14006dd60	1	5		
+command		ControlGetChoice	0x14006eb20	1	5		
+command		ControlGetClassNN	0x1400415d0	1	5		
+command		ControlGetEnabled	0x140041c20	1	5		
+command		ControlGetExStyle	0x14006dec0	1	5		
+command		ControlGetFocus	0x140041530	0	4		
+command		ControlGetHwnd	0x14006f6a0	1	5		
+command		ControlGetIndex	0x14006ea40	1	5		
+command		ControlGetItems	0x14006ecf0	1	5		
+command		ControlGetPos	0x1400413f0	0	9		
+command		ControlGetStyle	0x14006de60	1	5		
+command		ControlGetText	0x1400419c0	1	5		
+command		ControlGetVisible	0x1400411c0	1	5		
+command		ControlHide	0x140041150	1	5		
+command		ControlHideDropDown	0x14006dff0	1	5		
+command		ControlMove	0x140041220	0	9		
+command		ControlSend	0x140040710	1	6		
+command		ControlSendText	0x140040780	1	6		
+command		ControlSetChecked	0x14006dae0	2	6		
+command		ControlSetEnabled	0x140041c10	2	6		
+command		ControlSetExStyle	0x14006de30	2	6		
+command		ControlSetStyle	0x14006de00	2	6		
+command		ControlSetText	0x140041920	2	6		
+command		ControlShow	0x1400410e0	1	5		
+command		ControlShowDropDown	0x14006dfd0	1	5		
+command		CoordMode	0x14003a890	1	2		
+command		Critical	0x14006a190	0	1		
+command		DateAdd	0x14002fd40	3	3		
+command		DateDiff	0x14002fed0	3	3		
+command		DetectHiddenText	0x14003b990	1	1		
+command		DetectHiddenWindows	0x14003b8c0	1	1		
+command		DirCopy	0x140029880	2	3		
+command		DirCreate	0x140029980	1	1		
+command		DirDelete	0x1400299d0	1	2		
+command		DirExist	0x140029870	1	1		
+command		DirMove	0x1400298d0	2	3		
+command		DirSelect	0x14006fb70	0	3		
+command		Download	0x14006f700	2	2		
+command		DriveEject	0x140026bb4	0	1		
+command		DriveGetCapacity	0x140026a6c	1	1		
+command		DriveGetFilesystem	0x140026e54	1	1		
+command		DriveGetLabel	0x140026ed0	1	1		
+command		DriveGetList	0x140026cf8	0	1		
+command		DriveGetSerial	0x140026f50	1	1		
+command		DriveGetSpaceFree	0x140026a74	1	1		
+command		DriveGetStatus	0x1400270ac	1	1		
+command		DriveGetStatusCD	0x140027158	0	1		
+command		DriveGetType	0x140026fc8	1	1		
+command		DriveLock	0x140026ce8	1	1		
+command		DriveRetract	0x140026bbc	0	1		
+command		DriveSetLabel	0x140026bc4	1	2		
+command		DriveUnlock	0x140026cf0	1	1		
+command		Edit	0x1400470c0	0	0		
+command		EditGetCurrentCol	0x14006f130	1	5		
+command		EditGetCurrentLine	0x14006f090	1	5		
+command		EditGetLine	0x14006f270	2	6		
+command		EditGetLineCount	0x14006f000	1	5		
+command		EditGetSelectedText	0x14006f420	1	5		
+command		EditPaste	0x14006e880	2	6		
+command		EnvGet	0x14002728c	1	1		
+command		EnvSet	0x140027368	1	2		
+command		Exit	0x1400473f0	0	1		
+command		ExitApp	0x140047420	0	1		
+command		FileAppend	0x140027fe0	1	3		
+command		FileCopy	0x1400288c0	2	3		
+command		FileCreateShortcut	0x1400701d0	2	9		
+command		FileDelete	0x140028560	1	1		
+command		FileEncoding	0x14003c6b0	1	1		
+command		FileExist	0x140029860	1	1		
+command		FileGetAttrib	0x1400289c0	0	1		
+command		FileGetShortcut	0x14006ff30	1	8		
+command		FileGetSize	0x140029520	0	2		
+command		FileGetTime	0x140029170	0	2		
+command		FileGetVersion	0x1400704b0	0	1		
+command		FileInstall	0x140028870	2	3		
+command		FileMove	0x140028940	2	3		
+command		FileRead	0x140027880	1	2		
+command		FileRecycle	0x1400703a0	1	1		
+command		FileRecycleEmpty	0x140070480	0	1		
+command		FileSelect	0x140067a00	0	4		
+command		FileSetAttrib	0x140028a40	1	3		
+command		FileSetTime	0x140029300	0	4		
+command		GetKeyName	0x140069440	1	1		
+command		GetKeySC	0x140069370	1	1		
+command		GetKeyState	0x140069140	1	2		
+command		GetKeyVK	0x140069230	1	1		
+command		GroupActivate	0x140040280	1	2		
+command		GroupAdd	0x140040200	1	5		
+command		GroupClose	0x1400403d0	1	2		
+command		GroupDeactivate	0x140040310	1	2		
+command		GuiCtrlFromHwnd	0x14007c840	1	1		
+command		GuiFromHwnd	0x14007c760	1	2		
+command		HotIf	0x140069ca0	0	1		
+command		HotIfWinActive	0x140069eb0	0	2		
+command		HotIfWinExist	0x140069f10	0	2		
+command		HotIfWinNotActive	0x140069ee0	0	2		
+command		HotIfWinNotExist	0x140069f40	0	2		
+command		Hotkey	0x140069ad0	1	3		
+command		Hotstring	0x14001bc00	1	3		
+command		IL_Add	0x14006aa00	2	4		
+command		IL_Create	0x14006a940	0	3		
+command		IL_Destroy	0x14006a9e0	1	1		
+command		ImageSearch	0x140030a50	7	7		
+command		IniDelete	0x14009c8e0	2	3		
+command		IniRead	0x14009c440	1	4		
+command		IniWrite	0x14009c780	3	4		
+command		InputBox	0x14002cdc0	0	4		
+command		InstallKeybdHook	0x140068900	0	2		
+command		InstallMouseHook	0x140068910	0	2		
+command		IsLabel	0x140068b50	1	1		
+command		KeyHistory	0x140066780	0	1		
+command		KeyWait	0x14003f0ec	1	2		
+command		ListHotkeys	0x140066770	0	0		
+command		ListLines	0x1400666f0	0	1		
+command		ListVars	0x140066760	0	0		
+command		ListViewGetContent	0x140041c80	0	6		
+command		LoadPicture	0x14006ab30	1	3		
+command		MenuFromHandle	0x14006a900	1	1		
+command		MenuSelect	0x14006d640	0	11		
+command		MonitorGet	0x14002756c	0	5		
+command		MonitorGetCount	0x1400273e0	0	0		
+command		MonitorGetName	0x1400275bc	0	1		
+command		MonitorGetPrimary	0x14002742c	0	0		
+command		MonitorGetWorkArea	0x140027594	0	5		
+command		MouseClick	0x140023ff0	0	7		
+command		MouseClickDrag	0x140024180	0	7		
+command		MouseGetPos	0x140067530	0	5		
+command		MouseMove	0x140024290	2	4		
+command		MsgBox	0x140066df0	0	3		
+command		OnClipboardChange	0x14006a850	1	2		
+command		OnError	0x14006a8c0	1	2		
+command		OnExit	0x14006a8e0	1	2		
+command		OnMessage	0x14006a3a0	2	3		
+command		OutputDebug	0x14006a350	1	1		
+command		Pause	0x140063370	0	1		
+command		Persistent	0x140068810	0	1		
+command		PixelGetColor	0x14006d460	2	3		
+command		PixelSearch	0x1400309f0	7	8		
+command		PostMessage	0x140042860	1	8		
+command		ProcessClose	0x1400317a8	1	1		
+command		ProcessExist	0x140031758	0	1		
+command		ProcessGetName	0x1400318c0	0	1		
+command		ProcessGetParent	0x140031770	0	1		
+command		ProcessGetPath	0x1400318c8	0	1		
+command		ProcessSetPriority	0x14003199c	1	2		
+command		ProcessWait	0x14003198c	1	2		
+command		ProcessWaitClose	0x140031994	1	2		
+command		Reload	0x1400472f0	0	0		
+command		Run	0x140031ac8	1	4		
+command		RunAs	0x14006cfd0	0	3		
+command		Send	0x140023f00	1	1		
+command		SendEvent	0x140023f80	1	1		
+command		SendInput	0x140023f40	1	1		
+command		SendLevel	0x14003a980	1	1		
+command		SendMessage	0x140042850	1	9		
+command		SendMode	0x14003a8a0	1	1		
+command		SendPlay	0x140023f70	1	1		
+command		SendText	0x140023f20	1	1		
+command		SetCapsLockState	0x140023fb0	0	1		
+command		SetControlDelay	0x14003abb0	1	1		
+command		SetDefaultMouseSpeed	0x14003a9b0	1	1		
+command		SetKeyDelay	0x14003a9e0	0	3		
+command		SetMouseDelay	0x14003aad0	1	2		
+command		SetNumLockState	0x140023f90	0	1		
+command		SetRegView	0x14003c960	1	1		
+command		SetScrollLockState	0x140023fd0	0	1		
+command		SetStoreCapsLockMode	0x14003c1c0	1	1		
+command		SetTimer	0x140069f70	0	3		
+command		SetTitleMatchMode	0x14003b4a0	1	1		
+command		SetWinDelay	0x14003ab80	1	1		
+command		SetWorkingDir	0x140067900	1	1		
+command		Shutdown	0x1400710f0	1	1		
+command		Sleep	0x14006a180	1	1		
+command		SoundBeep	0x140035170	0	2		
+command		SoundPlay	0x140034fe8	1	2		
+command		StatusBarGetText	0x140042410	0	5		
+command		StatusBarWait	0x140042480	0	8		
+command		StrSplit	0x140036810	1	4		
+command		Suspend	0x140063320	0	1		
+command		SysGet	0x140027388	1	1		
+command		SysGetIPAddresses	0x14006d050	0	0		
+command		Thread	0x14006a240	1	3		
+command		ToolTip	0x140067080	0	4		
+command		TraySetIcon	0x1400469f0	0	3		
+command		TrayTip	0x140065140	0	3		
+command		WinActivate	0x140040140	0	4		
+command		WinActivateBottom	0x1400401a0	0	4		
+command		WinClose	0x140040040	0	5		
+command		WinGetClass	0x140042ef0	0	4		
+command		WinGetClientPos	0x140044490	0	8		
+command		WinGetControls	0x140043fb0	0	4		
+command		WinGetControlsHwnd	0x140043fd0	0	4		
+command		WinGetCount	0x1400431d0	0	4		
+command		WinGetExStyle	0x140043670	0	4		
+command		WinGetID	0x1400433e0	0	4		
+command		WinGetIDLast	0x140043420	0	4		
+command		WinGetList	0x140043280	0	4		
+command		WinGetMinMax	0x1400435b0	0	4		
+command		WinGetPID	0x140043460	0	4		
+command		WinGetPos	0x1400443d0	0	8		
+command		WinGetProcessName	0x140043570	0	4		
+command		WinGetProcessPath	0x140043590	0	4		
+command		WinGetStyle	0x140043620	0	4		
+command		WinGetText	0x1400441b0	0	4		
+command		WinGetTitle	0x140042e20	0	4		
+command		WinGetTransColor	0x140043910	0	4		
+command		WinGetTransparent	0x1400438a0	0	4		
+command		WinHide	0x1400400c0	0	4		
+command		WinKill	0x140040070	0	5		
+command		WinMaximize	0x1400400e0	0	4		
+command		WinMinimize	0x140040100	0	4		
+command		WinMinimizeAll	0x140044f30	0	0		
+command		WinMinimizeAllUndo	0x140044f80	0	0		
+command		WinMove	0x140040600	0	8		
+command		WinMoveBottom	0x140042d60	0	4		
+command		WinMoveTop	0x140042cf0	0	4		
+command		WinRedraw	0x140042cb0	0	4		
+command		WinRestore	0x140040120	0	4		
+command		WinSetAlwaysOnTop	0x140042bf0	0	5		
+command		WinSetEnabled	0x140041be0	1	5		
+command		WinSetExStyle	0x140043870	1	5		
+command		WinSetRegion	0x1400428b0	0	5		
+command		WinSetStyle	0x140043840	1	5		
+command		WinSetTitle	0x140042dd0	1	5		
+command		WinSetTransColor	0x140043b30	1	5		
+command		WinSetTransparent	0x140043ac0	1	5		
+command		WinShow	0x1400400a0	0	4		
+command		WinWait	0x14003f600	0	5		
+command		WinWaitActive	0x14003f658	0	5		
+command		WinWaitClose	0x14003f62c	0	5		
+command		WinWaitNotActive	0x14003f684	0	5		
 variable		AhkPath	0x14003d2d0				
 variable		AhkVersion	0x14003d2b0				
 variable		AllowMainWindow	0x14003cc60				

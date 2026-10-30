@@ -2867,3 +2867,55 @@ and in the dialect, and the five cases of the effect of the body are the
 same too. The two that are not are the call of a function that is not
 there (the tree refuses it at the load and v2 at the run) and the colon of
 the ternary (v2 names it: "A \":\" is missing its \"?\"").
+
+## 57. The arity of a command is measured, and a parameter it needs is named
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree carried the arity
+of the commands as a guess -- 162 of them took any number of arguments -- and
+the binary says what each one takes.
+
+- **The arity of a command is the one of the binary.** The call that asks for
+  too few is refused at the load, and the call that asks for too many is
+  refused as well, so the two refusals say where the bounds are. The table of
+  the tree carries them now: 189 rows changed.
+- **The fewest that the binary declares is not always the fewest that the
+  command needs.** Nine commands need a parameter that the table does not
+  count, and they say it in other words: "Parameter #1 of FileGetAttrib must
+  not be omitted in this case." The failure of that refusal carries no name:
+  the `What` and the `Extra` are empty, and the message carries all of it.
+- **The nine are these:** the `ControlGetPos` (the fifth), the
+  `FileGetAttrib` (the first), the `FileGetSize` (the first), the
+  `FileGetTime` (the first), the `FileGetVersion` (the first), the
+  `FileSetTime` (the second), the `ListViewGetContent` (the second), the
+  `MenuSelect` (the third) and the `MouseClickDrag` (the fourth and the
+  fifth).
+- **The refusal names the first parameter that is missing.** The drag with
+  four arguments names the fifth, and the one with none names the fourth.
+- **The `PixelSearch` of v2 takes seven parameters and the first two are
+  references.** `PixelSearch &OutputVarX, &OutputVarY, X1, Y1, X2, Y2,
+  ColorID` -- and it answers one when the colour is there and zero when it
+  is not, the way the `ImageSearch` does, and the place of the colour is
+  written in the two variables of the caller. The tree carried the shape of
+  the v1, which takes five and answers with a list; it carries the shape of
+  the v2 now.
+- **The arity of the commands is in the table of the surface.** The packing
+  of the binary that holds it was not decoded, and the arity was measured
+  instead; the table says so.
+
+The measure was made with two probes. The first is safe for every name: the
+call sits in a branch that is never taken, so the script loads and does
+nothing, and the refusal of the load says where the fewest is. The second is
+live, and it is used only for the names that cannot act; the arguments are of
+the kind that the documentation of the v2.0.19 gives, so that the complaint
+is the one of the number of the arguments and not the one of the kind of the
+value.
+
+The measurement and the documentation of the v2.0.19 agree on 240 of the 243
+commands. The two that are apart are the `MenuSelect` and the
+`MouseClickDrag`: their refusal comes at the run and not at the load, and
+they were measured with a probe of their own. The `Screenshot` is the one
+name the tree has and v2 does not.
+
+One hundred and thirteen of the hundred and fourteen commands that want a
+parameter are the same in the tree and in the dialect when they are called
+with none; the one that is not is the `Screenshot`, which v2 does not have.

@@ -1112,7 +1112,7 @@ fn the_match_operator_of_v2_is_the_tilde_one() {
 #[test]
 fn a_list_can_be_picked_by_its_position() {
     let (report, _desktop) = run(
-        "MouseGetPos &x, &y\nfound := PixelSearch(0, 0, 10, 10, \"#ff8800\")\nfx := found[1]",
+        "MouseGetPos &x, &y\nfound := [10, 20]\nfx := found[1]",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
@@ -1259,19 +1259,26 @@ fn mouse_get_pos_says_where_the_pointer_is() {
 
 #[test]
 fn a_pixel_search_finds_the_colour() {
-    let (report, _desktop) = run("found := PixelSearch(0, 0, 100, 100, \"#ff8800\")");
+    // Measured on the binary of v2.0.19 on 2026-10-31: the command takes
+    // seven parameters, the first two are references, and it answers one
+    // when the colour is there.
+    let (report, _desktop) =
+        run("found := PixelSearch(&x, &y, 0, 0, 100, 100, \"#ff8800\")");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        report.variables.get("found"),
-        Some(&Value::List(vec![Value::Int(10), Value::Int(20)]))
-    );
+    assert_eq!(report.variables.get("found"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(10)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(20)));
 }
 
 #[test]
-fn a_pixel_search_that_finds_nothing_is_an_empty_list() {
-    let (report, _desktop) = run("found := PixelSearch(0, 0, 100, 100, \"#ffffff\")");
+fn a_pixel_search_that_finds_nothing_answers_zero() {
+    let (report, _desktop) =
+        run("found := PixelSearch(&x, &y, 0, 0, 100, 100, \"#ffffff\")");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("found"), Some(&Value::List(Vec::new())));
+    assert_eq!(report.variables.get("found"), Some(&Value::Int(0)));
+    // The place of v2 is blank when the colour is not there.
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
 }
 
 #[test]

@@ -408,7 +408,11 @@ not while the body of a `try` runs.
 - `Builtin { name, kind, min, max, variant, handler }` -- one name of the
   table: the name as v2 spells it, which of the two tables of the binary
   it came from, the fewest and the most parameters, the byte that picks
-  the flavour of a shared handler, and the handler.
+  the flavour of a shared handler, and the handler. The arity of the
+  commands was measured on the binary of v2.0.19 on 2026-10-31: the call
+  that asks for too few is refused at the load, and the call that asks for
+  too many is refused as well, so the two refusals say where the bounds
+  are.
 - `BuiltinKind` -- `Command` or `Function`: the two tables of the binary.
   The parser does not use them. v2 has no kind of command: the
   parentheses of a call may be left out when the answer is not needed
@@ -423,6 +427,12 @@ not while the body of a `try` runs.
   parameters that take a reference. The flag of the table of v2 is the
   place of the first parameter that is written back, and this is that
   column turned into the places of the parameters.
+- `required_parameters(name) -> &'static [u8]` -- the places of the
+  parameters that a command may not leave out, though its table says it
+  may. The nine commands that have one were measured on the binary of
+  v2.0.19 on 2026-10-31, and the refusal of such a command is the one of
+  the parameter that is missing: "Parameter #1 of FileGetAttrib must not
+  be omitted in this case."
 - `Wants` -- the type a parameter declares: `Number`, `String`, `Object`, or
   `Value` for a built-in that takes a value of any kind.
 - `wants(name, index) -> Wants` -- the type of that parameter. The two

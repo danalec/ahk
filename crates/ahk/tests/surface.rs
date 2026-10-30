@@ -217,10 +217,10 @@ fn the_kind_and_the_arity_of_a_name_are_the_ones_of_the_binary() {
         if ours != kind {
             wrong.push(format!("{name}: v2 says {kind}, the tree says {ours}"));
         }
-        // The arity is only in the rows of the function table: the rows
-        // of the command table keep theirs in a packing that was not
-        // decoded, so their columns are empty.
-        if kind != "function" || row[4].is_empty() {
+        // The arity is in the rows of the function table, read out of the
+        // binary, and in the rows of the command table, measured on the
+        // binary on 2026-10-31.
+        if row[4].is_empty() {
             continue;
         }
         let low: u32 = row[4].parse().unwrap_or(u32::MAX);
