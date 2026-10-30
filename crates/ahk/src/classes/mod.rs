@@ -939,3 +939,31 @@ pub fn carries(class: &str, name: &str) -> bool {
     let name = name.to_lowercase();
     names(class).iter().any(|carried| *carried == name)
 }
+
+/// The class types that this runtime does not carry.
+///
+/// The name of the class is a name of the dialect, and a script reads it
+/// as the class. The members of it are not carried: the tree says so when
+/// a script asks for one, and it does not say that the name is not there
+/// -- the name is there, the tree does not carry it.
+///
+/// The base object is not one of them: the plain object of a script is
+/// one, and the refusal of a member that is not there keeps the words of
+/// the dialect.
+const THE_CLASSES_THAT_ARE_NOT_CARRIED: [&str; 6] = [
+    "any",
+    "class",
+    "clipboardall",
+    "comobject",
+    "comvalue",
+    "inputhook",
+];
+
+/// The reason of a name of a class that this runtime does not carry.
+pub(crate) fn the_reason_of_a_class_that_is_not_carried(class: &str) -> Option<&'static str> {
+    let class = class.to_lowercase();
+    if THE_CLASSES_THAT_ARE_NOT_CARRIED.contains(&class.as_str()) {
+        return Some("this runtime does not carry that class yet.");
+    }
+    None
+}

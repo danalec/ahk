@@ -283,6 +283,43 @@ fn a_class_of_windows_that_this_runtime_does_not_carry_says_so() {
 }
 
 #[test]
+fn a_class_that_this_runtime_does_not_carry_says_why() {
+    // The `InputHook` is a keyboard hook, and this runtime has none. The
+    // name is there, and the tree does not carry it: the refusal says so,
+    // and it does not say that the name is not there.
+    for (source, answer) in [
+        (
+            "ih := InputHook()\nih.Visible",
+            "this runtime does not carry that class yet. |  |",
+        ),
+        (
+            "ih := InputHook()\nih.KeyOpt(\"a\")",
+            "this runtime does not carry that class yet. |  |",
+        ),
+        (
+            "ca := ClipboardAll()\nca.Size",
+            "this runtime does not carry that class yet. |  |",
+        ),
+    ] {
+        assert_eq!(the_failure_of(source), answer, "the member of {source}");
+    }
+}
+
+#[test]
+fn a_class_value_keeps_the_words_of_the_dialect() {
+    // A class value is a class of the dialect, and the refusal of a member
+    // that is not there keeps the words of the dialect -- the class is
+    // there, and the tree carries it.
+    for source in ["a := Any\nx := a.Nope", "o := Object\nx := o.Nope"] {
+        assert_eq!(
+            the_failure_of(source),
+            "This value of type \"Class\" has no property named \"Nope\". |  |",
+            "the member of {source}"
+        );
+    }
+}
+
+#[test]
 fn the_clipboard_all_is_made_with_nothing() {
     // The tree carries no binary clipboard data, and the call of the
     // class with no arguments makes the object.

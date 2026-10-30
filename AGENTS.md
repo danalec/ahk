@@ -3683,3 +3683,32 @@ The comparison of the tree with the binary is in
 four that are not are the owner and the parent, where the tree refuses
 with the reason of the machine and the binary refuses with the reason of
 Windows).
+
+## 76. A class that this runtime does not carry says why
+
+Measured on the binary of v2.0.19 on 2026-10-31: the `InputHook` is a
+class of the dialect, and the binary makes it. This runtime has no
+keyboard hook, and the members of the class are not carried.
+
+- **The name is there, and the tree does not carry it.** A member of a
+  class that the tree does not carry is refused with the reason of the
+  runtime -- "this runtime does not carry that class yet." -- and not
+  with the words of the dialect. The words of the dialect say that the
+  name is not there, and the name is there.
+- **A class value is a class of the dialect.** The refusal of a member
+  that a class value does not have keeps the words of the dialect:
+  `This value of type "Class" has no property named "Nope".` The base
+  object is one of them: the plain object of a script is one, and the
+  tree carries it.
+- **The tree may refuse where the dialect answers.** The binary answers
+  the members of the `InputHook` with the state of the hook, and the
+  tree answers with the reason of the machine. A refusal is not a wrong
+  value.
+
+The classes that the tree does not carry are in `classes/mod.rs`, in
+`THE_CLASSES_THAT_ARE_NOT_CARRIED`, and the reason is in
+`the_reason_of_a_class_that_is_not_carried`.
+
+The comparison of the tree with the binary is in
+`egm-review/probe_not_carried.py` (16 cases: 6 are the same, and the ten
+that are not are the members that the tree does not carry).

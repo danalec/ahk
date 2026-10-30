@@ -895,6 +895,10 @@ that asks for another one is refused with the reason.
   refused with "Invalid option." and the option goes in the `Extra`.
 - **The methods of the base object are inherited.** Every object has them,
   and the question with no name asks whether the value is a class.
+- **A class that this runtime does not carry says why.** The members of
+  the `InputHook` and of the `ClipboardAll` are refused with the reason
+  of the runtime -- "this runtime does not carry that class yet." -- and
+  a class value keeps the words of the dialect.
 
 ## Side Effects
 

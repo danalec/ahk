@@ -3520,11 +3520,19 @@ impl<'a> Runtime<'a> {
 
     /// The refusal of a property that a value does not have.
     pub(crate) fn no_property(&self, target: &Value, name: &str, line: u32) -> RuntimeFailure {
+        let kind = self.the_type_of(target);
+        // A class that this runtime does not carry is not refused with the
+        // words of the dialect: the name is there, and the tree does not
+        // carry it. A class value is a class of the dialect, and the
+        // refusal of a member that is not there keeps the words of the
+        // dialect.
+        if self.class_name_of(target).is_none() {
+            if let Some(reason) = crate::classes::the_reason_of_a_class_that_is_not_carried(&kind) {
+                return RuntimeFailure::Error(RuntimeError { message: reason.to_string(), line });
+            }
+        }
         RuntimeFailure::Error(RuntimeError {
-            message: format!(
-                "This value of type \"{}\" has no property named {name:?}.",
-                self.the_type_of(target)
-            ),
+            message: format!("This value of type \"{kind}\" has no property named {name:?}."),
             line,
         })
     }
@@ -3701,11 +3709,19 @@ impl<'a> Runtime<'a> {
 
     /// The refusal of a method that a value does not have.
     pub(crate) fn no_method(&self, target: &Value, name: &str, line: u32) -> RuntimeFailure {
+        let kind = self.the_type_of(target);
+        // A class that this runtime does not carry is not refused with the
+        // words of the dialect: the name is there, and the tree does not
+        // carry it. A class value is a class of the dialect, and the
+        // refusal of a member that is not there keeps the words of the
+        // dialect.
+        if self.class_name_of(target).is_none() {
+            if let Some(reason) = crate::classes::the_reason_of_a_class_that_is_not_carried(&kind) {
+                return RuntimeFailure::Error(RuntimeError { message: reason.to_string(), line });
+            }
+        }
         RuntimeFailure::Error(RuntimeError {
-            message: format!(
-                "This value of type \"{}\" has no method named {name:?}.",
-                self.the_type_of(target)
-            ),
+            message: format!("This value of type \"{kind}\" has no method named {name:?}."),
             line,
         })
     }
