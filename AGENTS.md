@@ -3615,3 +3615,39 @@ on Windows -- and the options of the `Gui`, which the tree does not read
 yet) and `egm-review/compare_class_refusals.py` (22 cases: 21 are the
 same, and the one that is not is the `ComObject` again), and
 `egm-review/compare_class_values.py` (16 cases: the same).
+
+## 74. A text of v2 is between double quotes or between single quotes
+
+Measured on the binary of v2.0.19 on 2026-10-31: the text of v2 has two
+kinds of quote, and the tree took only the double one. A script that wrote
+a text between single quotes did not parse.
+
+- **The two kinds of quote are the same.** The escape of the dialect is the
+  backtick in the two of them -- `` `n `` is a line break and `` `" `` is a
+  double quote -- and a backslash is a backslash in the two of them: the
+  path of a file is written with it, and v2 does not read it as an escape.
+- **The doubled quote is not an escape.** `x := "it""s"` is two texts side
+  by side, and v2 refuses it with "Missing space or operator before this.
+  Specifically: "s"". The tree joined the two, and it joined them without
+  a space too.
+- **A text does not cross a line.** The text ends at the end of the line,
+  and a text that is not closed before it is refused with the quote that is
+  not closed and the line that holds it: "Missing """
+     Specifically: x
+  := "abc" for the double quote, and "Missing "'"" for the single one.
+- **Two values side by side are one value, and the space between them is
+  what makes it so.** `x := "a" "b"` is "ab", and `x := "a""b"` is refused
+  with "Missing space or operator before this. Specifically: "b"". The name
+  of the value that came too close is the text of it, with the quote that
+  was written.
+- **The token keeps the quote that was written.** The source of the script
+  is rebuilt from the tokens, and the rebuild says the truth: `Goto 'done'`
+  looks for a label that is called `'done'`, with the quotes, the way
+  `Goto "done"` looks for one that is called `"done"`.
+
+The rule of the dialect lives in the lexer, in the one place where the
+texts are read, and the v1 -- which has only the double quote -- will leave
+it out there.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_quotes.py` (28 cases: the same).

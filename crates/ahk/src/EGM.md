@@ -260,6 +260,19 @@ the expression that holds it -- the one of the statement -- and the parser
 waits for that expression to name it. A group is not a literal text, and
 the concatenation of two literal texts is one.
 
+The text of v2 is between double quotes or between single quotes, and the
+escape of the dialect is the backtick in the two of them. The token keeps
+the quote that was written, because the source of the script is rebuilt
+from the tokens and the rebuild says the truth: `Goto 'done'` looks for a
+label that is called `'done'`, with the quotes. A text does not cross a
+line, and a text that is not closed before the end of it is refused with
+the quote that is not closed and the line that holds it.
+
+Two values side by side are one value, and the space between them is what
+makes it so. Without the space, v2 refuses and names the value that came
+too close: "Missing space or operator before this.\n     Specifically:
+"b"".
+
 ### The runtime (`runtime.rs`)
 
 The interpreter and everything it reports:

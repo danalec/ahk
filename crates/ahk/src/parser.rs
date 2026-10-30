@@ -138,14 +138,25 @@ fn the_source_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String
         if !text.is_empty() && token.spaced {
             text.push(' ');
         }
-        if token.kind == TokenKind::String {
-            text.push('"');
-            text.push_str(&token.value);
-            text.push('"');
-        } else {
-            text.push_str(&token.value);
-        }
+        text.push_str(&the_source_of_a_token(token));
     }
+    text
+}
+
+/// The source of a token, the way the script wrote it.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the text of a token
+/// keeps the quote that was written, and the name of a token that is
+/// refused is the text of it.
+fn the_source_of_a_token(token: &Token) -> String {
+    if token.kind != TokenKind::String {
+        return token.value.clone();
+    }
+    let quote = token.quote.unwrap_or('"');
+    let mut text = String::new();
+    text.push(quote);
+    text.push_str(&token.value);
+    text.push(quote);
     text
 }
 
@@ -2452,6 +2463,17 @@ impl Parser {
                 if precedence::CONCAT < min || !self.starts_expression() {
                     return Ok(left);
                 }
+                // Measured on the binary of v2.0.19 on 2026-10-31: two values
+                // side by side are one value, and the space between them is
+                // what makes it so. Without the space, v2 refuses and names
+                // the value that came too close.
+                if !self.peek().spaced {
+                    let token = self.peek().clone();
+                    return Err(self.error(format!(
+                        "Missing space or operator before this.\n     Specifically: {}",
+                        the_source_of_a_token(&token)
+                    )));
+                }
                 let right = self.parse_binary(precedence::CONCAT + 1)?;
                 let line = left.line();
                 left = Node::Binary {
@@ -3293,6 +3315,24 @@ mod tests {
         );
         let statements = parse("Class").expect("parses");
         assert!(matches!(&statements[0], Node::Call { name, arguments, .. } if name == "class" && arguments.is_empty()));
+    }
+
+    #[test]
+    fn two_values_side_by_side_need_a_space() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: two values side by
+        // side are one value, and the space between them is what makes it so.
+        let statements = parse("x := \"a\" \"b\"").expect("parses");
+        assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(value.as_ref(), Node::Binary { op: BinaryOp::Concat, .. })));
+        let error = parse("x := \"a\"\"b\"").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Missing space or operator before this.\n     Specifically: \"b\""
+        );
+        let error = parse("x := \"a\"1").expect_err("does not parse");
+        assert_eq!(error.message, "Missing space or operator before this.\n     Specifically: 1");
+        // The text of the other kind is named with its own quote.
+        let error = parse("x := \"a\"'b'").expect_err("does not parse");
+        assert_eq!(error.message, "Missing space or operator before this.\n     Specifically: 'b'");
     }
 
     #[test]

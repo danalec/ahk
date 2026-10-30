@@ -48,6 +48,13 @@ pub struct Token {
     /// The two are the same character and only the space tells them
     /// apart.
     pub spaced: bool,
+    /// The quote of the text, when the token is one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a text is between
+    /// double quotes or between single quotes, and the source of the script
+    /// keeps the quote that was written: `Goto 'done'` looks for a label
+    /// that is called `'done'`, with the quotes.
+    pub quote: Option<char>,
 }
 
 /// The words the language gives a meaning to.
@@ -118,6 +125,21 @@ impl SyntaxError {
     }
 }
 
+/// The source of a part of the script, as it was written.
+///
+/// The text of the dialect is the line as the script wrote it, and the
+/// lexer is the one that has it: the parser rebuilds it from the tokens,
+/// and a text that is not closed has no token.
+fn the_source_of_the_chars(chars: &[char], start: usize, end: usize) -> String {
+    let start = start.min(end).min(chars.len());
+    let end = end.min(chars.len());
+    let mut text: String = chars[start..end].iter().collect();
+    while text.ends_with([' ', '\t', '\r']) {
+        text.pop();
+    }
+    text
+}
+
 /// Turn the source into tokens.
 ///
 /// A newline ends a statement. Inside a block the statements are separated
@@ -139,7 +161,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
         let before = spaced;
         spaced = false;
         if current == '\n' {
-            tokens.push(Token { kind: TokenKind::Newline, value: "\n".into(), line, column, spaced: before });
+            tokens.push(Token { kind: TokenKind::Newline, value: "\n".into(), line, column, spaced: before, quote: None });
             index += 1;
             line += 1;
             column = 1;
@@ -179,6 +201,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                 line: start_line,
                 column: start_column,
                 spaced: before,
+                quote: None,
             });
             // The argument rides along in the token, so it has to be
             // kept somewhere: the second token of the line carries it.
@@ -190,6 +213,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                     line: start_line,
                     column: start_column,
                     spaced: before,
+                    quote: None,
                 });
             }
             continue;
@@ -200,12 +224,19 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             }
             continue;
         }
-        if current == '"' {
+        if current == '"' || current == '\'' {
             let (start_line, start_column) = (line, column);
+            // Measured on the binary of v2.0.19 on 2026-10-31: a text is
+            // between double quotes or between single quotes, and the
+            // escape of the dialect is the backtick in the two of them.
+            let quote = current;
+            let quote_index = index;
             index += 1;
             column += 1;
             let mut buffer = String::new();
-            while index < chars.len() && chars[index] != '"' {
+            // The text of v2 ends at the end of the line: a text that is
+            // not closed before it is refused.
+            while index < chars.len() && chars[index] != quote && chars[index] != '\n' {
                 // The escape of v2 is the backtick. A backslash is a
                 // backslash: the path of a file is written with it, and
                 // v2 does not read it as an escape.
@@ -229,12 +260,31 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                 index += 1;
                 column += 1;
             }
-            if index >= chars.len() {
-                return Err(SyntaxError::new("unterminated string", start_line, start_column));
+            if index >= chars.len() || chars[index] == '\n' {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the quote
+                // that is not closed is named, and the line of the script
+                // says where it was.
+                let start = quote_index - (start_column as usize - 1);
+                let mut end = index;
+                while end < chars.len() && chars[end] != '\n' {
+                    end += 1;
+                }
+                return Err(SyntaxError::new(
+                    format!("Missing \"{quote}\"\n     Specifically: {}", the_source_of_the_chars(&chars, start, end)),
+                    start_line,
+                    start_column,
+                ));
             }
             index += 1;
             column += 1;
-            tokens.push(Token { kind: TokenKind::String, value: buffer, line: start_line, column: start_column, spaced: before });
+            tokens.push(Token {
+                kind: TokenKind::String,
+                value: buffer,
+                line: start_line,
+                column: start_column,
+                spaced: before,
+                quote: Some(quote),
+            });
             continue;
         }
         if current.is_ascii_digit() {
@@ -263,6 +313,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                         line: start_line,
                         column: start_column,
                         spaced: before,
+                        quote: None,
                     });
                     continue;
                 }
@@ -275,6 +326,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             tokens.push(Token {
                 kind: TokenKind::Number,
                 value: chars[start..index].iter().collect(),
+                quote: None,
                 line: start_line,
                 column: start_column,
                 spaced: before,
@@ -294,7 +346,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             } else {
                 TokenKind::Name
             };
-            tokens.push(Token { kind, value: word, line: start_line, column: start_column, spaced: before });
+            tokens.push(Token { kind, value: word, line: start_line, column: start_column, spaced: before, quote: None });
             continue;
         }
         let mut matched = false;
@@ -310,6 +362,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                 tokens.push(Token {
                     kind: TokenKind::Op,
                     value: (*operator).to_string(),
+                    quote: None,
                     line,
                     column,
                     spaced: before,
@@ -324,7 +377,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             return Err(SyntaxError::new(format!("unexpected character {current:?}"), line, column));
         }
     }
-    tokens.push(Token { kind: TokenKind::Eof, value: String::new(), line, column, spaced: false });
+    tokens.push(Token { kind: TokenKind::Eof, value: String::new(), line, column, spaced: false, quote: None });
     Ok(tokens)
 }
 
@@ -406,9 +459,44 @@ mod tests {
 
     #[test]
     fn an_unterminated_string_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the quote that is
+        // not closed is named, and the line of the script says where it was.
         let error = tokenize("Send \"never closed").expect_err("fails");
         assert_eq!(error.line, 1);
-        assert!(error.message.contains("unterminated"));
+        assert_eq!(error.message, "Missing \"\"\"\n     Specifically: Send \"never closed");
+        let error = tokenize("Send 'never closed").expect_err("fails");
+        assert_eq!(error.line, 1);
+        assert_eq!(error.message, "Missing \"'\"\n     Specifically: Send 'never closed");
+    }
+
+    #[test]
+    fn a_text_is_between_double_quotes_or_between_single_quotes() {
+        // Measured on the binary of v2.0.19 on 2026-10-31.
+        let tokens = tokenize("x := 'hello'").expect("parses");
+        assert_eq!(tokens[2].kind, TokenKind::String);
+        assert_eq!(tokens[2].value, "hello");
+        // The token keeps the quote that was written: the source of the
+        // script is rebuilt from the tokens.
+        assert_eq!(tokens[2].quote, Some('\''));
+        let tokens = tokenize("x := \"hello\"").expect("parses");
+        assert_eq!(tokens[2].quote, Some('"'));
+    }
+
+    #[test]
+    fn the_escape_of_the_dialect_is_the_backtick_in_the_two_kinds_of_text() {
+        // Measured on the binary of v2.0.19 on 2026-10-31.
+        let tokens = tokenize("x := 'a`nb'").expect("parses");
+        assert_eq!(tokens[2].value, "a\nb");
+        let tokens = tokenize("x := \"a`nb\"").expect("parses");
+        assert_eq!(tokens[2].value, "a\nb");
+    }
+
+    #[test]
+    fn a_text_does_not_cross_a_line() {
+        // Measured on the binary of v2.0.19 on 2026-10-31.
+        let error = tokenize("x := \"a\nb\"").expect_err("fails");
+        assert_eq!(error.line, 1);
+        assert_eq!(error.message, "Missing \"\"\"\n     Specifically: x := \"a");
     }
 
     #[test]
