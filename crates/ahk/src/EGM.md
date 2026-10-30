@@ -949,6 +949,9 @@ that asks for another one is refused with the reason.
   The table of the properties is keyed by the name in lower case, and the
   name is kept beside the value: the first write is the one that fixes the
   case of it, and the names are in the order of v2.
+- **The own properties of a function are none.** The members of a function
+  live on the prototype of the class of it, and the function owns none of
+  them.
 
 ## Side Effects
 

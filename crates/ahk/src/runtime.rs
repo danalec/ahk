@@ -3917,7 +3917,16 @@ impl<'a> Runtime<'a> {
                     return Some(Err(missing()));
                 };
                 let lower = name.to_lowercase();
-                let own = object.borrow().properties.contains_key(&lower);
+                // The members of a function are not own properties of it:
+                // they live on the prototype of the class of it.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the own
+                // properties of a function are none.
+                let own = if object.borrow().class == "func" {
+                    false
+                } else {
+                    object.borrow().properties.contains_key(&lower)
+                };
                 // The call of a class is its own property, and so are the
                 // static methods that the class declares. The methods of
                 // the base object are inherited, and not own.
@@ -3974,6 +3983,17 @@ impl<'a> Runtime<'a> {
                     });
                     return Some(Ok(crate::classes::enumerator::make(
                         pairs,
+                        crate::classes::enumerator::Alone::TheKey,
+                    )));
+                }
+                // The members of a function are not own properties of it:
+                // they live on the prototype of the class of it.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the own
+                // properties of a function are none.
+                if object.borrow().class == "func" {
+                    return Some(Ok(crate::classes::enumerator::make(
+                        Vec::new(),
                         crate::classes::enumerator::Alone::TheKey,
                     )));
                 }

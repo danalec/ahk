@@ -3978,40 +3978,6 @@ The comparison of the tree with the binary is in
 `egm-review/probe_own_props.py` (7 cases) and in
 `egm-review/probe_own_props2.py` (10 cases).
 
-## 86. The names of the own properties are the ones that the script wrote
-
-Measured on the binary of v2.0.19 on 2026-10-31: the name of an own property
-is the name as the script wrote it, and the first write is the one that
-fixes the case of it.
-
-- **The table of the properties is keyed by the name in lower case, and the
-  name is kept beside the value.** `o.X := 1` gives the own property the
-  name "X", and the tree gave "x" -- the table did not carry the name as it
-  was written beside it.
-- **The first write is the one that fixes the case of the name.**
-  `o.X := 1` and then `o.x := 2` gives the name "X" and the value 2, and
-  `o.x := 1` and then `o.X := 2` gives the name "x".
-- **The names are in the order of v2, and the case of them does not
-  count.** `o.Zebra := 1`, `o.apple := 2` and `o.Mango := 3` give the names
-  "apple", "Mango" and "Zebra".
-- **The names of the literals keep the case too.** `o := {X: 1}` gives the
-  name "X".
-
-The comparison of the tree with the binary is in
-`egm-review/compare_own_property_names.py` (17 cases) and in
-`egm-review/probe_own_property_order.py` (3 cases).
-
-One corner is still open, and it is not the case of the names: the own
-properties of a prototype are not the ones of v2. v2 gives "__Class" and
-"__Init" for the prototype of a class of the script, and the members of the
-class type for the prototype of a class of the runtime -- "Enum", "__Item",
-"__New", "Capacity", "CaseSense", "Clear", "Clone", "Count", "Delete",
-"Get", "Has" and "Set" for the `Map` -- and the tree gives nothing.
-
-The corner that was open here is closed in section 86: the names of the own
-properties of a plain object keep the case of the script, and not the case
-of the tree.
-
 ## 85. The duplicates of a class are named the way v2 names them
 
 Measured on the binary of v2.0.19 on 2026-10-31: a name may be declared
@@ -4051,3 +4017,59 @@ led to it are in `egm-review/probe_duplicate_members.py` (17 cases), in
 `egm-review/probe_init_corners.py` (6 cases), in
 `egm-review/probe_init_after.py` (5 cases) and in
 `egm-review/probe_load_error_shape.py` (6 cases).
+## 86. The names of the own properties are the ones that the script wrote
+
+Measured on the binary of v2.0.19 on 2026-10-31: the name of an own property
+is the name as the script wrote it, and the first write is the one that
+fixes the case of it.
+
+- **The table of the properties is keyed by the name in lower case, and the
+  name is kept beside the value.** `o.X := 1` gives the own property the
+  name "X", and the tree gave "x" -- the table did not carry the name as it
+  was written beside it.
+- **The first write is the one that fixes the case of the name.**
+  `o.X := 1` and then `o.x := 2` gives the name "X" and the value 2, and
+  `o.x := 1` and then `o.X := 2` gives the name "x".
+- **The names are in the order of v2, and the case of them does not
+  count.** `o.Zebra := 1`, `o.apple := 2` and `o.Mango := 3` give the names
+  "apple", "Mango" and "Zebra".
+- **The names of the literals keep the case too.** `o := {X: 1}` gives the
+  name "X".
+
+The comparison of the tree with the binary is in
+`egm-review/compare_own_property_names.py` (17 cases) and in
+`egm-review/probe_own_property_order.py` (3 cases).
+
+One corner is still open, and it is not the case of the names: the own
+properties of a prototype are not the ones of v2. v2 gives "__Class" and
+"__Init" for the prototype of a class of the script, and the members of the
+class type for the prototype of a class of the runtime -- "Enum", "__Item",
+"__New", "Capacity", "CaseSense", "Clear", "Clone", "Count", "Delete",
+"Get", "Has" and "Set" for the `Map` -- and the tree gives nothing.
+
+## 87. The own properties of a function are none
+
+Measured on the binary of v2.0.19 on 2026-10-31: the members of a function
+-- the name, the number of the parameters and the rest -- live on the
+prototype of the class of it, and the function owns none of them.
+
+- **The own properties of a function are none.** `f := Abs` gives an
+  enumerator with no name in it, and `f.HasOwnProp("Name")` answers 0. The
+  tree listed the five members of the function, and the name was own.
+- **The name is read all the same.** `f.Name` answers "Abs": the name is
+  read through the prototype of the class of it.
+- **The base of a function is the prototype of the class of it**, and it is
+  the same for every function: `f.Base = g.Base` answers 1.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_func_own_props.py` (11 cases) and in
+`egm-review/probe_func_own_props.py` (10 cases).
+
+One corner is still open, and it is the prototype: the prototype of the
+class of a function owns the members of v2 -- "Bind", "Call", "IsBuiltIn",
+"IsByRef", "IsOptional", "IsVariadic", "MaxParams", "MinParams" and "Name"
+-- and the tree owns none of them.
+
+The corner that was open here is closed in section 86: the names of the own
+properties of a plain object keep the case of the script, and not the case
+of the tree.

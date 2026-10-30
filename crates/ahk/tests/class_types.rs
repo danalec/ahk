@@ -257,6 +257,30 @@ fn the_calls_of_the_classes_are_the_calls_of_v2() {
 }
 
 #[test]
+fn the_own_properties_of_a_function_are_none() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the members of a
+    // function -- the name, the number of the parameters and the rest --
+    // live on the prototype of the class of it, and the function owns none
+    // of them.
+    let report = run("f := Abs\ns := \"\"\nfor p in f.OwnProps()\n    s .= p\nMsgBox s");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output.first().cloned().unwrap_or_default(), "");
+    let report = run("f := Abs\nMsgBox f.HasOwnProp(\"Name\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output.first().cloned().unwrap_or_default(), "0");
+    // The name is read all the same.
+    let report = run("f := Abs\nMsgBox f.Name");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output.first().cloned().unwrap_or_default(), "Abs");
+    // A method of a class of the script is a function as well.
+    let report = run(
+        "class C {\n    static Say() {\n    }\n}\nf := C.Say\ns := \"\"\nfor p in f.OwnProps()\n    s .= p\nMsgBox s",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output.first().cloned().unwrap_or_default(), "");
+}
+
+#[test]
 fn the_call_of_a_class_value_makes_an_object() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a class is a value,
     // and the call of it makes an object of that class -- `c := Map; c()`
