@@ -429,6 +429,17 @@ pub enum Node {
     /// is left out is the one the enumerator does not give: `for , value
     /// in map` asks for the value alone.
     For { variables: Vec<String>, source: Box<Node>, body: Vec<Node>, line: u32 },
+    /// A label: `name:`.
+    ///
+    /// A label names a line of the script, and a `Goto` jumps to it. The
+    /// name is of letters, of digits and of the underscore, and it may
+    /// begin with a digit: `1abc:` is a label.
+    Label { name: String, line: u32 },
+    /// `Goto name`: the jump to a label of the current scope.
+    ///
+    /// The name is not an expression: it is the text of the parameter as
+    /// the script wrote it, and the quotes of a text are part of it.
+    Goto { name: String, line: u32 },
 }
 
 /// One parameter of a function.
@@ -488,7 +499,9 @@ impl Node {
             | Node::Throw { line, .. }
             | Node::Declare { line, .. }
             | Node::Super { line, .. }
-            | Node::For { line, .. } => *line,
+            | Node::For { line, .. }
+            | Node::Label { line, .. }
+            | Node::Goto { line, .. } => *line,
         }
     }
 }

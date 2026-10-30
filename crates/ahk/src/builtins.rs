@@ -706,6 +706,7 @@ fn native_number(rt: &Runtime<'_>, value: &Value, line: u32) -> Result<f64, Runt
         Ok(number) => Ok(number),
         Err(RuntimeFailure::Error(error)) => Err(error),
         Err(RuntimeFailure::Detailed(error, _)) => Err(error),
+        Err(RuntimeFailure::Fatal(error)) => Err(error),
         Err(RuntimeFailure::Timeout(_)) => {
             Err(RuntimeError { message: "the script ran out of time.".into(), line })
         }
@@ -3670,17 +3671,14 @@ fn ver_compare(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8
 
 /// `IsLabel`: whether a label of the script is there.
 ///
-/// The tree has no labels: a script of this tree is a list of statements
-/// and there is nothing to jump to. So the answer is that the label is
-/// not there.
-fn is_label(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    if text_of(values, 0).is_empty() {
-        return Err(RuntimeError {
-            message: "the name of a label is missing.".into(),
-            line,
-        });
-    }
-    Ok(Value::Int(0))
+/// Measured on the binary of v2.0.19 on 2026-10-31: the label is asked in
+/// the scope that runs: the scope of the script, or the scope of the
+/// function or of the method. The answer is one when the label is there
+/// and zero when it is not, and the name of a label does not know its
+/// case. A name that is empty is a name that is not there.
+fn is_label(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let name = text_of(values, 0);
+    Ok(Value::Int(if rt.has_label(&name) { 1 } else { 0 }))
 }
 
 /// The words of the arguments, one by one.

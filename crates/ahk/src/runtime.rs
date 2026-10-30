@@ -784,6 +784,13 @@ pub(crate) enum Flow {
     Continue,
     Return(Option<Value>),
     Exit(i32),
+    /// The jump of a `Goto`: the name of the label, as the script wrote
+    /// it, and the line of the jump.
+    ///
+    /// The name is the text of the parameter, and not its value: v2 reads
+    /// the name of a label as it stands, and the quotes of a text are part
+    /// of it.
+    Goto { name: String, line: u32 },
 }
 
 /// What the functions of the error said about a failure.
@@ -859,6 +866,13 @@ pub struct Runtime<'a> {
     /// one where the run began.
     initial_working_dir: Option<String>,
     scopes: Vec<ScopeTable>,
+    /// The labels of the scope that runs.
+    ///
+    /// A label belongs to the scope it is written in: the scope of the
+    /// script, or the scope of a function or of a method. `IsLabel` asks
+    /// the scope that runs whether it holds the label, and the name of a
+    /// label does not know its case.
+    label_scopes: Vec<Vec<String>>,
     /// The declarations of the functions that run.
     ///
     /// The frame of a function says where its names live: the ones it
@@ -977,6 +991,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             initial_working_dir,
             scopes: Vec::new(),
+            label_scopes: Vec::new(),
             declarations: Vec::new(),
             current_classes: Vec::new(),
             frames: Vec::new(),
@@ -1024,6 +1039,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             initial_working_dir,
             scopes: Vec::new(),
+            label_scopes: Vec::new(),
             declarations: Vec::new(),
             current_classes: Vec::new(),
             frames: Vec::new(),
@@ -1082,11 +1098,24 @@ impl<'a> Runtime<'a> {
         // The functions are collected before the first statement runs, so a
         // script may call a function it defines further down.
         self.collect_functions(statements);
+        // The labels of the script are the scope of the script.
+        self.label_scopes.push(the_labels_of(statements));
         match self.run_block(statements) {
             Ok(()) => {}
             Err(RuntimeFailure::Flow(Flow::Break)) | Err(RuntimeFailure::Flow(Flow::Continue)) => {}
             Err(RuntimeFailure::Flow(Flow::Return(_))) => {}
             Err(RuntimeFailure::Flow(Flow::Exit(code))) => exit_code = Some(code),
+            // The jump of a `Goto` that leaves the script: the label is not
+            // in the scope of the script.
+            Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
+                let failure = self.the_label_is_not_there(&name, statements, line);
+                error = Some(failure.message);
+                error_line = Some(failure.line);
+            }
+            Err(RuntimeFailure::Fatal(failure)) => {
+                error = Some(failure.message);
+                error_line = Some(failure.line);
+            }
             Err(RuntimeFailure::Error(failure)) => {
                 error = Some(failure.message);
                 error_line = Some(failure.line);
@@ -1136,6 +1165,7 @@ impl<'a> Runtime<'a> {
                     let (message, line) = match failure {
                         RuntimeFailure::Error(error) => (error.message, error.line),
                         RuntimeFailure::Detailed(error, _) => (error.message, error.line),
+                        RuntimeFailure::Fatal(error) => (error.message, error.line),
                         RuntimeFailure::Thrown(value) => (thrown_message(&value), 0),
                         RuntimeFailure::Timeout(timeout) => (timeout.to_string(), 0),
                         RuntimeFailure::Flow(_) => (
@@ -1291,13 +1321,54 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The failure of a `Goto` that does not find its label.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a label of another
+    /// scope is not found in the current one, and a label of a block that
+    /// does not enclose the jump is refused with a failure of its own.
+    fn the_label_is_not_there(&self, name: &str, scope: &[Node], line: u32) -> RuntimeError {
+        if the_labels_of(scope).iter().any(|label| label.eq_ignore_ascii_case(name)) {
+            return RuntimeError {
+                message: "A Goto must not jump into a block that doesn't enclose it.".into(),
+                line,
+            };
+        }
+        RuntimeError {
+            message: format!("Label not found in current scope. Specifically: {name}"),
+            line,
+        }
+    }
+
+    /// Whether the scope that runs holds the label.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the label is asked
+    /// in the scope that runs, and the name of a label does not know its
+    /// case.
+    pub fn has_label(&self, name: &str) -> bool {
+        let Some(scope) = self.label_scopes.last() else { return false };
+        scope.iter().any(|label| label.eq_ignore_ascii_case(name))
+    }
+
     fn run_block(&mut self, statements: &[Node]) -> Result<(), RuntimeFailure> {
-        for statement in statements {
+        let mut index = 0;
+        while index < statements.len() {
+            let statement = &statements[index];
             // A failure of the statement is given to the functions that
             // asked to see it, before the stack unwinds: one of them may
             // say that the thread continues.
             match self.execute(statement) {
                 Ok(()) => {}
+                // The jump of a `Goto` is not a failure: the run goes on at
+                // the label when this block holds it, and it goes out of
+                // the block when it does not.
+                Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
+                    match the_place_of_the_label(statements, &name) {
+                        Some(place) => index = place,
+                        None => return Err(RuntimeFailure::Flow(Flow::Goto { name, line })),
+                    }
+                }
+                // A failure that no catch takes goes out at once.
+                Err(failure @ RuntimeFailure::Fatal(_)) => return Err(failure),
                 Err(failure) => match self.ask_the_error_callbacks(&failure) {
                     // The thread continues: the statement that failed is
                     // over, and the failure is not the error of the run.
@@ -1329,6 +1400,7 @@ impl<'a> Runtime<'a> {
             if let Some(code) = self.exit_requested {
                 return Err(RuntimeFailure::Flow(Flow::Exit(code)));
             }
+            index += 1;
         }
         Ok(())
     }
@@ -1829,6 +1901,13 @@ impl<'a> Runtime<'a> {
             }
             Node::Directive { name, argument, line } => {
                 detail = self.directive(name, argument, *line)?;
+            }
+            // A label names a line of the script: it does nothing by
+            // itself.
+            Node::Label { .. } => {}
+            // The jump of a `Goto`: the run goes on at the label.
+            Node::Goto { name, line } => {
+                return Err(RuntimeFailure::Flow(Flow::Goto { name: name.clone(), line: *line }));
             }
             Node::Break { .. } => return Err(RuntimeFailure::Flow(Flow::Break)),
             Node::Continue { .. } => return Err(RuntimeFailure::Flow(Flow::Continue)),
@@ -3170,7 +3249,10 @@ impl<'a> Runtime<'a> {
         self.declarations.push(method.declarations.clone());
         self.current_classes.push(class.to_lowercase());
         self.frames.push(frame);
+        // The labels of the method are the scope of the method.
+        self.label_scopes.push(the_labels_of(&method.body));
         let outcome = self.run_block(&method.body);
+        self.label_scopes.pop();
         self.frames.pop();
         self.current_classes.pop();
         self.declarations.pop();
@@ -3181,6 +3263,11 @@ impl<'a> Runtime<'a> {
             Err(RuntimeFailure::Flow(Flow::Return(value))) => {
                 Ok(value.unwrap_or(Value::Text(String::new())))
             }
+            // The jump of a `Goto` that leaves the method: the label is not
+            // in the scope of the method.
+            Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => Err(RuntimeFailure::Fatal(
+                self.the_label_is_not_there(&name, &method.body, line),
+            )),
             Err(other) => Err(other),
         }
     }
@@ -4583,7 +4670,10 @@ impl<'a> Runtime<'a> {
         self.collect_the_nested_functions(&function.body);
         self.declarations.push(function.declarations.clone());
         self.frames.push(function.name.clone());
+        // The labels of the function are the scope of the function.
+        self.label_scopes.push(the_labels_of(&function.body));
         let outcome = self.run_block(&function.body);
+        self.label_scopes.pop();
         self.frames.pop();
         self.declarations.pop();
         self.scopes.pop();
@@ -4596,6 +4686,11 @@ impl<'a> Runtime<'a> {
             Err(RuntimeFailure::Flow(Flow::Return(value))) => {
                 Ok(value.unwrap_or(Value::Text(String::new())))
             }
+            // The jump of a `Goto` that leaves the function: the label is
+            // not in the scope of the function.
+            Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => Err(RuntimeFailure::Fatal(
+                self.the_label_is_not_there(&name, &function.body, line),
+            )),
             Err(other) => Err(other),
         }
     }
@@ -5714,6 +5809,8 @@ impl<'a> Runtime<'a> {
             | Node::Loop { .. }
             | Node::Break { .. }
             | Node::Continue { .. }
+            | Node::Label { .. }
+            | Node::Goto { .. }
             | Node::Return { .. }
             | Node::ExitApp { .. }
             | Node::FunctionDef { .. }
@@ -6273,6 +6370,7 @@ fn the_message_of(failure: &RuntimeFailure) -> String {
     match failure {
         RuntimeFailure::Error(error) => error.message.clone(),
         RuntimeFailure::Detailed(error, _) => error.message.clone(),
+        RuntimeFailure::Fatal(error) => error.message.clone(),
         RuntimeFailure::Thrown(value) => thrown_message(value),
         RuntimeFailure::Timeout(timeout) => timeout.to_string(),
         RuntimeFailure::Flow(_) => "the script left a block in the middle of it.".to_string(),
@@ -6304,6 +6402,60 @@ fn thrown_message(value: &Value) -> String {
     }
 }
 
+/// The place of the label in a block, when the block holds it.
+///
+/// The names of the labels do not know their case, the way the names of the
+/// variables do not.
+fn the_place_of_the_label(statements: &[Node], name: &str) -> Option<usize> {
+    statements.iter().position(|statement| match statement {
+        Node::Label { name: label, .. } => label.eq_ignore_ascii_case(name),
+        _ => false,
+    })
+}
+
+/// The labels of a scope, the way the script wrote them.
+///
+/// The labels of a function are the ones of its body, and the body of a
+/// function that is written inside another one belongs to the function it
+/// is written in.
+fn the_labels_of(body: &[Node]) -> Vec<String> {
+    let mut labels = Vec::new();
+    collect_the_labels(body, &mut labels);
+    labels
+}
+
+/// The labels of the blocks of a body.
+fn collect_the_labels(body: &[Node], labels: &mut Vec<String>) {
+    for statement in body {
+        match statement {
+            Node::Label { name, .. } => labels.push(name.clone()),
+            Node::If { branches, otherwise, .. } => {
+                for branch in branches {
+                    collect_the_labels(&branch.body, labels);
+                }
+                collect_the_labels(otherwise, labels);
+            }
+            Node::Switch { cases, .. } => {
+                for case in cases {
+                    collect_the_labels(&case.body, labels);
+                }
+            }
+            Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+                collect_the_labels(body, labels);
+            }
+            Node::Try { body, catches, otherwise, finally, .. } => {
+                collect_the_labels(body, labels);
+                for catch in catches {
+                    collect_the_labels(&catch.body, labels);
+                }
+                collect_the_labels(otherwise, labels);
+                collect_the_labels(finally, labels);
+            }
+            _ => {}
+        }
+    }
+}
+
 /// The name a statement is reported under.
 pub fn op_name(statement: &Node) -> &str {
     match statement {
@@ -6330,6 +6482,8 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Directive { name, .. } => name,
         Node::Break { .. } => "Break",
         Node::Continue { .. } => "Continue",
+        Node::Label { .. } => "Label",
+        Node::Goto { .. } => "Goto",
         Node::Return { .. } => "Return",
         Node::ExitApp { .. } => "ExitApp",
         Node::FunctionDef { .. } => "FunctionDef",
@@ -6354,6 +6508,12 @@ pub(crate) enum RuntimeFailure {
     /// `What` names the thing that raised the failure, and `Extra` is
     /// the detail that goes with it.
     Detailed(RuntimeError, Detail),
+    /// A failure that no catch takes.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
+    /// `Goto` that does not find its label ends the script, and a catch
+    /// does not take it.
+    Fatal(RuntimeError),
     /// A value that the script threw.
     Thrown(Value),
     Timeout(Timeout),

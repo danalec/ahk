@@ -99,8 +99,8 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   `Unary`, `Binary`, `Ternary`, `Cast`, `Assign`, `Index`, `AssignIndex`,
   `Call`, `If`, `Switch`, `While`, `Loop`, `For`, `Directive`, `Break`,
   `Continue`, `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`,
-  `Property`, `AssignProperty`, `ArrayLiteral`, `ObjectLiteral` and
-  `Lambda`. Every variant carries its line.
+  `Property`, `AssignProperty`, `ArrayLiteral`, `ObjectLiteral`, `Lambda`,
+  `Label` and `Goto`. Every variant carries its line.
 
   The statements that v2 spells as commands -- `Send`, `Click`, `Sleep`,
   `Run`, `MsgBox` -- are not variants of the tree: they are names of the
@@ -128,6 +128,11 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   object enumerates. A name the script left out is an empty string in
   the list, so `for , value in map` is two names and the first one is
   nobody's.
+- `Label { name, line }` -- a label of the script: a name and a colon. It
+  names a line, and it does nothing by itself.
+- `Goto { name, line }` -- the jump to a label. The name is the text of
+  the parameter as the script wrote it, and not its value: the quotes of a
+  text are part of it.
 - `Node::line(&self) -> u32` -- the line of the node, which is the line the
   report blames.
 - `LiteralValue` -- `Integer(i64)`, `Float(f64)`, `Text(String)`,
@@ -235,6 +240,19 @@ name.\n     Specifically: f(a, b,) {". A bracket that is not closed is named
 the same way, and a token that is not wanted is named too: "Unexpected
 \")\"\n     Specifically: x := 1 )".
 
+A line that is a label is a label before it is anything else: a name and a
+colon, and nothing else may be written on the line of it. The name is of
+letters, of digits and of the underscore, and it may begin with a digit.
+A line that ends with a colon and is not a label holds no action: "This
+line does not contain a recognized action.\n     Specifically: a-b:".
+
+The parameter of a `Goto` is not an expression: it is the name of a label
+and it is read as the text of it. The `Goto` needs one parameter and it
+takes one, and the load refuses the one that has none and the one that has
+more, in the words of the dialect. A label that is written twice in the
+same scope is refused at the load too: "Duplicate label.\n     Specifically:
+done".
+
 An operator that wants a number may not follow a literal text, and the
 refusal is at the load: "Unexpected operator following literal string.\n
 Specifically: + 0". The text that is named is the operator and the rest of
@@ -280,6 +298,16 @@ that defines it and the first reference to it. The variables that belong to
 the class are assigned to the class then, and the `__New` that is static is
 the one that runs. The variables of an instance are assigned when the
 instance is made.
+
+A `Goto` is a jump of the run: the run goes on at the label, and it goes out
+of the block when the block does not hold the label. The scope of a label is
+the scope it is written in -- the scope of the script, or the scope of a
+function or of a method -- and the jump of one scope is not the jump of
+another: "Label not found in current scope. Specifically: later" is the
+failure of a label that is elsewhere, and "A Goto must not jump into a
+block that doesn't enclose it." is the failure of a label of a block that
+does not enclose the jump. The failure is of its own kind -- `RuntimeFailure
+::Fatal` -- and a catch does not take it.
 
 The scope of the runtime is shared: a function that is written inside another
 one closes over the scope of the one around it, and the write of the closure

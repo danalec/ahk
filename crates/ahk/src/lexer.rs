@@ -74,6 +74,7 @@ pub const KEYWORDS: &[&str] = &[
     "for",
     "break",
     "continue",
+    "goto",
     "true",
     "false",
     "and",
@@ -244,10 +245,26 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             // A name that begins with a number is not a number: v2 refuses
             // the script at the load, and it says which name it is.
             if index < chars.len() && (chars[index].is_alphabetic() || chars[index] == '_') {
+                let number_end = index;
                 let mut name = chars[start..index].iter().collect::<String>();
                 while index < chars.len() && (chars[index].is_alphanumeric() || chars[index] == '_') {
                     name.push(chars[index]);
                     index += 1;
+                }
+                // Measured on the binary of v2.0.19 on 2026-10-31: a name
+                // that begins with a number is a label when a colon comes
+                // after it: `1abc:` is a label. Anywhere else it is a name
+                // that v2 refuses.
+                if chars.get(index) == Some(&':') {
+                    column += (index - number_end) as u32;
+                    tokens.push(Token {
+                        kind: TokenKind::Name,
+                        value: name,
+                        line: start_line,
+                        column: start_column,
+                        spaced: before,
+                    });
+                    continue;
                 }
                 return Err(SyntaxError::new(
                     format!("This variable name starts with a number, which is not allowed:\n{name:?}"),

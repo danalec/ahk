@@ -3433,9 +3433,9 @@ Most of the cases that are different are the dialog of the dialect: a
 variable that has no value shows it, and it cannot be caught. The tree says
 the same failure in words.
 
-One gap is left, and it is not about the call: the `Goto` of v2 is not in
-the table of the surface, and the tree does not carry it. The binary asks
-for a label: "Goto requires at least 1 parameter. Specifically: goto".
+The gap that was left is closed in the section 72: the `Goto` of v2 is a
+word of the language and not a name of the built-in table, and the tree
+carries it as a statement, the way it carries `Try` and `Throw`.
 
 ## 69. A built-in variable that the dialect lets a script write is written
 
@@ -3498,3 +3498,55 @@ Four of the hundred and twenty-nine cases are different, and none of them
 is about the write: two are the path of the script (the tree answers an
 asterisk, because the script of the runner comes from the standard input),
 and two are the dialog of the dialect, which cannot be caught.
+
+## 72. The label of a script and the jump of a Goto
+
+Measured on the binary of v2.0.19 on 2026-10-31: the `Goto` is a word of
+the language and not a name of the built-in table -- it stands with `Try`,
+`Catch`, `Throw` and `Switch` in the pool of the words of the binary -- and
+that is why the table of the surface does not carry it. The tree carries it
+as a statement of the language, the way it carries `Try` and `Throw`, and
+the label is a statement too.
+
+- **A label is a name and a colon.** The name is of letters, of digits and
+  of the underscore, and it may begin with a digit: `1abc:` is a label. A
+  line that ends with a colon and is not one of them holds no action, and
+  the message of the dialect is "This line does not contain a recognized
+  action. Specifically: a-b:" -- the message of `done :` and of `done:
+  FileAppend "x", "*"` too.
+- **The parameter of a `Goto` is not an expression.** It is the name of a
+  label, and it is read as the text of it: `Goto "done"` looks for a label
+  that is called `"done"`, with the quotes, and `Goto done` looks for the
+  label `done`. The name of a label does not know its case, and the text of
+  the parameter is what the failure names.
+- **The `Goto` needs one parameter and it takes one.** The load refuses the
+  one that has none -- "\"Goto\" requires at least 1 parameter. Specifically:
+  Goto" -- and the one that has more -- "\"Goto\" accepts at most 1
+  parameter. Specifically: Goto a, b".
+- **A label belongs to the scope it is written in.** The scope of the
+  script, or the scope of a function or of a method. A label of another
+  scope is not found in the current one: "Label not found in current scope.
+  Specifically: later" is the message of the dialect.
+- **The jump may go to a label of the block it is in, or of a block around
+  it.** A label of a block that does not enclose the jump is refused with
+  "A Goto must not jump into a block that doesn't enclose it.".
+- **The failure of a `Goto` ends the script, and a catch does not take
+  it.** The tree has a kind of failure for it -- `RuntimeFailure::Fatal` --
+  and it is not given to the functions of the error either.
+- **A label that is written twice in the same scope is refused at the
+  load.** "Duplicate label. Specifically: done" is the message of the
+  dialect, and it names the line of the second label.
+- **`IsLabel` asks the scope that runs.** It answers one when the label is
+  there and zero when it is not, and a name that is empty is a name that is
+  not there.
+
+One thing the tree does and the binary of v2.0.19 does not: the binary
+never comes back from a `Goto` that leaves a block which has statements
+after it, and it never comes back from the parenthesis of the parameter --
+`Goto(later)` hangs it too. The tree jumps and goes on, the way the
+documentation of the dialect says: "Goto jumps to the specified label and
+continues execution."
+
+The comparison of the tree with the binary is in
+`egm-review/compare_goto.py` (34 cases): 31 are the same, and the three
+that are not are the hang of the binary.

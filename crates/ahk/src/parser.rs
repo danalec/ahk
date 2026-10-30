@@ -190,6 +190,76 @@ fn the_text_of_a_declaration(kind: DeclareKind, names: &[Declared]) -> String {
     text
 }
 
+/// The labels of a scope, the way the script wrote them.
+///
+/// The labels of the blocks of the scope are the labels of the scope, and
+/// the body of a function that is written inside the scope belongs to that
+/// function and not to the scope around it.
+fn the_labels_of_a_scope(body: &[Node]) -> Vec<(String, u32)> {
+    let mut labels = Vec::new();
+    collect_the_labels_of_a_scope(body, &mut labels);
+    labels
+}
+
+/// The labels of the blocks of a scope.
+fn collect_the_labels_of_a_scope(body: &[Node], labels: &mut Vec<(String, u32)>) {
+    for statement in body {
+        match statement {
+            Node::Label { name, line } => labels.push((name.clone(), *line)),
+            Node::If { branches, otherwise, .. } => {
+                for branch in branches {
+                    collect_the_labels_of_a_scope(&branch.body, labels);
+                }
+                collect_the_labels_of_a_scope(otherwise, labels);
+            }
+            Node::Switch { cases, .. } => {
+                for case in cases {
+                    collect_the_labels_of_a_scope(&case.body, labels);
+                }
+            }
+            Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+                collect_the_labels_of_a_scope(body, labels);
+            }
+            Node::Try { body, catches, otherwise, finally, .. } => {
+                collect_the_labels_of_a_scope(body, labels);
+                for catch in catches {
+                    collect_the_labels_of_a_scope(&catch.body, labels);
+                }
+                collect_the_labels_of_a_scope(otherwise, labels);
+                collect_the_labels_of_a_scope(finally, labels);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// The name of a label, when the tokens before the colon are one.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the name of a label
+/// is of letters, of digits and of the underscore, and it may begin with
+/// a digit: `1abc:` is a label. A name with a dash or with a dot is not
+/// a label, and a name with a space is not one either.
+fn the_name_of_a_label(tokens: &[Token]) -> Option<String> {
+    let mut name = String::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if index > 0 && token.spaced {
+            return None;
+        }
+        match token.kind {
+            TokenKind::Name | TokenKind::Number => {}
+            _ => return None,
+        }
+        if !token.value.chars().all(|letter| letter.is_ascii_alphanumeric() || letter == '_') {
+            return None;
+        }
+        name.push_str(&token.value);
+    }
+    if name.is_empty() {
+        return None;
+    }
+    Some(name)
+}
+
 /// The text of the tokens of a range, the way the script wrote them.
 fn the_text_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String {
     let mut text = String::new();
@@ -619,6 +689,9 @@ impl Parser {
             statements.extend(self.parse_statement()?);
             self.skip_newlines();
         }
+        // The labels of the script are the scope of the script, and a label
+        // that is written twice in it is refused.
+        self.check_the_labels(&statements)?;
         // The assignments of the top level live in the scope of the script,
         // and the class that one of them names may be declared further down.
         let assignments = core::mem::take(self.assignments.first_mut().expect("the top level"));
@@ -898,6 +971,7 @@ impl Parser {
                     return Ok(Vec::new());
                 }
                 "try" => return Ok(vec![self.parse_try()?]),
+                "goto" => return Ok(vec![self.parse_goto()?]),
                 "global" => return Ok(vec![self.parse_declaration(DeclareKind::Global)?]),
                 "local" => return Ok(vec![self.parse_declaration(DeclareKind::Local)?]),
                 "throw" => return Ok(vec![self.parse_throw()?]),
@@ -906,6 +980,11 @@ impl Parser {
                 "exitapp" => return Ok(vec![self.parse_exitapp()?]),
                 _ => {}
             }
+        }
+        // The label of the line comes before anything else: a line that is
+        // a label is a label, and not an expression.
+        if let Some(label) = self.parse_label()? {
+            return Ok(vec![label]);
         }
         if token.kind == TokenKind::Name {
             return self.parse_name_statement();
@@ -1012,6 +1091,7 @@ impl Parser {
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
                 self.assignments.push(Vec::new());
                 let body = self.parse_block("function", name_token.line)?;
+                self.check_the_labels(&body)?;
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
                 self.assignments.pop();
                 self.parameters.pop();
@@ -1771,6 +1851,170 @@ impl Parser {
         Ok(Node::Declare { scope: kind, names, line: token.line })
     }
 
+    /// The label of a line, when the line is one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a label is a name
+    /// and a colon, and nothing else may be written on the line of it. The
+    /// name is of letters, of digits and of the underscore, and it may
+    /// begin with a digit: `1abc:` is a label. A line that ends with a
+    /// colon and is not one of them is a line that holds no action.
+    fn parse_label(&mut self) -> Result<Option<Node>, SyntaxError> {
+        let token = self.peek().clone();
+        if token.kind != TokenKind::Name && token.kind != TokenKind::Number {
+            return Ok(None);
+        }
+        // The tokens of the line, up to the end of it.
+        let mut end = self.position;
+        while end < self.tokens.len() {
+            let next = &self.tokens[end];
+            if next.kind == TokenKind::Newline || next.kind == TokenKind::Eof {
+                break;
+            }
+            if next.kind == TokenKind::Op && next.value == "}" {
+                break;
+            }
+            end += 1;
+        }
+        let line = &self.tokens[self.position..end];
+        let Some(colon) = line.last() else { return Ok(None) };
+        if colon.kind != TokenKind::Op || colon.value != ":" {
+            // The line may hold a label with something else written after
+            // it: `done: FileAppend "x", "*"` holds no action.
+            let writes_more = match line.get(1) {
+                Some(second) => second.kind == TokenKind::Op && second.value == ":" && !second.spaced,
+                None => false,
+            };
+            if !writes_more {
+                return Ok(None);
+            }
+            return Err(self.the_line_holds_no_action(token.line));
+        }
+        // The name of the label: the tokens before the colon.
+        let name = the_name_of_a_label(&line[..line.len() - 1]);
+        match name {
+            Some(name) => {
+                // The space before the colon is not allowed: `done :` is
+                // not a label.
+                if colon.spaced {
+                    return Err(self.the_line_holds_no_action(token.line));
+                }
+                self.position = end;
+                Ok(Some(Node::Label { name, line: token.line }))
+            }
+            None => {
+                // A name with a dash or with a dot is not a label, and the
+                // line that holds it holds no action. A name with a space
+                // is an expression that the parser reads the way it reads
+                // every other one.
+                if line[..line.len() - 1].iter().skip(1).any(|token| token.spaced) {
+                    return Ok(None);
+                }
+                Err(self.the_line_holds_no_action(token.line))
+            }
+        }
+    }
+
+    /// `Goto name`: the jump to a label.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the parameter of a
+    /// `Goto` is not an expression. It is the name of a label, and it is
+    /// read as the text of it: `Goto "done"` looks for a label that is
+    /// called `"done"`, with the quotes, and `Goto done` looks for the
+    /// label `done`. The name of a label does not know its case.
+    ///
+    /// The `Goto` needs one parameter and it takes one: the load refuses
+    /// the one that has none, and the load refuses the one that has more.
+    fn parse_goto(&mut self) -> Result<Node, SyntaxError> {
+        let keyword_at = self.position;
+        let token = self.next();
+        // The parenthesis of the dialect: `Goto(name)` is the same as
+        // `Goto name`, and the parameter is the text inside it.
+        let parenthesised = self.at_op(&["("]);
+        let open_at = self.position;
+        if parenthesised {
+            self.next();
+        }
+        let start = self.position;
+        let mut end = start;
+        let mut parameters = 1;
+        while end < self.tokens.len() {
+            let next = &self.tokens[end];
+            if next.kind == TokenKind::Newline || next.kind == TokenKind::Eof {
+                break;
+            }
+            if parenthesised && next.kind == TokenKind::Op && next.value == ")" {
+                break;
+            }
+            if !parenthesised && next.kind == TokenKind::Op && next.value == "}" {
+                break;
+            }
+            // The comma is what makes a parameter of its own.
+            if next.kind == TokenKind::Op && next.value == "," {
+                parameters += 1;
+            }
+            end += 1;
+        }
+        let name = the_text_of_the_tokens(self, start, end);
+        self.position = end;
+        if parenthesised && self.at_op(&[")"]) {
+            self.next();
+        }
+        // The `Goto` needs a parameter.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the failure
+        // names the text that the dialect had read when it refused it, and
+        // the parenthesis is part of that text: `Goto()` names `Goto(`.
+        if name.is_empty() {
+            let text = if parenthesised {
+                the_source_of_the_tokens(self, keyword_at, open_at + 1)
+            } else {
+                the_source_of_the_line(self, token.line)
+            };
+            return Err(self.error(format!(
+                "\"Goto\" requires at least 1 parameter.\n     Specifically: {text}"
+            )));
+        }
+        // The `Goto` takes one.
+        if parameters > 1 {
+            return Err(self.error(format!(
+                "\"Goto\" accepts at most 1 parameter.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )));
+        }
+        self.end_of_statement()?;
+        Ok(Node::Goto { name, line: token.line })
+    }
+
+    /// The refusal of a label that is written twice in the same scope.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the load refuses
+    /// the second label of a name, and it says which name it is: "Duplicate
+    /// label. Specifically: done". The name of a label does not know its
+    /// case, and the scope of a label is the scope it is written in.
+    fn check_the_labels(&self, body: &[Node]) -> Result<(), SyntaxError> {
+        let mut seen: Vec<String> = Vec::new();
+        for (name, line) in the_labels_of_a_scope(body) {
+            let key = name.to_lowercase();
+            if seen.contains(&key) {
+                return Err(SyntaxError {
+                    message: format!("Duplicate label.\n     Specifically: {name}"),
+                    line,
+                    column: 1,
+                });
+            }
+            seen.push(key);
+        }
+        Ok(())
+    }
+
+    /// The failure of a line that holds no action.
+    fn the_line_holds_no_action(&self, line: u32) -> SyntaxError {
+        self.error(format!(
+            "This line does not contain a recognized action.\n     Specifically: {}",
+            the_source_of_the_line(self, line)
+        ))
+    }
+
     /// `throw value`, or `throw` alone.
     fn parse_throw(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
@@ -1943,6 +2187,7 @@ impl Parser {
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
                 self.assignments.push(Vec::new());
                 let body = self.parse_block("method", name_token.line)?;
+                self.check_the_labels(&body)?;
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
                 self.assignments.pop();
                 self.parameters.pop();
@@ -3371,4 +3616,97 @@ mod tests {
         let statements = parse("f() {\n  if 1 {\n    global g\n  }\n}").expect("parses");
         let Node::FunctionDef { declarations, .. } = &statements[0] else { panic!("a definition") };
         assert!(declarations.globals.contains("g"));
+    }
+
+    #[test]
+    fn a_label_is_a_statement_of_its_own() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a label is a
+        // name and a colon, and it names a line of the script.
+        let statements = parse("done:").expect("parses");
+        assert!(matches!(&statements[0], Node::Label { name, .. } if name == "done"));
+    }
+
+    #[test]
+    fn the_name_of_a_label_may_begin_with_a_number() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // label is of letters, of digits and of the underscore, and it may
+        // begin with a digit.
+        let statements = parse("1abc:").expect("parses");
+        assert!(matches!(&statements[0], Node::Label { name, .. } if name == "1abc"));
+    }
+
+    #[test]
+    fn a_label_with_a_name_that_is_not_one_holds_no_action() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a name with a
+        // dash is not the name of a label, and the line that holds it holds
+        // no action.
+        let error = parse("a-b:").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: a-b:"
+        );
+    }
+
+    #[test]
+    fn a_label_with_a_space_before_the_colon_holds_no_action() {
+        let error = parse("done :").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: done :"
+        );
+    }
+
+    #[test]
+    fn a_label_with_other_code_on_its_line_holds_no_action() {
+        let error = parse("done: x := 1").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: done: x := 1"
+        );
+    }
+
+    #[test]
+    fn a_label_that_is_written_twice_is_refused() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the load
+        // refuses the second label of a name.
+        let error = parse("done:\ndone:").expect_err("does not parse");
+        assert_eq!(error.message, "Duplicate label.\n     Specifically: done");
+        assert_eq!(error.line, 2);
+    }
+
+    #[test]
+    fn a_label_of_another_scope_may_have_the_name_of_one() {
+        let statements = parse("f() {\n  done:\n}\ndone:").expect("parses");
+        assert_eq!(statements.len(), 2);
+    }
+
+    #[test]
+    fn a_goto_needs_a_parameter() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the load
+        // refuses the `Goto` that has none.
+        let error = parse("Goto").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "\"Goto\" requires at least 1 parameter.\n     Specifically: Goto"
+        );
+    }
+
+    #[test]
+    fn a_goto_takes_one_parameter() {
+        let error = parse("Goto a, b").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "\"Goto\" accepts at most 1 parameter.\n     Specifically: Goto a, b"
+        );
+    }
+
+    #[test]
+    fn the_name_of_a_label_is_the_text_of_the_parameter() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the parameter of
+        // a `Goto` is not an expression: it is the name of a label, and it
+        // is read as the text of it.
+        let statements = parse("Goto \"done\"").expect("parses");
+        assert!(matches!(&statements[0], Node::Goto { name, .. } if name == "\"done\""));
+        let statements = parse("Goto(done)").expect("parses");
+        assert!(matches!(&statements[0], Node::Goto { name, .. } if name == "done"));
     }

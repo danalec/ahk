@@ -3596,3 +3596,98 @@ fn a_member_of_a_class_that_is_a_name_alone_is_a_line_with_no_action() {
         "This line does not contain a recognized action.\n     Specifically: x"
     );
 }
+
+#[test]
+fn a_goto_goes_to_the_label_and_the_run_goes_on() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `Goto` jumps to
+    // the label and continues the run.
+    let (report, _desktop) = run("if (true) {\n    Goto later\n    MsgBox \"skipped\"\n}\nlater:\nMsgBox \"done\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["done"]);
+}
+
+#[test]
+fn a_goto_that_leaves_a_block_goes_on_outside_it() {
+    let (report, _desktop) = run("if (true) {\n    Goto later\n}\nlater:\nMsgBox \"done\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["done"]);
+}
+
+#[test]
+fn the_name_of_a_label_does_not_know_its_case() {
+    let (report, _desktop) = run("if (true) {\n    Goto DONE\n}\ndone:\nMsgBox \"done\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["done"]);
+}
+
+#[test]
+fn a_goto_to_a_label_that_is_not_there_fails_with_the_reason() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the label of
+    // another scope is not found in the current one.
+    let (report, _desktop) = run("if (true) {\n    Goto nowhere\n}");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Label not found in current scope. Specifically: nowhere")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_goto_into_a_block_that_does_not_enclose_it_fails_with_the_reason() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the jump may go to
+    // a label of the block it is in, or of a block around it, and to no
+    // other.
+    let (report, _desktop) = run("if (true) {\n    Goto inner\n}\nif (true) {\n    inner:\n}");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("A Goto must not jump into a block that doesn't enclose it.")
+    );
+}
+
+#[test]
+fn the_failure_of_a_goto_is_not_taken_by_a_catch() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
+    // `Goto` that does not find its label ends the script, and a catch
+    // does not take it.
+    let (report, _desktop) = run("try {\n    Goto nowhere\n} catch Any as e {\n    MsgBox \"caught\"\n}");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Label not found in current scope. Specifically: nowhere")
+    );
+}
+
+#[test]
+fn a_label_of_a_function_is_not_a_label_of_the_script() {
+    let (report, _desktop) = run("f() {\n    Goto inner\n}\nf()\ninner:\nMsgBox \"done\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Label not found in current scope. Specifically: inner")
+    );
+}
+
+#[test]
+fn is_label_answers_whether_the_label_is_there() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the label is asked
+    // in the scope that runs, and the answer is one or zero.
+    let (report, _desktop) = run("later:\nMsgBox IsLabel(\"later\") \" \" IsLabel(\"nope\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 0"]);
+}
+
+#[test]
+fn is_label_asks_the_scope_that_runs() {
+    let (report, _desktop) = run("f() {\n    MsgBox IsLabel(\"later\")\n}\nf()\nlater:");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn is_label_of_an_empty_name_answers_zero() {
+    let (report, _desktop) = run("MsgBox IsLabel(\"\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
