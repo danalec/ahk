@@ -962,6 +962,9 @@ that asks for another one is refused with the reason.
   the value and the methods and the properties of the class are its own
   properties, and the property of the class cannot be read on it: the
   prototype is not an instance of the class.
+- **A method is a value.** The read of a method hands a function over, and
+  the `GetMethod` of a value hands the same one over; the object is one of
+  the arguments of the call.
 
 ## Side Effects
 

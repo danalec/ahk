@@ -4148,3 +4148,28 @@ line with "Not a valid method, class or property definition.". The
 property of a class is own of the prototype of it in v2, and the tree has
 no property of a class: the `value := 1` of a class is a variable of the
 instance, and v2 owns it in the same way.
+
+## 90. The methods are values, and the `GetMethod` of a value
+
+Measured on the binary of v2.0.19 on 2026-10-31: v2 hands a method over as a
+function. The read of it gives the function, and the `GetMethod` of it gives
+the same one.
+
+- **A method of the base object is a value.** `o.Clone` is a function whose
+  name is "Object.Prototype.Clone", and `o.OwnProps` is one whose name is
+  "Object.Prototype.OwnProps". The four that the script asks about every day
+  keep the name they have: `o.HasProp` is "HasProp".
+- **The `GetMethod` of a value hands the method over.** `m.GetMethod("Get")`
+  is the method of the `Map`, and its name is "Map.Prototype.Get". The tree
+  refused it with "this runtime does not carry the method of a class type as
+  a value.".
+- **The method that is not there is refused with the words of the value.**
+  `m.GetMethod("Nope")` is refused with `This value of type "Map" has no
+  method named "Nope".` and the `What` "GetMethod".
+- **The object is one of the arguments of the call.** `o.Clone` takes one
+  argument and `o.DefineProp` takes three, and the `MinParams` and the
+  `MaxParams` of the function say so.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_method_values.py` (23 cases) and in
+`egm-review/probe_method_values.py` (14 cases).

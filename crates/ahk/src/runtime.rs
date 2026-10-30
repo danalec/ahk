@@ -3820,7 +3820,7 @@ impl<'a> Runtime<'a> {
         if crate::classes::the_base_object_has_the_method(&lower) {
             let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&lower);
             let (min, max) = crate::classes::the_arity_of("object", &lower).unwrap_or((0, 0));
-            return self.method_reference_of_the_base_object(&spelled, &lower, min, max);
+            return self.method_reference_of_the_base_object(&spelled, &lower, min + 1, max + 1);
         }
         Value::Text(String::new())
     }
@@ -4166,16 +4166,37 @@ impl<'a> Runtime<'a> {
                     if crate::classes::the_base_object_has_the_method(&name) {
                         let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&name);
                         let (min, max) = crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
-                        let reference =
-                            self.method_reference_of_the_base_object(&spelled, &name, min, max);
+                        let reference = self
+                            .method_reference_of_the_base_object(&spelled, &name, min + 1, max + 1);
                         return Some(Ok(reference));
                     }
                     return Some(Err(self.no_method(target, &name, line)));
                 }
-                let Some((defining, method)) = self.find_method_in(&class, &name) else {
-                    return Some(Err(self.no_method(target, &name, line)));
-                };
-                Some(Ok(self.method_reference(&defining, &method)))
+                // A method of a class of the script.
+                if let Some((defining, method)) = self.find_method_in(&class, &name) {
+                    return Some(Ok(self.method_reference(&defining, &method)));
+                }
+                // A method of a class type of the runtime.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `m.GetMethod("Get")` is the method of the `Map`.
+                if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name) {
+                    let reference =
+                        self.method_reference_of_a_class_type(&class, spelled, min, max);
+                    return Some(Ok(reference));
+                }
+                // A method of the base object.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `o.GetMethod("Clone")` is the method of the base object.
+                if crate::classes::the_base_object_has_the_method(&name) {
+                    let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&name);
+                    let (min, max) = crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
+                    let reference =
+                        self.method_reference_of_the_base_object(&spelled, &name, min + 1, max + 1);
+                    return Some(Ok(reference));
+                }
+                Some(Err(self.no_method(target, &name, line)))
             }
             "hasbase" => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the base
@@ -4984,16 +5005,17 @@ impl<'a> Runtime<'a> {
                     self.method_reference_of_a_class_type(&members, spelled, min, max);
                 return Ok((reference, false));
             }
-            // A method of the base object is a value too, and the prototype
-            // of the base object is the one that owns it.
+            // A method of the base object is a value too, and every object
+            // has it.
             //
             // Measured on the binary of v2.0.19 on 2026-10-31:
-            // `Object.Prototype.Clone` is a function whose name is
-            // "Object.Prototype.Clone".
-            if owner.is_some() && crate::classes::the_base_object_has_the_method(&name) {
+            // `o.Clone` is a function whose name is "Object.Prototype.Clone",
+            // and `o.HasProp` is one whose name is "HasProp".
+            if crate::classes::the_base_object_has_the_method(&name) {
                 let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&name);
                 let (min, max) = crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
-                let reference = self.method_reference_of_the_base_object(&spelled, &name, min, max);
+                let reference =
+                    self.method_reference_of_the_base_object(&spelled, &name, min + 1, max + 1);
                 return Ok((reference, false));
             }
         }

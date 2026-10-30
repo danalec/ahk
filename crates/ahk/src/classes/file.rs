@@ -1337,9 +1337,6 @@ fn base_method(
                 },
             }))
         }
-        // A method of a class type of the runtime is not a value this
-        // runtime carries.
-        "getmethod" => failure("this runtime does not carry the method of a class type as a value."),
         _ => None,
     }
 }

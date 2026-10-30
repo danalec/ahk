@@ -710,6 +710,69 @@ fn the_members_of_a_prototype_are_read_only() {
 }
 
 #[test]
+fn the_methods_are_values() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a method is handed
+    // over as a function, and the name of it is the name of the member.
+    assert_eq!(the_answer_of("o := Object()\nMsgBox o.Clone.Name"), "Object.Prototype.Clone");
+    assert_eq!(
+        the_answer_of("o := Object()\nMsgBox o.OwnProps.Name"),
+        "Object.Prototype.OwnProps"
+    );
+    // The four that the script asks about every day keep the name they
+    // have.
+    assert_eq!(the_answer_of("o := Object()\nMsgBox o.HasProp.Name"), "HasProp");
+    assert_eq!(the_answer_of("m := Map()\nMsgBox m.Get.Name"), "Map.Prototype.Get");
+    assert_eq!(the_answer_of("f := Abs\nMsgBox f.Call.Name"), "Func.Prototype.Call");
+}
+
+#[test]
+fn the_get_method_of_a_value_hands_the_method_over() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    assert_eq!(
+        the_answer_of("o := Object()\nMsgBox o.GetMethod(\"Clone\").Name"),
+        "Object.Prototype.Clone"
+    );
+    assert_eq!(
+        the_answer_of("m := Map()\nMsgBox m.GetMethod(\"Get\").Name"),
+        "Map.Prototype.Get"
+    );
+    assert_eq!(
+        the_answer_of("a := [1]\nMsgBox a.GetMethod(\"Push\").Name"),
+        "Array.Prototype.Push"
+    );
+    assert_eq!(
+        the_answer_of("f := Abs\nMsgBox f.GetMethod(\"Call\").Name"),
+        "Func.Prototype.Call"
+    );
+    assert_eq!(
+        the_answer_of("o := Error(\"x\")\nMsgBox o.GetMethod(\"Clone\").Name"),
+        "Object.Prototype.Clone"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class Thing {\n    Say() {\n        return 1\n    }\n}\nobj := Thing()\nMsgBox obj.GetMethod(\"Say\").Name"
+        ),
+        "Thing.Prototype.Say"
+    );
+    // The method that is not there is refused with the words of the value.
+    assert_eq!(
+        the_failure_of("m := Map()\nm.GetMethod(\"Nope\")"),
+        "This value of type \"Map\" has no method named \"Nope\". | GetMethod |"
+    );
+}
+
+#[test]
+fn the_number_of_the_arguments_of_a_method_is_the_one_of_the_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the object is one of
+    // the arguments of the call.
+    assert_eq!(the_answer_of("m := Map()\nMsgBox m.Get.MinParams"), "2");
+    assert_eq!(the_answer_of("m := Map()\nMsgBox m.Get.MaxParams"), "3");
+    assert_eq!(the_answer_of("o := Object()\nMsgBox o.Clone.MinParams"), "1");
+    assert_eq!(the_answer_of("o := Object()\nMsgBox o.Clone.MaxParams"), "1");
+    assert_eq!(the_answer_of("o := Object()\nMsgBox o.DefineProp.MaxParams"), "3");
+}
+
+#[test]
 fn the_prototype_of_an_any_has_no_method_at_all() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of an
     // `Any`, of a `ComObject` and of a `ComValue` is not a prototype: it has
