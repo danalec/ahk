@@ -3157,3 +3157,58 @@ Three cases of the tree asked for the base with a name, and they were
 rewritten with the prototype of the class: the object of the case of
 `HasProp`, the buffer of the case of its methods and the file of the case of
 its methods. The dialect is the one that decides what a case may write.
+
+
+## 63. The read of a file is the text of it, and the options of a file are the ones of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree answered the read
+of a file with an array of its lines, and it refused the options that v2
+takes. v2 answers with the text of the file, and the second parameter of the
+read and the third one of the write are the options.
+
+- **The answer of the read is the text of the file.** `FileRead("a.txt")`
+  answers a text and not an array of lines, and the line endings of the file
+  are the ones it has.
+- **The options of a file are a text.** They are separated by a space or a
+  tab, and each one of them is a word: the encoding of the file, `RAW`,
+  `m<n>` and a linefeed. The last one of a kind is the one that counts.
+- **The linefeed of the options is a character of its own.** It is the
+  character 0x0A, and not the text of a backtick and an n: that text is an
+  option that v2 does not know.
+- **The size of the read is a number of bytes.** `m5000` and `m0x1388` are
+  the same size, and a `m` with no number is zero bytes. The size is an
+  option of a read and not of a write: v2 refuses it in a write with
+  "Invalid option.".
+- **The raw answer is a buffer.** `FileRead("a.txt", "RAW")` answers a
+  buffer of the bytes of the file, and the mark of the file is one of them.
+- **The mark of the file decides the encoding of it.** A file that begins
+  with the mark of UTF-8 or of UTF-16 is read in that encoding, whatever
+  the option of the script says, and the mark is not in the text.
+- **The linefeed of a read takes the carriage return away, and the linefeed
+  of a write puts one there.** The read of a file of Windows with the
+  option of the linefeed is the file of Unix.
+- **The raw write is the text of v2.** The text of a script is UTF-16, and
+  a raw write writes the units of it, without a mark.
+- **The mark of the encoding is written when the file is made.** A file
+  that is already there keeps what it has, and a new file with the option
+  of UTF-8 begins with the mark of UTF-8.
+- **The default of the encoding is the code page of the machine.** The tree
+  carries the code page of the machine where the dialect was measured, and
+  a letter that is not of it is one byte.
+- **An option that v2 does not know is refused with the words of v2.**
+  "Invalid option.", of the class `ValueError`, with the name of the
+  command in the `What` and the option in the `Extra`.
+- **The failure of the machine is the code of the system in front of what
+  it says.** "(2) The system cannot find the file specified." for a file
+  that is not there, "(3) The system cannot find the path specified." for a
+  folder that is not there, and "(5) Access is denied." for a folder that is
+  read.
+- **The fill of a buffer is the byte of the number.** v2 does not refuse a
+  number that is not a byte: the byte of it is the fill.
+- **The names of a folder come in the order of the name with the case taken
+  away.** The pattern of `FileExist` answers with the first of them, and it
+  is the order of the `Loop Files`.
+
+The tree keeps the bytes of the file in the machine and the text of it in
+the dialect: the desktop answers with the bytes of a file, and the module of
+the files reads them in the encoding that the script asked for.

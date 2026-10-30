@@ -207,13 +207,25 @@ pub trait Files {
         Err("this desktop cannot read a file".to_string())
     }
 
+    /// The bytes of a file.
+    ///
+    /// The read of a file is the bytes of it: the dialect reads them in the
+    /// encoding that it asks for, and the machine keeps them as they are.
+    fn read_the_bytes_of_a_file(&mut self, _path: &str) -> Result<Vec<u8>, String> {
+        Err("this desktop cannot read a file".to_string())
+    }
+
     /// Write a file, replacing what was in it; return what was written.
     fn write_file(&mut self, _path: &str, _text: &str) -> Result<String, String> {
         Err("this desktop cannot write a file".to_string())
     }
 
     /// Add to the end of a file; return what was added.
-    fn append_file(&mut self, _path: &str, _text: &str) -> Result<String, String> {
+    ///
+    /// The bytes are the ones the dialect wrote, and the mark is the mark of
+    /// the encoding of the file: the machine writes it when the file is
+    /// made, and not when the file is already there.
+    fn append_file(&mut self, _path: &str, _bytes: &[u8], _mark: &[u8]) -> Result<String, String> {
         Err("this desktop cannot write a file".to_string())
     }
 

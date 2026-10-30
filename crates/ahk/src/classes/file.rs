@@ -99,7 +99,7 @@ impl File {
 /// The raw files have no byte order mark: the suffix of their name says
 /// so.
 #[derive(Clone, Copy)]
-enum Encoding {
+pub(crate) enum Encoding {
     /// The code page of the machine.
     Cp1252,
     /// The text of v2, in UTF-8.
@@ -936,7 +936,7 @@ impl Encoding {
     /// The suffix of the raw files says that the file has no byte order
     /// mark: v2 keeps the suffix in the name of the encoding of the
     /// script, and the file of a raw script has no mark.
-    fn of(name: &str) -> Result<Encoding, String> {
+    pub(crate) fn of(name: &str) -> Result<Encoding, String> {
         let name = name.trim().to_uppercase();
         let (name, raw) = match name.strip_suffix("-RAW") {
             Some(short) => (short, true),
@@ -971,7 +971,7 @@ impl Encoding {
     /// Measured on the binary of v2.0.19 on 2026-10-29: a file of UTF-8
     /// begins with the mark of three bytes, and a file of UTF-16 with the
     /// mark of two, and the code page has none.
-    fn mark(self) -> Option<Vec<u8>> {
+    pub(crate) fn mark(self) -> Option<Vec<u8>> {
         match self {
             Encoding::Cp1252 => None,
             Encoding::Utf8 { raw } => {
@@ -997,7 +997,7 @@ impl Encoding {
     /// file decide the encoding of it, whatever the script asked for: a
     /// file that begins with the mark of UTF-8 is read with UTF-8, and
     /// the position of the file goes over the mark.
-    fn detect(bytes: &[u8]) -> Option<(Encoding, usize)> {
+    pub(crate) fn detect(bytes: &[u8]) -> Option<(Encoding, usize)> {
         if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
             return Some((Encoding::Utf8 { raw: false }, 3));
         }
@@ -1094,7 +1094,7 @@ fn the_character_of_cp1252(byte: u8) -> char {
 }
 
 /// The bytes of the text, in the encoding.
-fn encode(text: &str, encoding: Encoding) -> Vec<u8> {
+pub(crate) fn encode(text: &str, encoding: Encoding) -> Vec<u8> {
     match encoding {
         Encoding::Cp1252 => encode_cp1252(text),
         Encoding::Utf8 { .. } => text.as_bytes().to_vec(),
@@ -1113,7 +1113,7 @@ fn encode(text: &str, encoding: Encoding) -> Vec<u8> {
 
 /// The text of the bytes, in the encoding, and how many bytes of them
 /// the text is.
-fn decode(bytes: &[u8], encoding: Encoding) -> Result<(String, usize), String> {
+pub(crate) fn decode(bytes: &[u8], encoding: Encoding) -> Result<(String, usize), String> {
     match encoding {
         Encoding::Cp1252 => Ok(decode_cp1252(bytes)),
         Encoding::Utf8 { .. } => decode_utf8(bytes),

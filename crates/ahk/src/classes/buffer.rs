@@ -70,6 +70,14 @@ pub(crate) fn construct(
     Ok(object_with("buffer", vec![(STATE, stored(&buffer))]))
 }
 
+/// A buffer of the bytes of a file.
+///
+/// The `FileRead` answers with a buffer when the script asks for the raw
+/// bytes of the file.
+pub(crate) fn of_bytes(bytes: Vec<u8>) -> Value {
+    object_with("buffer", vec![(STATE, stored(&Buffer { bytes }))])
+}
+
 /// A method of a `Buffer`.
 ///
 /// `None` means the method is not one of this class's: the runtime then
@@ -320,17 +328,12 @@ fn new(arguments: &[Value], line: u32) -> Result<Buffer, RuntimeFailure> {
     }
     // The bytes of a new buffer are zero, unless the script asks for
     // another byte to fill them with.
+    //
+    // Measured on the binary of v2.0.19 on 2026-10-31: the fill is the byte
+    // of the number, and a number that is not a byte is not refused: the
+    // byte of it is the fill.
     let fill = match arguments.get(1) {
-        Some(value) => {
-            let byte = whole_argument(value, 1, line)?;
-            if !(0..=255).contains(&byte) {
-                return Err(fail(
-                    "the fill of a buffer is a byte: it must be between 0 and 255.",
-                    line,
-                ));
-            }
-            byte as u8
-        }
+        Some(value) => whole_argument(value, 1, line)? as u8,
         None => 0,
     };
     Ok(Buffer { bytes: vec![fill; size as usize] })

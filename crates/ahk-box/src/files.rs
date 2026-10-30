@@ -181,21 +181,32 @@ impl ahk::desktop::Files for LabDesktop {
         }
         Ok(lines)
     }
+    fn read_the_bytes_of_a_file(&mut self, path: &str) -> Result<Vec<u8>, String> {
+        match fs::read(path) {
+            Ok(bytes) => Ok(bytes),
+            Err(error) => Err(the_failure_of_the_machine(path, &error)),
+        }
+    }
     fn write_file(&mut self, path: &str, text: &str) -> Result<String, String> {
         std::fs::write(path, text)
             .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
         Ok(text.to_string())
     }
-    fn append_file(&mut self, path: &str, text: &str) -> Result<String, String> {
+    fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
         use std::io::Write;
+        // The mark of the encoding is written when the file is made, and not
+        // when the file is already there.
+        let made = !Path::new(path).exists();
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(path)
-            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
-        file.write_all(text.as_bytes())
-            .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
-        Ok(text.to_string())
+            .map_err(|error| the_failure_of_the_machine(path, &error))?;
+        if made && !mark.is_empty() {
+            file.write_all(mark).map_err(|error| the_failure_of_the_machine(path, &error))?;
+        }
+        file.write_all(bytes).map_err(|error| the_failure_of_the_machine(path, &error))?;
+        Ok(bytes.len().to_string())
     }
     fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
         let source = Path::new(from);
@@ -307,9 +318,10 @@ impl ahk::desktop::Files for LabDesktop {
             found.push((name_of_the_entry, metadata));
         }
         // The order is the order of the names, the way v2 takes them: the
-        // case does not count.
+        // name with the case taken away, and the names of a folder of NTFS
+        // come in that order.
         found.sort_by(|one, other| {
-            one.0.to_lowercase().cmp(&other.0.to_lowercase()).then_with(|| one.0.cmp(&other.0))
+            one.0.to_uppercase().cmp(&other.0.to_uppercase()).then_with(|| one.0.cmp(&other.0))
         });
         Ok(match found.into_iter().next() {
             Some((_, metadata)) => letters_of(&metadata).into_iter().map(|letter| letter.to_string()).collect(),
@@ -668,6 +680,36 @@ fn read_ini(path: &str) -> Result<String, String> {
         Ok(bytes) => Ok(decode(&bytes)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(NOT_FOUND.to_string()),
         Err(error) => Err(format!("the file {path:?} cannot be read: {error}")),
+    }
+}
+
+/// The failure of the machine, in the words of v2.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the failure of the
+/// machine is the code of the system in front of what it says: "(2) The
+/// system cannot find the file specified.".
+fn the_failure_of_the_machine(path: &str, error: &std::io::Error) -> String {
+    match error.kind() {
+        std::io::ErrorKind::NotFound => {
+            // The file is not there, or the folder of it is not.
+            let folder = Path::new(path).parent().unwrap_or(Path::new(""));
+            if folder.as_os_str().is_empty() || folder.exists() {
+                "(2) The system cannot find the file specified.".to_string()
+            } else {
+                "(3) The system cannot find the path specified.".to_string()
+            }
+        }
+        std::io::ErrorKind::PermissionDenied => "(5) Access is denied.".to_string(),
+        _ => {
+            // A folder that is read is a folder that cannot be read.
+            if Path::new(path).is_dir() {
+                return "(5) Access is denied.".to_string();
+            }
+            match error.raw_os_error() {
+                Some(code) => format!("({code}) {error}"),
+                None => format!("({error})"),
+            }
+        }
     }
 }
 

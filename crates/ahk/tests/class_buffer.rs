@@ -167,6 +167,17 @@ fn a_buffer_has_no_item() {
 }
 
 #[test]
+fn the_fill_of_a_buffer_is_the_byte_of_the_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a number that is
+    // not a byte is not refused, and the byte of it is the fill.
+    let report = run(
+        "b := Buffer(3, 0x414243)\nMsgBox b.Size \" \" NumGet(b, 0, \"UChar\")",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3 67"]);
+}
+
+#[test]
 fn a_buffer_has_the_methods_of_the_base_object() {
     let report = run(
         "b := Buffer(4)\nmethod := b.HasMethod(\"ReadUChar\")\nprop := b.HasProp(\"Size\")\nbase := b.HasBase(Object.Prototype)\nMsgBox \"%method% %prop% %base%\"",

@@ -211,7 +211,10 @@ the attributes, the times, the directories and the ini files.
 | `file_times` / `set_file_times` | `(path) / (path, times)` | The three times of a file: the change, the access and the change of the metadata. |
 | `ini_read` / `ini_write` / `ini_delete` | `(file, section, key)` and so on | An ini of Windows: `[section]`, `key=value`, and `;` for a comment. |
 | `file_exists` / `delete_file` / `create_dir` / `dir_exists` | `(path)` | The four that answer whether something is there, and that take it away or make it. |
+| `read_the_bytes_of_a_file` | `(path) -> Result<Vec<u8>, String>` | The bytes of a file, as they are: the dialect reads them in the encoding that it asks for, and the machine keeps them as they are. |
+| `append_file` | `(path, bytes, mark) -> Result<String, String>` | The bytes go to the end of the file, and the mark of the encoding is written when the file is made and not when the file is already there. |
 | `letters_of` | private fn | The attributes of a file, in the order of v2. |
+| `the_failure_of_the_machine` | private fn | The failure of the machine, in the words of v2: "(2) The system cannot find the file specified." |
 | `list_files` | `(folder, pattern, mode) -> Result<Vec<String>, String>` | The pattern of v2 is a path: the folder of it is where the files are, and the rest of it is the name of them. The answer comes in the order of the name with the case taken away, and the case of the pattern does not count. |
 
 The wildcards and the recursion are not carried: `FileCopy "a*.txt", "b"`
@@ -389,6 +392,15 @@ with the `png` crate and looks for them on the screen with a capture of
   memory". `RBX` is a register the callee gives back. The trampoline of
   `native.rs` says this already, and the helper paid for it again on
   2026-10-28.
+- **The failure of the machine is the code of the system in front of what
+  it says.** "(2) The system cannot find the file specified." for a file
+  that is not there, "(3) The system cannot find the path specified." for a
+  folder that is not there, and "(5) Access is denied." for a folder that is
+  read. The words are the ones of v2, and the class of the failure follows
+  them: a message that begins with a parenthesis is an `OSError`.
+- **The names of a folder come in the order of the name with the case
+  taken away.** The pattern of `FileExist` answers with the first of them,
+  and the `Loop Files` walks them in the same order.
 
 ## Side Effects
 

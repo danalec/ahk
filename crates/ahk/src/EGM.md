@@ -572,6 +572,11 @@ Four modules that answer what the runtime used to answer with a reason.
   the answer is the attributes of the first entry that matches, and
   `DirExist` takes a folder among them. The encoding of the files is one
   state, and it lives in `settings.rs`.
+  The read of a file is the text of it, and the options of the read and of
+  the write are the options of v2: the encoding of the file, `RAW`, `m<n>`
+  and a linefeed. The bytes of the file are the machine's, and the text of
+  them is the dialect's: the module asks the desktop for the bytes and
+  reads them in the encoding that the script asked for.
 - `settings.rs` -- the settings of the script: the mode of the
   coordinates, the delays, the method of the send, the speed of the
   pointer, the mode of the caps lock and the encoding of the files. The
@@ -756,6 +761,13 @@ that asks for another one is refused with the reason.
   `HasBase` is an object, and the question is whether the base of the object
   is it; the chain of the bases is walked, and every chain ends at the
   prototype of the base object.
+- **The read of a file is the text of it.** The bytes of the file are the
+  machine's and the text of them is the dialect's: the module asks the
+  desktop for the bytes and reads them in the encoding that the script
+  asked for.
+- **The options of a file are the options of v2.** The encoding of the
+  file, `RAW`, `m<n>` and a linefeed; an option that v2 does not know is
+  refused with "Invalid option." and the option goes in the `Extra`.
 - **The methods of the base object are inherited.** Every object has them,
   and the question with no name asks whether the value is a class.
 

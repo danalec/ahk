@@ -16,6 +16,7 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
+use crate::classes::file::{decode, encode, Encoding};
 use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, TypeName, Value};
 
 /// The milliseconds of a day.
@@ -303,6 +304,219 @@ pub fn file_encoding(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
     crate::settings::set_file_encoding(&name)
         .map(|encoding| Value::Text(encoding.to_string()))
         .map_err(|message| RuntimeError { message, line })
+}
+
+// -- the read and the write of a file ------------------------------------------
+
+/// `FileRead`: the content of a file.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the answer is the text
+/// of the file and not an array of its lines, and the second parameter is
+/// the options of the read: the encoding of the file, `RAW`, `m<n>` and a
+/// linefeed. The answer is a buffer when the script asks for the bytes.
+pub fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    let options = the_options_of(&text_of(values, 1), true)
+        .map_err(|failure| RuntimeError { message: failure.message(), line })?;
+    let mut bytes = rt
+        .desktop()
+        .read_the_bytes_of_a_file(&path)
+        .map_err(|reason| RuntimeError { message: reason, line })?;
+    // The size of the read is the number of bytes that are read.
+    if let Some(limit) = options.limit {
+        bytes.truncate(limit);
+    }
+    // The raw bytes of the file are the answer, and the mark of the file is
+    // one of them.
+    if options.raw {
+        return Ok(crate::classes::buffer::of_bytes(bytes));
+    }
+    // The mark of the file decides the encoding of it, and the option of the
+    // script decides when the file has no mark.
+    let (encoding, used) = match Encoding::detect(&bytes) {
+        Some((encoding, used)) => (encoding, used),
+        None => (options.encoding.unwrap_or_else(the_encoding_of_the_script), 0),
+    };
+    let (text, _) = decode(&bytes[used..], encoding)
+        .map_err(|reason| RuntimeError { message: reason, line })?;
+    // The linefeed of the options takes the carriage return away.
+    let text = if options.linefeed { text.replace("\r\n", "\n") } else { text };
+    Ok(Value::Text(text))
+}
+
+/// `FileAppend`: add to the end of a file.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the third parameter is
+/// the options of the write and not a flag: the encoding of the file, `RAW`
+/// and a linefeed. The mark of the encoding is written when the file is
+/// made, and a raw write writes the text of v2: the units of UTF-16.
+pub fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let text = values.first().cloned().unwrap_or(Value::Text(String::new()));
+    let path = text_of(values, 1);
+    let options = the_options_of(&text_of(values, 2), false)
+        .map_err(|failure| RuntimeError { message: failure.message(), line })?;
+    // The star is the console of the machine, and the tree has no console of
+    // its own: the output of the script is the output of the report.
+    if path == "*" {
+        rt.push_output(text.to_text());
+        return Ok(Value::Text(String::new()));
+    }
+    let (bytes, mark) = the_bytes_of_the_write(&text, &options, line)?;
+    rt.desktop()
+        .append_file(&path, &bytes, &mark)
+        .map_err(|reason| RuntimeError { message: reason, line })?;
+    Ok(Value::Text(String::new()))
+}
+
+/// The options of a read or a write of a file.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the options are a text
+/// with the options separated by a space or a tab: the encoding of the file,
+/// `RAW`, `m<n>` and a linefeed. The last one of a kind is the one that
+/// counts, and an option that v2 does not know is refused.
+pub(crate) struct TheOptions {
+    /// The encoding of the file.
+    encoding: Option<Encoding>,
+    /// Whether the answer is the bytes of the file and not its text.
+    raw: bool,
+    /// The number of bytes that are read.
+    limit: Option<usize>,
+    /// Whether the linefeeds of the text are the endings of Windows.
+    linefeed: bool,
+}
+
+/// The failure of an option of a file.
+pub(crate) enum TheFailure {
+    /// The option that v2 does not know.
+    NotKnown(String),
+    /// The encoding that the tree does not carry.
+    NotCarried(String),
+}
+
+impl TheFailure {
+    /// The message of the failure.
+    ///
+    /// The option that v2 does not know is refused with the words of v2, and
+    /// the encoding that the tree does not carry says which ones it carries.
+    fn message(&self) -> String {
+        match self {
+            TheFailure::NotKnown(_) => "Invalid option.".to_string(),
+            TheFailure::NotCarried(reason) => reason.clone(),
+        }
+    }
+}
+
+/// The options of a file, as v2 reads them.
+///
+/// The size of the part that is read is an option of a read and not of a
+/// write: v2 refuses it in a write with "Invalid option.".
+pub(crate) fn the_options_of(text: &str, read: bool) -> Result<TheOptions, TheFailure> {
+    let mut options = TheOptions { encoding: None, raw: false, limit: None, linefeed: false };
+    for word in text.split([' ', '\t']).filter(|word| !word.is_empty()) {
+        if word.eq_ignore_ascii_case("RAW") {
+            options.raw = true;
+            continue;
+        }
+        // The linefeed of the options is a character of its own: the text of
+        // a backtick and an n is an option that v2 does not know.
+        if word == "\n" {
+            options.linefeed = true;
+            continue;
+        }
+        // The size of a read is a number of bytes, in base ten or in base
+        // sixteen: `m5000` and `m0x1388` are the same size. The size is not
+        // an option of a write.
+        if let Some(number) = word.strip_prefix('m').or_else(|| word.strip_prefix('M')) {
+            if !read {
+                return Err(TheFailure::NotKnown(word.to_string()));
+            }
+            let number = match number.strip_prefix("0x").or_else(|| number.strip_prefix("0X")) {
+                Some(hex) => u64::from_str_radix(hex, 16).ok(),
+                None if number.is_empty() => Some(0),
+                None => number.parse::<u64>().ok(),
+            };
+            match number {
+                Some(number) => {
+                    options.limit = Some(number as usize);
+                    continue;
+                }
+                None => return Err(TheFailure::NotKnown(word.to_string())),
+            }
+        }
+        match Encoding::of(word) {
+            Ok(encoding) => options.encoding = Some(encoding),
+            // A code page that the tree does not carry says which ones it
+            // carries, and an option that is not an encoding at all is
+            // refused with the words of v2.
+            Err(reason) if crate::settings::is_a_code_page(word) => {
+                return Err(TheFailure::NotCarried(reason))
+            }
+            Err(_) => return Err(TheFailure::NotKnown(word.to_string())),
+        }
+    }
+    Ok(options)
+}
+
+/// The option of a file that v2 does not know.
+///
+/// The `Extra` of the failure of a built-in carries the value that failed,
+/// and the value there is the option itself.
+pub(crate) fn the_option_that_failed(options: &str, read: bool) -> Option<String> {
+    match the_options_of(options, read) {
+        Err(TheFailure::NotKnown(option)) => Some(option),
+        _ => None,
+    }
+}
+
+/// The bytes of a write, and the mark of the encoding of the file.
+///
+/// A buffer is written as it is, whatever the options are: the encoding is
+/// ignored when the text is an object.
+fn the_bytes_of_the_write(
+    text: &Value,
+    options: &TheOptions,
+    line: u32,
+) -> Result<(Vec<u8>, Vec<u8>), RuntimeError> {
+    let encoding = options.encoding.unwrap_or_else(the_encoding_of_the_script);
+    if matches!(text, Value::Object(_)) {
+        let bytes = crate::classes::buffer::raw_bytes(text, line)
+            .map_err(|failure| crate::runtime::as_error(failure, line))?;
+        let mark = if options.raw { Vec::new() } else { encoding.mark().unwrap_or_default() };
+        return Ok((bytes, mark));
+    }
+    let mut text = text.to_text();
+    // The linefeed of the options puts a carriage return before every
+    // linefeed that has none.
+    if options.linefeed {
+        text = the_endings_of_windows(&text);
+    }
+    if options.raw {
+        // The text of v2 is UTF-16, and a raw write writes it as it is.
+        return Ok((encode(&text, Encoding::Utf16 { raw: true }), Vec::new()));
+    }
+    Ok((encode(&text, encoding), encoding.mark().unwrap_or_default()))
+}
+
+/// The encoding of the files of the script.
+///
+/// The state is in the module of the settings: the script asks for it with
+/// `FileEncoding`, and the files ask the same place for it.
+fn the_encoding_of_the_script() -> Encoding {
+    Encoding::of(crate::settings::file_bytes_encoding()).unwrap_or(Encoding::Cp1252)
+}
+
+/// The text with the endings of Windows.
+///
+/// The linefeeds that have no carriage return before them get one.
+fn the_endings_of_windows(text: &str) -> String {
+    let mut out = String::new();
+    for character in text.chars() {
+        if character == '\n' && !out.ends_with('\r') {
+            out.push('\r');
+        }
+        out.push(character);
+    }
+    out
 }
 
 // -- the network ---------------------------------------------------------------------

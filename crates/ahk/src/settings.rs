@@ -625,7 +625,7 @@ pub fn set_file_encoding(name: &str) -> Result<&'static str, String> {
 ///
 /// The name of a code page is `CP` and a number: `CP0` is the code page
 /// of the machine, and `CP1252` is the one that the tree carries.
-fn is_a_code_page(name: &str) -> bool {
+pub(crate) fn is_a_code_page(name: &str) -> bool {
     let Some(number) = name.strip_prefix("CP") else { return false };
     !number.is_empty() && number.chars().all(|digit| digit.is_ascii_digit())
 }

@@ -27,9 +27,9 @@ use alloc::vec::Vec;
 use crate::date::{date_add, date_diff, format_time};
 use crate::dialogs::{dir_select, file_select, input_box};
 use crate::files::{
-    dir_copy, dir_move, download, file_copy, file_encoding, file_get_attrib, file_get_size,
-    file_get_time, file_install, file_move, file_open, file_set_attrib, file_set_time, ini_delete,
-    ini_read, ini_write,
+    dir_copy, dir_move, download, file_append, file_copy, file_encoding, file_get_attrib,
+    file_get_size, file_get_time, file_install, file_move, file_open, file_read, file_set_attrib,
+    file_set_time, ini_delete, ini_read, ini_write,
 };
 use crate::pictures::{image_search, load_picture};
 use crate::hotkeys::{
@@ -545,6 +545,16 @@ pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<Strin
             let options = values.get(2).map(|value| value.to_text()).unwrap_or_default();
             crate::dialogs::the_option_that_failed(&options)
         }
+        // The options of a file are in the second parameter of the read and
+        // in the third one of the write.
+        "FileRead" => {
+            let options = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+            crate::files::the_option_that_failed(&options, true)
+        }
+        "FileAppend" => {
+            let options = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+            crate::files::the_option_that_failed(&options, false)
+        }
         _ => None,
     }
 }
@@ -842,48 +852,6 @@ fn dir_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) ->
         .attributes_of_the_pattern(&pattern, "D")
         .map_err(|reason| RuntimeError { message: reason, line })?;
     Ok(Value::Text(attributes.concat()))
-}
-
-/// `FileRead`: the lines of a file.
-fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    // The options of v2 are the encoding, the raw reading and the size
-    // of the part to read, and the desktop of the box reads the whole
-    // file as text.
-    if values.len() > 1 {
-        return Err(RuntimeError {
-            message: "the options of the read are not carried yet.".into(),
-            line,
-        });
-    }
-    let path = text_of(values, 0);
-    let lines = rt.desktop().read_file(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::List(lines.into_iter().map(Value::Text).collect()))
-}
-
-/// `FileAppend`: add to the end of a file.
-///
-/// The star is the console of the machine, and the text goes to the
-/// standard output there. The answer of the command is an empty text:
-/// v2 gives nothing back.
-fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    // The options of v2 are the encoding and the way the file is
-    // opened, and the desktop of the box appends text.
-    if values.len() > 2 {
-        return Err(RuntimeError {
-            message: "the options of the write are not carried yet.".into(),
-            line,
-        });
-    }
-    let text = text_of(values, 0);
-    let path = text_of(values, 1);
-    if path == "*" {
-        // The tree has no console of its own: the output of the script
-        // is the output of the report.
-        rt.push_output(text);
-        return Ok(Value::Text(String::new()));
-    }
-    rt.desktop().append_file(&path, &text).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Text(String::new()))
 }
 
 /// `FileDelete`: take a file away.

@@ -141,8 +141,16 @@ impl Files for Fake {
     fn read_file(&mut self, _path: &str) -> Result<Vec<String>, String> {
         Ok(vec!["one".to_string(), "two".to_string()])
     }
-    fn append_file(&mut self, _path: &str, text: &str) -> Result<String, String> {
-        Ok(text.to_string())
+    fn read_the_bytes_of_a_file(&mut self, path: &str) -> Result<Vec<u8>, String> {
+        self.calls.push(("bytes-of-file".into(), path.into()));
+        Ok(b"one\r\ntwo\r\n".to_vec())
+    }
+    fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
+        self.calls.push((
+            "append-file".into(),
+            format!("{path} {} {}", String::from_utf8_lossy(bytes), String::from_utf8_lossy(mark)),
+        ));
+        Ok(bytes.len().to_string())
     }
 }
 
@@ -602,13 +610,62 @@ fn the_pattern_of_the_files_is_asked_of_the_desktop() {
 }
 
 #[test]
-fn the_lines_of_a_file_are_asked_of_the_desktop() {
-    let report = run("lines := FileRead(\"a.txt\")");
+fn the_content_of_a_file_is_the_text_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the answer is the
+    // text of the file and not an array of its lines.
+    let report = run("text := FileRead(\"a.txt\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "text"), Value::Text("one\r\ntwo\r\n".into()));
+}
+
+#[test]
+fn the_read_of_a_file_takes_the_options_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the second
+    // parameter is the options of the read: the size of the part that is
+    // read, the raw bytes and the linefeed.
+    let report = run(
+        "part := FileRead(\"a.txt\", \"m5\")\nsize := StrLen(part)\nraw := FileRead(\"a.txt\", \"RAW\")\nbytes := raw.Size\nlines := FileRead(\"a.txt\", \"`n\")\ncount := StrLen(lines)\nMsgBox \"%size% %bytes% %count%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5 10 8"]);
+}
+
+#[test]
+fn an_option_of_the_read_that_v2_does_not_know_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the message is
+    // "Invalid option.", the class of the failure is a ValueError, and the
+    // option that was not known is in the Extra.
+    let report = run(
+        "try {\n    FileRead(\"a.txt\", \"bogus\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Invalid option. | ValueError | FileRead | bogus"]);
+}
+
+#[test]
+fn the_write_of_a_file_takes_the_options_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the third parameter
+    // is the options of the write: the linefeed puts a carriage return
+    // before every linefeed that has none.
+    let mut desktop = Fake::default();
+    let report = run_on("FileAppend(\"a`nb\", \"a.txt\", \"`n\")", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
-        value_of(&report, "lines"),
-        Value::List(vec![Value::Text("one".into()), Value::Text("two".into())])
+        desktop.calls,
+        vec![("append-file".to_string(), "a.txt a\r\nb ".to_string())]
     );
+}
+
+#[test]
+fn an_option_of_the_write_that_v2_does_not_know_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the message is
+    // "Invalid option.", the class of the failure is a ValueError, and the
+    // option that was not known is in the Extra.
+    let report = run(
+        "try {\n    FileAppend(\"a\", \"a.txt\", \"m5000\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Invalid option. | ValueError | FileAppend | m5000"]);
 }
 
 #[test]
