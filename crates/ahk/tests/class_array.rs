@@ -265,18 +265,39 @@ fn a_capacity_below_the_length_takes_the_places_at_the_end_away() {
 
 #[test]
 fn the_enumeration_is_in_the_order_of_the_values() {
-    // A `MsgBox` wants a text, and the enumeration of the tree is an
-    // array: the values are read one by one.
-    let report = run("a := Array(\"x\", \"y\")\ne := a.__Enum()\nMsgBox e[1] . \",\" . e[2]");
+    // The enumeration of v2 is an enumerator, and it hands out the values
+    // one by one: the `Call` of it writes into the variable of the caller.
+    let report = run(
+        "a := Array(\"x\", \"y\")\ne := a.__Enum()\n\
+         first := \"\"\ne.Call(&first)\n\
+         second := \"\"\ne.Call(&second)\n\
+         MsgBox first . \",\" . second",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x,y"]);
 }
 
 #[test]
+fn the_enumeration_of_an_array_has_no_item_of_its_own() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the enumerator of
+    // v2 is not indexed: it has no `__Item`.
+    let report = run("a := Array(\"x\", \"y\")\nMsgBox a.__Enum()[1]");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Enumerator\" has no property named \"__Item\".")
+    );
+}
+
+#[test]
 fn the_own_properties_of_an_array_are_the_ones_the_script_gave_it() {
-    // The enumeration of v2 is an Enumerator, and the concatenation of one
-    // is refused: the names are read one by one.
-    let report = run("a := Array()\na.DefineProp(\"x\", 7)\nMsgBox a.OwnProps()[1] . \" \" . a.x");
+    // The own properties of v2 are an enumerator too, and the names are
+    // read one by one.
+    let report = run(
+        "a := Array()\na.DefineProp(\"x\", 7)\n\
+         names := a.OwnProps()\nfirst := \"\"\nnames.Call(&first)\n\
+         MsgBox first . \" \" . a.x",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x 7"]);
 }

@@ -30,6 +30,7 @@ use crate::runtime::{Detail, Object, Runtime, RuntimeError, RuntimeFailure, Valu
 
 pub(crate) mod array;
 pub(crate) mod buffer;
+pub(crate) mod enumerator;
 pub(crate) mod error;
 pub(crate) mod file;
 pub(crate) mod func;
@@ -44,7 +45,7 @@ pub(crate) mod map;
 /// measured on it on 2026-10-29. The first argument of every one of them
 /// is the object itself: the reference is the method, and the object is
 /// one of the arguments of the call.
-const METHODS: [(&str, &str, &str, i64, i64); 50] = [
+const METHODS: [(&str, &str, &str, i64, i64); 54] = [
     ("map", "set", "Set", 1, 1),
     ("map", "get", "Get", 2, 3),
     ("map", "has", "Has", 2, 2),
@@ -68,6 +69,14 @@ const METHODS: [(&str, &str, &str, i64, i64); 50] = [
     ("func", "isoptional", "IsOptional", 1, 1),
     ("func", "isbyref", "IsByRef", 1, 1),
     ("func", "bind", "Bind", 1, 1),
+    // The enumerator is a function of its own kind, and the `Call` of it
+    // is the turn of the enumeration. Measured on the binary of v2.0.19 on
+    // 2026-10-31: the call takes no arguments at all, and two when it
+    // hands out a key and a value.
+    ("enumerator", "call", "Call", 1, 3),
+    ("enumerator", "isoptional", "IsOptional", 1, 1),
+    ("enumerator", "isbyref", "IsByRef", 1, 1),
+    ("enumerator", "bind", "Bind", 1, 1),
     ("error", "__new", "__New", 1, 4),
     ("file", "read", "Read", 1, 2),
     ("file", "readline", "ReadLine", 1, 1),
@@ -107,7 +116,7 @@ const METHODS: [(&str, &str, &str, i64, i64); 50] = [
 ///
 /// The methods of the base object are the ones every object has, and the
 /// class of them is `object`.
-const CALLS: [(&str, &str, i64, i64); 58] = [
+const CALLS: [(&str, &str, i64, i64); 59] = [
     ("object", "ownprops", 0, 0),
     ("object", "hasownprop", 1, 1),
     ("object", "defineprop", 2, 2),
@@ -139,6 +148,10 @@ const CALLS: [(&str, &str, i64, i64); 58] = [
     ("func", "isoptional", 0, -1),
     ("func", "isbyref", 0, -1),
     ("func", "bind", 0, -1),
+    // The call of an enumerator takes no arguments at all, and two when
+    // it hands out a key and a value. Measured on the binary of v2.0.19
+    // on 2026-10-31.
+    ("enumerator", "call", 0, 2),
     ("error", "__new", 0, 3),
     ("file", "read", 0, 1),
     ("file", "readline", 0, 0),
@@ -184,8 +197,9 @@ const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 4] = [
 ///
 /// A function is written in the script or it is one of the built-ins,
 /// and a file is made by the `FileOpen` built-in. Neither of the two is
-/// a class that can be made, and v2 answers "Invalid base." to both.
-const NOT_MADE: [&str; 2] = ["file", "func"];
+/// a class that can be made, and v2 answers "Invalid base." to both. The
+/// enumerator is made out of the `__Enum` of a value, and not by a call.
+const NOT_MADE: [&str; 3] = ["file", "func", "enumerator"];
 
 /// The name v2 gives to the call of the base object.
 ///
@@ -211,7 +225,7 @@ const BASE: [(&str, &str); 9] = [
 
 /// The names of the properties of the class types, the way v2 spells
 /// them.
-const PROPERTIES: [(&str, &str, &str); 23] = [
+const PROPERTIES: [(&str, &str, &str); 28] = [
     ("map", "count", "Count"),
     ("map", "capacity", "Capacity"),
     ("map", "casesense", "CaseSense"),
@@ -224,6 +238,13 @@ const PROPERTIES: [(&str, &str, &str); 23] = [
     ("func", "maxparams", "MaxParams"),
     ("func", "isbuiltin", "IsBuiltin"),
     ("func", "isvariadic", "IsVariadic"),
+    // The enumerator is a function of its own kind, and it carries the
+    // values of a function.
+    ("enumerator", "name", "Name"),
+    ("enumerator", "minparams", "MinParams"),
+    ("enumerator", "maxparams", "MaxParams"),
+    ("enumerator", "isbuiltin", "IsBuiltin"),
+    ("enumerator", "isvariadic", "IsVariadic"),
     ("file", "pos", "Pos"),
     ("file", "length", "Length"),
     ("file", "ateof", "AtEOF"),
@@ -421,8 +442,8 @@ fn the_arity_failure_of_a_constructor(
 ///
 /// `Object` is the root of every class: v2 has it, and every object of
 /// the tree is one.
-pub(crate) const TYPES: [&str; 10] = [
-    "array", "buffer", "error", "file", "func", "gui", "hotkey", "map", "menu", "object",
+pub(crate) const TYPES: [&str; 11] = [
+    "array", "buffer", "enumerator", "error", "file", "func", "gui", "hotkey", "map", "menu", "object",
 ];
 
 /// Whether the name is a class type of the runtime.
@@ -437,6 +458,11 @@ pub(crate) fn is_type(name: &str) -> bool {
 /// `MemberError` and an `UnsetError` as well, and every one of them is
 /// an `Error`. The other classes of the runtime are the root of it.
 pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
+    // The enumerator is a function of its own kind: it derives from
+    // `Func`, and the docs of v2 say so.
+    if class.eq_ignore_ascii_case("enumerator") {
+        return Some("func");
+    }
     error::the_base_of(class)
 }
 
@@ -590,6 +616,7 @@ fn call_once(
     match class.to_lowercase().as_str() {
         "array" => array::call(method, this, arguments, rt, line),
         "buffer" => buffer::call(method, this, arguments, rt, line),
+        "enumerator" => enumerator::call(method, this, arguments, rt, line),
         "error" => error::call(method, this, arguments, rt, line),
         "file" => file::call(method, this, arguments, rt, line),
         "func" => func::call(method, this, arguments, rt, line),
@@ -615,6 +642,9 @@ pub(crate) fn call_the_value(
 ) -> Option<Result<Value, RuntimeFailure>> {
     match class.to_lowercase().as_str() {
         "func" => func::call_the_value(this, arguments, rt, line),
+        // The enumerator is a function of its own kind, and the call of
+        // its value is the turn of the enumeration.
+        "enumerator" => enumerator::call_the_value(this, arguments, rt, line),
         _ => call(class, "call", this, arguments, rt, line),
     }
 }
@@ -633,6 +663,7 @@ pub(crate) fn property(
     match class.to_lowercase().as_str() {
         "array" => array::property(name, this, rt, line),
         "buffer" => buffer::property(name, this, rt, line),
+        "enumerator" => enumerator::property(name, this, rt, line),
         "error" => error::property(name, this, rt, line),
         "file" => file::property(name, this, rt, line),
         "func" => func::property(name, this, rt, line),
@@ -726,6 +757,7 @@ pub fn names(class: &str) -> Vec<&'static str> {
     match class.to_lowercase().as_str() {
         "array" => array::names(),
         "buffer" => buffer::names(),
+        "enumerator" => enumerator::names(),
         "error" => error::names(),
         "file" => file::names(),
         "func" => func::names(),

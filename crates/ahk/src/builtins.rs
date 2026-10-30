@@ -1714,10 +1714,9 @@ fn obj_own_props(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 fn obj_own_prop_count(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
     let names = rt.own_method(&target, "ownprops", &[], line)?;
-    Ok(Value::Int(match names {
-        Value::List(items) => items.len() as i64,
-        _ => 0,
-    }))
+    // The own properties of v2 are an enumerator, and the count of them is
+    // the number of the turns it has left.
+    Ok(Value::Int(crate::classes::enumerator::the_count(&names)))
 }
 
 fn obj_has_own_prop(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {

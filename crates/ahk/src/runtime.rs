@@ -1284,7 +1284,11 @@ impl<'a> Runtime<'a> {
             return Ok(true);
         }
         if class == "error" {
-            return Ok(matches!(value, Value::Object(object) if object.borrow().class == "error"));
+            // Measured on the binary of v2.0.19 on 2026-10-31: a catch that
+            // names no class takes every error of the runtime. The errors
+            // are a tree of classes, and every one of them is an `Error`.
+            let Value::Object(object) = value else { return Ok(false) };
+            return Ok(crate::classes::error::is_a_class(&object.borrow().class));
         }
         // A class of the script. A class that the tree does not know is a
         // question it cannot answer, and it says so.
@@ -1842,39 +1846,74 @@ impl<'a> Runtime<'a> {
     /// The values a `for` loop walks.
     ///
     /// The object is asked for its enumerator, and the number of the
-    /// variables the loop wants is given to it: the enumerator of an
-    /// array gives the values with one variable and the places with
-    /// two.
+    /// variables the loop wants is given to it. Measured on the binary of
+    /// v2.0.19 on 2026-10-31: the enumerator of v2 is an object of the
+    /// class `Enumerator`, and it hands out the turns one by one -- the
+    /// key and the value under it, or the one of the two that it gives
+    /// alone when the loop wants one value.
     fn enumeration(
         &mut self,
         object: &Value,
         wanted: usize,
         line: u32,
     ) -> Result<Vec<Value>, RuntimeFailure> {
-        // The enumerator of a value is its `__Enum`. A value that has
-        // none cannot be walked, and v2 says so in as many words.
-        if !self.can_enumerate(object) {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: "Value not enumerable.".into(),
-                line,
-            }));
+        let enumerator = self.the_enumerator(object, wanted, line)?;
+        self.the_items_of_the_enumeration(&enumerator, wanted, line)
+    }
+
+    /// The enumerator of a value.
+    ///
+    /// The value is asked for its `__Enum`, and the enumerator it gives is
+    /// the one the loop walks. A value that has no `__Enum` and is an
+    /// enumerator of its own is the enumerator itself.
+    fn the_enumerator(
+        &mut self,
+        object: &Value,
+        wanted: usize,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        if self.can_enumerate(object) {
+            let count = Node::Literal { value: LiteralValue::Integer(wanted as i64), line };
+            return self.call_method_on(object, "__enum", &[count], line);
         }
-        let count = Node::Literal { value: LiteralValue::Integer(wanted as i64), line };
-        let enumerator = self.call_method_on(object, "__enum", &[count], line)?;
+        // An enumerator is a function of its own kind, and a loop walks it
+        // the way it walks any other function.
+        if crate::classes::enumerator::is_one(object) {
+            return Ok(object.clone());
+        }
+        Err(RuntimeFailure::Error(RuntimeError {
+            message: "Value not enumerable.".into(),
+            line,
+        }))
+    }
+
+    /// The items an enumerator hands out.
+    ///
+    /// The enumerator of v2 is an object of the class `Enumerator`, and it
+    /// is walked turn by turn. A class of the script may hand out a list
+    /// instead, and the tree walks that one the way it always did.
+    fn the_items_of_the_enumeration(
+        &mut self,
+        enumerator: &Value,
+        wanted: usize,
+        line: u32,
+    ) -> Result<Vec<Value>, RuntimeFailure> {
+        if crate::classes::enumerator::is_one(enumerator) {
+            let mut items = Vec::new();
+            while let Some(item) = crate::classes::enumerator::the_turn(enumerator, wanted) {
+                items.push(item);
+            }
+            return Ok(items);
+        }
         match enumerator {
-            Value::List(items) => Ok(items),
+            Value::List(items) => Ok(items.clone()),
             // The enumerator may be an object of its own -- the array of
             // a class of the script, for one -- and it is walked the way
             // the source is.
             Value::Object(_) => {
                 let count = Node::Literal { value: LiteralValue::Integer(wanted as i64), line };
-                match self.call_method_on(&enumerator, "__enum", &[count], line)? {
-                    Value::List(items) => Ok(items),
-                    _ => Err(RuntimeFailure::Error(RuntimeError {
-                        message: "the enumerator did not answer with an enumeration.".into(),
-                        line,
-                    })),
-                }
+                let inner = self.call_method_on(enumerator, "__enum", &[count], line)?;
+                self.the_items_of_the_enumeration(&inner, wanted, line)
             }
             _ => Err(RuntimeFailure::Error(RuntimeError {
                 message: "the enumerator did not answer with an enumeration.".into(),
@@ -2878,14 +2917,20 @@ impl<'a> Runtime<'a> {
                 )))
             }
             "ownprops" => {
-                let names: Vec<Value> = object
+                // Measured on the binary of v2.0.19 on 2026-10-31: the own
+                // properties of v2 are an enumerator, and it gives the name
+                // when the caller wants one value.
+                let pairs: Vec<(Value, Value)> = object
                     .borrow()
                     .properties
-                    .keys()
-                    .filter(|name| name.as_str() != BASE)
-                    .map(|name| Value::Text(name.clone()))
+                    .iter()
+                    .filter(|(name, _)| name.as_str() != BASE)
+                    .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
                     .collect();
-                Some(Ok(Value::List(names)))
+                Some(Ok(crate::classes::enumerator::make(
+                    pairs,
+                    crate::classes::enumerator::Alone::TheKey,
+                )))
             }
             "defineprop" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {

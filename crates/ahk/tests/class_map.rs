@@ -255,10 +255,15 @@ fn a_string_key_is_never_an_integer_key() {
 
 #[test]
 fn the_enumeration_is_in_the_order_of_the_entries() {
-    // A `MsgBox` wants a text, and the enumeration of the tree is an
-    // array: the entries are read one by one.
+    // The enumeration of v2 is an enumerator, and it hands out the key and
+    // the value under it: the `Call` of it writes into the variables of
+    // the caller.
     let report = run(
-        "m := Map()\nm.Set(\"a\", 1)\nm.Set(\"b\", 2)\ne := m.__Enum()\nMsgBox e[1][1] . \",\" . e[1][2] . \",\" . e[2][1] . \",\" . e[2][2]",
+        "m := Map()\nm.Set(\"a\", 1)\nm.Set(\"b\", 2)\ne := m.__Enum()\n\
+         k := \"\"\nv := \"\"\ne.Call(&k, &v)\n\
+         first := k \",\" v\n\
+         k2 := \"\"\nv2 := \"\"\ne.Call(&k2, &v2)\n\
+         MsgBox first . \",\" . k2 . \",\" . v2",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["a,1,b,2"]);
@@ -287,9 +292,13 @@ fn the_capacity_can_be_set() {
 
 #[test]
 fn the_own_properties_of_a_map_are_the_ones_the_script_gave_it() {
-    // The enumeration of v2 is an Enumerator, and the concatenation of
-    // one is refused: the names are read one by one.
-    let report = run("m := Map()\nm.DefineProp(\"x\", 7)\nMsgBox m.OwnProps()[1] . \" \" . m.x");
+    // The own properties of v2 are an enumerator, and the names are read
+    // one by one.
+    let report = run(
+        "m := Map()\nm.DefineProp(\"x\", 7)\n\
+         names := m.OwnProps()\nfirst := \"\"\nnames.Call(&first)\n\
+         MsgBox first . \" \" . m.x",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x 7"]);
 }

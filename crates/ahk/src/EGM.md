@@ -473,11 +473,17 @@ The rest of the module is what the runtime asks of a class: whether a
 name is a class type, the class type as a value, and the construction,
 the calls, the properties and the item of an object of that class.
 
-The classes are `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`
-and `Hotkey`. A script cannot extend them: their state lives in the
-property table of the object under a reserved key, and only the module
+The classes are `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`,
+`Hotkey` and `Enumerator`. A script cannot extend them: their state lives in
+the property table of the object under a reserved key, and only the module
 that owns the class touches it. The module is asked before the base
 object, so a class that answers a name itself is taken at its word.
+
+The `Enumerator` is the enumeration of v2: the `__Enum` of a value and the
+`OwnProps` of an object hand one out, and its `Call` writes the turn into
+the variables of the caller. The key and the value under it are the turn,
+and the one of the two that it gives alone is the one that the producer
+names: the value of an array, the key of a map, the name of a property.
 
 The item of an object of a class type is asked of the module that owns
 the class, and the write of one goes the same way. Only a `Map` and an
@@ -721,6 +727,10 @@ that asks for another one is refused with the reason.
   messages of the refusals name it: "Expected a String but got an Array.".
   The operators refuse a value that they cannot work with: the
   concatenation wants a text or a number, and the maths wants a number.
+- **A catch without a class takes every error.** The errors of the runtime
+  are a tree of classes, and every one of them is an `Error`: a catch that
+  names no class takes the whole tree, and a catch that names one takes
+  that class and the ones under it.
 
 ## Side Effects
 

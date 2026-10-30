@@ -159,9 +159,9 @@ the box: it does no I/O, and it has to keep building without `std`.
   capability does not have has a default that says so. A new capability
   goes in its own trait, and `Desktop` grows by naming it.
 - **A class type of the runtime is a class too.** `Map`, `Array`, `Buffer`,
-  `File`, `Func`, `Gui`, `Menu` and `Hotkey` are classes the script cannot
-  extend. Their state lives in the property table of the object under a
-  reserved key, and only the module that owns the class touches it.
+  `File`, `Func`, `Gui`, `Menu`, `Hotkey` and `Enumerator` are classes the
+  script cannot extend. Their state lives in the property table of the object
+  under a reserved key, and only the module that owns the class touches it.
 - **The class module is asked before the base object.** A class that
   answers `OwnProps` itself is taken at its word; the base object answers
   the names every object has only when the module does not.
@@ -2962,3 +2962,45 @@ in the tree and in the dialect when they are called with a reference, and
 thirty-two of the thirty-four questions about a value are the same too. The
 ones that are not are the names that the tree does not carry, and the two
 questions about a class with no name.
+
+## 59. The enumeration of v2 is an Enumerator, and a catch takes every error
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree handed out the
+enumeration of a value as a plain list, and v2 hands out an object of the
+class `Enumerator`. `Type([1, 2].__Enum())` is "Enumerator", and so is the
+`OwnProps` of an object and the `ObjOwnProps` of it.
+
+- **The enumeration is a class type of the runtime.** The `Enumerator` is a
+  function of its own kind: it derives from `Func`, it carries the values of
+  a function -- the name of it is empty, it wants no parameters, and it is
+  built in -- and its `Call` is the turn of the enumeration. It is not made
+  by a call: `Enumerator()` answers "Invalid base.", the way a `Func` does.
+- **The `Call` of it hands out the next turn.** It answers one while there is
+  something left and zero when there is nothing left. The first variable of
+  the caller gets the key and the second the value under it.
+- **The one of the two that it gives alone is the dialect's.** A caller that
+  gives one variable gets the one of the two that the enumerator gives
+  alone: the enumerator of an array gives the value, and the enumerator of a
+  map gives the key. Measured: the enumerator of `[10, 20]` writes 10, and
+  the enumerator of a map with the key "k" writes "k".
+- **The own properties of an object are an enumerator too.** It gives the
+  name when the caller wants one value, and the name and the value under it
+  when the caller wants two.
+- **The enumerator is not indexed.** `e[1]` answers "This value of type
+  "Enumerator" has no property named "__Item"."
+- **The enumerator has no enumeration of its own.** `e.__Enum()` answers
+  "This value of type "Enumerator" has no method named "__Enum"."
+- **The loop walks the enumerator.** The number of the variables of the loop
+  is what says how many values a turn has, and not the enumerator: the
+  enumerator of an array built with one variable and the one built with two
+  hand out the same turns.
+
+One gap was found on the way. The `catch` of the tree without a class took
+only the failures whose class was exactly `Error`, and every other failure of
+the runtime escaped it: `catch as e` takes a division by zero in v2, and it
+did not in the tree. The catch without a class takes every error of the
+runtime now, because every one of them is an `Error`.
+
+A class of the script may still hand out a list instead of an enumerator, and
+the tree walks that one the way it always did. v2 does not: the enumeration of
+a class has to be an enumerator there. The gap is left open.

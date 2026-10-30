@@ -180,10 +180,10 @@ fn a_buffer_has_the_methods_of_the_base_object() {
 #[test]
 fn the_inside_of_a_buffer_is_not_a_property_of_it() {
     let report = run(
-        "b := Buffer(4)\nprops := b.OwnProps()\ninside := b.HasOwnProp(\"buffer state\")\nMsgBox \"%props% %inside%\"",
+        "b := Buffer(4)\ncount := ObjOwnPropCount(b)\ninside := b.HasOwnProp(\"buffer state\")\nMsgBox \"%count% %inside%\"",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec![" 0"]);
+    assert_eq!(report.output, vec!["0 0"]);
 }
 
 #[test]

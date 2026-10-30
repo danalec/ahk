@@ -569,10 +569,10 @@ fn the_inside_of_a_file_is_not_a_property_of_it() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := FileOpen(\"notes.txt\", \"r\")\nprops := f.OwnProps()\ninside := f.HasOwnProp(\"file state\")\nMsgBox \"%props% %inside%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\ncount := ObjOwnPropCount(f)\ninside := f.HasOwnProp(\"file state\")\nMsgBox \"%count% %inside%\"",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec![" 0"]);
+    assert_eq!(report.output, vec!["0 0"]);
 }
 
 #[test]

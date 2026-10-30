@@ -10,6 +10,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
+use crate::classes::enumerator;
 use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, Value};
 
 /// The key the state of a map lives under.
@@ -142,27 +143,15 @@ pub(crate) fn call(
         "clone" => Some(Ok(clone(this))),
         // The enumeration of a map is the keys, in the order the entries
         // were put in, and with two variables it is the key and the value
-        // under it.
+        // under it. Measured on the binary of v2.0.19 on 2026-10-31: the
+        // enumeration of v2 is an enumerator, and it gives the key when
+        // the caller wants one value.
         "__enum" => {
-            // The number of the variables the loop wants is the argument:
-            // with one it wants the keys, with two the keys and the
-            // values.
-            let wanted = arguments.first().and_then(|value| value.to_number()).unwrap_or(0.0) as i64;
-            let Some(state) = state(this) else { return Some(Ok(Value::List(Vec::new()))) };
+            let Some(state) = state(this) else {
+                return Some(Ok(enumerator::make(Vec::new(), enumerator::Alone::TheKey)));
+            };
             let state = state.borrow();
-            let items: Vec<Value> = entries(&state)
-                .into_iter()
-                .map(|(key, value)| {
-                    // The enumerator of a map gives the key, and the
-                    // value under it when the loop wants two.
-                    if wanted == 1 {
-                        key
-                    } else {
-                        Value::List(vec![key, value])
-                    }
-                })
-                .collect();
-            Some(Ok(Value::List(items)))
+            Some(Ok(enumerator::make(entries(&state), enumerator::Alone::TheKey)))
         }
         _ => base_method(&method, this, arguments, line),
     }
@@ -487,14 +476,17 @@ fn base_method(
     let key = name.to_lowercase();
     match method {
         "ownprops" => {
-            let names: Vec<Value> = object
+            // Measured on the binary of v2.0.19 on 2026-10-31: the own
+            // properties of v2 are an enumerator, and it gives the name
+            // when the caller wants one value.
+            let pairs: Vec<(Value, Value)> = object
                 .borrow()
                 .properties
                 .iter()
                 .filter(|(name, _)| name.as_str() != STATE)
-                .map(|(name, _)| Value::Text(name.clone()))
+                .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
                 .collect();
-            Some(Ok(Value::List(names)))
+            Some(Ok(enumerator::make(pairs, enumerator::Alone::TheKey)))
         }
         "hasownprop" => Some(Ok(Value::Int(own_property(object, &key) as i64))),
         "hasprop" => Some(Ok(Value::Int(

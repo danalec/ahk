@@ -950,19 +950,28 @@ fn a_script_may_set_the_base_of_an_object() {
 fn the_own_properties_of_an_object_are_its_own() {
     let report = run(
         "class Box {\n  x := 1\n}\nb := Box()\n\
-         names := ObjOwnProps(b)\ncount := ObjOwnPropCount(b)\nhas := ObjHasOwnProp(b, \"x\")",
+         names := ObjOwnProps(b)\ncount := ObjOwnPropCount(b)\nhas := ObjHasOwnProp(b, \"x\")\n\
+         kind := Type(names)\n\
+         first := \"\"\nnames.Call(&first)\n\
+         after := \"\"\nnames.Call(&after)",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "names"), Value::List(vec![Value::Text("x".into())]));
+    // Measured on the binary of v2.0.19 on 2026-10-31: the own properties
+    // of v2 are an enumerator, and it gives the name when the caller
+    // wants one value.
+    assert_eq!(value_of(&report, "kind"), Value::Text("Enumerator".into()));
+    assert_eq!(value_of(&report, "first"), Value::Text("x".into()));
+    assert_eq!(value_of(&report, "after"), Value::Text("".into()));
     assert_eq!(int_of(&report, "count"), 1);
     assert_eq!(int_of(&report, "has"), 1);
 }
 
 #[test]
 fn the_state_of_a_map_is_not_a_property_of_it() {
-    let report = run("m := Map()\nnames := ObjOwnProps(m)");
+    let report = run("m := Map()\nnames := ObjOwnProps(m)\nkind := Type(names)\ncount := ObjOwnPropCount(m)");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "names"), Value::List(Vec::new()));
+    assert_eq!(value_of(&report, "kind"), Value::Text("Enumerator".into()));
+    assert_eq!(int_of(&report, "count"), 0);
 }
 
 #[test]

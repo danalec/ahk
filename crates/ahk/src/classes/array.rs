@@ -12,6 +12,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
+use crate::classes::enumerator;
 use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, Value};
 
 /// The key the state of an array lives under.
@@ -232,27 +233,25 @@ pub(crate) fn call(
         }
         "clone" => Some(Ok(clone(this))),
         // The enumeration of an array is the values, in the order of their
-        // places, and with two variables it is the place and the value.
+        // places. Measured on the binary of v2.0.19 on 2026-10-31: the
+        // enumeration of v2 is an enumerator, and it gives the value when
+        // the caller wants one value and the place and the value when the
+        // caller wants two. The number of the variables is not carried by
+        // the enumerator: it is the call that says how many it wants.
         "__enum" => {
-            // The number of the variables the loop wants is the argument:
-            // with two it wants the places and the values, with one the
-            // values alone.
-            let wanted = arguments.first().and_then(|value| value.to_number()).unwrap_or(0.0) as i64;
-            let Some(state) = state(this) else { return Some(Ok(Value::List(Vec::new()))) };
+            let Some(state) = state(this) else {
+                return Some(Ok(enumerator::make(Vec::new(), enumerator::Alone::TheValue)));
+            };
             let state = state.borrow();
-            let values: Vec<Value> = items(&state)
+            let pairs: Vec<(Value, Value)> = items(&state)
                 .iter()
                 .enumerate()
                 .map(|(index, item)| {
                     let value = element_value(item).unwrap_or(Value::Text(String::new()));
-                    if wanted == 2 {
-                        Value::List(vec![Value::Int(index as i64 + 1), value])
-                    } else {
-                        value
-                    }
+                    (Value::Int(index as i64 + 1), value)
                 })
                 .collect();
-            Some(Ok(Value::List(values)))
+            Some(Ok(enumerator::make(pairs, enumerator::Alone::TheValue)))
         }
         _ => base_method(&method, this, arguments, line),
     }
@@ -585,14 +584,17 @@ fn base_method(
     let key = name.to_lowercase();
     match method {
         "ownprops" => {
-            let names: Vec<Value> = object
+            // Measured on the binary of v2.0.19 on 2026-10-31: the own
+            // properties of v2 are an enumerator, and it gives the name
+            // when the caller wants one value.
+            let pairs: Vec<(Value, Value)> = object
                 .borrow()
                 .properties
                 .iter()
                 .filter(|(name, _)| name.as_str() != STATE)
-                .map(|(name, _)| Value::Text(name.clone()))
+                .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
                 .collect();
-            Some(Ok(Value::List(names)))
+            Some(Ok(enumerator::make(pairs, enumerator::Alone::TheKey)))
         }
         "hasownprop" => Some(Ok(Value::Int(own_property(object, &key) as i64))),
         "hasprop" => Some(Ok(Value::Int(

@@ -21,6 +21,7 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use crate::classes::buffer;
+use crate::classes::enumerator;
 use crate::classes::object_with;
 use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_number, expected_type};
 
@@ -1259,14 +1260,17 @@ fn base_method(
     let key = name.to_lowercase();
     match method {
         "ownprops" => {
-            let names: Vec<Value> = object
+            // Measured on the binary of v2.0.19 on 2026-10-31: the own
+            // properties of v2 are an enumerator, and it gives the name
+            // when the caller wants one value.
+            let pairs: Vec<(Value, Value)> = object
                 .borrow()
                 .properties
                 .iter()
                 .filter(|(name, _)| name.as_str() != STATE)
-                .map(|(name, _)| Value::Text(name.clone()))
+                .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
                 .collect();
-            Some(Ok(Value::List(names)))
+            Some(Ok(enumerator::make(pairs, enumerator::Alone::TheKey)))
         }
         "hasownprop" => Some(Ok(Value::Int(own_property(object, &key) as i64))),
         "hasprop" => Some(Ok(Value::Int(
