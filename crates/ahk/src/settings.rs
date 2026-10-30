@@ -116,25 +116,25 @@ pub(crate) const NO_STATE: &str = "the runtime keeps no such state yet.";
 /// it.
 const NO_CURSOR: &str = "this runtime does not change the cursor of the pointer.";
 
-/// The reason the hidden text of a window is not answered.
+/// The reason the text of a window is not read.
 ///
 /// The tree reads no text of a window, so it cannot tell the text of a
 /// window that is hidden from it.
-const NO_DETECT_HIDDEN_TEXT: &str = "this runtime reads no text of a window.";
+pub(crate) const NO_TEXT_OF_A_WINDOW: &str = "this runtime reads no text of a window.";
 
-/// The reason the hidden windows are not answered.
-///
-/// The windows of this desktop are the ones of the compositor, and it has
-/// no hidden ones.
-const NO_DETECT_HIDDEN_WINDOWS: &str =
-    "the windows of this desktop are the ones of the compositor, and it has no hidden ones.";
-
-/// The reason the mode of the matching of the titles is not answered.
+/// The reason the mode of the matching of the titles is not changed.
 ///
 /// The titles are matched the way v2 matches them with the mode 2, and the
 /// mode is not changed.
 const NO_TITLE_MATCH_MODE: &str =
     "the titles are matched the way v2 matches them with the mode 2, and the mode is not changed.";
+
+/// The mode of the matching of the titles that the tree uses.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the mode 2 is the
+/// default of v2, and it is the mode of the tree: the name of a window is
+/// found in the title of it.
+const TITLE_MODE: u8 = 2;
 
 /// The reason the view of the registry is not answered.
 ///
@@ -159,6 +159,10 @@ struct State {
     mouse_speed: AtomicI32,
     caps_lock: AtomicI32,
     encoding: AtomicU8,
+    title_match_mode: AtomicU8,
+    detect_hidden_windows: AtomicI32,
+    detect_hidden_text: AtomicI32,
+    win_delay: AtomicI32,
 }
 
 /// The turn of the tests: the state is one for the whole crate.
@@ -205,6 +209,10 @@ static STATE: State = State {
     mouse_speed: AtomicI32::new(2),
     caps_lock: AtomicI32::new(1),
     encoding: AtomicU8::new(0),
+    title_match_mode: AtomicU8::new(TITLE_MODE),
+    detect_hidden_windows: AtomicI32::new(0),
+    detect_hidden_text: AtomicI32::new(1),
+    win_delay: AtomicI32::new(100),
 };
 
 /// The value of the built-in variable of the settings of this name.
@@ -234,13 +242,17 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
         "sendmode" => Value::Text(send_mode_text()),
         "storecapslockmode" => Value::Int(STATE.caps_lock.load(Ordering::Relaxed) as i64),
         "allowmainwindow" => Value::Int(1),
+        "windelay" => Value::Int(STATE.win_delay.load(Ordering::Relaxed) as i64),
+        "detecthiddenwindows" => Value::Int(STATE.detect_hidden_windows.load(Ordering::Relaxed) as i64),
+        "detecthiddentext" => Value::Int(STATE.detect_hidden_text.load(Ordering::Relaxed) as i64),
+        "titlematchmode" => Value::Int(STATE.title_match_mode.load(Ordering::Relaxed) as i64),
+        // The speed of the matching of the titles: v2.0.19 has no command
+        // that changes it, and the tree matches the titles the fast way.
+        "titlematchmodespeed" => Value::Text("Fast".to_string()),
         // The settings that the runtime does not keep: each one refuses
         // with the reason of its own name.
-        "controldelay" | "windelay" | "titlematchmodespeed" => return Some(Err(NO_STATE)),
+        "controldelay" => return Some(Err(NO_STATE)),
         "cursor" => return Some(Err(NO_CURSOR)),
-        "detecthiddentext" => return Some(Err(NO_DETECT_HIDDEN_TEXT)),
-        "detecthiddenwindows" => return Some(Err(NO_DETECT_HIDDEN_WINDOWS)),
-        "titlematchmode" => return Some(Err(NO_TITLE_MATCH_MODE)),
         "regview" => return Some(Err(NO_REG_VIEW)),
         _ => return None,
     };
@@ -348,6 +360,102 @@ pub fn coord_mode(
             line,
         }),
     }
+}
+
+/// `SetTitleMatchMode`: the mode of the matching of the titles.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command answers
+/// the mode that was there before, and a mode that is not a number from 1
+/// to 3 is refused with "Parameter #1 of SetTitleMatchMode is invalid.".
+///
+/// The tree matches the titles the way v2 matches them with the mode 2, and
+/// the other modes are refused with the reason of that: the mode is not
+/// changed.
+pub fn set_title_match_mode(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let mode = match values.first() {
+        Some(Value::Int(number)) if (1..=3).contains(number) => *number as u8,
+        _ => {
+            return Err(RuntimeError {
+                message: runtime::invalid_parameter(1, "SetTitleMatchMode"),
+                line,
+            })
+        }
+    };
+    if mode != TITLE_MODE {
+        return Err(RuntimeError { message: NO_TITLE_MATCH_MODE.to_string(), line });
+    }
+    let previous = STATE.title_match_mode.swap(mode, Ordering::Relaxed);
+    Ok(Value::Int(previous as i64))
+}
+
+/// `DetectHiddenWindows`: the hidden windows are seen by the window commands.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command answers the
+/// value that was there before. The parameter is a boolean of any kind: what
+/// is not zero is true.
+///
+/// The windows of this desktop are the ones of the compositor, and it has no
+/// hidden ones: the setting changes nothing, and it is kept all the same.
+pub fn set_detect_hidden_windows(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = values.first().map(|value| value.truthy()).unwrap_or(false);
+    let previous = STATE.detect_hidden_windows.swap(wanted as i32, Ordering::Relaxed);
+    Ok(Value::Int(previous as i64))
+}
+
+/// `DetectHiddenText`: the text of the hidden windows is read.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command answers the
+/// value that was there before.
+///
+/// The tree reads no text of a window, hidden or not: the setting changes
+/// nothing, and it is kept all the same.
+pub fn set_detect_hidden_text(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = values.first().map(|value| value.truthy()).unwrap_or(false);
+    let previous = STATE.detect_hidden_text.swap(wanted as i32, Ordering::Relaxed);
+    Ok(Value::Int(previous as i64))
+}
+
+/// `SetWinDelay`: the pause after a windowing function.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command answers the
+/// delay that was there before, and the delay of v2 is 100 when the command
+/// is not used. A delay of -1 is no pause at all, and a delay of 0 is the
+/// smallest one.
+///
+/// The pause is done after every windowing function except `WinActive` and
+/// `WinExist`, the way v2 does it.
+pub fn set_win_delay(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let delay = number_argument(values, 0, "SetWinDelay", line)? as i64;
+    let previous = STATE.win_delay.swap(delay as i32, Ordering::Relaxed);
+    Ok(Value::Int(previous as i64))
+}
+
+/// The pause that follows a windowing function.
+///
+/// The pause of v2 is not done after `WinActive` and `WinExist`, and a delay
+/// of -1 is no pause at all.
+pub fn the_win_delay() -> i64 {
+    STATE.win_delay.load(Ordering::Relaxed) as i64
 }
 
 /// `SetMouseDelay`: the pause after a movement of the mouse.

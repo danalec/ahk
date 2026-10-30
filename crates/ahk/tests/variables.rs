@@ -275,6 +275,19 @@ fn a_name_of_windows_refuses_with_the_reason_of_the_contract() {
 }
 
 #[test]
+fn the_settings_that_the_runtime_keeps_answer_with_the_value_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the mode of the
+    // matching of the titles is 2, the speed of it is "Fast", the hidden
+    // windows are not seen, the hidden text is, and the delay of the
+    // windowing functions is 100.
+    let report = run(
+        "MsgBox \"%A_TitleMatchMode% %A_TitleMatchModeSpeed% %A_DetectHiddenWindows% %A_DetectHiddenText% %A_WinDelay%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 Fast 0 1 100"]);
+}
+
+#[test]
 fn a_setting_that_the_runtime_does_not_keep_refuses_with_the_reason_of_the_settings() {
     let report = run("MsgBox A_ControlDelay");
     assert!(!report.ok);

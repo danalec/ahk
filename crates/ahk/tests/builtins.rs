@@ -850,6 +850,43 @@ fn is_set_ref_wants_a_reference() {
 }
 
 #[test]
+fn the_commands_of_the_settings_answer_with_the_value_that_was_there() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: every one of them
+    // answers the value that was there before.
+    let report = run(
+        "a := SetTitleMatchMode(2)\nb := DetectHiddenWindows(true)\nc := DetectHiddenText(false)\nd := SetWinDelay(200)\nMsgBox \"%a% %b% %c% %d%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 0 1 100"]);
+}
+
+#[test]
+fn a_mode_of_the_titles_that_the_tree_cannot_match_with_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the tree matches the
+    // titles the way v2 matches them with the mode 2, and the mode is not
+    // changed.
+    let report = run(
+        "try {\n    SetTitleMatchMode(1)\n} catch Any as e {\n    MsgBox e.Message\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["the titles are matched the way v2 matches them with the mode 2, and the mode is not changed."]
+    );
+}
+
+#[test]
+fn a_mode_of_the_titles_that_is_not_one_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the mode is a number
+    // from 1 to 3, and the others are refused.
+    let report = run(
+        "try {\n    SetTitleMatchMode(5)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Parameter #1 of SetTitleMatchMode is invalid. | ValueError | SetTitleMatchMode | 5"]);
+}
+
+#[test]
 fn the_mode_of_the_keys_is_the_one_of_the_box() {
     let report = run("SendMode \"Input\"");
     assert!(report.ok, "{:?}", report.error);

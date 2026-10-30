@@ -38,7 +38,8 @@ use crate::hotkeys::{
 };
 use crate::settings::{
     coord_mode, get_key_name, get_key_sc, get_key_vk, send_event, send_input, send_level, send_play,
-    send_text, set_default_mouse_speed, set_key_delay, set_mouse_delay, set_store_caps_lock_mode,
+    send_text, set_default_mouse_speed, set_detect_hidden_text, set_detect_hidden_windows,
+    set_key_delay, set_mouse_delay, set_store_caps_lock_mode, set_title_match_mode, set_win_delay,
 };
 use crate::dll::{Convention, NativeArg, NativeCall, NativeType, NativeValue};
 use crate::runtime::{
@@ -231,8 +232,8 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "ControlSetText", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, handler: not_carried },
     Builtin { name: "ControlShow", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, handler: not_carried },
     Builtin { name: "ControlShowDropDown", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, handler: not_carried },
-    Builtin { name: "DetectHiddenText", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
-    Builtin { name: "DetectHiddenWindows", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "DetectHiddenText", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_detect_hidden_text },
+    Builtin { name: "DetectHiddenWindows", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_detect_hidden_windows },
     Builtin { name: "DllCall", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, handler: dll_call },
     Builtin { name: "DriveEject", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, handler: not_carried },
     Builtin { name: "DriveGetCapacity", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
@@ -312,12 +313,12 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "RunAs", kind: BuiltinKind::Command, min: 0, max: 3, variant: 100, handler: not_carried },
     Builtin { name: "SendMessage", kind: BuiltinKind::Command, min: 1, max: 9, variant: 100, handler: not_carried },
     Builtin { name: "SetCapsLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, handler: not_carried },
-    Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 122, handler: not_carried },
     Builtin { name: "SetNumLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, handler: not_carried },
     Builtin { name: "SetRegView", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
     Builtin { name: "SetScrollLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, handler: not_carried },
-    Builtin { name: "SetTitleMatchMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
-    Builtin { name: "SetWinDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "SetTitleMatchMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_title_match_mode },
+    Builtin { name: "SetWinDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_win_delay },
     Builtin { name: "Shutdown", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
     Builtin { name: "SoundBeep", kind: BuiltinKind::Command, min: 0, max: 2, variant: 0, handler: sound_beep },
     Builtin { name: "SoundGetInterface", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, handler: not_carried },
@@ -355,7 +356,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "WinGetProcessName", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, handler: not_carried },
     Builtin { name: "WinGetProcessPath", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, handler: not_carried },
     Builtin { name: "WinGetStyle", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, handler: not_carried },
-    Builtin { name: "WinGetText", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, handler: not_carried },
+    Builtin { name: "WinGetText", kind: BuiltinKind::Command, min: 0, max: 4, variant: 121, handler: not_carried },
     Builtin { name: "WinGetTransColor", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, handler: not_carried },
     Builtin { name: "WinGetTransparent", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, handler: not_carried },
     Builtin { name: "WinHide", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, handler: not_carried },
@@ -788,6 +789,8 @@ fn refusal_message(variant: u8) -> &'static str {
         18 => "the picture is read by the desktop, and this desktop does not read the images of the machine.",
         19 => "the search of a picture is made by the desktop, and this desktop does not read the images of the machine.",
         20 => "the handler of an error is not carried: this runtime ends the script when it fails.",
+        21 => crate::settings::NO_TEXT_OF_A_WINDOW,
+        22 => crate::settings::NO_STATE,
         _ => "this runtime does not carry that name yet.",
     }
 }
@@ -3547,6 +3550,12 @@ fn win_get_title(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
         });
     }
     let title = rt.desktop().active_window_title().map_err(|e| desktop_failure(e, line))?;
+    // The pause of v2 follows a windowing function, and a delay of -1 is no
+    // pause at all.
+    let delay = crate::settings::the_win_delay();
+    if delay > 0 {
+        rt.sleep_ms(delay as u64);
+    }
     Ok(Value::Text(title.unwrap_or_default()))
 }
 

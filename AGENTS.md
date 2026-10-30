@@ -3235,3 +3235,35 @@ called.
   variables of the loop by reference.
 - **The rest of the arguments may be a parameter without a name.** `f(*)`
   is a function of v2, and the arguments that it takes go nowhere.
+
+
+## 65. The settings of the script that the tree keeps are the settings of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree refused the
+settings of the script that it does not keep, and the commands that set them
+refused with the reason of a name of Windows, which they are not. v2 keeps
+them all, and the tree keeps the ones it can.
+
+- **A command of a setting answers the value that was there before.**
+  `SetTitleMatchMode`, `DetectHiddenWindows`, `DetectHiddenText` and
+  `SetWinDelay` answer the value they replace.
+- **The mode of the matching of the titles is 2.** The tree matches the
+  titles the way v2 matches them with the mode 2, and the other modes are
+  refused with the reason of that: the mode is not changed. A mode that is
+  not a number from 1 to 3 is refused with "Parameter #1 of SetTitleMatchMode
+  is invalid.".
+- **The speed of the matching of the titles is "Fast".** v2.0.19 has no
+  command that changes it.
+- **The hidden windows and the hidden text are settings of the script.**
+  They change nothing here -- the windows of this desktop are the ones of
+  the compositor, and it has no hidden ones, and the tree reads no text of
+  a window -- and they are kept all the same.
+- **The delay of the windowing functions is 100.** The pause follows every
+  windowing function except `WinActive` and `WinExist`, the way v2 does it,
+  and a delay of -1 is no pause at all.
+- **The settings that the tree does not keep refuse with their reason.**
+  The delay of the controls (the tree has no controls of a window), the
+  view of the registry (the tree does not carry the registry), the cursor
+  of the pointer (the pointer of the box has one shape) and the modes of
+  the caret, of the menu and of the tooltip (they belong to a window, and
+  this runtime has no windows).

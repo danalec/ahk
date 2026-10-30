@@ -588,6 +588,11 @@ Four modules that answer what the runtime used to answer with a reason.
   name that the script wrote: `CP0` is the code page of the machine, and
   the tree carries one code page -- `CP1252` -- and refuses another one
   with the reason of its own.
+  The settings that the tree keeps are the settings of v2: the mode of the
+  matching of the titles, the speed of it, the hidden windows, the hidden
+  text and the delay of the windowing functions. The commands of them
+  answer the value that was there before, and the ones that the tree
+  cannot honour refuse with the reason of their own name.
 - `hotkeys.rs` -- the hotkeys of the script. The runtime holds the
   registry and the desktop holds the watcher: the script says which
   function a hotkey runs, and the machine says which key was pressed. The
@@ -722,6 +727,12 @@ that asks for another one is refused with the reason.
   runtime has no field for them, and the crate runs without the standard
   library, so there is no mutex of the standard library either. The
   encoding of the files has one truth: `files.rs` asks `settings.rs` for it.
+- **A setting that the tree keeps is the setting of v2.** The mode of the
+  matching of the titles, the speed of it, the hidden windows, the hidden
+  text and the delay of the windowing functions are answered with the value
+  of v2, and their commands answer the value that was there before. The
+  settings that the tree cannot honour refuse with the reason of their own
+  name.
 - **The date comes from the host.** The crate does not read the clock of
   the machine: it asks the `Clock` trait for it, and a host that does not
   know the date has the names of the date answer with the reason.
