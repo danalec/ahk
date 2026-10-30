@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use crate::classes::enumerator;
-use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, Value};
+use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, Value, put};
 
 /// The key the state of a map lives under.
 ///
@@ -268,7 +268,7 @@ pub(crate) fn item(
 /// The state of a map.
 fn state(map: &Value) -> Option<Rc<RefCell<Object>>> {
     let Value::Object(object) = map else { return None };
-    let state = object.borrow().properties.get(STATE)?.clone();
+    let state = object.borrow().value_of(STATE)?;
     match state {
         Value::Object(state) => Some(state),
         _ => None,
@@ -287,7 +287,7 @@ fn new_state(pairs: Vec<(Value, Value)>, sense: CaseSense, capacity: i64) -> Val
 
 /// The entries of a map: the pairs, in the order they were put in.
 fn entries(state: &Object) -> Vec<(Value, Value)> {
-    let Some(Value::List(items)) = state.properties.get("entries") else { return Vec::new() };
+    let Some(Value::List(items)) = state.value_of("entries") else { return Vec::new() };
     items
         .iter()
         .map(|entry| match entry {
@@ -303,12 +303,12 @@ fn set_entries(state: &mut Object, pairs: Vec<(Value, Value)>) {
         .into_iter()
         .map(|(key, value)| Value::List(vec![key, value]))
         .collect();
-    state.properties.insert("entries".to_string(), Value::List(items));
+    put(&mut state.properties, "entries", Value::List(items));
 }
 
 /// The way the keys of a map are compared.
 fn case_sense(state: &Object) -> CaseSense {
-    let setting = state.properties.get("casesense").map(|value| value.to_text()).unwrap_or_default();
+    let setting = state.value_of("casesense").map(|value| value.to_text()).unwrap_or_default();
     match setting.to_lowercase().as_str() {
         "off" => CaseSense::Off,
         "locale" => CaseSense::Locale,
@@ -318,14 +318,13 @@ fn case_sense(state: &Object) -> CaseSense {
 
 /// The way the keys of a map are compared, written.
 fn set_case_sense(state: &mut Object, sense: CaseSense) {
-    state.properties.insert("casesense".to_string(), Value::Text(case_sense_text(sense).to_string()));
+    put(&mut state.properties, "casesense", Value::Text(case_sense_text(sense).to_string()));
 }
 
 /// How many entries a map holds before it has to grow.
 fn capacity(state: &Object) -> i64 {
     state
-        .properties
-        .get("capacity")
+        .value_of("capacity")
         .and_then(|value| value.to_number())
         .map(|number| number as i64)
         .unwrap_or(0)
@@ -333,7 +332,7 @@ fn capacity(state: &Object) -> i64 {
 
 /// How many entries a map holds before it has to grow, written.
 fn set_capacity(state: &mut Object, capacity: i64) {
-    state.properties.insert("capacity".to_string(), Value::Int(capacity));
+    put(&mut state.properties, "capacity", Value::Int(capacity));
 }
 
 /// The way the keys are compared, as the script reads it.
@@ -377,7 +376,7 @@ fn find(map: &Value, key: &Value) -> Option<Value> {
 /// property, when it gave one.
 fn default_property(map: &Value) -> Option<Value> {
     let Value::Object(object) = map else { return None };
-    object.borrow().properties.get("default").cloned()
+    object.borrow().value_of("default")
 }
 
 /// Put a value in, under a key.
@@ -415,12 +414,12 @@ fn clone(map: &Value) -> Value {
         None => (Vec::new(), CaseSense::On, 0),
     };
     let mut properties = BTreeMap::new();
-    properties.insert(STATE.to_string(), new_state(pairs, sense, capacity));
+    put(&mut properties, STATE, new_state(pairs, sense, capacity));
     // The properties the script gave the map are copied as well.
     if let Value::Object(object) = map {
-        for (name, value) in object.borrow().properties.iter() {
+        for (name, property) in object.borrow().properties.iter() {
             if name != STATE {
-                properties.insert(name.clone(), value.clone());
+                properties.insert(name.clone(), property.clone());
             }
         }
     }
@@ -485,7 +484,7 @@ fn base_method(
                 .properties
                 .iter()
                 .filter(|(name, _)| name.as_str() != STATE)
-                .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
+                .map(|(_, property)| (Value::Text(property.name.clone()), property.value.clone()))
                 .collect();
             Some(Ok(enumerator::make(pairs, enumerator::Alone::TheKey)))
         }
@@ -500,7 +499,7 @@ fn base_method(
         "hasmethod" => Some(Ok(Value::Int(METHODS.contains(&key.as_str()) as i64))),
         "getownpropdesc" => {
             let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
-            let value = object.borrow().properties.get(&key).cloned();
+            let value = object.borrow().value_of(&key);
             match value {
                 Some(value) => {
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -510,7 +509,7 @@ fn base_method(
                         Some(members) => members,
                         None => {
                             let mut table = BTreeMap::new();
-                            table.insert("value".to_string(), value);
+                            put(&mut table, "value", value);
                             table
                         }
                     };
@@ -534,7 +533,7 @@ fn base_method(
                 Ok(descriptor) => descriptor,
                 Err(failure) => return Some(Err(failure)),
             };
-            object.borrow_mut().properties.insert(key, descriptor);
+            put(&mut object.borrow_mut().properties, &name, descriptor);
             // The answer of v2 is the object itself.
             Some(Ok(this.clone()))
         }
@@ -542,7 +541,7 @@ fn base_method(
             if key == STATE {
                 return Some(Ok(Value::Text(String::new())));
             }
-            let gone = object.borrow_mut().properties.remove(&key);
+            let gone = object.borrow_mut().properties.remove(&key).map(|property| property.value);
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // is the value of the property that is taken away, and an
             // empty text when there was none.

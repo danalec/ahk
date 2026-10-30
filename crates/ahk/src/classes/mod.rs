@@ -26,7 +26,7 @@ use core::cell::RefCell;
 use alloc::rc::Rc;
 use alloc::string::ToString;
 
-use crate::runtime::{Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value};
+use crate::runtime::{Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, put};
 
 pub(crate) mod array;
 pub(crate) mod buffer;
@@ -715,8 +715,8 @@ pub(crate) fn class_value(name: &str) -> Value {
     // The name of the class is the one v2 spells: the name of the
     // runtime carries it in lower case. v2 does not show it, and the
     // tree keeps it under a key of its own.
-    table.insert(crate::runtime::CLASS_NAME.to_string(), Value::Text(the_spelling_of(name)));
-    table.insert("prototype".to_string(), crate::runtime::prototype_value(name));
+    put(&mut table, crate::runtime::CLASS_NAME, Value::Text(the_spelling_of(name)));
+    put(&mut table, "prototype", crate::runtime::prototype_value(name));
     Value::Object(Rc::new(RefCell::new(Object {
         class: name.to_lowercase(),
         properties: table,
@@ -735,7 +735,7 @@ pub(crate) fn object(class: &str) -> Value {
 pub(crate) fn object_with(class: &str, properties: Vec<(&str, Value)>) -> Value {
     let mut table = BTreeMap::new();
     for (name, value) in properties {
-        table.insert(name.to_lowercase(), value);
+        put(&mut table, name, value);
     }
     Value::Object(Rc::new(RefCell::new(Object {
         class: class.to_lowercase(),

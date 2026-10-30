@@ -945,6 +945,10 @@ that asks for another one is refused with the reason.
   assigned after the body of it.
 - **A load error that names a thing writes it on the second line.** The
   five spaces before the `Specifically:` are the ones of v2.
+- **The names of the own properties are the ones that the script wrote.**
+  The table of the properties is keyed by the name in lower case, and the
+  name is kept beside the value: the first write is the one that fixes the
+  case of it, and the names are in the order of v2.
 
 ## Side Effects
 

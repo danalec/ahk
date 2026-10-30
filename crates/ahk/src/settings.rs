@@ -220,9 +220,40 @@ impl Turn {
 
 #[cfg(test)]
 impl Drop for Turn {
+    /// Put the state back the way v2 starts it, and give the turn to the
+    /// test that waits for it.
     fn drop(&mut self) {
+        put_the_state_back();
         THE_TURN.store(false, Ordering::Relaxed);
     }
+}
+
+/// Put the state back the way v2 starts it.
+///
+/// The settings live in a static, and a test that changes one of them must
+/// not leave the change behind for the test that runs next.
+#[cfg(test)]
+pub(crate) fn put_the_state_back() {
+    STATE.coord_mouse.store(CLIENT, Ordering::Relaxed);
+    STATE.coord_pixel.store(CLIENT, Ordering::Relaxed);
+    STATE.key_delay.store(10, Ordering::Relaxed);
+    STATE.key_delay_play.store(-1, Ordering::Relaxed);
+    STATE.key_duration.store(-1, Ordering::Relaxed);
+    STATE.key_duration_play.store(-1, Ordering::Relaxed);
+    STATE.mouse_delay.store(10, Ordering::Relaxed);
+    STATE.mouse_delay_play.store(-1, Ordering::Relaxed);
+    STATE.send_mode.store(INPUT, Ordering::Relaxed);
+    STATE.send_level.store(0, Ordering::Relaxed);
+    STATE.mouse_speed.store(2, Ordering::Relaxed);
+    STATE.caps_lock.store(1, Ordering::Relaxed);
+    STATE.encoding.store(0, Ordering::Relaxed);
+    STATE.title_match_mode.store(MODE_CONTAINS, Ordering::Relaxed);
+    STATE.title_match_speed.store(FAST, Ordering::Relaxed);
+    STATE.control_delay.store(CONTROL_DELAY, Ordering::Relaxed);
+    STATE.reg_view.store(REG_DEFAULT, Ordering::Relaxed);
+    STATE.coord_caret.store(CLIENT, Ordering::Relaxed);
+    STATE.coord_menu.store(CLIENT, Ordering::Relaxed);
+    STATE.coord_tooltip.store(CLIENT, Ordering::Relaxed);
 }
 
 /// The state of the settings, with the defaults of v2.
@@ -1500,26 +1531,7 @@ impl Dialogs for Fake {}
 
     /// Put the state back the way v2 starts it.
     fn reset() {
-        STATE.coord_mouse.store(CLIENT, Ordering::Relaxed);
-        STATE.coord_pixel.store(CLIENT, Ordering::Relaxed);
-        STATE.key_delay.store(10, Ordering::Relaxed);
-        STATE.key_delay_play.store(-1, Ordering::Relaxed);
-        STATE.key_duration.store(-1, Ordering::Relaxed);
-        STATE.key_duration_play.store(-1, Ordering::Relaxed);
-        STATE.mouse_delay.store(10, Ordering::Relaxed);
-        STATE.mouse_delay_play.store(-1, Ordering::Relaxed);
-        STATE.send_mode.store(INPUT, Ordering::Relaxed);
-        STATE.send_level.store(0, Ordering::Relaxed);
-        STATE.mouse_speed.store(2, Ordering::Relaxed);
-        STATE.caps_lock.store(1, Ordering::Relaxed);
-        STATE.encoding.store(0, Ordering::Relaxed);
-        STATE.title_match_mode.store(MODE_CONTAINS, Ordering::Relaxed);
-        STATE.title_match_speed.store(FAST, Ordering::Relaxed);
-        STATE.control_delay.store(CONTROL_DELAY, Ordering::Relaxed);
-        STATE.reg_view.store(REG_DEFAULT, Ordering::Relaxed);
-        STATE.coord_caret.store(CLIENT, Ordering::Relaxed);
-        STATE.coord_menu.store(CLIENT, Ordering::Relaxed);
-        STATE.coord_tooltip.store(CLIENT, Ordering::Relaxed);
+        put_the_state_back();
     }
 
     /// Run a body against a runtime that asks a fake desktop, and give

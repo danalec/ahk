@@ -16,7 +16,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
-use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, Value};
+use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, Value, put};
 
 /// The key the state of an enumerator lives under.
 ///
@@ -65,15 +65,16 @@ pub(crate) fn names() -> Vec<&'static str> {
 pub(crate) fn make(pairs: Vec<(Value, Value)>, alone: Alone) -> Value {
     let mut state = Object { class: STATE_CLASS.to_string(), properties: BTreeMap::new() };
     set_pairs(&mut state, pairs);
-    state.properties.insert(
-        "alone".to_string(),
+    put(
+        &mut state.properties,
+        "alone",
         Value::Int(match alone {
             Alone::TheKey => 0,
             Alone::TheValue => 1,
         }),
     );
     let mut table = BTreeMap::new();
-    table.insert(STATE.to_string(), Value::Object(Rc::new(RefCell::new(state))));
+    put(&mut table, STATE, Value::Object(Rc::new(RefCell::new(state))));
     Value::Object(Rc::new(RefCell::new(Object {
         class: "enumerator".to_string(),
         properties: table,
@@ -206,7 +207,7 @@ fn the_call(
 /// The state of an enumerator.
 fn state(enumerator: &Value) -> Option<Rc<RefCell<Object>>> {
     let Value::Object(object) = enumerator else { return None };
-    let state = object.borrow().properties.get(STATE)?.clone();
+    let state = object.borrow().value_of(STATE)?;
     match state {
         Value::Object(state) => Some(state),
         _ => None,
@@ -215,7 +216,7 @@ fn state(enumerator: &Value) -> Option<Rc<RefCell<Object>>> {
 
 /// The pairs of an enumerator: the key and the value under it.
 fn pairs(state: &Object) -> Vec<(Value, Value)> {
-    let Some(Value::List(items)) = state.properties.get("pairs") else { return Vec::new() };
+    let Some(Value::List(items)) = state.value_of("pairs") else { return Vec::new() };
     items
         .iter()
         .map(|item| match item {
@@ -231,7 +232,7 @@ fn set_pairs(state: &mut Object, pairs: Vec<(Value, Value)>) {
         .into_iter()
         .map(|(key, value)| Value::List(vec![key, value]))
         .collect();
-    state.properties.insert("pairs".to_string(), Value::List(items));
+    put(&mut state.properties, "pairs", Value::List(items));
 }
 
 /// The pair of the turn, and which of the two is given alone.
@@ -244,7 +245,7 @@ fn the_pair(this: &Value) -> Option<(Value, Value, Alone)> {
     }
     let (key, value) = pairs.remove(0);
     set_pairs(&mut state, pairs);
-    let alone = match state.properties.get("alone").and_then(|value| value.to_number()) {
+    let alone = match state.value_of("alone").and_then(|value| value.to_number()) {
         Some(number) if number >= 1.0 => Alone::TheValue,
         _ => Alone::TheKey,
     };

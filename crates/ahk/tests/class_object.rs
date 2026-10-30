@@ -510,6 +510,59 @@ fn the_properties_of_a_class_are_assigned_after_the_body_of_its_init() {
 }
 
 #[test]
+fn the_names_of_the_own_properties_are_the_ones_that_the_script_wrote() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of an own
+    // property is the name as the script wrote it.
+    assert_eq!(
+        the_answer_of("o := Object()\no.X := 1\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"),
+        "X"
+    );
+    assert_eq!(
+        the_answer_of("o := {X: 1}\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"),
+        "X"
+    );
+    assert_eq!(
+        the_answer_of("m := Map()\nm.X := 1\ns := \"\"\nfor p in m.OwnProps()\n    s .= p\nMsgBox s"),
+        "X"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class C {\n}\nobj := C()\nobj.X := 1\ns := \"\"\nfor p in obj.OwnProps()\n    s .= p\nMsgBox s"
+        ),
+        "X"
+    );
+}
+
+#[test]
+fn the_first_write_of_a_property_is_the_one_that_fixes_the_case_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the names of a class
+    // are the names in lower case, and the first write is the one that fixes
+    // the case of the name.
+    assert_eq!(
+        the_answer_of("o := Object()\no.X := 1\no.x := 2\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"),
+        "X"
+    );
+    assert_eq!(
+        the_answer_of("o := Object()\no.x := 1\no.X := 2\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"),
+        "x"
+    );
+    // The value of the property is the one that was written last.
+    assert_eq!(the_answer_of("o := Object()\no.X := 1\no.x := 2\nMsgBox o.X"), "2");
+}
+
+#[test]
+fn the_names_of_the_own_properties_are_in_the_order_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the names are sorted
+    // and the case of them does not count.
+    assert_eq!(
+        the_answer_of(
+            "o := Object()\no.Zebra := 1\no.apple := 2\no.Mango := 3\ns := \"\"\nfor p in o.OwnProps()\n    s .= p . \" \"\nMsgBox s"
+        ),
+        "apple Mango Zebra "
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

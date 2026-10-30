@@ -23,7 +23,9 @@ use core::cell::RefCell;
 use crate::classes::buffer;
 use crate::classes::enumerator;
 use crate::classes::object_with;
-use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_number, expected_type};
+use crate::runtime::{
+    Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_number, expected_type, put,
+};
 
 /// The key the state of a file lives under.
 ///
@@ -303,27 +305,24 @@ fn state(this: &Value, line: u32) -> Result<File, RuntimeFailure> {
     let Value::Object(object) = this else {
         return Err(fail("this value is not a file.", line));
     };
-    let inner = match object.borrow().properties.get(STATE) {
+    let inner = match object.borrow().value_of(STATE) {
         Some(Value::Object(inner)) => inner.clone(),
         _ => return Err(fail("this value is not a file.", line)),
     };
     let inner = inner.borrow();
     let handle = inner
-        .properties
-        .get("handle")
+        .value_of("handle")
         .and_then(|value| value.to_number())
         .unwrap_or(CLOSED as f64) as i64;
     let pos = inner
-        .properties
-        .get("pos")
+        .value_of("pos")
         .and_then(|value| value.to_number())
         .unwrap_or(0.0) as i64;
     let mode = inner
-        .properties
-        .get("mode")
+        .value_of("mode")
         .map(|value| value.to_text())
         .unwrap_or_else(|| "rw".to_string());
-    let encoding = match inner.properties.get("encoding") {
+    let encoding = match inner.value_of("encoding") {
         Some(value) => Encoding::of(&value.to_text()).map_err(|reason| fail(reason, line))?,
         None => Encoding::of(crate::files::encoding()).map_err(|reason| fail(reason, line))?,
     };
@@ -346,7 +345,7 @@ fn stored(file: &File) -> Value {
 /// Put the state back into the object.
 fn restore(this: &Value, file: &File) {
     let Value::Object(object) = this else { return };
-    object.borrow_mut().properties.insert(STATE.to_string(), stored(file));
+    put(&mut object.borrow_mut().properties, STATE, stored(file));
 }
 
 /// Whether the file is closed.
@@ -1269,7 +1268,7 @@ fn base_method(
                 .properties
                 .iter()
                 .filter(|(name, _)| name.as_str() != STATE)
-                .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
+                .map(|(_, property)| (Value::Text(property.name.clone()), property.value.clone()))
                 .collect();
             Some(Ok(enumerator::make(pairs, enumerator::Alone::TheKey)))
         }
@@ -1284,7 +1283,7 @@ fn base_method(
         "hasmethod" => Some(Ok(Value::Int(METHODS.contains(&key.as_str()) as i64))),
         "getownpropdesc" => {
             let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
-            let value = object.borrow().properties.get(&key).cloned();
+            let value = object.borrow().value_of(&key);
             match value {
                 Some(value) => {
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -1294,7 +1293,7 @@ fn base_method(
                         Some(members) => members,
                         None => {
                             let mut table = BTreeMap::new();
-                            table.insert("value".to_string(), value);
+                            put(&mut table, "value", value);
                             table
                         }
                     };
@@ -1318,7 +1317,7 @@ fn base_method(
                 Ok(descriptor) => descriptor,
                 Err(failure) => return Some(Err(failure)),
             };
-            object.borrow_mut().properties.insert(key, descriptor);
+            put(&mut object.borrow_mut().properties, &name, descriptor);
             // The answer of v2 is the object itself.
             Some(Ok(this.clone()))
         }
@@ -1326,7 +1325,7 @@ fn base_method(
             if key == STATE {
                 return Some(Ok(Value::Text(String::new())));
             }
-            let gone = object.borrow_mut().properties.remove(&key);
+            let gone = object.borrow_mut().properties.remove(&key).map(|property| property.value);
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // is the value of the property that is taken away, and an
             // empty text when there was none.

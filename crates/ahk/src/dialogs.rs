@@ -14,7 +14,7 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use crate::desktop::{FileAnswer, FileOptions, InputOptions};
-use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value};
+use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, put};
 
 /// `InputBox`: ask the user for a text.
 ///
@@ -36,8 +36,8 @@ pub fn input_box(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
         .input_box(&prompt, &title, &options, &default)
         .map_err(|reason| RuntimeError { message: reason, line })?;
     let mut properties = BTreeMap::new();
-    properties.insert("value".to_string(), Value::Text(answer.value));
-    properties.insert("result".to_string(), Value::Text(answer.result));
+    put(&mut properties, "value", Value::Text(answer.value));
+    put(&mut properties, "result", Value::Text(answer.result));
     Ok(Value::Object(Rc::new(RefCell::new(Object {
         class: "object".to_string(),
         properties,

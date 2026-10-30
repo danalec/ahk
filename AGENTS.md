@@ -3978,12 +3978,39 @@ The comparison of the tree with the binary is in
 `egm-review/probe_own_props.py` (7 cases) and in
 `egm-review/probe_own_props2.py` (10 cases).
 
-One corner is still open, and it is a rule of the dialect that the tree
-does not carry: the names of the own properties of a plain object keep the
-case of the tree and not the case of the script. v2 gives "X" for the own
-property of `o.X := 1`, and the tree gives "x" -- the table of the
-properties of an object is keyed by the name in lower case, and it would
-have to carry the name as it was written beside it.
+## 86. The names of the own properties are the ones that the script wrote
+
+Measured on the binary of v2.0.19 on 2026-10-31: the name of an own property
+is the name as the script wrote it, and the first write is the one that
+fixes the case of it.
+
+- **The table of the properties is keyed by the name in lower case, and the
+  name is kept beside the value.** `o.X := 1` gives the own property the
+  name "X", and the tree gave "x" -- the table did not carry the name as it
+  was written beside it.
+- **The first write is the one that fixes the case of the name.**
+  `o.X := 1` and then `o.x := 2` gives the name "X" and the value 2, and
+  `o.x := 1` and then `o.X := 2` gives the name "x".
+- **The names are in the order of v2, and the case of them does not
+  count.** `o.Zebra := 1`, `o.apple := 2` and `o.Mango := 3` give the names
+  "apple", "Mango" and "Zebra".
+- **The names of the literals keep the case too.** `o := {X: 1}` gives the
+  name "X".
+
+The comparison of the tree with the binary is in
+`egm-review/compare_own_property_names.py` (17 cases) and in
+`egm-review/probe_own_property_order.py` (3 cases).
+
+One corner is still open, and it is not the case of the names: the own
+properties of a prototype are not the ones of v2. v2 gives "__Class" and
+"__Init" for the prototype of a class of the script, and the members of the
+class type for the prototype of a class of the runtime -- "Enum", "__Item",
+"__New", "Capacity", "CaseSense", "Clear", "Clone", "Count", "Delete",
+"Get", "Has" and "Set" for the `Map` -- and the tree gives nothing.
+
+The corner that was open here is closed in section 86: the names of the own
+properties of a plain object keep the case of the script, and not the case
+of the tree.
 
 ## 85. The duplicates of a class are named the way v2 names them
 

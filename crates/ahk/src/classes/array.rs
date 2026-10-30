@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use crate::classes::enumerator;
-use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, Value};
+use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, Value, put};
 
 /// The key the state of an array lives under.
 ///
@@ -425,7 +425,7 @@ pub(crate) fn item(
 /// The state of an array.
 fn state(array: &Value) -> Option<Rc<RefCell<Object>>> {
     let Value::Object(object) = array else { return None };
-    let state = object.borrow().properties.get(STATE)?.clone();
+    let state = object.borrow().value_of(STATE)?;
     match state {
         Value::Object(state) => Some(state),
         _ => None,
@@ -443,7 +443,7 @@ fn new_state(items: Vec<Value>, capacity: i64) -> Value {
 
 /// The items of an array: the elements in the order of their places.
 fn items(state: &Object) -> Vec<Value> {
-    let Some(Value::List(items)) = state.properties.get("items") else { return Vec::new() };
+    let Some(Value::List(items)) = state.value_of("items") else { return Vec::new() };
     items.clone()
 }
 
@@ -463,14 +463,13 @@ pub(crate) fn the_items(array: &Value) -> Vec<Value> {
 
 /// The items of an array, written back.
 fn set_items(state: &mut Object, items: Vec<Value>) {
-    state.properties.insert("items".to_string(), Value::List(items));
+    put(&mut state.properties, "items", Value::List(items));
 }
 
 /// How many items an array holds before it has to grow.
 fn capacity(state: &Object) -> i64 {
     state
-        .properties
-        .get("capacity")
+        .value_of("capacity")
         .and_then(|value| value.to_number())
         .map(|number| number as i64)
         .unwrap_or(0)
@@ -478,7 +477,7 @@ fn capacity(state: &Object) -> i64 {
 
 /// How many items an array holds before it has to grow, written.
 fn set_capacity(state: &mut Object, capacity: i64) {
-    state.properties.insert("capacity".to_string(), Value::Int(capacity));
+    put(&mut state.properties, "capacity", Value::Int(capacity));
 }
 
 /// An element of an array: the value, and whether it has one.
@@ -504,7 +503,7 @@ fn element_value(element: &Value) -> Option<Value> {
 /// property, when it gave one.
 fn default_property(array: &Value) -> Option<Value> {
     let Value::Object(object) = array else { return None };
-    object.borrow().properties.get("default").cloned()
+    object.borrow().value_of("default")
 }
 
 /// Put a value at the end of the array.
@@ -535,12 +534,12 @@ fn clone(array: &Value) -> Value {
         None => (Vec::new(), 0),
     };
     let mut properties = BTreeMap::new();
-    properties.insert(STATE.to_string(), new_state(items, capacity));
+    put(&mut properties, STATE, new_state(items, capacity));
     // The properties the script gave the array are copied as well.
     if let Value::Object(object) = array {
-        for (name, value) in object.borrow().properties.iter() {
+        for (name, property) in object.borrow().properties.iter() {
             if name != STATE {
-                properties.insert(name.clone(), value.clone());
+                properties.insert(name.clone(), property.clone());
             }
         }
     }
@@ -607,7 +606,7 @@ fn base_method(
                 .properties
                 .iter()
                 .filter(|(name, _)| name.as_str() != STATE)
-                .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
+                .map(|(_, property)| (Value::Text(property.name.clone()), property.value.clone()))
                 .collect();
             Some(Ok(enumerator::make(pairs, enumerator::Alone::TheKey)))
         }
@@ -622,7 +621,7 @@ fn base_method(
         "hasmethod" => Some(Ok(Value::Int(METHODS.contains(&key.as_str()) as i64))),
         "getownpropdesc" => {
             let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
-            let value = object.borrow().properties.get(&key).cloned();
+            let value = object.borrow().value_of(&key);
             match value {
                 Some(value) => {
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -632,7 +631,7 @@ fn base_method(
                         Some(members) => members,
                         None => {
                             let mut table = BTreeMap::new();
-                            table.insert("value".to_string(), value);
+                            put(&mut table, "value", value);
                             table
                         }
                     };
@@ -656,7 +655,7 @@ fn base_method(
                 Ok(descriptor) => descriptor,
                 Err(failure) => return Some(Err(failure)),
             };
-            object.borrow_mut().properties.insert(key, descriptor);
+            put(&mut object.borrow_mut().properties, &name, descriptor);
             // The answer of v2 is the object itself.
             Some(Ok(this.clone()))
         }
@@ -664,7 +663,7 @@ fn base_method(
             if key == STATE {
                 return Some(Ok(Value::Text(String::new())));
             }
-            let gone = object.borrow_mut().properties.remove(&key);
+            let gone = object.borrow_mut().properties.remove(&key).map(|property| property.value);
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // is the value of the property that is taken away, and an
             // empty text when there was none.

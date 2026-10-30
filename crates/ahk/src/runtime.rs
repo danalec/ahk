@@ -489,7 +489,49 @@ pub struct Object {
     /// The name of the class the object is an instance of.
     pub class: String,
     /// The properties of the object.
-    pub properties: BTreeMap<String, Value>,
+    ///
+    /// The key of the table is the name in lower case, and the name itself
+    /// is kept beside the value: v2 gives the name as the script wrote it,
+    /// and the first write is the one that fixes the case of it.
+    pub properties: BTreeMap<String, Property>,
+}
+
+/// A property of an object: the name as the script wrote it, and the value.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Property {
+    /// The name of the property, as the script wrote it.
+    pub name: String,
+    /// The value of the property.
+    pub value: Value,
+}
+
+/// Put a property in a table: the key is the name in lower case, and the name
+/// is the one that was written.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the first write is the
+/// one that fixes the case of the name -- `o.X := 1` and then `o.x := 2`
+/// gives the name "X".
+pub(crate) fn put(properties: &mut BTreeMap<String, Property>, name: &str, value: Value) {
+    let key = name.to_lowercase();
+    // The first write is the one that fixes the case of the name: a write
+    // in the other case keeps the name that is there.
+    let name = properties
+        .get(&key)
+        .map(|property| property.name.clone())
+        .unwrap_or_else(|| name.to_string());
+    properties.insert(key, Property { name, value });
+}
+
+impl Object {
+    /// The value of a property, by the key of it.
+    pub fn value_of(&self, key: &str) -> Option<Value> {
+        self.properties.get(key).map(|property| property.value.clone())
+    }
+
+    /// Put a property in, and keep the name that was written.
+    pub fn put(&mut self, name: &str, value: Value) {
+        put(&mut self.properties, name, value);
+    }
 }
 
 /// A class: the methods, the properties, and the class it extends.
@@ -1561,18 +1603,14 @@ impl<'a> Runtime<'a> {
         }
         let carries = object
             .borrow()
-            .properties
-            .get("what")
+            .value_of("what")
             .map(|what| !what.to_text().is_empty())
             .unwrap_or(false);
         if carries {
             return;
         }
         let Some(frame) = self.frames.last() else { return };
-        object
-            .borrow_mut()
-            .properties
-            .insert("what".to_string(), Value::Text(frame.clone()));
+        put(&mut object.borrow_mut().properties, "what", Value::Text(frame.clone()));
     }
 
     /// The timers that are due.
@@ -2327,7 +2365,7 @@ impl<'a> Runtime<'a> {
         let class = object.borrow().class.clone();
         // The name the class was written with, when the runtime knows it.
         if let Some(Value::Object(class)) = self.class_value_of(&class) {
-            if let Some(name) = class.borrow().properties.get(CLASS_NAME) {
+            if let Some(name) = class.borrow().value_of(CLASS_NAME) {
                 return Some(name.to_text());
             }
         }
@@ -2350,8 +2388,7 @@ impl<'a> Runtime<'a> {
             if Rc::ptr_eq(object, other) {
                 return object
                     .borrow()
-                    .properties
-                    .get(CLASS_NAME)
+                    .value_of(CLASS_NAME)
                     .map(|name| name.to_text().to_lowercase());
             }
         }
@@ -2366,12 +2403,12 @@ impl<'a> Runtime<'a> {
     pub(crate) fn base_of(&self, target: &Value) -> Option<Value> {
         let Value::Object(object) = target else { return None };
         // A base that the script set is the base of the object.
-        if let Some(base) = object.borrow().properties.get(BASE) {
+        if let Some(base) = object.borrow().value_of(BASE) {
             return Some(base.clone());
         }
         let class = object.borrow().class.clone();
         let Value::Object(class) = self.class_value_of(&class)? else { return None };
-        class.borrow().properties.get("prototype").cloned()
+        class.borrow().value_of("prototype")
     }
 
     /// The base of an object that the script set, if it set one.
@@ -2381,7 +2418,7 @@ impl<'a> Runtime<'a> {
     /// answers with.
     pub(crate) fn stored_base_of(&self, target: &Value) -> Option<Value> {
         let Value::Object(object) = target else { return None };
-        object.borrow().properties.get(BASE).cloned()
+        object.borrow().value_of(BASE)
     }
 
     /// A method of the base object, asked of an object.
@@ -2439,7 +2476,7 @@ impl<'a> Runtime<'a> {
                 line,
             });
         };
-        object.borrow_mut().properties.insert(BASE.to_string(), base);
+        object.borrow_mut().put(BASE, base);
         Ok(())
     }
 
@@ -2677,7 +2714,7 @@ impl<'a> Runtime<'a> {
             class = base;
         }
         // A base that the script set is the base of the object.
-        if let Some(Value::Object(base)) = object.borrow().properties.get(BASE) {
+        if let Some(Value::Object(base)) = object.borrow().value_of(BASE) {
             chain.push(base.clone());
             class = base.borrow().class.clone();
         }
@@ -2695,7 +2732,7 @@ impl<'a> Runtime<'a> {
     /// The prototype of a class, the object that holds its methods.
     fn the_prototype_of_the_class(&self, class: &str) -> Option<Rc<RefCell<Object>>> {
         let Some(Value::Object(value)) = self.class_value_of(class) else { return None };
-        let prototype = value.borrow().properties.get("prototype").cloned();
+        let prototype = value.borrow().value_of("prototype");
         let Some(Value::Object(prototype)) = prototype else { return None };
         Some(prototype)
     }
@@ -2888,7 +2925,7 @@ impl<'a> Runtime<'a> {
                 Some(node) => self.evaluate(node)?,
                 None => Value::Text(String::new()),
             };
-            object.borrow_mut().properties.insert(property.name.to_lowercase(), value);
+            put(&mut object.borrow_mut().properties, &property.name, value);
         }
         Ok(())
     }
@@ -2977,7 +3014,7 @@ impl<'a> Runtime<'a> {
                 Some(node) => self.evaluate(node)?,
                 None => Value::Text(String::new()),
             };
-            object.borrow_mut().properties.insert(property.name.to_lowercase(), value);
+            put(&mut object.borrow_mut().properties, &property.name, value);
         }
         Ok(())
     }
@@ -3368,8 +3405,7 @@ impl<'a> Runtime<'a> {
         if class == "prototype" {
             let name = object
                 .borrow()
-                .properties
-                .get(CLASS_NAME)
+                .value_of(CLASS_NAME)
                 .map(|value| value.to_text().to_lowercase())?;
             let base = crate::classes::the_base_class_of_a_class(&name)?;
             return self.the_prototype_of(base);
@@ -3440,7 +3476,7 @@ impl<'a> Runtime<'a> {
     /// The prototype of a class.
     fn the_prototype_of(&self, class: &str) -> Option<Value> {
         let Value::Object(value) = self.class_value_of(class)? else { return None };
-        value.borrow().properties.get("prototype").cloned()
+        value.borrow().value_of("prototype")
     }
 
     /// The static method of a class, as a value.
@@ -3589,9 +3625,7 @@ impl<'a> Runtime<'a> {
             "prototype" => match target {
                 Value::Object(object) => object
                     .borrow()
-                    .properties
-                    .get("prototype")
-                    .cloned()
+                    .value_of("prototype")
                     .unwrap_or_else(|| Value::Text(String::new())),
                 _ => Value::Text(String::new()),
             },
@@ -3616,7 +3650,7 @@ impl<'a> Runtime<'a> {
     /// for a class of the runtime -- and the initialiser of a class of the
     /// runtime is a built-in, and the one of a class of the script is not.
     fn the_init_of_a_class_value(&self, target: &Value) -> Value {
-        let mut properties: BTreeMap<String, Value> = BTreeMap::new();
+        let mut properties: BTreeMap<String, Property> = BTreeMap::new();
         let mut name = String::new();
         let mut built_in = 1;
         if let Some(class) = self.class_name_of(target) {
@@ -3625,12 +3659,12 @@ impl<'a> Runtime<'a> {
                 built_in = 0;
             }
         }
-        properties.insert("name".to_string(), Value::Text(name));
+        put(&mut properties, "name", Value::Text(name));
         // The first parameter of the reference is `this`.
-        properties.insert("minparams".to_string(), Value::Int(1));
-        properties.insert("maxparams".to_string(), Value::Int(1));
-        properties.insert("isbuiltin".to_string(), Value::Int(built_in));
-        properties.insert("isvariadic".to_string(), Value::Int(0));
+        put(&mut properties, "minparams", Value::Int(1));
+        put(&mut properties, "maxparams", Value::Int(1));
+        put(&mut properties, "isbuiltin", Value::Int(built_in));
+        put(&mut properties, "isvariadic", Value::Int(0));
         Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
     }
 
@@ -3644,24 +3678,21 @@ impl<'a> Runtime<'a> {
             .get(class)
             .map(|definition| definition.name.clone())
             .unwrap_or_else(|| class.to_string());
-        let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-        properties.insert("name".to_string(), Value::Text(format!("{owner}.{}", method.name)));
+        let mut properties: BTreeMap<String, Property> = BTreeMap::new();
+        put(&mut properties, "name", Value::Text(format!("{owner}.{}", method.name)));
         // The first parameter of the reference is `this`.
         let required = method
             .parameters
             .iter()
             .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
             .count();
-        properties.insert("minparams".to_string(), Value::Int(required as i64 + 1));
-        properties.insert(
-            "maxparams".to_string(),
-            Value::Int(method.parameters.len() as i64 + 1),
-        );
-        properties.insert("isbuiltin".to_string(), Value::Int(0));
-        properties.insert("isvariadic".to_string(), Value::Int(0));
+        put(&mut properties, "minparams", Value::Int(required as i64 + 1));
+        put(&mut properties, "maxparams", Value::Int(method.parameters.len() as i64 + 1));
+        put(&mut properties, "isbuiltin", Value::Int(0));
+        put(&mut properties, "isvariadic", Value::Int(0));
         // The class and the name of the method: the reference calls them.
-        properties.insert(METHOD_CLASS.to_string(), Value::Text(class.to_string()));
-        properties.insert(METHOD_NAME.to_string(), Value::Text(method.name.clone()));
+        put(&mut properties, METHOD_CLASS, Value::Text(class.to_string()));
+        put(&mut properties, METHOD_NAME, Value::Text(method.name.clone()));
         Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
     }
 
@@ -3671,14 +3702,14 @@ impl<'a> Runtime<'a> {
     /// arguments of the call.
     fn method_reference_of_the_base_object(&self, spelled: &str, method: &str, min: i64, max: i64) -> Value {
         let mut properties = BTreeMap::new();
-        properties.insert("name".to_string(), Value::Text(spelled.to_string()));
-        properties.insert("minparams".to_string(), Value::Int(min));
-        properties.insert("maxparams".to_string(), Value::Int(max));
-        properties.insert("isbuiltin".to_string(), Value::Int(1));
-        properties.insert("isvariadic".to_string(), Value::Int(0));
+        put(&mut properties, "name", Value::Text(spelled.to_string()));
+        put(&mut properties, "minparams", Value::Int(min));
+        put(&mut properties, "maxparams", Value::Int(max));
+        put(&mut properties, "isbuiltin", Value::Int(1));
+        put(&mut properties, "isvariadic", Value::Int(0));
         // The class and the name of the method: the reference calls them.
-        properties.insert(METHOD_CLASS.to_string(), Value::Text("object".to_string()));
-        properties.insert(METHOD_NAME.to_string(), Value::Text(method.to_string()));
+        put(&mut properties, METHOD_CLASS, Value::Text("object".to_string()));
+        put(&mut properties, METHOD_NAME, Value::Text(method.to_string()));
         Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
     }
 
@@ -3688,8 +3719,8 @@ impl<'a> Runtime<'a> {
         let Value::Object(object) = target else { return target.clone() };
         let class = object.borrow().class.clone();
         let mut properties = BTreeMap::new();
-        for (key, value) in object.borrow().properties.iter() {
-            properties.insert(key.clone(), value.clone());
+        for (key, property) in object.borrow().properties.iter() {
+            properties.insert(key.clone(), property.clone());
         }
         Value::Object(Rc::new(RefCell::new(Object { class, properties })))
     }
@@ -3702,8 +3733,8 @@ impl<'a> Runtime<'a> {
         let Value::Object(object) = target else { return target.clone() };
         let class = object.borrow().class.clone();
         let mut properties = BTreeMap::new();
-        for (key, value) in object.borrow().properties.iter() {
-            properties.insert(key.clone(), value.clone());
+        for (key, property) in object.borrow().properties.iter() {
+            properties.insert(key.clone(), property.clone());
         }
         let key = format!("{} copy {}", class, self.class_values.borrow().len());
         let copy = Value::Object(Rc::new(RefCell::new(Object { class, properties })));
@@ -3822,8 +3853,7 @@ impl<'a> Runtime<'a> {
                 let class = if class == "prototype" {
                     object
                         .borrow()
-                        .properties
-                        .get(CLASS_NAME)
+                        .value_of(CLASS_NAME)
                         .map(|name| name.to_text().to_lowercase())
                         .unwrap_or(class)
                 } else {
@@ -3926,14 +3956,14 @@ impl<'a> Runtime<'a> {
                         pairs.push((Value::Text(name), value));
                     }
                     // The properties that the script wrote are own as well.
-                    for (name, value) in object.borrow().properties.iter() {
+                    for (name, property) in object.borrow().properties.iter() {
                         if name.as_str() == BASE
                             || name.as_str() == CLASS_NAME
                             || name.as_str() == "prototype"
                         {
                             continue;
                         }
-                        pairs.push((Value::Text(name.clone()), value.clone()));
+                        pairs.push((Value::Text(property.name.clone()), property.value.clone()));
                     }
                     // The names are in the order of v2, and the case of them
                     // does not count.
@@ -3947,21 +3977,22 @@ impl<'a> Runtime<'a> {
                         crate::classes::enumerator::Alone::TheKey,
                     )));
                 }
-                let names: Vec<String> = object
+                // The names are the ones that the script wrote, and they
+                // are in the order of v2: the case of them does not count.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: `o.X := 1`
+                // gives the own property the name "X", and the first write
+                // is the one that fixes the case of it.
+                let mut own: Vec<(String, Value)> = object
                     .borrow()
                     .properties
-                    .keys()
-                    .filter(|name| name.as_str() != BASE && name.as_str() != CLASS_NAME)
-                    .cloned()
+                    .iter()
+                    .filter(|(name, _)| name.as_str() != BASE && name.as_str() != CLASS_NAME)
+                    .map(|(_, property)| (property.name.clone(), property.value.clone()))
                     .collect();
-                let mut pairs: Vec<(Value, Value)> = Vec::with_capacity(names.len());
-                for name in names {
-                    let value = object
-                        .borrow()
-                        .properties
-                        .get(&name)
-                        .cloned()
-                        .unwrap_or(Value::Text(String::new()));
+                own.sort_by_key(|(name, _)| name.to_lowercase());
+                let mut pairs: Vec<(Value, Value)> = Vec::with_capacity(own.len());
+                for (name, value) in own {
                     let value = match self.the_value_of_the_descriptor(&value, target, &name, line) {
                         Ok(Some(value)) => value,
                         Ok(None) => value,
@@ -3985,7 +4016,7 @@ impl<'a> Runtime<'a> {
                     Ok(descriptor) => descriptor,
                     Err(failure) => return Some(Err(failure)),
                 };
-                object.borrow_mut().properties.insert(name.to_lowercase(), descriptor);
+                put(&mut object.borrow_mut().properties, &name, descriptor);
                 // The answer of v2 is the object itself.
                 Some(Ok(target.clone()))
             }
@@ -3993,7 +4024,7 @@ impl<'a> Runtime<'a> {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
                     return Some(Err(missing()));
                 };
-                let gone = object.borrow_mut().properties.remove(&name.to_lowercase());
+                let gone = object.borrow_mut().properties.remove(&name.to_lowercase()).map(|property| property.value);
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // answer is the value of the property that is taken away,
                 // and an empty text when there was none.
@@ -4010,7 +4041,7 @@ impl<'a> Runtime<'a> {
                     return Some(Err(missing()));
                 };
                 let key = name.to_lowercase();
-                let value = object.borrow().properties.get(&key).cloned();
+                let value = object.borrow().value_of(&key);
                 match value {
                     Some(value) => {
                         // Measured on the binary of v2.0.19 on 2026-10-31:
@@ -4020,7 +4051,7 @@ impl<'a> Runtime<'a> {
                             Some(members) => members,
                             None => {
                                 let mut table = BTreeMap::new();
-                                table.insert("value".to_string(), value);
+                                put(&mut table, "value", value);
                                 table
                             }
                         };
@@ -4068,8 +4099,7 @@ impl<'a> Runtime<'a> {
             if object.borrow().class == "prototype" {
                 let name = object
                     .borrow()
-                    .properties
-                    .get(CLASS_NAME)
+                    .value_of(CLASS_NAME)
                     .map(|value| value.to_text())
                     .unwrap_or_default();
                 return crate::classes::the_spelling_of(&name);
@@ -4125,7 +4155,7 @@ impl<'a> Runtime<'a> {
         );
         let Some(Value::Object(object)) = value else { return Err(invalid()) };
         let table = object.borrow();
-        let mut members: BTreeMap<String, Value> = BTreeMap::new();
+        let mut members: BTreeMap<String, Property> = BTreeMap::new();
         for key in ["value", "get", "set", "call"] {
             if let Some(member) = table.properties.get(key) {
                 members.insert(key.to_string(), member.clone());
@@ -4148,7 +4178,7 @@ impl<'a> Runtime<'a> {
     }
 
     /// The members of a descriptor, when the value is one.
-    pub(crate) fn the_members_of_a_descriptor(&self, value: &Value) -> Option<BTreeMap<String, Value>> {
+    pub(crate) fn the_members_of_a_descriptor(&self, value: &Value) -> Option<BTreeMap<String, Property>> {
         if !self.is_a_descriptor(value) {
             return None;
         }
@@ -4173,8 +4203,8 @@ impl<'a> Runtime<'a> {
             return Ok(None);
         }
         let Value::Object(object) = value else { return Ok(None) };
-        let getter = object.borrow().properties.get("get").cloned();
-        let held = object.borrow().properties.get("value").cloned();
+        let getter = object.borrow().value_of("get");
+        let held = object.borrow().value_of("value");
         if let Some(getter) = getter {
             // The getter is asked with the object as its first parameter.
             return Ok(Some(self.call_the_function(&getter, target, &[], line)?));
@@ -4188,12 +4218,12 @@ impl<'a> Runtime<'a> {
     /// The call of a property that is a descriptor.
     fn the_call_of_the_descriptor(&self, target: &Value, name: &str) -> Option<Value> {
         let Value::Object(object) = target else { return None };
-        let current = object.borrow().properties.get(&name.to_lowercase()).cloned()?;
+        let current = object.borrow().value_of(&name.to_lowercase())?;
         if !self.is_a_descriptor(&current) {
             return None;
         }
         let Value::Object(descriptor) = &current else { return None };
-        descriptor.borrow().properties.get("call").cloned()
+        descriptor.borrow().value_of("call")
     }
 
     /// The value of a property that is called.
@@ -4208,14 +4238,14 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Option<Value>, RuntimeFailure> {
         let Value::Object(object) = target else { return Ok(None) };
-        let Some(current) = object.borrow().properties.get(&name.to_lowercase()).cloned() else {
+        let Some(current) = object.borrow().value_of(&name.to_lowercase()) else {
             return Ok(None);
         };
         if !self.is_a_descriptor(&current) {
             return Ok(None);
         }
         let Value::Object(descriptor) = &current else { return Ok(None) };
-        let getter = descriptor.borrow().properties.get("get").cloned();
+        let getter = descriptor.borrow().value_of("get");
         let Some(getter) = getter else { return Ok(None) };
         Ok(Some(self.call_the_function(&getter, target, &[], line)?))
     }
@@ -4240,7 +4270,7 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<(), RuntimeFailure> {
         let Value::Object(object) = descriptor else { return Ok(()) };
-        let setter = object.borrow().properties.get("set").cloned();
+        let setter = object.borrow().value_of("set");
         if let Some(setter) = setter {
             // The setter is asked with the object and the value that is
             // written as its two first parameters.
@@ -4249,7 +4279,7 @@ impl<'a> Runtime<'a> {
         }
         let holds = object.borrow().properties.contains_key("value");
         if holds {
-            object.borrow_mut().properties.insert("value".to_string(), value);
+            object.borrow_mut().put("value", value);
             return Ok(());
         }
         Err(RuntimeFailure::Detailed(
@@ -4331,27 +4361,21 @@ impl<'a> Runtime<'a> {
     /// `this`: the reference is the method itself, and the object is one
     /// of the arguments of the call.
     fn method_reference(&self, class: &str, method: &MethodDef) -> Value {
-        let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-        properties.insert(
-            "name".to_string(),
-            Value::Text(self.the_name_of_the_method(class, method)),
-        );
+        let mut properties: BTreeMap<String, Property> = BTreeMap::new();
+        put(&mut properties, "name", Value::Text(self.the_name_of_the_method(class, method)));
         // The first parameter of the reference is `this`.
         let required = method
             .parameters
             .iter()
             .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
             .count();
-        properties.insert("minparams".to_string(), Value::Int(required as i64 + 1));
-        properties.insert(
-            "maxparams".to_string(),
-            Value::Int(method.parameters.len() as i64 + 1),
-        );
-        properties.insert("isbuiltin".to_string(), Value::Int(0));
-        properties.insert("isvariadic".to_string(), Value::Int(0));
+        put(&mut properties, "minparams", Value::Int(required as i64 + 1));
+        put(&mut properties, "maxparams", Value::Int(method.parameters.len() as i64 + 1));
+        put(&mut properties, "isbuiltin", Value::Int(0));
+        put(&mut properties, "isvariadic", Value::Int(0));
         // The class and the name of the method: the reference calls them.
-        properties.insert(METHOD_CLASS.to_string(), Value::Text(class.to_string()));
-        properties.insert(METHOD_NAME.to_string(), Value::Text(method.name.clone()));
+        put(&mut properties, METHOD_CLASS, Value::Text(class.to_string()));
+        put(&mut properties, METHOD_NAME, Value::Text(method.name.clone()));
         Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
     }
 
@@ -4369,17 +4393,14 @@ impl<'a> Runtime<'a> {
     ) -> Value {
         let mut properties = BTreeMap::new();
         let owner = crate::classes::the_spelling_of(class);
-        properties.insert(
-            "name".to_string(),
-            Value::Text(format!("{owner}.Prototype.{spelled}")),
-        );
-        properties.insert("minparams".to_string(), Value::Int(min));
-        properties.insert("maxparams".to_string(), Value::Int(max));
-        properties.insert("isbuiltin".to_string(), Value::Int(0));
-        properties.insert("isvariadic".to_string(), Value::Int(0));
+        put(&mut properties, "name", Value::Text(format!("{owner}.Prototype.{spelled}")));
+        put(&mut properties, "minparams", Value::Int(min));
+        put(&mut properties, "maxparams", Value::Int(max));
+        put(&mut properties, "isbuiltin", Value::Int(0));
+        put(&mut properties, "isvariadic", Value::Int(0));
         // The class and the name of the method: the reference calls them.
-        properties.insert(METHOD_CLASS.to_string(), Value::Text(class.to_string()));
-        properties.insert(METHOD_NAME.to_string(), Value::Text(spelled.to_string()));
+        put(&mut properties, METHOD_CLASS, Value::Text(class.to_string()));
+        put(&mut properties, METHOD_NAME, Value::Text(spelled.to_string()));
         Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
     }
 
@@ -4498,7 +4519,7 @@ impl<'a> Runtime<'a> {
                 return result.map(|value| (value, false));
             }
         }
-        if let Some(value) = object.borrow().properties.get(&name).cloned() {
+        if let Some(value) = object.borrow().value_of(&name) {
             // A property may be a descriptor: the getter of it is asked
             // for the value of the property.
             if let Some(answer) = self.the_value_of_the_descriptor(&value, target, &written, line)? {
@@ -4624,7 +4645,7 @@ impl<'a> Runtime<'a> {
         }
         // A property that is a descriptor has a setter of its own, and a
         // descriptor that carries a value is written straight away.
-        if let Some(current) = object.borrow().properties.get(&name).cloned() {
+        if let Some(current) = object.borrow().value_of(&name) {
             if self.is_a_descriptor(&current) {
                 return self.the_write_of_the_descriptor(&current, target, value, &written, line);
             }
@@ -4648,7 +4669,8 @@ impl<'a> Runtime<'a> {
                 return Ok(());
             }
         }
-        object.borrow_mut().properties.insert(name, value);
+        // The name of the property is the one that the script wrote.
+        put(&mut object.borrow_mut().properties, &written, value);
         Ok(())
     }
 
@@ -4707,7 +4729,7 @@ impl<'a> Runtime<'a> {
         };
         // A property that is a descriptor has a setter of its own, and a
         // descriptor that carries a value is written straight away.
-        if let Some(current) = object.borrow().properties.get(name).cloned() {
+        if let Some(current) = object.borrow().value_of(name) {
             if self.is_a_descriptor(&current) {
                 return self.the_write_of_the_descriptor(&current, target, value, written, line);
             }
@@ -4727,7 +4749,8 @@ impl<'a> Runtime<'a> {
                 return Ok(());
             }
         }
-        object.borrow_mut().properties.insert(name.to_string(), value);
+        // The name of the property is the one that the script wrote.
+        put(&mut object.borrow_mut().properties, written, value);
         Ok(())
     }
 
@@ -5590,10 +5613,10 @@ impl<'a> Runtime<'a> {
             return None;
         }
         // A closure is kept under a name of its own.
-        if let Some(closure) = object.properties.get(CLOSURE) {
+        if let Some(closure) = object.value_of(CLOSURE) {
             return self.functions.get(&closure.to_text().to_lowercase()).cloned();
         }
-        let function_name = object.properties.get("name")?.to_text().to_lowercase();
+        let function_name = object.value_of("name")?.to_text().to_lowercase();
         self.functions.get(&function_name).cloned()
     }
 
@@ -5608,8 +5631,8 @@ impl<'a> Runtime<'a> {
         if object.class != "func" {
             return None;
         }
-        let class = object.properties.get(METHOD_CLASS)?.to_text();
-        let method = object.properties.get(METHOD_NAME)?.to_text();
+        let class = object.value_of(METHOD_CLASS)?.to_text();
+        let method = object.value_of(METHOD_NAME)?.to_text();
         Some((class, method))
     }
 
@@ -5932,7 +5955,7 @@ impl<'a> Runtime<'a> {
                 line,
             });
         }
-        let function_name = match object.properties.get("name") {
+        let function_name = match object.value_of("name") {
             Some(Value::Text(text)) => text.clone(),
             _ => String::new(),
         };
@@ -6079,7 +6102,7 @@ impl<'a> Runtime<'a> {
                 if let Value::Object(cell) = &object {
                     for (name, value) in properties {
                         let value = self.evaluate(value)?;
-                        cell.borrow_mut().properties.insert(name.to_lowercase(), value);
+                        put(&mut cell.borrow_mut().properties, name, value);
                     }
                 }
                 Ok(object)
@@ -6920,12 +6943,12 @@ fn func_value(name: &str, function: &Function) -> Value {
         .iter()
         .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
         .count();
-    let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-    properties.insert("name".to_string(), Value::Text(name.to_string()));
-    properties.insert("minparams".to_string(), Value::Int(fewest as i64));
-    properties.insert("maxparams".to_string(), Value::Int(function.parameters.len() as i64));
-    properties.insert("isbuiltin".to_string(), Value::Int(0));
-    properties.insert("isvariadic".to_string(), Value::Int(0));
+    let mut properties: BTreeMap<String, Property> = BTreeMap::new();
+    put(&mut properties, "name", Value::Text(name.to_string()));
+    put(&mut properties, "minparams", Value::Int(fewest as i64));
+    put(&mut properties, "maxparams", Value::Int(function.parameters.len() as i64));
+    put(&mut properties, "isbuiltin", Value::Int(0));
+    put(&mut properties, "isvariadic", Value::Int(0));
     Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
 }
 
@@ -6936,7 +6959,7 @@ fn func_value(name: &str, function: &Function) -> Value {
 fn closure_value(name: &str, function: &Function) -> Value {
     let value = func_value("", function);
     if let Value::Object(object) = &value {
-        object.borrow_mut().properties.insert(CLOSURE.to_string(), Value::Text(name.to_string()));
+        object.borrow_mut().put(CLOSURE, Value::Text(name.to_string()));
     }
     value
 }
@@ -6946,20 +6969,20 @@ fn closure_value(name: &str, function: &Function) -> Value {
 /// A built-in is a function of the runtime, and it is a value like any
 /// other: it can be held in a variable and called through it.
 fn builtin_value(name: &str, min: u8, max: u8) -> Value {
-    let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-    properties.insert("name".to_string(), Value::Text(name.to_string()));
-    properties.insert("minparams".to_string(), Value::Int(min as i64));
-    properties.insert("maxparams".to_string(), Value::Int(max as i64));
-    properties.insert("isbuiltin".to_string(), Value::Int(1));
-    properties.insert("isvariadic".to_string(), Value::Int(0));
+    let mut properties: BTreeMap<String, Property> = BTreeMap::new();
+    put(&mut properties, "name", Value::Text(name.to_string()));
+    put(&mut properties, "minparams", Value::Int(min as i64));
+    put(&mut properties, "maxparams", Value::Int(max as i64));
+    put(&mut properties, "isbuiltin", Value::Int(1));
+    put(&mut properties, "isvariadic", Value::Int(0));
     Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
 }
 
 /// The value of a class: an object of the class itself.
 fn class_value(name: &str, class: &Class) -> Value {
-    let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-    properties.insert(CLASS_NAME.to_string(), Value::Text(class.name.clone()));
-    properties.insert("prototype".to_string(), prototype_value(&class.name));
+    let mut properties: BTreeMap<String, Property> = BTreeMap::new();
+    put(&mut properties, CLASS_NAME, Value::Text(class.name.clone()));
+    put(&mut properties, "prototype", prototype_value(&class.name));
     Value::Object(Rc::new(RefCell::new(Object { class: name.to_lowercase(), properties })))
 }
 
@@ -7001,8 +7024,8 @@ pub(crate) fn the_extra_of_the_value(value: &Value) -> String {
 /// v2 gives every class one, and the base of an instance is the prototype
 /// of its class.
 pub(crate) fn prototype_value(name: &str) -> Value {
-    let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-    properties.insert(CLASS_NAME.to_string(), Value::Text(name.to_string()));
+    let mut properties: BTreeMap<String, Property> = BTreeMap::new();
+    put(&mut properties, CLASS_NAME, Value::Text(name.to_string()));
     Value::Object(Rc::new(RefCell::new(Object {
         class: "prototype".to_string(),
         properties,
@@ -7089,8 +7112,8 @@ fn the_message_of(failure: &RuntimeFailure) -> String {
 }
 
 /// The number of a property of an object, when it has one.
-fn number_of(properties: &BTreeMap<String, Value>, name: &str) -> i64 {
-    properties.get(name).map(|value| value.to_number().unwrap_or(0.0) as i64).unwrap_or(0)
+fn number_of(properties: &BTreeMap<String, Property>, name: &str) -> i64 {
+    properties.get(name).map(|property| property.value.to_number().unwrap_or(0.0) as i64).unwrap_or(0)
 }
 
 /// The key of a variable, as the tree keeps it.

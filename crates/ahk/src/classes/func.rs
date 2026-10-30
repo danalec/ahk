@@ -90,21 +90,20 @@ fn call_the_function(
     let Value::Object(object) = this else { return None };
     // A closure is called by the name the runtime keeps it under, and not
     // by the name the script sees: the name of a closure of v2 is empty.
-    let kept = object.borrow().properties.get(CLOSURE).map(|value| value.to_text());
+    let kept = object.borrow().value_of(CLOSURE).map(|value| value.to_text());
     let name = match kept {
         Some(kept) => kept,
         None => object
             .borrow()
-            .properties
-            .get("name")
+            .value_of("name")
             .map(|value| value.to_text())
             .unwrap_or_default(),
     };
     let reference = {
         let borrowed = object.borrow();
         match (
-            borrowed.properties.get(METHOD_CLASS),
-            borrowed.properties.get(METHOD_NAME),
+            borrowed.value_of(METHOD_CLASS),
+            borrowed.value_of(METHOD_NAME),
         ) {
             (Some(class), Some(method)) => Some((class.to_text(), method.to_text())),
             _ => None,

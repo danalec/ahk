@@ -20,7 +20,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
-use crate::runtime::{Object, Runtime, RuntimeFailure, Value};
+use crate::runtime::{Object, Runtime, RuntimeFailure, Value, put};
 
 /// The classes of the errors of v2: the name in lower case, the name as
 /// v2 spells it, and the class each one derives from.
@@ -184,15 +184,15 @@ pub(crate) fn error_value_of(
     line: u32,
 ) -> Value {
     let mut properties = BTreeMap::new();
-    properties.insert("message".to_string(), Value::Text(message.to_string()));
-    properties.insert("what".to_string(), Value::Text(what.to_string()));
-    properties.insert("extra".to_string(), Value::Text(extra.to_string()));
+    put(&mut properties, "message", Value::Text(message.to_string()));
+    put(&mut properties, "what", Value::Text(what.to_string()));
+    put(&mut properties, "extra", Value::Text(extra.to_string()));
     // The script of the runner has no file of its own.
-    properties.insert("file".to_string(), Value::Text(String::new()));
-    properties.insert("line".to_string(), Value::Int(line as i64));
+    put(&mut properties, "file", Value::Text(String::new()));
+    put(&mut properties, "line", Value::Int(line as i64));
     // The tree keeps no stack: the stack of v2 names the file of every
     // frame, and the script of the runner has no file.
-    properties.insert("stack".to_string(), Value::Text(String::new()));
+    put(&mut properties, "stack", Value::Text(String::new()));
     Value::Object(Rc::new(RefCell::new(Object { class: class.to_lowercase(), properties })))
 }
 

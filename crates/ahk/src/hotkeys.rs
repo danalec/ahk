@@ -515,16 +515,14 @@ pub(crate) fn action_of(value: &Value, line: u32) -> Result<(String, bool), Runt
         return Err(fail("Parameter #2 of Hotkey is invalid.", line));
     }
     let builtin = object
-        .properties
-        .get("builtin")
+        .value_of("builtin")
         .and_then(|value| value.to_number())
         .unwrap_or(0.0);
     if builtin != 0.0 {
         return Err(fail("Invalid callback function.", line));
     }
     let max = object
-        .properties
-        .get("maxparams")
+        .value_of("maxparams")
         .and_then(|value| value.to_number())
         .unwrap_or(0.0);
     // The callback of a hotkey receives the name of it, and it may not
@@ -533,8 +531,7 @@ pub(crate) fn action_of(value: &Value, line: u32) -> Result<(String, bool), Runt
         return Err(fail("Invalid callback function.", line));
     }
     let name = object
-        .properties
-        .get("name")
+        .value_of("name")
         .map(|value| value.to_text())
         .unwrap_or_default();
     Ok((name, max >= 1.0))
@@ -722,8 +719,7 @@ pub fn hotif(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) ->
                 });
             }
             let name = object
-                .properties
-                .get("name")
+                .value_of("name")
                 .map(|value| value.to_text())
                 .unwrap_or_default();
             shared.borrow_mut().condition = Some(Condition::Function(name));

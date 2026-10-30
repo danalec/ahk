@@ -27,7 +27,7 @@ use core::cell::RefCell;
 use crate::classes::enumerator;
 use crate::classes::object_with;
 use crate::dll::NativeType;
-use crate::runtime::{
+use crate::runtime::{put,
     Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_type,
 };
 
@@ -169,7 +169,7 @@ pub(crate) fn ptr_of(this: &Value, line: u32) -> Result<i64, RuntimeFailure> {
     let Value::Object(object) = this else {
         return Err(fail("this value is not a buffer.", line));
     };
-    let inner = match object.borrow().properties.get(STATE) {
+    let inner = match object.borrow().value_of(STATE) {
         Some(Value::Object(inner)) => inner.clone(),
         _ => return Err(fail("this value is not a buffer.", line)),
     };
@@ -284,12 +284,12 @@ fn state(this: &Value, line: u32) -> Result<Buffer, RuntimeFailure> {
     let Value::Object(object) = this else {
         return Err(fail("this value is not a buffer.", line));
     };
-    let inner = match object.borrow().properties.get(STATE) {
+    let inner = match object.borrow().value_of(STATE) {
         Some(Value::Object(inner)) => inner.clone(),
         _ => return Err(fail("this value is not a buffer.", line)),
     };
     let inner = inner.borrow();
-    let bytes = match inner.properties.get("bytes") {
+    let bytes = match inner.value_of("bytes") {
         Some(Value::List(items)) => items
             .iter()
             .map(|item| item.to_number().unwrap_or(0.0) as u8)
@@ -314,7 +314,7 @@ fn stored(buffer: &Buffer) -> Value {
 /// Put the state back into the object.
 fn restore(this: &Value, buffer: &Buffer) {
     let Value::Object(object) = this else { return };
-    object.borrow_mut().properties.insert(STATE.to_string(), stored(buffer));
+    put(&mut object.borrow_mut().properties, STATE, stored(buffer));
 }
 
 /// A new buffer: the bytes, and the position at the start of them.
@@ -466,7 +466,7 @@ fn base_method(
                 .properties
                 .iter()
                 .filter(|(name, _)| name.as_str() != STATE)
-                .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
+                .map(|(_, property)| (Value::Text(property.name.clone()), property.value.clone()))
                 .collect();
             Some(Ok(enumerator::make(pairs, enumerator::Alone::TheKey)))
         }
@@ -481,7 +481,7 @@ fn base_method(
         "hasmethod" => Some(Ok(Value::Int(METHODS.contains(&key.as_str()) as i64))),
         "getownpropdesc" => {
             let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
-            let value = object.borrow().properties.get(&key).cloned();
+            let value = object.borrow().value_of(&key);
             match value {
                 Some(value) => {
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -491,7 +491,7 @@ fn base_method(
                         Some(members) => members,
                         None => {
                             let mut table = BTreeMap::new();
-                            table.insert("value".to_string(), value);
+                            put(&mut table, "value", value);
                             table
                         }
                     };
@@ -515,7 +515,7 @@ fn base_method(
                 Ok(descriptor) => descriptor,
                 Err(failure) => return Some(Err(failure)),
             };
-            object.borrow_mut().properties.insert(key, descriptor);
+            put(&mut object.borrow_mut().properties, &name, descriptor);
             // The answer of v2 is the object itself.
             Some(Ok(this.clone()))
         }
@@ -523,7 +523,7 @@ fn base_method(
             if key == STATE {
                 return Some(Ok(Value::Text(String::new())));
             }
-            let gone = object.borrow_mut().properties.remove(&key);
+            let gone = object.borrow_mut().properties.remove(&key).map(|property| property.value);
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // is the value of the property that is taken away, and an
             // empty text when there was none.

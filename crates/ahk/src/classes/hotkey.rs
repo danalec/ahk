@@ -16,7 +16,7 @@ use alloc::vec::Vec;
 
 use crate::classes::object_with;
 use crate::hotkeys::{self, Kind};
-use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value};
+use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value, put};
 
 /// The names of the `Hotkey` class, with the thing each one does.
 ///
@@ -434,7 +434,7 @@ fn state_of(this: &Value, line: u32) -> Result<State, RuntimeFailure> {
         return Err(fail("this value is not a hotkey.", line));
     };
     let object = object.borrow();
-    let Some(state) = object.properties.get(STATE) else {
+    let Some(state) = object.value_of(STATE) else {
         return Err(fail("this value is not a hotkey of the script.", line));
     };
     let Value::Object(state) = state else {
@@ -443,15 +443,13 @@ fn state_of(this: &Value, line: u32) -> Result<State, RuntimeFailure> {
     let state = state.borrow();
     let text = |name: &str| {
         state
-            .properties
-            .get(name)
+            .value_of(name)
             .map(|value| value.to_text())
             .unwrap_or_default()
     };
     let number = |name: &str| {
         state
-            .properties
-            .get(name)
+            .value_of(name)
             .and_then(|value| value.to_number())
             .unwrap_or(0.0) as i64
     };
@@ -485,7 +483,7 @@ fn state_of(this: &Value, line: u32) -> Result<State, RuntimeFailure> {
 /// Put the state back into the object.
 fn restore(this: &Value, state: &State) {
     let Value::Object(object) = this else { return };
-    object.borrow_mut().properties.insert(STATE.to_string(), stored(state));
+    put(&mut object.borrow_mut().properties, STATE, stored(state));
 }
 
 /// The entry of the registry that carries this object.
