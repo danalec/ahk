@@ -330,26 +330,29 @@ fn condition_holds(rt: &mut Runtime<'_>, entry: &Hotkey) -> Result<bool, Runtime
     let Some(condition) = entry.condition.clone() else {
         return Ok(true);
     };
+    // The mode of the matching of the titles is a setting of the script,
+    // and it is handed to the desktop with the question.
+    let mode = crate::settings::title_match_mode();
     match condition {
         Condition::Function(name) => {
             let value = rt.call_named(&name, &[], entry.line, Route::Written)?;
             Ok(value.truthy())
         }
-        Condition::WindowActive(title) => match rt.desktop().window_active(&title) {
+        Condition::WindowActive(title) => match rt.desktop().window_active(&title, mode) {
             Ok(WindowAnswer::Active) => Ok(true),
             // A window that is not there is not the active one.
             Ok(WindowAnswer::NotActive) | Ok(WindowAnswer::Absent) => Ok(false),
             Ok(WindowAnswer::Unknown(reason)) => Err(fail(&reason, entry.line)),
             Err(reason) => Err(fail(&reason, entry.line)),
         },
-        Condition::WindowExists(title) => match rt.desktop().window_exists(&title) {
+        Condition::WindowExists(title) => match rt.desktop().window_exists(&title, mode) {
             Ok(WindowAnswer::Active) | Ok(WindowAnswer::NotActive) => Ok(true),
             // A window that is not there is not there.
             Ok(WindowAnswer::Absent) => Ok(false),
             Ok(WindowAnswer::Unknown(reason)) => Err(fail(&reason, entry.line)),
             Err(reason) => Err(fail(&reason, entry.line)),
         },
-        Condition::WindowNotActive(title) => match rt.desktop().window_active(&title) {
+        Condition::WindowNotActive(title) => match rt.desktop().window_active(&title, mode) {
             Ok(WindowAnswer::Active) => Ok(false),
             // A window that is not there is not the active one, and so it
             // is not active.
@@ -357,7 +360,7 @@ fn condition_holds(rt: &mut Runtime<'_>, entry: &Hotkey) -> Result<bool, Runtime
             Ok(WindowAnswer::Unknown(reason)) => Err(fail(&reason, entry.line)),
             Err(reason) => Err(fail(&reason, entry.line)),
         },
-        Condition::WindowNotExist(title) => match rt.desktop().window_exists(&title) {
+        Condition::WindowNotExist(title) => match rt.desktop().window_exists(&title, mode) {
             Ok(WindowAnswer::Active) | Ok(WindowAnswer::NotActive) => Ok(false),
             // A window that is not there is not there.
             Ok(WindowAnswer::Absent) => Ok(true),
@@ -899,7 +902,7 @@ mod tests {
     use super::*;
     use crate::desktop::{
         Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-        Processes, Screen, Sound, Timers, WindowAnswer, Windows,
+        Processes, Screen, Sound, Timers, TitleMatch, WindowAnswer, Windows,
     };
     use crate::runtime::Clock;
     use alloc::string::String;
@@ -963,11 +966,11 @@ mod tests {
     }
 
     impl Windows for Fake {
-        fn window_active(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+        fn window_active(&mut self, _title: &str, _mode: TitleMatch) -> Result<WindowAnswer, String> {
             // The fake has no window at all: every window is absent.
             Ok(WindowAnswer::Absent)
         }
-        fn window_exists(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+        fn window_exists(&mut self, _title: &str, _mode: TitleMatch) -> Result<WindowAnswer, String> {
             Ok(WindowAnswer::Absent)
         }
     }

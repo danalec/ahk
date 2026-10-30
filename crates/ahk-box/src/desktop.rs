@@ -680,12 +680,16 @@ impl ahk::desktop::Screen for LabDesktop {
 }
 
 impl ahk::desktop::Windows for LabDesktop {
-    fn window_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
+    fn window_active(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<WindowAnswer, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows the windows. The X server beside it is the rootless
         // Xwayland of gamescope, and it sees nothing.
         if wayland_session() {
-            return self.wayland_active(title);
+            return self.wayland_active(title, mode);
         }
 
         let Some(active) = self.active_window_title()? else {
@@ -696,7 +700,7 @@ impl ahk::desktop::Windows for LabDesktop {
                     .to_string(),
             ));
         };
-        if title_matches(&active, title) {
+        if title_matches(&active, title, mode)? {
             return Ok(WindowAnswer::Active);
         }
         if wayland_session() {
@@ -709,11 +713,15 @@ impl ahk::desktop::Windows for LabDesktop {
             Ok(WindowAnswer::NotActive)
         }
     }
-    fn window_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
+    fn window_exists(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<WindowAnswer, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows the windows.
         if wayland_session() {
-            return self.wayland_exists(title);
+            return self.wayland_exists(title, mode);
         }
 
         // The X server of this box is the rootless Xwayland of gamescope,
@@ -1250,30 +1258,41 @@ impl LabDesktop {
 
     /// Whether the window with this title is the active one, by Wayland.
     #[cfg(target_os = "linux")]
-    fn wayland_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
+    fn wayland_active(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<WindowAnswer, String> {
         if title.is_empty() {
             return Ok(empty_title());
         }
         let active = self.wayland()?.active()?;
-        match active {
-            Some(window) if title_matches(&window.title, title) => Ok(WindowAnswer::Active),
-            Some(_) => Ok(WindowAnswer::NotActive),
-            None => Ok(WindowAnswer::Absent),
+        let Some(window) = active else {
+            return Ok(WindowAnswer::Absent);
+        };
+        if title_matches(&window.title, title, mode)? {
+            return Ok(WindowAnswer::Active);
         }
+        Ok(WindowAnswer::NotActive)
     }
 
     /// Whether a window with this title exists, by Wayland.
     #[cfg(target_os = "linux")]
-    fn wayland_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
+    fn wayland_exists(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<WindowAnswer, String> {
         if title.is_empty() {
             return Ok(empty_title());
         }
         let windows = self.wayland()?.windows()?;
-        match windows.iter().find(|window| title_matches(&window.title, title)) {
-            Some(window) if window.active => Ok(WindowAnswer::Active),
-            Some(_) => Ok(WindowAnswer::NotActive),
-            None => Ok(WindowAnswer::Absent),
+        for window in &windows {
+            if title_matches(&window.title, title, mode)? {
+                return Ok(if window.active { WindowAnswer::Active } else { WindowAnswer::NotActive });
+            }
         }
+        Ok(WindowAnswer::Absent)
     }
 }
 
@@ -1290,12 +1309,20 @@ impl LabDesktop {
     }
 
     /// Whether the window with this title is the active one, by Wayland.
-    fn wayland_active(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+    fn wayland_active(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<WindowAnswer, String> {
         Err(not_linux())
     }
 
     /// Whether a window with this title exists, by Wayland.
-    fn wayland_exists(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+    fn wayland_exists(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<WindowAnswer, String> {
         Err(not_linux())
     }
 }
@@ -1323,14 +1350,18 @@ fn empty_title() -> WindowAnswer {
 
 /// Whether a title matches the one asked for.
 ///
-/// The mode of v2 is the default one, 2: the title of the window has to
-/// contain the wanted text. The case matters, as it matters in v2: "the
-/// window titles and text are case-sensitive".
-fn title_matches(title: &str, wanted: &str) -> bool {
+/// The mode is the setting of the script, and the rule is the one of the
+/// dialect: the crate of the language says which title matches, and the box
+/// gives the titles of the machine.
+fn title_matches(
+    title: &str,
+    wanted: &str,
+    mode: ahk::desktop::TitleMatch,
+) -> Result<bool, String> {
     if wanted.is_empty() {
-        return false;
+        return Ok(false);
     }
-    title.contains(wanted)
+    mode.matches(title, wanted)
 }
 
 /// Parse a colour: `#rrggbb`, `#rgb`, or `rrggbb`.
@@ -1477,21 +1508,27 @@ pub(crate) fn name_matches(pattern: &str, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{name_matches, title_matches};
+    use ahk::desktop::TitleMatch;
 
     /// The mode of v2 is the default one, 2: the title of the window has
     /// to contain the text that was asked for.
     #[test]
     fn a_title_contains_the_text_that_was_asked_for() {
-        assert!(title_matches("pod153/Login - Chromium", "Login"));
-        assert!(title_matches("pod153/Login - Chromium", "pod153/Login - Chromium"));
+        let mode = TitleMatch::Contains;
+        assert!(title_matches("pod153/Login - Chromium", "Login", mode).expect("it matches"));
+        assert!(
+            title_matches("pod153/Login - Chromium", "pod153/Login - Chromium", mode)
+                .expect("it matches")
+        );
     }
 
     /// The case matters, the way it matters in v2: the window titles and
     /// the text are case-sensitive.
     #[test]
     fn the_case_of_the_title_matters() {
-        assert!(title_matches("pod153/Login - Chromium", "Chromium"));
-        assert!(!title_matches("pod153/Login - Chromium", "chromium"));
+        let mode = TitleMatch::Contains;
+        assert!(title_matches("pod153/Login - Chromium", "Chromium", mode).expect("it matches"));
+        assert!(!title_matches("pod153/Login - Chromium", "chromium", mode).expect("it does not match"));
     }
 
     /// The case of the pattern and the case of the name do not count: the
@@ -1508,7 +1545,8 @@ mod tests {
     /// is not a text that every title contains.
     #[test]
     fn a_title_that_is_not_there_is_not_there() {
-        assert!(!title_matches("pod153/Login - Chromium", "Firefox"));
-        assert!(!title_matches("pod153/Login - Chromium", ""));
+        let mode = TitleMatch::Contains;
+        assert!(!title_matches("pod153/Login - Chromium", "Firefox", mode).expect("it does not match"));
+        assert!(!title_matches("pod153/Login - Chromium", "", mode).expect("it does not match"));
     }
 }

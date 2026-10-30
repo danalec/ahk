@@ -136,15 +136,74 @@ pub trait Screen {
     }
 }
 
+/// The way the title of a window is matched with the text that is wanted.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31 and read in the
+/// documentation of v2.0.19: the mode 1 wants the title of the window to
+/// start with the text, the mode 2 wants it to have the text in it, the
+/// mode 3 wants it to be the text, and the pattern wants the text to be a
+/// regular expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TitleMatch {
+    /// The title of the window starts with the text that is wanted.
+    Starts,
+    /// The title of the window has the text that is wanted in it.
+    Contains,
+    /// The title of the window is the text that is wanted.
+    Exact,
+    /// The text that is wanted is a pattern of a regular expression.
+    Pattern,
+}
+
+impl TitleMatch {
+    /// Whether the title of a window matches the text that is wanted.
+    ///
+    /// The case matters, as it matters in v2: "the window titles and text
+    /// are case-sensitive". The only exception is the case-insensitive
+    /// option of the pattern, which v2 spells with an `i)` at the front of
+    /// the title.
+    ///
+    /// The pattern is the one of the engine of the tree, and a pattern that
+    /// the engine does not carry is a failure with the reason of the engine.
+    pub fn matches(self, title: &str, wanted: &str) -> Result<bool, String> {
+        match self {
+            TitleMatch::Starts => Ok(title.starts_with(wanted)),
+            TitleMatch::Contains => Ok(title.contains(wanted)),
+            TitleMatch::Exact => Ok(title == wanted),
+            TitleMatch::Pattern => {
+                // v2 spells the case-insensitive option of a title with an
+                // `i)` at the front of it, and the engine of the tree spells
+                // it with `(?i)`.
+                let (pattern, ignore_case) = match wanted.strip_prefix("i)") {
+                    Some(rest) => (rest, true),
+                    None => (wanted, false),
+                };
+                let pattern =
+                    if ignore_case { alloc::format!("(?i){pattern}") } else { pattern.to_string() };
+                let regex = crate::regex::Regex::new(&pattern)?;
+                Ok(regex.find(title)?.is_some())
+            }
+        }
+    }
+}
+
 /// The windows of the desktop.
 pub trait Windows {
     /// Whether the window with this title is the active one.
-    fn window_active(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+    ///
+    /// The mode is the way the title is matched with the text that is
+    /// wanted: it is the setting of the script, and the runtime hands it
+    /// with the question.
+    fn window_active(&mut self, _title: &str, _mode: TitleMatch) -> Result<WindowAnswer, String> {
         Err("this desktop cannot tell which window is active".to_string())
     }
 
     /// Whether a window with this title exists.
-    fn window_exists(&mut self, _title: &str) -> Result<WindowAnswer, String> {
+    ///
+    /// The mode is the way the title is matched with the text that is
+    /// wanted: it is the setting of the script, and the runtime hands it
+    /// with the question.
+    fn window_exists(&mut self, _title: &str, _mode: TitleMatch) -> Result<WindowAnswer, String> {
         Err("this desktop cannot list the windows".to_string())
     }
 

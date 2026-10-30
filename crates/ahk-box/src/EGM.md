@@ -289,7 +289,7 @@ handle of COSMIC, so the correlation is exact and not a guess by title.
 | `x_display` / `wayland_session` | private fn | The X server to ask, and whether the session is Wayland. |
 | `wayland` / `wayland_active` / `wayland_exists` | private fn | The three questions about the windows, by Wayland. |
 | `empty_title` | private fn | The answer to a question about a window with no title: v2 would use the last found window, and this runtime keeps none. |
-| `title_matches` | private fn | The mode 2 of v2: the title of the window has to contain the text, and the case matters. |
+| `title_matches` | private fn | The rule of the matching of the titles: it is the one of the dialect, and the crate of the language says which title matches. |
 | `zenity` | private fn | The dialog of zenity, and the code it exited with: 0 is the OK button, 1 is the Cancel button and 5 is the timeout. |
 | `the_result_of_the_dialog` | private fn | The words of v2 for the way a dialog ended: "OK", "Cancel" and "Timeout". |
 | `the_filter_of_zenity` | private fn | The filter of v2, "Documents (*.txt)", in the spelling of zenity, "Documents \| *.txt". |
@@ -300,7 +300,8 @@ The `Desktop` of the crate is the sum of the fifteen capability traits of
 `key_is_down`, `keys_down`), `Pointer` (`click`, `move_pointer`,
 `mouse_position`, `set_mouse_speed`, `set_mouse_delay`), `Screen` (`capture`,
 `pixel`, `pixel_search`, `screen_size`), `Windows` (`window_active`,
-`window_exists`, `active_window_title`), `Processes` (`run`), `Files` (the
+`window_exists`, `active_window_title`, and the mode of the matching of the
+titles goes with the question), `Processes` (`run`), `Files` (the
 file handles, the whole-file writes, and the operations of `files.rs`),
 `Clipboard`, `Timers`, `Hotkeys` (`register_hotkey`, `unregister_hotkey`,
 `hotkeys`, `fired_hotkey`), `Native` (the call into a library of the

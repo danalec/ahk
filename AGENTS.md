@@ -3248,12 +3248,10 @@ them all, and the tree keeps the ones it can.
   `SetTitleMatchMode`, `DetectHiddenWindows`, `DetectHiddenText` and
   `SetWinDelay` answer the value they replace.
 - **The mode of the matching of the titles is 2.** The tree matches the
-  titles the way v2 matches them with the mode 2, and the other modes are
-  refused with the reason of that: the mode is not changed. A mode that is
-  not a number from 1 to 3 is refused with "Parameter #1 of SetTitleMatchMode
-  is invalid.".
-- **The speed of the matching of the titles is "Fast".** v2.0.19 has no
-  command that changes it.
+  titles the way v2 matches them with the mode 2. Section 67 says what the
+  mode can be.
+- **The speed of the matching of the titles is "Fast".** Section 67 says how
+  it is changed.
 - **The hidden windows and the hidden text are settings of the script.**
   They change nothing here -- the windows of this desktop are the ones of
   the compositor, and it has no hidden ones, and the tree reads no text of
@@ -3295,3 +3293,30 @@ script, and the tree keeps them.
 - **The shape of the cursor is not read.** It belongs to the machine and it
   changes with what the pointer is over, so the tree refuses with the reason
   of its own name.
+
+
+## 67. The mode of the matching of the titles is the mode of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree refused the modes
+1 and 3 of the matching of the titles, and it refused the pattern and the
+speed. v2 takes all of them, and the tree takes them too.
+
+- **The mode is 1, 2, 3 or "RegEx".** The mode 1 wants the title of the
+  window to start with the text, the mode 2 wants it to have the text in it,
+  and the mode 3 wants it to be the text. The pattern wants the text to be a
+  regular expression.
+- **`SetTitleMatchMode` takes the mode or the speed.** The mode is a number
+  from 1 to 3 or the word "RegEx", and the speed is the word "Fast" or the
+  word "Slow". The command answers the value that was there before of the
+  setting it changed, and a value that is none of them is refused with
+  "Parameter #1 of SetTitleMatchMode is invalid.".
+- **The rule is the one of the dialect, and the desktop is told it.** The
+  question about a window carries the mode, and the rule lives in the crate
+  of the language: the box gives the titles of the machine, and the language
+  says which one of them matches.
+- **The pattern is the one of the engine of the tree.** v2 spells the
+  case-insensitive option of a title with an `i)` at the front of it, and the
+  engine of the tree spells it with `(?i)`. The pattern matches anywhere in
+  the title, the way it does in v2.
+- **The speed changes nothing here.** The tree reads no text of a window, so
+  the speed of the matching is kept and nothing more.

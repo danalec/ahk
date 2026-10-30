@@ -32,6 +32,7 @@ use core::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 #[cfg(test)]
 use core::sync::atomic::AtomicBool;
 
+use crate::desktop::TitleMatch;
 use crate::keys;
 use crate::runtime::{self, Runtime, RuntimeError, TypeName, Value};
 
@@ -122,19 +123,32 @@ const NO_CURSOR: &str = "the shape of the cursor of the machine is not read by t
 /// window that is hidden from it.
 pub(crate) const NO_TEXT_OF_A_WINDOW: &str = "this runtime reads no text of a window.";
 
-/// The reason the mode of the matching of the titles is not changed.
+/// The modes of the matching of the titles, the way v2 numbers them.
 ///
-/// The titles are matched the way v2 matches them with the mode 2, and the
-/// mode is not changed.
-const NO_TITLE_MATCH_MODE: &str =
-    "the titles are matched the way v2 matches them with the mode 2, and the mode is not changed.";
+/// Measured on the binary of v2.0.19 on 2026-10-31: the mode 1 wants the
+/// title of the window to start with the text, the mode 2 wants it to have
+/// the text in it, and the mode 3 wants it to be the text. The mode of v2
+/// is 2 when the command is not used, and it is the mode of the tree: the
+/// name of a window is found in the title of it.
+const MODE_STARTS: u8 = 1;
+const MODE_CONTAINS: u8 = 2;
+const MODE_EXACT: u8 = 3;
 
-/// The mode of the matching of the titles that the tree uses.
+/// The mode of the pattern: the text that is wanted is a regular
+/// expression.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the mode 2 is the
-/// default of v2, and it is the mode of the tree: the name of a window is
-/// found in the title of it.
-const TITLE_MODE: u8 = 2;
+/// Measured on the binary of v2.0.19 on 2026-10-31: the mode is the word
+/// "RegEx", and the variable answers with that word.
+const MODE_PATTERN: u8 = 4;
+
+/// The speeds of the matching of the titles, the way v2 names them.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the speed of v2 is
+/// "Fast" when the command is not used, and the tree reads no text of a
+/// window: the speed changes nothing, and it is kept all the same.
+const FAST: u8 = 0;
+const SLOW: u8 = 1;
+const SPEEDS: [&str; 2] = ["Fast", "Slow"];
 
 /// The state of the settings.
 ///
@@ -155,6 +169,7 @@ struct State {
     caps_lock: AtomicI32,
     encoding: AtomicU8,
     title_match_mode: AtomicU8,
+    title_match_speed: AtomicU8,
     detect_hidden_windows: AtomicI32,
     detect_hidden_text: AtomicI32,
     win_delay: AtomicI32,
@@ -209,7 +224,8 @@ static STATE: State = State {
     mouse_speed: AtomicI32::new(2),
     caps_lock: AtomicI32::new(1),
     encoding: AtomicU8::new(0),
-    title_match_mode: AtomicU8::new(TITLE_MODE),
+    title_match_mode: AtomicU8::new(MODE_CONTAINS),
+    title_match_speed: AtomicU8::new(FAST),
     detect_hidden_windows: AtomicI32::new(0),
     detect_hidden_text: AtomicI32::new(1),
     win_delay: AtomicI32::new(100),
@@ -252,10 +268,10 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
         "regview" => Value::Text(reg_view_text(STATE.reg_view.load(Ordering::Relaxed))),
         "detecthiddenwindows" => Value::Int(STATE.detect_hidden_windows.load(Ordering::Relaxed) as i64),
         "detecthiddentext" => Value::Int(STATE.detect_hidden_text.load(Ordering::Relaxed) as i64),
-        "titlematchmode" => Value::Int(STATE.title_match_mode.load(Ordering::Relaxed) as i64),
-        // The speed of the matching of the titles: v2.0.19 has no command
-        // that changes it, and the tree matches the titles the fast way.
-        "titlematchmodespeed" => Value::Text("Fast".to_string()),
+        "titlematchmode" => mode_value(STATE.title_match_mode.load(Ordering::Relaxed)),
+        "titlematchmodespeed" => {
+            Value::Text(SPEEDS[STATE.title_match_speed.load(Ordering::Relaxed) as usize].to_string())
+        }
         // The settings that the runtime does not keep: each one refuses
         // with the reason of its own name.
         "cursor" => return Some(Err(NO_CURSOR)),
@@ -371,35 +387,81 @@ pub fn coord_mode(
     }
 }
 
-/// `SetTitleMatchMode`: the mode of the matching of the titles.
+/// `SetTitleMatchMode`: the mode of the matching of the titles, or its
+/// speed.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the command answers
-/// the mode that was there before, and a mode that is not a number from 1
-/// to 3 is refused with "Parameter #1 of SetTitleMatchMode is invalid.".
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command takes the
+/// mode -- a number from 1 to 3 or the word "RegEx" -- or the speed -- the
+/// word "Fast" or the word "Slow" -- and it answers the value that was
+/// there before of the setting it changed. A value that is none of them is
+/// refused with "Parameter #1 of SetTitleMatchMode is invalid.".
 ///
-/// The tree matches the titles the way v2 matches them with the mode 2, and
-/// the other modes are refused with the reason of that: the mode is not
-/// changed.
+/// The mode is a number from 1 to 3, and the text of a number is a number
+/// too: "1" is the mode 1. The word of the pattern does not care about the
+/// case, and the tree answers with the word of v2: "RegEx".
+///
+/// The tree matches the titles the way the mode says, and the mode is
+/// handed to the desktop with the question about a window.
 pub fn set_title_match_mode(
     _rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let mode = match values.first() {
-        Some(Value::Int(number)) if (1..=3).contains(number) => *number as u8,
-        _ => {
-            return Err(RuntimeError {
-                message: runtime::invalid_parameter(1, "SetTitleMatchMode"),
-                line,
-            })
-        }
+    let invalid = || RuntimeError {
+        message: runtime::invalid_parameter(1, "SetTitleMatchMode"),
+        line,
     };
-    if mode != TITLE_MODE {
-        return Err(RuntimeError { message: NO_TITLE_MATCH_MODE.to_string(), line });
+    let mode = match values.first() {
+        Some(Value::Int(1)) => Some(MODE_STARTS),
+        Some(Value::Int(2)) => Some(MODE_CONTAINS),
+        Some(Value::Int(3)) => Some(MODE_EXACT),
+        Some(Value::Text(text)) if text == "1" => Some(MODE_STARTS),
+        Some(Value::Text(text)) if text == "2" => Some(MODE_CONTAINS),
+        Some(Value::Text(text)) if text == "3" => Some(MODE_EXACT),
+        Some(Value::Text(text)) if text.eq_ignore_ascii_case("regex") => Some(MODE_PATTERN),
+        _ => None,
+    };
+    if let Some(mode) = mode {
+        let previous = STATE.title_match_mode.swap(mode, Ordering::Relaxed);
+        return Ok(mode_value(previous));
     }
-    let previous = STATE.title_match_mode.swap(mode, Ordering::Relaxed);
-    Ok(Value::Int(previous as i64))
+    // The speed of the matching: the tree reads no text of a window, and
+    // the speed changes nothing, and it is kept all the same.
+    let speed = match values.first() {
+        Some(Value::Text(text)) if text.eq_ignore_ascii_case("fast") => Some(FAST),
+        Some(Value::Text(text)) if text.eq_ignore_ascii_case("slow") => Some(SLOW),
+        _ => None,
+    };
+    if let Some(speed) = speed {
+        let previous = STATE.title_match_speed.swap(speed, Ordering::Relaxed);
+        return Ok(Value::Text(SPEEDS[previous as usize].to_string()));
+    }
+    Err(invalid())
+}
+
+/// The mode of the matching of the titles that the script has set.
+///
+/// The runtime hands it to the desktop with the question about a window.
+pub fn title_match_mode() -> TitleMatch {
+    match STATE.title_match_mode.load(Ordering::Relaxed) {
+        MODE_STARTS => TitleMatch::Starts,
+        MODE_EXACT => TitleMatch::Exact,
+        MODE_PATTERN => TitleMatch::Pattern,
+        _ => TitleMatch::Contains,
+    }
+}
+
+/// The value of the mode of the matching of the titles.
+///
+/// The mode is a number from 1 to 3, and the pattern is the word of v2:
+/// "RegEx".
+fn mode_value(mode: u8) -> Value {
+    if mode == MODE_PATTERN {
+        Value::Text("RegEx".to_string())
+    } else {
+        Value::Int(mode as i64)
+    }
 }
 
 /// `DetectHiddenWindows`: the hidden windows are seen by the window commands.
@@ -1235,6 +1297,8 @@ impl Dialogs for Fake {}
         STATE.mouse_speed.store(2, Ordering::Relaxed);
         STATE.caps_lock.store(1, Ordering::Relaxed);
         STATE.encoding.store(0, Ordering::Relaxed);
+        STATE.title_match_mode.store(MODE_CONTAINS, Ordering::Relaxed);
+        STATE.title_match_speed.store(FAST, Ordering::Relaxed);
         STATE.control_delay.store(CONTROL_DELAY, Ordering::Relaxed);
         STATE.reg_view.store(REG_DEFAULT, Ordering::Relaxed);
         STATE.coord_caret.store(CLIENT, Ordering::Relaxed);
@@ -1285,6 +1349,8 @@ impl Dialogs for Fake {}
         assert_eq!(value("storecapslockmode"), Value::Int(1));
         assert_eq!(value("allowmainwindow"), Value::Int(1));
         // Measured on the binary of v2.0.19 on 2026-10-31.
+        assert_eq!(value("titlematchmode"), Value::Int(2));
+        assert_eq!(value("titlematchmodespeed"), Value::Text("Fast".into()));
         assert_eq!(value("controldelay"), Value::Int(20));
         assert_eq!(value("regview"), Value::Text("Default".into()));
         assert_eq!(value("coordmodecaret"), Value::Text("Client".into()));
@@ -1349,6 +1415,41 @@ impl Dialogs for Fake {}
         // The menu and the tooltip are a mode of their own.
         assert_eq!(value("coordmodemenu"), Value::Text("Client".into()));
         assert_eq!(value("coordmodetooltip"), Value::Text("Client".into()));
+    }
+
+    #[test]
+    fn the_mode_of_the_matching_of_the_titles_is_kept() {
+        let _turn = Turn::take();
+        reset();
+        // Measured on the binary of v2.0.19 on 2026-10-31: the mode is a
+        // number from 1 to 3 or the word "RegEx", and the command answers
+        // the mode that was there before.
+        assert_eq!(value("titlematchmode"), Value::Int(2));
+        with_runtime(|rt| {
+            let previous = set_title_match_mode(rt, &[Value::Int(3)], 1, 0).expect("the mode changes");
+            assert_eq!(previous, Value::Int(2));
+        });
+        assert_eq!(value("titlematchmode"), Value::Int(3));
+        // The pattern is the word of v2, and the answer is the word too.
+        with_runtime(|rt| {
+            let previous = set_title_match_mode(rt, &[text("RegEx")], 1, 0).expect("the mode changes");
+            assert_eq!(previous, Value::Int(3));
+        });
+        assert_eq!(value("titlematchmode"), Value::Text("RegEx".into()));
+        // The speed is a setting of its own.
+        with_runtime(|rt| {
+            let previous = set_title_match_mode(rt, &[text("Slow")], 1, 0).expect("the speed changes");
+            assert_eq!(previous, Value::Text("Fast".into()));
+        });
+        assert_eq!(value("titlematchmodespeed"), Value::Text("Slow".into()));
+        assert_eq!(value("titlematchmode"), Value::Text("RegEx".into()));
+        // A value that is none of them is refused with the message of v2.
+        with_runtime(|rt| {
+            assert_eq!(
+                message(set_title_match_mode(rt, &[text("Bogus")], 1, 0)),
+                "Parameter #1 of SetTitleMatchMode is invalid."
+            );
+        });
     }
 
     #[test]

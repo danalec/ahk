@@ -19,7 +19,7 @@ The files, in the order the data moves through them:
 | `runtime.rs` | the interpreter: `Runtime`, `Report`, `Step`, `Clock` |
 | `builtins.rs` | the built-in table: every name of v2 the dialect carries |
 | `classes/` | the class types: `Map`, `Array`, `Buffer`, `File`, `Func`, `Gui`, `Menu`, `Hotkey` |
-| `desktop.rs` | the capability traits the runtime is handed |
+| `desktop.rs` | the capability traits the runtime is handed, and the rule of the matching of the titles |
 | `dll.rs` | the marshalling of a call into a library of the machine |
 | `variables.rs` | the built-in variables of v2 |
 | `keys.rs` | the key table: the evdev codes, the aliases and the key specs |
@@ -300,7 +300,7 @@ The traits the runtime is handed:
 | `Keyboard` | `type_text`, `press_key`; `key_down`, `key_up`, `key_is_down` and `keys_down` have a default that answers with the reason it cannot |
 | `Pointer` | `click`; `mouse_down`, `mouse_up`, `move_pointer`, `mouse_position`, `set_mouse_speed` and `set_mouse_delay` have a default that answers with the reason it cannot |
 | `Screen` | `capture`, `pixel`; `pixel_search` and `screen_size` have a default that answers with the reason it cannot |
-| `Windows` | `window_active`, `window_exists`; `active_window_title` has a default that answers with the reason it cannot |
+| `Windows` | `window_active`, `window_exists` -- the mode of the matching of the titles goes with the question; `active_window_title` has a default that answers with the reason it cannot |
 | `Processes` | `run`; `env_get`, `env_set` have a default that answers with the reason it cannot |
 | `Files` | `open_file`, `read_file_at`, `write_file_at`, `file_size`, `close_file`; `list_files`, `working_directory`, `initial_working_directory`, `set_working_directory`, `read_file`, `write_file`, `append_file`, `file_exists`, `delete_file`, `create_dir`, `dir_exists` and `dir_delete` have a default that answers with the reason it cannot |
 | `Files` (the files of v2) | `copy_file`, `move_file`, `copy_dir`, `move_dir`, `file_attributes`, `set_file_attributes`, `file_times`, `set_file_times`, `ini_read`, `ini_write` and `ini_delete` have a default that answers with the reason it cannot |
@@ -512,6 +512,11 @@ the thirteenth is `Dialogs`, the questions of the user, the fourteenth is
 `Pictures`, the images of the machine. Every method that a
 capability does not have has a default that answers with the reason it
 cannot.
+
+The `Windows` trait carries the mode of the matching of the titles with the
+question, because the mode is a setting of the script and the rule that goes
+with it is the dialect's: `TitleMatch` says what the mode 1, the mode 2, the
+mode 3 and the pattern want, and the desktop gives the titles of the machine.
 
 ### The pictures (`pictures.rs`)
 
@@ -736,6 +741,12 @@ that asks for another one is refused with the reason.
   was there before. A setting that changes nothing here is kept all the
   same: the tree has no controls of a window and no registry. The one
   setting the tree does not keep refuses with the reason of its own name.
+- **The mode of the matching of the titles is handed to the desktop.** The
+  rule of the mode is the dialect's, and it lives in the crate of the
+  language: the desktop gives the titles of the machine, and `TitleMatch`
+  says which one of them matches. The pattern of the mode is the one of the
+  engine of the tree, and the `i)` that v2 spells at the front of a title
+  is the `(?i)` of the engine.
 - **The date comes from the host.** The crate does not read the clock of
   the machine: it asks the `Clock` trait for it, and a host that does not
   know the date has the names of the date answer with the reason.

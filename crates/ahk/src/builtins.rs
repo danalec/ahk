@@ -3501,7 +3501,8 @@ fn window_active(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
         });
     }
     let title = text_of(values, 0);
-    match rt.desktop().window_active(&title).map_err(|e| desktop_failure(e, line))? {
+    let mode = crate::settings::title_match_mode();
+    match rt.desktop().window_active(&title, mode).map_err(|e| desktop_failure(e, line))? {
         WindowAnswer::Active => Ok(Value::Int(1)),
         // A window that is not there is not the active one, and a window
         // that is there but is not in front is not the active one either.
@@ -3528,7 +3529,8 @@ fn window_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8)
         });
     }
     let title = text_of(values, 0);
-    match rt.desktop().window_exists(&title).map_err(|e| desktop_failure(e, line))? {
+    let mode = crate::settings::title_match_mode();
+    match rt.desktop().window_exists(&title, mode).map_err(|e| desktop_failure(e, line))? {
         WindowAnswer::Active | WindowAnswer::NotActive => Ok(Value::Int(1)),
         // A window that is not there is not there: the answer is false,
         // and not a failure.

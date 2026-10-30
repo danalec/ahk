@@ -10,7 +10,7 @@
 
 use ahk::desktop::{
     Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Screen, Sound, Timers, TitleMatch, Windows,
 };
 use ahk::desktop::WindowAnswer;
 use ahk::runtime::{Report, Runtime, Value};
@@ -141,33 +141,37 @@ impl Screen for Fake {
 }
 
 impl Windows for Fake {
-    fn window_active(&mut self, title: &str) -> Result<WindowAnswer, String> {
+    fn window_active(&mut self, title: &str, mode: TitleMatch) -> Result<WindowAnswer, String> {
         if self.window_answer_unknown {
             return Ok(WindowAnswer::Unknown("this desktop cannot tell".into()));
         }
         // The window that has the focus is a window that is there.
         if let Some(active) = &self.active {
-            if active.contains(title) {
+            if mode.matches(active, title)? {
                 return Ok(WindowAnswer::Active);
             }
         }
-        if self.windows.iter().any(|window| window.contains(title)) {
-            return Ok(WindowAnswer::NotActive);
+        for window in &self.windows {
+            if mode.matches(window, title)? {
+                return Ok(WindowAnswer::NotActive);
+            }
         }
         // A window that is not there is not the active one.
         Ok(WindowAnswer::Absent)
     }
-    fn window_exists(&mut self, title: &str) -> Result<WindowAnswer, String> {
+    fn window_exists(&mut self, title: &str, mode: TitleMatch) -> Result<WindowAnswer, String> {
         if self.window_answer_unknown {
             return Ok(WindowAnswer::Unknown("this desktop cannot list".into()));
         }
         if let Some(active) = &self.active {
-            if active.contains(title) {
+            if mode.matches(active, title)? {
                 return Ok(WindowAnswer::Active);
             }
         }
-        if self.windows.iter().any(|window| window.contains(title)) {
-            return Ok(WindowAnswer::NotActive);
+        for window in &self.windows {
+            if mode.matches(window, title)? {
+                return Ok(WindowAnswer::NotActive);
+            }
         }
         // A window that is not there is not there.
         Ok(WindowAnswer::Absent)
@@ -1319,6 +1323,29 @@ fn win_active_of_a_window_that_is_not_there_is_false() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("active"), Some(&Value::Int(0)));
+}
+
+/// The mode of the matching of the titles is a setting of the script,
+/// and the desktop is told it.
+#[test]
+fn the_mode_of_the_matching_of_the_titles_is_the_one_of_the_script() {
+    let mut desktop = Fake { windows: vec!["Steam Client".into()], ..Default::default() };
+    let statements = parse(
+        "SetTitleMatchMode(3)\nthere := WinExist(\"Steam\")\nSetTitleMatchMode(1)\nstarts := WinExist(\"Steam\")\nSetTitleMatchMode(2)\ninside := WinExist(\"Steam\")\nSetTitleMatchMode(\"RegEx\")\npattern := WinExist(\"Steam .*\")\nfolded := WinExist(\"i)steam .*\")\nSetTitleMatchMode(2)",
+    )
+    .expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    // The mode 3 wants the title to be the text, and it is not.
+    assert_eq!(report.variables.get("there"), Some(&Value::Int(0)));
+    // The mode 1 wants the title to start with the text, and it does.
+    assert_eq!(report.variables.get("starts"), Some(&Value::Int(1)));
+    // The mode 2 wants the title to have the text in it.
+    assert_eq!(report.variables.get("inside"), Some(&Value::Int(1)));
+    // The pattern is a regular expression, and the `i)` at the front of it
+    // takes the case away.
+    assert_eq!(report.variables.get("pattern"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("folded"), Some(&Value::Int(1)));
 }
 
 /// A window that is there is there.
