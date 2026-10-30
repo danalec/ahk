@@ -123,6 +123,25 @@ const LISTVIEW: &[(&str, &str)] = &[
     ("settext", "set the text of a row of the list"),
 ];
 
+/// The names of the `Gui.TreeView` class, with the thing each one does.
+const TREEVIEW: &[(&str, &str)] = &[
+    ("add", "add an item to the tree"),
+    ("delete", "delete an item of the tree"),
+    ("get", "read an item of the tree"),
+    ("getchild", "read the child of an item of the tree"),
+    ("getcount", "count the items of the tree"),
+    ("getnext", "read the item after an item of the tree"),
+    ("getparent", "read the item above an item of the tree"),
+    ("getprev", "read the item before an item of the tree"),
+    ("getselection", "read the selected item of the tree"),
+    ("gettext", "read the text of an item of the tree"),
+    ("modify", "change an item of the tree"),
+    ("setimagelist", "give the tree an image list"),
+    ("seticon", "give an item of the tree an icon"),
+    ("setparts", "set the columns of the tree"),
+    ("settext", "set the text of an item of the tree"),
+];
+
 /// The names of the `Gui.Menu` class, with the thing each one does.
 ///
 /// The script calls this class `Menu`, and the registry hands the module
@@ -187,6 +206,7 @@ const CLASSES: &[Windows] = &[
     Windows { class: "gui.control", name: "Gui.Control", surface: CONTROL, reason: "a control is a control of a Windows window, and this desktop is a Wayland session without one" },
     Windows { class: "gui.listview", name: "Gui.ListView", surface: LISTVIEW, reason: "a list view is a control of a Windows window, and this desktop is a Wayland session without one" },
     Windows { class: "gui.statusbar", name: "Gui.StatusBar", surface: STATUSBAR, reason: "a status bar is a control of a Windows window, and this desktop is a Wayland session without one" },
+    Windows { class: "gui.treeview", name: "Gui.TreeView", surface: TREEVIEW, reason: "a tree view is a control of a Windows window, and this desktop is a Wayland session without one" },
 ];
 
 /// The names of a class of the windows.
@@ -449,7 +469,7 @@ mod tests {
     use alloc::string::String;
     use alloc::vec::Vec;
 
-    use super::{CLASSES, CONTROL, GUI, LISTVIEW, MENU, STATUSBAR};
+    use super::{CLASSES, CONTROL, GUI, LISTVIEW, MENU, STATUSBAR, TREEVIEW};
 
     /// The surface of v2.0.19, read out of the binary.
     const SURFACE: &str = include_str!("../../reference/ahk-v2.0.19.surface.tsv");
@@ -481,6 +501,7 @@ mod tests {
             ("gui.listview", LISTVIEW),
             ("gui.menu", MENU),
             ("gui.statusbar", STATUSBAR),
+            ("gui.treeview", TREEVIEW),
         ] {
             let carried: Vec<&str> = table.iter().map(|(name, _)| *name).collect();
             for name in names_of(class) {

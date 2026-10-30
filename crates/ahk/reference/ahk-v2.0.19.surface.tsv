@@ -16,6 +16,11 @@
 # variant   the byte that picks the flavour of a shared handler
 # flag      the byte beside it
 #
+# The rows of the members of a class are the table of the class in the
+# binary: a property with a setter is two rows, the getter and the
+# setter. The table of the `InputHook` is at 0x00125170 and the table of
+# the `Gui.TreeView` is at 0x00126780, both with a stride of forty bytes.
+#
 # The arity of the function entries is in the binary. The arity of the
 # command entries was not: it is kept in a packing that was not decoded,
 # and it was measured on the binary on 2026-10-31 instead -- the call
@@ -778,3 +783,60 @@ method	Gui.StatusBar	InsertCol	0x14007af70
 method	Gui.StatusBar	ModifyCol	0x14007af90				
 method	Gui.StatusBar	DeleteCol	0x14002a540				
 method	Gui.StatusBar	SetImageList	0x14002ad50				
+method	InputHook	__New	0x14001cc20				
+method	InputHook	KeyOpt	0x14001d1e0				
+method	InputHook	Start	0x14001cc60				
+method	InputHook	Stop	0x14001cde0				
+method	InputHook	Wait	0x14001cd50				
+method	InputHook	BackspaceIsUndo	0x14001ca20				
+method	InputHook	BackspaceIsUndo	0x14001ca30				
+method	InputHook	CaseSensitive	0x14001ca40				
+method	InputHook	CaseSensitive	0x14001ca50				
+method	InputHook	FindAnywhere	0x14001ca60				
+method	InputHook	FindAnywhere	0x14001ca70				
+method	InputHook	NotifyNonText	0x14001ca90				
+method	InputHook	NotifyNonText	0x14001caa0				
+method	InputHook	VisibleNonText	0x14001cac0				
+method	InputHook	VisibleNonText	0x14001cad0				
+method	InputHook	VisibleText	0x14001caf0				
+method	InputHook	VisibleText	0x14001cb00				
+method	InputHook	EndKey	0x14001ceb0				
+method	InputHook	EndMods	0x14001cef0				
+method	InputHook	EndReason	0x14001ce20				
+method	InputHook	InProgress	0x14001c8c0				
+method	InputHook	Input	0x14001cfc0				
+method	InputHook	Match	0x14001cfe0				
+method	InputHook	MinSendLevel	0x14001cb20				
+method	InputHook	MinSendLevel	0x14001d140				
+method	InputHook	OnChar	0x14001c930				
+method	InputHook	OnChar	0x14001c960				
+method	InputHook	OnEnd	0x14001c8e0				
+method	InputHook	OnEnd	0x14001c910				
+method	InputHook	OnKeyDown	0x14001c980				
+method	InputHook	OnKeyDown	0x14001c9b0				
+method	InputHook	OnKeyUp	0x14001c9d0				
+method	InputHook	OnKeyUp	0x14001ca00				
+method	InputHook	Timeout	0x14001cb30				
+method	InputHook	Timeout	0x14001d160				
+method	Gui.TreeView	Add	0x14007afb0				
+method	Gui.TreeView	Delete	0x14002b710				
+method	Gui.TreeView	Get	0x14002bb60				
+method	Gui.TreeView	GetChild	0x14002b770				
+method	Gui.TreeView	GetCount	0x14002b7b0				
+method	Gui.TreeView	GetNext	0x14002b8b0				
+method	Gui.TreeView	GetParent	0x14002b7f0				
+method	Gui.TreeView	GetPrev	0x14002b830				
+method	Gui.TreeView	GetSelection	0x14002b870				
+method	Gui.TreeView	GetText	0x14002bc90				
+method	Gui.TreeView	Modify	0x14007aff0				
+method	Gui.TreeView	SetImageList	0x14002bd50				
+method	Gui.TreeView	SetIcon	0x14002adf0				
+method	Gui.TreeView	SetParts	0x14002afb0				
+method	Gui.TreeView	SetText	0x14002b1b0				
+method	Object	Base					
+method	Object	Clone	0x140094cb0				
+method	Object	DefineProp	0x140095360				
+method	Object	DeleteProp	0x1400943b0				
+method	Object	GetOwnPropDesc	0x140095750				
+method	Object	HasOwnProp	0x140094b50				
+method	Object	OwnProps	0x140094950				

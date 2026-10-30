@@ -37,6 +37,7 @@ pub(crate) mod file;
 pub(crate) mod func;
 pub(crate) mod gui;
 pub(crate) mod hotkey;
+pub(crate) mod inputhook;
 pub(crate) mod map;
 
 /// The methods of the class types, with the name v2 spells them and
@@ -234,6 +235,22 @@ const NOT_MADE: [&str; 6] = [
 /// The classes of the runtime that v2 does not make are called through
 /// the base object, and the base of them has no such thing.
 const THE_CALL_OF_THE_BASE: &str = "Object.Call";
+
+/// The names of the base object.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the table of the
+/// base object is the one that follows the table of the `Map`, and it
+/// holds six names. The `Base` is a property of every object, and the
+/// binary does not keep it in the table of the methods.
+const THE_BASE_OBJECT: [&str; 7] = [
+    "base",
+    "clone",
+    "defineprop",
+    "deleteprop",
+    "getownpropdesc",
+    "hasownprop",
+    "ownprops",
+];
 
 /// The names of the methods of the base object, the way v2 spells them.
 ///
@@ -980,6 +997,9 @@ pub fn names(class: &str) -> Vec<&'static str> {
         "gui.control" => gui::names("gui.control"),
         "gui.listview" => gui::names("gui.listview"),
         "gui.statusbar" => gui::names("gui.statusbar"),
+        "gui.treeview" => gui::names("gui.treeview"),
+        "inputhook" => inputhook::NAMES.to_vec(),
+        "object" => THE_BASE_OBJECT.to_vec(),
         _ => Vec::new(),
     }
 }

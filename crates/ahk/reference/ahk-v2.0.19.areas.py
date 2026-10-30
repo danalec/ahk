@@ -300,7 +300,8 @@ def write_report(rows, where, out):
                % (len(rows), values, refusals))
     out.append("The table has **%d entries and %d distinct names** : a property "
                "with a setter is in the table twice --- the `Hotkey` class has "
-               "eleven of them --- and a name that is both a command and a "
+               "eleven of them and the `InputHook` has twelve --- and a name "
+               "that is both a command and a "
                "variable is two entries (`SendMode` , `SendLevel` , `Min` , "
                "`FileEncoding` , `ListLines` , `DetectHiddenText` , "
                "`DetectHiddenWindows` ). The numbers below are entries.\n"

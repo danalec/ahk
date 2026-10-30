@@ -40,6 +40,7 @@ const REACHABLE: &[(&str, &str)] = &[
     ("Gui", "x := Gui()"),
     ("Gui.Menu", "x := Menu()"),
     ("Hotkey", "x := Hotkey(\"^!a\", \"TheCallback\")"),
+    ("InputHook", "x := InputHook()"),
     ("Map", "x := Map()"),
 ];
 

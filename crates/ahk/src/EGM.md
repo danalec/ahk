@@ -907,6 +907,10 @@ that asks for another one is refused with the reason.
   `BoundFunc`, the `Closure` and the `RegExMatchInfo` are classes, and a
   script reads them as one, even though the documentation does not name
   them.
+- **The members of the class types are in the table of the surface.** The
+  `InputHook` and the `Gui.TreeView` are in it, and a name of a class
+  that the tree does not carry is refused with the reason of the runtime
+  and not with the words of the dialect.
 
 ## Side Effects
 

@@ -3764,3 +3764,30 @@ documentation of v2 does not name them, and the tree did not carry them.
 The comparison of the tree with the binary is in
 `egm-review/compare_unknown_classes.py` (11 cases: every one of them is
 the same).
+
+## 79. The members of the class types are in the table of the surface
+
+Measured on the binary of v2.0.19 on 2026-10-31: the table of the
+`InputHook` is at 0x00125170 and the table of the `Gui.TreeView` is at
+0x00126780, both with a stride of forty bytes. The table of the base
+object is the one that follows the table of the `Map`.
+
+- **A property with a setter is two rows.** The getter and the setter
+  are two entries of the table, and the name of the property is in
+  both: the `InputHook` has twenty-three names and thirty-five rows.
+- **The members of a class that the tree does not carry are in the
+  table.** The `InputHook` is a keyboard hook, and this runtime has
+  none: the names of the class are in the table of the surface, and a
+  script that asks for one of them is refused with the reason of the
+  runtime -- not with the words of the dialect, which say that the name
+  is not there.
+- **The members of the base object are the members of the `Object`.**
+  The `Base` is a property of every object, and the binary does not keep
+  it in the table of the methods: it is in the table all the same.
+- **A tree view is a control of a Windows window.** The `Gui.TreeView`
+  is a class of the windows, and every member of it is refused with the
+  reason of the machine.
+
+The table of the surface has 810 entries and 762 distinct names, and the
+parity test of the tree (`crates/ahk/tests/surface.rs`) asks the tree
+about every one of them.
