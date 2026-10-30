@@ -563,6 +563,21 @@ fn the_names_of_the_own_properties_are_in_the_order_of_v2() {
 }
 
 #[test]
+fn the_get_method_of_the_prototype_fails_with_the_words_of_the_prototype() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
+    // class is a property of it, and the `GetMethod` of it fails with the
+    // words of the prototype.
+    assert_eq!(
+        the_failure_of("c := Map\nc.GetMethod(\"Prototype\")"),
+        "This value of type \"Prototype\" has no method named \"Call\". | GetMethod |"
+    );
+    assert_eq!(
+        the_failure_of("class C {\n}\nC.GetMethod(\"Prototype\")"),
+        "This value of type \"Prototype\" has no method named \"Call\". | GetMethod |"
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

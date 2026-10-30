@@ -539,6 +539,13 @@ pub fn find(name: &str) -> Option<&'static Builtin> {
 /// of an input box that v2 does not know does not: the value there is
 /// the option itself, and the built-in says which one it is.
 pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<String> {
+    // The base of an object is written with the `ObjSetBase`, and the value
+    // that is not an object goes in the `Extra` of the refusal.
+    //
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    if name == "ObjSetBase" && message.starts_with("Expected an Object but got") {
+        return values.get(1).map(crate::runtime::the_extra_of_the_value);
+    }
     if message != "Invalid option." {
         return None;
     }

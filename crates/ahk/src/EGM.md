@@ -952,6 +952,12 @@ that asks for another one is refused with the reason.
 - **The own properties of a function are none.** The members of a function
   live on the prototype of the class of it, and the function owns none of
   them.
+- **The base of an object of a class type of the runtime cannot be
+  written.** The prototype of the class is there, and the refusal says
+  "Invalid base.".
+- **The `GetMethod` of the prototype fails with the words of the
+  prototype.** The prototype of a class is a property of it, and the method
+  that is asked for is the call of it.
 
 ## Side Effects
 

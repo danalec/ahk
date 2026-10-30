@@ -2464,6 +2464,13 @@ impl<'a> Runtime<'a> {
     }
 
     /// The base of an object, set to another one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the base of an
+    /// object of a class type of the runtime cannot be written -- the
+    /// prototype of the class is there -- and the refusal says "Invalid
+    /// base.". The base of a plain object, of an error, of a prototype, of
+    /// a class value and of an instance of a class of the script can be
+    /// written.
     pub(crate) fn set_base_of(
         &mut self,
         target: &Value,
@@ -2476,6 +2483,20 @@ impl<'a> Runtime<'a> {
                 line,
             });
         };
+        let class = object.borrow().class.clone();
+        // A class value is not an instance of its class, and the base of it
+        // is the class that it extends: the write of it is the write of the
+        // `ObjSetBase` of a class.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31.
+        if self.class_name_of(target).is_none()
+            && matches!(
+                class.as_str(),
+                "array" | "buffer" | "enumerator" | "file" | "func" | "gui" | "map" | "menu"
+            )
+        {
+            return Err(RuntimeError { message: "Invalid base.".to_string(), line });
+        }
         object.borrow_mut().put(BASE, base);
         Ok(())
     }
@@ -3499,6 +3520,20 @@ impl<'a> Runtime<'a> {
             }));
         };
         let lower = name.to_lowercase();
+        // The prototype of a class is a property of it, and the `GetMethod`
+        // of it fails with the words of the prototype.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: "This value of
+        // type \"Prototype\" has no method named \"Call\"."
+        if lower == "prototype" {
+            return Err(crate::classes::named(
+                RuntimeFailure::Error(RuntimeError {
+                    message: "This value of type \"Prototype\" has no method named \"Call\".".to_string(),
+                    line,
+                }),
+                "GetMethod",
+            ));
+        }
         if !crate::classes::the_static_methods_of_a_class().contains(&lower.as_str()) {
             // The class does not have the method: the words of the
             // dialect say so, and the name of the method goes in the
@@ -4658,6 +4693,31 @@ impl<'a> Runtime<'a> {
         // be written, and `Map.HasProp` may not.
         if self.class_name_of(target).is_some() {
             return self.write_the_property_of_a_class_value(target, &class, &name, &written, value, line);
+        }
+        // The base of an object is written the way the `ObjSetBase` built-in
+        // writes it: the value has to be an object, and the base of an
+        // object of a class type of the runtime cannot be written.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `m.Base := 1` is
+        // refused with "Expected an Object but got an Integer." and the
+        // `What` "ObjSetBase".
+        if name == "base" {
+            if !matches!(value, Value::Object(_)) {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError {
+                        message: expected_type(TypeName::Object, value.type_name()),
+                        line,
+                    },
+                    Detail { what: "ObjSetBase".to_string(), extra: value.to_text() },
+                ));
+            }
+            let base = value.clone();
+            return self
+                .set_base_of(target, base, line)
+                .map_err(|error| RuntimeFailure::Detailed(
+                    error,
+                    Detail { what: "ObjSetBase".to_string(), extra: String::new() },
+                ));
         }
         // A class type of the runtime owns the whole of its properties.
         if let Some(result) = crate::classes::set_property(&class, &name, target, value.clone(), self, line) {

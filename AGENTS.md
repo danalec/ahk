@@ -4070,6 +4070,32 @@ class of a function owns the members of v2 -- "Bind", "Call", "IsBuiltIn",
 "IsByRef", "IsOptional", "IsVariadic", "MaxParams", "MinParams" and "Name"
 -- and the tree owns none of them.
 
+## 88. The base of an object of a class type of the runtime cannot be written
+
+Measured on the binary of v2.0.19 on 2026-10-31: the prototype of the class
+is there, and the base of the object cannot be replaced. The refusal says
+"Invalid base." and the `What` is "ObjSetBase".
+
+- **The base of an object of a class type of the runtime cannot be
+  written.** `ObjSetBase(m, Object())` on a map, an array, a buffer, a
+  function, an enumerator, a menu, a gui or a file is refused with "Invalid
+  base.". The tree wrote the base and answered with the old one.
+- **The base of a plain object, of an error, of a prototype, of a class value
+  and of an instance of a class of the script can be written.** The base of
+  a class value is the class that it extends, and the write of it is the
+  write of the `ObjSetBase` of a class.
+- **The value that is not an object goes in the `Extra`.** `ObjSetBase(m, 1)`
+  is refused with "Expected an Object but got an Integer.", the `What`
+  "ObjSetBase" and the `Extra` "1". The tree left the `Extra` empty.
+- **The `GetMethod` of the prototype fails with the words of the
+  prototype.** `c.GetMethod("Prototype")` is refused with `This value of
+  type "Prototype" has no method named "Call".` and the `What`
+  "GetMethod". The tree named the class and the method that was asked for.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_getmethod_setbase.py` (22 cases) and in
+`egm-review/probe_setbase_classes.py` (16 cases).
+
 The corner that was open here is closed in section 86: the names of the own
 properties of a plain object keep the case of the script, and not the case
 of the tree.

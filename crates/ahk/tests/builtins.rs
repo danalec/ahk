@@ -2364,6 +2364,44 @@ fn a_first_parameter_that_is_not_a_text_fails() {
 }
 
 #[test]
+fn the_base_of_an_object_of_a_class_type_of_the_runtime_cannot_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of the
+    // class is there, and the base of the object cannot be replaced.
+    for source in [
+        "m := Map()\nObjSetBase(m, Object())",
+        "a := [1, 2]\nObjSetBase(a, Object())",
+        "b := Buffer(4)\nObjSetBase(b, Object())",
+        "f := Abs\nObjSetBase(f, Object())",
+        "m := Map()\nm.Base := Object()",
+    ] {
+        let report = run(&format!(
+            "try {{\n    {source}\n}} catch Any as e {{\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}}\n"
+        ));
+        assert!(report.ok, "{:?}", report.error);
+        assert_eq!(report.output, vec!["Invalid base. | ObjSetBase | "], "the base of {source}");
+    }
+    // The base of a plain object, of an error and of an instance of a class
+    // of the script can be written.
+    for source in [
+        "o := Object()\nObjSetBase(o, Object())",
+        "e := Error(\"x\")\nObjSetBase(e, Object())",
+        "class C {\n}\no := C()\nObjSetBase(o, Object())",
+    ] {
+        let report = run(source);
+        assert!(report.ok, "{:?}", report.error);
+    }
+    // The value that is not an object goes in the `Extra` of the refusal.
+    let report = run(
+        "try {\n    ObjSetBase(Map(), 1)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Expected an Object but got an Integer. | ObjSetBase | 1"]
+    );
+}
+
+#[test]
 fn a_desktop_that_cannot_make_a_native_call_fails_with_the_reason() {
     let mut desktop = Blind;
     let statements = parse("DllCall(\"f\")").expect("parses");
