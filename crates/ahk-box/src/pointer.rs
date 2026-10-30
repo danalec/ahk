@@ -529,7 +529,11 @@ mod tests {
 
     use super::abi;
     use super::clamp_to_screen;
-    use super::{step_of, steps, Pointer, PointerError};
+    use super::{step_of, steps};
+    // The pointer itself is only used by the case that is not Linux: on
+    // Linux the device is opened, and there is no refusal to check.
+    #[cfg(not(target_os = "linux"))]
+    use super::{Pointer, PointerError};
 
     /// `_IO('U', nr)`: the direction and the size are both zero.
     fn io(nr: u8) -> u64 {
