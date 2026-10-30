@@ -2,7 +2,7 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **721 entries** : **510 answer with a value** , **211 are refused** and **none is pending**.
+The surface of the v2.0.19 has **721 entries** : **526 answer with a value** , **195 are refused** and **none is pending**.
 
 The table has **721 entries and 685 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
@@ -13,10 +13,10 @@ The table has **721 entries and 685 distinct names** : a property with a setter 
 | Parser and script execution | 36 | 29 | 7 |
 | File and directory operations | 96 | 77 | 19 |
 | Hotkeys, hotstrings, and input | 102 | 94 | 8 |
-| GUI windows and window automation | 271 | 139 | 132 |
+| GUI windows and window automation | 271 | 153 | 118 |
 | Screen capture and pixel functions | 7 | 6 | 1 |
 | Native function calls (DllCall) | 9 | 8 | 1 |
-| Registry APIs | 11 | 4 | 7 |
+| Registry APIs | 11 | 6 | 5 |
 | COM automation (ComObject) | 15 | 0 | 15 |
 | The core of the language: text, math and patterns | 58 | 55 | 3 |
 | The objects of the language: Array, Map and Func | 48 | 48 | 0 |
@@ -24,7 +24,7 @@ The table has **721 entries and 685 distinct names** : a property with a setter 
 | The machine, the processes and the environment | 35 | 20 | 15 |
 | The clipboard | 2 | 1 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **721** | **510** | **211** |
+| **The whole of it** | **721** | **526** | **195** |
 
 ## What the numbers do not say
 
@@ -92,29 +92,23 @@ names that the tree answers.
 **The ones that are refused** (8), by the reason:
 
 - *this is a name of Windows, and this desktop is not Windows.* (6): `BlockInput`, `CallbackCreate`, `CallbackFree`, `SetCapsLockState`, `SetNumLockState`, `SetScrollLockState`
-- *this runtime does not change the cursor of the pointer.* (1): `Cursor`
+- *the shape of the cursor of the machine is not read by this runtime.* (1): `Cursor`
 - *this runtime has no events that carry information: it has no wheel hotkeys and no OnMessage.* (1): `EventInfo`
 
 ## 4. GUI windows and window automation
 
-**271 names: 139 answer with a value, 132 are refused.**
+**271 names: 153 answer with a value, 118 are refused.**
 
-**The ones that answer** (139): `Gui.Add`, `Gui.AddActiveX`, `Gui.AddButton`, `Gui.AddCheckBox`, `Gui.AddComboBox`, `Gui.AddCustom`, `Gui.AddDDL`, `Gui.AddDateTime`, `Gui.AddDropDownList`, `Gui.AddEdit`, `Gui.AddGroupBox`, `Gui.AddHotkey`, `Gui.AddLink`, `Gui.AddListBox`, `Gui.AddListView`, `Gui.AddMonthCal`, `Gui.AddPic`, `Gui.AddPicture`, `Gui.AddProgress`, `Gui.AddRadio`, `Gui.AddSlider`, `Gui.AddStatusBar`, `Gui.AddTab`, `Gui.AddTab2`, `Gui.AddTab3`, `Gui.AddText`, `Gui.AddTreeView`, `Gui.AddUpDown`, `Gui.BackColor`, `Gui.BackColor`, `Gui.Control.Add`, `Gui.Control.Choose`, `Gui.Control.ClassNN`, `Gui.Control.Delete`, `Gui.Control.Enabled`, `Gui.Control.Enabled`, `Gui.Control.Focus`, `Gui.Control.Focused`, `Gui.Control.GetPos`, `Gui.Control.Gui`, `Gui.Control.Hwnd`, `Gui.Control.Move`, `Gui.Control.Name`, `Gui.Control.Name`, `Gui.Control.OnCommand`, `Gui.Control.OnEvent`, `Gui.Control.OnNotify`, `Gui.Control.Opt`, `Gui.Control.Redraw`, `Gui.Control.SetFont`, `Gui.Control.SetFormat`, `Gui.Control.Text`, `Gui.Control.Text`, `Gui.Control.Type`, `Gui.Control.UseTab`, `Gui.Control.Value`, `Gui.Control.Value`, `Gui.Control.Visible`, `Gui.Control.Visible`, `Gui.Destroy`, `Gui.Flash`, `Gui.FocusedCtrl`, `Gui.GetClientPos`, `Gui.GetPos`, `Gui.Hide`, `Gui.Hwnd`, `Gui.ListView.Add`, `Gui.ListView.Delete`, `Gui.ListView.Get`, `Gui.ListView.GetChild`, `Gui.ListView.GetCount`, `Gui.ListView.GetNext`, `Gui.ListView.GetParent`, `Gui.ListView.GetPrev`, `Gui.ListView.GetSelection`, `Gui.ListView.GetText`, `Gui.ListView.Modify`, `Gui.ListView.SetIcon`, `Gui.ListView.SetImageList`, `Gui.ListView.SetParts`, `Gui.ListView.SetText`, `Gui.MarginX`, `Gui.MarginX`, `Gui.MarginY`, `Gui.MarginY`, `Gui.Maximize`, `Gui.Menu.Add`, `Gui.Menu.AddStandard`, `Gui.Menu.Check`, `Gui.Menu.ClickCount`, `Gui.Menu.ClickCount`, `Gui.Menu.Default`, `Gui.Menu.Default`, `Gui.Menu.Delete`, `Gui.Menu.Disable`, `Gui.Menu.Enable`, `Gui.Menu.Handle`, `Gui.Menu.Insert`, `Gui.Menu.Rename`, `Gui.Menu.SetColor`, `Gui.Menu.SetIcon`, `Gui.Menu.Show`, `Gui.Menu.ToggleCheck`, `Gui.Menu.ToggleEnable`, `Gui.Menu.Uncheck`, `Gui.MenuBar`, `Gui.MenuBar`, `Gui.Minimize`, `Gui.Move`, `Gui.Name`, `Gui.Name`, `Gui.OnEvent`, `Gui.Opt`, `Gui.Restore`, `Gui.SetFont`, `Gui.Show`, `Gui.StatusBar.Add`, `Gui.StatusBar.Delete`, `Gui.StatusBar.DeleteCol`, `Gui.StatusBar.GetCount`, `Gui.StatusBar.GetNext`, `Gui.StatusBar.GetText`, `Gui.StatusBar.Insert`, `Gui.StatusBar.InsertCol`, `Gui.StatusBar.Modify`, `Gui.StatusBar.ModifyCol`, `Gui.StatusBar.SetImageList`, `Gui.Submit`, `Gui.Title`, `Gui.Title`, `Gui.__Enum`, `Gui.__Item`, `Gui.__New`, `InputBox`, `ListLines`, `MsgBox`, `WinActive`, `WinExist`, `WinGetTitle`
+**The ones that answer** (153): `ControlDelay`, `CoordModeCaret`, `CoordModeMenu`, `CoordModeToolTip`, `DetectHiddenText`, `DetectHiddenText`, `DetectHiddenWindows`, `DetectHiddenWindows`, `Gui.Add`, `Gui.AddActiveX`, `Gui.AddButton`, `Gui.AddCheckBox`, `Gui.AddComboBox`, `Gui.AddCustom`, `Gui.AddDDL`, `Gui.AddDateTime`, `Gui.AddDropDownList`, `Gui.AddEdit`, `Gui.AddGroupBox`, `Gui.AddHotkey`, `Gui.AddLink`, `Gui.AddListBox`, `Gui.AddListView`, `Gui.AddMonthCal`, `Gui.AddPic`, `Gui.AddPicture`, `Gui.AddProgress`, `Gui.AddRadio`, `Gui.AddSlider`, `Gui.AddStatusBar`, `Gui.AddTab`, `Gui.AddTab2`, `Gui.AddTab3`, `Gui.AddText`, `Gui.AddTreeView`, `Gui.AddUpDown`, `Gui.BackColor`, `Gui.BackColor`, `Gui.Control.Add`, `Gui.Control.Choose`, `Gui.Control.ClassNN`, `Gui.Control.Delete`, `Gui.Control.Enabled`, `Gui.Control.Enabled`, `Gui.Control.Focus`, `Gui.Control.Focused`, `Gui.Control.GetPos`, `Gui.Control.Gui`, `Gui.Control.Hwnd`, `Gui.Control.Move`, `Gui.Control.Name`, `Gui.Control.Name`, `Gui.Control.OnCommand`, `Gui.Control.OnEvent`, `Gui.Control.OnNotify`, `Gui.Control.Opt`, `Gui.Control.Redraw`, `Gui.Control.SetFont`, `Gui.Control.SetFormat`, `Gui.Control.Text`, `Gui.Control.Text`, `Gui.Control.Type`, `Gui.Control.UseTab`, `Gui.Control.Value`, `Gui.Control.Value`, `Gui.Control.Visible`, `Gui.Control.Visible`, `Gui.Destroy`, `Gui.Flash`, `Gui.FocusedCtrl`, `Gui.GetClientPos`, `Gui.GetPos`, `Gui.Hide`, `Gui.Hwnd`, `Gui.ListView.Add`, `Gui.ListView.Delete`, `Gui.ListView.Get`, `Gui.ListView.GetChild`, `Gui.ListView.GetCount`, `Gui.ListView.GetNext`, `Gui.ListView.GetParent`, `Gui.ListView.GetPrev`, `Gui.ListView.GetSelection`, `Gui.ListView.GetText`, `Gui.ListView.Modify`, `Gui.ListView.SetIcon`, `Gui.ListView.SetImageList`, `Gui.ListView.SetParts`, `Gui.ListView.SetText`, `Gui.MarginX`, `Gui.MarginX`, `Gui.MarginY`, `Gui.MarginY`, `Gui.Maximize`, `Gui.Menu.Add`, `Gui.Menu.AddStandard`, `Gui.Menu.Check`, `Gui.Menu.ClickCount`, `Gui.Menu.ClickCount`, `Gui.Menu.Default`, `Gui.Menu.Default`, `Gui.Menu.Delete`, `Gui.Menu.Disable`, `Gui.Menu.Enable`, `Gui.Menu.Handle`, `Gui.Menu.Insert`, `Gui.Menu.Rename`, `Gui.Menu.SetColor`, `Gui.Menu.SetIcon`, `Gui.Menu.Show`, `Gui.Menu.ToggleCheck`, `Gui.Menu.ToggleEnable`, `Gui.Menu.Uncheck`, `Gui.MenuBar`, `Gui.MenuBar`, `Gui.Minimize`, `Gui.Move`, `Gui.Name`, `Gui.Name`, `Gui.OnEvent`, `Gui.Opt`, `Gui.Restore`, `Gui.SetFont`, `Gui.Show`, `Gui.StatusBar.Add`, `Gui.StatusBar.Delete`, `Gui.StatusBar.DeleteCol`, `Gui.StatusBar.GetCount`, `Gui.StatusBar.GetNext`, `Gui.StatusBar.GetText`, `Gui.StatusBar.Insert`, `Gui.StatusBar.InsertCol`, `Gui.StatusBar.Modify`, `Gui.StatusBar.ModifyCol`, `Gui.StatusBar.SetImageList`, `Gui.Submit`, `Gui.Title`, `Gui.Title`, `Gui.__Enum`, `Gui.__Item`, `Gui.__New`, `InputBox`, `ListLines`, `MsgBox`, `SetControlDelay`, `SetTitleMatchMode`, `SetWinDelay`, `TitleMatchMode`, `TitleMatchModeSpeed`, `WinActive`, `WinDelay`, `WinExist`, `WinGetTitle`
 
-**The ones that are refused** (132), by the reason:
+**The ones that are refused** (118), by the reason:
 
-- *this is a name of Windows, and this desktop is not Windows.* (115): `CaretGetPos`, `ControlAddItem`, `ControlChooseIndex`, `ControlChooseString`, `ControlClick`, `ControlDeleteItem`, `ControlFindItem`, `ControlFocus`, `ControlGetChecked`, `ControlGetChoice`, `ControlGetClassNN`, `ControlGetEnabled`, `ControlGetExStyle`, `ControlGetFocus`, `ControlGetHwnd`, `ControlGetIndex`, `ControlGetItems`, `ControlGetPos`, `ControlGetStyle`, `ControlGetText`, `ControlGetVisible`, `ControlHide`, `ControlHideDropDown`, `ControlMove`, `ControlSend`, `ControlSendText`, `ControlSetChecked`, `ControlSetEnabled`, `ControlSetExStyle`, `ControlSetStyle`, `ControlSetText`, `ControlShow`, `ControlShowDropDown`, `DetectHiddenText`, `DetectHiddenWindows`, `Edit`, `EditGetCurrentCol`, `EditGetCurrentLine`, `EditGetLine`, `EditGetLineCount`, `EditGetSelectedText`, `EditPaste`, `GroupActivate`, `GroupAdd`, `GroupClose`, `GroupDeactivate`, `GuiCtrlFromHwnd`, `GuiFromHwnd`, `IL_Add`, `IL_Create`, `IL_Destroy`, `ListViewGetContent`, `MenuFromHandle`, `MenuSelect`, `MonitorGet`, `MonitorGetCount`, `MonitorGetName`, `MonitorGetPrimary`, `MonitorGetWorkArea`, `PostMessage`, `SendMessage`, `SetControlDelay`, `SetTitleMatchMode`, `SetWinDelay`, `StatusBarGetText`, `StatusBarWait`, `ToolTip`, `TraySetIcon`, `TrayTip`, `WinActivate`, `WinActivateBottom`, `WinClose`, `WinDir`, `WinGetClass`, `WinGetClientPos`, `WinGetControls`, `WinGetControlsHwnd`, `WinGetCount`, `WinGetExStyle`, `WinGetID`, `WinGetIDLast`, `WinGetList`, `WinGetMinMax`, `WinGetPID`, `WinGetPos`, `WinGetProcessName`, `WinGetProcessPath`, `WinGetStyle`, `WinGetText`, `WinGetTransColor`, `WinGetTransparent`, `WinHide`, `WinKill`, `WinMaximize`, `WinMinimize`, `WinMinimizeAll`, `WinMinimizeAllUndo`, `WinMove`, `WinMoveBottom`, `WinMoveTop`, `WinRedraw`, `WinRestore`, `WinSetAlwaysOnTop`, `WinSetEnabled`, `WinSetExStyle`, `WinSetRegion`, `WinSetStyle`, `WinSetTitle`, `WinSetTransColor`, `WinSetTransparent`, `WinShow`, `WinWait`, `WinWaitActive`, `WinWaitClose`, `WinWaitNotActive`
+- *this is a name of Windows, and this desktop is not Windows.* (109): `CaretGetPos`, `ControlAddItem`, `ControlChooseIndex`, `ControlChooseString`, `ControlClick`, `ControlDeleteItem`, `ControlFindItem`, `ControlFocus`, `ControlGetChecked`, `ControlGetChoice`, `ControlGetClassNN`, `ControlGetEnabled`, `ControlGetExStyle`, `ControlGetFocus`, `ControlGetHwnd`, `ControlGetIndex`, `ControlGetItems`, `ControlGetPos`, `ControlGetStyle`, `ControlGetText`, `ControlGetVisible`, `ControlHide`, `ControlHideDropDown`, `ControlMove`, `ControlSend`, `ControlSendText`, `ControlSetChecked`, `ControlSetEnabled`, `ControlSetExStyle`, `ControlSetStyle`, `ControlSetText`, `ControlShow`, `ControlShowDropDown`, `Edit`, `EditGetCurrentCol`, `EditGetCurrentLine`, `EditGetLine`, `EditGetLineCount`, `EditGetSelectedText`, `EditPaste`, `GroupActivate`, `GroupAdd`, `GroupClose`, `GroupDeactivate`, `GuiCtrlFromHwnd`, `GuiFromHwnd`, `IL_Add`, `IL_Create`, `IL_Destroy`, `ListViewGetContent`, `MenuFromHandle`, `MenuSelect`, `MonitorGet`, `MonitorGetCount`, `MonitorGetName`, `MonitorGetPrimary`, `MonitorGetWorkArea`, `PostMessage`, `SendMessage`, `StatusBarGetText`, `StatusBarWait`, `ToolTip`, `TraySetIcon`, `TrayTip`, `WinActivate`, `WinActivateBottom`, `WinClose`, `WinDir`, `WinGetClass`, `WinGetClientPos`, `WinGetControls`, `WinGetControlsHwnd`, `WinGetCount`, `WinGetExStyle`, `WinGetID`, `WinGetIDLast`, `WinGetList`, `WinGetMinMax`, `WinGetPID`, `WinGetPos`, `WinGetProcessName`, `WinGetProcessPath`, `WinGetStyle`, `WinGetTransColor`, `WinGetTransparent`, `WinHide`, `WinKill`, `WinMaximize`, `WinMinimize`, `WinMinimizeAll`, `WinMinimizeAllUndo`, `WinMove`, `WinMoveBottom`, `WinMoveTop`, `WinRedraw`, `WinRestore`, `WinSetAlwaysOnTop`, `WinSetEnabled`, `WinSetExStyle`, `WinSetRegion`, `WinSetStyle`, `WinSetTitle`, `WinSetTransColor`, `WinSetTransparent`, `WinShow`, `WinWait`, `WinWaitActive`, `WinWaitClose`, `WinWaitNotActive`
 - *this runtime has no tray icon.* (5): `IconFile`, `IconHidden`, `IconNumber`, `IconTip`, `TrayMenu`
-- *the runtime keeps no such state yet.* (3): `ControlDelay`, `TitleMatchModeSpeed`, `WinDelay`
 - *the lines are listed in a window of v2, and this runtime has no window to show them in.* (1): `ListLines`
 - *the variables are listed in a window of v2, and this runtime has no window to show them in.* (1): `ListVars`
-- *the caret belongs to a window, and this runtime has no windows: the mode of the caret is not answered.* (1): `CoordModeCaret`
-- *the menu is a window of its own, and this runtime has no windows: the mode of the menu is not answered.* (1): `CoordModeMenu`
-- *the tooltip is a window of its own, and this runtime has no windows: the mode of the tooltip is not answered.* (1): `CoordModeToolTip`
-- *this runtime reads no text of a window.* (1): `DetectHiddenText`
-- *the windows of this desktop are the ones of the compositor, and it has no hidden ones.* (1): `DetectHiddenWindows`
+- *this runtime reads no text of a window.* (1): `WinGetText`
 - *this runtime has no window of its own: it is a script that runs and ends.* (1): `ScriptHwnd`
-- *the titles are matched the way v2 matches them with the mode 2, and the mode is not changed.* (1): `TitleMatchMode`
 
 ## 5. Screen capture and pixel functions
 
@@ -138,14 +132,13 @@ names that the tree answers.
 
 ## 7. Registry APIs
 
-**11 names: 4 answer with a value, 7 are refused.**
+**11 names: 6 answer with a value, 5 are refused.**
 
-**The ones that answer** (4): `LoopRegKey`, `LoopRegName`, `LoopRegTimeModified`, `LoopRegType`
+**The ones that answer** (6): `LoopRegKey`, `LoopRegName`, `LoopRegTimeModified`, `LoopRegType`, `RegView`, `SetRegView`
 
-**The ones that are refused** (7), by the reason:
+**The ones that are refused** (5), by the reason:
 
-- *this is a name of Windows, and this desktop is not Windows.* (6): `RegCreateKey`, `RegDelete`, `RegDeleteKey`, `RegRead`, `RegWrite`, `SetRegView`
-- *the registry is not carried by this runtime.* (1): `RegView`
+- *the registry is a thing of Windows, and this runtime does not carry it.* (5): `RegCreateKey`, `RegDelete`, `RegDeleteKey`, `RegRead`, `RegWrite`
 
 ## 8. COM automation (ComObject)
 

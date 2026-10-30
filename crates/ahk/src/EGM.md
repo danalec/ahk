@@ -590,9 +590,10 @@ Four modules that answer what the runtime used to answer with a reason.
   with the reason of its own.
   The settings that the tree keeps are the settings of v2: the mode of the
   matching of the titles, the speed of it, the hidden windows, the hidden
-  text and the delay of the windowing functions. The commands of them
-  answer the value that was there before, and the ones that the tree
-  cannot honour refuse with the reason of their own name.
+  text, the delay of the windowing functions, the delay of the controls,
+  the view of the registry and the five modes of the coordinates. The
+  commands of them answer the value that was there before, and the one
+  that the tree cannot honour refuses with the reason of its own name.
 - `hotkeys.rs` -- the hotkeys of the script. The runtime holds the
   registry and the desktop holds the watcher: the script says which
   function a hotkey runs, and the machine says which key was pressed. The
@@ -729,10 +730,12 @@ that asks for another one is refused with the reason.
   encoding of the files has one truth: `files.rs` asks `settings.rs` for it.
 - **A setting that the tree keeps is the setting of v2.** The mode of the
   matching of the titles, the speed of it, the hidden windows, the hidden
-  text and the delay of the windowing functions are answered with the value
-  of v2, and their commands answer the value that was there before. The
-  settings that the tree cannot honour refuse with the reason of their own
-  name.
+  text, the delay of the windowing functions, the delay of the controls,
+  the view of the registry and the five modes of the coordinates are
+  answered with the value of v2, and their commands answer the value that
+  was there before. A setting that changes nothing here is kept all the
+  same: the tree has no controls of a window and no registry. The one
+  setting the tree does not keep refuses with the reason of its own name.
 - **The date comes from the host.** The crate does not read the clock of
   the machine: it asks the `Clock` trait for it, and a host that does not
   know the date has the names of the date answer with the reason.

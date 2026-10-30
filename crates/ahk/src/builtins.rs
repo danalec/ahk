@@ -38,8 +38,9 @@ use crate::hotkeys::{
 };
 use crate::settings::{
     coord_mode, get_key_name, get_key_sc, get_key_vk, send_event, send_input, send_level, send_play,
-    send_text, set_default_mouse_speed, set_detect_hidden_text, set_detect_hidden_windows,
-    set_key_delay, set_mouse_delay, set_store_caps_lock_mode, set_title_match_mode, set_win_delay,
+    send_text, set_control_delay, set_default_mouse_speed, set_detect_hidden_text,
+    set_detect_hidden_windows, set_key_delay, set_mouse_delay, set_reg_view, set_store_caps_lock_mode,
+    set_title_match_mode, set_win_delay,
 };
 use crate::dll::{Convention, NativeArg, NativeCall, NativeType, NativeValue};
 use crate::runtime::{
@@ -305,17 +306,17 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "ProcessSetPriority", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, handler: not_carried },
     Builtin { name: "ProcessWait", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, handler: not_carried },
     Builtin { name: "ProcessWaitClose", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, handler: not_carried },
-    Builtin { name: "RegCreateKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 100, handler: not_carried },
-    Builtin { name: "RegDelete", kind: BuiltinKind::Function, min: 0, max: 2, variant: 100, handler: not_carried },
-    Builtin { name: "RegDeleteKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 100, handler: not_carried },
-    Builtin { name: "RegRead", kind: BuiltinKind::Function, min: 0, max: 3, variant: 100, handler: not_carried },
-    Builtin { name: "RegWrite", kind: BuiltinKind::Function, min: 0, max: 4, variant: 100, handler: not_carried },
+    Builtin { name: "RegCreateKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 123, handler: not_carried },
+    Builtin { name: "RegDelete", kind: BuiltinKind::Function, min: 0, max: 2, variant: 123, handler: not_carried },
+    Builtin { name: "RegDeleteKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 123, handler: not_carried },
+    Builtin { name: "RegRead", kind: BuiltinKind::Function, min: 0, max: 3, variant: 123, handler: not_carried },
+    Builtin { name: "RegWrite", kind: BuiltinKind::Function, min: 0, max: 4, variant: 123, handler: not_carried },
     Builtin { name: "RunAs", kind: BuiltinKind::Command, min: 0, max: 3, variant: 100, handler: not_carried },
     Builtin { name: "SendMessage", kind: BuiltinKind::Command, min: 1, max: 9, variant: 100, handler: not_carried },
     Builtin { name: "SetCapsLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, handler: not_carried },
-    Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 122, handler: not_carried },
+    Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_control_delay },
     Builtin { name: "SetNumLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, handler: not_carried },
-    Builtin { name: "SetRegView", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, handler: not_carried },
+    Builtin { name: "SetRegView", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_reg_view },
     Builtin { name: "SetScrollLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, handler: not_carried },
     Builtin { name: "SetTitleMatchMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_title_match_mode },
     Builtin { name: "SetWinDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, handler: set_win_delay },
@@ -790,7 +791,7 @@ fn refusal_message(variant: u8) -> &'static str {
         19 => "the search of a picture is made by the desktop, and this desktop does not read the images of the machine.",
         20 => "the handler of an error is not carried: this runtime ends the script when it fails.",
         21 => crate::settings::NO_TEXT_OF_A_WINDOW,
-        22 => crate::settings::NO_STATE,
+        23 => "the registry is a thing of Windows, and this runtime does not carry it.",
         _ => "this runtime does not carry that name yet.",
     }
 }

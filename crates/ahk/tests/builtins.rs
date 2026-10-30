@@ -861,6 +861,58 @@ fn the_commands_of_the_settings_answer_with_the_value_that_was_there() {
 }
 
 #[test]
+fn the_commands_of_the_delay_of_the_controls_and_of_the_view_of_the_registry_answer_with_the_value_that_was_there() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: every one of them
+    // answers the value that was there before, and the view of the
+    // registry is always a text.
+    let report = run("a := SetControlDelay(50)\nb := SetRegView(32)\nMsgBox \"%a% %b%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["20 Default"]);
+}
+
+#[test]
+fn a_delay_of_the_controls_that_is_not_a_number_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the delay is a
+    // number, and a text that holds no number is refused.
+    let report = run(
+        "try {\n    SetControlDelay(\"x\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of SetControlDelay requires a Number, but received a String. | TypeError | SetControlDelay | x"]
+    );
+}
+
+#[test]
+fn a_delay_of_the_controls_that_is_out_of_the_range_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the delay goes from
+    // -1 to the biggest number of thirty-two bits.
+    let report = run(
+        "try {\n    SetControlDelay(-2)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of SetControlDelay is invalid. | ValueError | SetControlDelay | -2"]
+    );
+}
+
+#[test]
+fn a_view_of_the_registry_that_is_not_one_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the view is 32, 64
+    // or the word "Default".
+    let report = run(
+        "try {\n    SetRegView(33)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of SetRegView is invalid. | ValueError | SetRegView | 33"]
+    );
+}
+
+#[test]
 fn a_mode_of_the_titles_that_the_tree_cannot_match_with_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the tree matches the
     // titles the way v2 matches them with the mode 2, and the mode is not

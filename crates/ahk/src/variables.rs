@@ -765,13 +765,18 @@ impl Dialogs for Fake {}
     #[test]
     fn a_script_that_asks_for_a_setting_is_answered_with_the_setting() {
         // The settings of the script are answered: the module of the
-        // settings keeps them, and the three that are the coordinates of
-        // a window answer with the reason.
+        // settings keeps them, and the one that is a question about the
+        // machine answers with the reason.
         let _turn = crate::settings::Turn::take();
         assert_eq!(value("a_coordmodemouse"), Value::Text("Client".to_string()));
         assert_eq!(value("a_sendmode"), Value::Text("Input".to_string()));
         assert_eq!(value("a_keydelay"), Value::Int(10));
-        assert!(reason("a_coordmodecaret").contains("window"));
+        // The modes of the caret, of the menu and of the tooltip are kept:
+        // the tree has no windows, and the mode is a setting of the script.
+        assert_eq!(value("a_coordmodecaret"), Value::Text("Client".to_string()));
+        assert_eq!(value("a_controldelay"), Value::Int(20));
+        assert_eq!(value("a_regview"), Value::Text("Default".to_string()));
+        assert!(reason("a_cursor").contains("shape of the cursor"));
     }
 
     #[test]

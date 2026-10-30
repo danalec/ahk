@@ -3262,8 +3262,36 @@ them all, and the tree keeps the ones it can.
   windowing function except `WinActive` and `WinExist`, the way v2 does it,
   and a delay of -1 is no pause at all.
 - **The settings that the tree does not keep refuse with their reason.**
-  The delay of the controls (the tree has no controls of a window), the
-  view of the registry (the tree does not carry the registry), the cursor
-  of the pointer (the pointer of the box has one shape) and the modes of
-  the caret, of the menu and of the tooltip (they belong to a window, and
-  this runtime has no windows).
+  The shape of the cursor of the pointer (the shape belongs to the machine,
+  and this runtime does not ask it). The other settings are kept, and
+  section 66 says which ones came back.
+
+
+## 66. The delay of the controls, the view of the registry and the modes of the windows are the settings of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree refused the delay
+of the controls, the view of the registry and the modes of the caret, of the
+menu and of the tooltip, and v2 answers them all. They are settings of the
+script, and the tree keeps them.
+
+- **The delay of the controls is 20.** `SetControlDelay` answers the delay
+  that was there before, and the delay goes from -1 -- no pause at all -- to
+  the biggest number of thirty-two bits. A delay that is not a number is
+  refused with "Parameter #1 of SetControlDelay requires a Number, but
+  received a String.", and a delay that is out of the range is refused with
+  "Parameter #1 of SetControlDelay is invalid.".
+- **The view of the registry is "Default".** `SetRegView` answers the view
+  that was there before, and the answer is always a text: "Default", "32" or
+  "64". The view is 32, 64 or the word "Default", and the word does not
+  care about the case. Anything else is refused with "Parameter #1 of
+  SetRegView is invalid.".
+- **The modes of the caret, of the menu and of the tooltip are modes.**
+  `CoordMode` takes the five targets of v2 -- the mouse, the pixels, the
+  caret, the menu and the tooltip -- and answers the mode that was there
+  before. The mode of v2 is "Client" when the command is not used.
+- **A setting that changes nothing here is kept all the same.** The tree has
+  no controls of a window and no registry: the delay of the controls and
+  the view of the registry change nothing, and they are kept.
+- **The shape of the cursor is not read.** It belongs to the machine and it
+  changes with what the pointer is over, so the tree refuses with the reason
+  of its own name.

@@ -5,11 +5,15 @@
 //! speed of the pointer, the mode of the caps lock, the encoding of the
 //! files and the mask of the menu.
 //!
-//! The settings that the runtime does not keep are answered with the
-//! reason of their own name: the delay of the control, the delay of the
-//! windows, the speed of the matching of the titles, the cursor of the
-//! pointer, the reading of the hidden text and of the hidden windows, the
-//! mode of the matching of the titles and the view of the registry.
+//! The settings that the runtime keeps are the settings of v2: the mode of
+//! the matching of the titles, the speed of it, the hidden windows, the
+//! hidden text, the delay of the windowing functions, the delay of the
+//! controls, the view of the registry and the five modes of the
+//! coordinates.
+//!
+//! The one that the runtime does not keep is answered with the reason of
+//! its own name: the shape of the cursor of the pointer is a question
+//! about the machine, and this runtime does not ask it.
 //!
 //! The runtime has no field for them and the tree runs one script in one
 //! thread, so the state lives here, in the module that answers it. The
@@ -74,26 +78,21 @@ const ENCODINGS: [&str; 6] = ["CP0", "CP1252", "UTF-8", "UTF-8-RAW", "UTF-16", "
 /// built-in variable, and the tree does not write built-in variables.
 const MENU_MASK_KEY: &str = "vk11sc01D";
 
-/// The reason the mode of the caret is not answered.
+/// The delay of the controls that v2 uses.
 ///
-/// The caret is a part of a window, and the coordinates of a caret are
-/// the coordinates of its window.
-const NO_CARET: &str =
-    "the caret belongs to a window, and this runtime has no windows: the mode of the caret is not answered.";
+/// Measured on the binary of v2.0.19 on 2026-10-31: the delay of v2 is 20
+/// when the command is not used, and it goes from -1 -- no pause at all --
+/// to the biggest number of thirty-two bits.
+const CONTROL_DELAY: i32 = 20;
 
-/// The reason the mode of the menu is not answered.
+/// The views of the registry, the way v2 names them.
 ///
-/// The menu is a window of its own, and the coordinates of a menu are
-/// the coordinates of that window.
-const NO_MENU: &str =
-    "the menu is a window of its own, and this runtime has no windows: the mode of the menu is not answered.";
-
-/// The reason the mode of the tooltip is not answered.
-///
-/// The tooltip is a window of its own, and the coordinates of a tooltip
-/// are the coordinates of that window.
-const NO_TOOLTIP: &str = "the tooltip is a window of its own, and this runtime has no windows: the mode of the tooltip is \
-                           not answered.";
+/// Measured on the binary of v2.0.19 on 2026-10-31: the view of v2 is
+/// "Default" when the command is not used, and the answer of the command is
+/// always a text: "Default", "32" or "64".
+const REG_DEFAULT: i32 = 0;
+const REG_32: i32 = 32;
+const REG_64: i32 = 64;
 
 /// The reason the play method is not carried.
 ///
@@ -110,11 +109,12 @@ const NO_PLAY: &str = "the play method of v2 posts the messages to the active wi
 /// it.
 pub(crate) const NO_STATE: &str = "the runtime keeps no such state yet.";
 
-/// The reason the cursor of the pointer is not answered.
+/// The reason the shape of the cursor is not answered.
 ///
-/// The pointer of the box has one shape, and the runtime does not change
-/// it.
-const NO_CURSOR: &str = "this runtime does not change the cursor of the pointer.";
+/// The shape of the cursor belongs to the machine, and it changes with
+/// what the pointer is over: the pointer of the box is a device of its
+/// own, and this runtime does not ask the machine for its shape.
+const NO_CURSOR: &str = "the shape of the cursor of the machine is not read by this runtime.";
 
 /// The reason the text of a window is not read.
 ///
@@ -135,11 +135,6 @@ const NO_TITLE_MATCH_MODE: &str =
 /// default of v2, and it is the mode of the tree: the name of a window is
 /// found in the title of it.
 const TITLE_MODE: u8 = 2;
-
-/// The reason the view of the registry is not answered.
-///
-/// The registry is a thing of Windows, and the tree does not carry it.
-const NO_REG_VIEW: &str = "the registry is not carried by this runtime.";
 
 /// The state of the settings.
 ///
@@ -163,6 +158,11 @@ struct State {
     detect_hidden_windows: AtomicI32,
     detect_hidden_text: AtomicI32,
     win_delay: AtomicI32,
+    control_delay: AtomicI32,
+    reg_view: AtomicI32,
+    coord_caret: AtomicU8,
+    coord_menu: AtomicU8,
+    coord_tooltip: AtomicU8,
 }
 
 /// The turn of the tests: the state is one for the whole crate.
@@ -213,6 +213,11 @@ static STATE: State = State {
     detect_hidden_windows: AtomicI32::new(0),
     detect_hidden_text: AtomicI32::new(1),
     win_delay: AtomicI32::new(100),
+    control_delay: AtomicI32::new(CONTROL_DELAY),
+    reg_view: AtomicI32::new(REG_DEFAULT),
+    coord_caret: AtomicU8::new(CLIENT),
+    coord_menu: AtomicU8::new(CLIENT),
+    coord_tooltip: AtomicU8::new(CLIENT),
 };
 
 /// The value of the built-in variable of the settings of this name.
@@ -225,9 +230,9 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
     let value = match name {
         "coordmodemouse" => mode_text(STATE.coord_mouse.load(Ordering::Relaxed)),
         "coordmodepixel" => mode_text(STATE.coord_pixel.load(Ordering::Relaxed)),
-        "coordmodecaret" => return Some(Err(NO_CARET)),
-        "coordmodemenu" => return Some(Err(NO_MENU)),
-        "coordmodetooltip" => return Some(Err(NO_TOOLTIP)),
+        "coordmodecaret" => mode_text(STATE.coord_caret.load(Ordering::Relaxed)),
+        "coordmodemenu" => mode_text(STATE.coord_menu.load(Ordering::Relaxed)),
+        "coordmodetooltip" => mode_text(STATE.coord_tooltip.load(Ordering::Relaxed)),
         "defaultmousespeed" => Value::Int(STATE.mouse_speed.load(Ordering::Relaxed) as i64),
         "fileencoding" => Value::Text(encoding_text()),
         "keydelay" => Value::Int(STATE.key_delay.load(Ordering::Relaxed) as i64),
@@ -243,6 +248,8 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
         "storecapslockmode" => Value::Int(STATE.caps_lock.load(Ordering::Relaxed) as i64),
         "allowmainwindow" => Value::Int(1),
         "windelay" => Value::Int(STATE.win_delay.load(Ordering::Relaxed) as i64),
+        "controldelay" => Value::Int(STATE.control_delay.load(Ordering::Relaxed) as i64),
+        "regview" => Value::Text(reg_view_text(STATE.reg_view.load(Ordering::Relaxed))),
         "detecthiddenwindows" => Value::Int(STATE.detect_hidden_windows.load(Ordering::Relaxed) as i64),
         "detecthiddentext" => Value::Int(STATE.detect_hidden_text.load(Ordering::Relaxed) as i64),
         "titlematchmode" => Value::Int(STATE.title_match_mode.load(Ordering::Relaxed) as i64),
@@ -251,9 +258,7 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
         "titlematchmodespeed" => Value::Text("Fast".to_string()),
         // The settings that the runtime does not keep: each one refuses
         // with the reason of its own name.
-        "controldelay" => return Some(Err(NO_STATE)),
         "cursor" => return Some(Err(NO_CURSOR)),
-        "regview" => return Some(Err(NO_REG_VIEW)),
         _ => return None,
     };
     Some(Ok(value))
@@ -297,12 +302,16 @@ pub fn file_bytes_encoding() -> &'static str {
 
 /// `CoordMode`: the way the coordinates are read.
 ///
-/// The mouse and the pixels are the two that a box without windows can
-/// have. The caret, the menu and the tooltip belong to a window, and
-/// there is no window here to be relative to.
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command answers
+/// the mode that was there before, and the five targets of v2 are the
+/// mouse, the pixels, the caret, the menu and the tooltip. The mode of v2
+/// is "Client" when the command is not used.
 ///
 /// The second parameter says what the coordinates are relative to, and
 /// it is the screen when it is not said.
+///
+/// The tree has no windows: the caret, the menu and the tooltip have no
+/// coordinates to be relative to, and their modes are kept all the same.
 pub fn coord_mode(
     _rt: &mut Runtime<'_>,
     values: &[Value],
@@ -347,18 +356,18 @@ pub fn coord_mode(
             let previous = STATE.coord_pixel.swap(mode, Ordering::Relaxed);
             Ok(mode_text(previous))
         }
-        CARET => Err(RuntimeError {
-            message: NO_CARET.to_string(),
-            line,
-        }),
-        MENU => Err(RuntimeError {
-            message: NO_MENU.to_string(),
-            line,
-        }),
-        _ => Err(RuntimeError {
-            message: NO_TOOLTIP.to_string(),
-            line,
-        }),
+        CARET => {
+            let previous = STATE.coord_caret.swap(mode, Ordering::Relaxed);
+            Ok(mode_text(previous))
+        }
+        MENU => {
+            let previous = STATE.coord_menu.swap(mode, Ordering::Relaxed);
+            Ok(mode_text(previous))
+        }
+        _ => {
+            let previous = STATE.coord_tooltip.swap(mode, Ordering::Relaxed);
+            Ok(mode_text(previous))
+        }
     }
 }
 
@@ -456,6 +465,74 @@ pub fn set_win_delay(
 /// of -1 is no pause at all.
 pub fn the_win_delay() -> i64 {
     STATE.win_delay.load(Ordering::Relaxed) as i64
+}
+
+/// `SetControlDelay`: the pause after a change of a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command answers the
+/// delay that was there before, the delay of v2 is 20 when the command is
+/// not used, and a delay that is not a number from -1 to 2147483647 is
+/// refused. A delay of -1 is no pause at all, and a delay of 0 is the
+/// smallest one.
+///
+/// The tree has no controls of a window: the delay changes nothing, and it
+/// is kept all the same.
+pub fn set_control_delay(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let delay = number_argument(values, 0, "SetControlDelay", line)? as i64;
+    if !(-1..=2147483647).contains(&delay) {
+        return Err(RuntimeError {
+            message: runtime::invalid_parameter(1, "SetControlDelay"),
+            line,
+        });
+    }
+    let previous = STATE.control_delay.swap(delay as i32, Ordering::Relaxed);
+    Ok(Value::Int(previous as i64))
+}
+
+/// `SetRegView`: the view of the registry.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command answers the
+/// view that was there before, and the view of v2 is "Default" when the
+/// command is not used. The view is 32, 64 or the word "Default", and the
+/// answer is always a text.
+///
+/// The tree does not carry the registry: the view changes nothing, and it is
+/// kept all the same.
+pub fn set_reg_view(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = match values.first() {
+        Some(Value::Int(32)) => REG_32,
+        Some(Value::Int(64)) => REG_64,
+        Some(Value::Text(text)) if text == "32" => REG_32,
+        Some(Value::Text(text)) if text == "64" => REG_64,
+        Some(Value::Text(text)) if text.eq_ignore_ascii_case("default") => REG_DEFAULT,
+        _ => {
+            return Err(RuntimeError {
+                message: runtime::invalid_parameter(1, "SetRegView"),
+                line,
+            })
+        }
+    };
+    let previous = STATE.reg_view.swap(wanted, Ordering::Relaxed);
+    Ok(Value::Text(reg_view_text(previous)))
+}
+
+/// The name of the view of the registry, as `A_RegView` spells it.
+fn reg_view_text(view: i32) -> String {
+    match view {
+        REG_32 => "32".to_string(),
+        REG_64 => "64".to_string(),
+        _ => "Default".to_string(),
+    }
 }
 
 /// `SetMouseDelay`: the pause after a movement of the mouse.
@@ -1158,6 +1235,11 @@ impl Dialogs for Fake {}
         STATE.mouse_speed.store(2, Ordering::Relaxed);
         STATE.caps_lock.store(1, Ordering::Relaxed);
         STATE.encoding.store(0, Ordering::Relaxed);
+        STATE.control_delay.store(CONTROL_DELAY, Ordering::Relaxed);
+        STATE.reg_view.store(REG_DEFAULT, Ordering::Relaxed);
+        STATE.coord_caret.store(CLIENT, Ordering::Relaxed);
+        STATE.coord_menu.store(CLIENT, Ordering::Relaxed);
+        STATE.coord_tooltip.store(CLIENT, Ordering::Relaxed);
     }
 
     /// Run a body against a runtime that asks a fake desktop, and give
@@ -1202,6 +1284,12 @@ impl Dialogs for Fake {}
         assert_eq!(value("sendmode"), Value::Text("Input".into()));
         assert_eq!(value("storecapslockmode"), Value::Int(1));
         assert_eq!(value("allowmainwindow"), Value::Int(1));
+        // Measured on the binary of v2.0.19 on 2026-10-31.
+        assert_eq!(value("controldelay"), Value::Int(20));
+        assert_eq!(value("regview"), Value::Text("Default".into()));
+        assert_eq!(value("coordmodecaret"), Value::Text("Client".into()));
+        assert_eq!(value("coordmodemenu"), Value::Text("Client".into()));
+        assert_eq!(value("coordmodetooltip"), Value::Text("Client".into()));
     }
 
     #[test]
@@ -1244,15 +1332,79 @@ impl Dialogs for Fake {}
     }
 
     #[test]
-    fn the_mode_of_a_window_is_not_answered() {
+    fn the_modes_of_the_caret_the_menu_and_the_tooltip_are_kept() {
         let _turn = Turn::take();
         reset();
+        // Measured on the binary of v2.0.19 on 2026-10-31: the mode of v2
+        // is "Client" when the command is not used, and the command answers
+        // the mode that was there before.
         for name in ["coordmodecaret", "coordmodemenu", "coordmodetooltip"] {
-            match value_of(name) {
-                Some(Err(reason)) => assert!(reason.contains("no windows"), "{name} said {reason}"),
-                other => panic!("{name} answered {other:?} instead of a reason"),
-            }
+            assert_eq!(value(name), Value::Text("Client".into()), "{name}");
         }
+        with_runtime(|rt| {
+            let previous = coord_mode(rt, &[text("Caret"), text("Screen")], 1, 0).expect("the mode changes");
+            assert_eq!(previous, Value::Text("Client".into()));
+        });
+        assert_eq!(value("coordmodecaret"), Value::Text("Screen".into()));
+        // The menu and the tooltip are a mode of their own.
+        assert_eq!(value("coordmodemenu"), Value::Text("Client".into()));
+        assert_eq!(value("coordmodetooltip"), Value::Text("Client".into()));
+    }
+
+    #[test]
+    fn the_delay_of_the_controls_is_kept_and_answers_the_one_it_replaces() {
+        let _turn = Turn::take();
+        reset();
+        // Measured on the binary of v2.0.19 on 2026-10-31: the delay of v2
+        // is 20 when the command is not used.
+        assert_eq!(value("controldelay"), Value::Int(20));
+        with_runtime(|rt| {
+            let previous = set_control_delay(rt, &[Value::Int(50)], 1, 0).expect("the delay changes");
+            assert_eq!(previous, Value::Int(20));
+        });
+        assert_eq!(value("controldelay"), Value::Int(50));
+        // A delay that is not a number is refused with the message of v2.
+        with_runtime(|rt| {
+            assert_eq!(
+                message(set_control_delay(rt, &[text("x")], 1, 0)),
+                "Parameter #1 of SetControlDelay requires a Number, but received a String."
+            );
+        });
+        // A delay that is out of the range is refused with the message of v2.
+        with_runtime(|rt| {
+            assert_eq!(
+                message(set_control_delay(rt, &[Value::Int(-2)], 1, 0)),
+                "Parameter #1 of SetControlDelay is invalid."
+            );
+        });
+    }
+
+    #[test]
+    fn the_view_of_the_registry_is_kept_and_answers_the_one_it_replaces() {
+        let _turn = Turn::take();
+        reset();
+        // Measured on the binary of v2.0.19 on 2026-10-31: the view of v2 is
+        // "Default" when the command is not used, and the answer is always
+        // a text.
+        assert_eq!(value("regview"), Value::Text("Default".into()));
+        with_runtime(|rt| {
+            let previous = set_reg_view(rt, &[Value::Int(32)], 1, 0).expect("the view changes");
+            assert_eq!(previous, Value::Text("Default".into()));
+        });
+        assert_eq!(value("regview"), Value::Text("32".into()));
+        // The word "Default" is the view of v2, and it is case-insensitive.
+        with_runtime(|rt| {
+            let previous = set_reg_view(rt, &[text("default")], 1, 0).expect("the view changes");
+            assert_eq!(previous, Value::Text("32".into()));
+        });
+        assert_eq!(value("regview"), Value::Text("Default".into()));
+        // A view that is not one is refused with the message of v2.
+        with_runtime(|rt| {
+            assert_eq!(
+                message(set_reg_view(rt, &[Value::Int(33)], 1, 0)),
+                "Parameter #1 of SetRegView is invalid."
+            );
+        });
     }
 
     #[test]
@@ -1333,16 +1485,6 @@ impl Dialogs for Fake {}
             coord_mode(rt, &[text("Pixel")], 1, 0).expect("the mode changes");
         });
         assert_eq!(value("coordmodepixel"), Value::Text("Screen".into()));
-    }
-
-    #[test]
-    fn the_coordinate_mode_of_a_window_is_refused() {
-        let _turn = Turn::take();
-        reset();
-        with_runtime(|rt| {
-            let said = message(coord_mode(rt, &[text("Caret"), text("Screen")], 1, 0));
-            assert!(said.contains("no windows"), "the call said {said}");
-        });
     }
 
     #[test]

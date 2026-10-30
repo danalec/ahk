@@ -288,27 +288,27 @@ fn the_settings_that_the_runtime_keeps_answer_with_the_value_of_v2() {
 }
 
 #[test]
-fn a_setting_that_the_runtime_does_not_keep_refuses_with_the_reason_of_the_settings() {
-    let report = run("MsgBox A_ControlDelay");
-    assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the runtime keeps no such state yet."));
-    assert_eq!(report.error_line, Some(1));
+fn the_settings_that_the_tree_keeps_answer_with_the_value_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the delay of the
+    // controls is 20, the view of the registry is "Default", and the modes
+    // of the caret, of the menu and of the tooltip are "Client".
+    let report = run(
+        "MsgBox \"%A_ControlDelay% %A_RegView% %A_CoordModeCaret% %A_CoordModeMenu% %A_CoordModeToolTip%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["20 Default Client Client Client"]);
 }
 
 #[test]
-fn each_setting_that_the_runtime_does_not_keep_refuses_with_its_own_reason() {
+fn the_shape_of_the_cursor_is_not_read_by_this_runtime() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the shape of the
+    // cursor belongs to the machine, and it changes with what the pointer
+    // is over.
     let report = run("MsgBox A_Cursor");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("this runtime does not change the cursor of the pointer.")
-    );
-
-    let report = run("MsgBox A_RegView");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error.as_deref(),
-        Some("the registry is not carried by this runtime.")
+        Some("the shape of the cursor of the machine is not read by this runtime.")
     );
 }
 
@@ -328,9 +328,7 @@ fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
     for name in [
         "A_WinDir",
         "A_ProgramFiles",
-        "A_ControlDelay",
         "A_Cursor",
-        "A_RegView",
         "A_AhkPath",
         "A_ScriptHwnd",
         "A_IconFile",
