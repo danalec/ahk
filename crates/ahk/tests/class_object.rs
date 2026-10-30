@@ -578,6 +578,153 @@ fn the_get_method_of_the_prototype_fails_with_the_words_of_the_prototype() {
 }
 
 #[test]
+fn the_own_properties_of_a_prototype_are_the_members_of_the_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
+    // class owns the class of the value and the members that the class
+    // declares -- the methods of it and the properties of it.
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in Map.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class__Enum__Item__NewCapacityCaseSenseClearCloneCountDeleteGetHasSet"
+    );
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in Array.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class__Enum__Item__NewCapacityCloneDeleteGetHasInsertAtLengthPopPushRemoveAt"
+    );
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in Buffer.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class__NewPtrSize"
+    );
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in Error.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class__New"
+    );
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in Object.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__ClassCloneDefinePropDeletePropGetOwnPropDescHasOwnPropOwnProps"
+    );
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in Abs.Base.OwnProps()\n    s .= p\nMsgBox s"),
+        "__ClassBindCallIsBuiltInIsByRefIsOptionalIsVariadicMaxParamsMinParamsName"
+    );
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in Enumerator.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class"
+    );
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in ClipboardAll.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class__New"
+    );
+}
+
+#[test]
+fn the_own_properties_of_the_prototype_of_a_class_of_the_script_are_its_methods() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
+    // class of the script owns the methods that the class declares itself,
+    // and the ones that it inherits are not its own.
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    __Init() {\n    }\n    Say() {\n    }\n    static Shout() {\n    }\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
+        "__Class__InitSay"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    Say() {\n    }\n}\nclass D extends C {\n    Other() {\n    }\n}\ns := \"\"\nfor p in D.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
+        "__ClassOther"
+    );
+}
+
+#[test]
+fn the_prototype_answers_the_questions_about_the_class_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    assert_eq!(the_answer_of("MsgBox Map.Prototype.__Class"), "Map");
+    assert_eq!(the_answer_of("MsgBox ObjOwnPropCount(Map.Prototype)"), "13");
+    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"__Class\")"), "1");
+    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"Count\")"), "1");
+    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"Nope\")"), "0");
+    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasProp(\"Count\")"), "1");
+    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasMethod(\"Get\")"), "1");
+    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasMethod(\"Count\")"), "0");
+    assert_eq!(the_answer_of("MsgBox Map.Prototype.Get.Name"), "Map.Prototype.Get");
+    assert_eq!(
+        the_answer_of("MsgBox Map.Prototype.GetMethod(\"Get\").Name"),
+        "Map.Prototype.Get"
+    );
+    assert_eq!(
+        the_answer_of("MsgBox Object.Prototype.GetMethod(\"Clone\").Name"),
+        "Object.Prototype.Clone"
+    );
+}
+
+#[test]
+fn the_property_of_a_prototype_is_refused_with_the_kind_of_the_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the prototype is not
+    // an instance of the class, and the property of the class cannot be read
+    // on it.
+    assert_eq!(
+        the_failure_of("MsgBox Map.Prototype.Count"),
+        "Expected a Map but got a Prototype. | Map.Prototype.Count.Get |"
+    );
+    assert_eq!(
+        the_failure_of("MsgBox File.Prototype.Pos"),
+        "Expected a File but got a Prototype. | File.Prototype.Pos.Get |"
+    );
+    assert_eq!(
+        the_failure_of("MsgBox Abs.Base.Name"),
+        "Expected a Func but got a Prototype. | Func.Prototype.Name.Get |"
+    );
+}
+
+#[test]
+fn the_call_of_a_method_of_a_prototype_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the method of a class
+    // cannot be called on the prototype of it, and the copy of a prototype is
+    // refused as well.
+    assert_eq!(
+        the_failure_of("Map.Prototype.Get(\"a\")"),
+        "Expected a Map but got a Prototype. | Map.Prototype.Get |"
+    );
+    assert_eq!(
+        the_failure_of("Object.Prototype.Clone()"),
+        "Type mismatch. | Object.Prototype.Clone |"
+    );
+}
+
+#[test]
+fn the_members_of_a_prototype_are_read_only() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the members of the
+    // prototype of a class are read-only, and a name that the prototype does
+    // not own is written.
+    assert_eq!(
+        the_failure_of("Map.Prototype.Count := 5"),
+        "Property is read-only. |  | Count"
+    );
+    assert_eq!(
+        the_failure_of("Map.Prototype.Get := 5"),
+        "Property is read-only. |  | Get"
+    );
+    assert_eq!(the_answer_of("Map.Prototype.Nope := 5\nMsgBox \"ok\""), "ok");
+    // The base of a prototype is written the way the base of an object is.
+    assert_eq!(the_answer_of("Map.Prototype.Base := Object()\nMsgBox \"ok\""), "ok");
+}
+
+#[test]
+fn the_prototype_of_an_any_has_no_method_at_all() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of an
+    // `Any`, of a `ComObject` and of a `ComValue` is not a prototype: it has
+    // no method at all.
+    assert_eq!(
+        the_failure_of("Any.Prototype.OwnProps()"),
+        "This value of type \"Prototype\" has no method named \"OwnProps\". |  |"
+    );
+    assert_eq!(
+        the_failure_of("ComValue.Prototype.OwnProps()"),
+        "This value of type \"Prototype\" has no method named \"OwnProps\". |  |"
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

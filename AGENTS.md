@@ -4099,3 +4099,52 @@ The comparison of the tree with the binary is in
 The corner that was open here is closed in section 86: the names of the own
 properties of a plain object keep the case of the script, and not the case
 of the tree.
+
+## 89. The prototype of a class owns the members of the class
+
+Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a class
+holds the members of the class -- the methods of it and the properties of it
+-- and it owns them. The prototype of a class of the runtime owns the
+members of the class type, and the prototype of a class of the script owns
+the methods that the class declares itself.
+
+- **The prototype owns the class of the value and the members of the
+  class.** `Map.Prototype.OwnProps()` gives an enumerator with "__Class",
+  "__Enum", "__Item", "__New", "Capacity", "CaseSense", "Clear", "Clone",
+  "Count", "Delete", "Get", "Has" and "Set" in it. The tree gave an
+  enumerator with nothing in it.
+- **The names are in the order of v2, and the case of them does not
+  count.** The members of a class of the runtime are in the table of the
+  prototype, and the class of the script sorts the methods of it.
+- **The prototype of a class of the script owns the methods that the class
+  declares itself.** The methods that it inherits are not its own, and the
+  static ones belong to the class value. `C.Prototype.OwnProps()` gives
+  "__Class", "__Init" and the methods of the class.
+- **A property of the class cannot be read on the prototype of it.**
+  `Map.Prototype.Count` is refused with "Expected a Map but got a
+  Prototype." and the `What` "Map.Prototype.Count.Get". The tree said that
+  the prototype has no property named "Count".
+- **A method of the class is handed over as a value.** `Map.Prototype.Get`
+  is a function whose name is "Map.Prototype.Get", and the call of it is
+  refused with "Expected a Map but got a Prototype.".
+- **The copy of a prototype is refused.** `Object.Prototype.Clone()` is
+  refused with "Type mismatch." and the `What` "Object.Prototype.Clone".
+- **The members of a prototype are read-only.** `Map.Prototype.Count := 5`
+  is refused with "Property is read-only." and the name of the member in
+  the `Extra`. A name that the prototype does not own is written, and it
+  becomes an own property of the prototype.
+- **The prototype of an `Any`, of a `ComObject` and of a `ComValue` is not
+  a prototype.** It has no method at all, and the refusal says 'This value
+  of type "Prototype" has no method named "OwnProps".'.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_prototype_own_props.py` (43 cases) and in
+`egm-review/probe_prototype_members.py` (the sweep of every member of every
+prototype of v2).
+
+One corner is still open, and it is the parser: v2 writes the property of a
+class with a getter -- `value { get => 1 }` -- and the tree refuses the
+line with "Not a valid method, class or property definition.". The
+property of a class is own of the prototype of it in v2, and the tree has
+no property of a class: the `value := 1` of a class is a variable of the
+instance, and v2 owns it in the same way.

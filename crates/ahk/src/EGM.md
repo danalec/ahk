@@ -958,6 +958,10 @@ that asks for another one is refused with the reason.
 - **The `GetMethod` of the prototype fails with the words of the
   prototype.** The prototype of a class is a property of it, and the method
   that is asked for is the call of it.
+- **The prototype of a class owns the members of the class.** The class of
+  the value and the methods and the properties of the class are its own
+  properties, and the property of the class cannot be read on it: the
+  prototype is not an instance of the class.
 
 ## Side Effects
 

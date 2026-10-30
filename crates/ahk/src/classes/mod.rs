@@ -331,6 +331,113 @@ const PROPERTIES: [(&str, &str, &str); 28] = [
     ("error", "stack", "Stack"),
 ];
 
+/// The members that the prototype of a class owns.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a class
+/// owns the class of the value and the members that the class declares -- the
+/// methods of it and the properties of it. The names are in the order of
+/// v2, and the case of them does not count.
+const PROTOTYPE_MEMBERS: [(&str, &[&str]); 16] = [
+    ("object", &["Clone", "DefineProp", "DeleteProp", "GetOwnPropDesc", "HasOwnProp", "OwnProps"]),
+    ("map", &[
+        "__Enum", "__Item", "__New", "Capacity", "CaseSense", "Clear", "Clone", "Count", "Delete",
+        "Get", "Has", "Set",
+    ]),
+    ("array", &[
+        "__Enum", "__Item", "__New", "Capacity", "Clone", "Delete", "Get", "Has", "InsertAt",
+        "Length", "Pop", "Push", "RemoveAt",
+    ]),
+    ("buffer", &["__New", "Ptr", "Size"]),
+    ("error", &["__New"]),
+    ("file", &[
+        "AtEOF", "Close", "Encoding", "Handle", "Length", "Pos", "RawRead", "RawWrite", "Read",
+        "ReadChar", "ReadDouble", "ReadFloat", "ReadInt", "ReadInt64", "ReadLine", "ReadShort",
+        "ReadUChar", "ReadUInt", "ReadUShort", "Seek", "Write", "WriteChar", "WriteDouble",
+        "WriteFloat", "WriteInt", "WriteInt64", "WriteLine", "WriteShort", "WriteUChar", "WriteUInt",
+        "WriteUShort",
+    ]),
+    ("func", &[
+        "Bind", "Call", "IsBuiltIn", "IsByRef", "IsOptional", "IsVariadic", "MaxParams", "MinParams",
+        "Name",
+    ]),
+    ("enumerator", &[]),
+    ("menu", &[
+        "Add", "AddStandard", "Check", "ClickCount", "Default", "Delete", "Disable", "Enable",
+        "Handle", "Insert", "Rename", "SetColor", "SetIcon", "Show", "ToggleCheck", "ToggleEnable",
+        "Uncheck",
+    ]),
+    ("gui", &[
+        "__Enum", "__Item", "__New", "Add", "AddActiveX", "AddButton", "AddCheckBox", "AddComboBox",
+        "AddCustom", "AddDateTime", "AddDDL", "AddDropDownList", "AddEdit", "AddGroupBox",
+        "AddHotkey", "AddLink", "AddListBox", "AddListView", "AddMonthCal", "AddPic", "AddPicture",
+        "AddProgress", "AddRadio", "AddSlider", "AddStatusBar", "AddTab", "AddTab2", "AddTab3",
+        "AddText", "AddTreeView", "AddUpDown", "BackColor", "Destroy", "Flash", "FocusedCtrl",
+        "GetClientPos", "GetPos", "Hide", "Hwnd", "MarginX", "MarginY", "Maximize", "MenuBar",
+        "Minimize", "Move", "Name", "OnEvent", "Opt", "Restore", "SetFont", "Show", "Submit", "Title",
+    ]),
+    ("clipboardall", &["__New"]),
+    ("inputhook", &[
+        "__New", "BackspaceIsUndo", "CaseSensitive", "EndKey", "EndMods", "EndReason", "FindAnywhere",
+        "InProgress", "Input", "KeyOpt", "Match", "MinSendLevel", "NotifyNonText", "OnChar",
+        "OnEnd", "OnKeyDown", "OnKeyUp", "Start", "Stop", "Timeout", "VisibleNonText", "VisibleText",
+        "Wait",
+    ]),
+    ("regexmatchinfo", &["__Enum", "__Get", "__Item", "Count", "Len", "Mark", "Name", "Pos"]),
+    ("boundfunc", &[]),
+    ("closure", &[]),
+    ("class", &[]),
+];
+
+/// The members of the prototype of a class that are methods.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a class
+/// answers `HasMethod` with the names of the methods of it. The `__Item` of a
+/// class is not one of them, and the `__Class` of the value is not one
+/// either.
+const PROTOTYPE_METHODS: [(&str, &[&str]); 16] = [
+    ("object", &["Clone", "DefineProp", "DeleteProp", "GetOwnPropDesc", "HasOwnProp", "OwnProps"]),
+    ("map", &["__Enum", "__New", "Clear", "Clone", "Delete", "Get", "Has", "Set"]),
+    ("array", &[
+        "__Enum", "__New", "Clone", "Delete", "Get", "Has", "InsertAt", "Pop", "Push", "RemoveAt",
+    ]),
+    ("buffer", &["__New"]),
+    ("error", &["__New"]),
+    ("file", &[
+        "Close", "RawRead", "RawWrite", "Read", "ReadChar", "ReadDouble", "ReadFloat", "ReadInt",
+        "ReadInt64", "ReadLine", "ReadShort", "ReadUChar", "ReadUInt", "ReadUShort", "Seek", "Write",
+        "WriteChar", "WriteDouble", "WriteFloat", "WriteInt", "WriteInt64", "WriteLine", "WriteShort",
+        "WriteUChar", "WriteUInt", "WriteUShort",
+    ]),
+    ("func", &["Bind", "Call", "IsByRef", "IsOptional"]),
+    ("enumerator", &[]),
+    ("menu", &[
+        "Add", "AddStandard", "Check", "Delete", "Disable", "Enable", "Insert", "Rename", "SetColor",
+        "SetIcon", "Show", "ToggleCheck", "ToggleEnable", "Uncheck",
+    ]),
+    ("gui", &[
+        "__Enum", "__New", "Add", "AddActiveX", "AddButton", "AddCheckBox", "AddComboBox", "AddCustom",
+        "AddDateTime", "AddDDL", "AddDropDownList", "AddEdit", "AddGroupBox", "AddHotkey", "AddLink",
+        "AddListBox", "AddListView", "AddMonthCal", "AddPic", "AddPicture", "AddProgress", "AddRadio",
+        "AddSlider", "AddStatusBar", "AddTab", "AddTab2", "AddTab3", "AddText", "AddTreeView",
+        "AddUpDown", "Destroy", "Flash", "GetClientPos", "GetPos", "Hide", "Maximize", "Minimize",
+        "Move", "OnEvent", "Opt", "Restore", "SetFont", "Show", "Submit",
+    ]),
+    ("clipboardall", &["__New"]),
+    ("inputhook", &["__New", "KeyOpt", "Start", "Stop", "Wait"]),
+    ("regexmatchinfo", &["__Enum", "__Get", "Len", "Name", "Pos"]),
+    ("boundfunc", &[]),
+    ("closure", &[]),
+    ("class", &[]),
+];
+
+/// The classes whose prototype is not a prototype.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the prototype of an
+/// `Any`, of a `ComObject` and of a `ComValue` is not one: it has no method
+/// at all, and the refusal says 'This value of type "Prototype" has no method
+/// named "OwnProps".'.
+const NOT_A_PROTOTYPE: [&str; 4] = ["any", "comobject", "comvalue", "varref"];
+
 /// The name of a method of the base object, the way v2 spells it.
 ///
 /// The binary spells five of them with the class in front, and the four
@@ -434,6 +541,52 @@ fn the_spelling_of_the_property(class: &str, property: &str) -> String {
         .find(|(owner, name, _)| *owner == class && *name == lower)
         .map(|(_, _, spelled)| spelled.to_string())
         .unwrap_or_else(|| property.to_string())
+}
+
+/// The members that the prototype of a class owns.
+///
+/// The list is empty for a class that declares no member of its own: the
+/// classes of the errors other than the `Error`, and the `BoundFunc`, the
+/// `Closure` and the `Class`.
+pub(crate) fn the_members_of_the_prototype(class: &str) -> &'static [&'static str] {
+    let lower = class.to_lowercase();
+    PROTOTYPE_MEMBERS
+        .iter()
+        .find(|(owner, _)| *owner == lower)
+        .map(|(_, members)| *members)
+        .unwrap_or(&[])
+}
+
+/// The methods that the prototype of a class owns.
+pub(crate) fn the_methods_of_the_prototype(class: &str) -> &'static [&'static str] {
+    let lower = class.to_lowercase();
+    PROTOTYPE_METHODS
+        .iter()
+        .find(|(owner, _)| *owner == lower)
+        .map(|(_, methods)| *methods)
+        .unwrap_or(&[])
+}
+
+/// The property that the prototype of a class owns, if it owns one.
+///
+/// The members that are not methods are the properties of the class, and the
+/// `__Item` of a class is one of them.
+pub(crate) fn the_property_of_the_prototype(class: &str, property: &str) -> Option<&'static str> {
+    let lower = property.to_lowercase();
+    let methods = the_methods_of_the_prototype(class);
+    the_members_of_the_prototype(class)
+        .iter()
+        .find(|member| member.to_lowercase() == lower)
+        .filter(|_| !methods.iter().any(|method| method.to_lowercase() == lower))
+        .copied()
+}
+
+/// Whether the prototype of a class is a prototype at all.
+///
+/// The `Any`, the `ComObject` and the `ComValue` have no prototype: the value
+/// that stands for it has no method, and the refusal says so.
+pub(crate) fn the_prototype_is_not_one(class: &str) -> bool {
+    NOT_A_PROTOTYPE.contains(&class.to_lowercase().as_str())
 }
 
 /// The name of a method of a class, the way v2 names it in a failure.

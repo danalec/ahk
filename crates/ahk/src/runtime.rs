@@ -169,6 +169,20 @@ pub fn expected_the_kind(expected: TypeName, got: &str) -> String {
     )
 }
 
+/// The message v2 gives when the class of a value is not the one wanted.
+///
+/// The kind of the value is the name of its class: "Expected an Array but
+/// got a Prototype.". The article follows the first letter of the name.
+pub fn expected_the_class(expected: &str, got: &str) -> String {
+    format!(
+        "Expected a{} {} but got a{} {}.",
+        the_article_of(expected),
+        expected,
+        the_article_of(got),
+        got
+    )
+}
+
 /// The article that goes with the name of a kind: "an Object", "a String".
 fn the_article_of(name: &str) -> &'static str {
     match name.chars().next() {
@@ -3258,6 +3272,51 @@ impl<'a> Runtime<'a> {
                 return result;
             }
         }
+        // The prototype of an `Any`, of a `ComObject` and of a `ComValue` is
+        // not a prototype: it has no method at all.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the refusal says
+        // 'This value of type "Prototype" has no method named "OwnProps".',
+        // and the name of the member is not in it.
+        if let Some(class) = self.the_class_of_the_prototype(target) {
+            if crate::classes::the_prototype_is_not_one(&class) {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError {
+                        message: format!(
+                            "This value of type \"{}\" has no method named \"{}\".",
+                            self.the_type_of(target),
+                            name
+                        ),
+                        line,
+                    },
+                    Detail { what: String::new(), extra: String::new() },
+                ));
+            }
+        }
+        // A method of the class cannot be called on the prototype of it: the
+        // value is not an instance of the class.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31:
+        // `Map.Prototype.Get("a")` is refused with "Expected a Map but got a
+        // Prototype.".
+        if let Some(class) = self.the_class_of_the_prototype(target) {
+            if self.the_class_has_the_method(&class, name) {
+                let spelled = self.the_spelling_of_the_method_of_a_class(&class, name);
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError {
+                        message: expected_the_class(
+                            &self.the_spelling_of_the_class(&class),
+                            "Prototype",
+                        ),
+                        line,
+                    },
+                    Detail {
+                        what: self.the_name_of_a_member(&class, &spelled),
+                        extra: String::new(),
+                    },
+                ));
+            }
+        }
         // Every object has the methods of the base object.
         if let Some(result) = self.base_method(target, name, &values, line) {
             return result;
@@ -3616,6 +3675,156 @@ impl<'a> Runtime<'a> {
         Ok(Some(self.the_static_method(target, &values, line)?))
     }
 
+    /// The class that a value is the prototype of.
+    ///
+    /// The prototype of a class holds the members of the class, and the name
+    /// of the class is under the key of it.
+    fn the_class_of_the_prototype(&self, target: &Value) -> Option<String> {
+        let Value::Object(object) = target else { return None };
+        if object.borrow().class != "prototype" {
+            return None;
+        }
+        object
+            .borrow()
+            .value_of(CLASS_NAME)
+            .map(|name| name.to_text().to_lowercase())
+    }
+
+    /// The name of a class, the way v2 spells it.
+    ///
+    /// The class of the runtime has a spelling of its own, and the class of
+    /// the script is spelled the way the script wrote it.
+    fn the_spelling_of_the_class(&self, class: &str) -> String {
+        self.classes
+            .get(class)
+            .map(|definition| definition.name.clone())
+            .unwrap_or_else(|| crate::classes::the_spelling_of(class))
+    }
+
+    /// The name of a member of a class, the way v2 names it in a failure.
+    ///
+    /// The name of the class, the name of the prototype, and the name of the
+    /// member.
+    fn the_name_of_a_member(&self, class: &str, member: &str) -> String {
+        format!("{}.Prototype.{}", self.the_spelling_of_the_class(class), member)
+    }
+
+    /// The name of a method of a class, the way v2 spells it.
+    fn the_spelling_of_the_method_of_a_class(&self, class: &str, name: &str) -> String {
+        let lower = name.to_lowercase();
+        if let Some(definition) = self.classes.get(class) {
+            if let Some(method) = definition.methods.get(&lower) {
+                return method.name.clone();
+            }
+        }
+        crate::classes::the_method_of(class, &lower)
+            .map(|(spelled, _, _)| spelled.to_string())
+            .unwrap_or_else(|| name.to_string())
+    }
+
+    /// Whether the class has a method of that name.
+    ///
+    /// The methods of the base object are the ones every object has, and the
+    /// prototype of a class answers for them.
+    fn the_class_has_the_method(&self, class: &str, name: &str) -> bool {
+        let lower = name.to_lowercase();
+        if crate::classes::the_base_object_has_the_method(&lower) {
+            return false;
+        }
+        if self.classes.contains_key(class) {
+            return self.find_method(class, &lower).is_some();
+        }
+        crate::classes::the_methods_of_the_prototype(class)
+            .iter()
+            .any(|method| method.to_lowercase() == lower)
+    }
+
+    /// Whether the prototype of a class has a member of that name.
+    ///
+    /// The members of a class of the runtime are in the table of the
+    /// prototype, and the class of the script declares the methods of it.
+    fn the_prototype_has_the_member(&self, class: &str, name: &str) -> bool {
+        let lower = name.to_lowercase();
+        if let Some(definition) = self.classes.get(class) {
+            return definition
+                .methods
+                .values()
+                .any(|method| !method.is_static && method.name.to_lowercase() == lower);
+        }
+        crate::classes::the_members_of_the_prototype(class)
+            .iter()
+            .any(|member| member.to_lowercase() == lower)
+    }
+
+    /// The own properties of a prototype.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
+    /// class owns the class of the value and the members that the class
+    /// declares -- the methods of it and the properties of it. The prototype
+    /// of the base object owns the six members of the base object, and the
+    /// prototype of a class of the script owns the methods that the class
+    /// declares itself.
+    fn the_own_properties_of_a_prototype(&self, target: &Value) -> Vec<String> {
+        let mut names = vec!["__Class".to_string()];
+        let Some(class) = self.the_class_of_the_prototype(target) else { return names };
+        match self.classes.get(&class) {
+            // A class of the script: the methods that it declares itself.
+            // The static ones belong to the class and not to its prototype.
+            Some(definition) => {
+                for method in definition.methods.values() {
+                    if !method.is_static {
+                        names.push(method.name.clone());
+                    }
+                }
+            }
+            // A class of the runtime: the members of the class type.
+            None => {
+                for name in crate::classes::the_members_of_the_prototype(&class) {
+                    names.push((*name).to_string());
+                }
+            }
+        }
+        // The names are in the order of v2, and the case of them does not
+        // count.
+        names.sort_by_key(|name| name.to_lowercase());
+        names.dedup();
+        names
+    }
+
+    /// The value of an own property of a prototype.
+    ///
+    /// The class of the value is its own property, and a method of the class
+    /// is handed over as a function. A property of the class cannot be read
+    /// on the prototype of it, and the value of it is empty.
+    fn the_value_of_an_own_property_of_a_prototype(
+        &self,
+        target: &Value,
+        name: &str,
+    ) -> Value {
+        let lower = name.to_lowercase();
+        if lower == "__class" {
+            return Value::Text(self.the_class_of_the_value(target));
+        }
+        let Some(class) = self.the_class_of_the_prototype(target) else {
+            return Value::Text(String::new());
+        };
+        // A method of a class of the script.
+        if let Some((defining, method)) = self.find_method_in(&class, &lower) {
+            return self.method_reference(&defining, &method);
+        }
+        // A method of a class of the runtime.
+        if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &lower) {
+            return self.method_reference_of_a_class_type(&class, spelled, min, max);
+        }
+        // A method of the base object.
+        if crate::classes::the_base_object_has_the_method(&lower) {
+            let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&lower);
+            let (min, max) = crate::classes::the_arity_of("object", &lower).unwrap_or((0, 0));
+            return self.method_reference_of_the_base_object(&spelled, &lower, min, max);
+        }
+        Value::Text(String::new())
+    }
+
     /// The own properties of a class value.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the class value of
@@ -3830,6 +4039,15 @@ impl<'a> Runtime<'a> {
                 // refuses an object of a class of the runtime that has a
                 // copy of its own: the type of the argument is not the
                 // one that is wanted.
+                //
+                // The copy of a prototype is refused the same way: the
+                // prototype is not an object that can be copied.
+                if class == "prototype" {
+                    return Some(Err(RuntimeFailure::Error(RuntimeError {
+                        message: "Type mismatch.".to_string(),
+                        line,
+                    })));
+                }
                 if crate::classes::the_method_of(&class, "clone").is_some() {
                     return Some(Err(RuntimeFailure::Error(RuntimeError {
                         message: "Type mismatch.".to_string(),
@@ -3855,7 +4073,16 @@ impl<'a> Runtime<'a> {
                     // Every value carries its class, and the base object
                     // has the property of it.
                     || name.eq_ignore_ascii_case("__class");
-                let found = if self.class_name_of(target).is_some() {
+                // The prototype of a class has the properties of the class.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `Map.Prototype.HasProp("Count")` answers 1.
+                let found = if let Some(class) = self.the_class_of_the_prototype(target) {
+                    crate::classes::the_members_of_the_prototype(&class)
+                        .iter()
+                        .any(|member| member.to_lowercase() == name.to_lowercase())
+                        || name.eq_ignore_ascii_case("__class")
+                } else if self.class_name_of(target).is_some() {
                     // A class value has the prototype, the base and the
                     // static methods, and every value carries its class.
                     // The properties of the class are not its own.
@@ -3899,6 +4126,14 @@ impl<'a> Runtime<'a> {
                     // instances are not its own.
                     self.the_static_methods_of_a_class_value(target)
                         .contains(&name.to_lowercase())
+                } else if let Some(class) = self.the_class_of_the_prototype(target) {
+                    // The prototype of a class has the methods of the class.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-10-31.
+                    crate::classes::the_methods_of_the_prototype(&class)
+                        .iter()
+                        .any(|method| method.to_lowercase() == name.to_lowercase())
+                        || crate::classes::the_base_object_has_the_method(&name)
                 } else {
                     self.find_method(&class, &name).is_some()
                         || crate::classes::the_method_of(&class, &name).is_some()
@@ -3910,6 +4145,33 @@ impl<'a> Runtime<'a> {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
                     return Some(Err(missing()));
                 };
+                // The prototype of a class holds the methods of the class.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `Map.Prototype.GetMethod("Get")` is the method of the `Map`,
+                // and `Object.Prototype.GetMethod("Clone")` is the method of
+                // the base object.
+                if let Some(class) = self.the_class_of_the_prototype(target) {
+                    // A method of a class of the script.
+                    if let Some((defining, method)) = self.find_method_in(&class, &name) {
+                        return Some(Ok(self.method_reference(&defining, &method)));
+                    }
+                    // A method of a class type of the runtime.
+                    if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name) {
+                        let reference =
+                            self.method_reference_of_a_class_type(&class, spelled, min, max);
+                        return Some(Ok(reference));
+                    }
+                    // A method of the base object.
+                    if crate::classes::the_base_object_has_the_method(&name) {
+                        let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&name);
+                        let (min, max) = crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
+                        let reference =
+                            self.method_reference_of_the_base_object(&spelled, &name, min, max);
+                        return Some(Ok(reference));
+                    }
+                    return Some(Err(self.no_method(target, &name, line)));
+                }
                 let Some((defining, method)) = self.find_method_in(&class, &name) else {
                     return Some(Err(self.no_method(target, &name, line)));
                 };
@@ -3952,6 +4214,32 @@ impl<'a> Runtime<'a> {
                     return Some(Err(missing()));
                 };
                 let lower = name.to_lowercase();
+                // The prototype of a class owns the members of the class.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // prototype of a `Map` owns the class of the value and the
+                // twelve members of the class.
+                if let Some(class) = self.the_class_of_the_prototype(target) {
+                    // The prototype of an `Any`, of a `ComObject` and of a
+                    // `ComValue` is not a prototype: it has no method at all.
+                    if crate::classes::the_prototype_is_not_one(&class) {
+                        return Some(Err(RuntimeFailure::Detailed(
+                            RuntimeError {
+                                message: format!(
+                                    "This value of type \"{}\" has no method named \"HasOwnProp\".",
+                                    self.the_type_of(target)
+                                ),
+                                line,
+                            },
+                            Detail { what: String::new(), extra: String::new() },
+                        )));
+                    }
+                    let own = self
+                        .the_own_properties_of_a_prototype(target)
+                        .iter()
+                        .any(|name| name.to_lowercase() == lower);
+                    return Some(Ok(Value::Int(own as i64)));
+                }
                 // The members of a function are not own properties of it:
                 // they live on the prototype of the class of it.
                 //
@@ -3985,6 +4273,37 @@ impl<'a> Runtime<'a> {
                 // when the caller wants one value. The value of a property
                 // that is a descriptor is the value of the property, and
                 // not the descriptor.
+                // The prototype of a class owns the members of the class.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // prototype of a `Map` owns the class of the value and the
+                // twelve members of the class.
+                if let Some(class) = self.the_class_of_the_prototype(target) {
+                    // The prototype of an `Any`, of a `ComObject` and of a
+                    // `ComValue` is not a prototype: it has no method at all.
+                    if crate::classes::the_prototype_is_not_one(&class) {
+                        return Some(Err(RuntimeFailure::Detailed(
+                            RuntimeError {
+                                message: format!(
+                                    "This value of type \"{}\" has no method named \"OwnProps\".",
+                                    self.the_type_of(target)
+                                ),
+                                line,
+                            },
+                            Detail { what: String::new(), extra: String::new() },
+                        )));
+                    }
+                    let mut pairs: Vec<(Value, Value)> = Vec::new();
+                    for name in self.the_own_properties_of_a_prototype(target) {
+                        let value =
+                            self.the_value_of_an_own_property_of_a_prototype(target, &name);
+                        pairs.push((Value::Text(name), value));
+                    }
+                    return Some(Ok(crate::classes::enumerator::make(
+                        pairs,
+                        crate::classes::enumerator::Alone::TheKey,
+                    )));
+                }
                 // A class value owns the members that v2 gives it.
                 //
                 // Measured on the binary of v2.0.19 on 2026-10-31: the class
@@ -4562,6 +4881,39 @@ impl<'a> Runtime<'a> {
             return Err(self.no_property(target, &written, line));
         };
         let class = object.borrow().class.clone();
+        // The prototype of a class holds the members of the class, and the
+        // class that it is the prototype of is the one that answers for
+        // them.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Prototype.Get`
+        // is the method of the `Map`, and `Map.Prototype.Count` is refused.
+        let owner = self.the_class_of_the_prototype(target);
+        let members = owner.clone().unwrap_or_else(|| class.clone());
+        // A property of the class cannot be read on the prototype of it: the
+        // value is not an instance of the class.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31:
+        // `Map.Prototype.Count` is refused with "Expected a Map but got a
+        // Prototype.".
+        if let Some(class) = &owner {
+            let property =
+                crate::classes::the_property_of_the_prototype(class, &name).map(|spelled| spelled.to_string());
+            if let Some(spelled) = property {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError {
+                        message: expected_the_class(
+                            &self.the_spelling_of_the_class(class),
+                            "Prototype",
+                        ),
+                        line,
+                    },
+                    Detail {
+                        what: self.the_name_of_a_member(class, &format!("{spelled}.Get")),
+                        extra: String::new(),
+                    },
+                ));
+            }
+        }
         // A class type of the runtime has properties of its own, and it
         // owns the whole of them. A class value is not an instance of its
         // class, and the properties of the class do not answer it.
@@ -4621,14 +4973,27 @@ impl<'a> Runtime<'a> {
         // function whose first parameter is `this`. A class is not an
         // instance, and its methods are not handed over.
         if self.class_name_of(target).is_none() {
-            if let Some((defining, method)) = self.find_method_in(&class, &name) {
+            if let Some((defining, method)) = self.find_method_in(&members, &name) {
                 return Ok((self.method_reference(&defining, &method), false));
             }
             // A method of a class type of the runtime is a value too: v2
             // hands it over as a function whose first parameter is
             // `this`.
-            if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name) {
-                let reference = self.method_reference_of_a_class_type(&class, spelled, min, max);
+            if let Some((spelled, min, max)) = crate::classes::the_method_of(&members, &name) {
+                let reference =
+                    self.method_reference_of_a_class_type(&members, spelled, min, max);
+                return Ok((reference, false));
+            }
+            // A method of the base object is a value too, and the prototype
+            // of the base object is the one that owns it.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31:
+            // `Object.Prototype.Clone` is a function whose name is
+            // "Object.Prototype.Clone".
+            if owner.is_some() && crate::classes::the_base_object_has_the_method(&name) {
+                let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&name);
+                let (min, max) = crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
+                let reference = self.method_reference_of_the_base_object(&spelled, &name, min, max);
                 return Ok((reference, false));
             }
         }
@@ -4718,6 +5083,21 @@ impl<'a> Runtime<'a> {
                     error,
                     Detail { what: "ObjSetBase".to_string(), extra: String::new() },
                 ));
+        }
+        // The members of the prototype of a class are read-only: the class
+        // holds them, and the prototype is not the one that has them.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Prototype.Count := 5`
+        // is refused with "Property is read-only." and the name of the member
+        // in the `Extra`. A name that the prototype does not own is written,
+        // and it becomes an own property of the prototype.
+        if let Some(class) = self.the_class_of_the_prototype(target) {
+            if self.the_prototype_has_the_member(&class, &name) {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError { message: "Property is read-only.".to_string(), line },
+                    Detail { what: String::new(), extra: written.clone() },
+                ));
+            }
         }
         // A class type of the runtime owns the whole of its properties.
         if let Some(result) = crate::classes::set_property(&class, &name, target, value.clone(), self, line) {
