@@ -743,6 +743,15 @@ that asks for another one is refused with the reason.
 - **The compound operators read the property before they write it.** A
   property that is not there is an error that names it, and the setter of the
   object is not called.
+- **The name of a class is a name of the script.** It may not be the output
+  variable of an assignment, and the parser refuses the script when it reads
+  it. The classes of the runtime are names of the script too.
+- **A name may be declared only once.** The parser refuses the second
+  declaration of a name, and the message names the kind of the one that is
+  already there.
+- **A local that is declared is the local one.** A local that has no value
+  until something writes it has no value at all, and the global of the
+  script is not read in its place.
 
 ## Side Effects
 

@@ -29,7 +29,7 @@
 //! literal of an array between brackets.
 
 use alloc::boxed::Box;
-use alloc::collections::BTreeSet;
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
@@ -365,6 +365,21 @@ pub struct Parser {
     position: usize,
     /// The names the script defines: its functions and its classes.
     defined: BTreeSet<String>,
+    /// The classes of the script, and the name they were written with.
+    ///
+    /// The name of a class is a name of the script: it may not be the
+    /// output variable of an assignment.
+    classes: BTreeMap<String, String>,
+    /// The functions of the top level of the script.
+    ///
+    /// A name may be declared only once, and a function that is written
+    /// inside another one is not a name of the script.
+    functions: BTreeSet<String>,
+    /// The assignments of the script, one list for each function.
+    ///
+    /// The list of the top level is the first one, and the list of a
+    /// function is the one that is pushed when its body is read.
+    assignments: Vec<Vec<Assignment>>,
     /// The calls whose name is not a built-in. They are the functions of
     /// the script, and the script may define one further down, so the
     /// check waits for the end of the parse.
@@ -390,6 +405,18 @@ pub struct Parser {
     expressions: Vec<usize>,
 }
 
+/// An assignment of the script, and the place it was written.
+struct Assignment {
+    /// The name of the variable that is written.
+    name: String,
+    /// The operator of the assignment.
+    op: AssignOp,
+    /// The line of the assignment.
+    line: u32,
+    /// The column of the name.
+    column: u32,
+}
+
 /// The operator that may not follow a literal text.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the error that names
@@ -412,6 +439,9 @@ impl Parser {
             tokens,
             position: 0,
             defined: BTreeSet::new(),
+            classes: BTreeMap::new(),
+            functions: BTreeSet::new(),
+            assignments: vec![Vec::new()],
             pending: Vec::new(),
             parameters: Vec::new(),
             in_class: false,
@@ -585,14 +615,94 @@ impl Parser {
     pub fn parse_script(&mut self) -> Result<Vec<Node>, SyntaxError> {
         let mut statements = Vec::new();
         self.defined.clear();
+        self.classes.clear();
+        self.functions.clear();
         self.pending.clear();
+        self.assignments.clear();
+        self.assignments.push(Vec::new());
         self.skip_newlines();
         while self.peek().kind != TokenKind::Eof {
             statements.extend(self.parse_statement()?);
             self.skip_newlines();
         }
         self.check_pending_calls()?;
+        // The assignments of the top level live in the scope of the script,
+        // and the class that one of them names may be declared further down.
+        let assignments = core::mem::take(self.assignments.first_mut().expect("the top level"));
+        self.check_the_assignments(assignments)?;
         Ok(statements)
+    }
+
+    /// The refusal of the assignments whose output variable is a class.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the name of a class
+    /// is a name of the script, and it may not be the output variable of an
+    /// assignment. The plain assignment says that the class cannot be an
+    /// output variable, and the compound ones say that it cannot be
+    /// assigned a value.
+    fn check_the_assignments(&self, assignments: Vec<Assignment>) -> Result<(), SyntaxError> {
+        for assignment in assignments {
+            let key = assignment.name.to_lowercase();
+            let Some(class) = self.the_name_of_the_class(&key) else { continue };
+            let message = match assignment.op {
+                AssignOp::Set => format!(
+                    "This Class cannot be used as an output variable. Specifically: {class}"
+                ),
+                _ => format!("This Class cannot be assigned a value. Specifically: {class}"),
+            };
+            return Err(SyntaxError { message, line: assignment.line, column: assignment.column });
+        }
+        Ok(())
+    }
+
+    /// The name of the class of that name, the way v2 spells it.
+    ///
+    /// The classes of the script keep the name they were written with, and
+    /// the classes of the runtime have a spelling of their own.
+    fn the_name_of_the_class(&self, key: &str) -> Option<String> {
+        if let Some(name) = self.classes.get(key) {
+            return Some(name.clone());
+        }
+        if crate::classes::is_type(key) {
+            return Some(crate::classes::the_spelling_of(key));
+        }
+        None
+    }
+
+    /// The refusal of a name that is declared twice.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the declaration
+    /// that comes second is refused, and the message names the kind of the
+    /// one that is already there.
+    fn the_name_is_declared_twice(
+        &self,
+        name: &str,
+        is_a_class: bool,
+        line: u32,
+        column: u32,
+    ) -> Result<(), SyntaxError> {
+        let key = name.to_lowercase();
+        let message = if is_a_class {
+            if self.classes.contains_key(&key) {
+                Some("This class declaration conflicts with an existing Class.")
+            } else if self.functions.contains(&key) {
+                Some("This class declaration conflicts with an existing Func.")
+            } else {
+                None
+            }
+        } else if self.classes.contains_key(&key) {
+            Some("This function declaration conflicts with an existing Class.")
+        } else if self.functions.contains(&key) {
+            Some("This function declaration conflicts with an existing Func.")
+        } else {
+            None
+        };
+        let Some(message) = message else { return Ok(()) };
+        Err(SyntaxError {
+            message: format!("{message} Specifically: {name}"),
+            line,
+            column,
+        })
     }
 
     /// The check of the calls whose name is not a built-in.
@@ -923,10 +1033,25 @@ impl Parser {
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
                 self.the_expression_is_done(self.position, false)?;
+                let at_the_top = self.parameters.is_empty();
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
+                self.assignments.push(Vec::new());
                 let body = self.parse_block("function", name_token.line)?;
+                let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
+                self.assignments.pop();
                 self.parameters.pop();
                 let declarations = the_declarations_of_a_body(&body)?;
+                // The assignments of the function that live in the scope of
+                // the script are the ones of the names it declares global.
+                for assignment in assignments {
+                    if declarations.globals.contains(&assignment.name.to_lowercase()) {
+                        self.check_the_assignments(vec![assignment])?;
+                    }
+                }
+                if at_the_top {
+                    self.the_name_is_declared_twice(&name_token.value, false, name_token.line, name_token.column)?;
+                    self.functions.insert(name_token.value.to_lowercase());
+                }
                 self.defined.insert(name_token.value.to_lowercase());
                 return Ok(vec![Node::FunctionDef {
                     name: name_token.value,
@@ -1156,6 +1281,7 @@ impl Parser {
         self.next();
         let value = self.the_expression_of_a_statement()?;
         self.end_of_statement()?;
+        self.the_assignment_is_recorded(&name_token.value, op, name_token.line, name_token.column);
         Ok(Node::Assign { name: name_token.value, op, value: Box::new(value), line: name_token.line })
     }
 
@@ -1743,6 +1869,8 @@ impl Parser {
                 });
             }
         }
+        self.the_name_is_declared_twice(&name_token.value, true, name_token.line, name_token.column)?;
+        self.classes.insert(name_token.value.to_lowercase(), name_token.value.clone());
         self.defined.insert(name_token.value.to_lowercase());
         Ok(Node::ClassDef {
             name: name_token.value,
@@ -1832,9 +1960,17 @@ impl Parser {
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
+                self.assignments.push(Vec::new());
                 let body = self.parse_block("method", name_token.line)?;
+                let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
+                self.assignments.pop();
                 self.parameters.pop();
                 let declarations = the_declarations_of_a_body(&body)?;
+                for assignment in assignments {
+                    if declarations.globals.contains(&assignment.name.to_lowercase()) {
+                        self.check_the_assignments(vec![assignment])?;
+                    }
+                }
                 methods.push(MethodDef {
                     name: name_token.value,
                     parameters,
@@ -2452,6 +2588,16 @@ impl Parser {
         Ok(node)
     }
 
+    /// The record of an assignment, for the check of the classes.
+    ///
+    /// The name of a class is a name of the script, and it may not be the
+    /// output variable of an assignment. The check waits for the end of
+    /// the parse: the class may be declared further down.
+    fn the_assignment_is_recorded(&mut self, name: &str, op: AssignOp, line: u32, column: u32) {
+        let Some(list) = self.assignments.last_mut() else { return };
+        list.push(Assignment { name: name.to_string(), op, line, column });
+    }
+
     /// Whether the token is the operator of an assignment.
     fn at_an_assignment_operator(&self) -> bool {
         let token = self.peek();
@@ -2476,7 +2622,10 @@ impl Parser {
         let end = self.position;
         let line = target.line();
         Ok(match target {
-            Node::Var { name, .. } => Node::Assign { name, op, value: Box::new(value), line },
+            Node::Var { name, .. } => {
+                self.the_assignment_is_recorded(&name, op, line, operator.column);
+                Node::Assign { name, op, value: Box::new(value), line }
+            }
             Node::Property { target, name, .. } => {
                 Node::AssignProperty { target, name, op, value: Box::new(value), line }
             }

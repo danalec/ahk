@@ -2191,7 +2191,82 @@ impl<'a> Runtime<'a> {
                 None => continue,
             }
         }
+        // A name that the function declares local is the local one, and not
+        // the global of the script: a local that has no value yet has no
+        // value at all.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `local g` and a
+        // global `g` are two names, and the local is the one that the
+        // function reads.
+        if self.is_declared_local(&name) {
+            return None;
+        }
         self.variables.get(&name).cloned()
+    }
+
+    /// Whether the name is one that the function that runs declares local.
+    ///
+    /// A name that the function declares global is not one of them, and a
+    /// name that the function does not name is not one either: a function
+    /// that assumes the scope of the script says it for every name it does
+    /// not name.
+    fn is_declared_local(&self, name: &str) -> bool {
+        let Some(frame) = self.declarations.last() else { return false };
+        frame.locals.contains(name)
+    }
+
+    /// The refusal of a local that takes the class of its own name.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: `foo := Foo()` in a
+    /// function is refused, and so is `foo := Foo`, and a local that is
+    /// declared says the same words without the hint. The check is of a
+    /// function: at the top level the parser refuses the assignment when it
+    /// reads the script.
+    fn the_class_is_not_written(
+        &self,
+        name: &str,
+        value: &Value,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        if self.declarations.is_empty() {
+            return Ok(());
+        }
+        let key = the_key_of(name);
+        if self.lives_in_the_script(&key) {
+            return Ok(());
+        }
+        let Some(class) = self.the_class_of_the_name(&key) else { return Ok(()) };
+        if self.the_class_key_of_the_value(value).as_deref() != Some(class.as_str()) {
+            return Ok(());
+        }
+        let message = if self.is_declared_local(&key) {
+            "This local variable has not been assigned a value.".to_string()
+        } else {
+            "This local variable has not been assigned a value. A global declaration inside the function may be required.".to_string()
+        };
+        Err(RuntimeFailure::Error(RuntimeError { message, line }))
+    }
+
+    /// The class of that name, when the name is the name of a class.
+    ///
+    /// The classes of the script and the classes of the runtime are both
+    /// names of the script, and the key of the table is the name in lower
+    /// case.
+    fn the_class_of_the_name(&self, name: &str) -> Option<String> {
+        if self.classes.contains_key(name) || crate::classes::is_type(name) {
+            return Some(name.to_string());
+        }
+        None
+    }
+
+    /// The class of a value, in the key of the table of the classes.
+    ///
+    /// The class of an instance is the class it is an instance of, and the
+    /// class of a class is the class itself. The name that v2 shows is
+    /// another one: a class is a "Class" there.
+    fn the_class_key_of_the_value(&self, value: &Value) -> Option<String> {
+        let Value::Object(object) = value else { return None };
+        Some(object.borrow().class.clone())
     }
 
     /// The alias of this name, if the name is one.
@@ -4225,6 +4300,10 @@ impl<'a> Runtime<'a> {
             }
             None => {
                 let current = self.lookup(name);
+                // Measured on the binary of v2.0.19 on 2026-10-31: the name
+                // of a class is a name of the script, and a local that has
+                // that name may not hold the class or an instance of it.
+                self.the_class_is_not_written(name, &value, line)?;
                 let stored = self.apply_assign(op, name, current, value, line)?;
                 self.assign(name, stored.clone());
                 Ok(stored)

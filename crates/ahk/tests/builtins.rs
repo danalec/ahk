@@ -752,12 +752,14 @@ fn a_path_that_wants_an_output_variable_says_so() {
 
 #[test]
 fn an_object_can_be_asked_about() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of the
+    // class is a name of the script, and the variable may not have it.
     let report = run(concat!(
         "class Box {\n  x := 1\n}\n",
-        "box := Box()",
-        "\na := HasProp(box, \"x\")",
-        "\nb := HasProp(box, \"y\")",
-        "\nc := HasBase(box, \"Box\")",
+        "thing := Box()",
+        "\na := HasProp(thing, \"x\")",
+        "\nb := HasProp(thing, \"y\")",
+        "\nc := HasBase(thing, \"Box\")",
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "a"), 1);

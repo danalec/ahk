@@ -94,14 +94,17 @@ impl Native for Fake {}
 
 #[test]
 fn a_gui_is_made() {
-    let report = run("gui := Gui()");
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a class
+    // is a name of the script, and the variable may not have it: the case
+    // of the name does not count.
+    let report = run("window := Gui()");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(class_of(&report, "gui"), "gui");
+    assert_eq!(class_of(&report, "window"), "gui");
 }
 
 #[test]
 fn a_gui_that_shows_itself_says_why_it_cannot() {
-    let report = run("gui := Gui()\ngui.Show()");
+    let report = run("window := Gui()\nwindow.Show()");
     assert!(!report.ok);
     assert_eq!(
         error_of(&report),
@@ -112,14 +115,14 @@ fn a_gui_that_shows_itself_says_why_it_cannot() {
 
 #[test]
 fn a_menu_is_made() {
-    let report = run("menu := Menu()");
+    let report = run("bar := Menu()");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(class_of(&report, "menu"), "menu");
+    assert_eq!(class_of(&report, "bar"), "menu");
 }
 
 #[test]
 fn a_menu_that_adds_an_item_says_why_it_cannot() {
-    let report = run("menu := Menu()\nmenu.Add(\"File\")");
+    let report = run("bar := Menu()\nbar.Add(\"File\")");
     assert!(!report.ok);
     let error = error_of(&report);
     assert!(error.contains("Menu cannot add an item to the menu bar"), "{error}");
@@ -129,7 +132,7 @@ fn a_menu_that_adds_an_item_says_why_it_cannot() {
 
 #[test]
 fn a_property_of_a_gui_says_why_it_cannot() {
-    let report = run("gui := Gui()\ntitle := gui.Title");
+    let report = run("window := Gui()\ntitle := window.Title");
     assert!(!report.ok);
     let error = error_of(&report);
     assert!(error.contains("Gui cannot read or set the title of the window"), "{error}");
@@ -138,7 +141,7 @@ fn a_property_of_a_gui_says_why_it_cannot() {
 
 #[test]
 fn a_property_of_a_gui_that_is_written_says_why_it_cannot() {
-    let report = run("gui := Gui()\ngui.Title := \"the window\"");
+    let report = run("window := Gui()\nwindow.Title := \"the window\"");
     assert!(!report.ok);
     let error = error_of(&report);
     assert!(error.contains("Gui cannot read or set the title of the window"), "{error}");
@@ -147,7 +150,7 @@ fn a_property_of_a_gui_that_is_written_says_why_it_cannot() {
 
 #[test]
 fn a_name_that_is_not_in_the_table_is_not_a_method() {
-    let report = run("gui := Gui()\ngui.Focus()");
+    let report = run("window := Gui()\nwindow.Focus()");
     assert!(!report.ok);
     assert_eq!(
         error_of(&report),
@@ -158,7 +161,7 @@ fn a_name_that_is_not_in_the_table_is_not_a_method() {
 
 #[test]
 fn a_name_that_is_not_in_the_table_is_not_a_property() {
-    let report = run("gui := Gui()\nvalue := gui.Nonsense");
+    let report = run("window := Gui()\nvalue := window.Nonsense");
     assert!(!report.ok);
     assert_eq!(
         error_of(&report),

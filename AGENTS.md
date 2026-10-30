@@ -3074,3 +3074,48 @@ resolved against the working directory, and the working directory of v2 is the
 folder of the script; the script of the runner has no file, so the tree
 resolves it against the folder where the run began. And a loop over a folder
 that is not there hangs v2, where the tree fails with the reason.
+
+
+## 61. The name of a class is a name of the script, and a name is declared once
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree took the name of a
+class for a name that a variable may have, and it took a name that is declared
+twice. v2 takes neither, and it says so at the load.
+
+- **The name of a class is a name of the script, and it may not be the output
+  variable of an assignment.** The refusal is at the load, and it is the plain
+  assignment that says "This Class cannot be used as an output variable.
+  Specifically: Foo". The compound assignments say that the class cannot be
+  assigned a value: "This Class cannot be assigned a value. Specifically:
+  Foo". The case of the name does not count: `foo` is the name of the class
+  `Foo`.
+- **The classes of the runtime are names of the script too.** `Map := 5` is
+  refused the same way, and so is `gui := Gui()` and `menu := Menu()`.
+- **A name may be declared only once.** A class that is named like a function
+  is refused with "This class declaration conflicts with an existing Func.
+  Specifically: f", a function that is named like a class with "This
+  function declaration conflicts with an existing Class. Specifically: f", and
+  the two declarations of the same kind with the words of their own kind:
+  "This class declaration conflicts with an existing Class. Specifically: f"
+  and "This function declaration conflicts with an existing Func.
+  Specifically: f".
+- **A function that is written inside another one is not a name of the
+  script.** Two functions with the same name may live in two functions, and
+  the name of a nested one does not conflict with the name of a function of
+  the top level.
+- **In a function, a local may not hold the class of its own name.** `foo :=
+  Foo()` is refused, and so is `foo := Foo`, and the words are the words of a
+  local that has no value: "This local variable has not been assigned a
+  value. A global declaration inside the function may be required." A local
+  that is declared says the same words without the hint, and a local with
+  another name takes the instance without a word.
+- **A local that is declared is the local, and not the global.** Measured:
+  `local g` and a global `g` are two names, and the function reads the local,
+  which has no value until something writes it: "This local variable has not
+  been assigned a value." A name that the function does not declare is the
+  global one, and the tree read the global where v2 reads the local.
+
+Three cases of the tree used a name that v2 refuses, and they were renamed:
+the object of the case of `HasProp`, the window of the cases of the `Gui` and
+the menu of the cases of the `Menu`. The dialect is the one that decides what
+a case may write.

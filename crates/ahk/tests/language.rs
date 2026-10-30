@@ -3055,8 +3055,10 @@ fn every_value_carries_its_class() {
 
 #[test]
 fn the_class_of_an_object_is_the_class_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a class
+    // is a name of the script, and the variable may not have it.
     let (report, _desktop) = run(
-        "class Thing {\n}\nthing := Thing()\nmap := Map()\nMsgBox thing.__Class \" \" map.__Class \" \" Abs.__Class",
+        "class Thing {\n}\ninstance := Thing()\nm := Map()\nMsgBox instance.__Class \" \" m.__Class \" \" Abs.__Class",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Thing Map Func"]);
@@ -3246,6 +3248,119 @@ fn a_method_needs_its_braces() {
     assert_eq!(
         error.message,
         "Not a valid method, class or property definition.\n     Specifically: M()"
+    );
+}
+
+#[test]
+fn the_name_of_a_class_is_not_the_name_of_a_variable() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a class
+    // is a name of the script, and it may not be the output variable of an
+    // assignment. The refusal is at the load.
+    let error = parse("class Foo {\n}\nfoo := 5").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This Class cannot be used as an output variable. Specifically: Foo"
+    );
+}
+
+#[test]
+fn the_name_of_a_class_is_not_written_by_a_compound_assignment() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the compound
+    // assignment says that the class cannot be assigned a value.
+    let error = parse("class Foo {\n}\nfoo .= \"x\"").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This Class cannot be assigned a value. Specifically: Foo"
+    );
+}
+
+#[test]
+fn the_name_of_a_class_of_the_runtime_is_not_the_name_of_a_variable() {
+    let error = parse("Map := 5").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This Class cannot be used as an output variable. Specifically: Map"
+    );
+}
+
+#[test]
+fn a_class_may_not_be_named_like_a_function() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a name may be
+    // declared only once, and the message names the kind of the one that is
+    // already there.
+    let error = parse("f() {\n}\nclass f {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This class declaration conflicts with an existing Func. Specifically: f"
+    );
+}
+
+#[test]
+fn a_function_may_not_be_named_like_a_class() {
+    let error = parse("class f {\n}\nf() {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This function declaration conflicts with an existing Class. Specifically: f"
+    );
+}
+
+#[test]
+fn a_name_may_be_declared_only_once() {
+    let error = parse("class f {\n}\nclass f {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This class declaration conflicts with an existing Class. Specifically: f"
+    );
+}
+
+#[test]
+fn a_local_that_is_declared_is_not_the_global() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `local g` and a
+    // global `g` are two names, and the local is the one that the function
+    // reads.
+    let (report, _desktop) = run("g := \"G\"\nf() {\n    local g\n    return g\n}\nf()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This local variable has not been assigned a value.")
+    );
+}
+
+#[test]
+fn a_local_that_is_declared_may_hold_its_own_value() {
+    let (report, _desktop) = run(concat!(
+        "g := \"G\"\n",
+        "f() {\n    local g\n    g := \"L\"\n    return g\n}\n",
+        "MsgBox f()",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["L"]);
+}
+
+#[test]
+fn a_local_may_not_hold_the_class_of_its_name() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a class
+    // is a name of the script, and a local that has that name may not hold
+    // the class or an instance of it.
+    let (report, _desktop) = run("class Foo {\n}\nf() {\n    foo := Foo()\n    return foo\n}\nf()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some(
+            "This local variable has not been assigned a value. A global declaration inside the function may be required."
+        )
+    );
+}
+
+#[test]
+fn a_local_that_is_declared_may_not_hold_the_class_of_its_name_either() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a local that is
+    // declared says the same words without the hint.
+    let (report, _desktop) = run("class Foo {\n}\nf() {\n    local foo\n    foo := Foo()\n    return foo\n}\nf()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This local variable has not been assigned a value.")
     );
 }
 
