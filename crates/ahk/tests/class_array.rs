@@ -294,7 +294,7 @@ fn the_own_properties_of_an_array_are_the_ones_the_script_gave_it() {
     // The own properties of v2 are an enumerator too, and the names are
     // read one by one.
     let report = run(
-        "a := Array()\na.DefineProp(\"x\", 7)\n\
+        "a := Array()\na.DefineProp(\"x\", {Value: 7})\n\
          names := a.OwnProps()\nfirst := \"\"\nnames.Call(&first)\n\
          MsgBox first . \" \" . a.x",
     );

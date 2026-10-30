@@ -613,16 +613,88 @@ fn the_lines_of_a_file_are_asked_of_the_desktop() {
 
 #[test]
 fn a_text_is_cut_at_the_delimiters() {
-    let report = run("pieces := StrSplit(\"a,b,c\", \",\")");
-    assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        value_of(&report, "pieces"),
-        Value::List(vec![
-            Value::Text("a".into()),
-            Value::Text("b".into()),
-            Value::Text("c".into()),
-        ])
+    let report = run(
+        "pieces := StrSplit(\"a,b,c\", \",\")\n\
+         kind := Type(pieces)\nlength := pieces.Length\nfirst := pieces[1]",
     );
+    assert!(report.ok, "{:?}", report.error);
+    // Measured on the binary of v2.0.19 on 2026-10-31: the answer of
+    // `StrSplit` is an array of v2, and not a list of the tree.
+    assert_eq!(value_of(&report, "kind"), Value::Text("Array".into()));
+    assert_eq!(int_of(&report, "length"), 3);
+    assert_eq!(value_of(&report, "first"), Value::Text("a".into()));
+}
+
+#[test]
+fn the_delimiters_of_a_text_are_literals() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the text is cut
+    // where a delimiter is, and a delimiter is a literal and not a set of
+    // characters.
+    let report = run(
+        "one := StrSplit(\"aXXb\", \"XX\")\n\
+         two := StrSplit(\"a.b.c\", \"..\")\n\
+         first := one[1] . \",\" . one[2]\n\
+         second := two[1]",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "first"), Value::Text("a,b".into()));
+    assert_eq!(value_of(&report, "second"), Value::Text("a.b.c".into()));
+}
+
+#[test]
+fn the_delimiters_of_a_text_may_be_an_array() {
+    let report = run(
+        "pieces := StrSplit(\"a.b-c\", [\".\", \"-\"])\n\
+         first := pieces[1] . \",\" . pieces[2] . \",\" . pieces[3]",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "first"), Value::Text("a,b,c".into()));
+}
+
+#[test]
+fn the_characters_to_omit_are_cut_from_the_pieces() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the characters to
+    // omit are cut from the beginning and the end of every piece.
+    let report = run(
+        "pieces := StrSplit(\"a,b,c\", \",\", \"ac\")\n\
+         first := \"[\" pieces[1] \"]\" . \"[\" pieces[2] \"]\" . \"[\" pieces[3] \"]\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "first"), Value::Text("[][b][]".into()));
+}
+
+#[test]
+fn the_number_of_the_pieces_says_how_many_times_the_text_is_cut() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the text is cut a
+    // maximum of MaxParts-1 times, and the rest of the text is the last
+    // piece.
+    let report = run(
+        "two := StrSplit(\"a,b,c\", \",\", \"\", 2)\n\
+         one := StrSplit(\"a,b,c\", \",\", \"\", 1)\n\
+         none := StrSplit(\"a,b,c\", \",\", \"\", 0)\n\
+         first := two[1] . \",\" . two[2] . \" \" . one[1] . \" \" . none.Length",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "first"), Value::Text("a,b,c a,b,c 0".into()));
+}
+
+#[test]
+fn a_blank_delimiter_makes_a_piece_of_every_character() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: when the
+    // delimiters are blank every character of the text is a piece, and
+    // the characters to omit are not pieces at all.
+    let report = run(
+        "pieces := StrSplit(\"a b\", \"\", \" \")\n\
+         first := pieces[1] . pieces[2]",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "first"), Value::Text("ab".into()));
+}
+
+#[test]
+fn the_delimiters_that_are_not_a_text_are_refused() {
+    let report = run("pieces := StrSplit(\"a,b\", Map())");
+    assert_eq!(failure_of(&report), "Parameter #2 of StrSplit is invalid.");
 }
 
 #[test]
@@ -978,6 +1050,97 @@ fn the_state_of_a_map_is_not_a_property_of_it() {
 fn the_name_that_counts_the_references_is_not_one_of_a_script() {
     let report = run("class Box {\n}\nb := Box()\na := ObjAddRef(b)");
     assert_eq!(failure_of(&report), "Parameter #1 of ObjAddRef is invalid.");
+}
+
+#[test]
+fn a_plain_value_is_not_a_descriptor() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the second
+    // parameter of `DefineProp` is a descriptor, and a value that is not
+    // one is refused with the reason.
+    let report = run("o := {}\no.DefineProp(\"x\", 1)");
+    assert_eq!(failure_of(&report), "Parameter #2 of Object.Prototype.DefineProp is invalid.");
+}
+
+#[test]
+fn an_object_without_a_member_is_not_a_descriptor() {
+    let report = run("o := {}\no.DefineProp(\"x\", {y: 1})");
+    assert_eq!(failure_of(&report), "Parameter #2 of Object.Prototype.DefineProp is invalid.");
+}
+
+#[test]
+fn a_descriptor_of_a_value_holds_the_value() {
+    let report = run("o := {}\no.DefineProp(\"x\", {Value: 5})\na := o.x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(5));
+}
+
+#[test]
+fn the_answer_of_a_defined_property_is_the_object() {
+    let report = run("o := {}\nr := o.DefineProp(\"x\", {Value: 5})\na := r == o");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 1);
+}
+
+#[test]
+fn a_descriptor_of_a_getter_is_asked_for_the_value() {
+    let report = run("o := {}\no.DefineProp(\"x\", {Get: (f) => 42})\na := o.x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(42));
+}
+
+#[test]
+fn the_getter_of_a_descriptor_is_asked_with_the_object() {
+    let report = run("o := {}\no.DefineProp(\"x\", {Get: (f) => Type(f)})\na := o.x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("Object".into()));
+}
+
+#[test]
+fn a_descriptor_of_a_setter_is_asked_for_the_write() {
+    let report = run("o := {}\no.DefineProp(\"x\", {Set: (f, v) => 0})\no.x := 3");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_property_without_a_setter_is_read_only() {
+    let report = run("o := {}\no.DefineProp(\"x\", {Get: (f) => 42})\no.x := 3");
+    assert_eq!(failure_of(&report), "Property is read-only.");
+}
+
+#[test]
+fn a_descriptor_of_a_call_is_called() {
+    let report = run("o := {}\no.DefineProp(\"x\", {Call: (f, a) => a * 2})\na := o.x(5)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(10));
+}
+
+#[test]
+fn the_descriptor_that_comes_back_is_an_object() {
+    let report = run(
+        "o := {}\no.DefineProp(\"x\", {Value: 5})\n\
+         a := Type(o.GetOwnPropDesc(\"x\")) . \" \" . o.GetOwnPropDesc(\"x\").Value",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("Object 5".into()));
+}
+
+#[test]
+fn the_descriptor_of_a_property_that_is_not_there_is_refused() {
+    let report = run("o := {}\na := o.GetOwnPropDesc(\"nope\")");
+    assert_eq!(
+        failure_of(&report),
+        "This value of type \"Object\" has no property named \"nope\"."
+    );
+}
+
+#[test]
+fn the_take_away_of_a_property_answers_its_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `DeleteProp`
+    // answers the value of the property that is taken away.
+    let report = run("o := {}\no.DefineProp(\"x\", {Value: 7})\na := o.DeleteProp(\"x\")\nb := o.DeleteProp(\"x\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(7));
+    assert_eq!(value_of(&report, "b"), Value::Text("".into()));
 }
 
 #[test]

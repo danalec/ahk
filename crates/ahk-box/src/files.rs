@@ -145,11 +145,29 @@ impl ahk::desktop::Files for LabDesktop {
     }
     fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
         let mut files: Vec<String> = Vec::new();
-        crate::desktop::walk_the_folder(Path::new(folder), pattern, &mode.to_ascii_uppercase(), &mut files)?;
+        // v2 takes a path with a wildcard: the folder of the path is where
+        // the files are, and the rest of it is the pattern of the names.
+        // A folder that is not absolute is a subfolder of the folder the
+        // script runs in.
+        let (where_to_look, name) = split_the_pattern(pattern);
+        let where_to_look = if where_to_look.is_empty() {
+            PathBuf::from(folder)
+        } else if Path::new(&where_to_look).is_absolute() {
+            PathBuf::from(&where_to_look)
+        } else {
+            PathBuf::from(folder).join(&where_to_look)
+        };
+        crate::desktop::walk_the_folder(&where_to_look, &name, &mode.to_ascii_uppercase(), &mut files)?;
         // The order of a directory is not the order of its name, and a
         // script that loops over the files wants the same order every
         // time.
-        files.sort();
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the files of a
+        // folder of NTFS come in the order of the name with the case taken
+        // away, and the tree sorts them the same way.
+        files.sort_by(|one, other| {
+            one.to_uppercase().cmp(&other.to_uppercase()).then_with(|| one.cmp(other))
+        });
         Ok(files)
     }
     fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
@@ -1129,6 +1147,57 @@ mod tests {
         desktop.ini_write(&path, "Two", "Key", "b").expect("the write");
         let sections = desktop.ini_read(&path, "", "", "").expect("the sections");
         assert_eq!(sections, "One\nTwo");
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    /// The order of the files of a folder is the order of the name with
+    /// the case taken away, and the names are compared byte-wise.
+    /// Measured on the binary of v2.0.19 on 2026-10-31.
+    #[test]
+    fn the_files_of_a_folder_come_in_the_order_of_v2() {
+        let folder = scratch("order");
+        for name in ["b.txt", "A.txt", "a1.txt", "ab.txt", "a_b.txt", "10.txt", "2.txt"] {
+            file_of(&folder, name);
+        }
+        let mut desktop = LabDesktop::new();
+        let files = desktop
+            .list_files(&folder.to_string_lossy(), "*", "")
+            .expect("the files of the folder");
+        let names: Vec<String> = files
+            .iter()
+            .map(|file| {
+                Path::new(file)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(
+            names,
+            vec!["10.txt", "2.txt", "A.txt", "a1.txt", "ab.txt", "a_b.txt", "b.txt"]
+        );
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    /// The pattern of a loop over the files is a path: the folder of it is
+    /// where the files are, and the rest of it is the name.
+    /// Measured on the binary of v2.0.19 on 2026-10-31.
+    #[test]
+    fn the_pattern_of_the_files_is_a_path() {
+        let folder = scratch("pattern-path");
+        let sub = folder.join("sub");
+        fs::create_dir_all(&sub).expect("the subfolder");
+        file_of(&folder, "a.txt");
+        file_of(&sub, "b.txt");
+        let mut desktop = LabDesktop::new();
+        let separator = std::path::MAIN_SEPARATOR;
+        let pattern = format!("{}{separator}sub{separator}*", folder.to_string_lossy());
+        let files = desktop
+            .list_files(&folder.to_string_lossy(), &pattern, "")
+            .expect("the files of the folder");
+        assert_eq!(files.len(), 1);
+        assert!(files[0].ends_with("b.txt"), "{files:?}");
         let _ = fs::remove_dir_all(&folder);
     }
 }

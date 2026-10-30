@@ -292,6 +292,14 @@ fn without_the_extension(path: &str, extension: &str) -> String {
 /// has a space in it, so that a script cannot reach it by name.
 pub(crate) const BASE: &str = "object base";
 
+/// The class of the descriptor of a property.
+///
+/// The descriptor of v2 is an object with the members `Value`, `Get`,
+/// `Set` and `Call`. The tree keeps the descriptor under a class of its
+/// own, so that the read, the write and the call of the property know
+/// that it is a descriptor and not a value.
+pub(crate) const DESCRIPTOR: &str = "property descriptor";
+
 /// The class that has the method a reference points at.
 ///
 /// The key has a space in it, so that a script cannot reach it by name.
@@ -2686,6 +2694,18 @@ impl<'a> Runtime<'a> {
             }
         }
         let values = self.evaluate_all(arguments)?;
+        // A property that is a descriptor may have a call of its own: the
+        // property of the object shadows the method of the class.
+        if let Some(call) = self.the_call_of_the_descriptor(target, name) {
+            return self.call_the_function(&call, target, &values, line);
+        }
+        // A property that has no call of its own may be a function: v2
+        // asks the getter for the value of it and calls that.
+        if let Some(value) = self.the_value_of_the_descriptor_for_a_call(target, name, line)? {
+            if self.is_a_function(&value) {
+                return self.call_the_function(&value, target, &values, line);
+            }
+        }
         let class = match target {
             Value::Object(object) => object.borrow().class.clone(),
             _ => String::new(),
@@ -2919,14 +2939,31 @@ impl<'a> Runtime<'a> {
             "ownprops" => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the own
                 // properties of v2 are an enumerator, and it gives the name
-                // when the caller wants one value.
-                let pairs: Vec<(Value, Value)> = object
+                // when the caller wants one value. The value of a property
+                // that is a descriptor is the value of the property, and
+                // not the descriptor.
+                let names: Vec<String> = object
                     .borrow()
                     .properties
-                    .iter()
-                    .filter(|(name, _)| name.as_str() != BASE)
-                    .map(|(name, value)| (Value::Text(name.clone()), value.clone()))
+                    .keys()
+                    .filter(|name| name.as_str() != BASE)
+                    .cloned()
                     .collect();
+                let mut pairs: Vec<(Value, Value)> = Vec::with_capacity(names.len());
+                for name in names {
+                    let value = object
+                        .borrow()
+                        .properties
+                        .get(&name)
+                        .cloned()
+                        .unwrap_or(Value::Text(String::new()));
+                    let value = match self.the_value_of_the_descriptor(&value, target, &name, line) {
+                        Ok(Some(value)) => value,
+                        Ok(None) => value,
+                        Err(_) => Value::Text(String::new()),
+                    };
+                    pairs.push((Value::Text(name), value));
+                }
                 Some(Ok(crate::classes::enumerator::make(
                     pairs,
                     crate::classes::enumerator::Alone::TheKey,
@@ -2936,16 +2973,32 @@ impl<'a> Runtime<'a> {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
                     return Some(Err(missing()));
                 };
-                let value = arguments.get(1).cloned().unwrap_or(Value::Text(String::new()));
-                object.borrow_mut().properties.insert(name.to_lowercase(), value);
-                Some(Ok(Value::Int(1)))
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // second parameter is a descriptor, and a value that is
+                // not one is refused with the reason.
+                let descriptor = match self.the_descriptor(arguments.get(1), line) {
+                    Ok(descriptor) => descriptor,
+                    Err(failure) => return Some(Err(failure)),
+                };
+                object.borrow_mut().properties.insert(name.to_lowercase(), descriptor);
+                // The answer of v2 is the object itself.
+                Some(Ok(target.clone()))
             }
             "deleteprop" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
                     return Some(Err(missing()));
                 };
                 let gone = object.borrow_mut().properties.remove(&name.to_lowercase());
-                Some(Ok(Value::Int(gone.is_some() as i64)))
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // answer is the value of the property that is taken away,
+                // and an empty text when there was none.
+                Some(Ok(match gone {
+                    None => Value::Text(String::new()),
+                    Some(value) => match self.the_value_of_the_descriptor(&value, target, &name, line) {
+                        Ok(Some(value)) => value,
+                        _ => value,
+                    },
+                }))
             }
             "getownpropdesc" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
@@ -2953,20 +3006,27 @@ impl<'a> Runtime<'a> {
                 };
                 let key = name.to_lowercase();
                 let value = object.borrow().properties.get(&key).cloned();
-                Some(Ok(match value {
+                match value {
                     Some(value) => {
-                        let mut table = BTreeMap::new();
-                        table.insert("value".to_string(), value);
-                        Value::Object(Rc::new(RefCell::new(Object {
-                            class: "property".to_string(),
+                        // Measured on the binary of v2.0.19 on 2026-10-31:
+                        // the descriptor that comes back is an object with
+                        // the members of it, and not a class of its own.
+                        let table = match self.the_members_of_a_descriptor(&value) {
+                            Some(members) => members,
+                            None => {
+                                let mut table = BTreeMap::new();
+                                table.insert("value".to_string(), value);
+                                table
+                            }
+                        };
+                        Some(Ok(Value::Object(Rc::new(RefCell::new(Object {
+                            class: "object".to_string(),
                             properties: table,
-                        })))
+                        })))))
                     }
-                    None => Value::Object(Rc::new(RefCell::new(Object {
-                        class: "property".to_string(),
-                        properties: BTreeMap::new(),
-                    }))),
-                }))
+                    // The property is not there: v2 says so.
+                    None => Some(Err(self.no_property(target, &name, line))),
+                }
             }
             _ => None,
         }
@@ -3021,7 +3081,7 @@ impl<'a> Runtime<'a> {
     }
 
     /// The refusal of a property that a value does not have.
-    fn no_property(&self, target: &Value, name: &str, line: u32) -> RuntimeFailure {
+    pub(crate) fn no_property(&self, target: &Value, name: &str, line: u32) -> RuntimeFailure {
         RuntimeFailure::Error(RuntimeError {
             message: format!(
                 "This value of type \"{}\" has no property named {name:?}.",
@@ -3029,6 +3089,176 @@ impl<'a> Runtime<'a> {
             ),
             line,
         })
+    }
+
+    /// The descriptor of a property, out of the value that was given.
+    ///
+    /// v2 wants an object with one or more of the members `Value`, `Get`,
+    /// `Set` and `Call`, and refuses anything else with "Parameter #2 of
+    /// Object.Prototype.DefineProp is invalid.". A descriptor that carries
+    /// a value and an accessor at the same time is refused as well.
+    pub(crate) fn the_descriptor(&self, value: Option<&Value>, line: u32) -> Result<Value, RuntimeFailure> {
+        let invalid = || RuntimeFailure::Detailed(
+            RuntimeError {
+                message: "Parameter #2 of Object.Prototype.DefineProp is invalid.".into(),
+                line,
+            },
+            Detail { what: String::new(), extra: String::new() },
+        );
+        let Some(Value::Object(object)) = value else { return Err(invalid()) };
+        let table = object.borrow();
+        let mut members: BTreeMap<String, Value> = BTreeMap::new();
+        for key in ["value", "get", "set", "call"] {
+            if let Some(member) = table.properties.get(key) {
+                members.insert(key.to_string(), member.clone());
+            }
+        }
+        // A value and an accessor at the same time is not a descriptor.
+        if members.is_empty() || (members.contains_key("value") && members.len() > 1) {
+            return Err(invalid());
+        }
+        Ok(Value::Object(Rc::new(RefCell::new(Object {
+            class: DESCRIPTOR.to_string(),
+            properties: members,
+        }))))
+    }
+
+    /// Whether a value is the descriptor of a property.
+    fn is_a_descriptor(&self, value: &Value) -> bool {
+        let Value::Object(object) = value else { return false };
+        object.borrow().class == DESCRIPTOR
+    }
+
+    /// The members of a descriptor, when the value is one.
+    pub(crate) fn the_members_of_a_descriptor(&self, value: &Value) -> Option<BTreeMap<String, Value>> {
+        if !self.is_a_descriptor(value) {
+            return None;
+        }
+        let Value::Object(object) = value else { return None };
+        Some(object.borrow().properties.clone())
+    }
+
+    /// The value of a property that is a descriptor.
+    ///
+    /// v2 asks the getter of the descriptor for the value, and the value of
+    /// the descriptor is the value of the property when there is no getter.
+    /// A descriptor with no getter and no value is not a property that can
+    /// be read: v2 says that the property is not there.
+    pub(crate) fn the_value_of_the_descriptor(
+        &mut self,
+        value: &Value,
+        target: &Value,
+        written: &str,
+        line: u32,
+    ) -> Result<Option<Value>, RuntimeFailure> {
+        if !self.is_a_descriptor(value) {
+            return Ok(None);
+        }
+        let Value::Object(object) = value else { return Ok(None) };
+        let getter = object.borrow().properties.get("get").cloned();
+        let held = object.borrow().properties.get("value").cloned();
+        if let Some(getter) = getter {
+            // The getter is asked with the object as its first parameter.
+            return Ok(Some(self.call_the_function(&getter, target, &[], line)?));
+        }
+        if let Some(held) = held {
+            return Ok(Some(held));
+        }
+        Err(self.no_property(target, written, line))
+    }
+
+    /// The call of a property that is a descriptor.
+    fn the_call_of_the_descriptor(&self, target: &Value, name: &str) -> Option<Value> {
+        let Value::Object(object) = target else { return None };
+        let current = object.borrow().properties.get(&name.to_lowercase()).cloned()?;
+        if !self.is_a_descriptor(&current) {
+            return None;
+        }
+        let Value::Object(descriptor) = &current else { return None };
+        descriptor.borrow().properties.get("call").cloned()
+    }
+
+    /// The value of a property that is called.
+    ///
+    /// v2 asks the getter of the descriptor for the value of the property,
+    /// and calls it when it is a function. A property that is not a
+    /// descriptor is not here: the class of the object answers for it.
+    fn the_value_of_the_descriptor_for_a_call(
+        &mut self,
+        target: &Value,
+        name: &str,
+        line: u32,
+    ) -> Result<Option<Value>, RuntimeFailure> {
+        let Value::Object(object) = target else { return Ok(None) };
+        let Some(current) = object.borrow().properties.get(&name.to_lowercase()).cloned() else {
+            return Ok(None);
+        };
+        if !self.is_a_descriptor(&current) {
+            return Ok(None);
+        }
+        let Value::Object(descriptor) = &current else { return Ok(None) };
+        let getter = descriptor.borrow().properties.get("get").cloned();
+        let Some(getter) = getter else { return Ok(None) };
+        Ok(Some(self.call_the_function(&getter, target, &[], line)?))
+    }
+
+    /// Whether a value is a function of the script.
+    fn is_a_function(&self, value: &Value) -> bool {
+        let Value::Object(object) = value else { return false };
+        object.borrow().class == "func"
+    }
+
+    /// The write of a property that is a descriptor.
+    ///
+    /// v2 asks the setter of the descriptor for the write, and a
+    /// descriptor that carries a value is written straight away. A
+    /// descriptor with neither of them is read-only.
+    fn the_write_of_the_descriptor(
+        &mut self,
+        descriptor: &Value,
+        target: &Value,
+        value: Value,
+        written: &str,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        let Value::Object(object) = descriptor else { return Ok(()) };
+        let setter = object.borrow().properties.get("set").cloned();
+        if let Some(setter) = setter {
+            // The setter is asked with the object and the value that is
+            // written as its two first parameters.
+            self.call_the_function(&setter, target, &[value], line)?;
+            return Ok(());
+        }
+        let holds = object.borrow().properties.contains_key("value");
+        if holds {
+            object.borrow_mut().properties.insert("value".to_string(), value);
+            return Ok(());
+        }
+        Err(RuntimeFailure::Detailed(
+            RuntimeError { message: "Property is read-only.".to_string(), line },
+            Detail { what: String::new(), extra: written.to_string() },
+        ))
+    }
+
+    /// The call of a function of the script, with the values of its
+    /// arguments.
+    ///
+    /// The first argument of the call is the object the function belongs
+    /// to: v2 asks the getter and the setter of a descriptor with it.
+    fn call_the_function(
+        &mut self,
+        function: &Value,
+        target: &Value,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let mut values = Vec::with_capacity(arguments.len() + 1);
+        values.push(target.clone());
+        values.extend_from_slice(arguments);
+        match crate::classes::func::call_the_value(function, &values, self, line) {
+            Some(result) => result,
+            None => Err(self.no_method(target, "Call", line)),
+        }
     }
 
     /// The refusal of a method that a value does not have.
@@ -3235,8 +3465,13 @@ impl<'a> Runtime<'a> {
         if let Some(result) = crate::classes::property(&class, &name, target, self, line) {
             return result.map(|value| (value, false));
         }
-        if let Some(value) = object.borrow().properties.get(&name) {
-            return Ok((value.clone(), false));
+        if let Some(value) = object.borrow().properties.get(&name).cloned() {
+            // A property may be a descriptor: the getter of it is asked
+            // for the value of the property.
+            if let Some(answer) = self.the_value_of_the_descriptor(&value, target, &written, line)? {
+                return Ok((answer, false));
+            }
+            return Ok((value, false));
         }
         // Every value carries its class.
         if name == "__class" {
@@ -3327,6 +3562,13 @@ impl<'a> Runtime<'a> {
                 RuntimeError { message: "Property is read-only.".to_string(), line },
                 Detail { what: String::new(), extra: written },
             ));
+        }
+        // A property that is a descriptor has a setter of its own, and a
+        // descriptor that carries a value is written straight away.
+        if let Some(current) = object.borrow().properties.get(&name).cloned() {
+            if self.is_a_descriptor(&current) {
+                return self.the_write_of_the_descriptor(&current, target, value, &written, line);
+            }
         }
         // A property the class declares is written straight away. The
         // others are the ones `__Set` is asked about, and it is the one
@@ -3452,8 +3694,10 @@ impl<'a> Runtime<'a> {
 
     /// The result of an assignment: the value that is stored.
     ///
-    /// The compound operators read what is there before they write, so
-    /// a variable that has no value yet is an error and not a zero.
+    /// The compound operators read what is there before they write, so a
+    /// variable that has no value yet is an error and not a zero. The
+    /// concat is the one that is not: it reads a variable that has no
+    /// value as an empty text.
     fn apply_assign(
         &self,
         op: AssignOp,
@@ -3516,7 +3760,15 @@ impl<'a> Runtime<'a> {
                 Value::Int(a / b)
             }
             AssignOp::Concat => {
-                let current = self.assigned(name, current, line)?;
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // concat of a variable that has no value is the concat of
+                // an empty text, and the write makes the variable. The
+                // other operators want a value that is there, and a
+                // variable that has no value is an error for them.
+                let current = match current {
+                    Some(value) => value,
+                    None => Value::Text(String::new()),
+                };
                 Value::Text(format!("{}{}", current.to_text(), value.to_text()))
             }
             AssignOp::BitwiseAnd => {
@@ -3990,7 +4242,14 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         let target_value = self.evaluate(target)?;
-        let current = self.read_property(&target_value, name, line).ok();
+        // Measured on the binary of v2.0.19 on 2026-10-31: the compound
+        // operators read the property before they write it, and a property
+        // that is not there is an error that names the property: the write
+        // never happens, and the setter of the object is not called.
+        let current = match op {
+            AssignOp::Set => self.read_property(&target_value, name, line).ok(),
+            _ => Some(self.read_property(&target_value, name, line)?),
+        };
         let stored = self.apply_assign(op, name, current, value, line)?;
         self.write_property(&target_value, name, stored.clone(), line)?;
         Ok(stored)
@@ -5492,7 +5751,7 @@ pub(crate) fn prototype_value(name: &str) -> Value {
 /// A built-in answers with a message and a line, and not with the flow
 /// of the script: a timeout or a return is not a thing a built-in can
 /// hand back.
-fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
+pub(crate) fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
     match failure {
         RuntimeFailure::Error(error) => error,
         RuntimeFailure::Detailed(error, _) => error,

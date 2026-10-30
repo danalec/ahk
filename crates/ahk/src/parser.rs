@@ -644,7 +644,7 @@ impl Parser {
             // The body is one statement, and the braces are not there.
             return self.the_body_without_braces(kind, line);
         }
-        let open = self.expect_op("{")?;
+        self.expect_op("{")?;
         if !self.the_body_begins_on_the_next_line() {
             return Err(self.error(self.the_message_of_the_opening_brace(kind, line)));
         }
@@ -653,14 +653,11 @@ impl Parser {
         loop {
             let token = self.peek();
             if token.kind == TokenKind::Eof {
-                // Measured on the binary of v2.0.19 on 2026-10-31: the brace
-                // that is not closed is named, and the line of the script says
-                // where the block began.
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // brace that is not closed is named, and nothing else: the
+                // line of the script is not named with it.
                 return Err(SyntaxError {
-                    message: format!(
-                        "Missing \"}}\"\n     Specifically: {}",
-                        the_source_of_the_line(self, open.line)
-                    ),
+                    message: "Missing \"}\"".into(),
                     line: token.line,
                     column: token.column,
                 });
@@ -1421,9 +1418,37 @@ impl Parser {
                 cases.push(Case { value: None, body });
                 continue;
             }
-            return Err(self.error("expected Case or Default inside the Switch"));
+            // Measured on the binary of v2.0.19 on 2026-10-31: v2 looks
+            // for the brace that closes the switch before it reads the
+            // cases, and a switch that is not closed says so.
+            if !self.the_closing_brace_is_there() {
+                let token = self.peek().clone();
+                return Err(SyntaxError {
+                    message: "Missing \"}\"".into(),
+                    line: token.line,
+                    column: token.column,
+                });
+            }
+            // A statement that is not a case is refused in the words of v2.
+            return Err(self.error("Expected Case/Default."));
         }
         Ok(Node::Switch { subject: Box::new(subject), cases, line: token.line })
+    }
+
+    /// Whether the brace that closes the block is there.
+    ///
+    /// The switch of v2 looks for it before it reads the cases, and a
+    /// switch that is not closed says so.
+    fn the_closing_brace_is_there(&self) -> bool {
+        for token in self.tokens.iter().skip(self.position) {
+            if token.kind == TokenKind::Eof {
+                return false;
+            }
+            if token.kind == TokenKind::Op && token.value == "}" {
+                return true;
+            }
+        }
+        false
     }
 
     /// The body of a case.
@@ -1441,16 +1466,28 @@ impl Parser {
                 the_source_of_the_line(self, token.line)
             )));
         }
-        if self.at_op(&[":"]) {
-            self.position += 1;
+        // Measured on the binary of v2.0.19 on 2026-10-31: the case needs
+        // the colon, and the line of the script says where it was.
+        if !self.at_op(&[":"]) {
+            let token = self.peek().clone();
+            return Err(SyntaxError {
+                message: format!(
+                    "Missing \":\"\n     Specifically: {}",
+                    the_source_of_the_line(self, token.line)
+                ),
+                line: token.line,
+                column: token.column,
+            });
         }
+        self.position += 1;
         let mut body = Vec::new();
         self.skip_newlines();
         loop {
             let token = self.peek().clone();
             if token.kind == TokenKind::Eof {
+                // The brace that closes the switch is not there.
                 return Err(SyntaxError {
-                    message: "unterminated switch".into(),
+                    message: "Missing \"}\"".into(),
                     line: token.line,
                     column: token.column,
                 });
@@ -1690,7 +1727,7 @@ impl Parser {
             }
             extends = Some(base.value);
         }
-        let (methods, properties) = self.parse_class_body(name_token.line)?;
+        let (methods, properties) = self.parse_class_body(name_token.line, &name_token.value)?;
         // A class may not have an `__Init` of its own and variables of its
         // own: v2 makes the `__Init` that carries the variables, and the
         // two cannot both be there.
@@ -1717,7 +1754,11 @@ impl Parser {
     }
 
     /// The members of a class: the methods and the properties.
-    fn parse_class_body(&mut self, line: u32) -> Result<(Vec<MethodDef>, Vec<PropertyDef>), SyntaxError> {
+    fn parse_class_body(
+        &mut self,
+        line: u32,
+        name: &str,
+    ) -> Result<(Vec<MethodDef>, Vec<PropertyDef>), SyntaxError> {
         // The brace may be on a line of its own.
         self.skip_newlines();
         if !self.at_op(&["{"]) {
@@ -1752,8 +1793,11 @@ impl Parser {
             self.skip_newlines();
             let token = self.peek().clone();
             if token.kind == TokenKind::Eof {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // brace that is not closed is named, and the class that
+                // was open is the one that is named with it.
                 return Err(SyntaxError {
-                    message: "unterminated class".into(),
+                    message: format!("Missing \"}}\"\n     Specifically: {name}"),
                     line: token.line,
                     column: token.column,
                 });
@@ -1771,8 +1815,14 @@ impl Parser {
             }
             let name_token = self.next();
             if name_token.kind != TokenKind::Name && name_token.kind != TokenKind::Keyword {
+                // Measured on the binary of v2.0.19 on 2026-10-31: a member
+                // of a class that is not a name is not a valid definition,
+                // and the line that says it is named.
                 return Err(SyntaxError {
-                    message: "a member of a class needs a name".into(),
+                    message: format!(
+                        "Not a valid method, class or property definition.\n     Specifically: {}",
+                        the_source_of_the_line(self, name_token.line)
+                    ),
                     line: name_token.line,
                     column: name_token.column,
                 });
@@ -1798,10 +1848,28 @@ impl Parser {
             // A property: `Name := value`.
             let operator = self.next();
             if operator.kind != TokenKind::Op || !matches!(operator.value.as_str(), "=" | ":=") {
+                // Measured on the binary of v2.0.19 on 2026-10-31: a member
+                // that is a name and nothing else is a line with no action,
+                // and a member with something else is not a valid
+                // definition. The line is named in both.
+                let alone = operator.kind == TokenKind::Newline
+                    || operator.kind == TokenKind::Eof
+                    || (operator.kind == TokenKind::Op && operator.value == "}");
+                let message = if alone {
+                    format!(
+                        "This line does not contain a recognized action.\n     Specifically: {}",
+                        name_token.value
+                    )
+                } else {
+                    format!(
+                        "Not a valid method, class or property definition.\n     Specifically: {}",
+                        the_source_of_the_line(self, name_token.line)
+                    )
+                };
                 return Err(SyntaxError {
-                    message: "a member of a class is a method or a property".into(),
-                    line: operator.line,
-                    column: operator.column,
+                    message,
+                    line: name_token.line,
+                    column: name_token.column,
                 });
             }
             let value = self.the_expression_of_a_statement()?;

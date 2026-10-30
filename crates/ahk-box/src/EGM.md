@@ -212,6 +212,7 @@ the attributes, the times, the directories and the ini files.
 | `ini_read` / `ini_write` / `ini_delete` | `(file, section, key)` and so on | An ini of Windows: `[section]`, `key=value`, and `;` for a comment. |
 | `file_exists` / `delete_file` / `create_dir` / `dir_exists` | `(path)` | The four that answer whether something is there, and that take it away or make it. |
 | `letters_of` | private fn | The attributes of a file, in the order of v2. |
+| `list_files` | `(folder, pattern, mode) -> Result<Vec<String>, String>` | The pattern of v2 is a path: the folder of it is where the files are, and the rest of it is the name of them. The answer comes in the order of the name with the case taken away, and the case of the pattern does not count. |
 
 The wildcards and the recursion are not carried: `FileCopy "a*.txt", "b"`
 and the folders that hold the folders are not in the tree, and the names
@@ -336,6 +337,11 @@ with the `png` crate and looks for them on the screen with a capture of
 - **The windows of a Wayland session are asked of the compositor, not of X11.** The X server that runs beside it is the rootless Xwayland of gamescope and reports an empty client list, so the X11 path answers "unknown" on a Wayland session. The Wayland path has the precedence when the session is Wayland, and the X11 path is kept for an X11 session.
 - **The state of a window is waited for, and the wait is bounded.** The compositor says the state of a window in its next refresh, and a refresh is a frame away: measured on 2026-10-29 on the box, the answer was there on the second question, ten milliseconds after the first one. The client waits up to 250 ms, five milliseconds at a time, and a window whose state did not arrive leaves the question about the focus open — the answer is the reason, not a wrong window.
 - **The title of a window is matched the way v2 matches it.** The default mode of v2 is the mode 2: the title of the window has to *contain* the text that was asked for, and the case matters. `SetTitleMatchMode` is not carried, so the mode 2 is the one that is used.
+- **The files of a folder come in the order of the name with the case taken
+  away.** The names are compared byte-wise, and the case of the pattern does
+  not count: the machine of v2 is one that does not tell the case of a name
+  apart. Measured on the binary of v2.0.19 on 2026-10-31, and the order of
+  the directory is not the order of the script.
 - **A proxy that is dropped is destroyed on the server.** The handles of the listing and the handles of COSMIC are kept in the state for that reason: a handle that is destroyed never tells anything else.
 - **The screen is the focus check.** `PixelGet` and `PixelSearch` are read from the frame the compositor draws, so they work whatever window is in front, Wayland or not.
 - **The hotkeys watch the keyboard that reads.** The keyboard of the box writes; the watcher reads the event node of the physical keyboard. The virtual devices are skipped when the device is found by itself, because a hotkey that fires on what the script writes is a hotkey in a loop. The variable `AHK_HOTKEY_DEVICE` names the device to read, by path or by name, and it is how the hotkeys are proved on the box without a person at the keyboard.

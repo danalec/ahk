@@ -450,11 +450,11 @@ fn an_object_knows_the_class_it_is_of() {
 #[test]
 fn a_property_can_be_defined_and_taken_away() {
     let (report, desktop) = run(
-        "class Box {\n}\nb := Box()\nb.DefineProp(\"x\", 7)\ny := b.x\n\
+        "class Box {\n}\nb := Box()\nb.DefineProp(\"x\", {Value: 7})\ny := b.x\n\
          z := b.DeleteProp(\"x\")\nSend \"%y% %z%\"",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.types(), vec!["7 1"]);
+    assert_eq!(desktop.types(), vec!["7 7"]);
 }
 
 #[test]
@@ -1736,10 +1736,40 @@ fn a_class_name_that_is_a_number_is_refused() {
 #[test]
 fn a_block_that_is_not_closed_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the brace that is
-    // not closed is named, and the line of the script says where the block
-    // began.
+    // not closed is named, and nothing else: the line of the script is
+    // not named with it.
     let error = parse("f(a) {\n").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"}\"\n     Specifically: f(a) {");
+    assert_eq!(error.message, "Missing \"}\"");
+}
+
+#[test]
+fn a_class_that_is_not_closed_names_the_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the class that was
+    // open is the one that is named with the brace that is not closed.
+    let error = parse("class Foo {\n    x := 1\n").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: Foo");
+}
+
+#[test]
+fn a_switch_that_is_not_closed_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: v2 looks for the
+    // brace that closes the switch before it reads the cases.
+    let error = parse("Switch 1 {\n    x := 1\n").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"");
+}
+
+#[test]
+fn a_case_needs_its_colon() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the colon of a case
+    // is not optional, and the line of the script says where it was.
+    let error = parse("Switch 1 {\n    case 1\n        x := 1\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \":\"\n     Specifically: case 1");
+}
+
+#[test]
+fn a_statement_that_is_not_a_case_is_refused() {
+    let error = parse("Switch 1 {\n    x := 1\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Expected Case/Default.");
 }
 
 #[test]
@@ -3226,4 +3256,89 @@ fn every_object_has_the_property_of_the_class_of_it() {
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 0"]);
+}
+
+
+#[test]
+fn the_concat_of_a_variable_that_has_no_value_is_an_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the concat reads a
+    // variable that has no value as an empty text, and the write makes it.
+    let (report, _desktop) = run("s .= \"x\"\nMsgBox s");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x"]);
+}
+
+#[test]
+fn the_concat_of_a_local_that_has_no_value_is_an_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the same is true of
+    // a local of a function.
+    let (report, _desktop) = run("f() {\n    s .= \"x\"\n    return s\n}\nMsgBox f()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x"]);
+}
+
+#[test]
+fn the_add_of_a_variable_that_has_no_value_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the concat is the
+    // one operator that reads a variable that has no value as an empty
+    // text. The others want a value that is there.
+    let (report, _desktop) = run("n += 2");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This global variable has not been assigned a value.")
+    );
+}
+
+#[test]
+fn the_compound_assignment_of_a_property_that_is_not_there_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the compound
+    // operators read the property before they write it, and a property that
+    // is not there is an error that names it.
+    let (report, _desktop) = run("o := {}\no.x .= \"y\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Object\" has no property named \"x\".")
+    );
+}
+
+#[test]
+fn the_compound_assignment_of_a_property_that_is_there_is_written() {
+    let (report, _desktop) = run("o := {}\no.x := \"a\"\no.x .= \"b\"\nMsgBox o.x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ab"]);
+}
+
+#[test]
+fn a_member_of_a_class_that_is_not_a_definition_names_the_line() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the member that is
+    // not a definition is refused, and the line is named.
+    let error = parse("class Thing {\n    x .= \"y\"\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Not a valid method, class or property definition.\n     Specifically: x .= \"y\""
+    );
+}
+
+#[test]
+fn a_member_of_a_class_that_is_not_a_name_names_the_line() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a member that is not
+    // a name is not a valid definition either.
+    let error = parse("class Thing {\n    1 + 2\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Not a valid method, class or property definition.\n     Specifically: 1 + 2"
+    );
+}
+
+#[test]
+fn a_member_of_a_class_that_is_a_name_alone_is_a_line_with_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a member that is a
+    // name and nothing else is a line that has no action in it.
+    let error = parse("class Thing {\n    x\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: x"
+    );
 }

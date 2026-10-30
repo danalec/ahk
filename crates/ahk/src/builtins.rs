@@ -918,24 +918,173 @@ fn dir_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -
 // -- the pieces of a text ----------------------------------------------------------
 
 /// `StrSplit`: the pieces of a text, cut at the delimiters.
-fn str_split(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    // The characters to omit and the number of pieces are not carried.
-    if values.len() > 2 {
-        return Err(RuntimeError {
-            message: "the characters to omit and the number of pieces are not carried yet.".into(),
-            line,
-        });
-    }
+///
+/// v2 cuts the text where a delimiter is, and a delimiter is a literal: a
+/// text is one delimiter and an array of texts is a set of them, and the
+/// first one of them that is there wins. The characters to omit are cut
+/// from the beginning and the end of every piece, and the number of the
+/// pieces says how many times the text is cut: the rest of the text is
+/// the last piece.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31.
+fn str_split(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let text = text_of(values, 0);
-    let delimiters = text_of(values, 1);
-    // v2: when the delimiters are blank, every character of the text is
-    // a piece of its own.
-    let pieces = if delimiters.is_empty() {
-        text.chars().map(|character| character.to_string()).collect()
-    } else {
-        crate::runtime::split_on_any(&text, &delimiters)
+    let delimiters = the_delimiters(rt, values.get(1), line)?;
+    let omit = text_of(values, 2);
+    // The number of the pieces is not there: there is no limit.
+    let max = match values.get(3) {
+        None => -1.0,
+        Some(value) => value.to_number().unwrap_or(-1.0),
     };
-    Ok(Value::List(pieces.into_iter().map(Value::Text).collect()))
+    let pieces = the_pieces(&text, &delimiters, &omit, max);
+    let values: Vec<Value> = pieces.into_iter().map(Value::Text).collect();
+    // The answer of v2 is an array.
+    match crate::classes::construct("array", &values, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(values)),
+    }
+}
+
+/// The delimiters of a `StrSplit`: the literals the text is cut at.
+///
+/// v2 takes a text or an array of texts, and refuses anything else with
+/// "Parameter #2 of StrSplit is invalid.". An array that is empty is
+/// refused as well: the delimiters that are blank are a text that is
+/// empty, and not an array with nothing in it.
+fn the_delimiters(
+    rt: &Runtime<'_>,
+    value: Option<&Value>,
+    line: u32,
+) -> Result<Vec<String>, RuntimeError> {
+    let invalid = || RuntimeError {
+        message: "Parameter #2 of StrSplit is invalid.".into(),
+        line,
+    };
+    match value {
+        None => Ok(Vec::new()),
+        Some(Value::List(items)) => {
+            if items.is_empty() {
+                return Err(invalid());
+            }
+            Ok(items.iter().map(|item| item.to_text()).collect())
+        }
+        Some(value) => {
+            // The array of the delimiters is a class of the runtime.
+            if rt.class_of(value).as_deref() == Some("Array") {
+                let items = crate::classes::array::the_items(value);
+                if items.is_empty() {
+                    return Err(invalid());
+                }
+                return items
+                    .iter()
+                    .map(|item| match item {
+                        Value::Text(text) => Ok(text.clone()),
+                        other => Err(RuntimeError {
+                            message: crate::runtime::requires(2, "StrSplit", TypeName::String, other),
+                            line,
+                        }),
+                    })
+                    .collect::<Result<Vec<String>, RuntimeError>>();
+            }
+            // The other objects are not delimiters.
+            if matches!(value, Value::Object(_)) {
+                return Err(invalid());
+            }
+            // A text that is empty is a blank delimiter: every character of
+            // the text is a piece of its own.
+            let text = value.to_text();
+            if text.is_empty() {
+                return Ok(Vec::new());
+            }
+            Ok(vec![text])
+        }
+    }
+}
+
+/// The pieces of a text, cut at the delimiters.
+///
+/// The text is cut where a delimiter is, and the delimiters are tried in
+/// the order they were given: the first one of them that is there wins.
+/// The characters to omit are cut from the beginning and the end of every
+/// piece. When the delimiters are blank every character of the text is a
+/// piece of its own, and the characters to omit are not pieces at all.
+fn the_pieces(text: &str, delimiters: &[String], omit: &str, max: f64) -> Vec<String> {
+    // The delimiters are blank: every character of the text is a piece.
+    if delimiters.is_empty() {
+        return text
+            .chars()
+            .filter(|character| !omit.contains(*character))
+            .map(|character| character.to_string())
+            .collect();
+    }
+    // The number of the pieces is zero: there is no piece at all.
+    if max == 0.0 {
+        return Vec::new();
+    }
+    // The number of the pieces says how many times the text is cut: the
+    // rest of the text is the last piece.
+    let cuts = if max > 0.0 { max as usize - 1 } else { 0 };
+    let mut pieces: Vec<String> = Vec::new();
+    let mut rest = text;
+    let mut made = 0;
+    while let Some((at, length)) = the_first_delimiter(rest, delimiters) {
+        if max > 0.0 && made >= cuts {
+            pieces.push(trim_the_omit(rest, omit));
+            return pieces;
+        }
+        pieces.push(trim_the_omit(&rest[..at], omit));
+        rest = &rest[at + length..];
+        made += 1;
+    }
+    pieces.push(trim_the_omit(rest, omit));
+    pieces
+}
+
+/// Where the text is cut: the place of the first delimiter that is there,
+/// and how long it is.
+///
+/// The delimiters are tried in the order they were given, and the first
+/// one of them that is there wins.
+fn the_first_delimiter(text: &str, delimiters: &[String]) -> Option<(usize, usize)> {
+    let mut found: Option<(usize, usize)> = None;
+    for delimiter in delimiters {
+        if delimiter.is_empty() {
+            continue;
+        }
+        let Some(at) = text.find(delimiter.as_str()) else { continue };
+        match found {
+            // The one that is there first wins, and the order of the
+            // delimiters decides between the ones that are at the same
+            // place: the first of them is the one that is kept.
+            Some((first, _)) if first <= at => continue,
+            _ => found = Some((at, delimiter.len())),
+        }
+    }
+    found
+}
+
+/// The text without the characters to omit at its beginning and its end.
+fn trim_the_omit(text: &str, omit: &str) -> String {
+    if omit.is_empty() {
+        return text.to_string();
+    }
+    let mut start = 0;
+    while start < text.len() {
+        let Some(character) = text[start..].chars().next() else { break };
+        if !omit.contains(character) {
+            break;
+        }
+        start += character.len_utf8();
+    }
+    let mut end = text.len();
+    while end > start {
+        let Some(character) = text[..end].chars().next_back() else { break };
+        if !omit.contains(character) {
+            break;
+        }
+        end -= character.len_utf8();
+    }
+    text[start..end].to_string()
 }
 
 /// `SplitPath`: the pieces of a path.

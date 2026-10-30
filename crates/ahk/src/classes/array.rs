@@ -253,7 +253,7 @@ pub(crate) fn call(
                 .collect();
             Some(Ok(enumerator::make(pairs, enumerator::Alone::TheValue)))
         }
-        _ => base_method(&method, this, arguments, line),
+        _ => base_method(&method, this, arguments, rt, line),
     }
 }
 
@@ -447,6 +447,20 @@ fn items(state: &Object) -> Vec<Value> {
     items.clone()
 }
 
+/// The items of an array, for the built-ins that take one.
+///
+/// The `StrSplit` takes the delimiters in an array, and the `Sort` takes
+/// the values of one. Neither of them may reach into the state of the
+/// array: the module that owns the class is the one that answers.
+pub(crate) fn the_items(array: &Value) -> Vec<Value> {
+    let Some(state) = state(array) else { return Vec::new() };
+    let state = state.borrow();
+    items(&state)
+        .iter()
+        .map(|element| element_value(element).unwrap_or(Value::Text(String::new())))
+        .collect()
+}
+
 /// The items of an array, written back.
 fn set_items(state: &mut Object, items: Vec<Value>) {
     state.properties.insert("items".to_string(), Value::List(items));
@@ -574,6 +588,7 @@ fn base_method(
     method: &str,
     this: &Value,
     arguments: &[Value],
+    rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let Value::Object(object) = this else { return None };
@@ -608,36 +623,60 @@ fn base_method(
         // An array extends the base object, and nothing else.
         "hasbase" => Some(Ok(Value::Int((key == "object") as i64))),
         "getownpropdesc" => {
+            let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
             let value = object.borrow().properties.get(&key).cloned();
-            Some(Ok(match value {
+            match value {
                 Some(value) => {
-                    let mut table = BTreeMap::new();
-                    table.insert("value".to_string(), value);
-                    Value::Object(Rc::new(RefCell::new(Object {
-                        class: "property".to_string(),
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // descriptor that comes back is an object with the
+                    // members of it.
+                    let table = match rt.the_members_of_a_descriptor(&value) {
+                        Some(members) => members,
+                        None => {
+                            let mut table = BTreeMap::new();
+                            table.insert("value".to_string(), value);
+                            table
+                        }
+                    };
+                    Some(Ok(Value::Object(Rc::new(RefCell::new(Object {
+                        class: "object".to_string(),
                         properties: table,
-                    })))
+                    })))))
                 }
-                None => Value::Object(Rc::new(RefCell::new(Object {
-                    class: "property".to_string(),
-                    properties: BTreeMap::new(),
-                }))),
-            }))
+                // The property is not there: v2 says so.
+                None => Some(Err(rt.no_property(this, &name, line))),
+            }
         }
         "defineprop" => {
             if key == STATE {
                 return failure("the state of an array is not a property of it.");
             }
-            let value = arguments.get(1).cloned().unwrap_or(Value::Text(String::new()));
-            object.borrow_mut().properties.insert(key, value);
-            Some(Ok(Value::Int(1)))
+            // Measured on the binary of v2.0.19 on 2026-10-31: the second
+            // parameter is a descriptor, and a value that is not one is
+            // refused with the reason.
+            let descriptor = match rt.the_descriptor(arguments.get(1), line) {
+                Ok(descriptor) => descriptor,
+                Err(failure) => return Some(Err(failure)),
+            };
+            object.borrow_mut().properties.insert(key, descriptor);
+            // The answer of v2 is the object itself.
+            Some(Ok(this.clone()))
         }
         "deleteprop" => {
             if key == STATE {
-                return Some(Ok(Value::Int(0)));
+                return Some(Ok(Value::Text(String::new())));
             }
             let gone = object.borrow_mut().properties.remove(&key);
-            Some(Ok(Value::Int(gone.is_some() as i64)))
+            // Measured on the binary of v2.0.19 on 2026-10-31: the answer
+            // is the value of the property that is taken away, and an
+            // empty text when there was none.
+            Some(Ok(match gone {
+                None => Value::Text(String::new()),
+                Some(value) => match rt.the_value_of_the_descriptor(&value, this, &name, line) {
+                    Ok(Some(value)) => value,
+                    _ => value,
+                },
+            }))
         }
         // A method of a class type of the runtime is not a value this
         // runtime carries.

@@ -295,7 +295,7 @@ fn the_own_properties_of_a_map_are_the_ones_the_script_gave_it() {
     // The own properties of v2 are an enumerator, and the names are read
     // one by one.
     let report = run(
-        "m := Map()\nm.DefineProp(\"x\", 7)\n\
+        "m := Map()\nm.DefineProp(\"x\", {Value: 7})\n\
          names := m.OwnProps()\nfirst := \"\"\nnames.Call(&first)\n\
          MsgBox first . \" \" . m.x",
     );

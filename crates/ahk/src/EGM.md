@@ -731,6 +731,18 @@ that asks for another one is refused with the reason.
   are a tree of classes, and every one of them is an `Error`: a catch that
   names no class takes the whole tree, and a catch that names one takes
   that class and the ones under it.
+- **The delimiters of the split of a text are literals.** The `StrSplit` cuts
+  on the text that is given and not on a set of characters, and the
+  delimiters of an array are tried in the order they were given.
+- **A property is written with a descriptor.** The `DefineProp` takes an
+  object with a `Value`, a `Get`, a `Set` or a `Call` in it, and the
+  descriptor lives under the reserved key of the runtime.
+- **The concat of a variable that has no value is the concat of an empty
+  text.** The other compound operators want a value that is there, and a
+  variable that has no value is an error for them.
+- **The compound operators read the property before they write it.** A
+  property that is not there is an error that names it, and the setter of the
+  object is not called.
 
 ## Side Effects
 

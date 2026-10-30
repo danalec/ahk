@@ -3004,3 +3004,73 @@ runtime now, because every one of them is an `Error`.
 A class of the script may still hand out a list instead of an enumerator, and
 the tree walks that one the way it always did. v2 does not: the enumeration of
 a class has to be an enumerator there. The gap is left open.
+
+
+## 60. The split of a text, the descriptor of a property and the order of the files
+
+Measured on the binary of v2.0.19 on 2026-10-31: the places where the tree said
+something else than the dialect. Every one of them is measured now, and the tree
+says what the binary says.
+
+- **The delimiters of the `StrSplit` are literals, and not sets of
+  characters.** `StrSplit("a,b;c", ",")` is one piece, and
+  `StrSplit("a.b-c", [".", "-"])` is three: the delimiters of an array are
+  tried in the order they were given, and the first one that is there wins. A
+  delimiter that is empty cuts between every two characters, and
+  `StrSplit("abc")` is three pieces. A delimiter that is neither a text nor an
+  array is refused: "Parameter #2 of StrSplit is invalid.".
+- **The characters to leave out trim the edges of every piece.**
+  `StrSplit("a,b,c", ",", "b")` is `a`, an empty text and `c`. With a
+  delimiter that is empty they are not in the answer at all:
+  `StrSplit("abc", "", "b")` is `a` and `c`.
+- **The last parameter of the `StrSplit` is the number of the cuts.**
+  `StrSplit("a,b,c", ",", "", 2)` is `a` and `b,c`: the rest of the text is
+  the last piece. Zero is an answer with no piece, and a negative number is
+  no limit at all.
+- **The answer of the `StrSplit` is an array.**
+- **A property is written with a descriptor.** The `DefineProp` takes an
+  object with a `Value`, a `Get`, a `Set` or a `Call` in it, and nothing else:
+  "Parameter #2 of Object.Prototype.DefineProp is invalid.". A value and an
+  accessor together are refused the same way. The read of a property with a
+  `Get` calls it, and the object is the first parameter of it; the write
+  calls the `Set`, and the object and the value are its two parameters; a
+  property with a `Get` and nothing else is read-only, and the write says
+  "Property is read-only.". The `DefineProp` answers the object, the
+  `GetOwnPropDesc` answers an object with the members of the descriptor, and
+  the `DeleteProp` answers the value that was taken away.
+- **The braces that are not closed are named in the words of v2.** The class
+  that is not closed says "Missing \"}\"\n     Specifically: Foo", and the
+  block that is not closed says "Missing \"}\" and nothing else: v2 never
+  names the line of a block that is not closed.
+- **The switch says what it wants.** A statement that is not a case is
+  refused with "Expected Case/Default.", a case without its colon says
+  "Missing \":\"\n     Specifically: case 1", and the switch that is not
+  closed says "Missing \"}\"".
+- **The member of a class that is not a definition is refused with the line
+  that says it.** "Not a valid method, class or property definition.\n
+  Specifically: x .= \"y\"". A member that is a name and nothing else is a
+  line with no action in it: "This line does not contain a recognized
+  action.\n     Specifically: x".
+- **The concat of a variable that has no value is the concat of an empty
+  text.** `s .= "x"` on a variable that has no value is `x`, and the write
+  makes the variable. The other operators want a value that is there, and
+  `n += 2` is "This global variable has not been assigned a value.".
+- **The compound operators read the property before they write it.** A
+  property that is not there is an error that names it: `o.x .= "y"` is
+  "This value of type \"Object\" has no property named \"x\".", and the
+  setter of the object is not called.
+- **The pattern of a loop over the files is a path.** The folder of it is
+  where the files are and the rest of it is the name of them: `Loop Files,
+  "sub\*.txt"` is the files of the folder `sub`.
+- **The case of the pattern does not count.** `*.TXT` is every file that ends
+  with `.txt`.
+- **The files of a folder come in the order of the name with the case taken
+  away.** The names are compared byte-wise, and the order of a directory is
+  not the order of its name: the files of a folder of NTFS come in the order
+  of the index of the folder, and `10.txt` comes before `2.txt`.
+
+Two things are apart, and they stay apart. The relative pattern of v2 is
+resolved against the working directory, and the working directory of v2 is the
+folder of the script; the script of the runner has no file, so the tree
+resolves it against the folder where the run began. And a loop over a folder
+that is not there hangs v2, where the tree fails with the reason.

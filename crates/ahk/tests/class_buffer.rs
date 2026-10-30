@@ -189,7 +189,7 @@ fn the_inside_of_a_buffer_is_not_a_property_of_it() {
 #[test]
 fn a_buffer_may_have_a_property_of_its_own() {
     let report = run(
-        "b := Buffer(4)\nb.DefineProp(\"x\", 1)\nvalue := b.x\ngone := b.DeleteProp(\"x\")\nMsgBox \"%value% %gone%\"",
+        "b := Buffer(4)\nb.DefineProp(\"x\", {Value: 1})\nvalue := b.x\ngone := b.DeleteProp(\"x\")\nMsgBox \"%value% %gone%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 1"]);

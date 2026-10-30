@@ -1450,8 +1450,11 @@ pub fn modifier_names() -> Vec<String> {
 /// characters and `?` is one. The matcher is the same in every
 /// language, so it is written out here.
 pub(crate) fn name_matches(pattern: &str, name: &str) -> bool {
-    let pattern: Vec<char> = pattern.chars().collect();
-    let name: Vec<char> = name.chars().collect();
+    // Measured on the binary of v2.0.19 on 2026-10-31: the case of the
+    // pattern and the case of the name do not count: the machine of v2 is
+    // one that does not tell them apart.
+    let pattern: Vec<char> = pattern.chars().flat_map(|letter| letter.to_lowercase()).collect();
+    let name: Vec<char> = name.chars().flat_map(|letter| letter.to_lowercase()).collect();
     let mut table = vec![vec![false; name.len() + 1]; pattern.len() + 1];
     table[0][0] = true;
     for p in 1..=pattern.len() {
@@ -1473,7 +1476,7 @@ pub(crate) fn name_matches(pattern: &str, name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::title_matches;
+    use super::{name_matches, title_matches};
 
     /// The mode of v2 is the default one, 2: the title of the window has
     /// to contain the text that was asked for.
@@ -1489,6 +1492,16 @@ mod tests {
     fn the_case_of_the_title_matters() {
         assert!(title_matches("pod153/Login - Chromium", "Chromium"));
         assert!(!title_matches("pod153/Login - Chromium", "chromium"));
+    }
+
+    /// The case of the pattern and the case of the name do not count: the
+    /// machine of v2 is one that does not tell them apart.
+    /// Measured on the binary of v2.0.19 on 2026-10-31.
+    #[test]
+    fn the_case_of_the_pattern_does_not_count() {
+        assert!(name_matches("*.TXT", "b.txt"));
+        assert!(name_matches("*.txt", "b.TXT"));
+        assert!(name_matches("A*", "a.txt"));
     }
 
     /// A title that is not there is not there, and a text that is empty
