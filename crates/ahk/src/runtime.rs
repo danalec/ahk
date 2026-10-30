@@ -4136,34 +4136,36 @@ impl<'a> Runtime<'a> {
         // asks in its own handler.
         let decides = crate::builtins::decides_references(builtin.name);
         for (index, value) in values.iter().enumerate() {
-            if matches!(value, Value::Reference(_))
-                && !written_back.contains(&index)
-                && !decides
-                && !crate::builtins::refuses_itself(builtin.name)
+            if !matches!(value, Value::Reference(_))
+                || written_back.contains(&index)
+                || decides
+                || crate::builtins::refuses_itself(builtin.name)
             {
-                let message = match crate::builtins::wants(builtin.name, index) {
-                    crate::builtins::Wants::Number => {
-                        requires(index + 1, builtin.name, TypeName::Number, value)
-                    }
-                    crate::builtins::Wants::String => {
-                        requires(index + 1, builtin.name, TypeName::String, value)
-                    }
-                    crate::builtins::Wants::Object => {
-                        expected_type(TypeName::Object, value.type_name())
-                    }
-                    crate::builtins::Wants::Value => format!(
-                        "Parameter #{} of {} requires a value, but received a VarRef.",
-                        index + 1,
-                        builtin.name
-                    ),
-                };
-                // The name of the built-in goes in the `What` of the
-                // failure: v2 carries it there.
-                return Err(RuntimeFailure::Detailed(
-                    RuntimeError { message, line },
-                    Detail { what: builtin.name.to_string(), extra: String::new() },
-                ));
+                continue;
             }
+            // A reference is a value of its own kind. Where the parameter
+            // wants a text, a number or an object, the reference does not
+            // fit and the built-in says so. Where the parameter takes any
+            // value, the reference goes through, and the built-in answers
+            // about it: the `Type` names it "VarRef".
+            let message = match crate::builtins::wants(builtin.name, index) {
+                crate::builtins::Wants::Number => {
+                    requires(index + 1, builtin.name, TypeName::Number, value)
+                }
+                crate::builtins::Wants::String => {
+                    requires(index + 1, builtin.name, TypeName::String, value)
+                }
+                crate::builtins::Wants::Object => {
+                    expected_type(TypeName::Object, value.type_name())
+                }
+                crate::builtins::Wants::Value => continue,
+            };
+            // The name of the built-in goes in the `What` of the
+            // failure: v2 carries it there.
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message, line },
+                Detail { what: builtin.name.to_string(), extra: String::new() },
+            ));
         }
         // A parameter that v2 declares wants a value of a kind, and a
         // value of another kind is refused with the reason: the name of

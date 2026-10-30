@@ -1059,7 +1059,18 @@ fn text_argument(name: &str, values: &[Value], index: usize, line: u32) -> Resul
 fn has_prop(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
     let name = text_of(values, 1);
-    rt.base_object(&target, "hasprop", &[Value::Text(name)], line)
+    // Measured on the binary of v2.0.19 on 2026-10-31: a value that is
+    // not an object has no property, and the answer is zero and not a
+    // refusal. The one property that every value has is its class.
+    if !matches!(target, Value::Object(_)) {
+        return Ok(Value::Int(if name.eq_ignore_ascii_case("__class") { 1 } else { 0 }));
+    }
+    // A class is not an instance of itself: the question is about the
+    // class, and the properties of the instances are not its own.
+    if rt.class_name_of(&target).is_some() {
+        return rt.base_object(&target, "hasprop", &[Value::Text(name)], line);
+    }
+    rt.own_method(&target, "hasprop", &[Value::Text(name)], line)
 }
 
 /// `HasMethod`: whether an object has a method.
@@ -1074,7 +1085,14 @@ fn has_method(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -
     if let Some(count) = count {
         arguments.push(Value::Int(count as i64));
     }
-    rt.base_object(&target, "hasmethod", &arguments, line)
+    // A value that is not an object has no method, and the answer is zero.
+    if !matches!(target, Value::Object(_)) {
+        return Ok(Value::Int(0));
+    }
+    if rt.class_name_of(&target).is_some() {
+        return rt.base_object(&target, "hasmethod", &arguments, line);
+    }
+    rt.own_method(&target, "hasmethod", &arguments, line)
 }
 
 /// `GetMethod`: the method of an object, as a value.
@@ -1088,14 +1106,14 @@ fn get_method(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -
     if let Some(count) = count {
         arguments.push(Value::Int(count as i64));
     }
-    rt.base_object(&target, "getmethod", &arguments, line)
+    rt.own_method(&target, "getmethod", &arguments, line)
 }
 
 /// `HasBase`: whether an object is of a class, or extends it.
 fn has_base(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
     let name = text_of(values, 1);
-    rt.base_object(&target, "hasbase", &[Value::Text(name)], line)
+    rt.own_method(&target, "hasbase", &[Value::Text(name)], line)
 }
 
 /// `IsSetRef`: whether a variable holds a value.
@@ -2555,7 +2573,10 @@ fn is_value(_rt: &mut Runtime<'_>, values: &[Value], line: u32, variant: u8) -> 
 /// both of them are objects the way an array is one in AutoHotkey.
 fn is_object(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let value = values.first().cloned().unwrap_or(Value::Int(0));
-    let answer = matches!(value, Value::List(_) | Value::Object(_));
+    // Measured on the binary of v2.0.19 on 2026-10-31: everything that is
+    // not a number and not a text is an object -- an array, a map, a class
+    // and a reference too.
+    let answer = !matches!(value, Value::Int(_) | Value::Float(_) | Value::Text(_));
     Ok(Value::Int(if answer { 1 } else { 0 }))
 }
 

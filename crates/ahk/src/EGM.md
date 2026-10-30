@@ -337,6 +337,14 @@ more than the tree can do is taken by the table and refused by the
 handler, with the reason. A parameter is never ignored: a call that
 answers with a wrong value and says nothing is the worst outcome.
 
+A reference is a value of its own kind, and the kind is "VarRef". Where
+the parameter of a built-in takes any value, the reference goes through
+and the built-in answers about it: the `Type` of a reference is "VarRef",
+and a reference is an object, like an array, a map and a class. Where
+the parameter wants a text, a number or an object, the reference does
+not fit and the built-in says so. Measured on the binary of v2.0.19 on
+2026-10-31.
+
 The built-in variables of v2 are in `variables.rs`: the ones the runtime
 knows, and the ones the runtime writes where it runs.
 

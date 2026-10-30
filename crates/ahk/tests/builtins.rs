@@ -1351,6 +1351,54 @@ fn the_type_of_an_object_is_the_name_of_its_class() {
 }
 
 #[test]
+fn a_reference_is_a_value_of_its_own_kind() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `Type` of a
+    // reference names its kind, and the predicates answer about it.
+    let report = run(concat!(
+        "y := 1\n",
+        "a := Type(&y)\n",
+        "b := IsObject(&y)\n",
+        "c := IsInteger(&y)\n",
+        "d := IsNumber(&y)\n",
+        "e := IsFloat(&y)\n",
+        "f := IsSetRef(&y)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("VarRef".into()));
+    // A reference is an object of its own kind.
+    assert_eq!(value_of(&report, "b"), Value::Int(1));
+    assert_eq!(value_of(&report, "c"), Value::Int(0));
+    assert_eq!(value_of(&report, "d"), Value::Int(0));
+    assert_eq!(value_of(&report, "e"), Value::Int(0));
+    assert_eq!(value_of(&report, "f"), Value::Int(1));
+}
+
+#[test]
+fn the_questions_about_a_value_answer_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a value that is
+    // not an object has no method and no property, and the answer is
+    // zero and not a refusal. The one property that every value has is
+    // its class.
+    let report = run(concat!(
+        "y := 1\n",
+        "a := HasMethod(&y)\n",
+        "b := HasMethod(1)\n",
+        "c := HasProp(&y, \"nothing\")\n",
+        "d := HasProp(&y, \"__Class\")\n",
+        "e := HasProp([1, 2], \"Length\")\n",
+        "f := HasMethod([1, 2], \"Push\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(0));
+    assert_eq!(value_of(&report, "b"), Value::Int(0));
+    assert_eq!(value_of(&report, "c"), Value::Int(0));
+    assert_eq!(value_of(&report, "d"), Value::Int(1));
+    // The array answers about its own properties and methods.
+    assert_eq!(value_of(&report, "e"), Value::Int(1));
+    assert_eq!(value_of(&report, "f"), Value::Int(1));
+}
+
+#[test]
 fn regex_match_says_where_the_pattern_is() {
     let report = run(concat!(
         "a := RegExMatch(\"hello\", \"l+\")",

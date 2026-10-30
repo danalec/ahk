@@ -202,8 +202,9 @@ the box: it does no I/O, and it has to keep building without `std`.
 - **A reference is a value of its own kind, and v2 names it a VarRef.** It
   points at a variable by its name and by its scope, and it is neither a
   string nor a number: the operations that want one of those say that they
-  got a VarRef. The reference of a built-in variable, of a function and of a
-  class is refused, each with the reason v2 gives.
+  got a VarRef. It is an object, though: the `IsObject` of a reference is
+  one. The reference of a built-in variable, of a function and of a class is
+  refused, each with the reason v2 gives.
 - **The flag of the table of v2 is the place of the first parameter that is
   written back.** `builtins::reference_parameters` is that column turned into
   the places of the parameters, and a reference in any other place is a
@@ -2919,3 +2920,45 @@ name the tree has and v2 does not.
 One hundred and thirteen of the hundred and fourteen commands that want a
 parameter are the same in the tree and in the dialect when they are called
 with none; the one that is not is the `Screenshot`, which v2 does not have.
+
+## 58. A reference is a value of its own kind, and the questions about a value answer a value
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree refused a reference
+in every place that the built-in does not write back -- "Parameter #1 of Type
+requires a value, but received a VarRef." -- and v2 takes it: `Type(&y)`
+answers "VarRef".
+
+- **The reference goes through where the parameter takes any value.** The
+  built-in answers about it, and the answers are the ones of the dialect: the
+  `Type` names it "VarRef", the `IsObject` says it is an object, the
+  `IsInteger`, the `IsNumber` and the `IsFloat` say it is not a number, and
+  the `IsSetRef` says it is a reference.
+- **Everything that is not a number and not a text is an object.** The
+  `IsObject` of a number and of a text is zero, and the one of an array, of a
+  map, of a class and of a reference is one.
+- **Where the parameter wants a text, a number or an object, the reference
+  does not fit**, and the built-in says so with the kind it wanted: "Parameter
+  #1 of Abs requires a Number, but received a VarRef." That was already the
+  rule of the tree, and it stays.
+- **The questions about a value answer a value.** The `HasMethod` of a value
+  that is not an object is zero, and the `HasProp` of one is zero -- except
+  the property of the class, which every value has: `HasProp(&y, "__Class")`
+  is one.
+- **The questions ask the class of the value.** `HasProp([1, 2], "Length")` is
+  one and `HasMethod([1, 2], "Push")` is one: the array answers about its own
+  properties and methods.
+- **A class is not an instance of itself.** `HasProp(Map, "Count")` is zero
+  and `HasMethod(Array, "Push")` is zero: the properties and the methods of
+  the instances are not the ones of the class.
+
+Two gaps are left open. The `HasMethod` of a class with no name is one in v2
+-- the question is then whether the class has any method -- and zero in the
+tree. And the names that the tree does not carry answer with the reason of
+the machine, where v2 refuses the reference with the kind it wanted: the
+`StrPut` and the `ComObjConnect` are the ones.
+
+Forty-eight of the seventy-one built-ins that take one argument are the same
+in the tree and in the dialect when they are called with a reference, and
+thirty-two of the thirty-four questions about a value are the same too. The
+ones that are not are the names that the tree does not carry, and the two
+questions about a class with no name.
