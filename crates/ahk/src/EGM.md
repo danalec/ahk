@@ -442,15 +442,21 @@ not while the body of a `try` runs.
   v2.0.19 on 2026-10-31, and the refusal of such a command is the one of
   the parameter that is missing: "Parameter #1 of FileGetAttrib must not
   be omitted in this case."
-- `Wants` -- the type a parameter declares: `Number`, `String`, `Object`, or
-  `Value` for a built-in that takes a value of any kind.
-- `wants(name, index) -> Wants` -- the type of that parameter. The two
-  tables of it -- `THE_TEXTS` and `THE_NUMBERS` -- were measured on the
-  binary of v2.0.19 on 2026-10-31: every built-in of the tree was
-  called with an object where the parameter goes, and the refusal of the
-  binary named the parameter and the kind it wanted. The runtime asks
-  the table before the handler runs, and a value that does not fit is
-  refused with the reason.
+- `Wants` -- what a parameter wants, and the shape of the refusal of the
+  dialect: `Declared(TypeName)` for a parameter that declares its kind,
+  `Checked(TypeName)` for a check that the body of the function makes,
+  `Reference(&str)` for a parameter that wants a reference, and `Value`
+  for a built-in that takes a value of any kind.
+- `wants(name, index) -> Wants` -- what that parameter wants. The tables
+  of it -- `THE_TEXTS`, `THE_NUMBERS` and `THE_REFUSED` -- were measured
+  on the binary of v2.0.19 on 2026-10-31: every built-in of the tree
+  was called with an object where the parameter goes, and the refusal of
+  the binary named the parameter and the kind it wanted. Every name that
+  the tree does not carry was asked the same way, and the kinds of their
+  442 parameters are in `THE_REFUSED`. The runtime asks the table before
+  the handler runs, and a value that does not fit is refused with the
+  reason: the kind of the parameter comes before the reason of the
+  machine, and it comes before the parameter that may not be left out.
 - `refuses_itself(name) -> bool` -- the built-ins that refuse the
   parameter in their own handler: the `Mod` says "Invalid parameter(s)."
   for anything that is not a number, and it does not name the type.

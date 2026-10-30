@@ -82,6 +82,12 @@ pub enum TypeName {
     /// The value of a class is an object of the tree, and the tag is
     /// what the message about the `is` operator names.
     Class,
+    /// A value of COM.
+    ///
+    /// The tree carries none, and the name is here for the message of
+    /// the dialect: "Parameter #1 of ComObjValue requires a ComValue,
+    /// but received a VarRef.".
+    ComValue,
 }
 
 impl TypeName {
@@ -98,6 +104,7 @@ impl TypeName {
             TypeName::VarRef => "VarRef",
             TypeName::Number => "Number",
             TypeName::Class => "Class",
+            TypeName::ComValue => "ComValue",
         }
     }
 
@@ -115,6 +122,7 @@ impl TypeName {
             TypeName::VarRef => "varref",
             TypeName::Number => "number",
             TypeName::Class => "class",
+            TypeName::ComValue => "comvalue",
         }
     }
 
@@ -193,6 +201,49 @@ pub fn requires(index: usize, name: &str, wants: TypeName, value: &Value) -> Str
     )
 }
 
+/// The message v2 gives when the body of a function checks the kind of a
+/// value.
+///
+/// The template is the one of the binary: "Expected a%s %s but got a%s
+/// %s.". The kind that was wanted is named as it is, and the kind that
+/// arrived is the name of the class of the value: "Expected an Object
+/// but got an empty string.".
+pub fn expects_a_kind(kind: TypeName, value: &Value) -> String {
+    format!(
+        "Expected a{} {} but got {}.",
+        kind.article(),
+        kind.name(),
+        the_kind_of(value)
+    )
+}
+
+/// Whether a value is the kind that a parameter declares.
+///
+/// The dialect converts the value to the kind that the parameter
+/// declares: a parameter that wants a text takes a number, and one that
+/// wants a number takes a text that holds one.
+pub fn accepts(kind: TypeName, value: &Value) -> bool {
+    match kind {
+        TypeName::String => matches!(value, Value::Text(_) | Value::Int(_) | Value::Float(_)),
+        TypeName::Number | TypeName::Integer => value.to_number_strict().is_ok(),
+        TypeName::Object => matches!(value, Value::Object(_)),
+        // The tree carries no value of COM, and nothing is one.
+        TypeName::ComValue => false,
+        _ => true,
+    }
+}
+
+/// Whether a value is the kind that the body of a function checks.
+///
+/// The check is the kind of the value itself: a number is not a text.
+pub fn is_of_the_kind(kind: TypeName, value: &Value) -> bool {
+    match kind {
+        TypeName::String => matches!(value, Value::Text(_)),
+        TypeName::Object => matches!(value, Value::Object(_)),
+        _ => true,
+    }
+}
+
 /// The kind of a value, as the message of a built-in names it.
 ///
 /// A text is a String, and an empty one is an empty string; a number is
@@ -229,20 +280,19 @@ pub fn invalid_parameter(index: usize, name: &str) -> String {
 /// one that writes the place of the pointer says "a VarRef".
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-29: the message ends
-/// with the type of the value, and the value that was there is in the
-/// `Extra` of the failure, and not in the message.
+/// with the kind of the value, and the value that was there is in the
+/// `Extra` of the failure, and not in the message. The kind is the name
+/// of the class of the value: "an Integer", "an Array", "an empty
+/// string".
 pub fn wants_a_reference(
     index: usize,
     name: &str,
     wants: &str,
-    got: TypeName,
-    _value: &str,
-    _capitalised: bool,
+    value: &Value,
 ) -> String {
     format!(
-        "Parameter #{index} of {name} requires {wants}, but received a{} {}.",
-        got.article(),
-        got.name()
+        "Parameter #{index} of {name} requires {wants}, but received {}.",
+        the_kind_of(value)
     )
 }
 
@@ -3029,9 +3079,7 @@ impl<'a> Runtime<'a> {
                             index + 1,
                             &method.name,
                             "a variable reference",
-                            value.type_name(),
-                            &value.to_text(),
-                            false,
+                            &value,
                         ),
                         line,
                     }));
@@ -4357,9 +4405,7 @@ impl<'a> Runtime<'a> {
                             index + 1,
                             &function.name,
                             "a variable reference",
-                            value.type_name(),
-                            &value.to_text(),
-                            false,
+                            &value,
                         ),
                         line,
                     }));
@@ -4657,25 +4703,6 @@ impl<'a> Runtime<'a> {
                 line,
             ));
         }
-        // A command may declare fewer parameters than it needs: the table
-        // of the binary says how many the command takes, and the command
-        // says which one it cannot do without. The refusal of v2 names
-        // the parameter and not the count, and it comes before the kind
-        // of the values that are there.
-        for number in crate::builtins::required_parameters(builtin.name) {
-            if values.len() < *number as usize {
-                return Err(RuntimeFailure::Detailed(
-                    RuntimeError {
-                        message: format!(
-                            "Parameter #{number} of {} must not be omitted in this case.",
-                            builtin.name
-                        ),
-                        line,
-                    },
-                    Detail { what: String::new(), extra: String::new() },
-                ));
-            }
-        }
         // A reference is for the parameters that are written back: the
         // rest want a value, and v2 says which parameter got one and what
         // the built-in wanted there.
@@ -4697,15 +4724,14 @@ impl<'a> Runtime<'a> {
             // value, the reference goes through, and the built-in answers
             // about it: the `Type` names it "VarRef".
             let message = match crate::builtins::wants(builtin.name, index) {
-                crate::builtins::Wants::Number => {
-                    requires(index + 1, builtin.name, TypeName::Number, value)
+                crate::builtins::Wants::Declared(kind) => {
+                    requires(index + 1, builtin.name, kind, value)
                 }
-                crate::builtins::Wants::String => {
-                    requires(index + 1, builtin.name, TypeName::String, value)
+                crate::builtins::Wants::Checked(kind) => {
+                    expects_a_kind(kind, value)
                 }
-                crate::builtins::Wants::Object => {
-                    expected_type(TypeName::Object, value.type_name())
-                }
+                // A parameter that wants a reference takes one.
+                crate::builtins::Wants::Reference(_) => continue,
                 crate::builtins::Wants::Value => continue,
             };
             // The name of the built-in goes in the `What` of the
@@ -4722,7 +4748,9 @@ impl<'a> Runtime<'a> {
         //
         // Measured on the binary of v2.0.19 on 2026-10-31: a parameter
         // that wants a text takes a text and a number, and one that
-        // wants a number takes a number and a text that holds one.
+        // wants a number takes a number and a text that holds one. A
+        // check that the body of the function makes wants the kind of
+        // the value itself: a number is not a text.
         for (index, value) in values.iter().enumerate() {
             // A reference is the business of the guard above: the
             // parameters that are written back take one.
@@ -4730,19 +4758,22 @@ impl<'a> Runtime<'a> {
                 continue;
             }
             let message = match crate::builtins::wants(builtin.name, index) {
-                crate::builtins::Wants::String => {
-                    if matches!(value, Value::Text(_) | Value::Int(_) | Value::Float(_)) {
+                crate::builtins::Wants::Declared(kind) => {
+                    if accepts(kind, value) {
                         continue;
                     }
-                    requires(index + 1, builtin.name, TypeName::String, value)
+                    requires(index + 1, builtin.name, kind, value)
                 }
-                crate::builtins::Wants::Number => {
-                    if value.to_number_strict().is_ok() {
+                crate::builtins::Wants::Checked(kind) => {
+                    if is_of_the_kind(kind, value) {
                         continue;
                     }
-                    requires(index + 1, builtin.name, TypeName::Number, value)
+                    expects_a_kind(kind, value)
                 }
-                _ => continue,
+                crate::builtins::Wants::Reference(wants) => {
+                    wants_a_reference(index + 1, builtin.name, wants, value)
+                }
+                crate::builtins::Wants::Value => continue,
             };
             // v2 carries the value that arrived in the `Extra`: the
             // text of it, and nothing for an object, an array or a
@@ -4751,6 +4782,26 @@ impl<'a> Runtime<'a> {
                 RuntimeError { message, line },
                 Detail { what: builtin.name.to_string(), extra: the_extra_of_the_value(value) },
             ));
+        }
+        // A command may declare fewer parameters than it needs: the table
+        // of the binary says how many the command takes, and the command
+        // says which one it cannot do without. The refusal of v2 names
+        // the parameter and not the count, and it comes after the kind of
+        // the values that are there: the dialect converts the arguments
+        // before the body of the function runs.
+        for number in crate::builtins::required_parameters(builtin.name) {
+            if values.len() < *number as usize {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError {
+                        message: format!(
+                            "Parameter #{number} of {} must not be omitted in this case.",
+                            builtin.name
+                        ),
+                        line,
+                    },
+                    Detail { what: String::new(), extra: String::new() },
+                ));
+            }
         }
         (builtin.handler)(self, values, line, builtin.variant).map_err(|error| {
             // The failure of a built-in carries the name of the built-in
@@ -4889,9 +4940,7 @@ impl<'a> Runtime<'a> {
                     1,
                     name,
                     "an Object",
-                    value.type_name(),
-                    &value.to_text(),
-                    true,
+                    value,
                 ),
                 line,
             });

@@ -103,6 +103,11 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
     if message == "Invalid parameter(s)." {
         return "ValueError";
     }
+    // A parameter that may not be left out in this case is a value that
+    // is not valid.
+    if message.ends_with(" must not be omitted in this case.") {
+        return "ValueError";
+    }
     // The options of a dialog that v2 does not know are a value that
     // is not valid.
     if message == "Invalid option." {

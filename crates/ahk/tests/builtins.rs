@@ -2735,6 +2735,92 @@ fn a_desktop_that_does_not_reach_the_network_says_so() {
     );
 }
 
+// -- the names that the tree does not carry ------------------------------------------------
+
+#[test]
+fn a_name_that_the_tree_does_not_carry_says_the_kind_of_the_parameter_first() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the dialect says
+    // the kind that the parameter wants before it says anything else.
+    let report = run("x := 1\na := StrPut(&x)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of StrPut requires a String, but received a VarRef."
+    );
+}
+
+#[test]
+fn a_name_that_the_tree_does_not_carry_wants_a_number_where_the_dialect_wants_one() {
+    let report = run("x := 1\na := Shutdown(&x)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of Shutdown requires a Number, but received a VarRef."
+    );
+}
+
+#[test]
+fn a_value_of_the_wrong_kind_is_refused_before_the_reason_of_the_machine() {
+    let report = run("a := StrPut([])");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of StrPut requires a String, but received an Array."
+    );
+}
+
+#[test]
+fn the_check_that_the_body_of_a_function_makes_says_its_own_words() {
+    // The `StrPtr` checks the kind of its argument in its body, and the
+    // words are not the ones of a parameter that declares its kind.
+    let report = run("x := 1\na := StrPtr(&x)");
+    assert_eq!(failure_of(&report), "Expected a String but got a VarRef.");
+}
+
+#[test]
+fn a_parameter_that_wants_a_reference_says_it() {
+    let report = run("a := CaretGetPos(5, 5)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of CaretGetPos requires a variable reference, but received an Integer."
+    );
+}
+
+#[test]
+fn an_empty_text_is_named_in_the_message_of_the_check() {
+    let report = run("a := ObjOwnProps(\"\")");
+    assert_eq!(failure_of(&report), "Expected an Object but got an empty string.");
+}
+
+#[test]
+fn a_name_that_the_tree_does_not_carry_says_the_reason_of_the_machine_when_the_kind_fits() {
+    let report = run("a := StrPut(\"x\", \"y\")");
+    assert_eq!(
+        failure_of(&report),
+        "this is a name of Windows, and this desktop is not Windows."
+    );
+}
+
+#[test]
+fn the_kind_of_a_value_comes_before_the_parameter_that_may_not_be_left_out() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the dialect
+    // converts the arguments before the body of the function runs.
+    let report = run("a := ListViewGetContent([])");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of ListViewGetContent requires a String, but received an Array."
+    );
+}
+
+#[test]
+fn the_parameter_that_may_not_be_left_out_is_a_value_that_is_not_valid() {
+    let report = run(
+        "try {\n    a := ListViewGetContent(\"x\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #2 of ListViewGetContent must not be omitted in this case. | ValueError"]
+    );
+}
+
 #[test]
 fn a_desktop_that_cannot_ask_the_user_says_so() {
     // The question is the machine's, and a machine that has no window

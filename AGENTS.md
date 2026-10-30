@@ -2951,17 +2951,16 @@ answers "VarRef".
   and `HasMethod(Array, "Push")` is zero: the properties and the methods of
   the instances are not the ones of the class.
 
-Two gaps are left open. The `HasMethod` of a class with no name is one in v2
--- the question is then whether the class has any method -- and zero in the
-tree. And the names that the tree does not carry answer with the reason of
-the machine, where v2 refuses the reference with the kind it wanted: the
-`StrPut` and the `ComObjConnect` are the ones.
+One gap is left open. The names that the tree does not carry answer with
+the reason of the machine, where v2 refuses the reference with the kind it
+wanted: the `StrPut` and the `ComObjConnect` are the ones. The other one,
+the `HasMethod` of a class with no name, was closed by section 62.
 
 Forty-eight of the seventy-one built-ins that take one argument are the same
 in the tree and in the dialect when they are called with a reference, and
 thirty-two of the thirty-four questions about a value are the same too. The
-ones that are not are the names that the tree does not carry, and the two
-questions about a class with no name.
+ones that are not are the names that the tree does not carry, and the
+questions about a class with no name. Section 68 closed the first ones.
 
 ## 59. The enumeration of v2 is an Enumerator, and a catch takes every error
 
@@ -3320,3 +3319,53 @@ speed. v2 takes all of them, and the tree takes them too.
   the title, the way it does in v2.
 - **The speed changes nothing here.** The tree reads no text of a window, so
   the speed of the matching is kept and nothing more.
+
+## 68. The kind of a parameter is said before the reason of the machine
+
+Measured on the binary of v2.0.19 on 2026-10-31: the names that the tree
+does not carry answered with the reason of the machine -- "this is a name
+of Windows, and this desktop is not Windows." -- and the dialect refuses
+them with the kind of the parameter: "Parameter #1 of StrPut requires a
+String, but received a VarRef.". The kind is checked before the body of
+the function runs, so the tree says it too.
+
+- **Every parameter of every name was asked.** The 182 names that the
+  tree does not carry carry 1131 parameters, and each one of them was
+  called with a reference where the parameter goes: the refusal of the
+  binary named the kind it wanted. The dialect converts the arguments
+  from the left, so a refusal about a later parameter was read and the
+  probe was asked again. 413 of the parameters declare a kind, 29 want a
+  reference, and the other 689 take a value of any kind.
+- **The kind is said in the words of the dialect.** A parameter that
+  declares its kind says "Parameter #1 of StrPut requires a String, but
+  received a VarRef.", and a check that the body of the function makes
+  says "Expected a String but got a VarRef.": the `StrPtr` is the one that
+  checks in its body. The kinds the tree did not know are in the table: an
+  integer ("Parameter #1 of ComCall requires an Integer, but received a
+  VarRef.") and a value of COM ("Parameter #1 of ComObjValue requires a
+  ComValue, but received a VarRef.").
+- **A parameter that wants a reference says it.** "Parameter #1 of
+  CaretGetPos requires a variable reference, but received an Integer." is
+  the wording of the `CaretGetPos`, and "a VarRef" is the wording of the
+  `WinGetPos`, of the `ControlGetPos` and of the other four.
+- **The kind of the value is the name of its class.** The message of a
+  reference says "but received an Array." and not "but received an
+  Object.", and an empty text is "an empty string".
+- **The kind comes before the parameter that may not be left out.** The
+  dialect converts the arguments before the body of the function runs:
+  `ListViewGetContent([])` says "Parameter #1 of ListViewGetContent
+  requires a String, but received an Array.", and the refusal of the
+  parameter that may not be left out ("Parameter #2 of ListViewGetContent
+  must not be omitted in this case.") comes after it. That refusal is of
+  the class `ValueError`.
+- **The reason of the machine comes after.** A name whose kind fits is
+  refused with the reason of the machine: the tree cannot do the thing.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_refused_kinds.py`: 442 cases, and none of them is
+different. The order of the checks is in
+`egm-review/compare_check_order.py`.
+
+One gap is left in the files: the `FileGetAttrib` of a file that is not
+there fails with the reason of the machine, where v2 answers with an empty
+text.

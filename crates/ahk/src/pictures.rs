@@ -37,9 +37,7 @@ pub fn load_picture(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
                     3,
                     "LoadPicture",
                     "a VarRef",
-                    value.type_name(),
-                    &value.to_text(),
-                    false,
+                    value,
                 ),
                 line,
             });
@@ -69,9 +67,7 @@ pub fn image_search(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
                     index + 1,
                     "ImageSearch",
                     "a VarRef",
-                    value.type_name(),
-                    &value.to_text(),
-                    false,
+                    value,
                 ),
                 line,
             });
