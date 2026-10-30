@@ -447,14 +447,160 @@ fn the_script_writes_the_working_directory() {
 }
 
 #[test]
-fn the_write_of_the_name_of_the_script_refuses_with_the_reason() {
-    // The name of the script is the title of the messages, and the box has
-    // no window to show a message in.
-    let report = run("A_ScriptName := \"x\"");
+fn the_script_writes_the_name_of_the_script() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the dialect lets a
+    // script write the name of the script, and the value that was written
+    // is the value the name keeps.
+    let report = run("A_ScriptName := \"x\"\nMsgBox A_ScriptName");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x"]);
+}
+
+#[test]
+fn the_script_writes_the_information_of_an_event() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the information of
+    // an event is a number, and a text holds the number it carries.
+    let report = run(
+        "A_EventInfo := \"20x\"\na := A_EventInfo\nA_EventInfo := 7\nb := A_EventInfo\nMsgBox \"%a% %b%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["20 7"]);
+}
+
+#[test]
+fn the_script_writes_the_tip_of_the_icon() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the tip of the icon
+    // takes any value, and it keeps it.
+    let report = run("A_IconTip := \"x\"\nMsgBox A_IconTip");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x"]);
+}
+
+#[test]
+fn the_script_writes_the_hidden_of_the_icon() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the icon is hidden
+    // or it is not, and the flag takes the truth of the value.
+    let report = run(
+        "A_IconHidden := \"x\"\na := A_IconHidden\nA_IconHidden := false\nb := A_IconHidden\nMsgBox \"%a% %b%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 0"]);
+}
+
+#[test]
+fn the_script_writes_the_last_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the last error of
+    // the operating system is a number of thirty-two bits, and it wraps
+    // around.
+    let report = run(
+        "A_LastError := -1\na := A_LastError\nA_LastError := \"20x\"\nb := A_LastError\nMsgBox \"%a% %b%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["4294967295 20"]);
+}
+
+#[test]
+fn the_script_writes_the_interval_of_the_hotkeys() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the interval is a
+    // number, and a text that holds one is that number.
+    let report = run(
+        "A_HotkeyInterval := \"2\"\na := A_HotkeyInterval\nA_HotkeyInterval := 7\nb := A_HotkeyInterval\nMsgBox \"%a% %b%\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 7"]);
+}
+
+#[test]
+fn a_text_that_holds_no_number_is_refused_by_the_interval_of_the_hotkeys() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the interval wants a
+    // number, and the kind of the value that arrived is named.
+    let report = run(
+        "try {\n    A_HotkeyInterval := \"text\"\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Expected a Number but got a String. | TypeError"]);
+}
+
+#[test]
+fn the_script_writes_the_number_of_the_hotkeys() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
+    // hotkeys is a number, and the smallest one that it takes is one.
+    let report = run("A_MaxHotkeysPerInterval := 7\na := A_MaxHotkeysPerInterval\nMsgBox \"%a%\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7"]);
+}
+
+#[test]
+fn a_number_of_hotkeys_that_is_not_one_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a number that is out
+    // of the range of the name is a value that is not valid.
+    let report = run(
+        "try {\n    A_MaxHotkeysPerInterval := 0\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Invalid value. | ValueError"]);
+}
+
+#[test]
+fn the_timeout_of_the_change_of_a_hotkey_has_no_value_until_it_is_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of the
+    // change of a hotkey has no value, and a script that writes one gives
+    // it the value it wrote.
+    let report = run("A_HotkeyModifyTimeout := 5\nMsgBox A_HotkeyModifyTimeout");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5"]);
+}
+
+#[test]
+fn the_timeout_of_the_change_of_a_hotkey_that_has_no_value_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of the
+    // change of a hotkey has no value, and a variable that has no value is
+    // the failure that says so.
+    let report = run("MsgBox A_HotkeyModifyTimeout");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("this runtime has no title for the messages: the box has no window to show them in.")
+        Some("This global variable has not been assigned a value.")
     );
     assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_built_in_variable_that_the_dialect_does_not_let_a_script_write_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the dialect refuses
+    // the name when the script writes it, and it names the name as the
+    // script spelled it.
+    let report = run("A_AhkVersion := \"x\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This built-in variable cannot be used as an output variable. Specifically: A_AhkVersion")
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_variable_that_has_no_value_is_an_unset_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a variable that has
+    // no value is an `UnsetError`.
+    let report = run(
+        "try {\n    x += 5\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["This global variable has not been assigned a value. | UnsetError"]
+    );
+}
+
+#[test]
+fn the_compound_operator_checks_the_value_that_is_written_first() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the dialect converts
+    // the value that is written before it reads the one that is there, and
+    // the kind it names is the kind of the value that was written.
+    let report = run(
+        "try {\n    x += \"text\"\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Expected a Number but got a String. | TypeError"]);
 }

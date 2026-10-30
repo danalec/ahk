@@ -821,7 +821,14 @@ pub fn variable(name: &str, rt: &mut Runtime<'_>) -> Option<Result<Value, Runtim
     let name = spelled.strip_prefix("a_").unwrap_or(spelled.as_str());
     let value = match name {
         "hotkeyinterval" => Value::Int(2000),
-        "hotkeymodifiertimeout" => Value::Int(50),
+        // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of
+        // the change of a hotkey has no value until a script writes one.
+        "hotkeymodifiertimeout" => {
+            return Some(Err(RuntimeError {
+                message: rt.the_unassigned(name),
+                line: 0,
+            }))
+        }
         "maxhotkeysperinterval" => Value::Int(70),
         "priorhotkey" => match shared_state(rt) {
             Some(shared) => match &shared.borrow().prior {
@@ -1210,15 +1217,17 @@ impl Dialogs for Fake {}
         assert_eq!(report.output, vec!["^a".to_string()]);
     }
 
-    /// The three numbers of v2 are the ones the binary has.
+    /// The numbers of v2 are the ones the binary has.
     #[test]
     fn the_numbers_of_the_hotkeys_are_the_ones_of_v2() {
         let mut desktop = Fake::new();
         let mut clock = TheClock;
         let mut rt = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10));
         assert_eq!(variable("hotkeyinterval", &mut rt).unwrap().unwrap(), Value::Int(2000));
-        assert_eq!(variable("hotkeymodifiertimeout", &mut rt).unwrap().unwrap(), Value::Int(50));
         assert_eq!(variable("maxhotkeysperinterval", &mut rt).unwrap().unwrap(), Value::Int(70));
+        // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of
+        // the change of a hotkey has no value until a script writes one.
+        assert!(variable("hotkeymodifiertimeout", &mut rt).unwrap().is_err());
     }
 
     /// The variables of the hotkeys carry the state of the last one that

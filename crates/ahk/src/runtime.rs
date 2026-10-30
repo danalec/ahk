@@ -177,6 +177,50 @@ fn the_article_of(name: &str) -> &'static str {
     }
 }
 
+/// The number that a text holds at its front.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: "20x" is 20, "x20" is
+/// 0, " 30 " is 30, "1.9" is 1, "1e3" is 1000, "1,5" is 1 and "+7" is 7.
+fn the_number_of_the_text(text: &str) -> f64 {
+    let text = text.trim();
+    let bytes = text.as_bytes();
+    let mut end = 0;
+    if end < bytes.len() && (bytes[end] == b'+' || bytes[end] == b'-') {
+        end += 1;
+    }
+    let mut digits = 0;
+    while end < bytes.len() && bytes[end].is_ascii_digit() {
+        end += 1;
+        digits += 1;
+    }
+    if end < bytes.len() && bytes[end] == b'.' {
+        end += 1;
+        while end < bytes.len() && bytes[end].is_ascii_digit() {
+            end += 1;
+            digits += 1;
+        }
+    }
+    if digits == 0 {
+        return 0.0;
+    }
+    // The exponent: "1e3" is a thousand.
+    if end < bytes.len() && (bytes[end] == b'e' || bytes[end] == b'E') {
+        let mut next = end + 1;
+        if next < bytes.len() && (bytes[next] == b'+' || bytes[next] == b'-') {
+            next += 1;
+        }
+        let mut exponent = 0;
+        while next < bytes.len() && bytes[next].is_ascii_digit() {
+            next += 1;
+            exponent += 1;
+        }
+        if exponent > 0 {
+            end = next;
+        }
+    }
+    text[..end].parse::<f64>().unwrap_or(0.0)
+}
+
 /// The message v2 gives when a maths operation gets something that is
 /// not a number.
 ///
@@ -457,7 +501,9 @@ impl Value {
     /// Whether the value counts as true.
     pub fn truthy(&self) -> bool {
         match self {
-            Value::Text(text) => !text.is_empty(),
+            // Measured on the binary of v2.0.19 on 2026-10-31: a text that
+            // is "0" is false, and a text that is not empty is true.
+            Value::Text(text) => !text.is_empty() && text != "0",
             Value::Int(number) => *number != 0,
             Value::Float(number) => *number != 0.0,
             Value::List(items) => !items.is_empty(),
@@ -570,6 +616,20 @@ impl Value {
             }
             Value::List(_) | Value::Object(_) => Err(TypeName::Object),
             Value::Reference(_) => Err(TypeName::VarRef),
+        }
+    }
+
+    /// The value as a number, the way a setting takes it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a text holds the
+    /// number it carries at its front, and a text that holds no number is
+    /// zero: "20x" is 20 and "x20" is 0.
+    pub fn to_number_lenient(&self) -> f64 {
+        match self {
+            Value::Int(number) => *number as f64,
+            Value::Float(number) => *number,
+            Value::Text(text) => the_number_of_the_text(text),
+            _ => 0.0,
         }
     }
 
@@ -3997,55 +4057,75 @@ impl<'a> Runtime<'a> {
         Ok(match op {
             AssignOp::Set => value,
             AssignOp::Add => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.number(&value, line)?;
                 let current = self.assigned(name, current, line)?;
                 let a = self.number(&current, line)?;
-                let b = self.number(&value, line)?;
                 match (&current, &value) {
                     (Value::Int(a), Value::Int(b)) => Value::Int(a + b),
-                    _ => Value::Float(a + b),
+                    _ => Value::Float(a + written),
                 }
             }
             AssignOp::Subtract => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.number(&value, line)?;
                 let current = self.assigned(name, current, line)?;
                 let a = self.number(&current, line)?;
-                let b = self.number(&value, line)?;
                 match (&current, &value) {
                     (Value::Int(a), Value::Int(b)) => Value::Int(a - b),
-                    _ => Value::Float(a - b),
+                    _ => Value::Float(a - written),
                 }
             }
             AssignOp::Multiply => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.number(&value, line)?;
                 let current = self.assigned(name, current, line)?;
                 let a = self.number(&current, line)?;
-                let b = self.number(&value, line)?;
                 match (&current, &value) {
                     (Value::Int(a), Value::Int(b)) => Value::Int(a * b),
-                    _ => Value::Float(a * b),
+                    _ => Value::Float(a * written),
                 }
             }
             AssignOp::Divide => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.number(&value, line)?;
                 let current = self.assigned(name, current, line)?;
                 let a = self.number(&current, line)?;
-                let b = self.number(&value, line)?;
-                if b == 0.0 {
+                if written == 0.0 {
                     return Err(RuntimeFailure::Error(RuntimeError {
                         message: "Divide by zero.".into(),
                         line,
                     }));
                 }
-                Value::Float(a / b)
+                Value::Float(a / written)
             }
             AssignOp::IntegerDivide => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.integer(&value, line)?;
                 let current = self.assigned(name, current, line)?;
                 let a = self.integer(&current, line)?;
-                let b = self.integer(&value, line)?;
-                if b == 0 {
+                if written == 0 {
                     return Err(RuntimeFailure::Error(RuntimeError {
                         message: "Divide by zero.".into(),
                         line,
                     }));
                 }
-                Value::Int(a / b)
+                Value::Int(a / written)
             }
             AssignOp::Concat => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -4060,29 +4140,59 @@ impl<'a> Runtime<'a> {
                 Value::Text(format!("{}{}", current.to_text(), value.to_text()))
             }
             AssignOp::BitwiseAnd => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.integer(&value, line)?;
                 let current = self.assigned(name, current, line)?;
-                Value::Int(self.integer(&current, line)? & self.integer(&value, line)?)
+                Value::Int(self.integer(&current, line)? & written)
             }
             AssignOp::BitwiseOr => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.integer(&value, line)?;
                 let current = self.assigned(name, current, line)?;
-                Value::Int(self.integer(&current, line)? | self.integer(&value, line)?)
+                Value::Int(self.integer(&current, line)? | written)
             }
             AssignOp::BitwiseXor => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.integer(&value, line)?;
                 let current = self.assigned(name, current, line)?;
-                Value::Int(self.integer(&current, line)? ^ self.integer(&value, line)?)
+                Value::Int(self.integer(&current, line)? ^ written)
             }
             AssignOp::ShiftLeft => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.shift(&value, line)?;
                 let current = self.assigned(name, current, line)?;
-                Value::Int(self.integer(&current, line)? << self.shift(&value, line)?)
+                Value::Int(self.integer(&current, line)? << written)
             }
             AssignOp::ShiftRight => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.shift(&value, line)?;
                 let current = self.assigned(name, current, line)?;
-                Value::Int(self.integer(&current, line)? >> self.shift(&value, line)?)
+                Value::Int(self.integer(&current, line)? >> written)
             }
             AssignOp::ShiftRightUnsigned => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // dialect converts the value that is written before it
+                // reads the one that is there, and the kind it names is
+                // the kind of the value that was written.
+                let written = self.shift(&value, line)?;
                 let current = self.assigned(name, current, line)?;
                 let left = self.integer(&current, line)? as u64;
-                Value::Int((left >> self.shift(&value, line)?) as i64)
+                Value::Int((left >> written) as i64)
             }
         })
     }
@@ -4497,6 +4607,23 @@ impl<'a> Runtime<'a> {
         value: Value,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // A setting of the runtime is written where it lives: the setting
+        // changes, and the compound operators read it before they write
+        // it. The dialect writes the setting itself, and it is the tree
+        // that keeps it.
+        if let Some(spelled) = crate::variables::spelled(name) {
+            if let Some(Ok(current)) = crate::settings::value_of(&spelled) {
+                let stored = self.apply_assign(op, name, Some(current), value, line)?;
+                let written = crate::settings::write_of(&spelled, &stored).ok_or_else(|| {
+                    RuntimeFailure::Error(RuntimeError {
+                        message: "the runtime keeps no such setting.".into(),
+                        line,
+                    })
+                })?;
+                return written
+                    .map_err(|message| RuntimeFailure::Error(RuntimeError { message, line }));
+            }
+        }
         match crate::variables::write(name, op, &value, line, self) {
             Some(written) => {
                 // The reason of a write carries no line: the statement
@@ -4510,12 +4637,29 @@ impl<'a> Runtime<'a> {
                 Ok(stored)
             }
             None => {
-                let current = self.lookup(name);
+                // The value that is there before the write: the variable
+                // of the script, or the built-in variable of the same
+                // name.
+                let current = match self.lookup(name) {
+                    Some(value) => Some(value),
+                    None => match crate::variables::lookup(name, self) {
+                        Some(Ok(value)) => Some(value),
+                        _ => None,
+                    },
+                };
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name
                 // of a class is a name of the script, and a local that has
                 // that name may not hold the class or an instance of it.
                 self.the_class_is_not_written(name, &value, line)?;
                 let stored = self.apply_assign(op, name, current, value, line)?;
+                // A built-in variable that the dialect lets a script write
+                // is converted the way the dialect converts it: the value
+                // that is written is the value the name keeps.
+                let stored = match crate::variables::the_kind_of_the_write(name) {
+                    Some(kind) => crate::variables::the_written_value(kind, &stored, line)
+                        .map_err(RuntimeFailure::Error)?,
+                    None => stored,
+                };
                 self.assign(name, stored.clone());
                 Ok(stored)
             }

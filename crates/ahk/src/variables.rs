@@ -6,13 +6,14 @@
 //! built-in variable at all, and the runtime says that the variable has
 //! not been assigned a value.
 //!
-//! The names come in four shapes.
+//! The names come in five shapes.
 //!
 //! - The ones the runtime knows without asking anybody: the version of
 //!   the dialect, the size of a pointer, the clock, the end of a line.
 //! - The ones the runtime keeps as its own state: the coordinate modes,
-//!   the delays, the send mode. It keeps none of them yet, so they are
-//!   answered with the reason.
+//!   the delays, the send mode, the mode of the matching of the titles.
+//!   They are the settings of v2, and the module of the settings keeps
+//!   them.
 //! - The ones that want the date and the time. The clock of the runtime
 //!   counts the milliseconds of a run from an arbitrary origin, and it
 //!   does not know the date.
@@ -24,9 +25,14 @@
 //!   tree does not carry refuse with the reason of the name. The hotkeys
 //!   are the ones of the hotkey system of the runtime.
 //! - The one that lives outside the script: the clipboard. The desktop
-//!   holds it, and the runtime asks it. It is the only built-in variable
-//!   of v2 that a script writes and does not keep, and its name is
-//!   `A_Clipboard`, like the name of every other one of them.
+//!   holds it, and the runtime asks it. Its name is `A_Clipboard`, like
+//!   the name of every other one of them.
+//!
+//! A script writes some of the names, and the value that was written is
+//! the value the name keeps. The settings are written where they live,
+//! the names of the table of the writes keep the value in the table of
+//! the script, and the names that the dialect does not let a script write
+//! are refused.
 //!
 //! The name arrives as the script spells it, `A_Now`; the table below
 //! carries the name without the `A_` prefix that v2 gives every one of
@@ -104,19 +110,6 @@ const NO_SCRIPT_HWND: &str = "this runtime has no window of its own: it is a scr
 /// The desktop does not know the scale of the screen it shows.
 const NO_SCREEN_DPI: &str = "this desktop does not know the scale of the output.";
 
-/// The reason the information of an event is not answered.
-///
-/// The runtime has no wheel hotkeys and no `OnMessage`, and no event
-/// carries information.
-const NO_EVENT_INFO: &str =
-    "this runtime has no events that carry information: it has no wheel hotkeys and no OnMessage.";
-
-/// The reason the last error of the operating system is not answered.
-///
-/// The tree does not call Windows, and it has no last error.
-const NO_LAST_ERROR: &str =
-    "this runtime has no last error of the operating system: the tree does not call Windows.";
-
 /// The reason the tray icon is not answered.
 ///
 /// The runtime has no tray icon.
@@ -127,12 +120,15 @@ const NO_TRAY_ICON: &str = "this runtime has no tray icon.";
 /// The runtime does not keep it.
 const NO_INITIAL_WORKING_DIR: &str = "this runtime does not keep the directory where the run started.";
 
-/// The reason the title of the messages is not carried.
+/// The reason a built-in variable cannot be written.
 ///
-/// The name of the script is the title that the messages of v2 carry, and
-/// the box has no window to show a message in.
-const NO_SCRIPT_TITLE: &str =
-    "this runtime has no title for the messages: the box has no window to show them in.";
+/// Measured on the binary of v2.0.19 on 2026-10-31: the dialect refuses
+/// the name when the script writes it, and it names the name as the script
+/// spelled it: "This built-in variable cannot be used as an output
+/// variable. Specifically: A_AhkVersion".
+fn read_only(name: &str) -> String {
+    format!("This built-in variable cannot be used as an output variable. Specifically: {name}")
+}
 
 /// The reason a name of the machine is not answered.
 ///
@@ -183,7 +179,10 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
 /// table carries the name without it. `None` means the name the script
 /// wrote is not the name of a built-in variable of the dialect: it is a
 /// variable of the script, and the runtime says that it has no value.
-fn spelled(name: &str) -> Option<String> {
+///
+/// The name that comes back is in the lower case, the way the table of the
+/// surface carries it.
+pub(crate) fn spelled(name: &str) -> Option<String> {
     let lower = name.to_lowercase();
     lower.strip_prefix("a_").map(|rest| rest.to_string())
 }
@@ -218,11 +217,107 @@ pub(crate) fn write(
         // The working directory of the run is the one of the desktop, and
         // the script changes it by writing the name.
         Some("workingdir") => Some(write_the_working_directory(op, value, line, rt)),
-        // The name of the script is the title that the messages of v2
-        // carry, and the box has no window to show a message in.
-        Some("scriptname") => Some(Err(reason(NO_SCRIPT_TITLE))),
+        // The names that the dialect lets a script write, and that the
+        // tree does not keep: the value they hold is the one that was
+        // written, and the read finds it before the machine.
+        Some(
+            "scriptname" | "eventinfo" | "iconhidden" | "icontip" | "lasterror" | "hotkeyinterval"
+            | "hotkeymodifiertimeout" | "maxhotkeysperinterval",
+        ) => None,
+        // A built-in variable that the dialect does not let a script
+        // write: the name of the version, the name of the screen, the name
+        // of the machine.
+        Some(spelled) if kind_of(spelled).is_some() => Some(Err(reason(&read_only(name)))),
+        // A name that is not a built-in variable of the dialect is a
+        // variable of the script.
         _ => None,
     }
+}
+
+/// What the dialect does with the value that is written to a built-in
+/// variable.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: a name that takes any
+/// value keeps it, a name that is a number takes the number of the value,
+/// a name that is a flag takes the truth of it, and a name that wants a
+/// number refuses a text that holds no number.
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum Written {
+    /// The value is kept as it was written.
+    Any,
+    /// The value is a number: a text holds the number it carries.
+    Number,
+    /// The value is a number that does not go below zero: the last error of
+    /// the operating system is a number of thirty-two bits.
+    Unsigned,
+    /// The value is a flag: it is one when the value is true.
+    Flag,
+    /// The value is a number, and a text that holds no number is refused.
+    /// The two bounds are the ones of the name.
+    Strict { lowest: i64, highest: i64 },
+}
+
+/// The kind of a built-in variable that the dialect lets a script write.
+///
+/// `None` means the name is not one of them: the dialect refuses the write
+/// of the name, and the tree says so.
+pub(crate) fn the_kind_of_the_write(name: &str) -> Option<Written> {
+    let name = spelled(name)?;
+    Some(match name.as_str() {
+        // The name of the script, the tip of the icon and the timeout of
+        // the change of a hotkey take any value, and they keep it.
+        "scriptname" | "icontip" | "hotkeymodifiertimeout" => Written::Any,
+        // The information of an event is a number, and the last error of
+        // the operating system is a number of thirty-two bits.
+        "eventinfo" => Written::Number,
+        "lasterror" => Written::Unsigned,
+        // The icon of the script is hidden or it is not.
+        "iconhidden" => Written::Flag,
+        // The interval of the hotkeys and the number of the hotkeys are
+        // numbers, and a text that holds no number is refused.
+        "hotkeyinterval" => Written::Strict { lowest: 0, highest: 2147483647 },
+        "maxhotkeysperinterval" => Written::Strict { lowest: 1, highest: 2147483647 },
+        _ => return None,
+    })
+}
+
+/// The value that a built-in variable keeps, the way the dialect keeps it.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: a text that holds a
+/// number is that number, a text that holds no number is refused with the
+/// kind of the value that arrived, and a number that is out of the range of
+/// the name is a value that is not valid.
+pub(crate) fn the_written_value(
+    kind: Written,
+    value: &Value,
+    line: u32,
+) -> Result<Value, RuntimeError> {
+    Ok(match kind {
+        Written::Any => value.clone(),
+        // The number of a value: a text holds the number it carries, and a
+        // float is a whole number.
+        Written::Number => Value::Int(value.to_number_lenient() as i64),
+        // The last error is a number of thirty-two bits, and it wraps
+        // around: -1 is 4294967295.
+        Written::Unsigned => Value::Int(value.to_number_lenient() as i64 as u32 as i64),
+        // The flag is the truth of the value.
+        Written::Flag => Value::Int(value.truthy() as i64),
+        Written::Strict { lowest, highest } => {
+            // A text that holds no number is refused, and the kind of the
+            // value that arrived is named.
+            let number = value.to_number_strict().map_err(|_| RuntimeError {
+                message: crate::runtime::expected_number(value),
+                line,
+            })? as i64;
+            if number < lowest || number > highest {
+                return Err(RuntimeError {
+                    message: crate::settings::INVALID_VALUE.to_string(),
+                    line,
+                });
+            }
+            Value::Int(number)
+        }
+    })
 }
 
 /// Change the working directory of the run.
@@ -441,7 +536,7 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         // says what the names of a script that comes from there are: the
         // directory of the script is the directory where the run started,
         // and the name and the path are an asterisk.
-        "scriptname" | "scriptfullpath" => Ok(Value::Text("*".to_string())),
+        "scriptname" | "scriptfullpath" | "icontip" => Ok(Value::Text("*".to_string())),
         "appdata" | "appdatacommon" | "desktop" | "desktopcommon" | "startmenu" | "startmenucommon"
         | "programs" | "programscommon" | "startup" | "startupcommon" | "mydocuments" | "temp" => {
             folder(rt, name)
@@ -450,6 +545,14 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         // The working directory is the one of the files, and the tree uses
         // it everywhere else.
         "workingdir" => text(rt.desktop().working_directory()),
+        // The runtime has no events that carry information, so the
+        // information of an event is zero.
+        "eventinfo" => Ok(Value::Int(0)),
+        // The tree does not call the operating system, so the last error
+        // of it is zero.
+        "lasterror" => Ok(Value::Int(0)),
+        // There is no tray icon, so the icon of the script is not hidden.
+        "iconhidden" => Ok(Value::Int(1)),
         _ => Err(reason(NO_SUCH_MACHINE_NAME)),
     }
 }
@@ -465,9 +568,7 @@ fn machine_refusal(name: &str) -> Option<&'static str> {
         "ahkpath" => NO_AHK_PATH,
         "scripthwnd" => NO_SCRIPT_HWND,
         "screendpi" => NO_SCREEN_DPI,
-        "eventinfo" => NO_EVENT_INFO,
-        "lasterror" => NO_LAST_ERROR,
-        "iconfile" | "iconhidden" | "iconnumber" | "icontip" | "traymenu" => NO_TRAY_ICON,
+        "iconfile" | "iconnumber" | "traymenu" => NO_TRAY_ICON,
         _ => return None,
     })
 }
@@ -755,8 +856,13 @@ impl Dialogs for Fake {}
         // The hotkeys are carried: the numbers are the ones of v2,
         // measured on the binary on 2026-10-28.
         assert_eq!(value("a_hotkeyinterval"), Value::Int(2000));
-        assert_eq!(value("a_hotkeymodifiertimeout"), Value::Int(50));
         assert_eq!(value("a_maxhotkeysperinterval"), Value::Int(70));
+        // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of
+        // the change of a hotkey has no value until a script writes one.
+        assert_eq!(
+            reason("a_hotkeymodifiertimeout"),
+            "This global variable has not been assigned a value."
+        );
         // Until a hotkey fires, the two names are empty.
         assert_eq!(value("a_thishotkey"), Value::Text(String::new()));
         assert_eq!(value("a_priorkey"), Value::Text(String::new()));

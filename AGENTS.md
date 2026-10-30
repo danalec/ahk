@@ -3369,3 +3369,67 @@ different. The order of the checks is in
 One gap is left in the files: the `FileGetAttrib` of a file that is not
 there fails with the reason of the machine, where v2 answers with an empty
 text.
+
+## 69. A built-in variable that the dialect lets a script write is written
+
+Measured on the binary of v2.0.19 on 2026-10-31: the dialect lets a script
+write the settings of the script and eight more names, and the value that
+was written is the value the name keeps. Every other built-in variable is
+refused when the script writes it, and the refusal names the name as the
+script spelled it.
+
+- **A setting is written where it lives.** `A_ControlDelay := 50` makes the
+  delay 50, and `SetControlDelay(100)` answers 50: the command and the
+  variable are one setting. A setting that is a number takes the number of
+  the value, and a text that holds no number is zero: "20x" is 20 and
+  "x20" is 0. A setting that is a flag takes the truth of the value, and a
+  text that is not empty and not "0" is true. A setting that has a fixed
+  set of values refuses the ones that are not of it with "Invalid value.",
+  of the class `ValueError`. The level of the send refuses a text with
+  "Expected a Number but got a String.", and the key of the menu takes the
+  virtual key of it and leaves the scan code at zero: "vk58sc000" is the
+  letter X.
+- **The names that are not settings keep the value that was written.** The
+  name of the script, the tip of the icon and the timeout of the change of
+  a hotkey take any value. The information of an event and the last error
+  of the operating system are numbers: a text holds the number it carries,
+  and the last error is a number of thirty-two bits that wraps around, so
+  -1 is 4294967295. The hidden of the icon is a flag. The interval of the
+  hotkeys and the number of the hotkeys are numbers, and a text that holds
+  no number is refused with "Expected a Number but got a String."; the
+  interval goes from zero to 2147483647, and the number of the hotkeys
+  from one.
+- **The timeout of the change of a hotkey has no value.** The dialect has
+  no value for it until a script writes one, and the tree carried 50 where
+  the dialect has nothing: the name is refused with "This global variable
+  has not been assigned a value."
+- **A built-in variable that the dialect does not let a script write is
+  refused.** "This built-in variable cannot be used as an output variable.
+  Specifically: A_AhkVersion" is the wording of the dialect, and it names
+  the name as the script spelled it. A name with the `A_` prefix that is
+  not a built-in variable is an ordinary variable of the script.
+- **The compound operator checks the value that is written first.** The
+  dialect converts it before it reads the one that is there, and the kind
+  it names is the kind of the value that was written: `x += "text"` with
+  `x` unset says "Expected a Number but got a String." and not that the
+  variable has no value. The concat is the one that is not: it reads a
+  variable that has no value as an empty text.
+- **A variable that has no value is an `UnsetError`.** The message of the
+  dialect says so, and the tree carried the class `Error` where v2 carries
+  the `UnsetError`.
+- **A text that is "0" is false.** The dialect says so in an `if`, and the
+  tree carried TRUE.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_settings_write.py` (52 cases),
+`egm-review/compare_settings_corners.py` (31 cases),
+`egm-review/compare_readonly.py` (15 cases),
+`egm-review/compare_writable_vars.py` (129 cases) and the three
+`egm-review/probe_check_order_*.py`.
+
+Eleven of the hundred and twenty-nine cases are different, and none of them
+is about the write: eight are the call of a name that is a statement (the
+tree says "Call to nonexistent function." where v2 names the kind of the
+value that is called), two are the path of the script (the tree answers an
+asterisk, because the script of the runner comes from the standard input),
+and one is the dialog of the dialect, which cannot be caught.

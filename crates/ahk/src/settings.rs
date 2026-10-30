@@ -15,6 +15,11 @@
 //! its own name: the shape of the cursor of the pointer is a question
 //! about the machine, and this runtime does not ask it.
 //!
+//! A script writes the name of a setting, and the setting changes:
+//! `A_ControlDelay := 50` makes the delay 50, and the command of the
+//! delay answers 50 after it. The way each one takes the value is the way
+//! v2 takes it, and it is in `write_of`.
+//!
 //! The runtime has no field for them and the tree runs one script in one
 //! thread, so the state lives here, in the module that answers it. The
 //! numbers are in atomics: the crate runs without the standard library,
@@ -76,8 +81,9 @@ const ENCODINGS: [&str; 6] = ["CP0", "CP1252", "UTF-8", "UTF-8-RAW", "UTF-16", "
 ///
 /// The default of v2 is the Escape key, and v2 spells it with the two
 /// numbers of it: `vk11sc01D`. A script changes it by writing the
-/// built-in variable, and the tree does not write built-in variables.
-const MENU_MASK_KEY: &str = "vk11sc01D";
+/// built-in variable.
+const MASK_VK: u8 = 0x11;
+const MASK_SC: u8 = 0x1d;
 
 /// The delay of the controls that v2 uses.
 ///
@@ -102,6 +108,12 @@ const REG_64: i32 = 64;
 /// to.
 const NO_PLAY: &str = "the play method of v2 posts the messages to the active window, and there is no window here to post \
                        them to.";
+
+/// The reason a value is not one of the values of a setting.
+///
+/// The dialect says it in these words, and the failure is of the class
+/// `ValueError`.
+pub(crate) const INVALID_VALUE: &str = "Invalid value.";
 
 /// The reason a setting of the runtime is not kept.
 ///
@@ -178,6 +190,10 @@ struct State {
     coord_caret: AtomicU8,
     coord_menu: AtomicU8,
     coord_tooltip: AtomicU8,
+    list_lines: AtomicI32,
+    allow_main_window: AtomicI32,
+    menu_mask_vk: AtomicU8,
+    menu_mask_sc: AtomicU8,
 }
 
 /// The turn of the tests: the state is one for the whole crate.
@@ -234,6 +250,10 @@ static STATE: State = State {
     coord_caret: AtomicU8::new(CLIENT),
     coord_menu: AtomicU8::new(CLIENT),
     coord_tooltip: AtomicU8::new(CLIENT),
+    list_lines: AtomicI32::new(1),
+    allow_main_window: AtomicI32::new(1),
+    menu_mask_vk: AtomicU8::new(MASK_VK),
+    menu_mask_sc: AtomicU8::new(MASK_SC),
 };
 
 /// The value of the built-in variable of the settings of this name.
@@ -255,14 +275,14 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
         "keydelayplay" => Value::Int(STATE.key_delay_play.load(Ordering::Relaxed) as i64),
         "keyduration" => Value::Int(STATE.key_duration.load(Ordering::Relaxed) as i64),
         "keydurationplay" => Value::Int(STATE.key_duration_play.load(Ordering::Relaxed) as i64),
-        "listlines" => Value::Int(1),
-        "menumaskkey" => Value::Text(MENU_MASK_KEY.to_string()),
+        "listlines" => Value::Int(STATE.list_lines.load(Ordering::Relaxed) as i64),
+        "menumaskkey" => Value::Text(menu_mask_text()),
         "mousedelay" => Value::Int(STATE.mouse_delay.load(Ordering::Relaxed) as i64),
         "mousedelayplay" => Value::Int(STATE.mouse_delay_play.load(Ordering::Relaxed) as i64),
         "sendlevel" => Value::Int(STATE.send_level.load(Ordering::Relaxed) as i64),
         "sendmode" => Value::Text(send_mode_text()),
         "storecapslockmode" => Value::Int(STATE.caps_lock.load(Ordering::Relaxed) as i64),
-        "allowmainwindow" => Value::Int(1),
+        "allowmainwindow" => Value::Int(STATE.allow_main_window.load(Ordering::Relaxed) as i64),
         "windelay" => Value::Int(STATE.win_delay.load(Ordering::Relaxed) as i64),
         "controldelay" => Value::Int(STATE.control_delay.load(Ordering::Relaxed) as i64),
         "regview" => Value::Text(reg_view_text(STATE.reg_view.load(Ordering::Relaxed))),
@@ -278,6 +298,202 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
         _ => return None,
     };
     Some(Ok(value))
+}
+
+/// The write of a built-in variable of the settings.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the dialect writes the
+/// setting itself. A setting that is a number takes the number of the
+/// value, and a text that holds no number is zero; a setting that is a
+/// flag takes one for a value that is not empty and not "0"; and a
+/// setting that has a fixed set of values refuses the ones that are not of
+/// it with "Invalid value.".
+///
+/// `None` means the name is not a setting of the runtime: the write is the
+/// one of a variable of the script.
+pub fn write_of(name: &str, value: &Value) -> Option<Result<Value, String>> {
+    let written = match name {
+        "allowmainwindow" => the_flag(&STATE.allow_main_window, value),
+        "controldelay" => the_number(&STATE.control_delay, value),
+        "coordmodecaret" => the_mode(&STATE.coord_caret, value),
+        "coordmodemenu" => the_mode(&STATE.coord_menu, value),
+        "coordmodemouse" => the_mode(&STATE.coord_mouse, value),
+        "coordmodepixel" => the_mode(&STATE.coord_pixel, value),
+        "coordmodetooltip" => the_mode(&STATE.coord_tooltip, value),
+        "defaultmousespeed" => the_number(&STATE.mouse_speed, value),
+        "detecthiddentext" => the_flag(&STATE.detect_hidden_text, value),
+        "detecthiddenwindows" => the_flag(&STATE.detect_hidden_windows, value),
+        "fileencoding" => the_encoding(value),
+        "keydelay" => the_number(&STATE.key_delay, value),
+        "keydelayplay" => the_number(&STATE.key_delay_play, value),
+        "keyduration" => the_number(&STATE.key_duration, value),
+        "keydurationplay" => the_number(&STATE.key_duration_play, value),
+        "listlines" => the_flag(&STATE.list_lines, value),
+        "menumaskkey" => the_menu_mask_key(value),
+        "mousedelay" => the_number(&STATE.mouse_delay, value),
+        "mousedelayplay" => the_number(&STATE.mouse_delay_play, value),
+        "regview" => the_reg_view(value),
+        "sendlevel" => the_level_of_the_send(value),
+        "sendmode" => the_send_mode(value),
+        "storecapslockmode" => the_flag(&STATE.caps_lock, value),
+        "titlematchmode" => the_title_match_mode(value),
+        "titlematchmodespeed" => the_title_match_speed(value),
+        "windelay" => the_number(&STATE.win_delay, value),
+        _ => return None,
+    };
+    Some(written)
+}
+
+/// The write of a setting that is a number.
+///
+/// The dialect takes the number of the value, and a text that holds no
+/// number is zero.
+fn the_number(setting: &AtomicI32, value: &Value) -> Result<Value, String> {
+    let number = value.to_number_lenient() as i32;
+    setting.store(number, Ordering::Relaxed);
+    Ok(Value::Int(number as i64))
+}
+
+/// The write of a setting that is a flag.
+///
+/// The dialect takes the truth of the value: a text that is not empty and
+/// not "0" is true.
+fn the_flag(setting: &AtomicI32, value: &Value) -> Result<Value, String> {
+    let flag = if value.truthy() { 1 } else { 0 };
+    setting.store(flag, Ordering::Relaxed);
+    Ok(Value::Int(flag as i64))
+}
+
+/// The write of a setting that is a mode.
+///
+/// The dialect takes the name of the mode, and a name that is not one of
+/// them is a value that is not valid.
+fn the_mode(setting: &AtomicU8, value: &Value) -> Result<Value, String> {
+    let wanted = value.to_text().to_lowercase();
+    let mode = match wanted.as_str() {
+        "client" => CLIENT,
+        "screen" => SCREEN,
+        "window" => WINDOW,
+        _ => return Err(INVALID_VALUE.to_string()),
+    };
+    setting.store(mode, Ordering::Relaxed);
+    Ok(Value::Text(MODES[mode as usize].to_string()))
+}
+
+/// The write of the method of the send.
+fn the_send_mode(value: &Value) -> Result<Value, String> {
+    let wanted = value.to_text().to_lowercase();
+    let mode = match wanted.as_str() {
+        "input" => INPUT,
+        "event" => EVENT,
+        "play" => PLAY,
+        "inputthenplay" => INPUT_THEN_PLAY,
+        _ => return Err(INVALID_VALUE.to_string()),
+    };
+    STATE.send_mode.store(mode, Ordering::Relaxed);
+    Ok(Value::Text(SEND_MODES[mode as usize].to_string()))
+}
+
+/// The write of the encoding of the files.
+///
+/// The dialect takes the name of the encoding, and the name is kept the
+/// way the table of the tree spells it.
+fn the_encoding(value: &Value) -> Result<Value, String> {
+    let wanted = value.to_text();
+    let Some(encoding) = ENCODINGS.iter().find(|encoding| encoding.eq_ignore_ascii_case(&wanted)) else {
+        return Err(INVALID_VALUE.to_string());
+    };
+    let index = ENCODINGS.iter().position(|other| other == encoding).unwrap_or(0);
+    STATE.encoding.store(index as u8, Ordering::Relaxed);
+    Ok(Value::Text(encoding.to_string()))
+}
+
+/// The write of the key that closes a menu.
+///
+/// The dialect takes the virtual key of the key and leaves the scan code
+/// at zero: "vk58sc000" is the letter X.
+fn the_menu_mask_key(value: &Value) -> Result<Value, String> {
+    let text = value.to_text();
+    let Some(key) = find_key(&text) else {
+        return Err(INVALID_VALUE.to_string());
+    };
+    STATE.menu_mask_vk.store(key.code as u8, Ordering::Relaxed);
+    STATE.menu_mask_sc.store(0, Ordering::Relaxed);
+    Ok(Value::Text(menu_mask_text()))
+}
+
+/// The key that closes a menu, the way `A_MenuMaskKey` spells it.
+fn menu_mask_text() -> String {
+    format!(
+        "vk{:02X}sc{:03X}",
+        STATE.menu_mask_vk.load(Ordering::Relaxed),
+        STATE.menu_mask_sc.load(Ordering::Relaxed)
+    )
+}
+
+/// The write of the view of the registry.
+///
+/// The dialect takes the number of the view or its name, and the answer is
+/// always a text.
+fn the_reg_view(value: &Value) -> Result<Value, String> {
+    let view = match value {
+        Value::Int(number) => match *number {
+            32 => REG_32,
+            64 => REG_64,
+            _ => return Err(INVALID_VALUE.to_string()),
+        },
+        other => match other.to_text().to_lowercase().as_str() {
+            "default" => REG_DEFAULT,
+            "32" => REG_32,
+            "64" => REG_64,
+            _ => return Err(INVALID_VALUE.to_string()),
+        },
+    };
+    STATE.reg_view.store(view, Ordering::Relaxed);
+    Ok(Value::Text(reg_view_text(view)))
+}
+
+/// The write of the mode of the matching of the titles.
+fn the_title_match_mode(value: &Value) -> Result<Value, String> {
+    let mode = match value {
+        Value::Int(number) => match *number {
+            1 => MODE_STARTS,
+            2 => MODE_CONTAINS,
+            3 => MODE_EXACT,
+            _ => return Err(INVALID_VALUE.to_string()),
+        },
+        other => match other.to_text().to_lowercase().as_str() {
+            "1" => MODE_STARTS,
+            "2" => MODE_CONTAINS,
+            "3" => MODE_EXACT,
+            "regex" => MODE_PATTERN,
+            _ => return Err(INVALID_VALUE.to_string()),
+        },
+    };
+    STATE.title_match_mode.store(mode, Ordering::Relaxed);
+    Ok(mode_value(mode))
+}
+
+/// The write of the speed of the matching of the titles.
+fn the_title_match_speed(value: &Value) -> Result<Value, String> {
+    let speed = match value.to_text().to_lowercase().as_str() {
+        "fast" => FAST,
+        "slow" => SLOW,
+        _ => return Err(INVALID_VALUE.to_string()),
+    };
+    STATE.title_match_speed.store(speed, Ordering::Relaxed);
+    Ok(Value::Text(SPEEDS[speed as usize].to_string()))
+}
+
+/// The write of the level of the send.
+///
+/// The level is a number, and a text that holds no number is refused with
+/// the kind of the value that arrived.
+fn the_level_of_the_send(value: &Value) -> Result<Value, String> {
+    let number = value.to_number_strict().map_err(|_| runtime::expected_number(value))?;
+    let level = number as i32;
+    STATE.send_level.store(level, Ordering::Relaxed);
+    Ok(Value::Int(level as i64))
 }
 
 /// The name of a coordinate mode.

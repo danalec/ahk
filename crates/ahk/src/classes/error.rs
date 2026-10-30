@@ -94,6 +94,11 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
     if message == "Item has no value." {
         return "UnsetItemError";
     }
+    // Measured on the binary of v2.0.19 on 2026-10-31: a variable that has
+    // no value is an `UnsetError`.
+    if message.ends_with("has not been assigned a value.") {
+        return "UnsetError";
+    }
     if message == "Invalid index." {
         return "IndexError";
     }

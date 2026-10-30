@@ -604,7 +604,10 @@ Four modules that answer what the runtime used to answer with a reason.
   text, the delay of the windowing functions, the delay of the controls,
   the view of the registry and the five modes of the coordinates. The
   commands of them answer the value that was there before, and the one
-  that the tree cannot honour refuses with the reason of its own name.
+  that the tree cannot honour refuses with the reason of its own name. A
+  script that writes the name of a setting changes it: `A_ControlDelay :=
+  50` makes the delay 50, and the command of the delay answers 50 after
+  it.
 - `hotkeys.rs` -- the hotkeys of the script. The runtime holds the
   registry and the desktop holds the watcher: the script says which
   function a hotkey runs, and the machine says which key was pressed. The
@@ -673,6 +676,18 @@ asterisk, the way v2 has them.
 The names that the tree does not carry refuse with the reason of the name,
 and that reason is written once: the read of the name and the refusal of
 the name say the same thing.
+- `the_kind_of_the_write(name) -> Option<Written>` -- what the dialect does
+  with the value that is written to a built-in variable: it keeps any
+  value, it takes the number of it, it takes the truth of it, or it wants
+  a number and refuses a text that holds none.
+- `the_written_value(kind, value, line) -> Result<Value, RuntimeError>` --
+  the value that the name keeps, the way the dialect keeps it.
+
+The write of a built-in variable is the write of the dialect: the settings
+are written where they live, the names that v2 lets a script write keep the
+value that was written, and the names that it does not let a script write
+are refused with "This built-in variable cannot be used as an output
+variable. Specifically: A_AhkVersion".
 
 ### The regular expressions (`regex.rs`)
 
