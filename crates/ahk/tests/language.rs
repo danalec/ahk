@@ -3398,7 +3398,7 @@ fn the_name_of_a_class_is_not_the_name_of_a_variable() {
     let error = parse("class Foo {\n}\nfoo := 5").expect_err("does not parse");
     assert_eq!(
         error.message,
-        "This Class cannot be used as an output variable. Specifically: Foo"
+        "This Class cannot be used as an output variable.\n     Specifically: Foo"
     );
 }
 
@@ -3409,7 +3409,7 @@ fn the_name_of_a_class_is_not_written_by_a_compound_assignment() {
     let error = parse("class Foo {\n}\nfoo .= \"x\"").expect_err("does not parse");
     assert_eq!(
         error.message,
-        "This Class cannot be assigned a value. Specifically: Foo"
+        "This Class cannot be assigned a value.\n     Specifically: Foo"
     );
 }
 
@@ -3418,7 +3418,7 @@ fn the_name_of_a_class_of_the_runtime_is_not_the_name_of_a_variable() {
     let error = parse("Map := 5").expect_err("does not parse");
     assert_eq!(
         error.message,
-        "This Class cannot be used as an output variable. Specifically: Map"
+        "This Class cannot be used as an output variable.\n     Specifically: Map"
     );
 }
 
@@ -3430,7 +3430,7 @@ fn a_class_may_not_be_named_like_a_function() {
     let error = parse("f() {\n}\nclass f {\n}").expect_err("does not parse");
     assert_eq!(
         error.message,
-        "This class declaration conflicts with an existing Func. Specifically: f"
+        "This class declaration conflicts with an existing Func.\n     Specifically: f"
     );
 }
 
@@ -3439,7 +3439,7 @@ fn a_function_may_not_be_named_like_a_class() {
     let error = parse("class f {\n}\nf() {\n}").expect_err("does not parse");
     assert_eq!(
         error.message,
-        "This function declaration conflicts with an existing Class. Specifically: f"
+        "This function declaration conflicts with an existing Class.\n     Specifically: f"
     );
 }
 
@@ -3448,7 +3448,7 @@ fn a_name_may_be_declared_only_once() {
     let error = parse("class f {\n}\nclass f {\n}").expect_err("does not parse");
     assert_eq!(
         error.message,
-        "This class declaration conflicts with an existing Class. Specifically: f"
+        "This class declaration conflicts with an existing Class.\n     Specifically: f"
     );
 }
 

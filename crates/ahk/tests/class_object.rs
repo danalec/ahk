@@ -480,6 +480,36 @@ fn the_methods_of_the_base_object_are_inherited_and_not_own() {
 }
 
 #[test]
+fn the_properties_of_a_class_are_assigned_after_the_body_of_its_init() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the properties of a
+    // class that has an `__Init` of its own are assigned after the body of
+    // it, and not before it -- the body may write them, and the assignment
+    // of the class is the one that is left.
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    __Init() {\n        this.value := 2\n    }\n    value := 1\n}\nobj := C()\nMsgBox obj.value"
+        ),
+        "1"
+    );
+    // The properties that come before the `__Init` are a duplicate of it,
+    // and the ones that come after it are taken.
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    __Init() {\n    }\n    value := 1\n}\nobj := C()\nMsgBox obj.value"
+        ),
+        "1"
+    );
+    // The properties of the base are not assigned when the derived has an
+    // `__Init` of its own.
+    assert_eq!(
+        the_answer_of(
+            "class D {\n    dvalue := 1\n}\nclass C extends D {\n    __Init() {\n    }\n    cvalue := 2\n}\nobj := C()\nMsgBox obj.cvalue"
+        ),
+        "2"
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

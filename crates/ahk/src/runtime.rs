@@ -2941,7 +2941,13 @@ impl<'a> Runtime<'a> {
             if let Some(method) = definition.methods.get("__init").cloned() {
                 // The `__Init` of this class: it runs, and the ones of the
                 // base do not.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // properties of the class are assigned after the body of the
+                // `__Init`, and not before it -- the body may write them,
+                // and the assignment of the class is the one that is left.
                 self.call_method(name, &method, object, &[], line)?;
+                self.assign_the_variables(name, object)?;
                 return Ok(());
             }
             if !definition.properties.is_empty() {

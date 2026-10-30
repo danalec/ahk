@@ -934,6 +934,17 @@ that asks for another one is refused with the reason.
   script owns the initialiser of it, the prototype and the static methods
   that it declares. The methods of the base object are inherited, and not
   own.
+- **A name may be declared only once in a class, and the failure names
+  the second one.** The tables of a class are four -- the methods of the
+  instance, the methods of the class, the properties of the instance and
+  the properties of the class -- and a method and a property are two names
+  and not one. A static `__Init` is a duplicate of the initialiser that
+  every class has, and the `__Init` of an instance and the properties of
+  the class cannot both be there: only the properties that come before the
+  `__Init` are the ones that cannot, and the ones that come after it are
+  assigned after the body of it.
+- **A load error that names a thing writes it on the second line.** The
+  five spaces before the `Specifically:` are the ones of v2.
 
 ## Side Effects
 

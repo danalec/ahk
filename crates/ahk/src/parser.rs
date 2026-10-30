@@ -324,7 +324,7 @@ fn the_declarations_of_a_statement(
             if *kind == DeclareKind::Global && names.is_empty() {
                 // A bare `global` that is not the mode of the function.
                 return Err(SyntaxError {
-                    message: "Unexpected declaration. Specifically: global".into(),
+                    message: "Unexpected declaration.\n     Specifically: global".into(),
                     line: *line,
                     column: 1,
                 });
@@ -736,9 +736,9 @@ impl Parser {
             let Some(class) = self.the_name_of_the_class(&key) else { continue };
             let message = match assignment.op {
                 AssignOp::Set => format!(
-                    "This Class cannot be used as an output variable. Specifically: {class}"
+                    "This Class cannot be used as an output variable.\n     Specifically: {class}"
                 ),
-                _ => format!("This Class cannot be assigned a value. Specifically: {class}"),
+                _ => format!("This Class cannot be assigned a value.\n     Specifically: {class}"),
             };
             return Err(SyntaxError { message, line: assignment.line, column: assignment.column });
         }
@@ -789,7 +789,7 @@ impl Parser {
         };
         let Some(message) = message else { return Ok(()) };
         Err(SyntaxError {
-            message: format!("{message} Specifically: {name}"),
+            message: format!("{message}\n     Specifically: {name}"),
             line,
             column,
         })
@@ -1862,7 +1862,7 @@ impl Parser {
                 .unwrap_or(false)
             {
                 return Err(self.error(format!(
-                    "This {} variable declaration conflicts with an existing parameter. Specifically: {}",
+                    "This {} variable declaration conflicts with an existing parameter.\n     Specifically: {}",
                     kind.word(),
                     name.value
                 )));
@@ -1887,12 +1887,12 @@ impl Parser {
         }
         // A bare `local` is never a thing: only `global` has a mode.
         if kind == DeclareKind::Local && names.is_empty() {
-            return Err(self.error("Unexpected declaration. Specifically: local"));
+            return Err(self.error("Unexpected declaration.\n     Specifically: local"));
         }
         // A `local` outside a function has no scope to live in.
         if kind == DeclareKind::Local && self.parameters.is_empty() {
             return Err(self.error(format!(
-                "Unexpected declaration. Specifically: {}",
+                "Unexpected declaration.\n     Specifically: {}",
                 the_text_of_a_declaration(kind, &names)
             )));
         }
@@ -2127,22 +2127,10 @@ impl Parser {
             }
             extends = Some(base.value);
         }
+        // The duplicates of the class are refused while its body is read,
+        // the way v2 refuses them: the first duplicate of the body is the
+        // one that is reported.
         let (methods, properties) = self.parse_class_body(name_token.line, &name_token.value)?;
-        // A class may not have an `__Init` of its own and variables of its
-        // own: v2 makes the `__Init` that carries the variables, and the
-        // two cannot both be there.
-        if let Some(method) = methods.iter().find(|method| method.name.eq_ignore_ascii_case("__init")) {
-            if !properties.is_empty() {
-                return Err(SyntaxError {
-                    message: format!(
-                        "Duplicate declaration. Specifically: {}.Prototype.__Init",
-                        name_token.value
-                    ),
-                    line: method.line,
-                    column: 1,
-                });
-            }
-        }
         self.the_name_is_declared_twice(&name_token.value, true, name_token.line, name_token.column)?;
         self.classes.insert(name_token.value.to_lowercase(), name_token.value.clone());
         self.defined.insert(name_token.value.to_lowercase());
@@ -2187,6 +2175,19 @@ impl Parser {
         }
         let mut methods = Vec::new();
         let mut properties = Vec::new();
+        // The names that are taken, and the table that each kind of member
+        // has.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: a name may be
+        // declared only once in a table, and the tables of a class are four:
+        // the methods of the instance, the methods of the class, the
+        // properties of the instance and the properties of the class. A
+        // method and a property are two names and not one, and the case of
+        // the name does not count.
+        let mut instance_methods: Vec<String> = Vec::new();
+        let mut class_methods: Vec<String> = Vec::new();
+        let mut instance_properties: Vec<String> = Vec::new();
+        let mut class_properties: Vec<String> = Vec::new();
         // The body of a class is inside a class, and the `super` of v2 is
         // only valid there.
         let was_in_a_class = self.in_class;
@@ -2230,6 +2231,61 @@ impl Parser {
                 });
             }
             if self.at_op(&["("]) {
+                // The `__Init` of the class is one that every class has: a
+                // static one of its own is a duplicate of it.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: "Duplicate
+                // declaration.\n     Specifically: C.__Init", at the line of
+                // the declaration of it.
+                if is_static && name_token.value.eq_ignore_ascii_case("__init") {
+                    return Err(SyntaxError {
+                        message: format!("Duplicate declaration.\n     Specifically: {name}.__Init"),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+                // The `__Init` of an instance and the properties of the
+                // class: v2 makes the `__Init` that carries the properties,
+                // and the two cannot both be there.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // properties that come *before* the `__Init` are the ones
+                // that cannot both be there, and the ones that come after
+                // it are taken.
+                if !is_static
+                    && name_token.value.eq_ignore_ascii_case("__init")
+                    && !instance_properties.is_empty()
+                {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Duplicate declaration.\n     Specifically: {name}.Prototype.__Init"
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+                // The name of a method that is taken: a method of the
+                // instance and a method of the class are two names and not
+                // one.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: "Duplicate
+                // declaration.\n     Specifically: C.Prototype.Foo" for a
+                // method of an instance, and "C.Foo" for a method of the
+                // class. The failure is at the line of the second one.
+                let taken = if is_static { &mut class_methods } else { &mut instance_methods };
+                let key = name_token.value.to_lowercase();
+                if taken.contains(&key) {
+                    let owner = if is_static { format!("{name}.") } else { format!("{name}.Prototype.") };
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Duplicate declaration.\n     Specifically: {owner}{}",
+                            name_token.value
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+                taken.push(key);
                 self.next();
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
@@ -2283,6 +2339,23 @@ impl Parser {
                     column: name_token.column,
                 });
             }
+            // The name of a property that is taken: a property of the
+            // instance and a property of the class are two names and not
+            // one.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31: "Duplicate
+            // declaration.\n     Specifically: value", at the line of the
+            // second one.
+            let taken = if is_static { &mut class_properties } else { &mut instance_properties };
+            let key = name_token.value.to_lowercase();
+            if taken.contains(&key) {
+                return Err(SyntaxError {
+                    message: format!("Duplicate declaration.\n     Specifically: {}", name_token.value),
+                    line: name_token.line,
+                    column: name_token.column,
+                });
+            }
+            taken.push(key);
             let value = self.the_expression_of_a_statement()?;
             properties.push(PropertyDef {
                 name: name_token.value,
@@ -3597,14 +3670,136 @@ mod tests {
 
     #[test]
     fn a_class_with_an_init_and_variables_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-30: v2 makes the
+        // Measured on the binary of v2.0.19 on 2026-10-31: v2 makes the
         // `__Init` that carries the variables, and the two cannot both be
         // there.
         let error = parse("class Thing {\n  value := 1\n  __Init() {\n  }\n}").expect_err("does not parse");
         assert_eq!(
             error.message,
-            "Duplicate declaration. Specifically: Thing.Prototype.__Init"
+            "Duplicate declaration.\n     Specifically: Thing.Prototype.__Init"
         );
+        // The line of the failure is the line of the declaration of the
+        // method, the line of the name.
+        assert_eq!(error.line, 3);
+    }
+
+    #[test]
+    fn the_properties_that_come_after_the_init_are_taken() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the `__Init` that
+        // carries the properties is made when the properties come before the
+        // `__Init`, and the ones that come after it are taken.
+        parse("class Thing {\n  __Init() {\n  }\n  value := 1\n}").expect("parses");
+    }
+
+    #[test]
+    fn a_class_with_a_static_init_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: every class has
+        // an automatic initialiser, and a static `__Init` of its own is a
+        // duplicate of it.
+        let error = parse("class Thing {\n  static __Init() {\n  }\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: Thing.__Init");
+        // The line of the failure is the line of the declaration of the
+        // method, the line of the name.
+        assert_eq!(error.line, 2);
+        // The instance `__Init` is another thing: it is the constructor of
+        // the class, and v2 takes it.
+        parse("class Thing {\n  __Init() {\n  }\n}").expect("parses");
+    }
+
+    #[test]
+    fn a_class_with_two_methods_of_the_same_name_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a name may be
+        // declared only once, and the failure is at the second one.
+        let error = parse("class Thing {\n  Foo() {\n  }\n  Foo() {\n  }\n}").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Duplicate declaration.\n     Specifically: Thing.Prototype.Foo"
+        );
+        assert_eq!(error.line, 4);
+    }
+
+    #[test]
+    fn a_class_with_two_static_methods_of_the_same_name_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a method of the
+        // class and a method of an instance are two names and not one, and
+        // the name of a method of the class is the name of the class and the
+        // name of it.
+        let error =
+            parse("class Thing {\n  static Foo() {\n  }\n  static Foo() {\n  }\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: Thing.Foo");
+        assert_eq!(error.line, 4);
+    }
+
+    #[test]
+    fn a_class_with_two_properties_of_the_same_name_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // property is the name of it, and not the name of the class with it.
+        let error = parse("class Thing {\n  value := 1\n  value := 2\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: value");
+        assert_eq!(error.line, 3);
+    }
+
+    #[test]
+    fn a_class_with_two_static_properties_of_the_same_name_is_an_error() {
+        let error =
+            parse("class Thing {\n  static value := 1\n  static value := 2\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: value");
+        assert_eq!(error.line, 3);
+    }
+
+    #[test]
+    fn the_case_of_a_name_does_not_count() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the names of a
+        // class are the names in lower case, and the failure names the one
+        // that was written.
+        let error = parse("class Thing {\n  Foo() {\n  }\n  foo() {\n  }\n}").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Duplicate declaration.\n     Specifically: Thing.Prototype.foo"
+        );
+    }
+
+    #[test]
+    fn a_method_and_a_property_of_the_same_name_are_taken() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the methods and
+        // the properties of a class are two tables and not one.
+        parse("class Thing {\n  Foo() {\n  }\n  Foo := 1\n}").expect("parses");
+        parse("class Thing {\n  Foo := 1\n  Foo() {\n  }\n}").expect("parses");
+    }
+
+    #[test]
+    fn a_static_method_and_an_instance_method_of_the_same_name_are_taken() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
+        // class and the methods of an instance are two tables and not one.
+        parse("class Thing {\n  Foo() {\n  }\n  static Foo() {\n  }\n}").expect("parses");
+    }
+
+    #[test]
+    fn the_first_duplicate_of_the_body_is_the_one_that_is_reported() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the duplicates are
+        // refused while the body is read, and the first one of them is the
+        // one that is reported.
+        let error =
+            parse("class Thing {\n  Foo() {\n  }\n  Foo() {\n  }\n  static __Init() {\n  }\n}")
+                .expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Duplicate declaration.\n     Specifically: Thing.Prototype.Foo"
+        );
+        assert_eq!(error.line, 4);
+    }
+
+    #[test]
+    fn a_class_with_two_inits_is_an_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the `__Init` of an
+        // instance is a name of the prototype, and it may be declared once.
+        let error =
+            parse("class Thing {\n  __Init() {\n  }\n  __Init() {\n  }\n}").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Duplicate declaration.\n     Specifically: Thing.Prototype.__Init"
+        );
+        assert_eq!(error.line, 4);
     }
 
     #[test]
@@ -3685,19 +3880,19 @@ mod tests {
     fn a_bare_global_that_is_not_the_first_line_is_an_error() {
         // Measured on the binary of v2.0.19 on 2026-10-30.
         let error = parse("f() {\n  x := 1\n  global\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected declaration. Specifically: global");
+        assert_eq!(error.message, "Unexpected declaration.\n     Specifically: global");
     }
 
     #[test]
     fn a_bare_local_is_an_error() {
         let error = parse("f() {\n  local\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected declaration. Specifically: local");
+        assert_eq!(error.message, "Unexpected declaration.\n     Specifically: local");
     }
 
     #[test]
     fn a_local_outside_a_function_is_an_error() {
         let error = parse("local l").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected declaration. Specifically: local l");
+        assert_eq!(error.message, "Unexpected declaration.\n     Specifically: local l");
     }
 
     #[test]
@@ -3705,7 +3900,7 @@ mod tests {
         let error = parse("f(p) {\n  global p\n}").expect_err("does not parse");
         assert_eq!(
             error.message,
-            "This global variable declaration conflicts with an existing parameter. Specifically: p"
+            "This global variable declaration conflicts with an existing parameter.\n     Specifically: p"
         );
     }
 
