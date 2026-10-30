@@ -156,7 +156,10 @@ fn a_class_type_is_spelled_the_way_v2_spells_it() {
         ("RegExMatchInfo", "RegExMatchInfo"),
         ("TypeError", "TypeError"),
     ] {
-        let report = run(&format!("x := {name}\nMsgBox x.Name"));
+        // Measured on the binary of v2.0.19 on 2026-10-31: a class value
+        // has no name of its own, and the spelling of the class is seen
+        // through its prototype.
+        let report = run(&format!("x := {name}\nMsgBox x.Prototype.__Class"));
         assert!(report.ok, "{:?}", report.error);
         assert_eq!(report.output.first().cloned().unwrap_or_default(), spelled);
     }

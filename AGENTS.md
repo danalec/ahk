@@ -3846,3 +3846,68 @@ same, with no handler.
 The comparison of the tree with the binary is in
 `egm-review/compare_missing_members.py` (11 cases: 7 are the same, and
 the four that are not are the members that this runtime does not carry).
+
+## 82. A class value has no name, and its base is written the way v2 writes it
+
+Measured on the binary of v2.0.19 on 2026-10-31: the class value of v2
+carries no name of its own, and the base of it is written the way the
+`ObjSetBase` built-in writes it. The tree kept the name of the class in a
+property that a script could read, and it answered the base of a class of
+the script with the name of the class instead of the class itself.
+
+- **A class value has no property named `Name`, and a prototype has none
+  either.** The read of one is refused with `This value of type "Class"
+  has no property named "Name".` and with `This value of type "Prototype"
+  has no property named "Name".` The name of the class is kept under a key
+  of its own -- `runtime::CLASS_NAME`, a key with a space in it -- the way
+  the base of an object is kept.
+- **A name that a script writes is a property of the class value.** The
+  write makes an own property of it, the read answers it, and the class
+  keeps its identity: `c.Name := "x"` leaves `c.__Class` at "Class" and
+  `c.Base` at the base class.
+- **The base of a class is the class that it extends.** The base of a
+  class of the script is the class value itself -- `C.Base == D` is true
+  when `C` extends `D` -- and not the name of it.
+- **The write of the base of a class is the write of the `ObjSetBase`.**
+  The value has to be an object: `c.Base := 1` is refused with "Expected
+  an Object but got an Integer." and the `What` "ObjSetBase". The base of
+  the class becomes the object, and the chain of the bases of the class is
+  gone.
+- **The prototype of a class is a property that a script may write.** The
+  read of it answers the prototype, and the write of it is an own
+  property.
+- **The static methods of a class are read-only.** The write of one is
+  refused with "Property is read-only." and the name that was written goes
+  in the `Extra`.
+- **A class value is not an instance of its class.** The properties and
+  the methods of the instances do not answer it: `Map.Count` is refused,
+  `Map.Get("a")` is refused, and `Map.HasMethod("Clear")` answers zero.
+  The static methods are its own: `Map.HasMethod("HasProp")` answers one,
+  and so does `C.HasMethod("Say")` when `Say` is a static method.
+- **The static methods of a class value are handed over as values.** The
+  read of `Map.Call` is a function whose name is "Map.Call", the read of
+  `Map.HasProp` is one whose name is "HasProp", and the read of the
+  static method of a class of the script is one whose name is "C.Say" --
+  a static method belongs to the class and not to its prototype.
+- **The own properties of a class value are the call and the prototype.**
+  `Map.HasOwnProp("Call")` answers one, `Map.HasOwnProp("HasProp")`
+  answers zero -- the methods of the base object are inherited and not
+  own -- and the static methods that a class declares are own.
+- **Two objects are the same object and nothing else.** v2 compares the
+  objects by their identity, and an object is never equal to a value that
+  is not an object: two maps that hold the same entries are not the same
+  map, and a map is not equal to a text that carries the name of its
+  class. This is a rule of v2, and it lives in one place -- the helper
+  that compares two values -- so that the v1 dialect, which compares the
+  objects by what they hold, can bypass it.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_class_value_members.py` (30 cases: every one of them
+is the same), in `egm-review/probe_class_value_methods.py` (12 cases),
+in `egm-review/probe_class_value_static.py` (13 cases) and in
+`egm-review/probe_object_equality.py` (10 cases).
+
+Two corners are still open, and they are the ones that the next block
+takes: the own properties of a class value are listed by the tree without
+the call of the class, and the names of the own properties keep the case
+of the tree and not the case of v2.

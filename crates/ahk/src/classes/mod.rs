@@ -700,8 +700,9 @@ pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
 pub(crate) fn class_value(name: &str) -> Value {
     let mut table = BTreeMap::new();
     // The name of the class is the one v2 spells: the name of the
-    // runtime carries it in lower case.
-    table.insert("name".to_string(), Value::Text(the_spelling_of(name)));
+    // runtime carries it in lower case. v2 does not show it, and the
+    // tree keeps it under a key of its own.
+    table.insert(crate::runtime::CLASS_NAME.to_string(), Value::Text(the_spelling_of(name)));
     table.insert("prototype".to_string(), crate::runtime::prototype_value(name));
     Value::Object(Rc::new(RefCell::new(Object {
         class: name.to_lowercase(),

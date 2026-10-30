@@ -917,6 +917,14 @@ that asks for another one is refused with the reason.
 - **The table of the surface carries the members that the binary keeps
   outside its tables.** The properties of the error object are in it, and
   the tree answers every one of them.
+- **A class value has no name, and its base is written the way v2 writes
+  it.** The name of a class is kept under a key of its own, the base of a
+  class is the class that it extends, and the write of it is the write of
+  the `ObjSetBase`. A class value is not an instance of its class: the
+  static methods are its own and the others are not.
+- **Two objects are the same object and nothing else.** v2 compares them
+  by their identity, and an object is never equal to a value that is not
+  an object.
 
 ## Side Effects
 

@@ -408,6 +408,14 @@ pub(crate) const METHOD_NAME: &str = "method name";
 /// under is not one a script can reach.
 pub(crate) const CLOSURE: &str = "function closure";
 
+/// The key the name of a class lives under.
+///
+/// v2 does not show the name of a class: a class value has no property
+/// named `Name`, and a prototype has none either. The tree keeps the name
+/// out of the way of the properties of the script. The key has a space in
+/// it, so that a script cannot reach it by name.
+pub(crate) const CLASS_NAME: &str = "class name";
+
 /// Where a variable lives.
 ///
 /// The scopes of the script are a stack: the global one is under the
@@ -2319,7 +2327,7 @@ impl<'a> Runtime<'a> {
         let class = object.borrow().class.clone();
         // The name the class was written with, when the runtime knows it.
         if let Some(Value::Object(class)) = self.class_value_of(&class) {
-            if let Some(name) = class.borrow().properties.get("name") {
+            if let Some(name) = class.borrow().properties.get(CLASS_NAME) {
                 return Some(name.to_text());
             }
         }
@@ -2343,7 +2351,7 @@ impl<'a> Runtime<'a> {
                 return object
                     .borrow()
                     .properties
-                    .get("name")
+                    .get(CLASS_NAME)
                     .map(|name| name.to_text().to_lowercase());
             }
         }
@@ -2761,6 +2769,15 @@ impl<'a> Runtime<'a> {
     fn find_method_on(&self, target: &Value, name: &str) -> Option<(String, MethodDef)> {
         let Value::Object(object) = target else { return None };
         let class = object.borrow().class.clone();
+        // A class value is not an instance of its class: the methods of the
+        // class are not its own, and only the static ones are.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the call of a
+        // method of an instance is refused with 'This value of type "Class"
+        // has no method named "Say".'
+        if self.class_name_of(target).is_some() {
+            return self.find_the_static_method_in(&class, name);
+        }
         self.find_method_in(&class, name)
     }
 
@@ -3167,8 +3184,15 @@ impl<'a> Runtime<'a> {
                 return Err(crate::classes::the_arity_failure(&class, name, message, line));
             }
         }
-        if let Some(result) = crate::classes::call(&class, name, target, &values, self, line) {
-            return result;
+        // A class value is not an instance of its class: the methods of the
+        // class do not answer it.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Get("a")` and
+        // `Map.Clear()` are refused.
+        if self.class_name_of(target).is_none() {
+            if let Some(result) = crate::classes::call(&class, name, target, &values, self, line) {
+                return result;
+            }
         }
         // Every object has the methods of the base object.
         if let Some(result) = self.base_method(target, name, &values, line) {
@@ -3339,18 +3363,72 @@ impl<'a> Runtime<'a> {
             let name = object
                 .borrow()
                 .properties
-                .get("name")
+                .get(CLASS_NAME)
                 .map(|value| value.to_text().to_lowercase())?;
             let base = crate::classes::the_base_class_of_a_class(&name)?;
             return self.the_prototype_of(base);
         }
         // A class is not an instance of itself: the base of a class is
-        // the class that it extends.
+        // the class that it extends. A base that the script wrote is the
+        // base of the class, and it is an object and not a class.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31.
         if let Some(name) = self.class_name_of(target) {
-            let base = crate::classes::the_base_class_of_a_class(&name)?;
-            return self.class_value_of(base);
+            if let Some(base) = self.stored_base_of(target) {
+                return Some(base);
+            }
+            return self.the_base_of_the_class(&name);
         }
         self.base_of(target)
+    }
+
+    /// The base of a class: the class that it extends.
+    ///
+    /// A class of the script extends the class it names, and the base
+    /// object when it names none. A class of the runtime has the bases of
+    /// v2: the errors of v2 are a tree, and the `Any` is the root of it.
+    fn the_base_of_the_class(&self, name: &str) -> Option<Value> {
+        let base = self.the_base_of_the_class_name(name)?;
+        self.class_value_of(&base)
+    }
+
+    /// The name of the class that a class extends.
+    fn the_base_of_the_class_name(&self, name: &str) -> Option<String> {
+        let name = name.to_lowercase();
+        if let Some(definition) = self.classes.get(&name) {
+            let base = definition.extends.clone().unwrap_or_else(|| "object".to_string());
+            return Some(base.to_lowercase());
+        }
+        crate::classes::the_base_class_of_a_class(&name).map(|base| base.to_string())
+    }
+
+    /// The chain of the bases of a class.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the chain of a
+    /// class is the chain of the classes that it extends, and it begins at
+    /// the base of the class: a class is not a base of itself. A base that
+    /// the script wrote replaces the chain.
+    fn the_chain_of_the_class_bases(&self, target: &Value) -> Vec<Value> {
+        let mut chain: Vec<Value> = Vec::new();
+        let Some(name) = self.class_name_of(target) else { return chain };
+        if self.stored_base_of(target).is_some() {
+            return chain;
+        }
+        let mut current = self.the_base_of_the_class_name(&name);
+        while let Some(class) = current {
+            let Some(value) = self.class_value_of(&class) else { break };
+            let Value::Object(object) = &value else { break };
+            // A class that extends itself would loop for ever.
+            if chain.iter().any(|seen| match seen {
+                Value::Object(other) => Rc::ptr_eq(other, object),
+                _ => false,
+            }) {
+                break;
+            }
+            chain.push(value);
+            current = self.the_base_of_the_class_name(&class);
+        }
+        chain
     }
 
     /// The prototype of a class.
@@ -3395,6 +3473,101 @@ impl<'a> Runtime<'a> {
         };
         let (min, max) = crate::classes::the_arity_of("object", &lower).unwrap_or((0, 0));
         Ok(self.method_reference_of_the_base_object(&spelled, &lower, min + 1, max + 1))
+    }
+
+    /// The static methods of a class value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a class has the
+    /// methods of the base object, the call of the class, and the static
+    /// methods that it declares. The methods of its instances are not its
+    /// own.
+    fn the_static_methods_of_a_class_value(&self, target: &Value) -> Vec<String> {
+        let mut names: Vec<String> = crate::classes::the_static_methods_of_a_class()
+            .iter()
+            .map(|name| name.to_string())
+            .collect();
+        for name in self.the_static_methods_declared_by_a_class(target) {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+        names
+    }
+
+    /// The static methods that a class declares.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: they are the own
+    /// properties of the class value, the way the call of the class is.
+    fn the_static_methods_declared_by_a_class(&self, target: &Value) -> Vec<String> {
+        let mut names: Vec<String> = Vec::new();
+        let Some(class) = self.class_name_of(target) else { return names };
+        for class in self.class_chain(&class) {
+            let Some(definition) = self.classes.get(&class) else { continue };
+            for (name, method) in &definition.methods {
+                if method.is_static && !names.contains(name) {
+                    names.push(name.clone());
+                }
+            }
+        }
+        names
+    }
+
+    /// The static method of a class value, as a value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a class has the
+    /// methods of the base object and the static methods that it declares,
+    /// and v2 hands them over as values: `Map.Call` is a function whose
+    /// name is "Map.Call", and `C.Say` is one whose name is "C.Say".
+    fn the_static_method_of_a_class_value(
+        &mut self,
+        target: &Value,
+        name: &str,
+        line: u32,
+    ) -> Result<Option<Value>, RuntimeFailure> {
+        let lower = name.to_lowercase();
+        if !self.the_static_methods_of_a_class_value(target).contains(&lower) {
+            return Ok(None);
+        }
+        // The static methods that the class of the script declares.
+        if let Some(class) = self.class_name_of(target) {
+            if let Some((defining, method)) = self.find_the_static_method_in(&class, &lower) {
+                return Ok(Some(self.static_method_reference(&defining, &method)));
+            }
+        }
+        // The methods of the base object.
+        let values = [Value::Text(name.to_string())];
+        Ok(Some(self.the_static_method(target, &values, line)?))
+    }
+
+    /// The value of a static method of a class of the script.
+    ///
+    /// A static method belongs to the class and not to its prototype, and
+    /// the name of the value carries the class and the method.
+    fn static_method_reference(&self, class: &str, method: &MethodDef) -> Value {
+        let owner = self
+            .classes
+            .get(class)
+            .map(|definition| definition.name.clone())
+            .unwrap_or_else(|| class.to_string());
+        let mut properties: BTreeMap<String, Value> = BTreeMap::new();
+        properties.insert("name".to_string(), Value::Text(format!("{owner}.{}", method.name)));
+        // The first parameter of the reference is `this`.
+        let required = method
+            .parameters
+            .iter()
+            .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+            .count();
+        properties.insert("minparams".to_string(), Value::Int(required as i64 + 1));
+        properties.insert(
+            "maxparams".to_string(),
+            Value::Int(method.parameters.len() as i64 + 1),
+        );
+        properties.insert("isbuiltin".to_string(), Value::Int(0));
+        properties.insert("isvariadic".to_string(), Value::Int(0));
+        // The class and the name of the method: the reference calls them.
+        properties.insert(METHOD_CLASS.to_string(), Value::Text(class.to_string()));
+        properties.insert(METHOD_NAME.to_string(), Value::Text(method.name.clone()));
+        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
     }
 
     /// The reference of a static method of a class.
@@ -3521,6 +3694,20 @@ impl<'a> Runtime<'a> {
                     // Every value carries its class, and the base object
                     // has the property of it.
                     || name.eq_ignore_ascii_case("__class");
+                let found = if self.class_name_of(target).is_some() {
+                    // A class value has the prototype, the base and the
+                    // static methods, and every value carries its class.
+                    // The properties of the class are not its own.
+                    object.borrow().properties.contains_key(&name.to_lowercase())
+                        || name.eq_ignore_ascii_case("base")
+                        || self
+                            .the_static_methods_of_a_class_value(target)
+                            .iter()
+                            .any(|method| *method == name.to_lowercase())
+                        || name.eq_ignore_ascii_case("__class")
+                } else {
+                    found
+                };
                 Some(Ok(Value::Int(found as i64)))
             }
             "hasmethod" => {
@@ -3541,14 +3728,17 @@ impl<'a> Runtime<'a> {
                     object
                         .borrow()
                         .properties
-                        .get("name")
+                        .get(CLASS_NAME)
                         .map(|name| name.to_text().to_lowercase())
                         .unwrap_or(class)
                 } else {
                     class
                 };
                 let found = if self.class_name_of(target).is_some() {
-                    crate::classes::the_base_object_has_the_method(&name)
+                    // A class has the static methods, and the methods of its
+                    // instances are not its own.
+                    self.the_static_methods_of_a_class_value(target)
+                        .contains(&name.to_lowercase())
                 } else {
                     self.find_method(&class, &name).is_some()
                         || crate::classes::the_method_of(&class, &name).is_some()
@@ -3578,6 +3768,20 @@ impl<'a> Runtime<'a> {
                         line,
                     })));
                 };
+                // A class value is a class and not an instance of one: the
+                // chain of a class is the chain of the classes that it
+                // extends.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31.
+                if self.class_name_of(target).is_some() {
+                    let chain = self.the_chain_of_the_class_bases(target);
+                    return Some(Ok(Value::Int(
+                        chain.iter().any(|object| match object {
+                            Value::Object(one) => Rc::ptr_eq(one, base),
+                            _ => false,
+                        }) as i64,
+                    )));
+                }
                 let chain = self.the_chain_of_the_bases(target);
                 Some(Ok(Value::Int(
                     chain.iter().any(|object| Rc::ptr_eq(object, base)) as i64,
@@ -3587,9 +3791,20 @@ impl<'a> Runtime<'a> {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
                     return Some(Err(missing()));
                 };
-                Some(Ok(Value::Int(
-                    object.borrow().properties.contains_key(&name.to_lowercase()) as i64,
-                )))
+                let lower = name.to_lowercase();
+                let own = object.borrow().properties.contains_key(&lower);
+                // The call of a class is its own property, and so are the
+                // static methods that the class declares. The methods of
+                // the base object are inherited, and not own.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31.
+                let own = own
+                    || (self.class_name_of(target).is_some()
+                        && (lower == "call"
+                            || self
+                                .the_static_methods_declared_by_a_class(target)
+                                .contains(&lower)));
+                Some(Ok(Value::Int(own as i64)))
             }
             "ownprops" => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the own
@@ -3601,7 +3816,7 @@ impl<'a> Runtime<'a> {
                     .borrow()
                     .properties
                     .keys()
-                    .filter(|name| name.as_str() != BASE)
+                    .filter(|name| name.as_str() != BASE && name.as_str() != CLASS_NAME)
                     .cloned()
                     .collect();
                 let mut pairs: Vec<(Value, Value)> = Vec::with_capacity(names.len());
@@ -3719,7 +3934,7 @@ impl<'a> Runtime<'a> {
                 let name = object
                     .borrow()
                     .properties
-                    .get("name")
+                    .get(CLASS_NAME)
                     .map(|value| value.to_text())
                     .unwrap_or_default();
                 return crate::classes::the_spelling_of(&name);
@@ -4137,9 +4352,16 @@ impl<'a> Runtime<'a> {
         };
         let class = object.borrow().class.clone();
         // A class type of the runtime has properties of its own, and it
-        // owns the whole of them.
-        if let Some(result) = crate::classes::property(&class, &name, target, self, line) {
-            return result.map(|value| (value, false));
+        // owns the whole of them. A class value is not an instance of its
+        // class, and the properties of the class do not answer it.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Count` is
+        // refused with 'This value of type "Class" has no property named
+        // "Count".'
+        if self.class_name_of(target).is_none() {
+            if let Some(result) = crate::classes::property(&class, &name, target, self, line) {
+                return result.map(|value| (value, false));
+            }
         }
         if let Some(value) = object.borrow().properties.get(&name).cloned() {
             // A property may be a descriptor: the getter of it is asked
@@ -4148,6 +4370,16 @@ impl<'a> Runtime<'a> {
                 return Ok((answer, false));
             }
             return Ok((value, false));
+        }
+        // The static methods of a class are its own properties, and v2
+        // hands them over as values.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Call` is a
+        // function whose name is "Map.Call".
+        if self.class_name_of(target).is_some() {
+            if let Some(value) = self.the_static_method_of_a_class_value(target, &name, line)? {
+                return Ok((value, false));
+            }
         }
         // The base of an object is a property of every object, and the
         // base of a class is a property of every class.
@@ -4233,23 +4465,18 @@ impl<'a> Runtime<'a> {
             return Err(self.no_property(target, &written, line));
         };
         let class = object.borrow().class.clone();
+        // A class value is not an instance of its class: the properties of
+        // the class do not answer it, and a property of the class value is
+        // a property of the class value itself.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Count` may
+        // be written, and `Map.HasProp` may not.
+        if self.class_name_of(target).is_some() {
+            return self.write_the_property_of_a_class_value(target, &class, &name, &written, value, line);
+        }
         // A class type of the runtime owns the whole of its properties.
         if let Some(result) = crate::classes::set_property(&class, &name, target, value.clone(), self, line) {
             return result;
-        }
-        // Measured on the binary of v2.0.19 on 2026-10-31: the methods of a
-        // class are read-only, and so are the properties that the class
-        // itself carries.
-        if self.class_name_of(target).is_some()
-            && (self.find_method_in(&class, &name).is_some()
-                || name == "name"
-                || name == "base"
-                || name == "prototype")
-        {
-            return Err(RuntimeFailure::Detailed(
-                RuntimeError { message: "Property is read-only.".to_string(), line },
-                Detail { what: String::new(), extra: written },
-            ));
         }
         // A property that is a descriptor has a setter of its own, and a
         // descriptor that carries a value is written straight away.
@@ -4278,6 +4505,85 @@ impl<'a> Runtime<'a> {
             }
         }
         object.borrow_mut().properties.insert(name, value);
+        Ok(())
+    }
+
+    /// A property of a class value, written.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the static methods
+    /// of a class are read-only, the base of a class is written the way
+    /// the `ObjSetBase` built-in writes it, and every other name is a
+    /// property of the class value itself.
+    fn write_the_property_of_a_class_value(
+        &mut self,
+        target: &Value,
+        class: &str,
+        name: &str,
+        written: &str,
+        value: Value,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        // The static methods of a class are read-only: `Map.HasProp` is a
+        // method of the class and not of an instance of it.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the write of a
+        // static method of a class of the script is refused as well.
+        if self.the_static_methods_of_a_class_value(target).contains(&name.to_string()) {
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message: "Property is read-only.".to_string(), line },
+                Detail { what: String::new(), extra: written.to_string() },
+            ));
+        }
+        // The base of a class is written the way the `ObjSetBase` built-in
+        // writes it: the value has to be an object.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `c.Base := 1` is
+        // refused with "Expected an Object but got an Integer." and the
+        // `What` "ObjSetBase".
+        if name == "base" {
+            if !matches!(value, Value::Object(_)) {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError {
+                        message: expected_type(TypeName::Object, value.type_name()),
+                        line,
+                    },
+                    Detail { what: "ObjSetBase".to_string(), extra: value.to_text() },
+                ));
+            }
+            let base = value.clone();
+            return self
+                .set_base_of(target, base, line)
+                .map_err(|error| RuntimeFailure::Detailed(
+                    error,
+                    Detail { what: "ObjSetBase".to_string(), extra: String::new() },
+                ));
+        }
+        let Value::Object(object) = target else {
+            return Err(self.no_property(target, written, line));
+        };
+        // A property that is a descriptor has a setter of its own, and a
+        // descriptor that carries a value is written straight away.
+        if let Some(current) = object.borrow().properties.get(name).cloned() {
+            if self.is_a_descriptor(&current) {
+                return self.the_write_of_the_descriptor(&current, target, value, written, line);
+            }
+        }
+        // A property the class declares is written straight away. The
+        // others are the ones `__Set` is asked about.
+        if !self.declares_property(class, name) {
+            if let Some((defining, method)) = self.find_method_in(class, "__set") {
+                let params = self.the_params(&[], line)?;
+                self.call_method_with(
+                    &defining,
+                    &method,
+                    target,
+                    &[Value::Text(written.to_string()), params, value],
+                    line,
+                )?;
+                return Ok(());
+            }
+        }
+        object.borrow_mut().properties.insert(name.to_string(), value);
         Ok(())
     }
 
@@ -6508,14 +6814,7 @@ fn builtin_value(name: &str, min: u8, max: u8) -> Value {
 /// The value of a class: an object of the class itself.
 fn class_value(name: &str, class: &Class) -> Value {
     let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-    properties.insert("name".to_string(), Value::Text(class.name.clone()));
-    properties.insert(
-        "base".to_string(),
-        match &class.extends {
-            Some(base) => Value::Text(base.clone()),
-            None => Value::Text(String::new()),
-        },
-    );
+    properties.insert(CLASS_NAME.to_string(), Value::Text(class.name.clone()));
     properties.insert("prototype".to_string(), prototype_value(&class.name));
     Value::Object(Rc::new(RefCell::new(Object { class: name.to_lowercase(), properties })))
 }
@@ -6559,7 +6858,7 @@ pub(crate) fn the_extra_of_the_value(value: &Value) -> String {
 /// of its class.
 pub(crate) fn prototype_value(name: &str) -> Value {
     let mut properties: BTreeMap<String, Value> = BTreeMap::new();
-    properties.insert("name".to_string(), Value::Text(name.to_string()));
+    properties.insert(CLASS_NAME.to_string(), Value::Text(name.to_string()));
     Value::Object(Rc::new(RefCell::new(Object {
         class: "prototype".to_string(),
         properties,
@@ -6603,6 +6902,21 @@ pub(crate) fn split_on_any(text: &str, delimiters: &str) -> Vec<String> {
 /// was written down: `2` and `2.0` are the same number, even though one
 /// of them is a whole number and the other is not.
 fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
+    // An object is the same object and nothing else.
+    //
+    // Measured on the binary of v2.0.19 on 2026-10-31: two maps that hold
+    // the same entries are not the same map, an instance is not the class
+    // of it, and an object is never equal to a value that is not an
+    // object -- not even to a text that carries the name of its class.
+    //
+    // This is a rule of v2: the v1 dialect compares the objects by what
+    // they hold, and it bypasses this place.
+    if let (Value::Object(one), Value::Object(other)) = (left, right) {
+        return Rc::ptr_eq(one, other);
+    }
+    if matches!(left, Value::Object(_)) || matches!(right, Value::Object(_)) {
+        return false;
+    }
     // The comparison is a number when both sides are numbers, and a
     // text otherwise: that is the rule v2 follows.
     if let (Some(a), Some(b)) = (left.to_number(), right.to_number()) {
