@@ -929,6 +929,11 @@ that asks for another one is refused with the reason.
   class of a class value is "Class", and it has the base, the prototype,
   the call of the class and the initialiser of it. The four methods that
   every object has are in the table as well.
+- **The own properties of a class value are the members of it.** A class
+  of the runtime owns the call of it and the prototype, and a class of the
+  script owns the initialiser of it, the prototype and the static methods
+  that it declares. The methods of the base object are inherited, and not
+  own.
 
 ## Side Effects
 

@@ -429,6 +429,57 @@ fn every_class_has_an_initialiser_and_it_is_a_member_of_the_class_value() {
 }
 
 #[test]
+fn the_own_properties_of_a_class_value_are_the_ones_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the class value of a
+    // class of the runtime owns the call of the class and the prototype, and
+    // the class value of a class of the script owns the initialiser of the
+    // class, the prototype and the static methods that the class declares.
+    assert_eq!(
+        the_answer_of("c := Map\ns := \"\"\nfor p in c.OwnProps()\n    s .= p\nMsgBox s"),
+        "CallPrototype"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    static Say() {\n    }\n}\ns := \"\"\nfor p in C.OwnProps()\n    s .= p\nMsgBox s"
+        ),
+        "__InitPrototypeSay"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n}\ns := \"\"\nfor p in C.OwnProps()\n    s .= p\nMsgBox s"),
+        "__InitPrototype"
+    );
+    // The methods of the instances are not the ones of the class.
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    Say() {\n    }\n}\ns := \"\"\nfor p in C.OwnProps()\n    s .= p\nMsgBox s"
+        ),
+        "__InitPrototype"
+    );
+}
+
+#[test]
+fn the_methods_of_the_base_object_are_inherited_and_not_own() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the call of a class
+    // of the script is not own, and the initialiser of a class of the
+    // runtime is not own either.
+    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Call\")"), "1");
+    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"__Init\")"), "0");
+    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Prototype\")"), "1");
+    assert_eq!(the_answer_of("class C {\n}\nMsgBox C.HasOwnProp(\"Call\")"), "0");
+    assert_eq!(the_answer_of("class C {\n}\nMsgBox C.HasOwnProp(\"__Init\")"), "1");
+    assert_eq!(
+        the_answer_of("class C {\n    Say() {\n    }\n}\nMsgBox C.HasOwnProp(\"Say\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    static Say() {\n    }\n}\nMsgBox C.HasOwnProp(\"Say\")"
+        ),
+        "1"
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

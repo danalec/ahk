@@ -3445,7 +3445,7 @@ impl<'a> Runtime<'a> {
     /// `DefineProp`, `DeleteProp`, `GetOwnPropDesc` and `Clone` -- and
     /// the call of the class is one of them.
     fn the_static_method(
-        &mut self,
+        &self,
         target: &Value,
         arguments: &[Value],
         line: u32,
@@ -3537,6 +3537,69 @@ impl<'a> Runtime<'a> {
         // The methods of the base object.
         let values = [Value::Text(name.to_string())];
         Ok(Some(self.the_static_method(target, &values, line)?))
+    }
+
+    /// The own properties of a class value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the class value of
+    /// a class of the runtime owns the call of the class and the prototype,
+    /// and the class value of a class of the script owns the initialiser of
+    /// the class, the prototype and the static methods that the class
+    /// declares.
+    fn the_own_properties_of_a_class_value(&self, target: &Value) -> Vec<String> {
+        let mut names: Vec<String> = Vec::new();
+        let Some(class) = self.class_name_of(target) else { return names };
+        match self.classes.get(&class) {
+            Some(definition) => {
+                // A class of the script: the initialiser of it, and the
+                // static methods that it declares.
+                names.push("__Init".to_string());
+                for method in definition.methods.values() {
+                    if method.is_static {
+                        names.push(method.name.clone());
+                    }
+                }
+            }
+            // A class of the runtime: the call of it.
+            None => names.push("Call".to_string()),
+        }
+        names.push("Prototype".to_string());
+        names
+    }
+
+    /// The value of an own property of a class value.
+    fn the_value_of_an_own_property_of_a_class_value(
+        &self,
+        target: &Value,
+        name: &str,
+        line: u32,
+    ) -> Value {
+        let lower = name.to_lowercase();
+        match lower.as_str() {
+            "call" => self
+                .the_static_method(target, &[Value::Text(name.to_string())], line)
+                .unwrap_or_else(|_| Value::Text(String::new())),
+            "__init" => self.the_init_of_a_class_value(target),
+            "prototype" => match target {
+                Value::Object(object) => object
+                    .borrow()
+                    .properties
+                    .get("prototype")
+                    .cloned()
+                    .unwrap_or_else(|| Value::Text(String::new())),
+                _ => Value::Text(String::new()),
+            },
+            // A static method that the class declares.
+            _ => {
+                let Some(class) = self.class_name_of(target) else {
+                    return Value::Text(String::new());
+                };
+                match self.find_the_static_method_in(&class, &lower) {
+                    Some((defining, method)) => self.static_method_reference(&defining, &method),
+                    None => Value::Text(String::new()),
+                }
+            }
+        }
     }
 
     /// The initialiser of a class, as a value.
@@ -3824,12 +3887,16 @@ impl<'a> Runtime<'a> {
                 // the base object are inherited, and not own.
                 //
                 // Measured on the binary of v2.0.19 on 2026-10-31.
+                // A class value owns the members that v2 gives it, and the
+                // methods of the base object are inherited, and not own.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31.
                 let own = own
                     || (self.class_name_of(target).is_some()
-                        && (lower == "call"
-                            || self
-                                .the_static_methods_declared_by_a_class(target)
-                                .contains(&lower)));
+                        && self
+                            .the_own_properties_of_a_class_value(target)
+                            .iter()
+                            .any(|name| name.to_lowercase() == lower));
                 Some(Ok(Value::Int(own as i64)))
             }
             "ownprops" => {
@@ -3838,6 +3905,42 @@ impl<'a> Runtime<'a> {
                 // when the caller wants one value. The value of a property
                 // that is a descriptor is the value of the property, and
                 // not the descriptor.
+                // A class value owns the members that v2 gives it.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the class
+                // value of a class of the runtime owns the call of the class
+                // and the prototype, and the class value of a class of the
+                // script owns the initialiser of the class, the prototype
+                // and the static methods that the class declares.
+                if self.class_name_of(target).is_some() {
+                    let mut pairs: Vec<(Value, Value)> = Vec::new();
+                    for name in self.the_own_properties_of_a_class_value(target) {
+                        let value =
+                            self.the_value_of_an_own_property_of_a_class_value(target, &name, line);
+                        pairs.push((Value::Text(name), value));
+                    }
+                    // The properties that the script wrote are own as well.
+                    for (name, value) in object.borrow().properties.iter() {
+                        if name.as_str() == BASE
+                            || name.as_str() == CLASS_NAME
+                            || name.as_str() == "prototype"
+                        {
+                            continue;
+                        }
+                        pairs.push((Value::Text(name.clone()), value.clone()));
+                    }
+                    // The names are in the order of v2, and the case of them
+                    // does not count.
+                    pairs.sort_by(|left, right| {
+                        left.0.to_text()
+                            .to_lowercase()
+                            .cmp(&right.0.to_text().to_lowercase())
+                    });
+                    return Some(Ok(crate::classes::enumerator::make(
+                        pairs,
+                        crate::classes::enumerator::Alone::TheKey,
+                    )));
+                }
                 let names: Vec<String> = object
                     .borrow()
                     .properties

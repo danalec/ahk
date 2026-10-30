@@ -3950,3 +3950,35 @@ does not carry: a class of the script may not declare a static `__Init`,
 because every class has one already. v2 refuses the script at the load
 with "Duplicate declaration. Specifically: C.__Init", and the tree takes
 the declaration and answers with it.
+
+## 84. The own properties of a class value are the ones of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the own properties of a
+class value are not the properties of its table. The class value of a class
+of the runtime owns the call of the class and the prototype, and the class
+value of a class of the script owns the initialiser of the class, the
+prototype and the static methods that the class declares.
+
+- **The own properties of a class value are the members of it.** `Map` owns
+  "Call" and "Prototype", and a class of the script owns "__Init",
+  "Prototype" and the static methods that it declares.
+- **The methods of the base object are inherited, and not own.** The call
+  of a class of the script is not own, and the initialiser of a class of
+  the runtime is not own either: `Map.HasOwnProp("__Init")` answers zero
+  and `C.HasOwnProp("Call")` answers zero.
+- **The methods of the instances are not the ones of the class.** A class
+  of the script that declares an instance method does not own it.
+- **The names are in the order of v2, and the case of them does not
+  count.** The tree sorts them by the name in lower case, the way the
+  table of the properties is sorted.
+
+The comparison of the tree with the binary is in
+`egm-review/probe_own_props.py` (7 cases) and in
+`egm-review/probe_own_props2.py` (10 cases).
+
+One corner is still open, and it is a rule of the dialect that the tree
+does not carry: the names of the own properties of a plain object keep the
+case of the tree and not the case of the script. v2 gives "X" for the own
+property of `o.X := 1`, and the tree gives "x" -- the table of the
+properties of an object is keyed by the name in lower case, and it would
+have to carry the name as it was written beside it.
