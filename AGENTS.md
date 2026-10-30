@@ -2227,8 +2227,9 @@ v2 says the same: "If no classes are specified, the default is Error", and
 a text is not an `Error`.
 
 And a name that is not a word of the dialect is a word of nothing: `gosub`
-and `var` are not in v2, and the binary answers "Call to nonexistent
-function" for them.
+and `var` are not in v2, and the binary reads them as variables of the
+script: a variable that has no value is a variable that has no value
+(section 71).
 
 ## 36. The handlers of the runtime
 
@@ -3400,6 +3401,42 @@ The comparison of the tree with the binary is in
 `egm-review/compare_files_failures4.py` (8 cases) and
 `egm-review/compare_files_read2.py` (10 cases).
 
+## 71. A name that is a statement is the call of its value
+
+Measured on the binary of v2.0.19 on 2026-10-31: the name of a call
+statement is not refused at the load. It is a function of the script, or a
+variable of it, and the value of the variable is what the call asks for.
+
+- **A value that cannot be called is refused with the kind of it.**
+  "This value of type "Integer" has no method named "Call"." is the message
+  of the dialect, and the failure is of the class `MethodError`. It was the
+  message of the object that cannot be called, and it is the message of a
+  number, of a text and of an array too.
+- **A name that is not a function is a variable of the script.** The tree
+  refused it at the load with "Call to nonexistent function.", and v2 reads
+  it: a variable that has no value is refused with "This global variable has
+  not been assigned a value.", and the failure is of the class `UnsetError`.
+- **The value of a built-in variable is the value the call asks for.**
+  `A_HotkeyInterval` as a statement is refused with the kind of it, and the
+  tree read the variable of the script alone.
+- **A class of v2 that the binary does not have is refused with the message
+  of the dialect.** The `ComObject` is not in the binary, and
+  `ComObject("Shell.Application")` fails with "Call to nonexistent
+  function.".
+
+The comparison of the tree with the binary is in
+`egm-review/compare_call_statement.py` (14 cases),
+`egm-review/compare_call_value.py` (8 cases) and
+`egm-review/compare_v1_words.py` (6 cases).
+
+Most of the cases that are different are the dialog of the dialect: a
+variable that has no value shows it, and it cannot be caught. The tree says
+the same failure in words.
+
+One gap is left, and it is not about the call: the `Goto` of v2 is not in
+the table of the surface, and the tree does not carry it. The binary asks
+for a label: "Goto requires at least 1 parameter. Specifically: goto".
+
 ## 69. A built-in variable that the dialect lets a script write is written
 
 Measured on the binary of v2.0.19 on 2026-10-31: the dialect lets a script
@@ -3457,9 +3494,7 @@ The comparison of the tree with the binary is in
 `egm-review/compare_writable_vars.py` (129 cases) and the three
 `egm-review/probe_check_order_*.py`.
 
-Eleven of the hundred and twenty-nine cases are different, and none of them
-is about the write: eight are the call of a name that is a statement (the
-tree says "Call to nonexistent function." where v2 names the kind of the
-value that is called), two are the path of the script (the tree answers an
+Four of the hundred and twenty-nine cases are different, and none of them
+is about the write: two are the path of the script (the tree answers an
 asterisk, because the script of the runner comes from the standard input),
-and one is the dialog of the dialect, which cannot be caught.
+and two are the dialog of the dialect, which cannot be caught.

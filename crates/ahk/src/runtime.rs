@@ -4403,10 +4403,21 @@ impl<'a> Runtime<'a> {
         if let Some(function) = self.function_in_a_variable(name) {
             return self.call_function(&function, arguments, line, Route::ThroughValue);
         }
+        // The value of the name is what the call asks for: a variable of
+        // the script, or a built-in variable of the dialect.
+        let from_the_script = self.lookup_variable(name);
+        let value = match from_the_script {
+            Some(value) => Some(Ok(value)),
+            None => crate::variables::lookup(name, self),
+        };
         // An object that is called is asked through its `Call` method:
         // v2 does not ask the `__Call` of the class when the object
         // itself is called.
-        if let Some(value) = self.lookup_variable(name) {
+        if let Some(value) = value {
+            let value = value.map_err(|error| RuntimeFailure::Error(RuntimeError {
+                message: error.message,
+                line,
+            }))?;
             if let Value::Object(object) = &value {
                 let class = object.borrow().class.clone();
                 if let Some((defining, method)) = self.find_method_in(&class, "call") {
@@ -4420,6 +4431,28 @@ impl<'a> Runtime<'a> {
                 }
                 return Err(self.no_method(&value, "Call", line));
             }
+            // Measured on the binary of v2.0.19 on 2026-10-31: a value that
+            // is not an object cannot be called either, and v2 names the
+            // kind of it: "This value of type "Integer" has no method named
+            // "Call".". The failure is of the class `MethodError`.
+            return Err(self.no_method(&value, "Call", line));
+        }
+        // The name is a class of v2 that the binary does not have: the
+        // dialect refuses the call of it with the message of the dialect.
+        if crate::classes::is_a_class_that_is_not_here(name) {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "Call to nonexistent function.".into(),
+                line,
+            }));
+        }
+        // The name is not a function of the script, not a class and not a
+        // built-in: it is a variable of the script, and v2 reads it. A
+        // variable that has no value is a variable that has no value.
+        if crate::builtins::find(name).is_none() {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: self.the_unassigned(name),
+                line,
+            }));
         }
         let mut values = Vec::with_capacity(arguments.len());
         for argument in arguments {

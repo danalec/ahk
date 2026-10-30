@@ -183,9 +183,10 @@ concatenation of v2, and it binds like the dot. The parser makes it a
 A name at the start of a line, without parentheses, is a call statement:
 the rest of the line is the list of the parameters. Every function may be
 written that way -- a built-in and a function of the script alike -- and
-the answer of the call is thrown away. The names that are neither are
-checked at the end of the parse, because the script may define a
-function further down.
+the answer of the call is thrown away. A name that is neither is not
+refused at the load: it is a variable of the script, and the value of it
+is what the call asks for. A value that cannot be called is refused with
+the kind of it, the way v2 refuses it.
 
 The answer of a call is a value, and the members of it are read the way
 the members of any other value are: `StrLen("abc").__Class` is "Integer",

@@ -1559,12 +1559,44 @@ fn a_function_of_the_script_may_be_written_as_a_call_statement() {
 }
 
 #[test]
-fn a_name_that_is_neither_a_built_in_nor_a_function_does_not_parse() {
-    // The check is a check of the load, the way v2 has it: the script
-    // does not run at all.
-    let error = parse("Nonsense 1").expect_err("does not parse");
-    assert_eq!(error.message, "Call to nonexistent function.");
-    assert_eq!(error.line, 1);
+fn a_name_that_is_neither_a_built_in_nor_a_function_is_a_variable_of_the_script() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a call
+    // statement is not refused at the load. It is a variable of the
+    // script, and v2 reads it: a variable that has no value is a variable
+    // that has no value.
+    let (report, _desktop) = run("Nonsense 1");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This global variable has not been assigned a value.")
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn a_value_that_is_not_an_object_cannot_be_called() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a value that
+    // cannot be called is refused with the kind of it, and the failure is
+    // of the class `MethodError`.
+    let (report, _desktop) = run("x := 5\nx");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Integer\" has no method named \"Call\".")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_built_in_variable_that_is_a_number_cannot_be_called_either() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value of a
+    // built-in variable is the value the call asks for.
+    let (report, _desktop) = run("A_HotkeyInterval");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Integer\" has no method named \"Call\".")
+    );
 }
 
 #[test]

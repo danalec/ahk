@@ -380,10 +380,6 @@ pub struct Parser {
     /// The list of the top level is the first one, and the list of a
     /// function is the one that is pushed when its body is read.
     assignments: Vec<Vec<Assignment>>,
-    /// The calls whose name is not a built-in. They are the functions of
-    /// the script, and the script may define one further down, so the
-    /// check waits for the end of the parse.
-    pending: Vec<(String, u32, u32)>,
     /// The parameters of the functions that are being parsed.
     ///
     /// A declaration may not name a parameter: v2 says so.
@@ -442,7 +438,6 @@ impl Parser {
             classes: BTreeMap::new(),
             functions: BTreeSet::new(),
             assignments: vec![Vec::new()],
-            pending: Vec::new(),
             parameters: Vec::new(),
             in_class: false,
             pending_literal: None,
@@ -617,7 +612,6 @@ impl Parser {
         self.defined.clear();
         self.classes.clear();
         self.functions.clear();
-        self.pending.clear();
         self.assignments.clear();
         self.assignments.push(Vec::new());
         self.skip_newlines();
@@ -625,7 +619,6 @@ impl Parser {
             statements.extend(self.parse_statement()?);
             self.skip_newlines();
         }
-        self.check_pending_calls()?;
         // The assignments of the top level live in the scope of the script,
         // and the class that one of them names may be declared further down.
         let assignments = core::mem::take(self.assignments.first_mut().expect("the top level"));
@@ -703,24 +696,6 @@ impl Parser {
             line,
             column,
         })
-    }
-
-    /// The check of the calls whose name is not a built-in.
-    ///
-    /// They are the functions of the script, and the script may define one
-    /// further down, so the check waits until the whole script is read.
-    fn check_pending_calls(&self) -> Result<(), SyntaxError> {
-        for (name, line, column) in &self.pending {
-            if self.defined.contains(name) {
-                continue;
-            }
-            return Err(SyntaxError {
-                message: "Call to nonexistent function.".into(),
-                line: *line,
-                column: *column,
-            });
-        }
-        Ok(())
     }
 
     /// A block: the statements between `{` and `}`.
@@ -1212,13 +1187,11 @@ impl Parser {
     /// The arguments are the expressions up to the end of the statement,
     /// in the order the callee expects them.
     fn parse_call_statement(&mut self, name_token: Token) -> Result<Node, SyntaxError> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a name that is
+        // not a built-in is not refused at the load. It is a function of the
+        // script, or a variable of it, and the value of the variable is
+        // what the call asks for.
         let name = name_token.value.to_lowercase();
-        // A name that is not a built-in is a function of the script, and
-        // the script may define it further down: the check of the name
-        // comes at the end of the parse.
-        if crate::builtins::find(&name).is_none() {
-            self.pending.push((name.clone(), name_token.line, name_token.column));
-        }
         self.the_expression_begins();
         let mut arguments = Vec::new();
         if !self.at_end_of_statement() {
@@ -2840,7 +2813,7 @@ mod tests {
 
     #[test]
     fn a_syntax_error_carries_the_line_and_the_column() {
-        let error = parse("Send \"a\"\nNonsense 1\n").expect_err("fails");
+        let error = parse("Send \"a\"\nif (x) { y := 1 }\n").expect_err("fails");
         assert_eq!(error.line, 2);
     }
 
@@ -2897,14 +2870,19 @@ mod tests {
     }
 
     #[test]
-    fn a_name_that_is_neither_a_built_in_nor_a_function_is_an_error() {
-        let error = parse("Nonsense 1").expect_err("fails");
-        assert_eq!(error.message, "Call to nonexistent function.");
+    fn a_name_that_is_neither_a_built_in_nor_a_function_is_a_call() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // call statement is not refused at the load. It is a variable of
+        // the script, and v2 reads it and calls its value.
+        let statements = parse("Nonsense 1").expect("parses");
+        assert!(matches!(&statements[0], Node::Call { name, .. } if name == "nonsense"));
     }
 
     #[test]
-    fn an_unknown_statement_is_an_error() {
-        assert!(parse("Nonsense 1").is_err());
+    fn an_unknown_statement_is_a_call_of_a_variable() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // call statement is not refused at the load.
+        assert!(parse("Nonsense 1").is_ok());
     }
 
     #[test]

@@ -461,6 +461,22 @@ pub(crate) fn is_type(name: &str) -> bool {
     TYPES.contains(&name.as_str()) || error::is_a_class(&name)
 }
 
+/// The classes of v2 that the binary does not have.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the `ComObject` is not
+/// in the binary, and a call of it fails with "Call to nonexistent
+/// function.".
+const THE_CLASSES_THAT_ARE_NOT_HERE: [&str; 1] = ["comobject"];
+
+/// Whether the name is a class of v2 that the tree does not carry.
+///
+/// A name like that is not a variable of the script: v2 refuses the call of
+/// it with the message of the dialect.
+pub(crate) fn is_a_class_that_is_not_here(name: &str) -> bool {
+    let name = name.to_lowercase();
+    THE_CLASSES_THAT_ARE_NOT_HERE.contains(&name.as_str())
+}
+
 /// The class a class type of the runtime derives from.
 ///
 /// The errors of v2 are a tree of their own: a `PropertyError` is a
