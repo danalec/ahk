@@ -215,7 +215,19 @@ const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 11] = [
 /// and a file is made by the `FileOpen` built-in. Neither of the two is
 /// a class that can be made, and v2 answers "Invalid base." to both. The
 /// enumerator is made out of the `__Enum` of a value, and not by a call.
-const NOT_MADE: [&str; 3] = ["file", "func", "enumerator"];
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the `BoundFunc`,
+/// the `Closure` and the `RegExMatchInfo` are classes of the dialect that
+/// the runtime makes, and not a script: the call of them is refused with
+/// "Invalid base." as well.
+const NOT_MADE: [&str; 6] = [
+    "boundfunc",
+    "closure",
+    "file",
+    "func",
+    "enumerator",
+    "regexmatchinfo",
+];
 
 /// The name v2 gives to the call of the base object.
 ///
@@ -485,9 +497,10 @@ fn the_arity_failure_of_a_constructor(
 /// they. The hotkey is the one that is not a name of its own: the name
 /// `Hotkey` is a function of the dialect, and the class of a hotkey is
 /// the class of the object that the function makes.
-pub(crate) const TYPES: [&str; 17] = [
-    "any", "array", "buffer", "class", "clipboardall", "comobject", "comvalue", "enumerator", "error",
-    "file", "func", "gui", "hotkey", "inputhook", "map", "menu", "object",
+pub(crate) const TYPES: [&str; 20] = [
+    "any", "array", "boundfunc", "buffer", "class", "clipboardall", "closure", "comobject", "comvalue",
+    "enumerator", "error", "file", "func", "gui", "hotkey", "inputhook", "map", "menu", "object",
+    "regexmatchinfo",
 ];
 
 /// Whether the name is a class type of the runtime.
@@ -666,11 +679,14 @@ pub(crate) fn object_with(class: &str, properties: Vec<(&str, Value)>) -> Value 
 ///
 /// The dialect spells some of them with more than one capital, and the
 /// name of the class is the name that the dialect uses.
-const THE_SPELLINGS: [(&str, &str); 4] = [
+const THE_SPELLINGS: [(&str, &str); 7] = [
+    ("boundfunc", "BoundFunc"),
     ("clipboardall", "ClipboardAll"),
+    ("closure", "Closure"),
     ("comobject", "ComObject"),
     ("comvalue", "ComValue"),
     ("inputhook", "InputHook"),
+    ("regexmatchinfo", "RegExMatchInfo"),
 ];
 
 /// The name of a class of the runtime, the way v2 spells it.

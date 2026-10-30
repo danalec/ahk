@@ -92,9 +92,11 @@ fn a_class_type_of_the_dialect_is_a_class() {
     for name in [
         "Any",
         "Array",
+        "BoundFunc",
         "Buffer",
         "Class",
         "ClipboardAll",
+        "Closure",
         "ComObject",
         "ComValue",
         "Enumerator",
@@ -106,6 +108,7 @@ fn a_class_type_of_the_dialect_is_a_class() {
         "Map",
         "Menu",
         "Object",
+        "RegExMatchInfo",
     ] {
         assert_eq!(the_class_of(name), "Class", "the class of {name}");
     }
@@ -143,11 +146,14 @@ fn the_name_of_a_hotkey_is_a_function() {
 #[test]
 fn a_class_type_is_spelled_the_way_v2_spells_it() {
     for (name, spelled) in [
+        ("BoundFunc", "BoundFunc"),
         ("ClipboardAll", "ClipboardAll"),
+        ("Closure", "Closure"),
         ("ComObject", "ComObject"),
         ("ComValue", "ComValue"),
         ("InputHook", "InputHook"),
         ("Map", "Map"),
+        ("RegExMatchInfo", "RegExMatchInfo"),
         ("TypeError", "TypeError"),
     ] {
         let report = run(&format!("x := {name}\nMsgBox x.Name"));
@@ -166,6 +172,21 @@ fn the_failure_of(source: &str) -> String {
     ));
     assert!(report.ok, "{:?}", report.error);
     report.output.first().cloned().unwrap_or_default().trim().to_string()
+}
+
+#[test]
+fn the_call_of_a_class_that_v2_does_not_make_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `BoundFunc`,
+    // the `Closure` and the `RegExMatchInfo` are classes of the dialect
+    // that the runtime makes, and not a script: the call of them is
+    // refused with "Invalid base.", the way the call of the `File` is.
+    for name in ["BoundFunc", "Closure", "RegExMatchInfo"] {
+        assert_eq!(
+            the_failure_of(&format!("{name}()")),
+            "Invalid base. | Object.Call |",
+            "the call of {name}"
+        );
+    }
 }
 
 #[test]

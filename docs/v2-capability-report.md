@@ -2,9 +2,9 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **750 entries** : **559 answer with a value** , **191 are refused** and **none is pending**.
+The surface of the v2.0.19 has **753 entries** : **562 answer with a value** , **191 are refused** and **none is pending**.
 
-The table has **750 entries and 714 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
+The table has **753 entries and 717 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
 ## The areas
 
@@ -19,12 +19,12 @@ The table has **750 entries and 714 distinct names** : a property with a setter 
 | Registry APIs | 11 | 6 | 5 |
 | COM automation (ComObject) | 17 | 2 | 15 |
 | The core of the language: text, math and patterns | 60 | 57 | 3 |
-| The objects of the language: Array, Map and Func | 53 | 53 | 0 |
+| The objects of the language: Array, Map and Func | 56 | 56 | 0 |
 | Dates and times | 23 | 23 | 0 |
 | The machine, the processes and the environment | 35 | 20 | 15 |
 | The clipboard | 3 | 2 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **750** | **559** | **191** |
+| **The whole of it** | **753** | **562** | **191** |
 
 ## What the numbers do not say
 
@@ -39,14 +39,21 @@ one"*. The surface counts these names as answering, because the class
 carries them; the call is what fails.
 
 **The class types are in the table, and one of them is not a class.**
-The table carries the twenty-nine class types of v2.0.19 --- `Any` ,
-`Array` , `Buffer` , `Class` , `ClipboardAll` , `ComObject` , `ComValue` ,
-`Enumerator` , `Error` , `File` , `Func` , `Gui` , `InputHook` , `Map` ,
-`Menu` , `Object` and the thirteen classes of the failures --- measured on
-the binary of v2.0.19 on 2026-10-31, where a script reads every one of
-them as the class. The `Hotkey` is the exception: the name is a function
-of v2, and the class of a hotkey is the class of the object that the
-function makes.
+The table carries the thirty-two class types of v2.0.19 --- `Any` ,
+`Array` , `BoundFunc` , `Buffer` , `Class` , `ClipboardAll` , `Closure` ,
+`ComObject` , `ComValue` , `Enumerator` , `Error` , `File` , `Func` ,
+`Gui` , `InputHook` , `Map` , `Menu` , `Object` , `RegExMatchInfo` and
+the thirteen classes of the failures --- measured on the binary of
+v2.0.19 on 2026-10-31, where a script reads every one of them as the
+class. The `Hotkey` is the exception: the name is a function of v2, and
+the class of a hotkey is the class of the object that the function makes.
+
+**Three of the class types are not in the documentation.**
+The `BoundFunc` , the `Closure` and the `RegExMatchInfo` are classes of
+the binary that the documentation of v2 does not name. A script reads them
+as a class, and the call of them is refused with *"Invalid base."* --- the
+runtime makes them, and not a script --- the way the call of the `File`
+and of the `Func` is refused.
 
 **The calls of the class types are the calls of v2.**
 The number of the arguments of every constructor is the one of the binary,
@@ -165,9 +172,9 @@ names that the tree answers.
 
 ## 10. The objects of the language: Array, Map and Func
 
-**53 names: 53 answer with a value, 0 are refused.**
+**56 names: 56 answer with a value, 0 are refused.**
 
-**The ones that answer** (53): `Array`, `Array.Capacity`, `Array.Clone`, `Array.Delete`, `Array.Get`, `Array.Has`, `Array.InsertAt`, `Array.Length`, `Array.Pop`, `Array.Push`, `Array.RemoveAt`, `Array.__Enum`, `Array.__Item`, `Array.__New`, `Enumerator`, `Func`, `Func.Bind`, `Func.Call`, `Func.IsBuiltIn`, `Func.IsByRef`, `Func.IsOptional`, `Func.IsVariadic`, `Func.MaxParams`, `Func.MinParams`, `Func.Name`, `Map`, `Map.Capacity`, `Map.CaseSense`, `Map.Clear`, `Map.Clone`, `Map.Clone`, `Map.Count`, `Map.DefineProp`, `Map.Delete`, `Map.DeleteProp`, `Map.Get`, `Map.GetOwnPropDesc`, `Map.Has`, `Map.HasOwnProp`, `Map.OwnProps`, `Map.Set`, `Map.__Enum`, `Map.__Item`, `Map.__New`, `ObjAddRef`, `ObjGetBase`, `ObjGetCapacity`, `ObjHasOwnProp`, `ObjOwnPropCount`, `ObjOwnProps`, `ObjSetBase`, `ObjSetCapacity`, `Object`
+**The ones that answer** (56): `Array`, `Array.Capacity`, `Array.Clone`, `Array.Delete`, `Array.Get`, `Array.Has`, `Array.InsertAt`, `Array.Length`, `Array.Pop`, `Array.Push`, `Array.RemoveAt`, `Array.__Enum`, `Array.__Item`, `Array.__New`, `BoundFunc`, `Closure`, `Enumerator`, `Func`, `Func.Bind`, `Func.Call`, `Func.IsBuiltIn`, `Func.IsByRef`, `Func.IsOptional`, `Func.IsVariadic`, `Func.MaxParams`, `Func.MinParams`, `Func.Name`, `Map`, `Map.Capacity`, `Map.CaseSense`, `Map.Clear`, `Map.Clone`, `Map.Clone`, `Map.Count`, `Map.DefineProp`, `Map.Delete`, `Map.DeleteProp`, `Map.Get`, `Map.GetOwnPropDesc`, `Map.Has`, `Map.HasOwnProp`, `Map.OwnProps`, `Map.Set`, `Map.__Enum`, `Map.__Item`, `Map.__New`, `ObjAddRef`, `ObjGetBase`, `ObjGetCapacity`, `ObjHasOwnProp`, `ObjOwnPropCount`, `ObjOwnProps`, `ObjSetBase`, `ObjSetCapacity`, `Object`, `RegExMatchInfo`
 
 ## 11. Dates and times
 

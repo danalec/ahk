@@ -903,6 +903,10 @@ that asks for another one is refused with the reason.
   a class is the class that it extends.** The copy of a class is a class
   of its own, and the call of a class value makes an object of the
   class.
+- **A class that the runtime makes is a class of the dialect.** The
+  `BoundFunc`, the `Closure` and the `RegExMatchInfo` are classes, and a
+  script reads them as one, even though the documentation does not name
+  them.
 
 ## Side Effects
 

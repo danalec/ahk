@@ -158,9 +158,11 @@ AREAS = [
 CLASS_AREA = {
     "Any": "core",
     "Array": "objects",
+    "BoundFunc": "objects",
     "Buffer": "native",
     "Class": "core",
     "ClipboardAll": "clipboard",
+    "Closure": "objects",
     "ComObject": "com",
     "ComValue": "com",
     "Enumerator": "objects",
@@ -172,6 +174,7 @@ CLASS_AREA = {
     "Map": "objects",
     "Menu": "gui",
     "Object": "objects",
+    "RegExMatchInfo": "objects",
 }
 
 # The classes of the failures are the run of the script: they are what it
@@ -202,14 +205,21 @@ one"*. The surface counts these names as answering, because the class
 carries them; the call is what fails.
 
 **The class types are in the table, and one of them is not a class.**
-The table carries the twenty-nine class types of v2.0.19 --- `Any` ,
-`Array` , `Buffer` , `Class` , `ClipboardAll` , `ComObject` , `ComValue` ,
-`Enumerator` , `Error` , `File` , `Func` , `Gui` , `InputHook` , `Map` ,
-`Menu` , `Object` and the thirteen classes of the failures --- measured on
-the binary of v2.0.19 on 2026-10-31, where a script reads every one of
-them as the class. The `Hotkey` is the exception: the name is a function
-of v2, and the class of a hotkey is the class of the object that the
-function makes.
+The table carries the thirty-two class types of v2.0.19 --- `Any` ,
+`Array` , `BoundFunc` , `Buffer` , `Class` , `ClipboardAll` , `Closure` ,
+`ComObject` , `ComValue` , `Enumerator` , `Error` , `File` , `Func` ,
+`Gui` , `InputHook` , `Map` , `Menu` , `Object` , `RegExMatchInfo` and
+the thirteen classes of the failures --- measured on the binary of
+v2.0.19 on 2026-10-31, where a script reads every one of them as the
+class. The `Hotkey` is the exception: the name is a function of v2, and
+the class of a hotkey is the class of the object that the function makes.
+
+**Three of the class types are not in the documentation.**
+The `BoundFunc` , the `Closure` and the `RegExMatchInfo` are classes of
+the binary that the documentation of v2 does not name. A script reads them
+as a class, and the call of them is refused with *"Invalid base."* --- the
+runtime makes them, and not a script --- the way the call of the `File`
+and of the `Func` is refused.
 
 **The calls of the class types are the calls of v2.**
 The number of the arguments of every constructor is the one of the binary,

@@ -3744,3 +3744,23 @@ same), in `egm-review/compare_class_functions.py` (12 cases: every one
 of them is the same) and in `egm-review/compare_class_members.py` (18
 cases: 17 are the same, and the one that is not is the `GetMethod` of a
 class, where the tree refuses with the reason of the runtime).
+
+## 78. The classes that the binary has and the documentation does not name
+
+Measured on the binary of v2.0.19 on 2026-10-31: the `BoundFunc`, the
+`Closure` and the `RegExMatchInfo` are classes of the dialect. The
+documentation of v2 does not name them, and the tree did not carry them.
+
+- **A script reads them as a class.** The class of them is "Class", the
+  way it is for every other class of the dialect, and the prototype of
+  them is an object of their own class.
+- **The call of them is refused.** The runtime makes them, and not a
+  script: the call is refused with "Invalid base." and the `What`
+  "Object.Call", the way the call of the `File` and of the `Func` is.
+- **The base of them is the `Object`.** The members that every class has
+  are the members of them: `Base`, `Prototype`, `Call`, `Clone`,
+  `HasProp`, `HasMethod`, `GetMethod` and `HasBase`.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_unknown_classes.py` (11 cases: every one of them is
+the same).

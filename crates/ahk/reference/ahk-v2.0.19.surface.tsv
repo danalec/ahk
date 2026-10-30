@@ -6,6 +6,10 @@
 #           script can read as a class: the name of it is a value, and
 #           its `__Class` is "Class". The class of a hotkey is not one of
 #           them: the name `Hotkey` is a function of the dialect.
+#           The `BoundFunc`, the `Closure` and the `RegExMatchInfo` are
+#           classes of the binary that the documentation does not name: a
+#           script reads them as a class, and the call of them is refused
+#           with "Invalid base.", the way the call of the `File` is.
 # handler   the address of the handler, in the binary
 # min       the fewest parameters, where the binary states it
 # max       the most parameters, 255 for any number
@@ -23,9 +27,11 @@
 kind	class	name	handler	min	max	variant	flag
 class		Any					
 class		Array					
+class		BoundFunc					
 class		Buffer					
 class		Class					
 class		ClipboardAll					
+class		Closure					
 class		ComObject					
 class		ComValue					
 class		Enumerator					
@@ -43,6 +49,7 @@ class		MethodError
 class		Object					
 class		OSError					
 class		PropertyError					
+class		RegExMatchInfo					
 class		TargetError					
 class		TimeoutError					
 class		TypeError					
