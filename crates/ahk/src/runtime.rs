@@ -3077,6 +3077,20 @@ impl<'a> Runtime<'a> {
         if let Some((defining, method)) = self.find_method_on(target, name) {
             return self.call_method(&defining, &method, target, arguments, line);
         }
+        // A class is not an instance of itself: the call of a class value
+        // makes an object of the class, the way `Map()` does, and the
+        // copy of a class is a class and not an object of it.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31.
+        if self.class_name_of(target).is_some() {
+            if name.eq_ignore_ascii_case("call") {
+                let class = self.class_name_of(target).unwrap_or_default();
+                return self.construct(&class, arguments, line);
+            }
+            if name.eq_ignore_ascii_case("clone") {
+                return Ok(self.clone_of_a_class(target));
+            }
+        }
         // The automatic `__Init` of the class, the one that carries the
         // variables: `d.__Init()` runs it again.
         if name.eq_ignore_ascii_case("__init") {
@@ -3275,12 +3289,102 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The base of a value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the base of an
+    /// object is the prototype of its class, the base of a class is the
+    /// class that it extends, and the base of a prototype is the
+    /// prototype of the class that it extends.
+    fn the_base_of_the_value(&self, target: &Value) -> Option<Value> {
+        let Value::Object(object) = target else { return None };
+        let class = object.borrow().class.clone();
+        // The prototype of a class: its base is the prototype of the
+        // class that the class extends.
+        if class == "prototype" {
+            let name = object
+                .borrow()
+                .properties
+                .get("name")
+                .map(|value| value.to_text().to_lowercase())?;
+            let base = crate::classes::the_base_class_of_a_class(&name)?;
+            return self.the_prototype_of(base);
+        }
+        // A class is not an instance of itself: the base of a class is
+        // the class that it extends.
+        if let Some(name) = self.class_name_of(target) {
+            let base = crate::classes::the_base_class_of_a_class(&name)?;
+            return self.class_value_of(base);
+        }
+        self.base_of(target)
+    }
+
+    /// The prototype of a class.
+    fn the_prototype_of(&self, class: &str) -> Option<Value> {
+        let Value::Object(value) = self.class_value_of(class)? else { return None };
+        value.borrow().properties.get("prototype").cloned()
+    }
+
+    /// The copy of an object: the state of it is copied, and the class of
+    /// it is the same.
+    fn clone_of_an_object(&self, target: &Value) -> Value {
+        let Value::Object(object) = target else { return target.clone() };
+        let class = object.borrow().class.clone();
+        let mut properties = BTreeMap::new();
+        for (key, value) in object.borrow().properties.iter() {
+            properties.insert(key.clone(), value.clone());
+        }
+        Value::Object(Rc::new(RefCell::new(Object { class, properties })))
+    }
+
+    /// The copy of a class: a class of its own, and not an object of it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the copy of a
+    /// class is a class, and it is not the class it was copied from.
+    fn clone_of_a_class(&self, target: &Value) -> Value {
+        let Value::Object(object) = target else { return target.clone() };
+        let class = object.borrow().class.clone();
+        let mut properties = BTreeMap::new();
+        for (key, value) in object.borrow().properties.iter() {
+            properties.insert(key.clone(), value.clone());
+        }
+        let key = format!("{} copy {}", class, self.class_values.borrow().len());
+        let copy = Value::Object(Rc::new(RefCell::new(Object { class, properties })));
+        // The copy is a class too, and the tree keeps it in the list of
+        // the classes it made: that is what tells a class from an
+        // instance of one.
+        self.class_values.borrow_mut().insert(key, copy.clone());
+        copy
+    }
+
     /// A method every object has.
     ///
     /// The methods of the base object are the same for every class: they
     /// ask about the object itself. The class of the script inherits them
     /// without writing them.
     fn base_method(
+        &mut self,
+        target: &Value,
+        name: &str,
+        arguments: &[Value],
+        line: u32,
+    ) -> Option<Result<Value, RuntimeFailure>> {
+        let answer = self.the_base_method(target, name, arguments, line);
+        // Measured on the binary of v2.0.19 on 2026-10-31: the failure of
+        // a method of the base object carries the name of the method in
+        // the `What`, the way v2 does.
+        answer.map(|result| {
+            result.map_err(|failure| {
+                crate::classes::named(
+                    failure,
+                    &crate::classes::the_name_of_a_method_of_the_base_object(name),
+                )
+            })
+        })
+    }
+
+    /// A method every object has, and the name of it is not in the
+    /// failure.
+    fn the_base_method(
         &mut self,
         target: &Value,
         name: &str,
@@ -3295,6 +3399,12 @@ impl<'a> Runtime<'a> {
             line,
         });
         match name.to_lowercase().as_str() {
+            "clone" => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // copy of an object is an object of the same class, and
+                // the state of it is copied.
+                Some(Ok(self.clone_of_an_object(target)))
+            }
             "hasprop" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
                     return Some(Err(missing()));
@@ -3544,12 +3654,17 @@ impl<'a> Runtime<'a> {
     /// Object.Prototype.DefineProp is invalid.". A descriptor that carries
     /// a value and an accessor at the same time is refused as well.
     pub(crate) fn the_descriptor(&self, value: Option<&Value>, line: u32) -> Result<Value, RuntimeFailure> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the value that
+        // is not a descriptor goes in the `Extra` of the failure.
         let invalid = || RuntimeFailure::Detailed(
             RuntimeError {
                 message: "Parameter #2 of Object.Prototype.DefineProp is invalid.".into(),
                 line,
             },
-            Detail { what: String::new(), extra: String::new() },
+            Detail {
+                what: String::new(),
+                extra: value.map(|value| value.to_text()).unwrap_or_default(),
+            },
         );
         let Some(Value::Object(object)) = value else { return Err(invalid()) };
         let table = object.borrow();
@@ -3926,6 +4041,18 @@ impl<'a> Runtime<'a> {
                 return Ok((answer, false));
             }
             return Ok((value, false));
+        }
+        // The base of an object is a property of every object, and the
+        // base of a class is a property of every class.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the base of
+        // an object is the prototype of its class, the base of a class
+        // is the class that it extends, and the base of a prototype is
+        // the prototype of the class that it extends.
+        if name == "base" {
+            if let Some(base) = self.the_base_of_the_value(target) {
+                return Ok((base, false));
+            }
         }
         // Every value carries its class.
         if name == "__class" {

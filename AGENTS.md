@@ -3712,3 +3712,35 @@ The classes that the tree does not carry are in `classes/mod.rs`, in
 The comparison of the tree with the binary is in
 `egm-review/probe_not_carried.py` (16 cases: 6 are the same, and the ten
 that are not are the members that the tree does not carry).
+
+## 77. The base of an object, the copy of it, and the call of a class
+
+Measured on the binary of v2.0.19 on 2026-10-31: the base of an object
+is the prototype of its class, the base of a class is the class that it
+extends, and the copy of a class is a class of its own.
+
+- **The base of an object is the prototype of its class.** `o.Base` is
+  the prototype of the class of the object, and the prototype of a class
+  has as its base the prototype of the class that the class extends.
+- **The base of a class is the class that it extends.** `c.Base` is a
+  class value: the base of the `Map` is the `Object`, and the base of the
+  `Object` is the `Any`. The `Any` is the root of the tree of the
+  classes, and it has no base.
+- **The copy of an object carries the state of it, and the copy of a
+  class is a class.** `c.Clone()` is a class of its own, and not an
+  object of the class: the tree keeps the copies apart from the class
+  they were copied from, and that is what tells a class from an instance
+  of one.
+- **The call of a class value makes an object of the class.** `c.Call()`
+  is what `c()` does.
+- **The failure of a method of the base object names the method.** The
+  `What` of it is "Object.Prototype.GetOwnPropDesc" or "HasProp", the
+  way v2 spells them, and the value that is not a descriptor goes in the
+  `Extra` of the failure of the `DefineProp`.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_base_members.py` (19 cases: every one of them is the
+same), in `egm-review/compare_class_functions.py` (12 cases: every one
+of them is the same) and in `egm-review/compare_class_members.py` (18
+cases: 17 are the same, and the one that is not is the `GetMethod` of a
+class, where the tree refuses with the reason of the runtime).

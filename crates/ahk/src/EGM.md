@@ -899,6 +899,10 @@ that asks for another one is refused with the reason.
   the `InputHook` and of the `ClipboardAll` are refused with the reason
   of the runtime -- "this runtime does not carry that class yet." -- and
   a class value keeps the words of the dialect.
+- **The base of an object is the prototype of its class, and the base of
+  a class is the class that it extends.** The copy of a class is a class
+  of its own, and the call of a class value makes an object of the
+  class.
 
 ## Side Effects
 

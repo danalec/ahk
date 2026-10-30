@@ -274,6 +274,18 @@ const PROPERTIES: [(&str, &str, &str); 28] = [
     ("error", "stack", "Stack"),
 ];
 
+/// The name of a method of the base object, the way v2 spells it.
+///
+/// The binary spells five of them with the class in front, and the four
+/// that the script asks about every day plainly.
+pub(crate) fn the_name_of_a_method_of_the_base_object(method: &str) -> String {
+    let lower = method.to_lowercase();
+    BASE.iter()
+        .find(|(name, _)| *name == lower)
+        .map(|(_, spelled)| spelled.to_string())
+        .unwrap_or_else(|| method.to_string())
+}
+
 /// Whether the name is the name of a method of the base object.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
@@ -361,7 +373,7 @@ fn the_full_name_of(class: &str, method: &str) -> String {
 ///
 /// v2 carries the name of the member in the `What` of the error. A
 /// failure that carries a name of its own keeps it.
-fn named(failure: RuntimeFailure, what: &str) -> RuntimeFailure {
+pub(crate) fn named(failure: RuntimeFailure, what: &str) -> RuntimeFailure {
     match failure {
         RuntimeFailure::Error(error) => RuntimeFailure::Detailed(
             error,
@@ -572,6 +584,31 @@ fn the_failure_of_a_class_that_cannot_be_called(rt: &Runtime, line: u32) -> Runt
     // of it: a class is a "Class".
     let value = rt.class_value_of("any").unwrap_or_else(|| class_value("any"));
     rt.no_method(&value, "Call", line)
+}
+
+/// The class that a class of the dialect extends.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the base of the
+/// `Object` is the `Any`, and the base of every other class is the
+/// `Object`. The `Any` is the root of the tree of the classes, and it
+/// has no base.
+///
+/// The errors of v2 are a tree of their own, and the enumerator is a
+/// function of its own kind: the two have a base of their own.
+pub(crate) fn the_base_class_of_a_class(class: &str) -> Option<&'static str> {
+    let class = class.to_lowercase();
+    if class == "any" {
+        return None;
+    }
+    if class == "object" {
+        return Some("any");
+    }
+    // The errors of v2 are a tree of their own, and the enumerator is a
+    // function of its own kind: the two have a base of their own.
+    if let Some(base) = the_base_of(&class) {
+        return Some(base);
+    }
+    Some("object")
 }
 
 /// The class a class type of the runtime derives from.
