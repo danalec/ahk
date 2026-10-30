@@ -562,6 +562,13 @@ opened to be written, and the bytes of the file decide the encoding of it when
 it is opened: a file that begins with the mark of UTF-8 is read with UTF-8,
 whatever the script asked for.
 
+The options of the `Gui` are the dialect's, and they are read here: the
+words of the text, each one of them with a sign and with the value of the
+option, and the ones that v2 does not know are refused with "Invalid
+option." and the name of the word. The owner of a window and the parent of
+it are windows, and this desktop has none, so the construction is refused
+with the reason of the machine.
+
 ### The clipboard of the class types (`classes/clipboard.rs`)
 
 The `ClipboardAll` is the class of the dialect that carries everything that

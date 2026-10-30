@@ -224,7 +224,12 @@ pub(crate) fn construct(
     // read.
     if let Some(options) = arguments.first() {
         match options {
-            Value::Text(_) | Value::Int(_) => {}
+            Value::Text(text) => {
+                // The options are the dialect's, and the ones that v2 does
+                // not know are refused with the reason of the dialect.
+                the_options_are_read(text, line)?;
+            }
+            Value::Int(_) => {}
             Value::Float(_) => {
                 return Err(the_failure_of_an_argument(
                     "Invalid option.".to_string(),
@@ -239,6 +244,117 @@ pub(crate) fn construct(
         }
     }
     Ok(crate::classes::object(class))
+}
+
+/// The options that the constructor of the `Gui` takes.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the options are the
+/// styles of the window, and the name of one is written in full and it
+/// does not know the case -- "Always" is not an option, and "caption" is.
+const THE_OPTIONS: [&str; 18] = [
+    "AlwaysOnTop",
+    "Border",
+    "Caption",
+    "Disabled",
+    "DPIScale",
+    "E",
+    "LastFound",
+    "MaximizeBox",
+    "MinimizeBox",
+    "MinSize",
+    "MaxSize",
+    "OwnDialogs",
+    "Owner",
+    "Parent",
+    "Resize",
+    "SysMenu",
+    "Theme",
+    "ToolWindow",
+];
+
+/// The options that name a window of the machine.
+///
+/// The owner of a window and the parent of it are windows, and this
+/// desktop has none: the construction is refused with the reason of the
+/// machine.
+const THE_OPTIONS_THAT_NAME_A_WINDOW: [&str; 2] = ["Owner", "Parent"];
+
+/// The reading of the options of the `Gui`.
+///
+/// The options are the words of the text, and each one of them may carry
+/// a sign -- `+Resize` adds the option and `-Resize` takes it away -- and
+/// the name of one may carry its value: `MinSize100x200` is the `MinSize`
+/// with the value of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31. A word that is a
+/// number is a value and not an option: `0` and `0x10` are taken, and
+/// `12x34` is not. The name of the option that is refused is the word
+/// without its sign, and the owner of a window and the parent of it are
+/// refused with the reason of the machine.
+fn the_options_are_read(options: &str, line: u32) -> Result<(), RuntimeFailure> {
+    for word in options.split([' ', '\t']) {
+        if word.is_empty() {
+            continue;
+        }
+        let name = word.strip_prefix(['+', '-']).unwrap_or(word);
+        if the_number_is_one(name) {
+            continue;
+        }
+        let lower = name.to_lowercase();
+        let known = THE_OPTIONS.iter().find(|option| {
+            let option = option.to_lowercase();
+            lower.starts_with(&option) && the_value_is_one(&lower[option.len()..])
+        });
+        let Some(option) = known.copied() else {
+            return Err(the_failure_of_an_argument(
+                "Invalid option.".to_string(),
+                "Gui.Prototype.__New",
+                &Value::Text(name.to_string()),
+                line,
+            ));
+        };
+        if THE_OPTIONS_THAT_NAME_A_WINDOW.contains(&option) {
+            let reason = CLASSES
+                .iter()
+                .find(|entry| entry.class == "gui")
+                .map(|entry| entry.reason)
+                .unwrap_or("a window is a Windows window");
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError {
+                    message: format!(
+                        "Gui cannot take the {} of the window: {reason}.",
+                        option.to_lowercase()
+                    ),
+                    line,
+                },
+                Detail { what: "Gui.Prototype.__New".to_string(), extra: word.to_string() },
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Whether the text is a number of v2: a decimal or a hexadecimal.
+fn the_number_is_one(text: &str) -> bool {
+    if text.is_empty() {
+        return false;
+    }
+    match text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        Some(hex) => !hex.is_empty() && hex.chars().all(|c| c.is_ascii_hexdigit()),
+        None => text.chars().all(|c| c.is_ascii_digit()),
+    }
+}
+
+/// Whether the text is the value of an option: nothing, a number, or two
+/// numbers with an `x` between them.
+fn the_value_is_one(text: &str) -> bool {
+    if text.is_empty() || the_number_is_one(text) {
+        return true;
+    }
+    match text.split_once('x') {
+        Some((left, right)) => the_number_is_one(left) && the_number_is_one(right),
+        None => false,
+    }
 }
 
 /// The failure of an argument of the constructor that is of the wrong

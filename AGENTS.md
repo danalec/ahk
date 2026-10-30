@@ -3609,10 +3609,9 @@ own, and the tree reads them the way the binary does.
 
 The comparison of the tree with the binary is in
 `egm-review/compare_class_types.py` (30 cases: the same),
-`egm-review/compare_class_constructors.py` (68 cases: 64 are the same,
-and the four that are not are the `ComObject` -- which the binary makes
-on Windows -- and the options of the `Gui`, which the tree does not read
-yet) and `egm-review/compare_class_refusals.py` (22 cases: 21 are the
+`egm-review/compare_class_constructors.py` (68 cases: 66 are the same,
+and the two that are not are the `ComObject` -- which the binary makes on
+Windows) and `egm-review/compare_class_refusals.py` (22 cases: 21 are the
 same, and the one that is not is the `ComObject` again), and
 `egm-review/compare_class_values.py` (16 cases: the same).
 
@@ -3651,3 +3650,36 @@ it out there.
 
 The comparison of the tree with the binary is in
 `egm-review/compare_quotes.py` (28 cases: the same).
+
+## 75. The options of a `Gui` are the options of the dialect
+
+Measured on the binary of v2.0.19 on 2026-10-31: the constructor of a
+`Gui` takes the options of the window, and the ones that v2 does not know
+are refused with "Invalid option.". The tree took any text.
+
+- **The options are the words of the text.** A word may carry a sign --
+  `+Resize` adds the option and `-Resize` takes it away -- and the name of
+  one is written in full and it does not know the case: "Always" is not an
+  option, and "caption" is.
+- **The name of an option may carry its value.** `MinSize100x200` is the
+  `MinSize` with the value of it, and a word that is a number is a value
+  and not an option: `0` and `0x10` are taken, and `12x34` is not.
+- **The word that is refused is the word without its sign.** The refusal is
+  "Invalid option." with the `What` "Gui.Prototype.__New" and the `Extra`
+  of the name: `+Nonsense` is refused with the `Extra` "Nonsense".
+- **The owner of a window and the parent of it are windows.** The binary
+  refuses the construction when one of them is named -- "Invalid or
+  nonexistent owner or parent window." -- and the tree refuses it with the
+  reason of the machine: "Gui cannot take the owner of the window: a
+  window is a Windows window, and this desktop is a Wayland session
+  without one.".
+
+The eighteen options that the constructor takes are in `classes/gui.rs`, and
+they are the ones of the documentation of the dialect, with the `E` that
+the binary takes and the documentation does not name.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_gui_options.py` (79 cases: 75 are the same, and the
+four that are not are the owner and the parent, where the tree refuses
+with the reason of the machine and the binary refuses with the reason of
+Windows).

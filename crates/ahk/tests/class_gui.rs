@@ -185,6 +185,64 @@ fn the_events_of_a_gui_are_an_object() {
 }
 
 #[test]
+fn the_options_of_a_gui_are_read() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the options are the
+    // words of the text, and the name of one is written in full and it does
+    // not know the case.
+    for options in [
+        "AlwaysOnTop", "Border", "Caption", "Disabled", "DPIScale", "E",
+        "LastFound", "MaximizeBox", "MinimizeBox", "MinSize", "MaxSize",
+        "OwnDialogs", "Resize", "SysMenu", "Theme", "ToolWindow", "+Resize",
+        "-Caption", "E0", "MinSize100x200", "0", "12", "0x10", "caption",
+        "+Resize -Caption", "+Resize  -Caption",
+    ] {
+        let report = run(&format!("window := Gui(\"{options}\")"));
+        assert!(report.ok, "{options}: {:?}", report.error);
+    }
+}
+
+#[test]
+fn an_option_that_v2_does_not_know_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the word that is
+    // refused is the word without its sign.
+    for (options, name) in [
+        ("Nonsense", "Nonsense"),
+        ("+Nonsense", "Nonsense"),
+        ("-Nonsense", "Nonsense"),
+        ("W", "W"),
+        ("Always", "Always"),
+        ("Ex", "Ex"),
+        ("12x34", "12x34"),
+    ] {
+        let report = run(&format!(
+            "try {{\n    window := Gui(\"{options}\")\n}} catch Any as e {{\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}}"
+        ));
+        assert!(report.ok, "{options}: {:?}", report.error);
+        assert_eq!(
+            report.output,
+            vec![format!("Invalid option. | Gui.Prototype.__New | {name}")],
+            "{options}"
+        );
+    }
+}
+
+#[test]
+fn the_owner_of_a_window_says_why_it_cannot() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the owner of a
+    // window and the parent of it are windows, and this desktop has none.
+    for option in ["Owner", "Parent"] {
+        let report = run(&format!("window := Gui(\"{option}\")"));
+        assert!(!report.ok, "{option}");
+        let error = error_of(&report);
+        assert!(
+            error.contains(&format!("Gui cannot take the {} of the window", option.to_lowercase())),
+            "{error}"
+        );
+        assert!(error.contains("Wayland session without one"), "{error}");
+    }
+}
+
+#[test]
 fn the_options_of_a_gui_are_a_text() {
     let report = run(
         "try {\n    x := Gui(1.5)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
