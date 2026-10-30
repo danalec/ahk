@@ -410,6 +410,25 @@ fn the_methods_of_the_instances_do_not_answer_a_class_value() {
 }
 
 #[test]
+fn every_class_has_an_initialiser_and_it_is_a_member_of_the_class_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the initialiser of a
+    // class is a member of the class value, and the name of it is empty for
+    // a class of the runtime and "C.__Init" for a class of the script.
+    assert_eq!(the_answer_of("x := Map\ny := x.__Init\nMsgBox y.Name"), "");
+    assert_eq!(the_answer_of("x := Map\ny := x.__Init\nMsgBox y.MinParams"), "1");
+    assert_eq!(the_answer_of("x := Map\ny := x.__Init\nMsgBox y.MaxParams"), "1");
+    assert_eq!(the_answer_of("x := Map\ny := x.__Init\nMsgBox y.IsBuiltin"), "1");
+    assert_eq!(
+        the_answer_of("class C {\n}\ny := C.__Init\nMsgBox y.Name"),
+        "C.__Init"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n}\ny := C.__Init\nMsgBox y.IsBuiltin"),
+        "0"
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

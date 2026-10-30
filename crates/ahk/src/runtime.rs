@@ -3539,6 +3539,32 @@ impl<'a> Runtime<'a> {
         Ok(Some(self.the_static_method(target, &values, line)?))
     }
 
+    /// The initialiser of a class, as a value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: every class has an
+    /// automatic initialiser, and it is a member of the class value. The
+    /// name of it is "C.__Init" for a class of the script, and it is empty
+    /// for a class of the runtime -- and the initialiser of a class of the
+    /// runtime is a built-in, and the one of a class of the script is not.
+    fn the_init_of_a_class_value(&self, target: &Value) -> Value {
+        let mut properties: BTreeMap<String, Value> = BTreeMap::new();
+        let mut name = String::new();
+        let mut built_in = 1;
+        if let Some(class) = self.class_name_of(target) {
+            if let Some(definition) = self.classes.get(&class) {
+                name = format!("{}.__Init", definition.name);
+                built_in = 0;
+            }
+        }
+        properties.insert("name".to_string(), Value::Text(name));
+        // The first parameter of the reference is `this`.
+        properties.insert("minparams".to_string(), Value::Int(1));
+        properties.insert("maxparams".to_string(), Value::Int(1));
+        properties.insert("isbuiltin".to_string(), Value::Int(built_in));
+        properties.insert("isvariadic".to_string(), Value::Int(0));
+        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+    }
+
     /// The value of a static method of a class of the script.
     ///
     /// A static method belongs to the class and not to its prototype, and
@@ -4379,6 +4405,15 @@ impl<'a> Runtime<'a> {
         if self.class_name_of(target).is_some() {
             if let Some(value) = self.the_static_method_of_a_class_value(target, &name, line)? {
                 return Ok((value, false));
+            }
+            // Every class has an initialiser, and it is a member of the
+            // class value.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31: `Map.__Init`
+            // is a function whose name is empty, and `C.__Init` is one
+            // whose name is "C.__Init".
+            if name == "__init" {
+                return Ok((self.the_init_of_a_class_value(target), false));
             }
         }
         // The base of an object is a property of every object, and the

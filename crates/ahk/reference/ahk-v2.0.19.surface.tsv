@@ -846,6 +846,14 @@ method	Object	DeleteProp	0x1400943b0
 method	Object	GetOwnPropDesc	0x140095750				
 method	Object	HasOwnProp	0x140094b50				
 method	Object	OwnProps	0x140094950				
+method	Class	Base					
+method	Class	Call					
+method	Class	Prototype					
+method	Class	__Init					
+method	Object	GetMethod					
+method	Object	HasBase					
+method	Object	HasMethod					
+method	Object	HasProp					
 method	Error	Message					
 method	Error	What					
 method	Error	Extra					

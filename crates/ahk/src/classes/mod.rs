@@ -266,6 +266,19 @@ const THE_BASE_OBJECT: [&str; 7] = [
     "ownprops",
 ];
 
+/// The names of the base object that the binary keeps outside its table.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: every object has these
+/// four methods, and the table of the base object does not hold them.
+const THE_BASE_OBJECT_OUTSIDE: [&str; 4] = ["getmethod", "hasbase", "hasmethod", "hasprop"];
+
+/// The members of a class value.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the class of a class
+/// value is "Class", and it has the base, the prototype, the call of the
+/// class and the initialiser of it.
+const THE_CLASS_VALUE: [&str; 4] = ["base", "call", "prototype", "__init"];
+
 /// The names of the methods of the base object, the way v2 spells them.
 ///
 /// The binary spells five of them with the class in front, and the four
@@ -1043,7 +1056,12 @@ pub fn names(class: &str) -> Vec<&'static str> {
         "gui.statusbar" => gui::names("gui.statusbar"),
         "gui.treeview" => gui::names("gui.treeview"),
         "inputhook" => inputhook::NAMES.to_vec(),
-        "object" => THE_BASE_OBJECT.to_vec(),
+        "class" => THE_CLASS_VALUE.to_vec(),
+        "object" => THE_BASE_OBJECT
+            .iter()
+            .chain(THE_BASE_OBJECT_OUTSIDE.iter())
+            .copied()
+            .collect(),
         _ => Vec::new(),
     }
 }

@@ -3911,3 +3911,42 @@ Two corners are still open, and they are the ones that the next block
 takes: the own properties of a class value are listed by the tree without
 the call of the class, and the names of the own properties keep the case
 of the tree and not the case of v2.
+
+## 83. The members of a class value are in the table of the surface
+
+Measured on the binary of v2.0.19 on 2026-10-31: the class of a class
+value is "Class", and the members of it are the base, the prototype, the
+call of the class and the initialiser of it. The four methods that every
+object has -- `HasProp`, `HasMethod`, `GetMethod` and `HasBase` -- are
+kept by the binary outside its tables, and the table of the surface now
+carries them.
+
+- **Every class has an initialiser, and it is a member of the class
+  value.** `Map.__Init` is a function whose name is empty, and `C.__Init`
+  is one whose name is "C.__Init". The first parameter of it is `this`,
+  the minimum and the maximum of the arguments are one, and the
+  initialiser of a class of the runtime is a built-in while the one of a
+  class of the script is not.
+- **The members of a class value are the four that the table names.** The
+  base and the prototype are properties of it, the call of the class
+  makes an object of the class, and the initialiser of it runs the
+  initialiser of the class again.
+- **The four methods of the base object that the binary keeps outside its
+  table are in the table of the surface.** They are members of every
+  object, and of every class value as well.
+
+The rows are in `crates/ahk/reference/ahk-v2.0.19.surface.tsv`: four rows
+of the class "Class" and four rows of the class "Object". The report is
+828 entries now, 637 of them answer with a value, 191 are refused and none
+is pending.
+
+The comparison of the tree with the binary is in
+`egm-review/probe_class_value_init.py` (10 cases), in
+`egm-review/probe_class_value_members3.py` (16 cases) and in
+`egm-review/probe_init_flags.py` (5 cases).
+
+One corner is still open, and it is a rule of the dialect that the tree
+does not carry: a class of the script may not declare a static `__Init`,
+because every class has one already. v2 refuses the script at the load
+with "Duplicate declaration. Specifically: C.__Init", and the tree takes
+the declaration and answers with it.

@@ -925,6 +925,10 @@ that asks for another one is refused with the reason.
 - **Two objects are the same object and nothing else.** v2 compares them
   by their identity, and an object is never equal to a value that is not
   an object.
+- **The members of a class value are in the table of the surface.** The
+  class of a class value is "Class", and it has the base, the prototype,
+  the call of the class and the initialiser of it. The four methods that
+  every object has are in the table as well.
 
 ## Side Effects
 
