@@ -558,7 +558,7 @@ fn a_file_has_the_methods_of_the_base_object() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := FileOpen(\"notes.txt\", \"r\")\nmethod := f.HasMethod(\"ReadLine\")\nprop := f.HasProp(\"Length\")\nbase := f.HasBase(\"Object\")\nMsgBox \"%method% %prop% %base%\"",
+        "f := FileOpen(\"notes.txt\", \"r\")\nmethod := f.HasMethod(\"ReadLine\")\nprop := f.HasProp(\"Length\")\nbase := f.HasBase(Object.Prototype)\nMsgBox \"%method% %prop% %base%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 1 1"]);

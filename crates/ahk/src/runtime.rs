@@ -2391,6 +2391,63 @@ impl<'a> Runtime<'a> {
         None
     }
 
+    /// The chain of the bases of an object.
+    ///
+    /// The base of an object is the prototype of its class, and the base of
+    /// a prototype is the prototype of the class that the class extends.
+    /// Every chain ends at the prototype of the base object.
+    fn the_chain_of_the_bases(&self, target: &Value) -> Vec<Rc<RefCell<Object>>> {
+        let mut chain: Vec<Rc<RefCell<Object>>> = Vec::new();
+        let Value::Object(object) = target else { return chain };
+        let mut class = object.borrow().class.clone();
+        // A class is not an instance of itself: the chain of a class begins
+        // at the base of the class, and not at its own prototype.
+        if self.class_name_of(target).is_some() {
+            let Some(base) = self.the_base_class_of(&class) else { return chain };
+            class = base;
+        }
+        // A base that the script set is the base of the object.
+        if let Some(Value::Object(base)) = object.borrow().properties.get(BASE) {
+            chain.push(base.clone());
+            class = base.borrow().class.clone();
+        }
+        while let Some(prototype) = self.the_prototype_of_the_class(&class) {
+            if chain.iter().any(|seen| Rc::ptr_eq(seen, &prototype)) {
+                break;
+            }
+            chain.push(prototype);
+            let Some(base) = self.the_base_class_of(&class) else { break };
+            class = base;
+        }
+        chain
+    }
+
+    /// The prototype of a class, the object that holds its methods.
+    fn the_prototype_of_the_class(&self, class: &str) -> Option<Rc<RefCell<Object>>> {
+        let Some(Value::Object(value)) = self.class_value_of(class) else { return None };
+        let prototype = value.borrow().properties.get("prototype").cloned();
+        let Some(Value::Object(prototype)) = prototype else { return None };
+        Some(prototype)
+    }
+
+    /// The class that a class extends.
+    ///
+    /// Every class of the script and every class of the runtime derives
+    /// from the base object, and the enumerator and the errors have a base
+    /// of their own.
+    fn the_base_class_of(&self, class: &str) -> Option<String> {
+        if let Some(definition) = self.classes.get(class) {
+            if let Some(base) = &definition.extends {
+                return Some(base.to_lowercase());
+            }
+            return Some("object".to_string());
+        }
+        if let Some(base) = crate::classes::the_base_of(class) {
+            return Some(base.to_string());
+        }
+        Some("object".to_string())
+    }
+
     /// The names of a class and of the classes it extends, the class
     /// first.
     fn class_chain(&self, name: &str) -> Vec<String> {
@@ -2983,9 +3040,36 @@ impl<'a> Runtime<'a> {
             }
             "hasmethod" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
-                    return Some(Err(missing()));
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // question with no name asks whether the value is a
+                    // class, and a class has the methods of the base
+                    // object.
+                    return Some(Ok(Value::Int(self.class_name_of(target).is_some() as i64)));
                 };
-                Some(Ok(Value::Int(self.find_method(&class, &name).is_some() as i64)))
+                // The methods of the base object are the methods of every
+                // object, and the methods of a class of the runtime are the
+                // methods of its instances. A class has the methods of the
+                // base object, and not the methods of the class it is.
+                // The prototype of a class carries the methods of the class
+                // it is the prototype of.
+                let class = if class == "prototype" {
+                    object
+                        .borrow()
+                        .properties
+                        .get("name")
+                        .map(|name| name.to_text().to_lowercase())
+                        .unwrap_or(class)
+                } else {
+                    class
+                };
+                let found = if self.class_name_of(target).is_some() {
+                    crate::classes::the_base_object_has_the_method(&name)
+                } else {
+                    self.find_method(&class, &name).is_some()
+                        || crate::classes::the_method_of(&class, &name).is_some()
+                        || crate::classes::the_base_object_has_the_method(&name)
+                };
+                Some(Ok(Value::Int(found as i64)))
             }
             "getmethod" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
@@ -2997,11 +3081,22 @@ impl<'a> Runtime<'a> {
                 Some(Ok(self.method_reference(&defining, &method)))
             }
             "hasbase" => {
-                let Some(name) = arguments.first().map(|value| value.to_text()) else {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the base
+                // is an object, and the question is whether the base of the
+                // object is it.
+                let Some(base) = arguments.first() else {
                     return Some(Err(missing()));
                 };
-                let chain = self.class_chain(&class);
-                Some(Ok(Value::Int(chain.iter().any(|base| *base == name.to_lowercase()) as i64)))
+                let Value::Object(base) = base else {
+                    return Some(Err(RuntimeFailure::Error(RuntimeError {
+                        message: format!("Expected an object but got {}.", the_kind_of(base)),
+                        line,
+                    })));
+                };
+                let chain = self.the_chain_of_the_bases(target);
+                Some(Ok(Value::Int(
+                    chain.iter().any(|object| Rc::ptr_eq(object, base)) as i64,
+                )))
             }
             "hasownprop" => {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {

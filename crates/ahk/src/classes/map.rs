@@ -498,8 +498,6 @@ fn base_method(
                 || key == "__class") as i64,
         ))),
         "hasmethod" => Some(Ok(Value::Int(METHODS.contains(&key.as_str()) as i64))),
-        // A map extends the base object, and nothing else.
-        "hasbase" => Some(Ok(Value::Int((key == "object") as i64))),
         "getownpropdesc" => {
             let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
             let value = object.borrow().properties.get(&key).cloned();

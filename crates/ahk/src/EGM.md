@@ -752,6 +752,12 @@ that asks for another one is refused with the reason.
 - **A local that is declared is the local one.** A local that has no value
   until something writes it has no value at all, and the global of the
   script is not read in its place.
+- **The base of an object is another object.** The second parameter of the
+  `HasBase` is an object, and the question is whether the base of the object
+  is it; the chain of the bases is walked, and every chain ends at the
+  prototype of the base object.
+- **The methods of the base object are inherited.** Every object has them,
+  and the question with no name asks whether the value is a class.
 
 ## Side Effects
 

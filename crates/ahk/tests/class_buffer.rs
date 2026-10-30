@@ -169,7 +169,7 @@ fn a_buffer_has_no_item() {
 #[test]
 fn a_buffer_has_the_methods_of_the_base_object() {
     let report = run(
-        "b := Buffer(4)\nmethod := b.HasMethod(\"ReadUChar\")\nprop := b.HasProp(\"Size\")\nbase := b.HasBase(\"Object\")\nMsgBox \"%method% %prop% %base%\"",
+        "b := Buffer(4)\nmethod := b.HasMethod(\"ReadUChar\")\nprop := b.HasProp(\"Size\")\nbase := b.HasBase(Object.Prototype)\nMsgBox \"%method% %prop% %base%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     // The buffer has no method of its own but the constructor, so the

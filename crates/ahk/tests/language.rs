@@ -440,8 +440,8 @@ fn an_object_knows_what_it_has() {
 #[test]
 fn an_object_knows_the_class_it_is_of() {
     let (report, desktop) = run(
-        "class Base {\n}\nclass Child extends Base {\n}\nc := Child()\n\
-         Send c.HasBase(\"Base\") . \" \" . c.HasBase(\"Other\")",
+        "class Base {\n}\nclass Child extends Base {\n}\nclass Other {\n}\nc := Child()\n\
+         Send c.HasBase(Base.Prototype) . \" \" . c.HasBase(Other.Prototype)",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["1 0"]);
@@ -3249,6 +3249,61 @@ fn a_method_needs_its_braces() {
         error.message,
         "Not a valid method, class or property definition.\n     Specifically: M()"
     );
+}
+
+#[test]
+fn the_base_of_an_object_is_another_object_and_not_a_name() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the base is an
+    // object, and a name is refused with the reason.
+    let (report, _desktop) = run("o := {}\nMsgBox HasBase(o, \"Object\")");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected an object but got a String.")
+    );
+}
+
+#[test]
+fn the_base_of_an_object_is_the_prototype_of_its_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the question is
+    // whether the base of the object is the other object, and the chain of
+    // the bases is walked.
+    let (report, _desktop) = run("m := Map()\nMsgBox HasBase(m, Map.Prototype) \" \" HasBase(m, Object.Prototype) \" \" HasBase(m, Array.Prototype)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 1 0"]);
+}
+
+#[test]
+fn a_value_that_is_not_an_object_has_no_base() {
+    let (report, _desktop) = run("MsgBox HasBase(5, Object.Prototype)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn a_class_has_no_base_of_itself() {
+    let (report, _desktop) = run("MsgBox HasBase(Map, Map.Prototype)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn the_methods_of_the_base_object_are_the_methods_of_every_object() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
+    // base object are inherited.
+    let (report, _desktop) = run("o := {}\nMsgBox HasMethod(o, \"OwnProps\") \" \" HasMethod(o, \"Nothing\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 0"]);
+}
+
+#[test]
+fn the_question_with_no_name_asks_whether_the_value_is_a_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a class has the
+    // methods of the base object, and an instance has the methods of its
+    // class.
+    let (report, _desktop) = run("m := Map()\nMsgBox HasMethod(Map) \" \" HasMethod(m) \" \" HasMethod({})");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 0 0"]);
 }
 
 #[test]

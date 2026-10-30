@@ -759,7 +759,7 @@ fn an_object_can_be_asked_about() {
         "thing := Box()",
         "\na := HasProp(thing, \"x\")",
         "\nb := HasProp(thing, \"y\")",
-        "\nc := HasBase(thing, \"Box\")",
+        "\nc := HasBase(thing, Box.Prototype)",
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "a"), 1);

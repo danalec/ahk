@@ -1230,7 +1230,13 @@ fn has_method(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -
     // be passed to the method, and the tree asks the method whether it
     // could take them.
     let count = values.get(2).map(|value| value.to_number().unwrap_or(0.0));
-    let mut arguments = vec![Value::Text(name)];
+    // Measured on the binary of v2.0.19 on 2026-10-31: the question with
+    // no name asks whether the value is a class, and the name is not there
+    // to be asked about.
+    let mut arguments = Vec::new();
+    if values.len() > 1 {
+        arguments.push(Value::Text(name));
+    }
     if let Some(count) = count {
         arguments.push(Value::Int(count as i64));
     }
@@ -1258,11 +1264,24 @@ fn get_method(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -
     rt.own_method(&target, "getmethod", &arguments, line)
 }
 
-/// `HasBase`: whether an object is of a class, or extends it.
+/// `HasBase`: whether the base of an object is another object.
 fn has_base(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
-    let name = text_of(values, 1);
-    rt.own_method(&target, "hasbase", &[Value::Text(name)], line)
+    let base = values.get(1).cloned().unwrap_or(Value::Text(String::new()));
+    // Measured on the binary of v2.0.19 on 2026-10-31: the base is an
+    // object, and the refusal of a base that is not one comes before the
+    // question of the object itself.
+    if !matches!(base, Value::Object(_)) {
+        return Err(RuntimeError {
+            message: format!("Expected an object but got {}.", crate::runtime::the_kind_of(&base)),
+            line,
+        });
+    }
+    // A value that is not an object has no base, and the answer is zero.
+    if !matches!(target, Value::Object(_)) {
+        return Ok(Value::Int(0));
+    }
+    rt.own_method(&target, "hasbase", &[base], line)
 }
 
 /// `IsSetRef`: whether a variable holds a value.

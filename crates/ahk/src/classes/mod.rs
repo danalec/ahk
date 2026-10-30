@@ -258,7 +258,16 @@ const PROPERTIES: [(&str, &str, &str); 28] = [
     ("error", "stack", "Stack"),
 ];
 
-/// The name and the number of the arguments of a method of a class type.
+/// Whether the name is the name of a method of the base object.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
+/// base object are the methods of every object, and they are inherited.
+pub(crate) fn the_base_object_has_the_method(name: &str) -> bool {
+    let name = name.to_lowercase();
+    CALLS.iter().any(|(owner, member, _, _)| *owner == "object" && *member == name)
+}
+
+/// The name and the number of the arguments of a method of a class.
 ///
 /// `None` means that the class type has no method of that name.
 pub(crate) fn the_method_of(class: &str, method: &str) -> Option<(&'static str, i64, i64)> {

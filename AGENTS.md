@@ -3119,3 +3119,41 @@ Three cases of the tree used a name that v2 refuses, and they were renamed:
 the object of the case of `HasProp`, the window of the cases of the `Gui` and
 the menu of the cases of the `Menu`. The dialect is the one that decides what
 a case may write.
+
+
+## 62. The base of an object is an object, and the methods of the base object are inherited
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree asked for the base of
+an object with a name, and it did not see the methods that every object
+inherits. v2 asks for another object, and it counts the methods of the base
+object.
+
+- **The base of an object is another object.** The second parameter of the
+  `HasBase` is an object, and a name is refused with the reason: "Expected an
+  object but got a String." The refusal comes before the question of the
+  object itself: `HasBase(5, "Object")` is the refusal of the name.
+- **The question is whether the base of the object is the other object.** The
+  chain of the bases is walked: the base of an object is the prototype of its
+  class, and the base of a prototype is the prototype of the class that the
+  class extends. `HasBase(m, Map.Prototype)` is one, and
+  `HasBase(m, Object.Prototype)` is one as well, and
+  `HasBase(m, Array.Prototype)` is zero.
+- **A class is not an instance of itself, and its chain begins at the base of
+  it.** `HasBase(Map, Map.Prototype)` is zero and `HasBase(Map,
+  Object.Prototype)` is one. A value that is not an object has no base:
+  `HasBase(5, Object.Prototype)` is zero and not a failure.
+- **The methods of the base object are the methods of every object.** The
+  tree answered zero for `HasMethod(o, "OwnProps")`, and v2 answers one: the
+  methods of the base object are inherited.
+- **The question with no name asks whether the value is a class.** A class has
+  the methods of the base object, and an instance has the methods of its
+  class: `HasMethod(Map)` is one, and `HasMethod(Map())` and `HasMethod({})`
+  are zero.
+- **A class does not have the methods of the class it is, and the prototype
+  of a class has them.** `HasMethod(Map, "Get")` is zero, and
+  `HasMethod(Map.Prototype, "Get")` is one.
+
+Three cases of the tree asked for the base with a name, and they were
+rewritten with the prototype of the class: the object of the case of
+`HasProp`, the buffer of the case of its methods and the file of the case of
+its methods. The dialect is the one that decides what a case may write.
