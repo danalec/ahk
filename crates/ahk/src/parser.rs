@@ -1382,29 +1382,37 @@ impl Parser {
                 by_ref = true;
                 name_token = self.next();
             }
-            if name_token.kind != TokenKind::Name {
-                // Measured on the binary of v2.0.19 on 2026-10-31: a name
-                // that begins with a number is refused by the lexer, a
-                // reserved word is a word that cannot be a name, and
-                // everything else is a name that is missing.
-                let message = match name_token.kind {
-                    TokenKind::Number => format!(
-                        "This variable name starts with a number, which is not allowed:\n{:?}",
-                        the_name_that_begins_with_a_number(&name_token)
-                    ),
-                    TokenKind::Keyword => format!(
-                        "The following reserved word must not be used as a variable name:\n{:?}",
-                        name_token.value
-                    ),
-                    _ => format!(
-                        "Missing parameter name.\n     Specifically: {}",
-                        the_source_of_the_line(self, name_token.line)
-                    ),
-                };
-                return Err(SyntaxError { message, line: name_token.line, column: name_token.column });
-            }
+            // Measured on the binary of v2.0.19 on 2026-10-31: the rest of
+            // the arguments may be a parameter without a name: `f(*)` is a
+            // function of v2, and the arguments that it takes go nowhere.
             let mut variadic = false;
-            if self.at_op(&["*"]) {
+            let name = if name_token.kind == TokenKind::Op && name_token.value == "*" {
+                variadic = true;
+                String::new()
+            } else {
+                if name_token.kind != TokenKind::Name {
+                    // A name that begins with a number is refused by the
+                    // lexer, a reserved word is a word that cannot be a
+                    // name, and everything else is a name that is missing.
+                    let message = match name_token.kind {
+                        TokenKind::Number => format!(
+                            "This variable name starts with a number, which is not allowed:\n{:?}",
+                            the_name_that_begins_with_a_number(&name_token)
+                        ),
+                        TokenKind::Keyword => format!(
+                            "The following reserved word must not be used as a variable name:\n{:?}",
+                            name_token.value
+                        ),
+                        _ => format!(
+                            "Missing parameter name.\n     Specifically: {}",
+                            the_source_of_the_line(self, name_token.line)
+                        ),
+                    };
+                    return Err(SyntaxError { message, line: name_token.line, column: name_token.column });
+                }
+                name_token.value
+            };
+            if !variadic && self.at_op(&["*"]) {
                 self.position += 1;
                 variadic = true;
             }
@@ -1413,7 +1421,7 @@ impl Parser {
                 self.position += 1;
                 default = Some(Box::new(self.parse_expression()?));
             }
-            parameters.push(Parameter { name: name_token.value, default, variadic, by_ref });
+            parameters.push(Parameter { name, default, variadic, by_ref });
             if self.at_op(&[","]) {
                 self.position += 1;
                 continue;
@@ -2867,6 +2875,17 @@ mod tests {
         assert!(
             matches!(&statements[0], Node::Call { name, arguments, .. } if name == "abs" && arguments.len() == 1)
         );
+    }
+
+    #[test]
+    fn the_rest_of_the_arguments_may_have_no_name() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: `f(*)` is a
+        // function of v2, and the arguments that it takes go nowhere.
+        let statements = parse("f(*) {\n    return 1\n}").expect("parses");
+        let Node::FunctionDef { parameters, .. } = &statements[0] else { panic!("a function") };
+        assert_eq!(parameters.len(), 1);
+        assert!(parameters[0].variadic);
+        assert!(parameters[0].name.is_empty());
     }
 
     #[test]

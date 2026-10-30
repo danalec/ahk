@@ -3212,3 +3212,26 @@ read and the third one of the write are the options.
 The tree keeps the bytes of the file in the machine and the text of it in
 the dialect: the desktop answers with the bytes of a file, and the module of
 the files reads them in the encoding that the script asked for.
+
+
+## 64. The enumerator of a loop is something that can be called
+
+Measured on the binary of v2.0.19 on 2026-10-31: the tree walked a list as
+the enumerator of a loop, and it refused the function that v2 walks. v2 asks
+the object for its `__Enum`, and the answer has to be something that can be
+called.
+
+- **The enumerator is something that can be called.** It is a function, an
+  enumerator of the runtime, or an object with a `Call` method.
+- **A list is not an enumerator.** v2 refuses it with "Value not
+  enumerable.", of the class `TypeError`, and the tree used to walk it.
+- **A value that is not an object is a mismatch of the type.** "Type
+  mismatch.", of the class `TypeError`.
+- **The `__Enum` of a class of the script is asked once.** The answer is
+  the enumerator, and v2 does not ask it for another `__Enum`: the tree
+  asked again, and a class whose `__Enum` hands out itself looped for ever.
+- **The enumerator is walked turn by turn.** The body of the loop runs
+  between the turns, and the enumerator of a function is called with the
+  variables of the loop by reference.
+- **The rest of the arguments may be a parameter without a name.** `f(*)`
+  is a function of v2, and the arguments that it takes go nowhere.

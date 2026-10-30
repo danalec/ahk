@@ -2071,11 +2071,36 @@ fn a_for_leaves_no_variable_behind() {
 
 #[test]
 fn a_for_walks_what_a_class_of_the_script_enumerates() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the enumerator of
+    // v2 is something that can be called, and a function of the script is
+    // one: it writes the values into the variables of the loop.
     let (report, desktop) = run(
-        "class Bag {\n  __Enum(n) {\n    return [\"a\", \"b\"]\n  }\n}\nfor v in Bag() {\n  Send v\n}",
+        "values := [\"a\", \"b\"]\nindex := 0\nNext(&v) {\n  global values, index\n  if index >= values.Length\n    return false\n  v := values[index + 1]\n  index += 1\n  return true\n}\nclass Bag {\n  __Enum(n) {\n    return Next\n  }\n}\nfor v in Bag() {\n  Send v\n}",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["a", "b"]);
+}
+
+#[test]
+fn an_enumerator_that_is_a_list_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the enumerator of
+    // v2 is something that can be called, and a list is not one.
+    let (report, _desktop) = run(
+        "class Bag {\n  __Enum(n) {\n    return [\"a\", \"b\"]\n  }\n}\nfor v in Bag() {\n}",
+    );
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Value not enumerable."));
+}
+
+#[test]
+fn an_enumerator_that_is_a_number_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a value that is
+    // not an object at all is a mismatch of the type.
+    let (report, _desktop) = run(
+        "class Bag {\n  __Enum(n) {\n    return 5\n  }\n}\nfor v in Bag() {\n}",
+    );
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Type mismatch."));
 }
 
 #[test]

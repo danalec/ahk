@@ -112,6 +112,7 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
         || message.starts_with("Expected an ")
         || message.contains(" requires ")
         || message == "Value not enumerable."
+        || message == "Type mismatch."
     {
         return "TypeError";
     }

@@ -157,7 +157,8 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
 - `Parameter { name, default, variadic, by_ref }` -- one parameter of a
   function or of a method: its name, the value it takes when the call does
   not give it one, whether it takes the rest of the arguments, and whether
-  it is written by reference -- `Name(a, &b)`.
+  it is written by reference -- `Name(a, &b)`. The parameter that takes the
+  rest of the arguments may have no name at all -- `f(*)`.
 
 The precedence of the operators is the table of `ahk::precedence`, which
 follows the documentation of v2. The kinds of the tokens of the binary
@@ -765,6 +766,9 @@ that asks for another one is refused with the reason.
   machine's and the text of them is the dialect's: the module asks the
   desktop for the bytes and reads them in the encoding that the script
   asked for.
+- **The enumerator of a loop is something that can be called.** A function,
+  an enumerator of the runtime, or an object with a `Call` method. A list
+  is not one, and a value that is not an object is a mismatch of the type.
 - **The options of a file are the options of v2.** The encoding of the
   file, `RAW`, `m<n>` and a linefeed; an option that v2 does not know is
   refused with "Invalid option." and the option goes in the `Extra`.

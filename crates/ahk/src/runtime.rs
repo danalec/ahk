@@ -1816,10 +1816,28 @@ impl<'a> Runtime<'a> {
             .map(|name| (name.clone(), self.lookup_variable(name)))
             .collect();
         let object = self.evaluate(source)?;
-        let items = self.enumeration(&object, variables.len(), line)?;
+        let enumerator = self.the_enumerator(&object, variables.len(), line)?;
+        // The enumerator has to be something that can be called: v2 fails
+        // there before the body of the loop runs.
+        if let Err(failure) = self.check_the_enumerator(&enumerator, line) {
+            for (name, value) in saved {
+                self.restore_variable(&name, value);
+            }
+            return Err(failure);
+        }
         let mut turns = 0usize;
         let mut outcome = Ok(());
-        for item in items {
+        loop {
+            // The enumerator hands out the turns one by one, and the body
+            // of the loop runs between them.
+            let item = match self.the_next_item(&enumerator, variables, line) {
+                Ok(Some(item)) => item,
+                Ok(None) => break,
+                Err(failure) => {
+                    outcome = Err(failure);
+                    break;
+                }
+            };
             turns += 1;
             if turns > Self::MAX_ITERATIONS {
                 outcome = Err(RuntimeFailure::Error(RuntimeError {
@@ -1851,24 +1869,6 @@ impl<'a> Runtime<'a> {
         outcome
     }
 
-    /// The values a `for` loop walks.
-    ///
-    /// The object is asked for its enumerator, and the number of the
-    /// variables the loop wants is given to it. Measured on the binary of
-    /// v2.0.19 on 2026-10-31: the enumerator of v2 is an object of the
-    /// class `Enumerator`, and it hands out the turns one by one -- the
-    /// key and the value under it, or the one of the two that it gives
-    /// alone when the loop wants one value.
-    fn enumeration(
-        &mut self,
-        object: &Value,
-        wanted: usize,
-        line: u32,
-    ) -> Result<Vec<Value>, RuntimeFailure> {
-        let enumerator = self.the_enumerator(object, wanted, line)?;
-        self.the_items_of_the_enumeration(&enumerator, wanted, line)
-    }
-
     /// The enumerator of a value.
     ///
     /// The value is asked for its `__Enum`, and the enumerator it gives is
@@ -1895,38 +1895,108 @@ impl<'a> Runtime<'a> {
         }))
     }
 
-    /// The items an enumerator hands out.
+    /// Whether the enumerator is something that can be called.
     ///
-    /// The enumerator of v2 is an object of the class `Enumerator`, and it
-    /// is walked turn by turn. A class of the script may hand out a list
-    /// instead, and the tree walks that one the way it always did.
-    fn the_items_of_the_enumeration(
-        &mut self,
-        enumerator: &Value,
-        wanted: usize,
-        line: u32,
-    ) -> Result<Vec<Value>, RuntimeFailure> {
-        if crate::classes::enumerator::is_one(enumerator) {
-            let mut items = Vec::new();
-            while let Some(item) = crate::classes::enumerator::the_turn(enumerator, wanted) {
-                items.push(item);
-            }
-            return Ok(items);
-        }
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the enumerator of
+    /// v2 is a function, an enumerator of the runtime, or an object with a
+    /// `Call` method. A list is not one, and the tree used to walk it; a
+    /// value that is not an object at all is a mismatch of the type; and an
+    /// object that cannot be called is not enumerable.
+    fn check_the_enumerator(&self, enumerator: &Value, line: u32) -> Result<(), RuntimeFailure> {
         match enumerator {
-            Value::List(items) => Ok(items.clone()),
-            // The enumerator may be an object of its own -- the array of
-            // a class of the script, for one -- and it is walked the way
-            // the source is.
-            Value::Object(_) => {
-                let count = Node::Literal { value: LiteralValue::Integer(wanted as i64), line };
-                let inner = self.call_method_on(enumerator, "__enum", &[count], line)?;
-                self.the_items_of_the_enumeration(&inner, wanted, line)
-            }
-            _ => Err(RuntimeFailure::Error(RuntimeError {
-                message: "the enumerator did not answer with an enumeration.".into(),
+            // An enumerator of the runtime and a function of the script are
+            // called the way they are.
+            Value::Object(_) if crate::classes::enumerator::is_one(enumerator) => Ok(()),
+            Value::Object(_) if self.is_a_function(enumerator) => Ok(()),
+            // An object with a `Call` method is an enumerator too.
+            Value::Object(_) if self.find_method_on(enumerator, "call").is_some() => Ok(()),
+            // An object that cannot be called is not enumerable.
+            Value::Object(_) => Err(RuntimeFailure::Error(RuntimeError {
+                message: "Value not enumerable.".into(),
                 line,
             })),
+            // A value that is not an object at all is a mismatch of the type.
+            _ => Err(RuntimeFailure::Error(RuntimeError {
+                message: "Type mismatch.".into(),
+                line,
+            })),
+        }
+    }
+
+    /// The next item of an enumeration.
+    ///
+    /// The enumerator of the runtime hands out the turns one by one. A
+    /// function of the script is asked for the next one: it writes the
+    /// values into the variables of the loop and answers one while it has
+    /// something to give, and zero when it has nothing left.
+    fn the_next_item(
+        &mut self,
+        enumerator: &Value,
+        variables: &[String],
+        line: u32,
+    ) -> Result<Option<Value>, RuntimeFailure> {
+        if crate::classes::enumerator::is_one(enumerator) {
+            return Ok(crate::classes::enumerator::the_turn(enumerator, variables.len()));
+        }
+        // The variables of the loop are given to the enumerator by
+        // reference: v2 calls it with them.
+        let references: Vec<Value> = variables
+            .iter()
+            .filter(|name| !name.is_empty())
+            .map(|name| {
+                Value::Reference(Reference {
+                    name: name.clone(),
+                    scope: self.the_scope_of(name),
+                    alias: true,
+                })
+            })
+            .collect();
+        let answer = if self.is_a_function(enumerator) {
+            match crate::classes::func::call_the_value(enumerator, &references, self, line) {
+                Some(result) => result?,
+                None => return Err(self.no_method(enumerator, "Call", line)),
+            }
+        } else {
+            self.own_method(enumerator, "call", &references, line)?
+        };
+        // The enumerator answers one while it has something to give, and
+        // zero when it has nothing left.
+        if !answer.truthy() {
+            return Ok(None);
+        }
+        // The values are read back from the variables of the loop.
+        let mut values = Vec::new();
+        for reference in &references {
+            let Value::Reference(reference) = reference else { continue };
+            values.push(self.read_reference(reference).unwrap_or(Value::Text(String::new())));
+        }
+        let item = if values.len() >= 2 {
+            Value::List(vec![values[0].clone(), values[1].clone()])
+        } else {
+            values.into_iter().next().unwrap_or(Value::Text(String::new()))
+        };
+        Ok(Some(item))
+    }
+
+    /// The scope a name lives in.
+    ///
+    /// The scope of a name is the one the write of it goes to: the scope of
+    /// the script, the scope of a function around it that names it, or the
+    /// scope of the function that runs.
+    fn the_scope_of(&self, name: &str) -> Scope {
+        let name = the_key_of(name);
+        if self.lives_in_the_script(&name) {
+            return Scope::Global;
+        }
+        // A name that a scope around the call has is shared with it.
+        for (depth, scope) in self.scopes.iter().enumerate().rev().skip(1) {
+            if scope.borrow().contains_key(&name) {
+                return Scope::Local(depth);
+            }
+        }
+        match self.scopes.len() {
+            0 => Scope::Global,
+            depth => Scope::Local(depth - 1),
         }
     }
 
