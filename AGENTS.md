@@ -5293,3 +5293,32 @@ the v2 does not give it.
 The probes that measured the rules are in
 `egm-review/probe_builtin_hole.py` (7 cases) and in
 `egm-review/probe_builtin_hole2.py` (7).
+
+## 120. The brace that follows a value, and the literal of an object
+
+Measured on the binary of v2.0.19 on 2026-11-01: the brace that follows a
+value opens the literal of an object, and not a block of its own.
+
+- **The literal may be written in more than one line:** the property may
+  be on the line that follows the brace that opens it, and the brace that
+  closes it may be on a line of its own. `x := {a: 1` and then `}` is an
+  object with the property "a".
+- **The properties are separated by commas, and the newline is not a
+  separator:** the token that is there instead of the comma is the name of
+  a property that is not there, and the refusal is "Invalid property name
+  in object literal.". The comma that opens the list is the name that is
+  not there, and the refusal is "Missing \"propertyname:\" in object
+  literal.".
+- **The brace that follows a value is the literal, and the literal is not
+  read:** the literal that is not closed is refused with "Missing \"}\"" and
+  the statement is named with it, and the literal that is closed is a
+  second value in a row, and the brace is refused with
+  "Unexpected \"{\"".
+
+The tree refused the literal that was written in more than one line, and it
+refused the brace that follows a value with the line of the script named
+with it, and the v2 names nothing there.
+
+The probes that measured the rules are in `egm-review/probe_brace_shape.py`
+(25 cases), `probe_brace_shape2.py` (17), `probe_brace_shape3.py` (15),
+`probe_brace_shape4.py` (12) and `probe_brace_shape5.py` (10).

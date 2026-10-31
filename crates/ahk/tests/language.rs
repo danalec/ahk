@@ -5286,3 +5286,18 @@ fn the_built_in_with_the_parameter_that_is_not_there_alone_is_refused() {
         Some("Too few parameters passed to function.\n     Specifically: StrLen")
     );
 }
+
+
+#[test]
+fn the_object_literal_that_is_written_in_more_than_one_line() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the literal of an
+    // object may be written in more than one line: the property may be on
+    // the line that follows the brace that opens it, and the brace that
+    // closes it may be on a line of its own.
+    let (report, _desktop) = run("x := {a: 1\n}\nFileAppend x.a, \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    let (report, _desktop) = run("x := {a: 1\n}\nFileAppend x.a, \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}

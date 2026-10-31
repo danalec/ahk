@@ -1320,6 +1320,13 @@ that asks for another one is refused with the reason.
   the arity comes before the failure of an argument, and a method is the
   same way.
 
+- **The brace that follows a value opens the literal of an object.** The
+  literal may be written in more than one line, and the properties of it
+  are separated by commas: the newline is not a separator. The brace that
+  follows a value is refused with "Unexpected \"{\"" when the literal is
+  closed, and with "Missing \"}\"" when it is not, and the statement is
+  named with it.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

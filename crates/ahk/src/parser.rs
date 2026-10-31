@@ -1607,6 +1607,30 @@ impl Parser {
         if token.kind == TokenKind::Eof {
             return Ok(());
         }
+        if token.kind == TokenKind::Op && token.value == "{" {
+            // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+            // follows a value opens the literal of an object, and not a
+            // block: the literal that is not closed is a "Missing "}"", and
+            // the literal that is closed is a second value in a row, and the
+            // brace is the one that is not wanted. The properties inside it
+            // are not read: the brace is the failure, and not them.
+            self.position += 1;
+            if !self.the_object_literal_is_closed() {
+                let last = self
+                    .tokens
+                    .iter()
+                    .rev()
+                    .find(|token| token.kind == TokenKind::Eof)
+                    .cloned()
+                    .unwrap_or_else(|| token.clone());
+                return Err(self.the_error_of_a_missing_bracket("}", last.line, last.column));
+            }
+            return Err(SyntaxError {
+                message: "Unexpected \"{\"".into(),
+                line: token.line,
+                column: token.column,
+            });
+        }
         if token.kind == TokenKind::Op && token.value == "}" {
             return Ok(());
         }
@@ -4602,86 +4626,7 @@ impl Parser {
             TokenKind::Op if token.value == "{" => {
                 // The literal of an object: `{a: 1, b: 2}`. The braces of
                 // a block open a statement, and these open a value.
-                let mut properties = Vec::new();
-                if !self.at_op(&["}"]) {
-                    loop {
-                        let name = self.next();
-                        // Measured on the binary of v2.0.19 on 2026-10-31:
-                        // the name of a property may be built by the script:
-                        // `{%name%: 1}` is the property whose name is the
-                        // value of `name`.
-                        let member = if name.kind == TokenKind::Op && name.value == "%" {
-                            let open = self.position - 1;
-                            if self.at_op(&["%"]) {
-                                return Err(self.the_error_of_a_percent_inside());
-                            }
-                            let value = self.the_expression_of_a_dynamic_name(open)?;
-                            if !self.at_op(&["%"]) {
-                                return Err(self.the_error_of_a_missing_ending(open));
-                            }
-                            self.next();
-                            MemberName::Dynamic(self.the_pieces_after_the_percent(value)?)
-                        } else {
-                            // The name of a property may be a whole number: the
-                            // number with a point is not a name, because the
-                            // point of it is the point of a member.
-                            //
-                            // Measured on the binary of v2.0.19 on 2026-10-31:
-                            // `{5: 1}` is an object with the property "5", and
-                            // `{1.5: 1}` is refused.
-                            if name.kind != TokenKind::Name
-                                && name.kind != TokenKind::Keyword
-                                && !the_number_is_a_whole_one(&name)
-                            {
-                                // Measured on the binary of v2.0.19 on
-                                // 2026-10-31: the object that is not closed is
-                                // the failure, and the name of the property
-                                // that is not there is not it.
-                                if name.kind == TokenKind::Newline || name.kind == TokenKind::Eof {
-                                    return Err(
-                                        self.the_error_of_a_missing_bracket("}", name.line, name.column)
-                                    );
-                                }
-                                return Err(SyntaxError {
-                                    message: "Invalid property name in object literal.".into(),
-                                    line: name.line,
-                                    column: name.column,
-                                });
-                            }
-                            MemberName::Text(name.value)
-                        };
-                        if !self.at_op(&[":"]) {
-                            return Err(SyntaxError {
-                                message: "Missing \"propertyname:\" in object literal.".into(),
-                                line: name.line,
-                                column: name.column,
-                            });
-                        }
-                        self.position += 1;
-                        // The bracket that is not closed is the failure, and
-                        // not the operand that is not there inside it.
-                        let value = match self.parse_expression() {
-                            Ok(value) => value,
-                            Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
-                        };
-                        properties.push((member, value));
-                        // The list may be written in more than one line.
-                        self.skip_newlines();
-                        if self.at_op(&[","]) {
-                            self.position += 1;
-                            // A comma at the end of the list is allowed.
-                            if self.at_op(&["}"]) {
-                                break;
-                            }
-                            continue;
-                        }
-                        break;
-                    }
-                }
-                // The object may be written in more than one line.
-                self.skip_newlines();
-                self.expect_op("}")?;
-                Node::ObjectLiteral { properties, line: token.line }
+                self.the_object_literal(token.line)?
             }
             _ => {
                 // The operand that the operator wants is not there.
@@ -4689,6 +4634,139 @@ impl Parser {
             }
         };
         self.parse_suffixes(node, true, false)
+    }
+
+    /// Whether the literal of an object that follows a value is closed.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the properties of
+    /// the literal are not read when the brace follows a value: the failure
+    /// is the brace, and not them. The braces are counted, and the literal is
+    /// closed when the count goes back to zero.
+    fn the_object_literal_is_closed(&self) -> bool {
+        let mut depth = 1;
+        for token in self.tokens.iter().skip(self.position) {
+            if token.kind == TokenKind::Op && token.value == "{" {
+                depth += 1;
+            }
+            if token.kind == TokenKind::Op && token.value == "}" {
+                depth -= 1;
+                if depth == 0 {
+                    return true;
+                }
+            }
+            if token.kind == TokenKind::Eof {
+                return false;
+            }
+        }
+        false
+    }
+
+    /// The literal of an object: `{a: 1, b: 2}`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the literal may be
+    /// written in more than one line: the property may be on the line that
+    /// follows the brace that opens it, and the brace that closes it may be
+    /// on a line of its own. The properties are separated by commas, and the
+    /// newline is not a separator.
+    fn the_object_literal(&mut self, line: u32) -> Result<Node, SyntaxError> {
+        let mut properties = Vec::new();
+        // The property may be on the line that follows the brace.
+        self.skip_newlines();
+        while !self.at_op(&["}"]) {
+            let name = self.next();
+            // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+            // property may be built by the script: `{%name%: 1}` is the
+            // property whose name is the value of `name`.
+            let member = if name.kind == TokenKind::Op && name.value == "%" {
+                let open = self.position - 1;
+                if self.at_op(&["%"]) {
+                    return Err(self.the_error_of_a_percent_inside());
+                }
+                let value = self.the_expression_of_a_dynamic_name(open)?;
+                if !self.at_op(&["%"]) {
+                    return Err(self.the_error_of_a_missing_ending(open));
+                }
+                self.next();
+                MemberName::Dynamic(self.the_pieces_after_the_percent(value)?)
+            } else {
+                // The name of a property may be a whole number: the number
+                // with a point is not a name, because the point of it is the
+                // point of a member.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: `{5: 1}`
+                // is an object with the property "5", and `{1.5: 1}` is
+                // refused.
+                if name.kind != TokenKind::Name
+                    && name.kind != TokenKind::Keyword
+                    && !the_number_is_a_whole_one(&name)
+                {
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // comma that opens the list is the name that is not
+                    // there, and the name that is not a name is refused.
+                    if name.kind == TokenKind::Op && name.value == "," {
+                        return Err(SyntaxError {
+                            message: "Missing \"propertyname:\" in object literal.".into(),
+                            line: name.line,
+                            column: name.column,
+                        });
+                    }
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // object that is not closed is the failure, and the name
+                    // of the property that is not there is not it.
+                    if name.kind == TokenKind::Eof {
+                        return Err(
+                            self.the_error_of_a_missing_bracket("}", name.line, name.column)
+                        );
+                    }
+                    return Err(SyntaxError {
+                        message: "Invalid property name in object literal.".into(),
+                        line: name.line,
+                        column: name.column,
+                    });
+                }
+                MemberName::Text(name.value)
+            };
+            if !self.at_op(&[":"]) {
+                return Err(SyntaxError {
+                    message: "Missing \"propertyname:\" in object literal.".into(),
+                    line: name.line,
+                    column: name.column,
+                });
+            }
+            self.position += 1;
+            // The bracket that is not closed is the failure, and not the
+            // operand that is not there inside it.
+            let value = match self.parse_expression() {
+                Ok(value) => value,
+                Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+            };
+            properties.push((member, value));
+            // Measured on the binary of v2.0.19 on 2026-11-01: the
+            // properties are separated by commas, and the newline is not a
+            // separator: the token that is there instead of the comma is the
+            // name of a property that is not there.
+            self.skip_newlines();
+            if self.at_op(&[","]) {
+                self.position += 1;
+                // The property that follows the comma may be on the line that
+                // follows it.
+                self.skip_newlines();
+                continue;
+            }
+            if !self.at_op(&["}"]) && self.peek().kind != TokenKind::Eof {
+                let token = self.peek().clone();
+                return Err(SyntaxError {
+                    message: "Invalid property name in object literal.".into(),
+                    line: token.line,
+                    column: token.column,
+                });
+            }
+            break;
+        }
+        // The brace that closes the literal may be on a line of its own.
+        self.skip_newlines();
+        self.expect_op("}")?;
+        Ok(Node::ObjectLiteral { properties, line })
     }
 
     /// The `[...]` and the `as` that may follow a value.
@@ -6260,4 +6338,62 @@ mod tests {
             panic!("a call");
         };
         assert_eq!(arguments.len(), 0);
+    }
+
+    #[test]
+    fn the_object_literal_may_be_written_in_more_than_one_line() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the literal of an
+        // object may be written in more than one line: the property may be
+        // on the line that follows the brace that opens it, and the brace
+        // that closes it may be on a line of its own.
+        parse("x := {\n}").expect("parses");
+        parse("x := {a: 1\n}").expect("parses");
+        parse("x := {\na: 1}").expect("parses");
+        parse("x := {a: 1,\nb: 2}").expect("parses");
+    }
+
+    #[test]
+    fn the_properties_of_an_object_are_separated_by_commas() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the newline is
+        // not a separator between the properties of an object, and the token
+        // that is there instead of the comma is the name of a property that
+        // is not there.
+        let error = parse("x := {a: 1 b: 2}").expect_err("does not parse");
+        assert_eq!(error.message, "Invalid property name in object literal.");
+        let error = parse("x := {a: 1\nb: 2}").expect_err("does not parse");
+        assert_eq!(error.message, "Invalid property name in object literal.");
+    }
+
+    #[test]
+    fn the_name_of_the_property_that_is_not_there() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the comma that
+        // opens the list of the properties is the name that is not there,
+        // and the name that is not a name is refused.
+        let error = parse("x := {, a: 1}").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+        let error = parse("x := {1.5: 1}").expect_err("does not parse");
+        assert_eq!(error.message, "Invalid property name in object literal.");
+    }
+
+    #[test]
+    fn the_brace_that_follows_a_value_opens_the_literal_of_an_object() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+        // follows a value opens the literal of an object, and not a block:
+        // the literal that is not closed is the failure.
+        let error = parse("x := 1 {").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"}\"\n     Specifically: x := 1 {");
+        let error = parse("Two (a, b) {").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"}\"\n     Specifically: Two (a, b) {");
+    }
+
+    #[test]
+    fn the_brace_that_follows_a_value_and_that_is_closed_is_unexpected() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the literal that
+        // is closed is a second value in a row, and the brace is the one that
+        // is not wanted. The properties inside it are not read: the brace is
+        // the failure, and not them.
+        let error = parse("x := 1 {}").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected \"{\"");
+        let error = parse("x := 1 { a: 1 }").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected \"{\"");
     }
