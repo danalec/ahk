@@ -173,6 +173,53 @@ fn the_value_can_be_written(node: &Node) -> bool {
     matches!(node, Node::Var { .. } | Node::Property { .. } | Node::Index { .. })
 }
 
+/// The source of the head of a statement, the way v2 writes it.
+///
+/// The text stops before the body, and the space that was written before
+/// the body is part of it: the head of `Loop Read {` is "Loop Read ".
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command that
+/// wants a parameter that is not there names the text of its head.
+fn the_source_of_the_head(parser: &Parser, head: usize, body: usize) -> String {
+    let mut text = the_source_of_the_tokens(parser, head, body);
+    if parser.tokens.get(body).map(|token| token.spaced).unwrap_or(false) {
+        text.push(' ');
+    }
+    text
+}
+
+/// Whether the kind is one of the loops of v2.
+///
+/// The loop of a count and the loops of a kind are the same statement,
+/// and the name of the kind is part of it.
+fn the_loop_of_the_kind(kind: &str) -> bool {
+    matches!(kind, "Loop" | "Loop Files" | "Loop Reg" | "Loop Read" | "Loop Parse")
+}
+
+/// The name of the statement of the loop, as the messages of v2 write it.
+///
+/// The loop of a count is "Loop", and the loop of a kind is the kind
+/// with it: "Loop Read".
+fn the_name_of_the_loop(kind: &str) -> String {
+    if kind.is_empty() {
+        "Loop".to_string()
+    } else {
+        format!("Loop {kind}")
+    }
+}
+
+/// The number of the parameters that a loop of a kind takes.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: `Loop Read`,
+/// `Loop Files` and `Loop Reg` take two parameters, and `Loop Parse`
+/// takes three.
+fn the_number_of_parameters_of_a_loop(kind: LoopKind) -> usize {
+    match kind {
+        LoopKind::Parse => 3,
+        _ => 2,
+    }
+}
+
 /// The source of a token and of what comes after it, in its line.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the value that came
@@ -1069,7 +1116,7 @@ impl Parser {
     /// next line, and the `try`, the `else` and the `finally` take it on
     /// the line of the construct as well.
     fn the_body_must_begin_on_the_next_line(kind: &str) -> bool {
-        matches!(kind, "If" | "While" | "Loop" | "For" | "Catch")
+        matches!(kind, "If" | "While" | "For" | "Catch") || the_loop_of_the_kind(kind)
     }
 
     /// Whether the block needs a body.
@@ -1078,7 +1125,7 @@ impl Parser {
     /// `while`, the `loop`, the `for` and the `try` need one, and the
     /// `catch`, the `else` and the `finally` do not.
     fn the_block_needs_a_body(kind: &str) -> bool {
-        matches!(kind, "If" | "While" | "Loop" | "For" | "Try")
+        matches!(kind, "If" | "While" | "For" | "Try") || the_loop_of_the_kind(kind)
     }
 
     /// Whether the body of a block begins on the next line.
@@ -1133,7 +1180,9 @@ impl Parser {
                 "Not a valid method, class or property definition.\n     Specifically: {}",
                 the_source_of_the_line(self, line)
             ),
-            "If" | "While" | "Loop" | "For" | "Switch" => format!("Unexpected {kind:?}"),
+            // The loop of a kind names the loop and not the kind.
+            kind if the_loop_of_the_kind(kind) => "Unexpected \"Loop\"".to_string(),
+            "If" | "While" | "For" | "Switch" => format!("Unexpected {kind:?}"),
             _ => "Missing \"}\"".to_string(),
         }
     }
@@ -3072,46 +3121,147 @@ impl Parser {
         Ok(Node::Directive { name: token.value, argument, line: token.line })
     }
 
+    /// The loop of v2, and the kinds of it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the word that
+    /// follows the `Loop` is a name of the kind when the line goes on
+    /// after it, and it is the count of the loop when the line ends
+    /// there. The kinds are `Files`, `Reg`, `Read` and `Parse`, and each
+    /// of them takes its own number of parameters.
     fn parse_loop(&mut self) -> Result<Node, SyntaxError> {
+        // The place where the statement begins: the messages of v2 name
+        // the text of it.
+        let head = self.position;
         let token = self.next();
-        // The kinds of loop: `Loop Files`, `Loop Reg`, `Loop Read` and
-        // `Loop Parse`. The word is a name of the kind and not the
-        // start of an expression.
-        let kind = match self.peek().value.to_lowercase().as_str() {
-            "files" if self.peek().kind == TokenKind::Name => LoopKind::Files,
-            "reg" if self.peek().kind == TokenKind::Name => LoopKind::Reg,
-            "read" if self.peek().kind == TokenKind::Name => LoopKind::Read,
-            "parse" if self.peek().kind == TokenKind::Name => LoopKind::Parse,
-            _ => LoopKind::Count,
-        };
-        self.the_expression_begins();
+        let kind = self.the_kind_of_the_loop();
         let mut arguments = Vec::new();
-        if kind == LoopKind::Count {
-            if !self.at_op(&["::", "{"]) {
-                arguments.push(self.parse_expression()?);
+        // The name of the kind, as the script spelled it.
+        let mut name = String::new();
+        // The end of the first parameter, for the message that names it.
+        let mut first_end = None;
+        match kind {
+            Some(kind) => {
+                name = self.next().value;
+                // The parameters of the command: the first one may be
+                // written without a comma, and the rest are separated by
+                // commas.
+                let mut comma = false;
+                if self.at_op(&[","]) {
+                    comma = true;
+                    self.position += 1;
+                    if self.at_end_of_statement() {
+                        // The list of the parameters is empty.
+                        return Err(self.error(format!(
+                            "\"Loop {name}\" requires at least 1 parameter.\n     Specifically: {}",
+                            the_source_of_the_line(self, token.line)
+                        )));
+                    }
+                }
+                if comma {
+                    loop {
+                        if self.at_op(&["{"]) {
+                            // The body is where the parameter should be.
+                            return Err(self.error(format!("Unexpected \"Loop {name}\"")));
+                        }
+                        self.the_expression_begins();
+                        arguments.push(self.parse_expression()?);
+                        if first_end.is_none() {
+                            first_end = Some(self.position);
+                        }
+                        if !self.at_op(&[","]) {
+                            break;
+                        }
+                        self.position += 1;
+                    }
+                } else if !self.at_end_of_statement() && !self.at_op(&["::", "{"]) {
+                    // The first parameter may be written without a comma.
+                    self.the_expression_begins();
+                    arguments.push(self.parse_expression()?);
+                    first_end = Some(self.position);
+                    while self.at_op(&[","]) {
+                        self.position += 1;
+                        if self.at_op(&["{"]) {
+                            // The body is where the parameter should be.
+                            return Err(self.error(format!("Unexpected \"Loop {name}\"")));
+                        }
+                        self.the_expression_begins();
+                        arguments.push(self.parse_expression()?);
+                    }
+                }
+                // The command takes a number of parameters, and the one
+                // that is written too many is named with the first of
+                // them.
+                let most = the_number_of_parameters_of_a_loop(kind);
+                if arguments.len() > most {
+                    return Err(self.error(format!(
+                        "\"Loop {name}\" accepts at most {most} parameters.\n     Specifically: {}",
+                        the_source_of_the_tokens(self, head, first_end.unwrap_or(self.position))
+                    )));
+                }
             }
-        } else {
-            self.next();
-            // The comma after the kind is optional: v2 takes it and does
-            // not need it.
-            if self.at_op(&[","]) {
-                self.position += 1;
-            }
-            if !self.at_op(&["::", "{"]) {
-                loop {
+            None => {
+                // The count of the loop. It may be left out, and the loop
+                // goes on until a break.
+                if self.at_op(&[","]) {
+                    // The comma of a call is not there.
+                    return Err(self.error(format!(
+                        "Function calls require a space or \"(\".  Use comma only between parameters.\n     Specifically: {}",
+                        the_source_of_the_line(self, token.line)
+                    )));
+                }
+                if !self.at_end_of_statement() && !self.at_op(&["::", "{"]) {
+                    self.the_expression_begins();
                     arguments.push(self.parse_expression()?);
                     if self.at_op(&[","]) {
-                        self.position += 1;
-                        continue;
+                        // The count of the loop is not a name of a kind.
+                        return Err(self.error(format!(
+                            "Invalid loop type.\n     Specifically: {}",
+                            the_source_of_the_line(self, token.line)
+                        )));
                     }
-                    break;
                 }
             }
         }
         self.the_expression_is_done(self.position, false)?;
         self.end_of_block()?;
-        let body = self.parse_block("Loop", token.line)?;
-        Ok(Node::Loop { mode: kind, arguments, body, line: token.line })
+        let body_start = self.position;
+        let body = self.parse_block(&the_name_of_the_loop(&name), token.line)?;
+        // The command of v2 checks its parameters when the script loads,
+        // and the parameter that is not there is named.
+        if kind.is_some() && arguments.is_empty() {
+            return Err(self.error(format!(
+                "Parameter #1 required\n     Specifically: {}",
+                the_source_of_the_head(self, head, body_start)
+            )));
+        }
+        Ok(Node::Loop { mode: kind.unwrap_or(LoopKind::Count), arguments, body, line: token.line })
+    }
+
+    /// The kind of the loop, when the word that follows the `Loop` names
+    /// one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the word is a
+    /// name of the kind when the line goes on after it, and it is the
+    /// count of the loop when the line ends there.
+    fn the_kind_of_the_loop(&self) -> Option<LoopKind> {
+        let word = self.peek();
+        if word.kind != TokenKind::Name {
+            return None;
+        }
+        let kind = match word.value.to_lowercase().as_str() {
+            "files" => LoopKind::Files,
+            "reg" => LoopKind::Reg,
+            "read" => LoopKind::Read,
+            "parse" => LoopKind::Parse,
+            _ => return None,
+        };
+        // The line goes on after the word: the token that follows it is
+        // on the same line.
+        let next = self.tokens.get(self.position + 1)?;
+        if next.line != word.line || matches!(next.kind, TokenKind::Newline | TokenKind::Eof) {
+            return None;
+        }
+        Some(kind)
     }
 
     /// The loop over what an object enumerates: `for x in y { }`.

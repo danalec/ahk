@@ -238,6 +238,15 @@ The body is one statement, and the `if`, the `while`, the `loop`, the `for`
 and the `catch` want it on the next line, while the `try`, the `else` and
 the `finally` take it on the line of the construct as well.
 
+The loop of v2 is one statement with five shapes, and the word that follows
+the `Loop` says which one it is: a name of the kind -- `Files`, `Reg`,
+`Read` or `Parse` -- when the line goes on after it, and the count of the
+loop when the line ends there. The name of the kind is part of the
+statement, and the command checks its parameters when the script loads:
+the parameter that is not there is named, and so is the head of the
+statement. The count of the loop is not a name of a kind: a comma after it
+says that the type of the loop is not a valid one.
+
 The bracket with a space opens the array and the bracket without one is
 the item of the value: `f [1, 2]` is a call whose argument is the array,
 and `f[1, 2]` is the item of the value `f`. The space is the reason, the
@@ -836,7 +845,16 @@ that asks for another one is refused with the reason.
   goes over `MAX_STEPS` first, and the timeout second, so the message names
   the statement that would have been the 20 001st. A counted `Loop` has no
   iteration guard of its own: it is bounded by the step count and by the
-  timeout.
+  timeout. A `Loop` without a count is bounded by the step count too, and it
+  counts each of its turns as a statement, because the body of it may be
+  empty and the step count is the bound that still moves.
+- **The fields of the loop that parses are the characters of the text.**
+  The delimiters that are not there make every character a field of its own,
+  and the spaces are fields too; the characters that are not wanted at the
+  ends of a field are taken away from it.
+- **The variables of the loops are there before the first loop runs.** The
+  index is zero and the others are empty, and the line of the file is
+  `A_LoopReadLine` -- `A_LoopField` is the field of the loop that parses.
 - **`Sleep` is capped at 60 000 ms**, in the statement and in the builtin.
 - **The timeout knows no line.** It stops the script between two statements,
   so `error_line` stays null and the message is "the script ran for more than

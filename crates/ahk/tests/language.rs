@@ -1048,9 +1048,14 @@ fn a_loop_over_the_files_takes_the_mode_of_v2() {
 
 #[test]
 fn a_loop_over_the_files_takes_no_more_than_two_parameters() {
-    let (report, _desktop) = run("Loop Files \"*.txt\", \"R\", \"x\" {\n}\n");
-    assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("\"Loop Files\" accepts at most 2 parameters."));
+    // Measured on the binary of v2.0.19 on 2026-10-31: the command is
+    // refused when the script loads, and the first parameter is named
+    // with it.
+    let error = parse("Loop Files \"*.txt\", \"R\", \"x\" {\n}\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Loop Files\" accepts at most 2 parameters.\n     Specifically: Loop Files \"*.txt\""
+    );
 }
 
 #[test]
@@ -4351,4 +4356,143 @@ fn the_line_that_begins_with_an_operator_continues_the_one_before_it() {
     let (report, _desktop) = run("x := 5\n-x := 2\nMsgBox x");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["3"]);
+}
+
+#[test]
+fn a_loop_of_a_kind_without_its_parameter_is_refused_at_the_load() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the command of a
+    // kind checks its parameters when the script loads, and the parameter
+    // that is not there is named.
+    let error = parse("Loop Read {\n  x := 1\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop Read ");
+    let error = parse("Loop Parse {\n  x := 1\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop Parse ");
+    let error = parse("Loop Files {\n  x := 1\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop Files ");
+    let error = parse("Loop Reg {\n  x := 1\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop Reg ");
+    // The name of the kind is the one that the script wrote.
+    let error = parse("Loop read {\n  x := 1\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop read ");
+}
+
+#[test]
+fn the_loop_of_a_kind_names_itself_when_it_is_not_there() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the list of the
+    // parameters that is empty says so, and the statement that is not
+    // complete names itself.
+    let error = parse("Loop Read,").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Loop Read\" requires at least 1 parameter.\n     Specifically: Loop Read,"
+    );
+    let error = parse("Loop Read, \"a\"").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Loop Read\"");
+    let error = parse("Loop Parse, \"a\"").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Loop Parse\"");
+    // The word that follows the `Loop` is the count of the loop when the
+    // line ends there, and the loop of a count is named "Loop".
+    let error = parse("Loop Read").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Loop\"");
+    let error = parse("Loop Parse").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Loop\"");
+    let error = parse("Loop Files").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Loop\"");
+}
+
+#[test]
+fn the_loop_of_a_kind_takes_the_parameters_that_it_takes() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `Loop Read`,
+    // `Loop Files` and `Loop Reg` take two parameters, and `Loop Parse`
+    // takes three. The one that is written too many is named with the
+    // first of them.
+    let error = parse("Loop Read, \"a\", \"b\", \"c\" {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Loop Read\" accepts at most 2 parameters.\n     Specifically: Loop Read, \"a\""
+    );
+    let error = parse("Loop Parse, \"a\", \"b\", \"c\", \"d\" {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Loop Parse\" accepts at most 3 parameters.\n     Specifically: Loop Parse, \"a\""
+    );
+    let error = parse("Loop Files, \"a\", \"b\", \"c\" {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Loop Files\" accepts at most 2 parameters.\n     Specifically: Loop Files, \"a\""
+    );
+    let error = parse("Loop Reg, \"a\", \"b\", \"c\" {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Loop Reg\" accepts at most 2 parameters.\n     Specifically: Loop Reg, \"a\""
+    );
+}
+
+#[test]
+fn the_count_of_the_loop_is_not_a_name_of_a_kind() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a comma after the
+    // count says that the type of the loop is not a valid one.
+    let error = parse("Loop 5, 6 {\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid loop type.\n     Specifically: Loop 5, 6 {");
+    let error = parse("Loop Foo, 5 {\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid loop type.\n     Specifically: Loop Foo, 5 {");
+    // The comma of a call is not there.
+    let error = parse("Loop,").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Function calls require a space or \"(\".  Use comma only between parameters.\n     Specifically: Loop,"
+    );
+}
+
+#[test]
+fn a_loop_without_a_count_goes_on_until_a_break() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the loop without
+    // a count goes on until a break.
+    let (report, _desktop) = run("i := 0\nLoop {\n  i := i + 1\n  If i = 3 {\n    Break\n  }\n}\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+}
+
+#[test]
+fn a_loop_that_runs_away_is_stopped_by_the_guard_rail() {
+    // The loop of v2 has no bound of its own, and the tree has one: the
+    // count of the statements.
+    let (report, _desktop) = run("Loop {\n}");
+    assert!(!report.ok);
+    assert!(
+        report.error.as_deref().unwrap_or("").contains("ran more than"),
+        "{:?}",
+        report.error
+    );
+    assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn the_fields_of_the_loop_that_parses_are_the_characters_of_the_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the delimiters
+    // that are not there make every character of the text a field of its
+    // own, and the spaces are fields too.
+    let (report, desktop) = run("Loop Parse \"a b\" {\n  Send \"%A_LoopField%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["a", " ", "b"]);
+    // The characters that are not wanted at the ends of a field are taken
+    // away from them.
+    let (report, desktop) = run("Loop Parse \" a , b \", \",\", \" \" {\n  Send \"%A_LoopField%\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["a", "b"]);
+}
+
+#[test]
+fn the_variables_of_the_loops_are_there_before_the_first_loop() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the index is zero
+    // and the others are empty.
+    let (report, _desktop) = run("MsgBox \"[\" A_Index \"]\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[0]"]);
+    let (report, _desktop) = run("MsgBox \"[\" A_LoopField \"]\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]"]);
+    let (report, _desktop) = run("MsgBox \"[\" A_LoopReadLine \"]\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]"]);
 }

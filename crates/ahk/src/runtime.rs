@@ -51,6 +51,27 @@ use crate::ast::{
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
 
+/// The variables of the loops, the ones that the runtime writes where it
+/// runs.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: they are there
+/// before the first loop runs, and the index is zero and the others are
+/// empty.
+const THE_LOOP_VARIABLES: &[&str] = &[
+    "index",
+    "loopfield",
+    "loopreadline",
+    "loopfilename",
+    "loopfileext",
+    "loopfilepath",
+    "loopfilefullpath",
+    "loopfiledir",
+    "loopregname",
+    "loopregtype",
+    "loopregkey",
+    "loopregtimemodified",
+];
+
 /// The type of a value.
 ///
 /// AutoHotkey v2 has four of them, and every value carries the tag of
@@ -1913,16 +1934,41 @@ impl<'a> Runtime<'a> {
             Node::Loop { mode, arguments, body, line } => {
                 match mode {
                     LoopKind::Count => {
-                        let count = match arguments.first() {
-                            Some(node) => self.evaluate(node)?.to_number().unwrap_or(0.0) as i64,
-                            None => 1,
-                        };
-                        for _ in 0..count.max(0) {
-                            match self.run_block(body) {
-                                Ok(()) => {}
-                                Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                                Err(other) => return Err(other),
+                        match arguments.first() {
+                            Some(node) => {
+                                let count = self.evaluate(node)?.to_number().unwrap_or(0.0) as i64;
+                                for _ in 0..count.max(0) {
+                                    match self.run_block(body) {
+                                        Ok(()) => {}
+                                        Err(RuntimeFailure::Flow(Flow::Break)) => break,
+                                        Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
+                                        Err(other) => return Err(other),
+                                    }
+                                }
+                            }
+                            None => {
+                                // Measured on the binary of v2.0.19 on
+                                // 2026-10-31: the loop without a count goes
+                                // on until a break. The step count is the
+                                // bound of it, and the body may be empty.
+                                loop {
+                                    self.steps_taken += 1;
+                                    if self.steps_taken > Self::MAX_STEPS {
+                                        return Err(RuntimeFailure::Error(RuntimeError {
+                                            message: format!(
+                                                "the script ran more than {} statements",
+                                                Self::MAX_STEPS
+                                            ),
+                                            line: *line,
+                                        }));
+                                    }
+                                    match self.run_block(body) {
+                                        Ok(()) => {}
+                                        Err(RuntimeFailure::Flow(Flow::Break)) => break,
+                                        Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
+                                        Err(other) => return Err(other),
+                                    }
+                                }
                             }
                         }
                     }
@@ -1930,9 +1976,32 @@ impl<'a> Runtime<'a> {
                         let text = self.loop_argument(arguments, 0, *line)?.to_text();
                         let delimiters = match arguments.get(1) {
                             Some(node) => self.evaluate(node)?.to_text(),
-                            None => " \t\r\n".to_string(),
+                            None => String::new(),
                         };
-                        let pieces = split_on_any(&text, &delimiters);
+                        // The characters that are not wanted at the ends
+                        // of a field.
+                        let omitted = match arguments.get(2) {
+                            Some(node) => self.evaluate(node)?.to_text(),
+                            None => String::new(),
+                        };
+                        let pieces: Vec<String> = if delimiters.is_empty() {
+                            // Measured on the binary of v2.0.19 on
+                            // 2026-10-31: the delimiters that are not
+                            // there make every character of the text a
+                            // field of its own, and the spaces are
+                            // fields too.
+                            text.chars()
+                                .filter(|character| !omitted.contains(*character))
+                                .map(|character| character.to_string())
+                                .collect()
+                        } else {
+                            split_on_any(&text, &delimiters)
+                                .into_iter()
+                                .map(|piece| {
+                                    piece.trim_matches(|character| omitted.contains(character)).to_string()
+                                })
+                                .collect()
+                        };
                         for (index, piece) in pieces.iter().enumerate() {
                             self.set_global("A_Index", Value::Int(index as i64 + 1));
                             self.set_global("A_LoopField", Value::Text(piece.clone()));
@@ -1991,7 +2060,11 @@ impl<'a> Runtime<'a> {
                             .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line: *line }))?;
                         for (index, line_text) in lines.iter().enumerate() {
                             self.set_global("A_Index", Value::Int(index as i64 + 1));
-                            self.set_global("A_LoopField", Value::Text(line_text.clone()));
+                            // Measured on the binary of v2.0.19 on
+                            // 2026-10-31: the line of the file is
+                            // `A_LoopReadLine`, and `A_LoopField` is the
+                            // field of the loop that parses.
+                            self.set_global("A_LoopReadLine", Value::Text(line_text.clone()));
                             match self.run_block(body) {
                                 Ok(()) => {}
                                 Err(RuntimeFailure::Flow(Flow::Break)) => break,
@@ -6031,6 +6104,23 @@ impl<'a> Runtime<'a> {
         })
     }
 
+    /// The value of a variable of the runtime, when it has none yet.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the variables of
+    /// the loops are there before the first loop runs: the index is zero
+    /// and the others are empty.
+    fn the_value_of_a_variable_of_the_runtime(&self, name: &str) -> Option<Value> {
+        let rest = crate::variables::spelled(name)?;
+        if !THE_LOOP_VARIABLES.contains(&rest.as_str()) {
+            return None;
+        }
+        if rest == "index" {
+            Some(Value::Int(0))
+        } else {
+            Some(Value::Text(String::new()))
+        }
+    }
+
     /// The message v2 gives for a variable that has no value.
     ///
     /// v2 names the kind of the variable and not the name of it: a
@@ -7228,15 +7318,18 @@ impl<'a> Runtime<'a> {
                         message: error.message,
                         line: *line,
                     })),
-                    None => Err(RuntimeFailure::Error(RuntimeError {
-                        // A parameter that is an alias says that it is
-                        // the parameter that has no value.
-                        message: match self.alias_of(name) {
-                            Some(_) => unassigned_parameter(),
-                            None => self.the_unassigned(name),
-                        },
-                        line: *line,
-                    })),
+                    None => match self.the_value_of_a_variable_of_the_runtime(name) {
+                        Some(value) => Ok(value),
+                        None => Err(RuntimeFailure::Error(RuntimeError {
+                            // A parameter that is an alias says that it is
+                            // the parameter that has no value.
+                            message: match self.alias_of(name) {
+                                Some(_) => unassigned_parameter(),
+                                None => self.the_unassigned(name),
+                            },
+                            line: *line,
+                        })),
+                    },
                 },
             },
             Node::Unary { op, operand, line } => match op {

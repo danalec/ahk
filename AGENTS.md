@@ -492,7 +492,10 @@ tripped it.
   more than 20000 statements".
 - `Runtime::MAX_ITERATIONS` -- 1 000 turns through a `While` body: "the
   loop ran more than 1000 times". A counted `Loop` has no iteration guard
-  of its own: it is bounded by the step count and by the timeout.
+  of its own: it is bounded by the step count and by the timeout. A `Loop`
+  without a count is bounded by the step count too, and it counts each of
+  its turns as a statement, because the body of it may be empty and the
+  step count is the bound that still moves.
 - `Runtime::MAX_DEPTH` -- 1 000 nested calls. v2.0.19 stops at about 1 105,
   and it says "Function recursion limit exceeded."; the tree stops at the
   same place and says the same thing.
@@ -4667,3 +4670,59 @@ them different). The probes that measured the rules are in
 `egm-review/probe_unary_call.py`, `egm-review/probe_unary_brackets.py`,
 `egm-review/probe_unary_statement.py`, `egm-review/probe_unary_runtime.py`,
 `egm-review/probe_unary_scope.py` and `egm-review/probe_unary_variable.py`.
+
+## 102. The family of the loop
+
+Measured on the binary of v2.0.19 on 2026-10-31: the loop of v2 is one
+statement with five shapes, and the word that follows the `Loop` says
+which one it is.
+
+- **The word that follows the `Loop` is a name of the kind when the line
+  goes on after it.** The kinds are `Files`, `Reg`, `Read` and `Parse`,
+  and the name of the kind is part of the statement: `Loop Read` is not
+  the loop of a count with the variable `Read` in it. The word is the
+  count of the loop when the line ends there: `Loop Read` alone is a
+  loop that counts the value of the variable `Read`, and `Loop Read` with
+  the body on the next line is that loop too.
+- **The command of a kind checks its parameters when the script loads.**
+  The parameter that is not there is named: "Parameter #1 required" and
+  the head of the statement, the text that was written before the body --
+  `Loop Read {` is "Loop Read ". The list of the parameters that is empty
+  says so in the words of the command: "\"Loop Read\" requires at least 1
+  parameter." and the line.
+- **The command of a kind names itself when it is not complete.** The body
+  that is not there is "Unexpected \"Loop Read\"", and the name of the kind
+  is the one that the script wrote: "Loop read" is "Loop read ".
+- **The command of a kind takes the parameters that it takes.** `Loop
+  Read`, `Loop Files` and `Loop Reg` take two, and `Loop Parse` takes
+  three. The one that is written too many says so at the load: "\"Loop
+  Read\" accepts at most 2 parameters." and the head with the first
+  parameter.
+- **The count of the loop is not a name of a kind.** A comma after the
+  count says that the type of the loop is not a valid one: "Invalid loop
+  type." and the line. The comma of a call is not there: "Function calls
+  require a space or \"(\".  Use comma only between parameters." and the
+  line.
+- **The loop without a count goes on until a break.** The v2 has no bound
+  of its own, and the tree has one: the count of the statements. The body
+  may be empty, and the count of the statements is the bound that still
+  moves.
+- **The fields of the loop that parses are the characters of the text.**
+  The delimiters that are not there make every character a field of its
+  own, and the spaces are fields too. The characters that are not wanted
+  at the ends of a field are taken away from it.
+- **The line of the file is `A_LoopReadLine`, and `A_LoopField` is the
+  field of the loop that parses.** The variables of the loops are there
+  before the first loop runs: the index is zero and the others are empty.
+- **The second parameter of `Loop Read` is not carried yet.** The v2 keeps
+  that file open for the duration of the loop and the `FileAppend` of the
+  body writes to it; the tree reads the file and writes nothing.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_loop_family.py` (39 cases, three of them the ones where
+the binary waits with a dialogue of its own or has no bound at all). The
+probes that measured the rules are in `egm-review/probe_loop_family.py`,
+`egm-review/probe_loop_family2.py`, `egm-review/probe_loop_family3.py`,
+`egm-review/probe_loop_family4.py`, `egm-review/probe_loop_fields.py`,
+`egm-review/probe_loop_outside.py` and
+`egm-review/probe_loop_variables.py`.
