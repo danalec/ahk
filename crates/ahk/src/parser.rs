@@ -160,6 +160,32 @@ fn the_source_of_a_token(token: &Token) -> String {
     text
 }
 
+/// The source of a definition, the way v2 writes it.
+///
+/// A definition may be written in more than one line, and v2 writes the
+/// source of it in one: the newline is a space.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the source of
+/// "static class Inner { }" is written with a space.
+fn the_source_of_a_definition(parser: &Parser, start: usize, end: usize) -> String {
+    let mut text = String::new();
+    let mut after_a_newline = false;
+    for token in parser.tokens.get(start..end).unwrap_or(&[]) {
+        if token.kind == TokenKind::Newline {
+            if !text.is_empty() {
+                after_a_newline = true;
+            }
+            continue;
+        }
+        if !text.is_empty() && (token.spaced || after_a_newline) {
+            text.push(' ');
+        }
+        after_a_newline = false;
+        text.push_str(&the_source_of_a_token(token));
+    }
+    text
+}
+
 /// The source of a line of the script.
 ///
 /// v2 shows the line when it refuses a name or a bracket, and the line is
@@ -439,6 +465,10 @@ pub fn parse(source: &str) -> Result<Vec<Node>, SyntaxError> {
     let tokens = crate::lexer::tokenize(source)?;
     Parser::new(tokens).parse_script()
 }
+
+/// The members of a class: the methods, the properties and the classes
+/// that it holds.
+type TheMembersOfAClass = (Vec<MethodDef>, Vec<PropertyDef>, Vec<Node>);
 
 /// The recursive descent parser.
 pub struct Parser {
@@ -2104,6 +2134,29 @@ impl Parser {
     /// A class: `class Name extends Base { }`.
     fn parse_class(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
+        self.parse_the_class(token, None)
+    }
+
+    /// A class, and the class that holds it.
+    ///
+    /// The name of a class inside a class is the name of the class that
+    /// holds it and the name of it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the class inside
+    /// `Outer` is "Outer.Inner", and the class inside `Outer.Middle` is
+    /// "Outer.Middle.Inner".
+    fn parse_the_class(&mut self, token: Token, outer: Option<&str>) -> Result<Node, SyntaxError> {
+        let name_token = self.next();
+        self.parse_the_class_with_the_name(token, name_token, outer)
+    }
+
+    /// A class, with the name of it already read.
+    fn parse_the_class_with_the_name(
+        &mut self,
+        token: Token,
+        name_token: Token,
+        outer: Option<&str>,
+    ) -> Result<Node, SyntaxError> {
         // Measured on the binary of v2.0.19 on 2026-10-31: a function may
         // not contain a class, and the line of the class is the one that is
         // named.
@@ -2117,7 +2170,6 @@ impl Parser {
                 column: token.column,
             });
         }
-        let name_token = self.next();
         if name_token.kind != TokenKind::Name {
             // Measured on the binary of v2.0.19 on 2026-10-31: a name that
             // begins with a number is refused by the lexer, a reserved word
@@ -2149,28 +2201,31 @@ impl Parser {
             }
             extends = Some(base.value);
         }
+        // The name of a class inside a class is the name of the class that
+        // holds it and the name of it.
+        let name = match outer {
+            Some(outer) => format!("{outer}.{}", name_token.value),
+            None => name_token.value.clone(),
+        };
         // The duplicates of the class are refused while its body is read,
         // the way v2 refuses them: the first duplicate of the body is the
         // one that is reported.
-        let (methods, properties) = self.parse_class_body(name_token.line, &name_token.value)?;
-        self.the_name_is_declared_twice(&name_token.value, true, name_token.line, name_token.column)?;
-        self.classes.insert(name_token.value.to_lowercase(), name_token.value.clone());
-        self.defined.insert(name_token.value.to_lowercase());
+        let (methods, properties, nested) = self.parse_class_body(name_token.line, &name)?;
+        self.the_name_is_declared_twice(&name, true, name_token.line, name_token.column)?;
+        self.classes.insert(name.to_lowercase(), name.clone());
+        self.defined.insert(name.to_lowercase());
         Ok(Node::ClassDef {
-            name: name_token.value,
+            name,
             extends,
             methods,
             properties,
+            nested,
             line: token.line,
         })
     }
 
     /// The members of a class: the methods and the properties.
-    fn parse_class_body(
-        &mut self,
-        line: u32,
-        name: &str,
-    ) -> Result<(Vec<MethodDef>, Vec<PropertyDef>), SyntaxError> {
+    fn parse_class_body(&mut self, line: u32, name: &str) -> Result<TheMembersOfAClass, SyntaxError> {
         // The brace may be on a line of its own.
         self.skip_newlines();
         if !self.at_op(&["{"]) {
@@ -2197,6 +2252,7 @@ impl Parser {
         }
         let mut methods = Vec::new();
         let mut properties = Vec::new();
+        let mut nested = Vec::new();
         // The names that are taken, and the table that each kind of member
         // has.
         //
@@ -2234,11 +2290,62 @@ impl Parser {
             }
             // A member may belong to the class and not to an instance.
             let mut is_static = false;
+            let start = self.position;
             if self.at_keyword(&["static"]) {
                 self.next();
                 is_static = true;
             }
             let name_token = self.next();
+            if name_token.kind == TokenKind::Keyword && name_token.value.eq_ignore_ascii_case("class") {
+                // A class inside a class. Its name is a name of the class
+                // that holds it: it is a property of it, and the duplicate
+                // of it is refused the way the duplicate of a property is.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: "Duplicate
+                // declaration.\n     Specifically: Inner", and the name of
+                // the class is not the name of the class that holds it.
+                let nested_name = self.next();
+                if nested_name.kind != TokenKind::Name {
+                    return Err(SyntaxError {
+                        message: "Unexpected \"{\"".to_string(),
+                        line: nested_name.line,
+                        column: nested_name.column,
+                    });
+                }
+                let key = nested_name.value.to_lowercase();
+                if class_properties.contains(&key) {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Duplicate declaration.\n     Specifically: {}",
+                            nested_name.value
+                        ),
+                        line: nested_name.line,
+                        column: nested_name.column,
+                    });
+                }
+                class_properties.push(key);
+                let line = name_token.line;
+                let column = name_token.column;
+                let class = self.parse_the_class_with_the_name(name_token, nested_name, Some(name))?;
+                // A class may not be static: v2 names the whole of the
+                // definition, and not the line of it.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // "Not a valid method, class or property definition.
+                // Specifically: static class Inner { }".
+                if is_static {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Not a valid method, class or property definition.\n     Specifically: {}",
+                            the_source_of_a_definition(self, start, self.position)
+                        ),
+                        line,
+                        column,
+                    });
+                }
+                nested.push(class);
+                continue;
+            }
             if name_token.kind != TokenKind::Name && name_token.kind != TokenKind::Keyword {
                 // Measured on the binary of v2.0.19 on 2026-10-31: a member
                 // of a class that is not a name is not a valid definition,
@@ -2391,7 +2498,7 @@ impl Parser {
             });
         }
         self.in_class = was_in_a_class;
-        Ok((methods, properties))
+        Ok((methods, properties, nested))
     }
 
     /// A directive: the name, and the rest of the line.
@@ -4041,6 +4148,19 @@ mod tests {
         // A class at the top level is fine, and so is one inside a block.
         parse("class C {\n}\n").expect("parses");
         parse("try {\n    class C {\n    }\n} catch Any as err {\n}\n").expect("parses");
+    }
+
+    #[test]
+    fn a_class_may_be_declared_inside_a_class() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // class inside a class is the name of the class that holds it and
+        // the name of it.
+        let statements = parse("class Outer {\n    class Inner {\n    }\n}\n").expect("parses");
+        let Node::ClassDef { name, nested, .. } = &statements[0] else { panic!("a class") };
+        assert_eq!(name, "Outer");
+        assert_eq!(nested.len(), 1);
+        let Node::ClassDef { name, .. } = &nested[0] else { panic!("a class") };
+        assert_eq!(name, "Outer.Inner");
     }
 
     #[test]

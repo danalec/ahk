@@ -358,6 +358,8 @@ pub enum Node {
         extends: Option<String>,
         methods: Vec<MethodDef>,
         properties: Vec<PropertyDef>,
+        /// The classes that the class holds.
+        nested: Vec<Node>,
         line: u32,
     },
     /// `obj.Method(args)`: a method called on a value.

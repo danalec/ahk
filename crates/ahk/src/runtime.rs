@@ -559,6 +559,8 @@ pub struct Class {
     pub methods: BTreeMap<String, MethodDef>,
     /// The properties of the class.
     pub properties: Vec<PropertyDef>,
+    /// The classes that the class holds, by their name in lower case.
+    pub nested: Vec<String>,
 }
 
 impl Value {
@@ -1288,10 +1290,17 @@ impl<'a> Runtime<'a> {
     fn collect_functions(&mut self, statements: &[Node]) {
         for statement in statements {
             match statement {
-                Node::ClassDef { name, extends, methods, properties, .. } => {
+                Node::ClassDef { name, extends, methods, properties, nested, .. } => {
                     let mut table: BTreeMap<String, MethodDef> = BTreeMap::new();
                     for method in methods {
                         table.insert(method.name.to_lowercase(), method.clone());
+                    }
+                    // The classes that a class holds are classes of their own.
+                    let mut held = Vec::new();
+                    for node in nested {
+                        if let Node::ClassDef { name, .. } = node {
+                            held.push(name.to_lowercase());
+                        }
                     }
                     self.classes.insert(
                         name.to_lowercase(),
@@ -1300,8 +1309,10 @@ impl<'a> Runtime<'a> {
                             extends: extends.clone(),
                             methods: table,
                             properties: properties.clone(),
+                            nested: held,
                         },
                     );
+                    self.collect_functions(nested);
                 }
                 Node::FunctionDef { name, parameters, body, declarations, .. } => {
                     self.functions.insert(
@@ -3223,6 +3234,15 @@ impl<'a> Runtime<'a> {
                 let values = self.evaluate_all(arguments)?;
                 return self.the_static_method(target, &values, line);
             }
+            // A class that the class holds is a class of its own, and the
+            // call of it makes an object of it.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31:
+            // `Outer.Inner()` is an object of the class inside `Outer`.
+            if let Some(value) = self.the_class_that_a_class_holds(target, name) {
+                let class = self.class_name_of(&value).unwrap_or_default();
+                return self.construct(&class, arguments, line);
+            }
         }
         // The automatic `__Init` of the class, the one that carries the
         // variables: `d.__Init()` runs it again.
@@ -3878,13 +3898,20 @@ impl<'a> Runtime<'a> {
         let Some(class) = self.class_name_of(target) else { return names };
         match self.classes.get(&class) {
             Some(definition) => {
-                // A class of the script: the initialiser of it, and the
-                // static methods that it declares.
+                // A class of the script: the initialiser of it, the static
+                // methods that it declares, and the classes that it holds.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the own
+                // properties of `Outer` are "__Init", "Inner" and
+                // "Prototype".
                 names.push("__Init".to_string());
                 for method in definition.methods.values() {
                     if method.is_static {
                         names.push(method.name.clone());
                     }
+                }
+                for nested in &definition.nested {
+                    names.push(self.the_name_of_a_class(nested));
                 }
             }
             // A class of the runtime: the call of it.
@@ -3914,11 +3941,15 @@ impl<'a> Runtime<'a> {
                     .unwrap_or_else(|| Value::Text(String::new())),
                 _ => Value::Text(String::new()),
             },
-            // A static method that the class declares.
+            // A static method that the class declares, or a class that the
+            // class holds.
             _ => {
                 let Some(class) = self.class_name_of(target) else {
                     return Value::Text(String::new());
                 };
+                if let Some(value) = self.the_class_that_a_class_holds(target, name) {
+                    return value;
+                }
                 match self.find_the_static_method_in(&class, &lower) {
                     Some((defining, method)) => self.static_method_reference(&defining, &method),
                     None => Value::Text(String::new()),
@@ -5074,6 +5105,13 @@ impl<'a> Runtime<'a> {
             if name == "__init" {
                 return Ok((self.the_init_of_a_class_value(target), false));
             }
+            // The classes that a class holds are its own properties.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31: `Outer.Inner`
+            // is the class value of the class inside `Outer`.
+            if let Some(value) = self.the_class_that_a_class_holds(target, &name) {
+                return Ok((value, false));
+            }
         }
         // The base of an object is a property of every object, and the
         // base of a class is a property of every class.
@@ -5386,6 +5424,36 @@ impl<'a> Runtime<'a> {
                 })
                 .unwrap_or(false)
         })
+    }
+
+    /// The name of a class, as the class that holds it writes it.
+    ///
+    /// The class inside `Outer` is "Outer.Inner", and the name of it as a
+    /// property of `Outer` is "Inner".
+    fn the_name_of_a_class(&self, class: &str) -> String {
+        let name = self
+            .classes
+            .get(class)
+            .map(|definition| definition.name.clone())
+            .unwrap_or_else(|| class.to_string());
+        name.rsplit('.').next().unwrap_or(&name).to_string()
+    }
+
+    /// The class that a class holds, as a value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the class inside
+    /// `Outer` is an own property of the class value of `Outer`, and it is
+    /// not a member of an instance of it.
+    fn the_class_that_a_class_holds(&self, target: &Value, name: &str) -> Option<Value> {
+        let class = self.class_name_of(target)?;
+        let definition = self.classes.get(&class)?;
+        let lower = name.to_lowercase();
+        for nested in &definition.nested {
+            if self.the_name_of_a_class(nested).to_lowercase() == lower {
+                return self.class_value_of(nested);
+            }
+        }
+        None
     }
 
     /// The argument of a loop, which has to be there.

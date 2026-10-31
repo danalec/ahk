@@ -973,6 +973,9 @@ that asks for another one is refused with the reason.
   method and a static variable are not members of an instance.
 - **A function may not contain a class.** The parser refuses it at the load,
   and it names the line of the class.
+- **A class may be declared inside a class.** Its name is the name of the
+  class that holds it and the name of it, and it is an own property of the
+  class value of the class that holds it.
 
 ## Side Effects
 

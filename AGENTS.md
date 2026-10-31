@@ -4222,3 +4222,39 @@ the rules are in `egm-review/probe_static_member.py`,
 `egm-review/probe_hasprop_runtime.py`, `egm-review/probe_hasprop_members.py`,
 `egm-review/probe_init_member.py`, `egm-review/probe_init_questions.py` and
 `egm-review/probe_prototype_own.py`.
+
+## 92. A class may be declared inside a class
+
+Measured on the binary of v2.0.19 on 2026-10-31: a class may be declared
+inside a class, and the name of it is the name of the class that holds it
+and the name of it.
+
+- **The name of the class inside a class is the whole of it.** The class
+  inside `Outer` is "Outer.Inner", and the class inside `Outer.Middle` is
+  "Outer.Middle.Inner". The instance of it carries that name in its
+  `__Class`.
+- **The class is an own property of the class value of the class that holds
+  it.** The own properties of `Outer` are "__Init", "Inner" and "Prototype",
+  and the own properties of the prototype of `Outer` are "__Class" alone.
+- **The class is not a member of an instance of the class that holds it.**
+  `obj.Inner` is refused with `This value of type "Outer" has no property
+  named "Inner".`.
+- **The call of it makes an object of it.** `Outer.Inner()` is an object of
+  the class inside `Outer`, and the base and the `super` of it are the ones
+  of that class.
+- **The name of it is a name of the class that holds it.** The duplicate of
+  it is refused the way the duplicate of a property is: "Duplicate
+  declaration." and the name of it. A method and a class may have the same
+  name, and a variable and a class may have the same name.
+- **A class inside a class may not be static.** The load is refused with "Not
+  a valid method, class or property definition.", and v2 names the whole of
+  the definition -- "static class Inner { }" -- and not the line of it.
+- **The source of a definition is written in one line.** A definition may be
+  written in more than one line, and the newline is a space in the source
+  that the refusal names.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_nested_class.py` (27 cases), and the probes that measured
+the rules are in `egm-review/probe_nested_class.py`,
+`egm-review/probe_nested_class_names.py` and
+`egm-review/probe_invalid_member.py`.

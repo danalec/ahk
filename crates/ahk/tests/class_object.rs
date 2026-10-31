@@ -96,6 +96,14 @@ fn the_failure_of(source: &str) -> String {
     report.output.first().cloned().unwrap_or_default().trim().to_string()
 }
 
+/// The failure of the load of a script: the message of it.
+///
+/// A load error is not catchable, and it is not a failure of the run: it
+/// is the refusal of the script itself.
+fn the_load_failure_of(source: &str) -> String {
+    parse(source).expect_err("does not parse").message
+}
+
 #[test]
 fn the_base_of_an_object_is_the_prototype_of_its_class() {
     // Measured on the binary of v2.0.19 on 2026-10-31.
@@ -966,6 +974,94 @@ fn the_prototype_owns_the_automatic_init_of_the_class() {
     assert_eq!(
         the_answer_of("class C {\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
         "__Class"
+    );
+}
+
+#[test]
+fn a_class_inside_a_class_is_an_own_property_of_the_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the class inside a
+    // class is an own property of the class value of the class that holds
+    // it, and it is not a member of an instance of it.
+    assert_eq!(
+        the_answer_of("class Outer {\n    class Inner {\n    }\n}\nMsgBox Outer.Inner.__Class"),
+        "Class"
+    );
+    assert_eq!(
+        the_answer_of("class Outer {\n    class Inner {\n    }\n}\ns := \"\"\nfor p in Outer.OwnProps()\n    s .= p\nMsgBox s"),
+        "__InitInnerPrototype"
+    );
+    assert_eq!(
+        the_answer_of("class Outer {\n    class Inner {\n    }\n}\ns := \"\"\nfor p in Outer.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class"
+    );
+    assert_eq!(
+        the_failure_of("class Outer {\n    class Inner {\n    }\n}\nobj := Outer()\nMsgBox obj.Inner"),
+        "This value of type \"Outer\" has no property named \"Inner\". |  |"
+    );
+}
+
+#[test]
+fn the_name_of_the_class_inside_a_class_is_the_name_of_the_class_that_holds_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the class inside
+    // `Outer` is "Outer.Inner".
+    assert_eq!(
+        the_answer_of("class Outer {\n    class Inner {\n    }\n}\nobj := Outer.Inner()\nMsgBox obj.__Class"),
+        "Outer.Inner"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class Outer {\n    class Middle {\n        class Inner {\n        }\n    }\n}\nobj := Outer.Middle.Inner()\nMsgBox obj.__Class"
+        ),
+        "Outer.Middle.Inner"
+    );
+    // The class of the top level and the class inside a class are two
+    // classes, and their names are different.
+    assert_eq!(
+        the_answer_of(
+            "class Inner {\n}\nclass Outer {\n    class Inner {\n    }\n}\nobj := Outer.Inner()\nMsgBox obj.__Class"
+        ),
+        "Outer.Inner"
+    );
+}
+
+#[test]
+fn the_call_of_a_class_inside_a_class_makes_an_object_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `Outer.Inner()` is
+    // an object of the class inside `Outer`.
+    assert_eq!(
+        the_answer_of("class Outer {\n    class Inner {\n        Say() {\n            return 1\n        }\n    }\n}\nMsgBox Outer.Inner().Say()"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class Base {\n    Say() {\n        return 1\n    }\n}\nclass Outer {\n    class Inner extends Base {\n        Other() {\n            return super.Say()\n        }\n    }\n}\nMsgBox Outer.Inner().Other()"
+        ),
+        "1"
+    );
+}
+
+#[test]
+fn the_duplicate_of_a_class_inside_a_class_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of the
+    // class is a name of the class that holds it, and the duplicate of it
+    // is refused the way the duplicate of a property is.
+    assert_eq!(
+        the_load_failure_of("class Outer {\n    class Inner {\n    }\n    class Inner {\n    }\n}"),
+        "Duplicate declaration.\n     Specifically: Inner"
+    );
+    assert_eq!(
+        the_load_failure_of("class Outer {\n    static Inner := 1\n    class Inner {\n    }\n}"),
+        "Duplicate declaration.\n     Specifically: Inner"
+    );
+}
+
+#[test]
+fn a_class_inside_a_class_may_not_be_static() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: v2 names the whole
+    // of the definition, and not the line of it.
+    assert_eq!(
+        the_load_failure_of("class Outer {\n    static class Inner {\n    }\n}"),
+        "Not a valid method, class or property definition.\n     Specifically: static class Inner { }"
     );
 }
 
