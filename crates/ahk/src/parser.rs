@@ -37,7 +37,8 @@ use alloc::vec::Vec;
 
 use crate::ast::{
     AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, CastType, Catch, DeclareKind, Declared,
-    Declarations, LiteralValue, LoopKind, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
+    Declarations, DynamicPiece, LiteralValue, LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef,
+    UnaryOp,
 };
 use crate::lexer::{SyntaxError, Token, TokenKind};
 
@@ -170,7 +171,7 @@ fn the_source_of_a_token(token: &Token) -> String {
 /// value that cannot be written is refused at the load, and it is an
 /// "Invalid assignment.".
 fn the_value_can_be_written(node: &Node) -> bool {
-    matches!(node, Node::Var { .. } | Node::Property { .. } | Node::Index { .. })
+    matches!(node, Node::Var { .. } | Node::Property { .. } | Node::Index { .. } | Node::DynamicName { .. })
 }
 
 /// The source of the head of a statement, the way v2 writes it.
@@ -674,6 +675,12 @@ pub struct Parser {
     /// class is a class of the script or a class that a script can read,
     /// and the one that is not there is refused at the load.
     bases: Vec<(String, String, u32, u32)>,
+    /// The names that the script is building, and the ones that are open.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the percent sign
+    /// that closes a name that the script builds is the end of it, and not
+    /// the beginning of another one: `%x%` is one name.
+    derefs: usize,
 }
 
 /// An assignment of the script, and the place it was written.
@@ -720,6 +727,7 @@ impl Parser {
             expressions: Vec::new(),
             statement_start: 0,
             bases: Vec::new(),
+            derefs: 0,
         }
     }
 
@@ -1400,6 +1408,33 @@ impl Parser {
             self.end_of_statement()?;
             return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
         }
+        if token.kind == TokenKind::Op && token.value == "%" {
+            // Measured on the binary of v2.0.19 on 2026-10-31: a statement
+            // that begins with a double deref is a name that the script
+            // builds, and it may be written to: `%name% := 1`.
+            let value = self.parse_expression()?;
+            if self.at_an_assignment_operator() {
+                let operator = self.next();
+                let Some(op) = the_assignment_operator(&operator.value) else {
+                    return Err(self.error("expected an assignment operator"));
+                };
+                let Node::DynamicName { pieces, .. } = value else {
+                    return Err(self.error("Invalid assignment."));
+                };
+                let assigned = self.the_expression_of_a_statement()?;
+                self.end_of_statement()?;
+                return Ok(vec![Node::AssignDynamic {
+                    name: pieces,
+                    op,
+                    value: Box::new(assigned),
+                    line: token.line,
+                }]);
+            }
+            // The name is only read, and the value it leaves behind is not
+            // used.
+            self.end_of_statement()?;
+            return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+        }
         if token.kind == TokenKind::Op && !matches!(token.value.as_str(), "[" | "{" | ")" | "]" | "}") {
             // Measured on the binary of v2.0.19 on 2026-10-31: a statement
             // that begins with an operator is a line that holds no action,
@@ -1536,6 +1571,37 @@ impl Parser {
     /// definition of a function.
     fn parse_name_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
         let name_token = self.next();
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // variable that the script builds is a statement of its own, and it
+        // may be written to: `MyArray%i% := 1`.
+        if self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
+            let at_the_name = self.position - 1;
+            let pieces = self.the_pieces_of_a_dynamic_name(name_token.value.clone(), at_the_name, name_token.line)?;
+            if self.at_an_assignment_operator() {
+                let operator = self.next();
+                let Some(op) = the_assignment_operator(&operator.value) else {
+                    return Err(self.error(format!(
+                        "expected an assignment operator after {:?}",
+                        name_token.value
+                    )));
+                };
+                let value = self.the_expression_of_a_statement()?;
+                self.end_of_statement()?;
+                return Ok(vec![Node::AssignDynamic {
+                    name: pieces,
+                    op,
+                    value: Box::new(value),
+                    line: name_token.line,
+                }]);
+            }
+            // A name that is only read is a statement that reads it, and the
+            // value it leaves behind is not used.
+            self.end_of_statement()?;
+            return Ok(vec![Node::Expression {
+                value: Box::new(Node::DynamicName { pieces, line: name_token.line }),
+                line: name_token.line,
+            }]);
+        }
         if self.at_op(&["("]) {
             self.next();
             // `Name(a, b) { }` is a definition; `Name(a, b)` is a call. The
@@ -3423,7 +3489,7 @@ impl Parser {
                 // The implicit concatenation of v2: two values side by side
                 // are one value. It binds like the dot, and the dot is
                 // looser than the arithmetic.
-                if precedence::CONCAT < min || !self.starts_expression() {
+                if precedence::CONCAT < min || !self.starts_a_concatenation() {
                     // Measured on the binary of v2.0.19 on 2026-10-31: a
                     // line that begins with an operator continues the one
                     // before it.
@@ -3552,6 +3618,10 @@ impl Parser {
             // A parenthesis opens a value: the concatenation of v2 takes it
             // as the value that follows the one before it.
             TokenKind::Op if token.value == "(" => true,
+            // The percent sign opens a name that the script builds, and it
+            // is a value of the concatenation: `"a" %x%` is the text and the
+            // value of the variable that `x` names.
+            TokenKind::Op if token.value == "%" => true,
             TokenKind::Keyword => {
                 let word = token.value.to_lowercase();
                 if word == "true" || word == "false" {
@@ -3565,6 +3635,20 @@ impl Parser {
             }
             _ => false,
         }
+    }
+
+    /// Whether the value that follows may be the one of a concatenation.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the percent sign
+    /// that closes a name that the script builds is the end of it, and not
+    /// the beginning of another one: `%x%` is one name, and not the value
+    /// of `x` and the name of another variable.
+    fn starts_a_concatenation(&self) -> bool {
+        let token = self.peek();
+        if token.kind == TokenKind::Op && token.value == "%" {
+            return self.derefs == 0;
+        }
+        self.starts_expression()
     }
 
     /// Whether the value that follows the operator is there.
@@ -3664,6 +3748,118 @@ impl Parser {
             )
         };
         SyntaxError { message, line: token.line, column: token.column }
+    }
+
+    /// The error of the double deref that does not close.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the text that is
+    /// named is the rest of the line, from the hash that opens it.
+    fn the_error_of_a_missing_ending(&self, at: usize) -> SyntaxError {
+        let token = &self.tokens[at];
+        SyntaxError {
+            message: format!(
+                "Missing ending \"%\"\n     Specifically: {}",
+                the_source_of_the_rest_of_the_line(self, at)
+            ),
+            line: token.line,
+            column: token.column,
+        }
+    }
+
+    /// The expression that is inside a name that the script builds.
+    ///
+    /// The percent sign that closes the name is the end of it, and not the
+    /// beginning of another one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the operand that is
+    /// not there means that the name does not close, and v2 says so: the
+    /// error of the name names the rest of the line, from the name.
+    fn the_expression_of_a_dynamic_name(&mut self, at: usize) -> Result<Node, SyntaxError> {
+        self.derefs += 1;
+        let value = self.parse_expression();
+        self.derefs -= 1;
+        match value {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                if error.message.starts_with("Missing operand.") {
+                    return Err(self.the_error_of_a_missing_ending(at));
+                }
+                Err(error)
+            }
+        }
+    }
+
+    /// The refusal of the percent sign that is inside a name.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the percent sign
+    /// that is inside a name that the script builds is not a value, and v2
+    /// says "Syntax error." and the rest of the line, from it.
+    fn the_error_of_a_percent_inside(&self) -> SyntaxError {
+        self.error(format!(
+            "Syntax error.\n     Specifically: {}",
+            the_source_of_the_rest_of_the_line(self, self.position)
+        ))
+    }
+
+    /// The pieces of a name that the script builds.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the name of the
+    /// dynamic variable reference is the text that is written and the values
+    /// of the expressions, and the space between two of them is what tells
+    /// that the name is over: `MyArray%i%` is one name and `MyArray %i%` is
+    /// the variable `MyArray` and the value of the variable `i`.
+    ///
+    /// The first piece is the text that is written, and the ones that come
+    /// after it are the values of the expressions between the percent signs.
+    ///
+    /// The place of the name is where the text that is named begins: the
+    /// error of the name that does not close names the rest of the line
+    /// from there.
+    fn the_pieces_of_a_dynamic_name(
+        &mut self,
+        first: String,
+        at: usize,
+        line: u32,
+    ) -> Result<Vec<DynamicPiece>, SyntaxError> {
+        let mut pieces = vec![DynamicPiece::Text(first)];
+        while self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
+            self.next();
+            if self.at_op(&["%"]) {
+                return Err(self.the_error_of_a_percent_inside());
+            }
+            let value = self.the_expression_of_a_dynamic_name(at)?;
+            if !self.at_op(&["%"]) {
+                return Err(self.the_error_of_a_missing_ending(at));
+            }
+            self.next();
+            pieces.push(DynamicPiece::Value(Box::new(value)));
+        }
+        let _ = line;
+        Ok(pieces)
+    }
+
+    /// The pieces of a name that the script builds, the first of them being
+    /// the value of an expression.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the percent signs
+    /// that open and that close a piece may have a space around them, and
+    /// the pieces that follow are joined without a space.
+    fn the_pieces_after_the_percent(&mut self, value: Node) -> Result<Vec<DynamicPiece>, SyntaxError> {
+        let mut pieces = vec![DynamicPiece::Value(Box::new(value))];
+        while self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
+            let open = self.position;
+            self.next();
+            if self.at_op(&["%"]) {
+                return Err(self.the_error_of_a_percent_inside());
+            }
+            let value = self.the_expression_of_a_dynamic_name(open)?;
+            if !self.at_op(&["%"]) {
+                return Err(self.the_error_of_a_missing_ending(open));
+            }
+            self.next();
+            pieces.push(DynamicPiece::Value(Box::new(value)));
+        }
+        Ok(pieces)
     }
 
     /// The error of the operand that is not there.
@@ -3943,6 +4139,16 @@ impl Parser {
                     return self.parse_suffixes(call, true);
                 }
                 let name = token.value;
+                // The name of a variable that the script builds: `MyArray%i%`
+                // is the variable whose name is the text and the value of
+                // `i`, and the space is what tells it apart from the
+                // variable `MyArray` and the value of `i`. The percent sign
+                // that closes a name that is being built is not one of them.
+                if self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
+                    let at_the_name = self.position - 1;
+                    let pieces = self.the_pieces_of_a_dynamic_name(name, at_the_name, token.line)?;
+                    return Ok(Node::DynamicName { pieces, line: token.line });
+                }
                 // The arrow function of v2 with one parameter: `a => a + 1`.
                 if self.at_op(&["=>"]) {
                     self.position += 1;
@@ -3973,6 +4179,24 @@ impl Parser {
                 self.expect_op("=>")?;
                 let body = self.parse_expression()?;
                 Node::Lambda { parameters, body: Box::new(body), line: token.line }
+            }
+            TokenKind::Op if token.value == "%" => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the double
+                // deref of v2 is a name that the script builds -- the value of
+                // the expression is the name of the variable whose value is
+                // the answer -- and the hash that does not close it is
+                // refused with the text of the rest of the line.
+                let open = self.position - 1;
+                if self.at_op(&["%"]) {
+                    return Err(self.the_error_of_a_percent_inside());
+                }
+                let value = self.the_expression_of_a_dynamic_name(open)?;
+                if !self.at_op(&["%"]) {
+                    return Err(self.the_error_of_a_missing_ending(open));
+                }
+                self.next();
+                let pieces = self.the_pieces_after_the_percent(value)?;
+                Node::DynamicName { pieces, line: token.line }
             }
             TokenKind::Op if token.value == "(" => {
                 let node = self.parse_expression()?;
@@ -4087,6 +4311,38 @@ impl Parser {
             if self.at_member_dot() {
                 let at_the_dot = self.position;
                 let dot = self.next();
+                // Measured on the binary of v2.0.19 on 2026-10-31: the name
+                // of the member may be built by the script: `m.%x%` is the
+                // member whose name is the value of `x`, and `m.%x%()` is
+                // the method whose name is the value of `x`.
+                if self.at_op(&["%"]) {
+                    let open = self.position;
+                    self.next();
+                    if self.at_op(&["%"]) {
+                        return Err(self.the_error_of_a_percent_inside());
+                    }
+                    let value = self.the_expression_of_a_dynamic_name(open)?;
+                    if !self.at_op(&["%"]) {
+                        return Err(self.the_error_of_a_missing_ending(open));
+                    }
+                    self.next();
+                    let pieces = self.the_pieces_after_the_percent(value)?;
+                    let name = MemberName::Dynamic(pieces);
+                    if self.at_op(&["("]) {
+                        self.next();
+                        let arguments = self.parse_arguments()?;
+                        self.expect_op(")")?;
+                        node = Node::MethodCall {
+                            target: Box::new(node),
+                            name,
+                            arguments,
+                            line: dot.line,
+                        };
+                        continue;
+                    }
+                    node = Node::Property { target: Box::new(node), name, line: dot.line };
+                    continue;
+                }
                 let name = self.next();
                 // The member of v2 may be a number: the name of the
                 // property is the text of the number, and `1.5.2` asks for
@@ -4109,19 +4365,29 @@ impl Parser {
                 }
                 // A member with parentheses is a method, and a member
                 // without them is a property.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the name
+                // of the member may be built by the script, and the text
+                // that is written is the first piece of it.
+                let member = if self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
+                    let at_the_name = self.position - 1;
+                    MemberName::Dynamic(self.the_pieces_of_a_dynamic_name(name.value, at_the_name, name.line)?)
+                } else {
+                    MemberName::Text(name.value)
+                };
                 if self.at_op(&["("]) {
                     self.next();
                     let arguments = self.parse_arguments()?;
                     self.expect_op(")")?;
                     node = Node::MethodCall {
                         target: Box::new(node),
-                        name: name.value,
+                        name: member,
                         arguments,
                         line: dot.line,
                     };
                     continue;
                 }
-                node = Node::Property { target: Box::new(node), name: name.value, line: dot.line };
+                node = Node::Property { target: Box::new(node), name: member, line: dot.line };
                 continue;
             }
             if self.at_keyword(&["as"]) {
@@ -4241,6 +4507,9 @@ impl Parser {
             Node::Index { target, index, .. } => {
                 Node::AssignIndex { target, index, op, value: Box::new(value), line }
             }
+            Node::DynamicName { pieces, .. } => {
+                Node::AssignDynamic { name: pieces, op, value: Box::new(value), line }
+            }
             _ => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // assignment of an expression is refused at the load, and
@@ -4284,7 +4553,7 @@ impl Parser {
             self.expect_op(")")?;
             return Ok(Node::MethodCall {
                 target: Box::new(Node::Super { line: token.line }),
-                name: "Call".to_string(),
+                name: MemberName::Text("Call".to_string()),
                 arguments,
                 line: token.line,
             });

@@ -4891,3 +4891,49 @@ rest of the line for its argument, and it refused the line with a message
 that named something else. The probes that measured the rules are in
 `egm-review/probe_hash_place.py`, `egm-review/probe_directive_place.py`
 and `egm-review/probe_directive_names.py`.
+
+## 109. The name that the script builds
+
+Measured on the binary of v2.0.19 on 2026-10-31: the percent signs of v2
+build a name, and the name is the name of a variable that is read or
+written.
+
+- **The name is the text that is written and the values of the
+  expressions,** and the pieces are joined without a space between them:
+  `MyArray%i%` is the variable `MyArray1`, and `%x%` is the variable whose
+  name is the value of `x`.
+- **The space between two pieces is what tells that the name is over:**
+  `MyArray %i%` is the variable `MyArray` and the value of `i`.
+- **The name may be read and written,** and the variable that it names is
+  the one that changes: `MyArray%i% := "B"` writes `MyArray1`, and
+  `%x% := 7` writes the variable whose name is the value of `x`.
+- **The name of a variable is a name, and not a path of names:** `%m.a%` is
+  the variable `m.a`, and it is not there -- "Variable not found." with the
+  name in the `Extra`.
+- **The name is looked up the way a name that is written is looked up:** a
+  function of the script and a class are values too, and the name of one of
+  them is the value of it.
+- **The name of a member may be built too:** `m.%x%` is the member whose
+  name is the value of `x`, and `m.%x%()` is the method whose name it is.
+- **A name that the script builds does not create a variable,** and a
+  function that writes one says that it wants a global declaration:
+  "This dynamic assignment requires a "global" declaration." with the name
+  in the `Extra`, of the class `Error`.
+- **The percent sign that closes the name is the end of it,** and the one
+  that is inside it is not a value: "Syntax error." with the rest of the
+  line, from it.
+- **A name that does not close is refused at the load:** "Missing ending
+  "%"" with the rest of the line, from the name.
+- **A statement that begins with a double deref is a name that the script
+  builds,** and the value it leaves behind is not used.
+
+The tree had no double deref at all: the percent sign was not a token of
+the lexer, and the name that the v2 builds was something the tree could
+neither read nor write. The comparison of the tree with the binary is in
+`egm-review/compare_dynamic_name.py` (78 cases: 69 the same, and 9 that
+are known to differ -- the refusal at the load of the v2, the folder of the
+run, and the parenthesis that the v2 names where the tree names the space).
+The probes that measured the rules are in
+`egm-review/probe_dynamic_name.py`, `egm-review/probe_dynamic_name2.py`,
+`egm-review/probe_percent_empty.py`, `egm-review/probe_percent_inside.py`
+and `egm-review/probe_percent_space.py`.

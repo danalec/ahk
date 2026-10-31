@@ -45,8 +45,8 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use crate::ast::{
-    AccessBody, AccessDef, AssignOp, BinaryOp, CastType, DeclareKind, Declarations, LiteralValue, LoopKind,
-    MethodDef, Node, Parameter, PropertyDef, UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, CastType, DeclareKind, Declarations, DynamicPiece, LiteralValue,
+    LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
@@ -1885,27 +1885,36 @@ impl<'a> Runtime<'a> {
             }
             Node::MethodCall { target, name, arguments, line } => {
                 // `super.m()`: the method of the base.
+                let name = self.the_name_of_the_member(name, *line)?;
                 let value = if let Node::Super { .. } = &**target {
-                    self.call_the_method_of_the_base(name, arguments, *line)?
+                    self.call_the_method_of_the_base(&name, arguments, *line)?
                 } else {
                     let target_value = self.evaluate(target)?;
-                    self.call_method_on(&target_value, name, arguments, *line)?
+                    self.call_method_on(&target_value, &name, arguments, *line)?
                 };
                 detail = value.to_text();
             }
             Node::Property { target, name, line } => {
                 // `super.value`: the property of the base.
+                let name = self.the_name_of_the_member(name, *line)?;
                 let value = if let Node::Super { .. } = &**target {
-                    self.read_the_property_of_the_base(name, *line)?
+                    self.read_the_property_of_the_base(&name, *line)?
                 } else {
                     let target_value = self.evaluate(target)?;
-                    self.read_property(&target_value, name, *line)?
+                    self.read_property(&target_value, &name, *line)?
                 };
                 detail = value.to_text();
             }
+            Node::AssignDynamic { name, op, value, line } => {
+                let name = self.the_name_of_the_pieces(name, *line)?;
+                let value = self.evaluate(value)?;
+                let stored = self.write_a_dynamic_name(&name, *op, value, *line)?;
+                detail = format!("{name} = {}", stored.to_text());
+            }
             Node::AssignProperty { target, name, op, value, line } => {
                 let value = self.evaluate(value)?;
-                let stored = self.write_a_property(target, name, *op, value, *line)?;
+                let name = self.the_name_of_the_member(name, *line)?;
+                let stored = self.write_a_property(target, &name, *op, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
             }
             Node::AssignIndex { target, index, op, value, line } => {
@@ -2230,6 +2239,12 @@ impl<'a> Runtime<'a> {
                 // leaves behind is not used: v2 reads it.
                 self.evaluate(statement)?;
                 detail = "the item was read".into();
+            }
+            Node::DynamicName { .. } => {
+                // A name that the script builds is a statement that reads
+                // it, and the value it leaves behind is not used.
+                self.evaluate(statement)?;
+                detail = "the variable was read".into();
             }
             Node::Literal { .. }
             | Node::Var { .. }
@@ -6284,6 +6299,17 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The failure of a variable that has no value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the name of the
+    /// variable goes in the `Extra` of the error, and the `What` is empty.
+    fn the_unassigned_failure(&self, name: &str, line: u32) -> RuntimeFailure {
+        RuntimeFailure::Detailed(
+            RuntimeError { message: self.the_unassigned(name), line },
+            Detail { what: String::new(), extra: name.to_string() },
+        )
+    }
+
     /// The value of a variable that has to be there.
     pub(crate) fn assigned(
         &self,
@@ -6291,9 +6317,7 @@ impl<'a> Runtime<'a> {
         value: Option<Value>,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
-        value.ok_or_else(|| {
-            RuntimeFailure::Error(RuntimeError { message: self.the_unassigned(name), line })
-        })
+        value.ok_or_else(|| self.the_unassigned_failure(name, line))
     }
 
     /// The value as a number, the way the maths operations want it.
@@ -6403,9 +6427,7 @@ impl<'a> Runtime<'a> {
         };
         match operand {
             Node::Var { name, .. } => {
-                let current = self.lookup(name).ok_or_else(|| {
-                    RuntimeFailure::Error(RuntimeError { message: self.the_unassigned(name), line })
-                })?;
+                let current = self.lookup(name).ok_or_else(|| self.the_unassigned_failure(name, line))?;
                 let stored = self.the_number_after(&current, step, line)?;
                 self.assign(name, stored.clone());
                 Ok(match op {
@@ -6417,9 +6439,10 @@ impl<'a> Runtime<'a> {
             // of a property and of an item writes to them.
             Node::Property { target, name, line: property_line } => {
                 let target_value = self.evaluate(target)?;
-                let current = self.read_property(&target_value, name, *property_line)?;
+                let name = self.the_name_of_the_member(name, *property_line)?;
+                let current = self.read_property(&target_value, &name, *property_line)?;
                 let stored = self.the_number_after(&current, step, *property_line)?;
-                self.write_a_property(target, name, AssignOp::Set, stored.clone(), *property_line)?;
+                self.write_a_property(target, &name, AssignOp::Set, stored.clone(), *property_line)?;
                 Ok(match op {
                     UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
                     _ => current,
@@ -6526,10 +6549,7 @@ impl<'a> Runtime<'a> {
         // built-in: it is a variable of the script, and v2 reads it. A
         // variable that has no value is a variable that has no value.
         if crate::builtins::find(name).is_none() {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: self.the_unassigned(name),
-                line,
-            }));
+            return Err(self.the_unassigned_failure(name, line));
         }
         let mut values = Vec::with_capacity(arguments.len());
         for argument in arguments {
@@ -7339,7 +7359,8 @@ impl<'a> Runtime<'a> {
             }
             Node::AssignProperty { target, name, op, value, line } => {
                 let value = self.evaluate(value)?;
-                self.write_a_property(target, name, *op, value, *line)
+                let name = self.the_name_of_the_member(name, *line)?;
+                self.write_a_property(target, &name, *op, value, *line)
             }
             Node::AssignIndex { target, index, op, value, line } => {
                 let target_value = self.evaluate(target)?;
@@ -7438,15 +7459,15 @@ impl<'a> Runtime<'a> {
                     })),
                     None => match self.the_value_of_a_variable_of_the_runtime(name) {
                         Some(value) => Ok(value),
-                        None => Err(RuntimeFailure::Error(RuntimeError {
+                        None => Err(match self.alias_of(name) {
                             // A parameter that is an alias says that it is
                             // the parameter that has no value.
-                            message: match self.alias_of(name) {
-                                Some(_) => unassigned_parameter(),
-                                None => self.the_unassigned(name),
-                            },
-                            line: *line,
-                        })),
+                            Some(_) => RuntimeFailure::Error(RuntimeError {
+                                message: unassigned_parameter(),
+                                line: *line,
+                            }),
+                            None => self.the_unassigned_failure(name, *line),
+                        }),
                     },
                 },
             },
@@ -7723,18 +7744,22 @@ impl<'a> Runtime<'a> {
             Node::MethodCall { target, name, arguments, line } => {
                 // `super.m()`: the method of the base.
                 if let Node::Super { .. } = &**target {
-                    return self.call_the_method_of_the_base(name, arguments, *line);
+                    let name = self.the_name_of_the_member(name, *line)?;
+                    return self.call_the_method_of_the_base(&name, arguments, *line);
                 }
                 let target_value = self.evaluate(target)?;
-                self.call_method_on(&target_value, name, arguments, *line)
+                let name = self.the_name_of_the_member(name, *line)?;
+                self.call_method_on(&target_value, &name, arguments, *line)
             }
             Node::Property { target, name, line } => {
                 // `super.value`: the property of the base.
                 if let Node::Super { .. } = &**target {
-                    return self.read_the_property_of_the_base(name, *line);
+                    let name = self.the_name_of_the_member(name, *line)?;
+                    return self.read_the_property_of_the_base(&name, *line);
                 }
                 let target_value = self.evaluate(target)?;
-                self.read_property(&target_value, name, *line)
+                let name = self.the_name_of_the_member(name, *line)?;
+                self.read_property(&target_value, &name, *line)
             }
             Node::Index { target, index, line } => {
                 // `super["value"]`: the item of the base.
@@ -7748,10 +7773,11 @@ impl<'a> Runtime<'a> {
                 // the one that is indexed.
                 if let Node::Property { target: object, name, line: property_line } = &**target {
                     let object_value = self.evaluate(object)?;
+                    let name = self.the_name_of_the_member(name, *property_line)?;
                     let (value, by_meta) =
                         self.read_property_fully(
                             &object_value,
-                            name,
+                            &name,
                             core::slice::from_ref(&key),
                             *property_line,
                         )?;
@@ -7772,6 +7798,26 @@ impl<'a> Runtime<'a> {
                 } else {
                     self.evaluate(otherwise)
                 }
+            }
+            Node::DynamicName { pieces, line } => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the name
+                // of the variable is the one that the pieces make, and a name
+                // that is not a variable fails with "Variable not found." and
+                // the name in the `Extra`.
+                let name = self.the_name_of_the_pieces(pieces, *line)?;
+                match self.the_variable_of_the_name(&name, *line)? {
+                    Some(value) => Ok(value),
+                    None => Err(RuntimeFailure::Detailed(
+                        RuntimeError { message: "Variable not found.".to_string(), line: *line },
+                        Detail { what: String::new(), extra: name },
+                    )),
+                }
+            }
+            Node::AssignDynamic { name, op, value, line } => {
+                let name = self.the_name_of_the_pieces(name, *line)?;
+                let value = self.evaluate(value)?;
+                self.write_a_dynamic_name(&name, *op, value, *line)?;
+                Ok(Value::Text(String::new()))
             }
             Node::Cast { value, target, line } => {
                 let value = self.evaluate(value)?;
@@ -7978,8 +8024,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         reference: &str,
         line: u32,
-    ) -> Result<Option<Value>, RuntimeError> {
-        let mut parts = reference.split('.');
+    ) -> Result<Option<Value>, RuntimeError> {        let mut parts = reference.split('.');
         let Some(name) = parts.next() else { return Ok(None) };
         let found = self.lookup(name);
         let mut value = match found {
@@ -8003,6 +8048,131 @@ impl<'a> Runtime<'a> {
             value = next;
         }
         Ok(Some(value))
+    }
+
+    /// The name that the pieces of the script make.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the value of a
+    /// piece is a text or a reference, and a value of another kind is
+    /// refused with the kind of it.
+    fn the_name_of_the_pieces(
+        &mut self,
+        pieces: &[DynamicPiece],
+        line: u32,
+    ) -> Result<String, RuntimeFailure> {
+        let mut name = String::new();
+        for piece in pieces {
+            match piece {
+                DynamicPiece::Text(text) => name.push_str(text),
+                DynamicPiece::Value(value) => {
+                    let value = self.evaluate(value)?;
+                    match &value {
+                        Value::Text(text) => name.push_str(text),
+                        Value::Int(_) | Value::Float(_) => name.push_str(&value.to_text()),
+                        Value::Reference(reference) => name.push_str(&reference.name),
+                        other => {
+                            let kind = other.the_kind();
+                            return Err(RuntimeFailure::Error(RuntimeError {
+                                message: format!(
+                                    "Expected a String or VarRef but got a{} {}.",
+                                    the_article_of(&kind),
+                                    kind
+                                ),
+                                line,
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(name)
+    }
+
+    /// The name of a member, when the script builds it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the name of the
+    /// member is the text that is written and the values of the
+    /// expressions, and `m.%x%` is the member whose name is the value of
+    /// `x`.
+    fn the_name_of_the_member(
+        &mut self,
+        name: &MemberName,
+        line: u32,
+    ) -> Result<String, RuntimeFailure> {
+        match name {
+            MemberName::Text(text) => Ok(text.clone()),
+            MemberName::Dynamic(pieces) => self.the_name_of_the_pieces(pieces, line),
+        }
+    }
+
+    /// The value of the variable of that name.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    /// dynamic variable reference is the name of a variable, and not a path
+    /// of names: `%m.a%` is the variable `m.a`, and it is not there. The
+    /// name is looked up the way a name that is written is looked up: a
+    /// function of the script and a class are values too.
+    fn the_variable_of_the_name(
+        &mut self,
+        name: &str,
+        line: u32,
+    ) -> Result<Option<Value>, RuntimeFailure> {
+        if let Some(value) = self.lookup(name) {
+            return Ok(Some(value));
+        }
+        match crate::variables::lookup(name, self) {
+            Some(Ok(value)) => Ok(Some(value)),
+            Some(Err(error)) => {
+                Err(RuntimeFailure::Error(RuntimeError { message: error.message, line }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// The write of a name that the script builds.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the variable has to
+    /// be there, and a function that writes a name of the script says that
+    /// it wants a global declaration.
+    fn write_a_dynamic_name(
+        &mut self,
+        name: &str,
+        op: AssignOp,
+        value: Value,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let key = the_key_of(name);
+        // A dynamic reference does not create a variable: the one that is
+        // written has to be there.
+        let exists = self.lookup_variable(name).is_some() || self.variables.contains_key(&key);
+        if !exists {
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message: "Variable not found.".to_string(), line },
+                Detail { what: String::new(), extra: name.to_string() },
+            ));
+        }
+        // A function that writes a name of the script says that it wants a
+        // global declaration: the name is not a local of the function.
+        let is_local = self
+            .scopes
+            .last()
+            .map(|scope| scope.borrow().contains_key(&key))
+            .unwrap_or(false)
+            || self.is_declared_local(&key);
+        if self.declarations.last().is_some() && !is_local && !self.lives_in_the_script(&key) {
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError {
+                    message: "This dynamic assignment requires a \"global\" declaration.".to_string(),
+                    line,
+                },
+                Detail { what: String::new(), extra: name.to_string() },
+            ));
+        }
+        // The compound operators read the variable before they write it.
+        let current = self.lookup_variable(name);
+        let stored = self.apply_assign(op, name, current, value, line)?;
+        self.assign(name, stored.clone());
+        Ok(stored)
     }
 }
 
@@ -8546,6 +8716,8 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Binary { .. } => "Binary",
         Node::Ternary { .. } => "Ternary",
         Node::Cast { .. } => "Cast",
+        Node::DynamicName { .. } => "DynamicName",
+        Node::AssignDynamic { .. } => "AssignDynamic",
         Node::Index { .. } => "Index",
     }
 }

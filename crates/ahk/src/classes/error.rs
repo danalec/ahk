@@ -118,6 +118,12 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
     if message == "Invalid option." {
         return "ValueError";
     }
+    // Measured on the binary of v2.0.19 on 2026-10-31: the dynamic
+    // assignment that wants a global declaration is of the class `Error`,
+    // and not of the class of the values that are of the wrong type.
+    if message == "This dynamic assignment requires a \"global\" declaration." {
+        return "Error";
+    }
     if message.starts_with("Expected a ")
         || message.starts_with("Expected an ")
         || message.contains(" requires ")

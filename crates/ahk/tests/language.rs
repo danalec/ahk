@@ -4715,3 +4715,161 @@ fn the_directive_that_is_not_known_is_a_line_that_holds_no_action() {
         "This line does not contain a recognized action.\n     Specifically: #Foo Bar"
     );
 }
+
+#[test]
+fn the_double_deref_reads_the_variable_that_the_name_spells() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the double deref of
+    // v2 is a name that the script builds -- the value of the expression is
+    // the name of the variable whose value is the answer.
+    let (report, _) = run("b := 42\nx := \"b\"\nMsgBox %x%");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["42"]);
+}
+
+#[test]
+fn the_dynamic_name_reads_the_variable_whose_name_is_built() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the pieces of the
+    // name are the text that is written and the values of the expressions,
+    // and the space between two of them is what tells that the name is
+    // over.
+    let (report, _) = run("MyArray1 := \"A\"\ni := 1\nMsgBox MyArray%i%");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["A"]);
+}
+
+#[test]
+fn the_dynamic_name_may_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name that the
+    // script builds may be written to, and the variable that it names is
+    // the one that changes.
+    let (report, _) = run("MyArray1 := \"A\"\ni := 1\nMyArray%i% := \"B\"\nMsgBox MyArray1");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["B"]);
+}
+
+#[test]
+fn the_double_deref_may_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name that the
+    // script builds may be written to.
+    let (report, _) = run("b := 1\nx := \"b\"\n%x% := 7\nMsgBox b");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7"]);
+}
+
+#[test]
+fn the_name_that_is_not_a_variable_fails_with_its_name() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // dynamic variable reference is the name of a variable, and the one
+    // that is not there fails with "Variable not found." and the name in
+    // the `Extra`.
+    let (report, _) = run(
+        "try {\n    x := \"nope\"\n    MsgBox %x%\n} catch as e {\n    MsgBox e.Message\n    MsgBox e.Extra\n    MsgBox e.__Class\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Variable not found.", "nope", "Error"]);
+}
+
+#[test]
+fn the_name_of_a_dynamic_reference_is_not_a_path() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // dynamic variable reference is a name, and not a path of names:
+    // `%m.a%` is the variable `m.a`, and it is not there.
+    let (report, _) = run(
+        "try {\n    m := Map()\n    x := \"m.a\"\n    MsgBox %x%\n} catch as e {\n    MsgBox e.Message\n    MsgBox e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Variable not found.", "m.a"]);
+}
+
+#[test]
+fn the_dynamic_member_reads_the_property_that_the_name_spells() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // member may be built by the script: `m.%x%` is the member whose name
+    // is the value of `x`.
+    let (report, _) = run("m := {a: 1}\nx := \"a\"\nMsgBox m.%x%");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_dynamic_member_may_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the member whose
+    // name the script builds may be written to.
+    let (report, _) = run("m := {a: 1}\nx := \"a\"\nm.%x% := 7\nMsgBox m.a");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7"]);
+}
+
+#[test]
+fn the_dynamic_method_is_called_by_its_name() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `m.%x%()` is the
+    // method whose name is the value of `x`, and the one that is not there
+    // fails with the name of it.
+    let (report, _) = run(
+        "try {\n    m := {a: 1}\n    x := \"a\"\n    m.%x%()\n} catch as e {\n    MsgBox e.Message\n    MsgBox e.__Class\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["This value of type \"Object\" has no method named \"a\".", "MethodError"]
+    );
+}
+
+#[test]
+fn the_dynamic_write_of_a_global_from_a_function_wants_a_global_declaration() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a function that
+    // writes a name of the script says that it wants a global declaration,
+    // and the failure is of the class `Error`.
+    let (report, _) = run(
+        "b := 1\ntry {\n    Write()\n} catch as e {\n    MsgBox e.Message\n    MsgBox e.Extra\n    MsgBox e.__Class\n}\n\nWrite() {\n    x := \"b\"\n    %x% := 7\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "This dynamic assignment requires a \"global\" declaration.",
+            "b",
+            "Error"
+        ]
+    );
+}
+
+#[test]
+fn the_double_deref_that_does_not_close_is_refused_at_the_load() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name that does
+    // not close is refused at the load, and the text that is named is the
+    // rest of the line, from the name.
+    let error = parse("x := %a").expect_err("does not parse");
+    assert_eq!(error.message, "Missing ending \"%\"\n     Specifically: %a");
+    let error = parse("x := a%b").expect_err("does not parse");
+    assert_eq!(error.message, "Missing ending \"%\"\n     Specifically: a%b");
+}
+
+#[test]
+fn the_percent_sign_that_is_inside_a_name_is_a_syntax_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the percent sign
+    // that is inside a name that the script builds is not a value, and v2
+    // says "Syntax error." and the rest of the line, from it.
+    let error = parse("x := %%y%%").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: %y%%");
+}
+
+#[test]
+fn the_double_deref_alone_is_a_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a statement that
+    // begins with a double deref is a name that the script builds, and the
+    // value it leaves behind is not used.
+    let (report, _) = run("b := 42\nx := \"b\"\n%x%");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty());
+}
+
+#[test]
+fn the_dynamic_name_of_a_function_is_the_function() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // dynamic variable reference is looked up the way a name that is
+    // written is looked up: a function of the script is a value too.
+    let (report, _) = run("f() {\n    return 1\n}\nx := \"f\"\nMsgBox %x%.__Class");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Func"]);
+}

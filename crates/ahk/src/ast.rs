@@ -328,6 +328,41 @@ pub struct Catch {
     pub body: Vec<Node>,
 }
 
+/// A piece of a name that the script builds.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the name of the dynamic
+/// variable reference is the text that is written and the values of the
+/// expressions, joined without a space between them.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum DynamicPiece {
+    /// The text that is written.
+    Text(String),
+    /// The value of an expression, as text.
+    Value(Box<Node>),
+}
+
+/// The name of a member: the text that is written, or the pieces of a name
+/// that the script builds.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: `m.%x%` is the member
+/// whose name is the value of `x`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum MemberName {
+    /// The name that is written.
+    Text(String),
+    /// The name that the script builds.
+    Dynamic(Vec<DynamicPiece>),
+}
+
+impl PartialEq<str> for MemberName {
+    fn eq(&self, other: &str) -> bool {
+        match self {
+            MemberName::Text(text) => text == other,
+            MemberName::Dynamic(_) => false,
+        }
+    }
+}
+
 /// One node of the tree.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -344,6 +379,25 @@ pub enum Node {
     Ternary { condition: Box<Node>, then: Box<Node>, otherwise: Box<Node>, line: u32 },
     /// `x as Integer`.
     Cast { value: Box<Node>, target: CastType, line: u32 },
+    /// `%expr%`: the name that the script builds.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the dynamic
+    /// variable reference of v2 is a name of its own, and the pieces of it
+    /// are the text that is written and the values of the expressions. The
+    /// name of the variable whose value is the answer is the one that the
+    /// pieces make.
+    DynamicName { pieces: Vec<DynamicPiece>, line: u32 },
+    /// `%expr% := value`: the write of a name that the script builds.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the variable has to
+    /// be there, and a function that writes a name of the script says that
+    /// it wants a global declaration.
+    AssignDynamic {
+        name: Vec<DynamicPiece>,
+        op: AssignOp,
+        value: Box<Node>,
+        line: u32,
+    },
     /// `x := 1`.
     Assign { name: String, op: AssignOp, value: Box<Node>, line: u32 },
     /// `list[1]`, `text[2]`: the item at a position.
@@ -412,13 +466,13 @@ pub enum Node {
         line: u32,
     },
     /// `obj.Method(args)`: a method called on a value.
-    MethodCall { target: Box<Node>, name: String, arguments: Vec<Node>, line: u32 },
+    MethodCall { target: Box<Node>, name: MemberName, arguments: Vec<Node>, line: u32 },
     /// `obj.Prop`: a property of a value.
-    Property { target: Box<Node>, name: String, line: u32 },
+    Property { target: Box<Node>, name: MemberName, line: u32 },
     /// `obj.Prop := value`: a property of a value that is written.
     AssignProperty {
         target: Box<Node>,
-        name: String,
+        name: MemberName,
         op: AssignOp,
         value: Box<Node>,
         line: u32,
@@ -525,6 +579,8 @@ impl Node {
             | Node::Binary { line, .. }
             | Node::Ternary { line, .. }
             | Node::Cast { line, .. }
+            | Node::DynamicName { line, .. }
+            | Node::AssignDynamic { line, .. }
             | Node::Assign { line, .. }
             | Node::AssignIndex { line, .. }
             | Node::Index { line, .. }

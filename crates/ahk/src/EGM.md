@@ -102,6 +102,11 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   it. `THE_DIRECTIVES` carries the names of the v2, and a name that is not
   one of them is not a directive: the line holds no action, and the lexer
   refuses it at the load with the line as it was written.
+- The percent sign is an operator, and it builds a name: the name is the
+  text that is written and the values of the expressions, joined without a
+  space between them. `%x%` is the variable whose name is the value of `x`,
+  and `MyArray%i%` is the variable `MyArray1`. The space between two
+  pieces is what tells that the name is over.
 - `SyntaxError { message, line, column }` -- the error the lexer and the
   parser raise.
 - The continuation section of v2 is read here, and not by the parser: a line
@@ -118,7 +123,8 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   `Call`, `If`, `Switch`, `While`, `Loop`, `For`, `Directive`, `Break`,
   `Continue`, `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`,
   `Property`, `AssignProperty`, `ArrayLiteral`, `ObjectLiteral`, `Lambda`,
-  `Label` and `Goto`. Every variant carries its line.
+  `Label`, `Goto`, `DynamicName` and `AssignDynamic`. Every variant carries
+  its line.
 
   The statements that v2 spells as commands -- `Send`, `Click`, `Sleep`,
   `Run`, `MsgBox` -- are not variants of the tree: they are names of the
@@ -150,6 +156,14 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   nobody's.
 - `Label { name, line }` -- a label of the script: a name and a colon. It
   names a line, and it does nothing by itself.
+- `DynamicName { pieces, line }` -- the name that the script builds:
+  `%x%`, `MyArray%i%`. The pieces are the text that is written
+  (`DynamicPiece::Text`) and the values of the expressions
+  (`DynamicPiece::Value`), and they are joined without a space between them.
+  `AssignDynamic` is the write of it.
+- `MemberName` -- the name of a member: the text that is written
+  (`MemberName::Text`) or the pieces of a name that the script builds
+  (`MemberName::Dynamic`).
 - `Goto { name, line }` -- the jump to a label. The name is the text of
   the parameter as the script wrote it, and not its value: the quotes of a
   text are part of it.
@@ -1111,6 +1125,14 @@ that asks for another one is refused with the reason.
 - **A statement that begins with an operator is a line that holds no
   action.** The text that is named is the line itself, and the dot is the
   member of a value that is not there.
+
+- **The percent signs of v2 build a name, and the name may be read and
+  written.** The name is the text that is written and the values of the
+  expressions, and the pieces are joined without a space between them. The
+  name of a variable is a name and not a path of names, and the name of a
+  member may be built too: `m.%x%` is the member whose name is the value of
+  `x`. A name that the script builds does not create a variable, and a
+  function that writes one says that it wants a global declaration.
 
 ## Side Effects
 
