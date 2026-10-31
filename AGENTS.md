@@ -4726,3 +4726,33 @@ probes that measured the rules are in `egm-review/probe_loop_family.py`,
 `egm-review/probe_loop_family4.py`, `egm-review/probe_loop_fields.py`,
 `egm-review/probe_loop_outside.py` and
 `egm-review/probe_loop_variables.py`.
+
+## 103. The capacity of a string, and the object in a text
+
+Measured on the binary of v2.0.19 on 2026-10-31: three names answered with
+something that the tree answered differently.
+
+- **A variable that has no value is a text that is empty.**
+  `VarSetStrCapacity(&x, 100)` takes the reference of a variable that has
+  no value and answers the capacity that it was given; the tree refused
+  it with "This global variable has not been assigned a value.".
+- **The capacity of a text is the length of it.** The v2 answers the
+  capacity that its own allocator gave -- "hello" is 7 -- and the tree
+  keeps no capacity of its own: the strings of the tree have no room to
+  spare, and the capacity of one is its length.
+- **An object is not written as a text.** v2 reads the property "Ptr" of
+  the value that it writes, and an object has none: 'This value of type
+  "Map" has no property named "Ptr".'. The tree answered with the name
+  of the class ("map"), and the name of the class of the script is not a
+  text that the dialect writes either.
+- **A class is a class of its own kind, and a prototype is of its own
+  too.** The refusal of v2 names them "Class" and "Prototype", and so
+  does the tree now.
+
+The comparison of the tree with the binary is in
+`egm-review/probe_object_text.py` (11 cases, all of them the same) and in
+`egm-review/probe_capacity_and_classes.py` (10 cases, one of them the
+capacity of a text that the tree answers with the length of it). The
+probes that measured the rules are in
+`egm-review/probe_class_value_text.py` and
+`egm-review/probe_names_and_stack.py`.

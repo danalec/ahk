@@ -855,6 +855,12 @@ that asks for another one is refused with the reason.
 - **The variables of the loops are there before the first loop runs.** The
   index is zero and the others are empty, and the line of the file is
   `A_LoopReadLine` -- `A_LoopField` is the field of the loop that parses.
+- **A variable that has no value is a text that is empty.** The capacity of
+  a text is the length of it: the tree keeps no capacity of its own, and
+  the strings of the tree have no room to spare.
+- **An object is not written as a text.** v2 reads the property "Ptr" of
+  the value that it writes, and an object has none. A class is a class of
+  its own kind ("Class"), and a prototype is of its own too ("Prototype").
 - **`Sleep` is capped at 60 000 ms**, in the statement and in the builtin.
 - **The timeout knows no line.** It stops the script between two statements,
   so `error_line` stays null and the message is "the script ran for more than

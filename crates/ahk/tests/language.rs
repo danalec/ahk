@@ -4496,3 +4496,63 @@ fn the_variables_of_the_loops_are_there_before_the_first_loop() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[]"]);
 }
+
+#[test]
+fn the_capacity_of_a_string_that_has_no_value_is_the_one_that_was_asked_for() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a variable that
+    // has no value is a text that is empty, and the capacity of it is
+    // the one that was asked for.
+    let (report, _desktop) = run("MsgBox VarSetStrCapacity(&x, 100)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["100"]);
+    // The tree keeps no capacity of its own: the text of the tree has no
+    // room to spare, and its capacity is its length.
+    let (report, _desktop) = run("x := \"hello\"\nMsgBox VarSetStrCapacity(&x)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5"]);
+}
+
+#[test]
+fn an_object_is_not_written_as_a_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: v2 reads the
+    // property "Ptr" of the value that it writes, and an object has
+    // none.
+    let (report, _desktop) = run("FileAppend Map(), \"*\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Map\" has no property named \"Ptr\".")
+    );
+    let (report, _desktop) = run("FileAppend [1, 2], \"*\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Array\" has no property named \"Ptr\".")
+    );
+}
+
+#[test]
+fn a_class_is_a_class_of_its_own_kind_and_a_prototype_is_of_its_own() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the refusal of
+    // v2 names the class "Class" and the prototype "Prototype".
+    let (report, _desktop) = run("FileAppend Gui, \"*\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Class\" has no property named \"Ptr\".")
+    );
+    let (report, _desktop) = run("FileAppend Gui.Prototype, \"*\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Prototype\" has no property named \"Ptr\".")
+    );
+    // The parameter of a built-in names the kind of the value that
+    // arrived the same way.
+    let (report, _desktop) = run("MsgBox Gui");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #1 of MsgBox requires a String, but received a Class.")
+    );
+}

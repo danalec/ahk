@@ -352,6 +352,15 @@ pub fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 /// made, and a raw write writes the text of v2: the units of UTF-16.
 pub fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let text = values.first().cloned().unwrap_or(Value::Text(String::new()));
+    // Measured on the binary of v2.0.19 on 2026-10-31: v2 reads the
+    // property "Ptr" of the value that it writes, and an object has none:
+    // 'This value of type "Map" has no property named "Ptr".'.
+    if matches!(text, Value::Object(_)) {
+        return Err(RuntimeError {
+            message: rt.the_message_of_no_property(&text, "Ptr", line),
+            line,
+        });
+    }
     let path = text_of(values, 1);
     let options = the_options_of(&text_of(values, 2), false)
         .map_err(|failure| RuntimeError { message: failure.message(), line })?;

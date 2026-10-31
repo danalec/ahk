@@ -657,7 +657,8 @@ impl Value {
     /// The kind of the value, the way v2 names it.
     ///
     /// An object is named after its class: "Object", "Map", "Func", the
-    /// name of the class of the script. An array is an "Array".
+    /// name of the class of the script. An array is an "Array". A class is
+    /// a class of its own kind, and a prototype is of its own too.
     pub fn the_kind(&self) -> String {
         match self {
             Value::Int(_) => "Integer".to_string(),
@@ -666,7 +667,18 @@ impl Value {
             Value::List(_) => "Array".to_string(),
             Value::Reference(_) => "VarRef".to_string(),
             Value::Object(object) => {
-                let mut name = object.borrow().class.clone();
+                let borrowed = object.borrow();
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // prototype is of its own kind, and a class is a class of
+                // its own kind.
+                if borrowed.class == "prototype" {
+                    return "Prototype".to_string();
+                }
+                // A class holds its prototype, and an instance does not.
+                if borrowed.properties.contains_key("prototype") {
+                    return "Class".to_string();
+                }
+                let mut name = borrowed.class.clone();
                 if let Some(first) = name.get_mut(0..1) {
                     first.make_ascii_uppercase();
                 }
@@ -4924,6 +4936,22 @@ impl<'a> Runtime<'a> {
             message: format!("This value of type \"{kind}\" has no property named {name:?}."),
             line,
         })
+    }
+
+    /// The message of the refusal of a property that a value does not have.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: v2 reads the
+    /// property "Ptr" of the value that it writes, and an object has none:
+    /// 'This value of type "Map" has no property named "Ptr".'.
+    pub(crate) fn the_message_of_no_property(&self, target: &Value, name: &str, line: u32) -> String {
+        match self.no_property(target, name, line) {
+            RuntimeFailure::Error(error) => error.message,
+            RuntimeFailure::Detailed(error, _) => error.message,
+            _ => format!(
+                "This value of type \"{}\" has no property named {name:?}.",
+                self.the_type_of(target)
+            ),
+        }
     }
 
     /// The descriptor of a property, out of the value that was given.

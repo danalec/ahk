@@ -3040,9 +3040,13 @@ fn var_set_str_capacity(rt: &mut Runtime<'_>, values: &[Value], line: u32, _vari
             line,
         });
     };
-    let Some(current) = rt.read_reference(reference) else {
-        return Err(RuntimeError { message: rt.the_unassigned(&reference.name), line });
-    };
+    // A variable that has no value is a text that is empty, and the
+    // capacity of it is nothing.
+    //
+    // Measured on the binary of v2.0.19 on 2026-10-31: the v2 takes the
+    // reference of a variable that has no value and answers the capacity
+    // that it was given.
+    let current = rt.read_reference(reference).unwrap_or(Value::Text(String::new()));
     let Some(capacity) = values.get(1) else {
         return Ok(Value::Int(current.to_text().chars().count() as i64));
     };
