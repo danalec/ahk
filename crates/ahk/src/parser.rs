@@ -1649,7 +1649,7 @@ impl Parser {
                 line: name_token.line,
             }]);
         }
-        if self.at_op(&["("]) {
+        if self.at_op(&["("]) && !self.peek().spaced {
             self.next();
             // `Name(a, b) { }` is a definition; `Name(a, b)` is a call. The
             // brace is what tells the two apart, and the parameters of a
@@ -1710,7 +1710,7 @@ impl Parser {
                 arguments,
                 line: name_token.line,
             };
-            let value = self.parse_suffixes(call, false)?;
+            let value = self.parse_suffixes(call, false, false)?;
             self.the_expression_is_done(self.position, false)?;
             // Measured on the binary of v2.0.19 on 2026-10-31: the operator
             // that comes after the call is the increment, and the value of a
@@ -1746,7 +1746,7 @@ impl Parser {
         if self.at_member_dot() || self.at_member_bracket() {
             let target = Node::Var { name: name_token.value.clone(), line: name_token.line };
             self.the_expression_begins();
-            let target = self.parse_suffixes(target, false)?;
+            let target = self.parse_suffixes(target, false, true)?;
             self.the_expression_is_done(self.position, false)?;
             let operator = self.peek().clone();
             if operator.kind == TokenKind::Op && operator.value == "=" {
@@ -1854,7 +1854,22 @@ impl Parser {
         // what the call asks for.
         let name = name_token.value.to_lowercase();
         self.the_expression_begins();
-        let mut arguments = Vec::new();
+        let arguments = self.the_parameters_of_a_command()?;
+        // The command of v2 is a call whose parentheses are not written, and
+        // the text that names the operator carries the one that closes it.
+        self.the_expression_is_done(self.position, true)?;
+        self.end_of_statement()?;
+        Ok(Node::Call { name, arguments, line: name_token.line })
+    }
+
+    /// The parameters of a command of v2.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the parameters of
+    /// a command are the expressions that the commas separate, up to the
+    /// end of the statement. A parenthesis that opens one of them is a
+    /// parameter of its own, and the value of it is the last of the list
+    /// that it holds.
+    fn the_parameters_of_a_command(&mut self) -> Result<Vec<Node>, SyntaxError> {        let mut arguments = Vec::new();
         if !self.at_end_of_statement() {
             loop {
                 // Measured on the binary of v2.0.19 on 2026-10-31: a brace
@@ -1865,16 +1880,41 @@ impl Parser {
                 arguments.push(self.parse_expression().map_err(the_message_of_a_command)?);
                 if self.at_op(&[","]) {
                     self.position += 1;
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // commas at the end of the parameters of a command add
+                    // nothing: `One "a",` calls `One` with one parameter.
+                    if self.the_rest_is_commas() {
+                        while self.at_op(&[","]) {
+                            self.position += 1;
+                        }
+                        break;
+                    }
                     continue;
                 }
                 break;
             }
         }
-        // The command of v2 is a call whose parentheses are not written, and
-        // the text that names the operator carries the one that closes it.
-        self.the_expression_is_done(self.position, true)?;
-        self.end_of_statement()?;
-        Ok(Node::Call { name, arguments, line: name_token.line })
+        Ok(arguments)
+    }
+
+    /// Whether the rest of the statement holds nothing but commas.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the commas at the
+    /// end of the parameters of a command add nothing: `One "a",` calls
+    /// `One` with one parameter.
+    fn the_rest_is_commas(&self) -> bool {
+        let mut index = self.position;
+        while index < self.tokens.len() {
+            let token = &self.tokens[index];
+            match token.kind {
+                TokenKind::Newline | TokenKind::Eof => return true,
+                TokenKind::Op if token.value == "}" => return true,
+                TokenKind::Op if token.value == "," => {}
+                _ => return false,
+            }
+            index += 1;
+        }
+        true
     }
 
     fn parse_assignment(&mut self, name_token: Token) -> Result<Node, SyntaxError> {
@@ -4140,7 +4180,7 @@ impl Parser {
                     // one: the concatenation of v2 takes the name and the
                     // value that follows it.
                     let call = self.parse_call(token.value.to_lowercase(), token.line)?;
-                    return self.parse_suffixes(call, true);
+                    return self.parse_suffixes(call, true, false);
                 } else {
                     // The words that are values are the two below.
                     match token.value.to_lowercase().as_str() {
@@ -4179,7 +4219,7 @@ impl Parser {
                     // it are read the way the members of any other value
                     // are: `StrLen("abc").__Class`.
                     let call = self.parse_call(token.value.to_lowercase(), token.line)?;
-                    return self.parse_suffixes(call, true);
+                    return self.parse_suffixes(call, true, false);
                 }
                 let name = token.value;
                 // The name of a variable that the script builds: `MyArray%i%`
@@ -4242,17 +4282,54 @@ impl Parser {
                 Node::DynamicName { pieces, line: token.line }
             }
             TokenKind::Op if token.value == "(" => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: a
+                // parenthesis holds a list of the values, and the value of
+                // the list is the last of them: `("a", "b")` is "b". Every
+                // item of the list runs.
+                //
                 // The bracket that is not closed is the failure, and not the
                 // operand that is not there inside it.
-                let node = match self.parse_expression() {
-                    Ok(node) => node,
-                    Err(error) => return Err(self.the_error_of_the_bracket(error, ")")),
-                };
-                // Measured on the binary of v2.0.19 on 2026-10-31: the
-                // group may be written in more than one line.
-                self.skip_newlines();
+                let mut items = Vec::new();
+                // Measured on the binary of v2.0.19 on 2026-10-31: the list
+                // of nothing is a "Syntax error.", and the parenthesis that
+                // closes it is named.
+                if self.at_op(&[")"]) {
+                    return Err(self.error(format!(
+                        "Syntax error.\n     Specifically: {}",
+                        the_source_of_the_rest_of_the_line(self, self.position)
+                    )));
+                }
+                loop {
+                    let item = match self.parse_expression() {
+                        Ok(item) => item,
+                        Err(error) => return Err(self.the_error_of_the_bracket(error, ")")),
+                    };
+                    items.push(item);
+                    // The group may be written in more than one line.
+                    self.skip_newlines();
+                    if self.at_op(&[","]) {
+                        self.position += 1;
+                        // The group may be written in more than one line.
+                        self.skip_newlines();
+                        // Measured on the binary of v2.0.19 on 2026-10-31: a
+                        // comma at the end of the list is a "Syntax error.",
+                        // and the parenthesis that closes the list is named.
+                        if self.at_op(&[")"]) {
+                            return Err(self.error(format!(
+                                "Syntax error.\n     Specifically: {}",
+                                the_source_of_the_rest_of_the_line(self, self.position)
+                            )));
+                        }
+                        continue;
+                    }
+                    break;
+                }
                 self.expect_op(")")?;
-                node
+                if items.len() == 1 {
+                    items.pop().expect("the item of the group")
+                } else {
+                    Node::Group { items, line: token.line }
+                }
             }
             TokenKind::Op if token.value == "[" => {
                 // The literal of an array: `[a, b, c]`. The brackets of
@@ -4374,14 +4451,19 @@ impl Parser {
                 return Err(self.the_error_of_a_missing_operand(&token));
             }
         };
-        self.parse_suffixes(node, true)
+        self.parse_suffixes(node, true, false)
     }
 
     /// The `[...]` and the `as` that may follow a value.
     ///
     /// The assignment is a suffix too, when the value is an expression: the
     /// assignment of v2 is an expression, and `(x := 1)` is a value.
-    fn parse_suffixes(&mut self, target: Node, assignment: bool) -> Result<Node, SyntaxError> {
+    ///
+    /// The command of v2 is a call whose name is at the start of a line, and
+    /// the `command` says that the parser is there: a member that is
+    /// followed by a space and a parenthesis is a command of v2, and the
+    /// parenthesis is one parameter of it.
+    fn parse_suffixes(&mut self, target: Node, assignment: bool, command: bool) -> Result<Node, SyntaxError> {
         let mut node = target;
         loop {
             if self.at_op(&["["]) {
@@ -4461,7 +4543,7 @@ impl Parser {
                 } else {
                     MemberName::Text(name.value)
                 };
-                if self.at_op(&["("]) {
+                if self.at_op(&["("]) && !self.peek().spaced {
                     self.next();
                     let arguments = self.parse_arguments()?;
                     self.expect_op(")")?;
@@ -4472,6 +4554,22 @@ impl Parser {
                         line: dot.line,
                     };
                     continue;
+                }
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // parenthesis that is spaced is not the list of the
+                // arguments of the call. A member at the start of a line
+                // that is followed by a space and a parenthesis is a command
+                // of v2, and the parenthesis is one parameter of it; in an
+                // expression the parenthesis is the value that follows the
+                // member, and the concatenation of v2 takes the two.
+                if self.at_op(&["("]) && self.peek().spaced && command {
+                    let arguments = self.the_parameters_of_a_command()?;
+                    return Ok(Node::MethodCall {
+                        target: Box::new(node),
+                        name: member,
+                        arguments,
+                        line: dot.line,
+                    });
                 }
                 node = Node::Property { target: Box::new(node), name: member, line: dot.line };
                 continue;
@@ -5688,4 +5786,61 @@ mod tests {
         // a reserved word, and v2 has no cast.
         let error = parse("x := 1 as Integer").expect_err("does not parse");
         assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: as Integer");
+    }
+
+    #[test]
+    fn the_parenthesis_holds_a_list_of_the_values() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a parenthesis
+        // holds a list of the values, and the value of the list is the last
+        // of them.
+        let statements = parse("x := (\"a\", \"b\")").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment");
+        };
+        assert!(matches!(&**value, Node::Group { items, .. } if items.len() == 2));
+        // The list of one item is the value of that item.
+        let statements = parse("x := (\"a\")").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment");
+        };
+        assert!(matches!(&**value, Node::Literal { .. }));
+    }
+
+    #[test]
+    fn the_group_of_nothing_is_a_syntax_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the list of
+        // nothing is a "Syntax error.", and the parenthesis that closes it
+        // is named.
+        let error = parse("x := ()").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: )");
+    }
+
+    #[test]
+    fn the_comma_at_the_end_of_a_list_is_a_syntax_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a comma at the
+        // end of the list is a "Syntax error.", and the parenthesis that
+        // closes the list is named.
+        let error = parse("x := (\"a\",)").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: )");
+    }
+
+    #[test]
+    fn the_name_with_a_space_and_a_parenthesis_is_a_command() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the parenthesis
+        // that is spaced is not the list of the arguments of a call, and the
+        // group is one parameter of the command.
+        let statements = parse("MyFunc (\"a\", \"b\")").expect("parses");
+        let Node::Call { name, arguments, .. } = &statements[0] else {
+            panic!("a call");
+        };
+        assert_eq!(name, "myfunc");
+        assert_eq!(arguments.len(), 1);
+        assert!(matches!(&arguments[0], Node::Group { items, .. } if items.len() == 2));
+        // The call that is written without the space keeps its arguments.
+        let statements = parse("MyFunc(\"a\", \"b\")").expect("parses");
+        let Node::Call { name, arguments, .. } = &statements[0] else {
+            panic!("a call");
+        };
+        assert_eq!(name, "myfunc");
+        assert_eq!(arguments.len(), 2);
     }

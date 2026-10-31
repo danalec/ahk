@@ -5074,3 +5074,54 @@ The probe that measured the rules is in
 are known to differ -- the words whose refusal is a dialog), and in
 `egm-review/probe_cast.py` (11 cases) and in
 `egm-review/probe_unexpected.py` (9 cases).
+
+## 114. The name and the space and the parenthesis is a command
+
+Measured on the binary of v2.0.19 on 2026-10-31: the parenthesis that is
+spaced is not the list of the arguments of a call.
+
+- **A parenthesis holds a list of the values, and the value of the list is
+  the last of them:** `x := ("a", "b")` is "b", and every item of the
+  list runs.
+- **The list of nothing is a "Syntax error."**, and the parenthesis that
+  closes it is named. A comma at the end of the list is a "Syntax error."
+  too, and the parenthesis that closes the list is named.
+- **A name at the start of a line that is followed by a space and a
+  parenthesis is a command of v2:** the parameters of it are the
+  expressions that the commas separate, and the parenthesis is one
+  parameter -- `MyFunc ("a"), "b"` calls `MyFunc` with two parameters, and
+  `MyFunc ("a", "b")` calls it with one, the "b".
+- **A member at the start of a line is the same command**, and the member
+  is the callee: `t.Method ("a", "b")` calls the method with one
+  parameter, the "b".
+- **In an expression the parenthesis that is spaced is the value that
+  follows the name or the member, and the concatenation of v2 takes the
+  two:** `x := MyFunc ("a")` says "Expected a String but got a Func.".
+- **The commas at the end of the parameters of a command add nothing:**
+  `One "a",` calls `One` with one parameter.
+- **A definition with a space is not a definition:** the v2 refuses it at
+  the load.
+
+The tree read the parenthesis as the list of the arguments of a call, and
+the space was not there: `MyFunc ("a", "b")` called `MyFunc` with two
+parameters, `MyFunc ("a"), "b"` was refused at the load, and the tree
+called a method that a member followed with a space, where the v2 takes
+the two as a concatenation.
+
+Two holes were measured and are not fixed yet: the parameter of a command
+that is not there in the middle of the list keeps its place and carries no
+value (`One ("a"),, "b"` calls `One` with three parameters), and the tree
+needs a value of its own kind for it; and the definition with a space is
+refused by the v2 with the message `Unexpected "}"` and the tree names
+the brace that opens it.
+
+The probes that measured the rules are in
+`egm-review/probe_name_space_paren.py` (13 cases),
+`egm-review/probe_name_space_paren2.py` (10),
+`egm-review/probe_name_space_paren3.py` (12),
+`egm-review/probe_name_space_paren4.py` (8),
+`egm-review/probe_name_space_paren5.py` (7),
+`egm-review/probe_name_space_paren6.py` (9),
+`egm-review/probe_name_space_paren7.py` (6),
+`egm-review/probe_name_space_paren8.py` (10) and in
+`egm-review/probe_empty_parameter.py` (7).

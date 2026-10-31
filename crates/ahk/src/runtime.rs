@@ -2249,7 +2249,8 @@ impl<'a> Runtime<'a> {
             Node::Literal { .. }
             | Node::Var { .. }
             | Node::Binary { .. }
-            | Node::Ternary { .. } => {
+            | Node::Ternary { .. }
+            | Node::Group { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
                     line: statement.line(),
@@ -7416,6 +7417,16 @@ impl<'a> Runtime<'a> {
                     None => Ok(Value::List(values)),
                 }
             }
+            Node::Group { items, .. } => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the value
+                // of a parenthesized list is the last of its items, and
+                // every item of it runs.
+                let mut value = Value::Text(String::new());
+                for item in items {
+                    value = self.evaluate(item)?;
+                }
+                Ok(value)
+            }
             Node::For { line, .. } => {
                 // A for loop is a statement: the parser never gives one
                 // where an expression is asked for.
@@ -8708,6 +8719,7 @@ pub fn op_name(statement: &Node) -> &str {
         Node::DynamicName { .. } => "DynamicName",
         Node::AssignDynamic { .. } => "AssignDynamic",
         Node::Index { .. } => "Index",
+        Node::Group { .. } => "Group",
     }
 }
 

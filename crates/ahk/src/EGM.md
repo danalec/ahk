@@ -369,6 +369,23 @@ v2 has no cast. The word `as` is a reserved word, and `x := 1 as Integer` is
 refused with "Unexpected reserved word." and the rest of the line. The tree
 read it as a cast of its own, and a cast that the dialect does not have.
 
+A parenthesis holds a list of the values, and the value of the list is the
+last of them. Measured on the binary of v2.0.19 on 2026-10-31: `x := ("a",
+"b")` is "b", and every item of the list runs. The list of nothing is a
+"Syntax error.", and the parenthesis that closes it is named; a comma at
+the end of the list is a "Syntax error." too.
+
+The parenthesis that is spaced is not the list of the arguments of a call.
+A name at the start of a line that is followed by a space and a parenthesis
+is a command of v2, and the parenthesis is one parameter of it: `MyFunc
+("a"), "b"` calls `MyFunc` with two parameters, and `MyFunc ("a", "b")`
+calls it with one, the "b". A member at the start of a line is the same
+command, and the member is the callee. In an expression the parenthesis
+that is spaced is the value that follows the name or the member, and the
+concatenation of v2 takes the two: `x := MyFunc ("a")` says "Expected a
+String but got a Func." at the run. The commas at the end of the parameters
+of a command add nothing: `One "a",` calls `One` with one parameter.
+
 ### The runtime (`runtime.rs`)
 
 The interpreter and everything it reports:
@@ -488,6 +505,10 @@ The operator `is` asks whether a value is of a class, and the value that is
 not a class is refused with the value in the `Extra`: `1 is 2` says "Expected
 a Class but got an Integer." and the "2" is the `Extra`, and the `What` is
 empty. Measured on the binary of v2.0.19 on 2026-10-31.
+
+The value of a parenthesized list is the last of its items, and every item
+of it runs. Measured on the binary of v2.0.19 on 2026-10-31: `x := ("a",
+"b")` is "b", and the list of three items runs all of them.
 
 The built-in variables of v2 are in `variables.rs`: the ones the runtime
 knows, and the ones the runtime writes where it runs.
@@ -1198,6 +1219,11 @@ that asks for another one is refused with the reason.
 - **The operator `is` carries the value that failed in the `Extra`.** The
   right side of it has to be a class, and the value that arrived goes in
   the `Extra` of the failure, and the `What` is empty.
+
+- **A parenthesis holds a list, and the value of the list is the last of
+  its items.** Every item of it runs, the list of nothing is a "Syntax
+  error.", and the parenthesis that is spaced is not the list of the
+  arguments of a call: it is one parameter of a command.
 
 ## Side Effects
 

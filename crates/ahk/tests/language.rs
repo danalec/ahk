@@ -5027,3 +5027,75 @@ fn the_value_that_the_is_refuses_is_in_the_extra() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2".to_string()]);
 }
+
+#[test]
+fn the_value_of_the_list_is_the_last_one() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value of a
+    // parenthesized list is the last of its items.
+    let (report, _desktop) = run("x := (\"a\", \"b\")\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["b"]);
+}
+
+#[test]
+fn every_item_of_the_list_runs() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: every item of a
+    // parenthesized list runs.
+    let (report, _desktop) = run(
+        "i := 0\nf() {\n    global i\n    i := i + 1\n}\nx := (f(), f())\nMsgBox i",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_name_with_a_space_and_a_parenthesis_is_a_command() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parenthesis
+    // that is spaced is not the list of the arguments of a call, and the
+    // group is one parameter of the command.
+    let (report, _desktop) = run("One(a) {\n    MsgBox a\n}\nOne (\"a\", \"b\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["b"]);
+}
+
+#[test]
+fn the_command_with_a_group_and_a_text_has_two_parameters() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameters of
+    // a command are the expressions that the commas separate.
+    let (report, _desktop) = run("Two(a, b) {\n    MsgBox a\n    MsgBox b\n}\nTwo (\"a\"), \"b\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a", "b"]);
+}
+
+#[test]
+fn the_commas_at_the_end_of_a_command_add_nothing() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the commas at the
+    // end of the parameters of a command add nothing.
+    let (report, _desktop) = run("One(a) {\n    MsgBox a\n}\nOne (\"a\"),");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a"]);
+}
+
+#[test]
+fn the_member_with_a_space_and_a_parenthesis_is_a_command() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parenthesis
+    // that is spaced is not the list of the arguments of a call, and the
+    // group is one parameter of the command.
+    let (report, _desktop) = run(
+        "class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method (\"a\", \"b\")",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["b"]);
+}
+
+#[test]
+fn the_member_with_a_space_is_not_a_call_in_an_expression() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: in an expression the
+    // parenthesis that is spaced is the value that follows the member, and
+    // the concatenation of v2 takes the two.
+    let (report, _desktop) = run(
+        "class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nx := t.Method (\"a\")",
+    );
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a String but got a Func."));
+}

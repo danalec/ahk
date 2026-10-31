@@ -481,6 +481,12 @@ pub enum Node {
     /// the array of nothing. The values go in the order they are
     /// written, and the places of an array count from one.
     ArrayLiteral { items: Vec<Node>, line: u32 },
+    /// `(a, b)`: the list of the values of a group.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the value of the
+    /// list is the last of its items, and every item of it runs. The list
+    /// of one item is the value of that item.
+    Group { items: Vec<Node>, line: u32 },
     /// `{a: 1, b: 2}`: the literal of an object.
     ///
     /// v2 writes an object between braces, and the empty braces are the
@@ -589,6 +595,7 @@ impl Node {
             | Node::Property { line, .. }
             | Node::AssignProperty { line, .. }
             | Node::ArrayLiteral { line, .. }
+            | Node::Group { line, .. }
             | Node::ObjectLiteral { line, .. }
             | Node::Lambda { line, .. }
             | Node::Try { line, .. }
