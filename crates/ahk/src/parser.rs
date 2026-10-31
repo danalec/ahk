@@ -4868,24 +4868,43 @@ impl Parser {
                 let mut items = Vec::new();
                 if !self.at_op(&["]"]) {
                     loop {
+                        // Measured on the binary of v2.0.19 on 2026-11-01:
+                        // the place that is not there keeps its place, and it
+                        // has no value of its own. The place is a comma that
+                        // follows a comma, and the literal may have many of
+                        // them.
+                        if self.at_op(&[","]) {
+                            self.position += 1;
+                            // The place that is not there and that is the
+                            // last one is dropped: the commas at the end of
+                            // the list add nothing.
+                            if self.the_hole_is_the_last_one("]") {
+                                break;
+                            }
+                            items.push(None);
+                            // The list may be written in more than one line.
+                            self.skip_newlines();
+                            continue;
+                        }
+                        // A comma at the end of the list is allowed.
+                        if self.at_op(&["]"]) {
+                            break;
+                        }
                         // The bracket that is not closed is the failure, and
                         // not the operand that is not there inside it.
                         let item = match self.parse_expression() {
                             Ok(item) => item,
                             Err(error) => return Err(self.the_error_of_the_bracket(error, "]")),
                         };
-                        items.push(item);
+                        items.push(Some(item));
                         // The list may be written in more than one line.
                         self.skip_newlines();
-                        if self.at_op(&[","]) {
-                            self.position += 1;
-                            // A comma at the end of the list is allowed.
-                            if self.at_op(&["]"]) {
-                                break;
-                            }
-                            continue;
+                        if !self.at_op(&[","]) {
+                            break;
                         }
-                        break;
+                        self.position += 1;
+                        // The list may be written in more than one line.
+                        self.skip_newlines();
                     }
                 }
                 // The array may be written in more than one line.
@@ -5830,8 +5849,8 @@ mod tests {
         let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
         let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
         assert_eq!(items.len(), 3);
-        assert!(matches!(&items[0], Node::Literal { value: LiteralValue::Integer(number), .. } if *number == 1));
-        assert!(matches!(&items[2], Node::Literal { value: LiteralValue::Integer(number), .. } if *number == 3));
+        assert!(matches!(items[0].as_ref(), Some(Node::Literal { value: LiteralValue::Integer(number), .. }) if *number == 1));
+        assert!(matches!(items[2].as_ref(), Some(Node::Literal { value: LiteralValue::Integer(number), .. }) if *number == 3));
     }
 
     #[test]
@@ -5840,8 +5859,8 @@ mod tests {
         let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
         let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
         assert_eq!(items.len(), 2);
-        assert!(matches!(&items[0], Node::Binary { op: BinaryOp::Add, .. }));
-        assert!(matches!(&items[1], Node::Binary { op: BinaryOp::Multiply, .. }));
+        assert!(matches!(items[0].as_ref(), Some(Node::Binary { op: BinaryOp::Add, .. })));
+        assert!(matches!(items[1].as_ref(), Some(Node::Binary { op: BinaryOp::Multiply, .. })));
     }
 
     #[test]
@@ -5850,7 +5869,43 @@ mod tests {
         let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
         let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
         assert_eq!(items.len(), 2);
-        assert!(matches!(&items[0], Node::ArrayLiteral { items, .. } if items.len() == 1));
+        assert!(matches!(items[0].as_ref(), Some(Node::ArrayLiteral { items, .. }) if items.len() == 1));
+    }
+
+    #[test]
+    fn an_array_may_hold_a_place_without_a_value() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the literal may
+        // have a hole, and the hole is a comma that follows a comma.
+        let statements = parse("x := [1, , 3]").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        assert_eq!(items.len(), 3);
+        assert!(items[1].is_none());
+    }
+
+    #[test]
+    fn an_array_may_hold_many_places_without_a_value() {
+        let statements = parse("x := [1, , , 2]").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        assert_eq!(items.len(), 4);
+        assert!(items[1].is_none());
+        assert!(items[2].is_none());
+    }
+
+    #[test]
+    fn the_place_without_a_value_that_is_the_last_one_is_dropped() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the commas at
+        // the end of the list add nothing, and the place that has no value
+        // of its own and that is the last one is dropped with them.
+        let statements = parse("x := [1, 2, , ]").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        assert_eq!(items.len(), 2);
+        let statements = parse("x := [,]").expect("parses");
+        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        assert_eq!(items.len(), 0);
     }
 
     #[test]

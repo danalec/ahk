@@ -160,6 +160,98 @@ fn a_value_can_be_deleted_and_the_place_stays() {
 }
 
 #[test]
+fn the_literal_of_an_array_may_have_a_place_without_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the literal may have
+    // a hole, and the hole is a comma that follows a comma. The hole is a
+    // place of the array, and it has no value of its own.
+    let report = run("a := [1, , 3]\nMsgBox a.Length . \" \" . a.Has(2) . \" \" . a[1] . \" \" . a[3]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3 0 1 3"]);
+}
+
+#[test]
+fn the_place_without_a_value_of_the_literal_says_that_it_has_none() {
+    let report = run("a := [1, , 3]\nMsgBox a[2]");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Item has no value."));
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn the_place_without_a_value_that_is_the_last_one_is_dropped() {
+    // The commas at the end of the list add nothing, and the place that has
+    // no value of its own and that is the last one is dropped with them.
+    let report = run("a := [1, 2, , ]\nMsgBox a.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    let report = run("a := [,]\nMsgBox a.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn the_enumeration_leaves_the_variable_without_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the place that has
+    // no value of its own is a turn of the enumeration too, and the turn has
+    // no value of its own: the variable of the loop is left without one, and
+    // the script that reads it is told that the variable has no value.
+    let report = run("a := [1, , 3]\nfor v in a\n    MsgBox v");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This global variable has not been assigned a value.")
+    );
+    assert_eq!(report.error_line, Some(3));
+}
+
+#[test]
+fn the_enumeration_names_the_variable_that_has_no_value() {
+    let report = run(
+        "try {\n    a := [1, , 3]\n    for v in a\n        MsgBox v\n} catch Any as e {\n    MsgBox e.Message \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["1", "This global variable has not been assigned a value. | v"]
+    );
+}
+
+#[test]
+fn the_enumeration_gives_the_key_of_the_place_that_has_no_value() {
+    // The key of the turn is the place of it, and it is there even when the
+    // value under it is not: the body that reads the key alone goes through
+    // the turn.
+    let report = run("a := [1, , 3]\nfor k, v in a\n    MsgBox k");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1", "2", "3"]);
+}
+
+#[test]
+fn the_variable_of_the_loop_gets_its_value_back() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: v2 restores the
+    // variables of a loop when the loop ends, and the variable that had no
+    // value before it has no value after it either.
+    let report = run("v := 5\na := [1, , 3]\nfor v in a\n    break\nMsgBox v");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5"]);
+}
+
+#[test]
+fn the_enumerator_that_the_script_holds_leaves_the_variable_without_a_value() {
+    // The turn that has no value of its own leaves the variable of the
+    // caller without one, and the script that reads it is told that the
+    // variable has no value.
+    let report = run(
+        "try {\n    a := [1, , 3]\n    e := a.__Enum(1)\n    e.Call(&v)\n    e.Call(&v)\n    MsgBox v\n} catch Any as e {\n    MsgBox e.Message \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["This global variable has not been assigned a value. | v"]
+    );
+}
+
+#[test]
 fn a_method_of_an_array_is_a_value() {
     // Measured on the binary of v2.0.19 on 2026-10-29.
     let report = run(

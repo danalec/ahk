@@ -182,6 +182,10 @@ pub(crate) fn property(
 /// gives one variable gets the one of the two that the enumerator gives
 /// alone, and a variable that is not a reference is left alone: v2 does
 /// not fail there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: a turn that has no
+/// value of its own leaves the variable of the caller without one: the
+/// script that reads it is told that the variable has no value.
 fn the_call(
     this: &Value,
     arguments: &[Value],
@@ -195,9 +199,17 @@ fn the_call(
     };
     if arguments.len() >= 2 {
         rt.write_reference(&arguments[0], key);
-        rt.write_reference(&arguments[1], value);
+        if crate::runtime::is_a_value_without_one(&value) {
+            rt.unset_reference(&arguments[1]);
+        } else {
+            rt.write_reference(&arguments[1], value);
+        }
     } else if let Some(argument) = arguments.first() {
-        rt.write_reference(argument, alone_value);
+        if crate::runtime::is_a_value_without_one(&alone_value) {
+            rt.unset_reference(argument);
+        } else {
+            rt.write_reference(argument, alone_value);
+        }
     }
     Ok(Value::Int(1))
 }

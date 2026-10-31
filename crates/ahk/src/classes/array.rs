@@ -57,6 +57,23 @@ pub(crate) fn construct(
     Ok(array)
 }
 
+/// The object the literal of an array makes.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the literal may have a
+/// hole, and the place of the hole is a place of the array that has no
+/// value of its own.
+pub(crate) fn construct_with_holes(
+    values: &[Option<Value>],
+    _rt: &mut Runtime,
+    _line: u32,
+) -> Value {
+    let array = crate::classes::object_with("array", vec![(STATE, new_state(Vec::new(), 0))]);
+    for value in values {
+        push_element(&array, value.clone());
+    }
+    array
+}
+
 /// A method of an `Array`.
 pub(crate) fn call(
     method: &str,
@@ -247,7 +264,11 @@ pub(crate) fn call(
                 .iter()
                 .enumerate()
                 .map(|(index, item)| {
-                    let value = element_value(item).unwrap_or(Value::Text(String::new()));
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // place that has no value of its own is a turn of the
+                    // enumeration too, and the turn has no value of its own:
+                    // the variable of the loop is left without one.
+                    let value = element_value(item).unwrap_or_else(|| element(None));
                     (Value::Int(index as i64 + 1), value)
                 })
                 .collect();
@@ -487,7 +508,7 @@ fn set_capacity(state: &mut Object, capacity: i64) {
 fn element(value: Option<Value>) -> Value {
     match value {
         Some(value) => Value::List(vec![Value::Int(1), value]),
-        None => Value::List(vec![Value::Int(0)]),
+        None => crate::runtime::the_mark_of_a_value_without_one(),
     }
 }
 
@@ -508,10 +529,18 @@ fn default_property(array: &Value) -> Option<Value> {
 
 /// Put a value at the end of the array.
 fn push_value(array: &Value, value: Value) {
+    push_element(array, Some(value));
+}
+
+/// Put a value at the end of the array, or a hole.
+///
+/// The hole is a place of the array that has no value of its own, and it
+/// is what the literal of an array with a hole makes.
+fn push_element(array: &Value, value: Option<Value>) {
     let Some(state) = state(array) else { return };
     let mut state = state.borrow_mut();
     let mut items = items(&state);
-    items.push(element(Some(value)));
+    items.push(element(value));
     let count = items.len() as i64;
     set_items(&mut state, items);
     // The array grows to hold what is put in it.

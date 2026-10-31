@@ -346,6 +346,21 @@ pub fn unassigned_parameter() -> String {
     "This parameter has not been assigned a value.".to_string()
 }
 
+/// The mark of a value that has no value of its own.
+///
+/// The dialect has no value that means "nothing", and the tree carries the
+/// mark of it: a list of one number, and the number is zero. The mark is not
+/// a value that a script can hold, and the place of an array that has no
+/// value of its own carries it.
+pub(crate) fn the_mark_of_a_value_without_one() -> Value {
+    Value::List(vec![Value::Int(0)])
+}
+
+/// Whether a value is the mark of a value that has no value of its own.
+pub(crate) fn is_a_value_without_one(value: &Value) -> bool {
+    matches!(value, Value::List(items) if items.len() == 1 && items[0] == Value::Int(0))
+}
+
 /// The message v2 gives for a parameter that cannot be used.
 pub fn invalid_parameter(index: usize, name: &str) -> String {
     format!("Parameter #{index} of {name} is invalid.")
@@ -2553,7 +2568,15 @@ impl<'a> Runtime<'a> {
             1 => {
                 // The enumerator gives the value alone.
                 if !variables[0].is_empty() {
-                    self.assign(&variables[0], item.clone());
+                    // Measured on the binary of v2.0.19 on 2026-11-01: a turn
+                    // that has no value of its own leaves the variable of the
+                    // loop without a value: the script that reads it is told
+                    // that the variable has no value.
+                    if is_a_value_without_one(item) {
+                        self.unset_variable(&variables[0]);
+                    } else {
+                        self.assign(&variables[0], item.clone());
+                    }
                 }
                 Ok(())
             }
@@ -2572,7 +2595,13 @@ impl<'a> Runtime<'a> {
                     if name.is_empty() {
                         continue;
                     }
-                    self.assign(name, value.clone());
+                    // The key of the turn is the place of it, and it is there
+                    // even when the value under it is not.
+                    if is_a_value_without_one(value) {
+                        self.unset_variable(name);
+                    } else {
+                        self.assign(name, value.clone());
+                    }
                 }
                 Ok(())
             }
@@ -2594,6 +2623,48 @@ impl<'a> Runtime<'a> {
                     self.variables.remove(the_key_of(name).as_str());
                 }
             },
+        }
+    }
+
+    /// Take the value of a variable away.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the turn of a loop
+    /// that has no value of its own leaves the variable of the loop without
+    /// a value, and not with the value that the turn before it gave. The
+    /// name is written where `assign` writes it, and it is taken away from
+    /// there.
+    fn unset_variable(&mut self, name: &str) {
+        // A parameter that is an alias of a variable of the caller: the
+        // variable of the caller goes without a value.
+        if let Some(reference) = self.alias_of(name) {
+            self.unset_reference(&Value::Reference(reference));
+            return;
+        }
+        let name = the_key_of(name);
+        // A static variable belongs to the function that declares it.
+        if self.is_declared_static(&name) {
+            self.the_statics_of_the_frame().remove(name.as_str());
+            return;
+        }
+        // A name that the script has is a global one.
+        if self.lives_in_the_script(&name) {
+            self.variables.remove(name.as_str());
+            return;
+        }
+        // A name that a scope around the call has is shared with it.
+        for scope in self.scopes.iter().rev().skip(1) {
+            if scope.borrow().contains_key(&name) {
+                scope.borrow_mut().remove(name.as_str());
+                return;
+            }
+        }
+        match self.scopes.last() {
+            Some(scope) => {
+                scope.borrow_mut().remove(name.as_str());
+            }
+            None => {
+                self.variables.remove(name.as_str());
+            }
         }
     }
 
@@ -3005,6 +3076,25 @@ impl<'a> Runtime<'a> {
             Scope::Local(depth) => {
                 if let Some(scope) = self.scopes.get(depth) {
                     scope.borrow_mut().insert(name, written);
+                }
+            }
+        }
+    }
+
+    /// Take the value of the variable a reference points at away.
+    ///
+    /// The variable is left without a value: the enumeration of a place that
+    /// has no value of its own writes nothing into it.
+    pub(crate) fn unset_reference(&mut self, value: &Value) {
+        let Value::Reference(reference) = value else { return };
+        let name = the_key_of(&reference.name);
+        match reference.scope {
+            Scope::Global => {
+                self.variables.remove(name.as_str());
+            }
+            Scope::Local(depth) => {
+                if let Some(scope) = self.scopes.get(depth) {
+                    scope.borrow_mut().remove(name.as_str());
                 }
             }
         }
@@ -7639,12 +7729,17 @@ impl<'a> Runtime<'a> {
             }
             Node::ArrayLiteral { items, line } => {
                 // The literal is the array the `Array` built-in makes:
-                // the values go in, in the order they are written.
-                let values = self.evaluate_all(items)?;
-                match crate::classes::construct("array", &values, self, *line) {
-                    Some(result) => result,
-                    None => Ok(Value::List(values)),
+                // the values go in, in the order they are written. The hole
+                // of the literal is a place of the array that has no value
+                // of its own.
+                let mut values = Vec::new();
+                for item in items {
+                    match item {
+                        Some(item) => values.push(Some(self.evaluate(item)?)),
+                        None => values.push(None),
+                    }
                 }
+                Ok(crate::classes::array::construct_with_holes(&values, self, *line))
             }
             Node::Group { items, .. } => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the value

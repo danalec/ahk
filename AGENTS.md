@@ -5533,3 +5533,30 @@ The probes that measured the rules are in
 `egm-review/sweep_operators.py` (47 cases),
 `probe_operator_holes.py` (16), `probe_expression_holes.py` (15) and
 `sweep_runtime_errors.py` (23).
+
+## 128. The place of an array that has no value of its own
+
+Measured on the binary of v2.0.19 on 2026-11-01: the literal of an array
+and the place that is not there.
+
+- **The literal of an array may have a hole,** and the hole is a comma that
+  follows a comma: `[1, , 3]` is an array of three places, and the place of
+  the middle has no value of its own. The tree read the comma as the end of
+  the list and refused the literal at the load with a "Missing \"]\"".
+- **The hole is a place of the array,** and it counts: the length of
+  `[1, , 3]` is three, and `Has` says that the place has no value. The read
+  of it says "Item has no value.", the write in it fills it, and the clone
+  of the array keeps it.
+- **The hole that is the last one is dropped,** the way the parameter that is
+  not there is dropped at the end of a call: the commas at the end of the
+  list add nothing. `[1, 2, , ]` has two places and `[,]` has none.
+- **The enumeration of a hole is a turn of the enumeration too,** and the turn
+  has no value of its own: the variable of the loop is left without one, and
+  the script that reads it is told that the variable has no value. The key of
+  the turn is the place of it, and it is there even when the value under it is
+  not.
+
+The probes that measured the rules are in
+`egm-review/probe_array_hole.py` (13 cases), `probe_array_hole_enum.py` (7),
+`probe_array_hole_more.py` (13), `probe_array_hole_newline.py` (7),
+`probe_array_hole_key.py` (6) and `probe_array_hole_turns.py` (4).

@@ -143,7 +143,9 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
 - `ArrayLiteral { items, line }` -- the literal of an array: `[a, b]` is
   `Array(a, b)`. It is a primary, so the suffixes of a value follow it
   the way they follow a variable: `[1, 2].Length` is the length of the
-  array.
+  array. The item of the list may be absent: the hole of `[1, , 3]` is a
+  place of the array that has no value of its own, and the item of it is
+  `None`.
 - `Group { items, line }` -- the list of the values between parentheses:
   the value of it is the last of them, and every item runs. The
   parenthesis that is spaced is not a group.
@@ -756,7 +758,9 @@ The `Enumerator` is the enumeration of v2: the `__Enum` of a value and the
 `OwnProps` of an object hand one out, and its `Call` writes the turn into
 the variables of the caller. The key and the value under it are the turn,
 and the one of the two that it gives alone is the one that the producer
-names: the value of an array, the key of a map, the name of a property.
+names: the value of an array, the key of a map, the name of a property. A
+turn that has no value of its own leaves the variable of the caller without
+one.
 
 The item of an object of a class type is asked of the module that owns
 the class, and the write of one goes the same way. Only a `Map` and an
@@ -1377,6 +1381,16 @@ that asks for another one is refused with the reason.
   left, and the v2 refuses the script at the load when it is another
   value. The three-way comparison is not a token of the v2: the `===` is
   the `==` and the `=`.
+
+- **The literal of an array may have a place that has no value of its
+  own.** The hole is a comma that follows a comma, and the hole is a
+  place of the array: it counts in the length, and the read of it says
+  "Item has no value.". The hole that is the last one is dropped, the
+  way the parameter that is not there is dropped at the end of a call.
+  The enumeration of a hole is a turn of the enumeration too, and the
+  turn has no value of its own: the variable of the loop is left without
+  one, and the script that reads it is told that the variable has no
+  value.
 
 ## Side Effects
 

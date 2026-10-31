@@ -488,7 +488,12 @@ pub enum Node {
     /// v2 writes an array between brackets, and the empty brackets are
     /// the array of nothing. The values go in the order they are
     /// written, and the places of an array count from one.
-    ArrayLiteral { items: Vec<Node>, line: u32 },
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the literal may
+    /// have a hole, and the place of the hole is a place of the array that
+    /// has no value of its own. The item is absent, and not a value that
+    /// means nothing: the dialect has no such value.
+    ArrayLiteral { items: Vec<Option<Node>>, line: u32 },
     /// `(a, b)`: the list of the values of a group.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the value of the
