@@ -184,15 +184,18 @@ pub(crate) fn error_value_of(
     line: u32,
 ) -> Value {
     let mut properties = BTreeMap::new();
-    put(&mut properties, "message", Value::Text(message.to_string()));
-    put(&mut properties, "what", Value::Text(what.to_string()));
-    put(&mut properties, "extra", Value::Text(extra.to_string()));
+    // Measured on the binary of v2.0.19 on 2026-10-31: the own properties
+    // of an error are the ones that v2 spells: "Extra", "File", "Line",
+    // "Message", "Stack" and "What".
+    put(&mut properties, "Message", Value::Text(message.to_string()));
+    put(&mut properties, "What", Value::Text(what.to_string()));
+    put(&mut properties, "Extra", Value::Text(extra.to_string()));
     // The script of the runner has no file of its own.
-    put(&mut properties, "file", Value::Text(String::new()));
-    put(&mut properties, "line", Value::Int(line as i64));
+    put(&mut properties, "File", Value::Text(String::new()));
+    put(&mut properties, "Line", Value::Int(line as i64));
     // The tree keeps no stack: the stack of v2 names the file of every
     // frame, and the script of the runner has no file.
-    put(&mut properties, "stack", Value::Text(String::new()));
+    put(&mut properties, "Stack", Value::Text(String::new()));
     Value::Object(Rc::new(RefCell::new(Object { class: class.to_lowercase(), properties })))
 }
 

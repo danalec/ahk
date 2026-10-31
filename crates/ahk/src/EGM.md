@@ -992,6 +992,10 @@ that asks for another one is refused with the reason.
 - **The name of a property of a class may be a number, and the base of a
   class is a class.** The base that is not there is refused at the load, and
   the base may be declared after the class that extends it.
+- **The own properties of an error are the ones that v2 spells, and the class
+  value of a class of the runtime owns the call of it and the prototype.**
+  The table that the tree keeps is its own, and the name of the class is
+  not a property of the class value.
 
 ## Side Effects
 

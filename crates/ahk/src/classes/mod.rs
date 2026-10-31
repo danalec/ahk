@@ -756,6 +756,25 @@ pub fn the_class_types() -> Vec<String> {
     names
 }
 
+/// The classes whose class value owns the call of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the class value of
+/// the `Map` owns the call and the prototype, and the class value of the
+/// `Error` owns the prototype alone. The classes that a script calls are
+/// the ones that own the call.
+const THE_CLASSES_THAT_OWN_THE_CALL: [&str; 10] = [
+    "object", "map", "array", "buffer", "menu", "inputhook", "clipboardall", "gui", "comobject", "comvalue",
+];
+
+/// Whether the class value of the class owns the call of it.
+///
+/// The classes of the errors are not among them, and neither are the
+/// functions: a `Func` and a `BoundFunc` are made by a definition, and not
+/// by a call.
+pub(crate) fn the_class_owns_the_call(class: &str) -> bool {
+    THE_CLASSES_THAT_OWN_THE_CALL.contains(&class.to_lowercase().as_str())
+}
+
 /// The classes of v2 that this runtime does not carry.
 ///
 /// The COM objects are a thing of Windows, and this runtime does not

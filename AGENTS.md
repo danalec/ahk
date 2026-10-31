@@ -4388,3 +4388,31 @@ measured the rules are in `egm-review/probe_refused_member.py`,
 `egm-review/probe_refused_member13.py`,
 `egm-review/probe_refused_member14.py` and
 `egm-review/probe_refused_member15.py`.
+
+## 96. The members of an error, and the class value of a class of the runtime
+
+Measured on the binary of v2.0.19 on 2026-10-31: the own properties of an
+error are the ones that v2 spells, and the class value of a class of the
+runtime owns the call of it and the prototype.
+
+- **The own properties of an error are "Extra", "File", "Line", "Message",
+  "Stack" and "What".** The tree carried them in lower case, and the names
+  of them were the ones of the tree.
+- **The class value of a class of the runtime owns the call of it and the
+  prototype.** The tree answered with the table that it keeps, and the
+  table is the tree's own: the name of the class is under a key of its own,
+  and the key is not a property of the class value.
+- **The call is own of the classes that a script calls.** The class value
+  of the `Map` owns it, and the class value of the `Error` does not: the
+  call of the `Error` is inherited, and not own. The classes are the ones
+  of the table in `classes/mod.rs`.
+- **The stack of an error is not carried.** v2 names the file of every
+  frame, the line of it, the source of the line and the name of the
+  function, and the script of the runner has no file.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_error_members.py` (66 cases), and the probes that
+measured the rules are in `egm-review/probe_error_members.py`,
+`egm-review/probe_error_line.py`, `egm-review/probe_error_line2.py`,
+`egm-review/probe_class_value.py`, `egm-review/probe_class_value2.py`,
+`egm-review/probe_class_value3.py` and `egm-review/probe_class_base.py`.

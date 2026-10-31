@@ -260,6 +260,18 @@ fn the_stack_of_an_error_is_empty() {
 }
 
 #[test]
+fn the_own_properties_of_an_error_are_the_ones_that_v2_spells() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the own
+    // properties of an error are "Extra", "File", "Line", "Message",
+    // "Stack" and "What".
+    let report = run(
+        "e := Error(\"m\", \"w\", \"x\")\ns := \"\"\nfor p in ObjOwnProps(e)\n    s .= \"[\" p \"]\"\nMsgBox s",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[Extra][File][Line][Message][Stack][What]"]);
+}
+
+#[test]
 fn the_number_of_the_arguments_of_the_constructor_of_an_error_is_checked() {
     // Measured on the binary of v2.0.19 on 2026-10-30: the errors are made
     // the way the root of them is, and the call goes through the base

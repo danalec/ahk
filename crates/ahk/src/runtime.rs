@@ -2471,6 +2471,15 @@ impl<'a> Runtime<'a> {
                 line,
             });
         };
+        // A class value of the runtime: the own properties of it are the
+        // ones that v2 gives it, and not the table that the tree keeps.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the own
+        // properties of the class value of the `Map` are "Call" and
+        // "Prototype".
+        if name == "ownprops" && self.class_name_of(target).is_some() {
+            return self.base_object(target, name, arguments, line);
+        }
         let class = object.borrow().class.clone();
         match crate::classes::call(&class, name, target, arguments, self, line) {
             Some(Ok(value)) => Ok(value),
@@ -3962,8 +3971,17 @@ impl<'a> Runtime<'a> {
                     names.push(self.the_name_of_a_class(nested));
                 }
             }
-            // A class of the runtime: the call of it.
-            None => names.push("Call".to_string()),
+            // A class of the runtime: the call of it, when the class is one
+            // that a script calls.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31: the class
+            // value of the `Map` owns the call and the prototype, and the
+            // class value of the `Error` owns the prototype alone.
+            None => {
+                if crate::classes::the_class_owns_the_call(&class) {
+                    names.push("Call".to_string());
+                }
+            }
         }
         names.push("Prototype".to_string());
         names
@@ -4454,6 +4472,15 @@ impl<'a> Runtime<'a> {
                 // properties of a function are none.
                 let own = if object.borrow().class == "func" {
                     false
+                } else if self.class_name_of(target).is_some() {
+                    // The table of a class value is the tree's own, and the
+                    // name of the class and the base and the prototype are
+                    // not properties of it. The names that the script wrote
+                    // are its own properties.
+                    object.borrow().properties.contains_key(&lower)
+                        && lower != CLASS_NAME
+                        && lower != BASE
+                        && lower != "prototype"
                 } else {
                     object.borrow().properties.contains_key(&lower)
                 };

@@ -1336,6 +1336,42 @@ fn the_base_of_a_class_that_is_not_there_is_refused() {
 }
 
 #[test]
+fn the_class_value_of_a_class_of_the_runtime_owns_the_call_and_the_prototype() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the class value of
+    // the `Map` owns the call and the prototype, and not the table that
+    // the tree keeps.
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in ObjOwnProps(Map)\n    s .= \"[\" p \"]\"\nMsgBox s"),
+        "[Call][Prototype]"
+    );
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in ObjOwnProps(Object)\n    s .= \"[\" p \"]\"\nMsgBox s"),
+        "[Call][Prototype]"
+    );
+}
+
+#[test]
+fn the_class_value_of_an_error_owns_the_prototype_alone() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the class value of
+    // the `Error` owns the prototype alone, and the call of it is
+    // inherited.
+    assert_eq!(
+        the_answer_of("s := \"\"\nfor p in ObjOwnProps(Error)\n    s .= \"[\" p \"]\"\nMsgBox s"),
+        "[Prototype]"
+    );
+    assert_eq!(the_answer_of("FileAppend Error.HasOwnProp(\"Call\"), \"*\""), "0");
+    assert_eq!(the_answer_of("FileAppend Error.HasProp(\"Call\"), \"*\""), "1");
+}
+
+#[test]
+fn the_name_of_the_class_is_not_an_own_property_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the tree keeps the
+    // name of the class under a key of its own, and the key is not a
+    // property of the class value.
+    assert_eq!(the_answer_of("FileAppend Map.HasOwnProp(\"class name\"), \"*\""), "0");
+}
+
+#[test]
 fn the_base_of_a_class_may_be_declared_after_it() {
     assert_eq!(
         the_answer_of("class C extends D {\n}\nclass D {\n}\nMsgBox C.Prototype.__Class"),
