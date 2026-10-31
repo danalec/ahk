@@ -1239,6 +1239,11 @@ reference: every measurement in these notes came out of it.
   `catch as err` and the message is `err.What`. For the parameter error
   of a built-in it comes back empty, and the text has to be read off the
   dialog.
+- **A write to the standard output that has no linefeed holds the run.**
+  Measured on the binary of v2.0.19 on 2026-11-01: a probe that writes
+  inside a catch must end every write with a linefeed. Without it the
+  binary waits at the exit, and the run times out as if a dialog were
+  there.
 
 ## 18. The type errors
 
