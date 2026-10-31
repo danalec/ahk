@@ -951,6 +951,16 @@ pub(crate) struct Callback {
     pub line: u32,
 }
 
+/// A frame of a call that runs.
+///
+/// The frame is the name of the function or of the method, and the line of
+/// the statement that runs in it. The stack of an error of v2 names both.
+#[derive(Debug, Clone)]
+struct Frame {
+    name: String,
+    line: u32,
+}
+
 /// Executes a script.
 ///
 /// The limits are the guard rails: a script that loops forever must not
@@ -1008,8 +1018,20 @@ pub struct Runtime<'a> {
     ///
     /// The frame is the name of the function or of the method that
     /// runs: v2 puts it in the `What` of an error that does not carry
-    /// one.
-    frames: Vec<String>,
+    /// one. The frame carries the line of the statement that runs in it,
+    /// and the stack of an error names it.
+    frames: Vec<Frame>,
+    /// The lines of the script, when the host gave them.
+    ///
+    /// The stack of an error names the source of the line that failed,
+    /// and the script of the runner has no file of its own.
+    source: Vec<String>,
+    /// The line of the statement that runs in the section that starts the
+    /// script.
+    ///
+    /// The section that starts the script is the last frame of the stack
+    /// of v2, and it has no name.
+    auto_execute_line: u32,
     functions: BTreeMap<String, Function>,
     /// How many closures the runtime made.
     ///
@@ -1117,6 +1139,8 @@ impl<'a> Runtime<'a> {
             declarations: Vec::new(),
             current_classes: Vec::new(),
             frames: Vec::new(),
+            source: Vec::new(),
+            auto_execute_line: 0,
             functions: BTreeMap::new(),
             closures: 0,
             classes: BTreeMap::new(),
@@ -1167,6 +1191,8 @@ impl<'a> Runtime<'a> {
             declarations: Vec::new(),
             current_classes: Vec::new(),
             frames: Vec::new(),
+            source: Vec::new(),
+            auto_execute_line: 0,
             functions: BTreeMap::new(),
             closures: 0,
             classes: BTreeMap::new(),
@@ -1197,6 +1223,15 @@ impl<'a> Runtime<'a> {
     /// stops before the stack is gone.
     pub fn with_stack_budget(mut self, bytes: usize) -> Self {
         self.stack_budget = bytes;
+        self
+    }
+
+    /// A runtime that knows the source of the script.
+    ///
+    /// The stack of an error of v2 names the source of the line that
+    /// failed, and the host that reads the script gives it here.
+    pub fn with_source(mut self, source: &str) -> Self {
+        self.source = source.lines().map(|line| line.to_string()).collect();
         self
     }
 
@@ -1663,6 +1698,7 @@ impl<'a> Runtime<'a> {
             "",
             "",
             error.line,
+            &self.the_stack(),
         )
     }
 
@@ -1677,7 +1713,44 @@ impl<'a> Runtime<'a> {
             &detail.what,
             &detail.extra,
             error.line,
+            &self.the_stack(),
         )
+    }
+
+    /// The stack of an error, the way v2 writes it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: every frame is a
+    /// line of its own -- the file, the line, the name of the frame and
+    /// the source of the line -- and the last line names the section
+    /// that starts the script.
+    ///
+    /// The script of the runner has no file of its own, and the file of
+    /// every frame is empty.
+    pub(crate) fn the_stack(&self) -> String {
+        let mut lines: Vec<String> = Vec::new();
+        for frame in self.frames.iter().rev() {
+            lines.push(self.the_line_of_a_frame(&frame.name, frame.line));
+        }
+        lines.push(self.the_line_of_a_frame("", self.auto_execute_line));
+        lines.push("> Auto-execute".to_string());
+        lines.join("\n")
+    }
+
+    /// The line of a frame of the stack.
+    fn the_line_of_a_frame(&self, name: &str, line: u32) -> String {
+        format!(" ({line}) : [{name}] {}", self.the_source_of_the_line(line))
+    }
+
+    /// The source of a line of the script, when the host gave it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the source that
+    /// the stack names is the text of the line without the space that
+    /// indents it.
+    fn the_source_of_the_line(&self, line: u32) -> String {
+        self.source
+            .get(line.saturating_sub(1) as usize)
+            .map(|text| text.trim().to_string())
+            .unwrap_or_default()
     }
 
     /// The name of the thing that threw a value.
@@ -1698,7 +1771,7 @@ impl<'a> Runtime<'a> {
             return;
         }
         let Some(frame) = self.frames.last() else { return };
-        put(&mut object.borrow_mut().properties, "what", Value::Text(frame.clone()));
+        put(&mut object.borrow_mut().properties, "what", Value::Text(frame.name.clone()));
     }
 
     /// The timers that are due.
@@ -1765,6 +1838,12 @@ impl<'a> Runtime<'a> {
 
     fn execute(&mut self, statement: &Node) -> Result<(), RuntimeFailure> {
         self.steps_taken += 1;
+        // The stack of an error names the line of the statement that runs
+        // in every frame.
+        match self.frames.last_mut() {
+            Some(frame) => frame.line = statement.line(),
+            None => self.auto_execute_line = statement.line(),
+        }
         if self.steps_taken > Self::MAX_STEPS {
             return Err(RuntimeFailure::Error(RuntimeError {
                 message: format!("the script ran more than {} statements", Self::MAX_STEPS),
@@ -2727,7 +2806,7 @@ impl<'a> Runtime<'a> {
     /// The frame is the name of the function or of the method that runs,
     /// and the table of the function is under it.
     fn the_statics_of_the_frame(&mut self) -> &mut BTreeMap<String, Value> {
-        let frame = self.frames.last().cloned().unwrap_or_default();
+        let frame = self.frames.last().map(|frame| frame.name.clone()).unwrap_or_default();
         self.statics.entry(frame).or_default()
     }
 
@@ -2735,7 +2814,7 @@ impl<'a> Runtime<'a> {
     /// The value of a static variable of the function that runs.
     fn the_static_of_the_frame(&self, name: &str) -> Option<Value> {
         let frame = self.frames.last()?;
-        self.statics.get(frame)?.get(name).cloned()
+        self.statics.get(&frame.name)?.get(name).cloned()
     }
 
 
@@ -2745,14 +2824,14 @@ impl<'a> Runtime<'a> {
     /// declaration is reached.
     fn the_static_already_ran(&self, line: u32, name: &str) -> bool {
         let Some(frame) = self.frames.last() else { return false };
-        let Some(ran) = self.statics_run.get(frame) else { return false };
+        let Some(ran) = self.statics_run.get(&frame.name) else { return false };
         ran.contains(&the_key_of_a_declaration(line, name))
     }
 
 
     /// Mark the value of a static declaration as one that ran.
     fn mark_the_static_as_ran(&mut self, line: u32, name: &str) {
-        let frame = self.frames.last().cloned().unwrap_or_default();
+        let frame = self.frames.last().map(|frame| frame.name.clone()).unwrap_or_default();
         self.statics_run
             .entry(frame)
             .or_default()
@@ -3720,7 +3799,7 @@ impl<'a> Runtime<'a> {
         self.collect_the_nested_functions(&method.body);
         self.declarations.push(method.declarations.clone());
         self.current_classes.push(class.to_lowercase());
-        self.frames.push(frame);
+        self.frames.push(Frame { name: frame, line });
         // The labels of the method are the scope of the method.
         self.label_scopes.push(the_labels_of(&method.body));
         let outcome = self.run_block(&method.body);
@@ -6569,7 +6648,7 @@ impl<'a> Runtime<'a> {
         // the body runs.
         self.collect_the_nested_functions(&function.body);
         self.declarations.push(function.declarations.clone());
-        self.frames.push(function.name.clone());
+        self.frames.push(Frame { name: function.name.clone(), line });
         // The labels of the function are the scope of the function.
         self.label_scopes.push(the_labels_of(&function.body));
         let outcome = self.run_block(&function.body);

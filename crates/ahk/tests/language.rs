@@ -194,7 +194,9 @@ fn run(source: &str) -> (Report, Fake) {
     let mut desktop = Fake::default();
     desktop.pixels.push(((10, 20), "#ff8800".into()));
     let statements = parse(source).expect("parses");
-    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10))
+        .with_source(source)
+        .run(&statements);
     (report, desktop)
 }
 
@@ -203,7 +205,7 @@ fn run_with_timeout(source: &str, timeout: Duration) -> (Report, Fake) {
     let mut desktop = Fake::default();
     desktop.pixels.push(((10, 20), "#ff8800".into()));
     let statements = parse(source).expect("parses");
-    let report = Runtime::new(&mut desktop, timeout).run(&statements);
+    let report = Runtime::new(&mut desktop, timeout).with_source(source).run(&statements);
     (report, desktop)
 }
 
@@ -4554,5 +4556,53 @@ fn a_class_is_a_class_of_its_own_kind_and_a_prototype_is_of_its_own() {
     assert_eq!(
         report.error.as_deref(),
         Some("Parameter #1 of MsgBox requires a String, but received a Class.")
+    );
+}
+
+#[test]
+fn the_stack_of_an_error_names_the_frames_of_the_call() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: every frame is a
+    // line of its own -- the file, the line, the name of the frame and
+    // the source of the line -- and the last line names the section that
+    // starts the script. The script of the runner has no file of its own,
+    // and the file of every frame is empty.
+    let (report, _desktop) = run(
+        "f() {\n  Throw Error(\"boom\")\n}\ntry {\n  f()\n} catch Any as err {\n  MsgBox err.Stack\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![" (2) : [f] Throw Error(\"boom\")\n (5) : [] f()\n> Auto-execute"]
+    );
+}
+
+#[test]
+fn the_stack_of_an_error_of_the_section_that_starts_the_script() {
+    // The section that starts the script is the last frame of the stack,
+    // and it has no name.
+    let (report, _desktop) = run("try {\n  Throw Error(\"boom\")\n} catch Any as err {\n  MsgBox err.Stack\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec![" (2) : [] Throw Error(\"boom\")\n> Auto-execute"]);
+}
+
+#[test]
+fn the_stack_of_a_failure_of_the_run_names_the_line_that_failed() {
+    // A failure that the script did not throw has a stack too.
+    let (report, _desktop) = run("try {\n  x := 1 / 0\n} catch Any as err {\n  MsgBox err.Stack\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec![" (2) : [] x := 1 / 0\n> Auto-execute"]);
+}
+
+#[test]
+fn the_stack_names_every_frame_of_the_call() {
+    // The frames come from the inside out, and the name of a method is
+    // the one that v2 gives it.
+    let (report, _desktop) = run(
+        "g() {\n  f()\n}\nf() {\n  h()\n}\nh() {\n  Throw Error(\"boom\")\n}\ntry {\n  g()\n} catch Any as err {\n  MsgBox err.Stack\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![" (8) : [h] Throw Error(\"boom\")\n (5) : [f] h()\n (2) : [g] f()\n (11) : [] g()\n> Auto-execute"]
     );
 }

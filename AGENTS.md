@@ -4420,9 +4420,10 @@ runtime owns the call of it and the prototype.
   of the `Map` owns it, and the class value of the `Error` does not: the
   call of the `Error` is inherited, and not own. The classes are the ones
   of the table in `classes/mod.rs`.
-- **The stack of an error is not carried.** v2 names the file of every
-  frame, the line of it, the source of the line and the name of the
-  function, and the script of the runner has no file.
+- **The stack of an error carries the frames of the call.** v2 names the
+  file of every frame, the line of it, the source of the line and the name
+  of the function, and the script of the runner has no file: the file of
+  every frame is empty. The section 104 says the whole of it.
 
 The comparison of the tree with the binary is in
 `egm-review/compare_error_members.py` (66 cases), and the probes that
@@ -4756,3 +4757,28 @@ capacity of a text that the tree answers with the length of it). The
 probes that measured the rules are in
 `egm-review/probe_class_value_text.py` and
 `egm-review/probe_names_and_stack.py`.
+
+## 104. The stack of an error
+
+Measured on the binary of v2.0.19 on 2026-10-31: the stack of an error is
+a line for every frame of the call that failed, and the last line names the
+section that starts the script.
+
+- **The frame is a line of its own.** It names the file of the script, the
+  line, the name of the frame and the source of the line: "C:\f.ahk (3) :
+  [f] Throw Error(\"boom\")". The frames come from the inside out, and the
+  source is the text of the line without the space that indents it.
+- **The section that starts the script is the last frame, and it has no
+  name.** Its line is "[ ]" -- "[]" -- and the line after it is "> Auto-execute".
+- **The script of the runner has no file of its own.** The file of every
+  frame is empty, and the file of the error is empty too.
+- **A failure of the run has a stack as well.** The one that the script did
+  not throw names the line that failed, and the frames around it.
+
+The host that reads the script gives it to the runtime with
+`Runtime::with_source`, and the runtime keeps the line of every frame as
+the statements run. The comparison of the tree with the binary is in
+`egm-review/compare_stack.py` (6 cases, five of them the same; the sixth
+is a call of a method on the result of a constructor, which the parser of
+the tree does not read yet). The probes that measured the rules are in
+`egm-review/probe_stack.py` and `egm-review/probe_error_stack.py`.

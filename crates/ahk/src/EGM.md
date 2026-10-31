@@ -861,6 +861,13 @@ that asks for another one is refused with the reason.
 - **An object is not written as a text.** v2 reads the property "Ptr" of
   the value that it writes, and an object has none. A class is a class of
   its own kind ("Class"), and a prototype is of its own too ("Prototype").
+- **The stack of an error names every frame of the call that failed.** The
+  frame is the file, the line, the name of the frame and the source of the
+  line, and the section that starts the script is the last frame and has no
+  name. The script of the runner has no file of its own, and the file of
+  every frame is empty. The host gives the source to the runtime with
+  `Runtime::with_source`, and the runtime keeps the line of every frame as
+  the statements run.
 - **`Sleep` is capped at 60 000 ms**, in the statement and in the builtin.
 - **The timeout knows no line.** It stops the script between two statements,
   so `error_line` stays null and the message is "the script ran for more than

@@ -137,6 +137,7 @@ fn main() -> std::process::ExitCode {
             desktop.ensure_session_env();
             let report = Runtime::new(&mut desktop, Duration::from_secs_f64(timeout))
                 .with_stack_budget(STACK_BUDGET)
+                .with_source(&source)
                 .run(&statements);
             let mut payload = serde_json::to_value(&report).expect("the report serialises");
             if let Some(map) = payload.as_object_mut() {

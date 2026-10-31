@@ -159,7 +159,7 @@ pub(crate) fn names() -> Vec<&'static str> {
 pub(crate) fn construct(
     class: &str,
     arguments: &[Value],
-    _rt: &mut Runtime,
+    rt: &mut Runtime,
     line: u32,
 ) -> Result<Value, RuntimeFailure> {
     let message = arguments
@@ -168,7 +168,7 @@ pub(crate) fn construct(
         .unwrap_or_else(|| the_spelling_of(class).unwrap_or_default());
     let what = arguments.get(1).map(|value| value.to_text()).unwrap_or_default();
     let extra = arguments.get(2).map(|value| value.to_text()).unwrap_or_default();
-    Ok(error_value_of(class, &message, &what, &extra, line))
+    Ok(error_value_of(class, &message, &what, &extra, line, &rt.the_stack()))
 }
 
 /// The object of an error, with the properties of it.
@@ -182,6 +182,7 @@ pub(crate) fn error_value_of(
     what: &str,
     extra: &str,
     line: u32,
+    stack: &str,
 ) -> Value {
     let mut properties = BTreeMap::new();
     // Measured on the binary of v2.0.19 on 2026-10-31: the own properties
@@ -193,9 +194,11 @@ pub(crate) fn error_value_of(
     // The script of the runner has no file of its own.
     put(&mut properties, "File", Value::Text(String::new()));
     put(&mut properties, "Line", Value::Int(line as i64));
-    // The tree keeps no stack: the stack of v2 names the file of every
-    // frame, and the script of the runner has no file.
-    put(&mut properties, "Stack", Value::Text(String::new()));
+    // Measured on the binary of v2.0.19 on 2026-10-31: the stack names
+    // every frame of the call that failed -- the file of it, the line,
+    // the name of the frame and the source of the line -- and the last
+    // line names the section that starts the script.
+    put(&mut properties, "Stack", Value::Text(stack.to_string()));
     Value::Object(Rc::new(RefCell::new(Object { class: class.to_lowercase(), properties })))
 }
 

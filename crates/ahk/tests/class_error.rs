@@ -77,7 +77,9 @@ impl Native for Fake {}
 fn run(source: &str) -> Report {
     let mut desktop = Fake;
     let statements = parse(source).expect("parses");
-    Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements)
+    Runtime::new(&mut desktop, Duration::from_secs(10))
+        .with_source(source)
+        .run(&statements)
 }
 
 #[test]
@@ -251,12 +253,14 @@ fn the_arity_of_a_call_is_a_plain_error() {
 }
 
 #[test]
-fn the_stack_of_an_error_is_empty() {
-    // The tree keeps no stack: the stack of v2 names the file of every
-    // frame, and the script of the runner has no file.
+fn the_stack_of_an_error_names_the_frames_of_the_call() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the stack is a
+    // line for every frame of the call that failed, and the last line
+    // names the section that starts the script. The script of the runner
+    // has no file of its own, and the file of every frame is empty.
     let report = run("e := Error(\"the message\")\nMsgBox e.Stack");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec![""]);
+    assert_eq!(report.output, vec![" (1) : [] e := Error(\"the message\")\n> Auto-execute"]);
 }
 
 #[test]
