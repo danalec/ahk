@@ -4605,10 +4605,9 @@ member.
 - **The number with a point is not a name.** The literal of an object
   refuses it with "Invalid property name in object literal.": `{1.5: 1}` and
   `{.5: 1}` are both refused, and so is the text.
-- **The point alone is not a number.** It belongs to the family of the
-  statement that begins with an operator, and it is the next block: the v2
-  refuses `x := .` with "Missing operand." and the tree refuses it with
-  "Syntax error.".
+- **The point alone is not a number.** The family of the statement that
+  begins with an operator is the next block, and it says what the v2 says
+  about it.
 
 The comparison of the tree with the binary is in
 `egm-review/compare_number_point.py` (twelve cases, two of them the point
@@ -4617,3 +4616,54 @@ them different). The probe of the cases that the two harnesses left out is
 in `egm-review/probe_number_point_skipped.py`: the v2 waits with a dialogue
 of its own when the member is a number, and the tree refuses it with the
 words of v2.
+
+## 101. The statement that begins with an operator
+
+Measured on the binary of v2.0.19 on 2026-10-31: a statement that begins
+with an operator is a line that holds no action, and the text that is named
+is the line itself.
+
+- **The statement that begins with an operator is a line that holds no
+  action.** The refusal is "This line does not contain a recognized action."
+  and the line: `-1`, `*x`, `== 1`, `< 1`, `| 1` and `&x` are refused that
+  way, and so is the statement that carries an assignment after the
+  operator: `-x := 2` and `!x := 2` are refused with the whole line.
+- **The operators that want a word of their own are named apart.** The
+  equal and the arrow want the operator of an assignment: "Syntax error.
+  Did you mean to use \":=\"?" and the line. The assignment wants a name on
+  its left: "\":=\" requires that parameter #1 be non-blank." and nothing
+  else. The compound assignment writes to a name that is not there:
+  "Invalid assignment." and the line. The comma separates the parameters of
+  a call: "Function calls require a space or \"(\".  Use comma only between
+  parameters." and the line. The question asks a question that is not
+  there: "Syntax error." and the line. The double colon is the separator of
+  a hotkey: "Invalid hotkey." and the line.
+- **The dot is the member of a value that is not there.** A dot with a name
+  after it is refused with "Syntax error." and the call that it wanted to
+  make: `.x` is named `.x()` and `.x 1` is named `.x(1)`. The dot alone,
+  and the dot of a name with a space before it, are a line that holds no
+  action.
+- **The dot in the place of an operand is refused with the rest of the
+  line.** "Syntax error." and the rest of the line, from the dot: `x := 1
+  + .` names the dot, and `x := (.)` and `f(.)` name `.)`.
+- **The line that begins with an operator continues the one before it.**
+  The rule of the section 94 is what decides most of the cases of this
+  family: `-x` after `x := 1` is the assignment `x := 1 - x`, and the
+  variable is read before it is assigned, and the failure is "This global
+  variable has not been assigned a value." and the name of it.
+- **The number that begins with a point is a corner at the start of a
+  statement.** The v2 reads `.5` as the number 0.5 and calls it: the failure
+  is "This value of type \"Float\" has no method named \"Call\"."; the tree
+  refuses the line with "This line does not contain a recognized action.".
+- **The double deref of v2 is not carried yet.** The v2 reads `%name%` and
+  refuses the one that is not closed with "Missing ending \"%\"" and the
+  line; the lexer of the tree refuses the `%` itself.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_unary_operators.py` (35 cases, one of them the double
+deref) and in `egm-review/compare_unary_statement.py` (13 cases, none of
+them different). The probes that measured the rules are in
+`egm-review/probe_unary_operators.py`, `egm-review/probe_unary_dot.py`,
+`egm-review/probe_unary_call.py`, `egm-review/probe_unary_brackets.py`,
+`egm-review/probe_unary_statement.py`, `egm-review/probe_unary_runtime.py`,
+`egm-review/probe_unary_scope.py` and `egm-review/probe_unary_variable.py`.

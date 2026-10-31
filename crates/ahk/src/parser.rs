@@ -1138,6 +1138,99 @@ impl Parser {
         }
     }
 
+    /// The message of v2 when a statement begins with an operator.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a statement that
+    /// begins with an operator is a line that holds no action, and the text
+    /// that is named is the line itself. The operators that want a word of
+    /// their own are named apart: the equal wants the operator of an
+    /// assignment, the assignment wants a name on its left, the comma
+    /// separates the parameters of a call, the question asks a question that
+    /// is not there, and the double colon is the separator of a hotkey.
+    fn the_message_of_the_operator_at_the_start(&self, token: &Token) -> String {
+        let line = the_source_of_the_line(self, token.line);
+        match token.value.as_str() {
+            // The dot is the member of a value that is not there.
+            "." => self.the_message_of_the_dot_at_the_start(),
+            // The equal wants the operator of an assignment.
+            "=" | "=>" => format!("Syntax error. Did you mean to use \":=\"?\n     Specifically: {line}"),
+            // The assignment wants a name on its left.
+            ":=" => "\":=\" requires that parameter #1 be non-blank.".to_string(),
+            // The compound assignment writes to a name that is not there.
+            op if the_assignment_operator(op).is_some() => {
+                format!("Invalid assignment.\n     Specifically: {line}")
+            }
+            // The comma separates the parameters of a call.
+            "," => format!(
+                "Function calls require a space or \"(\".  Use comma only between parameters.\n     Specifically: {line}"
+            ),
+            // The question asks a question that is not there.
+            "?" | "??" => format!("Syntax error.\n     Specifically: {line}"),
+            // The double colon is the separator of a hotkey.
+            "::" => format!("Invalid hotkey.\n     Specifically: {line}"),
+            // The other operators are not a statement of their own.
+            _ => format!("This line does not contain a recognized action.\n     Specifically: {line}"),
+        }
+    }
+
+    /// The message of v2 when a statement begins with a dot.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the dot with a name
+    /// after it is the member of a value that is not there, and the v2 names
+    /// the call that it wanted to make -- `.x` is named `.x()`. The dot
+    /// alone is a line that holds no action.
+    fn the_message_of_the_dot_at_the_start(&self) -> String {
+        let line = the_source_of_the_line(self, self.peek().line);
+        // The name after the dot is the member that is wanted.
+        let member = self.tokens.get(self.position + 1);
+        let is_a_member = matches!(member, Some(token) if token.kind == TokenKind::Name && !token.spaced);
+        if !is_a_member {
+            return format!("This line does not contain a recognized action.\n     Specifically: {line}");
+        }
+        // The statement that carries an assignment is named as it was written.
+        if self.the_line_has_an_assignment() {
+            return format!("Syntax error.\n     Specifically: {line}");
+        }
+        format!("Syntax error.\n     Specifically: {}", self.the_call_of_the_dot())
+    }
+
+    /// Whether the line of the statement carries an assignment.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the statement that
+    /// is an assignment is named as the script wrote it, and the one that is
+    /// a call is named with its parentheses.
+    fn the_line_has_an_assignment(&self) -> bool {
+        let line = self.peek().line;
+        self.tokens.iter().any(|token| {
+            token.line == line && (token.value == "=" || the_assignment_operator(&token.value).is_some())
+        })
+    }
+
+    /// The call that a statement that begins with a dot wanted to make.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the v2 names the call
+    /// with its parentheses: `.x` is `.x()` and `.x 1` is `.x(1)`.
+    fn the_call_of_the_dot(&self) -> String {
+        // The chain of the members: the dot, the name, and the dot and the
+        // name that come after it.
+        let mut end = self.position + 1;
+        while end + 2 < self.tokens.len()
+            && self.tokens[end + 1].value == "."
+            && self.tokens[end + 2].kind == TokenKind::Name
+        {
+            end += 2;
+        }
+        let name = the_source_of_the_tokens(self, self.position, end + 1);
+        let arguments = the_source_of_the_rest_of_the_line(self, end + 1);
+        if arguments.is_empty() {
+            return format!("{name}()");
+        }
+        if arguments.starts_with('(') {
+            return format!("{name}{arguments}");
+        }
+        format!("{name}({arguments})")
+    }
+
     fn parse_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
         // The statement begins here, and a token that cannot be there
         // names it.
@@ -1244,6 +1337,13 @@ impl Parser {
             let value = self.parse_expression()?;
             self.end_of_statement()?;
             return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+        }
+        if token.kind == TokenKind::Op && !matches!(token.value.as_str(), "[" | "{" | ")" | "]" | "}") {
+            // Measured on the binary of v2.0.19 on 2026-10-31: a statement
+            // that begins with an operator is a line that holds no action,
+            // and the text that is named is the line itself. The operators
+            // that want a word of their own are named apart.
+            return Err(self.error(self.the_message_of_the_operator_at_the_start(&token)));
         }
         // Measured on the binary of v2.0.19 on 2026-10-31: the number that
         // is the left side of an assignment is refused at the parse, and the
@@ -3368,6 +3468,13 @@ impl Parser {
     fn the_error_of_a_missing_operand(&self, token: &Token) -> SyntaxError {
         let start = self.tokens.get(self.statement_start).unwrap_or(token);
         let message = match token.kind {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the dot is
+            // the member of a value that is not there, and the text that is
+            // named is the rest of the line, from the dot.
+            TokenKind::Op if token.value == "." => format!(
+                "Syntax error.\n     Specifically: {}",
+                the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1))
+            ),
             // Measured on the binary of v2.0.19 on 2026-10-31: a brace that
             // closes a block is not an operand that is missing: it is a
             // token that cannot be there, and the statement it is in is

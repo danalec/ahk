@@ -4247,3 +4247,108 @@ fn the_name_of_a_property_may_be_a_whole_number() {
     let error = parse("x := {1.5: 1}").expect_err("does not parse");
     assert_eq!(error.message, "Invalid property name in object literal.");
 }
+
+#[test]
+fn a_statement_that_begins_with_an_operator_is_a_line_that_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a statement that
+    // begins with an operator is a line that holds no action, and the text
+    // that is named is the line itself.
+    let error = parse("-1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: -1"
+    );
+    let error = parse("*x").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: *x"
+    );
+    let error = parse("&x").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: &x"
+    );
+    let error = parse("== 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: == 1"
+    );
+    // The statement that carries an assignment after the operator is
+    // refused with the whole line.
+    let error = parse("-x := 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: -x := 2"
+    );
+    let error = parse("!x := 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: !x := 2"
+    );
+}
+
+#[test]
+fn the_operators_that_want_a_word_of_their_own_are_named_apart() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the equal wants the
+    // operator of an assignment, the assignment wants a name on its left,
+    // the comma separates the parameters of a call, the question asks a
+    // question that is not there, and the double colon is the separator of
+    // a hotkey.
+    let error = parse("= 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Syntax error. Did you mean to use \":=\"?\n     Specifically: = 1"
+    );
+    let error = parse(":= 1").expect_err("does not parse");
+    assert_eq!(error.message, "\":=\" requires that parameter #1 be non-blank.");
+    let error = parse("+= 1").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: += 1");
+    let error = parse(", 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Function calls require a space or \"(\".  Use comma only between parameters.\n     Specifically: , 1"
+    );
+    let error = parse("? 1").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: ? 1");
+    let error = parse(":: 1").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid hotkey.\n     Specifically: :: 1");
+}
+
+#[test]
+fn the_dot_is_the_member_of_a_value_that_is_not_there() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the dot with a name
+    // after it is the member of a value that is not there, and the v2 names
+    // the call that it wanted to make.
+    let error = parse(".x").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: .x()");
+    let error = parse(".x 1").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: .x(1)");
+    let error = parse(".x := 2").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: .x := 2");
+    // The dot alone is a line that holds no action.
+    let error = parse(".").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: ."
+    );
+    // The dot in the place of an operand names the rest of the line.
+    let error = parse("x := 1 + .").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: .");
+    let error = parse("f(.)").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: .)");
+}
+
+#[test]
+fn the_line_that_begins_with_an_operator_continues_the_one_before_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the line that begins
+    // with an operator continues the one before it, and the variable is
+    // read before it is assigned.
+    let (report, _desktop) = run("x := 1\n-x");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("This global variable has not been assigned a value."));
+    // The assignment that the continuation makes is the one of the
+    // operator: `x := 5 - (x := 2)` leaves x with 3.
+    let (report, _desktop) = run("x := 5\n-x := 2\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+}

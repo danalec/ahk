@@ -218,6 +218,15 @@ the line. The text is not there when the operator is the last item of the
 arguments of a call or of the items of an array. The dot that does not reach
 into a value is a "Syntax error." and the rest of the line, from the dot.
 
+A statement that begins with an operator is a line that holds no action, and
+the text that is named is the line itself: "This line does not contain a
+recognized action.". The operators that want a word of their own are named
+apart -- the equal wants the operator of an assignment, the assignment wants
+a name on its left, the comma separates the parameters of a call, the
+question asks a question that is not there, and the double colon is the
+separator of a hotkey. The dot is the member of a value that is not there,
+and the v2 names the call that it wanted to make: `.x` is named `.x()`.
+
 The body of a block begins on the next line, and the brace that closes it
 is at the start of its line. The word that `parse_block` takes is the
 construct the block belongs to, and it says in its own words that the
@@ -1044,6 +1053,10 @@ that asks for another one is refused with the reason.
 - **The number of v2 may begin with a point, and the point that follows a
   value is the point of a member.** The number `.5` is 0.5, and the name of
   a property of the literal of an object may be a whole number.
+
+- **A statement that begins with an operator is a line that holds no
+  action.** The text that is named is the line itself, and the dot is the
+  member of a value that is not there.
 
 ## Side Effects
 
