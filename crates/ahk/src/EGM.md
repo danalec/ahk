@@ -982,6 +982,13 @@ that asks for another one is refused with the reason.
 - **The item of an object of a class of the script is the property `__Item`
   of it.** A method of that name is not the item: the item is the method
   itself.
+- **A line that ends with an operator continues on the next one, and a line
+  that begins with an operator continues the one before it.** The group, the
+  array, the object and the arguments of a call may be written in more than
+  one line.
+- **The operand that is not there is refused with the words of v2.** The
+  operator that wants it names the failure, and a brace that closes a block
+  is a token that cannot be there: the statement it is in is named with it.
 
 ## Side Effects
 

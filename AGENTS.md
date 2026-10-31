@@ -4310,3 +4310,38 @@ rules are in `egm-review/probe_class_property_member.py`,
 `egm-review/probe_accessor_parameters.py`,
 `egm-review/probe_accessor_inherit.py` and
 `egm-review/probe_accessor_call.py`.
+
+## 94. The line that continues on the next one
+
+Measured on the binary of v2.0.19 on 2026-10-31, and read in the
+documentation of v2 (`Language.htm`): a line that ends with an operator
+continues on the next one, a line that begins with an operator continues the
+one before it, and a group may be written in more than one line. The tree
+refused all of them with `unexpected "\n"`.
+
+- **The line that ends with an operator continues on the next one.** The
+  empty lines between the two are not a part of it, and the value that the
+  operator wants is the one of the next line.
+- **The line that begins with an operator continues the line before it.**
+  The increment and the decrement are not among the operators that do it,
+  and the line is merged with the one before it whatever it holds.
+- **The group, the array, the object and the arguments of a call may be
+  written in more than one line.** The newline of the list is not a part of
+  it.
+- **The operand that is not there is refused with the words of v2.** The
+  operator that wants it names the failure: "Missing operand." and the
+  operator. A brace that closes a block is not an operand that is missing:
+  it is a token that cannot be there, and the statement it is in is named
+  with it -- "Unexpected \"}\"" and the statement and the token. An
+  operator that may not begin a value is a "Syntax error." and the operator,
+  and the colon of the ternary is `A ":" is missing its "?"`.
+- **The continuation section is not carried yet.** The documentation says
+  that the lines between a `(` and a `)` that are both at the start of a
+  line are merged with the line above them: v2 answers 12 to `x := 1` and
+  then `(`, `2` and `)`, and the tree refuses it.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_continuation.py` (35 cases), and the probes that measured
+the rules are in `egm-review/probe_refused_member7.py`,
+`egm-review/probe_refused_member9.py` and
+`egm-review/probe_refused_member10.py`.

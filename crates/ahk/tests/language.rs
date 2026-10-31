@@ -3691,3 +3691,89 @@ fn is_label_of_an_empty_name_answers_zero() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["0"]);
 }
+
+#[test]
+fn a_line_that_ends_with_an_operator_continues_on_the_next_one() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the line that ends
+    // with an operator continues on the next one.
+    let (report, _desktop) = run("x :=\n1\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_empty_lines_of_a_continuation_are_not_a_part_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the empty lines
+    // between the two are not a part of the continuation.
+    let (report, _desktop) = run("x :=\n\n1\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_line_that_begins_with_an_operator_continues_the_one_before_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the line that begins
+    // with an operator continues the line before it.
+    let (report, _desktop) = run("x := 1\n+ 2\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+}
+
+#[test]
+fn the_group_may_be_written_in_more_than_one_line() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the group may be
+    // written in more than one line.
+    let (report, _desktop) = run("x := (1\n)\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_array_may_be_written_in_more_than_one_line() {
+    let (report, _desktop) = run("x := [1\n, 2]\nMsgBox x.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_arguments_of_a_call_may_be_written_in_more_than_one_line() {
+    let (report, _desktop) = run("x := StrLen(\n\"ab\")\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_operand_that_is_not_there_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the operator that
+    // wants the operand names the failure.
+    let error = parse("x :=").expect_err("does not parse");
+    assert_eq!(error.message, "Missing operand.\n     Specifically: :=");
+}
+
+#[test]
+fn the_operand_that_is_not_there_names_the_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the brace that
+    // closes a block is not an operand that is missing, and the statement
+    // it is in is named with it.
+    let error = parse("if (x) {\ny :=\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"}\"\n     Specifically: y := }");
+    assert_eq!(error.line, 2);
+}
+
+#[test]
+fn an_operator_that_may_not_begin_a_value_is_refused() {
+    let error = parse("x := *").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: *");
+}
+
+#[test]
+fn a_brace_that_closes_a_block_is_not_an_operand() {
+    let error = parse("x := )").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \")\"\n     Specifically: x := )");
+}
+
+#[test]
+fn the_colon_of_the_ternary_needs_its_question() {
+    let error = parse("x := :").expect_err("does not parse");
+    assert_eq!(error.message, "A \":\" is missing its \"?\"");
+}

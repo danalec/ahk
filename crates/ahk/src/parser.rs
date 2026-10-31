@@ -210,6 +210,24 @@ fn the_line_of_the_parser(parser: &Parser) -> u32 {
         .unwrap_or(1)
 }
 
+/// Whether the token is the operator of two values.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: a line that begins
+/// with one of them continues the line before it.
+fn the_token_is_an_operator(token: &Token) -> bool {
+    if token.kind == TokenKind::Op {
+        return matches!(
+            token.value.as_str(),
+            "**" | "*" | "/" | "//" | "+" | "-" | "<<" | ">>" | ">>>" | "&" | "^" | "|"
+                | "~=" | ">" | ">=" | "<" | "<=" | "=" | "==" | "!=" | "!==" | "&&" | "||" | "??"
+        );
+    }
+    if token.kind == TokenKind::Keyword {
+        return matches!(token.value.to_lowercase().as_str(), "and" | "or" | "is");
+    }
+    false
+}
+
 /// The name that v2 reads when it begins with a number.
 ///
 /// The name stops at the point, because a point is not part of a name.
@@ -519,6 +537,12 @@ pub struct Parser {
     /// The expression that holds it is the one of the statement, and that
     /// one is the one that names the error.
     expressions: Vec<usize>,
+    /// The place where the statement that is being read begins.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a token that
+    /// cannot be there names the statement it is in, and the text is the
+    /// statement and the token.
+    statement_start: usize,
 }
 
 /// An assignment of the script, and the place it was written.
@@ -563,6 +587,7 @@ impl Parser {
             in_function: false,
             pending_literal: None,
             expressions: Vec::new(),
+            statement_start: 0,
         }
     }
 
@@ -872,6 +897,9 @@ impl Parser {
         }
         let mut body = Vec::new();
         self.skip_newlines();
+        // The statement that is being read is the one of the body, and
+        // the block gives its place back when it is done.
+        let statement_start = self.statement_start;
         loop {
             let token = self.peek();
             if token.kind == TokenKind::Eof {
@@ -887,6 +915,7 @@ impl Parser {
             if token.kind == TokenKind::Op && token.value == "}" {
                 self.the_closing_brace_is_refused()?;
                 self.position += 1;
+                self.statement_start = statement_start;
                 return Ok(body);
             }
             body.extend(self.parse_statement()?);
@@ -1002,6 +1031,9 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
+        // The statement begins here, and a token that cannot be there
+        // names it.
+        self.statement_start = self.position;
         let token = self.peek().clone();
         if token.kind == TokenKind::Directive {
             return Ok(vec![self.parse_directive()?]);
@@ -1499,6 +1531,8 @@ impl Parser {
         }
         loop {
             arguments.push(self.parse_expression()?);
+            // The list may be written in more than one line.
+            self.skip_newlines();
             if self.at_op(&[","]) {
                 self.position += 1;
                 // A comma at the end of the list is allowed.
@@ -1509,6 +1543,8 @@ impl Parser {
             }
             break;
         }
+        // The arguments may be written in more than one line.
+        self.skip_newlines();
         Ok(arguments)
     }
 
@@ -2287,6 +2323,9 @@ impl Parser {
         // only valid there.
         let was_in_a_class = self.in_class;
         self.in_class = true;
+        // The statement that is being read is the one of the member, and
+        // the class gives its place back when it is done.
+        let statement_start = self.statement_start;
         loop {
             self.skip_newlines();
             let token = self.peek().clone();
@@ -2308,6 +2347,9 @@ impl Parser {
             // A member may belong to the class and not to an instance.
             let mut is_static = false;
             let start = self.position;
+            // The member is the statement that is being read, and a
+            // token that cannot be there names it.
+            self.statement_start = start;
             if self.at_keyword(&["static"]) {
                 self.next();
                 is_static = true;
@@ -2534,6 +2576,7 @@ impl Parser {
             });
         }
         self.in_class = was_in_a_class;
+        self.statement_start = statement_start;
         Ok(TheMembersOfAClass { methods, properties, accessors, nested })
     }
 
@@ -2780,6 +2823,13 @@ impl Parser {
                 // are one value. It binds like the dot, and the dot is
                 // looser than the arithmetic.
                 if precedence::CONCAT < min || !self.starts_expression() {
+                    // Measured on the binary of v2.0.19 on 2026-10-31: a
+                    // line that begins with an operator continues the one
+                    // before it.
+                    if self.the_next_line_begins_with_an_operator() {
+                        self.skip_newlines();
+                        continue;
+                    }
                     return Ok(left);
                 }
                 // Measured on the binary of v2.0.19 on 2026-10-31: two values
@@ -2827,7 +2877,7 @@ impl Parser {
             }
             // The value that should follow the operator is not there, and
             // v2 names the operator anyway.
-            if self.pending_literal.is_some() && !self.starts_expression() {
+            if self.pending_literal.is_some() && !self.the_operand_is_there() {
                 let pending = self.pending_literal.take().expect("the operator");
                 return Err(self.the_literal_error(&pending, self.position, false));
             }
@@ -2917,6 +2967,126 @@ impl Parser {
         }
     }
 
+    /// Whether the value that follows the operator is there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the line that
+    /// ends with an operator continues on the next one, and the newlines
+    /// of the continuation are not a part of it.
+    fn the_operand_is_there(&mut self) -> bool {
+        if self.peek().kind == TokenKind::Newline && self.the_line_continues() {
+            self.skip_newlines();
+        }
+        self.starts_expression()
+    }
+
+    /// Whether the line that comes next begins with an operator.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a line that
+    /// begins with an operator continues the one before it, and the
+    /// increment and the decrement are not among them.
+    fn the_next_line_begins_with_an_operator(&self) -> bool {
+        let mut at = self.position;
+        while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline {
+            at += 1;
+        }
+        let Some(token) = self.tokens.get(at) else { return false };
+        if token.kind == TokenKind::Op && (token.value == "++" || token.value == "--") {
+            return false;
+        }
+        the_token_is_an_operator(token)
+    }
+
+    /// Whether the line continues on the next one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a line that ends
+    /// with an operator continues on the next one, and the empty lines
+    /// between the two are not a part of it.
+    fn the_line_continues(&self) -> bool {
+        let Some(token) = self.the_token_before(self.position) else { return false };
+        match token.kind {
+            TokenKind::Op => matches!(
+                token.value.as_str(),
+                "(" | "[" | "," | "?" | ":" | "=>" | "!" | "~" | "++" | "--"
+                    | "+" | "-" | "*" | "/" | "//" | "**" | "<<" | ">>" | ">>>"
+                    | "&" | "^" | "|" | "~=" | ">" | ">=" | "<" | "<=" | "=" | "=="
+                    | "!=" | "!==" | "&&" | "||" | "??" | ":=" | "+=" | "-=" | "*="
+                    | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>="
+            ),
+            TokenKind::Keyword => matches!(token.value.to_lowercase().as_str(), "and" | "or" | "is"),
+            _ => false,
+        }
+    }
+
+    /// The token that comes before the given place, without the newlines
+    /// that the continuation of a line skipped.
+    fn the_token_before(&self, at: usize) -> Option<&Token> {
+        let mut at = at;
+        while at > 0 {
+            at -= 1;
+            let token = &self.tokens[at];
+            if token.kind != TokenKind::Newline {
+                return Some(token);
+            }
+        }
+        None
+    }
+
+    /// The statement that is being read, and the token that cannot be
+    /// there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the text is the
+    /// statement and the token, and the newline of the statement is a
+    /// space in it.
+    fn the_statement_so_far(&self) -> String {
+        let start = self.statement_start.min(self.position);
+        the_source_of_a_definition(self, start, self.position)
+    }
+
+    /// The error of the operand that is not there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the operator that
+    /// wants the operand names the failure, and the token that cannot be
+    /// there is named with it. A brace that closes a block is not an
+    /// operand that is missing: it is a token that cannot be there, and
+    /// the statement it is in is named with it.
+    fn the_error_of_a_missing_operand(&self, token: &Token) -> SyntaxError {
+        let start = self.tokens.get(self.statement_start).unwrap_or(token);
+        let message = match token.kind {
+            // Measured on the binary of v2.0.19 on 2026-10-31: a brace that
+            // closes a block is not an operand that is missing: it is a
+            // token that cannot be there, and the statement it is in is
+            // named with it.
+            TokenKind::Op if matches!(token.value.as_str(), ")" | "}" | "]") => format!(
+                "Unexpected {:?}\n     Specifically: {}",
+                token.value,
+                self.the_statement_so_far()
+            ),
+            // The colon of the ternary is a part of the question that is
+            // not there.
+            TokenKind::Op if token.value == ":" => "A \":\" is missing its \"?\"".to_string(),
+            // An operator may not begin a value.
+            TokenKind::Op if token.value != "," => {
+                format!("Syntax error.\n     Specifically: {}", token.value)
+            }
+            // The operand is not there, and the operator that wants it
+            // names the failure.
+            _ => {
+                let mut text = String::new();
+                if let Some(operator) = self.the_token_before(self.position.saturating_sub(1)) {
+                    text.push_str(&operator.value);
+                }
+                if token.kind != TokenKind::Eof && token.kind != TokenKind::Newline {
+                    if !text.is_empty() {
+                        text.push(' ');
+                    }
+                    text.push_str(&token.value);
+                }
+                format!("Missing operand.\n     Specifically: {text}")
+            }
+        };
+        SyntaxError { message, line: start.line, column: start.column }
+    }
+
     /// The operators with one side, and the values.
     ///
     /// The word `not` binds looser than `!` and looser than the
@@ -2956,6 +3126,12 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Result<Node, SyntaxError> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a line that
+        // ends with an operator continues on the next one, and the empty
+        // lines between the two are not a part of it.
+        if self.peek().kind == TokenKind::Newline && self.the_line_continues() {
+            self.skip_newlines();
+        }
         let token = self.next();
         let node = match token.kind {
             TokenKind::Number => {
@@ -3049,6 +3225,9 @@ impl Parser {
             }
             TokenKind::Op if token.value == "(" => {
                 let node = self.parse_expression()?;
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // group may be written in more than one line.
+                self.skip_newlines();
                 self.expect_op(")")?;
                 node
             }
@@ -3059,6 +3238,8 @@ impl Parser {
                 if !self.at_op(&["]"]) {
                     loop {
                         items.push(self.parse_expression()?);
+                        // The list may be written in more than one line.
+                        self.skip_newlines();
                         if self.at_op(&[","]) {
                             self.position += 1;
                             // A comma at the end of the list is allowed.
@@ -3070,6 +3251,8 @@ impl Parser {
                         break;
                     }
                 }
+                // The array may be written in more than one line.
+                self.skip_newlines();
                 self.expect_op("]")?;
                 Node::ArrayLiteral { items, line: token.line }
             }
@@ -3097,6 +3280,8 @@ impl Parser {
                         self.position += 1;
                         let value = self.parse_expression()?;
                         properties.push((name.value, value));
+                        // The list may be written in more than one line.
+                        self.skip_newlines();
                         if self.at_op(&[","]) {
                             self.position += 1;
                             // A comma at the end of the list is allowed.
@@ -3108,15 +3293,14 @@ impl Parser {
                         break;
                     }
                 }
+                // The object may be written in more than one line.
+                self.skip_newlines();
                 self.expect_op("}")?;
                 Node::ObjectLiteral { properties, line: token.line }
             }
             _ => {
-                return Err(SyntaxError {
-                    message: format!("unexpected {:?}", token.value),
-                    line: token.line,
-                    column: token.column,
-                });
+                // The operand that the operator wants is not there.
+                return Err(self.the_error_of_a_missing_operand(&token));
             }
         };
         self.parse_suffixes(node, true)
@@ -3133,6 +3317,8 @@ impl Parser {
                 let line = node.line();
                 self.position += 1;
                 let index = self.parse_expression()?;
+                // The index may be written in more than one line.
+                self.skip_newlines();
                 self.expect_op("]")?;
                 node = Node::Index { target: Box::new(node), index: Box::new(index), line };
                 continue;
