@@ -4093,3 +4093,102 @@ fn the_array_at_the_start_of_a_statement_holds_no_action() {
         "This line does not contain a recognized action.\n     Specifically: [1]"
     );
 }
+
+#[test]
+fn a_static_keeps_its_value_between_the_calls() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the static of a
+    // function is the same one in every call of it.
+    let (report, _desktop) = run("F() {\nstatic count := 0\ncount++\nreturn count\n}\nMsgBox F()\nMsgBox F()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1", "2"]);
+}
+
+#[test]
+fn the_value_of_a_static_declaration_runs_once() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value of the
+    // declaration runs the first time that declaration is reached.
+    let (report, _desktop) = run("F() {\nstatic count := 5\ncount++\nreturn count\n}\nMsgBox F()\nMsgBox F()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["6", "7"]);
+    // The declaration that the function does not reach on the first call
+    // runs its value on the call that reaches it.
+    let (report, _desktop) =
+        run("F(n) {\nif n = 0\nreturn \"none\"\nstatic count := 5\nreturn count\n}\nMsgBox F(0)\nMsgBox F(1)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["none", "5"]);
+}
+
+#[test]
+fn a_static_belongs_to_the_function_that_declares_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: two functions have
+    // two statics, and the static of a recursion is the same one in every
+    // turn of it.
+    let (report, _desktop) = run(
+        "F() {\nstatic count := 1\ncount++\nreturn count\n}\nG() {\nstatic count := 10\ncount++\nreturn count\n}\nMsgBox F()\nMsgBox F()\nMsgBox G()\nMsgBox G()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2", "3", "11", "12"]);
+    let (report, _desktop) = run(
+        "F(n) {\nstatic count := 0\ncount++\nif n = 0\nreturn count\nreturn F(n - 1)\n}\nMsgBox F(2)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+}
+
+#[test]
+fn a_static_shadows_a_global_inside_the_function() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the static of a
+    // function is not the global of the same name.
+    let (report, _desktop) =
+        run("global count := 1\nF() {\nstatic count := 2\nreturn count\n}\nMsgBox F()\nMsgBox count");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2", "1"]);
+}
+
+#[test]
+fn a_static_of_a_method_is_the_same_one_in_every_call() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the static of a
+    // method belongs to the method, and not to the instance.
+    let (report, _desktop) = run(
+        "class C {\nCount() {\nstatic n := 0\nn++\nreturn n\n}\n}\nMsgBox C().Count()\nMsgBox C().Count()",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1", "2"]);
+}
+
+#[test]
+fn a_static_without_a_value_is_a_declaration() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `static` with
+    // no value declares the name, and the assignment that follows writes
+    // it.
+    let (report, _desktop) = run("F() {\nstatic count\ncount := 1\nreturn count\n}\nMsgBox F()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    // The bare `static` inside a function is accepted.
+    let (report, _desktop) = run("F() {\nstatic\nreturn 1\n}\nMsgBox F()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_static_outside_a_function_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `static` at
+    // the top level has no function to live in, and the whole declaration
+    // is named with it.
+    let error = parse("static count := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected declaration.\n     Specifically: static count := 1"
+    );
+}
+
+#[test]
+fn a_static_that_fights_with_a_parameter_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `static` may
+    // not name a parameter of the function.
+    let error = parse("F(count) {\nstatic count := 1\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This static variable declaration conflicts with an existing parameter.\n     Specifically: count"
+    );
+}

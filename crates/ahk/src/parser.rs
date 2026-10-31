@@ -448,6 +448,11 @@ fn the_declarations_of_a_statement(
                     DeclareKind::Local => {
                         declarations.locals.insert(declared.name.to_lowercase());
                     }
+                    // The static lives in the storage of the function, and
+                    // the name is one of them for the whole function.
+                    DeclareKind::Static => {
+                        declarations.statics.insert(declared.name.to_lowercase());
+                    }
                 }
             }
         }
@@ -1198,6 +1203,10 @@ impl Parser {
                 "goto" => return Ok(vec![self.parse_goto()?]),
                 "global" => return Ok(vec![self.parse_declaration(DeclareKind::Global)?]),
                 "local" => return Ok(vec![self.parse_declaration(DeclareKind::Local)?]),
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // `static` is the third kind of declaration of v2, and it
+                // is a statement of its own.
+                "static" => return Ok(vec![self.parse_declaration(DeclareKind::Static)?]),
                 "throw" => return Ok(vec![self.parse_throw()?]),
                 "super" => return self.parse_super_statement(),
                 "return" => return Ok(vec![self.parse_return()?]),
@@ -2143,12 +2152,22 @@ impl Parser {
             }
             self.next();
         }
-        // A bare `local` is never a thing: only `global` has a mode.
+        // A bare `local` is never a thing: only `global` has a mode, and
+        // the bare `static` is a declaration with no name.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the bare
+        // `static` inside a function is accepted, and the bare `local` is
+        // refused.
         if kind == DeclareKind::Local && names.is_empty() {
             return Err(self.error("Unexpected declaration.\n     Specifically: local"));
         }
-        // A `local` outside a function has no scope to live in.
-        if kind == DeclareKind::Local && self.parameters.is_empty() {
+        // A `local` outside a function has no scope to live in, and a
+        // `static` has no function to live in.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the `static` at
+        // the top level is refused, and the text that is named is the whole
+        // declaration.
+        if (kind == DeclareKind::Local || kind == DeclareKind::Static) && self.parameters.is_empty() {
             return Err(self.error(format!(
                 "Unexpected declaration.\n     Specifically: {}",
                 the_text_of_a_declaration(kind, &names)

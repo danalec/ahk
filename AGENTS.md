@@ -4529,3 +4529,47 @@ probes that measured the rules are in
 `egm-review/probe_not_an_action.py`,
 `egm-review/probe_unary_statement.py` and
 `egm-review/probe_negated_target.py`.
+
+## 99. The static declaration of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: `static` is the third
+kind of declaration of v2, and the name lives in the storage of the
+function that declares it.
+
+- **The static belongs to the function that declares it.** The name is one
+  of the function for its whole body, and the value is kept between the
+  calls: the function that counts with a static answers 1 and then 2.
+- **The static shadows a global inside the function.** The global of the
+  same name lives in the scope of the script, and the function reads its
+  own.
+- **The value of the declaration runs once.** The declaration runs its
+  value the first time that declaration is reached, and not on every call:
+  the function that declares `static count := 5` and counts answers 6 and
+  then 7. A declaration that the function does not reach on the first call
+  runs its value on the call that reaches it, and a declaration that comes
+  after another one of the same name runs its value as well.
+- **The static of a method belongs to the method.** Two instances of the
+  same class share it, and the static of a recursion is the same one in
+  every turn of it.
+- **The static at the top level is refused.** It has no function to live
+  in, and the whole declaration is named with it: "Unexpected declaration."
+  and "static count := 1".
+- **The static may not name a parameter of the function.** The refusal is
+  "This static variable declaration conflicts with an existing parameter."
+  and the name of it.
+- **The bare `static` inside a function is a declaration with no name.**
+  It is accepted, and the bare `local` is refused. The bare `static` at
+  the top level is a corner of v2: the binary reads the line that follows
+  as a declaration and refuses it, and it crashes when there is no line
+  after it. The tree refuses it with "Unexpected declaration." and
+  "static".
+
+The comparison of the tree with the binary is in
+`egm-review/compare_static_declaration.py` (19 cases, none of them
+different) and in `egm-review/compare_static_bare.py` (four cases, one of
+them the corner of the bare `static` at the top level). The probes that
+measured the rules are in
+`egm-review/probe_static_declaration.py`,
+`egm-review/probe_static_corners.py`,
+`egm-review/probe_static_method.py`, `egm-review/probe_static_value.py`
+and `egm-review/probe_static_when.py`.

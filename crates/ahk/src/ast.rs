@@ -119,6 +119,13 @@ pub enum DeclareKind {
     Global,
     /// `local`: the name lives in the scope of the function.
     Local,
+    /// `static`: the name lives in the storage of the function, and it keeps
+    /// its value between the calls.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the static of a
+    /// function is the same one in every call of it, and the value of the
+    /// declaration runs once.
+    Static,
 }
 
 impl DeclareKind {
@@ -127,6 +134,7 @@ impl DeclareKind {
         match self {
             DeclareKind::Global => "global",
             DeclareKind::Local => "local",
+            DeclareKind::Static => "static",
         }
     }
 }
@@ -153,6 +161,9 @@ pub struct Declarations {
     pub globals: BTreeSet<String>,
     /// The names that live in the scope of the function.
     pub locals: BTreeSet<String>,
+    /// The names that live in the storage of the function, and that keep
+    /// their value between the calls.
+    pub statics: BTreeSet<String>,
     /// Whether the function assumes the scope of the script.
     pub assume_global: bool,
 }

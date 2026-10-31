@@ -1028,6 +1028,11 @@ that asks for another one is refused with the reason.
   increment may be a statement of its own, and the value that cannot be
   written to is refused at the load with the operator that writes it.
 
+- **The `static` is the third kind of declaration of v2.** The name lives
+  in the storage of the function, it keeps its value between the calls, and
+  the value of the declaration runs the first time that declaration is
+  reached.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

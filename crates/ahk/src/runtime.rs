@@ -45,8 +45,8 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use crate::ast::{
-    AccessBody, AccessDef, AssignOp, BinaryOp, CastType, Declarations, LiteralValue, LoopKind, MethodDef,
-    Node, Parameter, PropertyDef, UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, CastType, DeclareKind, Declarations, LiteralValue, LoopKind,
+    MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
@@ -948,6 +948,24 @@ pub struct Runtime<'a> {
     /// declares global live in the scope of the script, and the ones it
     /// declares local live in the scope of the function.
     declarations: Vec<Declarations>,
+    /// The static variables of the functions that ran.
+    ///
+    /// A static variable belongs to the function that declares it, and it
+    /// keeps its value between the calls: the table of the function is
+    /// here, and not in the scope of the call.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the static of a
+    /// function is the same one in every call of it, the static of a
+    /// recursion is the same one in every turn of it, and two functions
+    /// have two of them.
+    statics: BTreeMap<String, BTreeMap<String, Value>>,
+    /// The static declarations that already ran their value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the value of a
+    /// static declaration runs the first time that declaration is reached,
+    /// and a declaration that the function does not reach on the first call
+    /// runs its value on the call that reaches it.
+    statics_run: BTreeMap<String, BTreeSet<String>>,
     /// The classes of the methods that run.
     ///
     /// `super` asks the base of the class where the method was defined,
@@ -1058,6 +1076,8 @@ impl<'a> Runtime<'a> {
             clock: ClockSource::System(SystemClock::new()),
             timeout,
             variables: BTreeMap::new(),
+            statics: BTreeMap::new(),
+            statics_run: BTreeMap::new(),
             initial_working_dir,
             scopes: Vec::new(),
             label_scopes: Vec::new(),
@@ -1106,6 +1126,8 @@ impl<'a> Runtime<'a> {
             clock: ClockSource::Borrowed(clock),
             timeout,
             variables: BTreeMap::new(),
+            statics: BTreeMap::new(),
+            statics_run: BTreeMap::new(),
             initial_working_dir,
             scopes: Vec::new(),
             label_scopes: Vec::new(),
@@ -1849,13 +1871,21 @@ impl<'a> Runtime<'a> {
                     line: *line,
                 }));
             }
-            Node::Declare { names, line, .. } => {
+            Node::Declare { scope, names, line } => {
                 // The names of the declaration are read when the script is
                 // read; the value waits for the statement that carries it.
                 for declared in names {
                     if let Some(value) = &declared.value {
+                        // The value of a static declaration runs the first
+                        // time that declaration is reached.
+                        if *scope == DeclareKind::Static && self.the_static_already_ran(*line, &declared.name) {
+                            continue;
+                        }
                         let value = self.evaluate(value)?;
                         self.assign(&declared.name, value);
+                        if *scope == DeclareKind::Static {
+                            self.mark_the_static_as_ran(*line, &declared.name);
+                        }
                     }
                 }
                 let _ = line;
@@ -2557,7 +2587,24 @@ impl<'a> Runtime<'a> {
     /// that variable: the alias and the variable are the same thing.
     fn lookup_variable(&self, name: &str) -> Option<Value> {
         let name = the_key_of(name);
-        for scope in self.scopes.iter().rev() {
+        // The scope of the call is the last one: the parameters of the
+        // function are there.
+        if let Some(scope) = self.scopes.last() {
+            match scope.borrow().get(&name) {
+                Some(Value::Reference(reference)) if reference.alias => {
+                    return self.read_reference(reference);
+                }
+                Some(value) => return Some(value.clone()),
+                None => {}
+            }
+        }
+        // The static of the function that runs belongs to it: it is not in
+        // the scope of the call, and it is read before the scopes around
+        // the call.
+        if let Some(value) = self.the_static_of_the_frame(&name) {
+            return Some(value);
+        }
+        for scope in self.scopes.iter().rev().skip(1) {
             match scope.borrow().get(&name) {
                 Some(Value::Reference(reference)) if reference.alias => {
                     return self.read_reference(reference);
@@ -2578,6 +2625,55 @@ impl<'a> Runtime<'a> {
         }
         self.variables.get(&name).cloned()
     }
+
+    /// Whether the name is one that the function that runs declares
+    /// static.
+    ///
+    /// A name that the function declares static is not a local one: it
+    /// lives in the storage of the function.
+    fn is_declared_static(&self, name: &str) -> bool {
+        let Some(frame) = self.declarations.last() else { return false };
+        frame.statics.contains(name)
+    }
+
+
+    /// The static variables of the function that runs.
+    ///
+    /// The frame is the name of the function or of the method that runs,
+    /// and the table of the function is under it.
+    fn the_statics_of_the_frame(&mut self) -> &mut BTreeMap<String, Value> {
+        let frame = self.frames.last().cloned().unwrap_or_default();
+        self.statics.entry(frame).or_default()
+    }
+
+
+    /// The value of a static variable of the function that runs.
+    fn the_static_of_the_frame(&self, name: &str) -> Option<Value> {
+        let frame = self.frames.last()?;
+        self.statics.get(frame)?.get(name).cloned()
+    }
+
+
+    /// Whether the value of a static declaration already ran.
+    ///
+    /// The value of a static declaration runs the first time that
+    /// declaration is reached.
+    fn the_static_already_ran(&self, line: u32, name: &str) -> bool {
+        let Some(frame) = self.frames.last() else { return false };
+        let Some(ran) = self.statics_run.get(frame) else { return false };
+        ran.contains(&the_key_of_a_declaration(line, name))
+    }
+
+
+    /// Mark the value of a static declaration as one that ran.
+    fn mark_the_static_as_ran(&mut self, line: u32, name: &str) {
+        let frame = self.frames.last().cloned().unwrap_or_default();
+        self.statics_run
+            .entry(frame)
+            .or_default()
+            .insert(the_key_of_a_declaration(line, name));
+    }
+
 
     /// Whether the name is one that the function that runs declares local.
     ///
@@ -2705,6 +2801,16 @@ impl<'a> Runtime<'a> {
             return;
         }
         let name = the_key_of(name);
+        // A static variable belongs to the function that declares it: it is
+        // written in the table of the function, and it is not in the scope
+        // of the call.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the static
+        // shadows a global of the same name inside the function.
+        if self.is_declared_static(&name) {
+            self.the_statics_of_the_frame().insert(name, value);
+            return;
+        }
         // A name that a function declares global lives in the scope of the
         // script, and a name that it declares local lives in the scope of
         // the function. A function that assumes the scope of the script
@@ -8094,6 +8200,15 @@ fn the_message_of(failure: &RuntimeFailure) -> String {
 /// The number of a property of an object, when it has one.
 fn number_of(properties: &BTreeMap<String, Property>, name: &str) -> i64 {
     properties.get(name).map(|property| property.value.to_number().unwrap_or(0.0) as i64).unwrap_or(0)
+}
+
+/// The key of a static declaration: the line it is on and the name it
+/// declares.
+///
+/// The value of a static declaration runs once, and the key is what tells
+/// the tree that it ran.
+fn the_key_of_a_declaration(line: u32, name: &str) -> String {
+    format!("{}:{}", line, the_key_of(name))
 }
 
 /// The key of a variable, as the tree keeps it.
