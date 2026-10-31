@@ -5449,3 +5449,33 @@ The probes that measured the rules are in
 `egm-review/probe_illegal_character.py` (16 cases),
 `probe_glued_to_the_first_name.py` (11), `probe_hash_name.py` (8),
 `probe_semicolon.py` (8) and `probe_semicolon_rule.py` (10).
+
+## 125. The brace that opens a line opens a block
+
+Measured on the binary of v2.0.19 on 2026-11-01: the brace that opens a
+line is a block of its own, and the statements between the braces run.
+
+- **The brace that opens a line opens a block.** The statements between
+  the braces run, and the block may be written in one line when it is
+  empty.
+- **The content may be on the line of the brace that opens it,** and the
+  brace that closes it may be on the line of its own.
+- **The brace that closes the block is alone in its line,** and the v2
+  says so before it reads the content of the block. The block that is
+  empty is the one exception: the brace may be written where it is.
+- **The text that is named is the line of the brace that closes the
+  block,** and when the brace that opens it is in that line too, the text
+  begins after it.
+- **The block that is not closed is named,** and the line that is named
+  is the line of the brace that opens it.
+
+The tree refused the brace that opens a line: it was the literal of an
+object that begins a statement, and the literal is not closed. The brace
+that follows a value is the literal of an object, and the brace that
+opens a line is a block: the place of the brace is what tells the two
+apart.
+
+The probes that measured the rules are in
+`egm-review/compare_block_at_the_start.py` (18 cases),
+`probe_block_shape.py` (10), `probe_block_text.py` (13) and
+`probe_block_line.py` (6).

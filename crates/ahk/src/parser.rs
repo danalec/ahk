@@ -315,6 +315,20 @@ fn the_source_of_the_line(parser: &Parser, line: u32) -> String {
     the_source_of_the_tokens(parser, start, end).trim_end().to_string()
 }
 
+/// The text that the refusal of the brace that closes a block names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the text is the line
+/// of the brace that closes the block, and when the brace that opens it is
+/// in that line too, the text begins after it.
+fn the_text_of_the_line_of_the_closing_brace(parser: &Parser, open: usize, close: usize) -> String {
+    let line = parser.tokens[close].line;
+    if parser.tokens[open].line != line {
+        return the_source_of_the_line(parser, line);
+    }
+    let end = the_end_of_the_line_of(parser, open + 1);
+    the_source_of_the_tokens(parser, open + 1, end)
+}
+
 /// Whether the token is a character that may not be in the script.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
@@ -1330,6 +1344,100 @@ impl Parser {
         }
     }
 
+    /// A block that opens a line.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the brace that opens
+    /// a line is a block of its own, and the statements between the braces
+    /// run. The content may be on the line of the brace that opens it, and
+    /// the brace that closes it is alone on its line -- unless the block is
+    /// empty, and then the brace may be written where it is.
+    fn parse_block_that_opens_a_line(&mut self) -> Result<Vec<Node>, SyntaxError> {
+        // The brace that opens the block, and the one that closes it.
+        let open = self.position;
+        if let Some(close) = self.the_closing_brace_of_a_block_that_opens_a_line(open) {
+            // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+            // closes the block is alone on its line, and the v2 says so
+            // before it reads the content of the block. The block that is
+            // empty is the one exception: the brace may be written where it
+            // is.
+            let empty = self
+                .tokens
+                .get(open + 1)
+                .map(|token| token.kind == TokenKind::Op && token.value == "}")
+                .unwrap_or(false);
+            if !empty && !self.the_brace_at_is_at_the_start_of_its_line(close) {
+                // Measured on the binary of v2.0.19 on 2026-11-01: the text
+                // that is named is the line of the brace that closes the
+                // block, and when the brace that opens it is in that line
+                // too, the text begins after it.
+                let token = self.tokens[close].clone();
+                let text = the_text_of_the_line_of_the_closing_brace(self, open, close);
+                return Err(SyntaxError {
+                    message: format!("Unexpected \"}}\"\n     Specifically: {text}"),
+                    line: token.line,
+                    column: token.column,
+                });
+            }
+        }
+        self.next();
+        let mut body = Vec::new();
+        // The content may be on the line of the brace that opens it.
+        if self.peek().kind == TokenKind::Newline {
+            self.skip_newlines();
+        }
+        loop {
+            let token = self.peek().clone();
+            if token.kind == TokenKind::Eof {
+                // Measured on the binary of v2.0.19 on 2026-11-01: the brace
+                // that is not closed is named, and the line that is named is
+                // the line of the brace that opens the block.
+                let opener = self.tokens[open].clone();
+                return Err(SyntaxError {
+                    message: "Missing \"}\"".into(),
+                    line: opener.line,
+                    column: opener.column,
+                });
+            }
+            if token.kind == TokenKind::Op && token.value == "}" {
+                self.position += 1;
+                return Ok(body);
+            }
+            body.extend(self.parse_statement()?);
+            self.skip_newlines();
+        }
+    }
+
+    /// The place of the brace that closes the block that opens a line.
+    ///
+    /// The braces are counted, and the block is closed when the count goes
+    /// back to zero, the way the literal of an object is counted.
+    fn the_closing_brace_of_a_block_that_opens_a_line(&self, open: usize) -> Option<usize> {
+        let mut depth = 1;
+        for (at, token) in self.tokens.iter().enumerate().skip(open + 1) {
+            if token.kind == TokenKind::Op && token.value == "{" {
+                depth += 1;
+            }
+            if token.kind == TokenKind::Op && token.value == "}" {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(at);
+                }
+            }
+            if token.kind == TokenKind::Eof {
+                return None;
+            }
+        }
+        None
+    }
+
+    /// Whether the brace at that place is at the start of its line.
+    fn the_brace_at_is_at_the_start_of_its_line(&self, at: usize) -> bool {
+        match at.checked_sub(1).and_then(|before| self.tokens.get(before)) {
+            Some(token) => token.kind == TokenKind::Newline,
+            None => true,
+        }
+    }
+
     /// The refusal of a brace that is not at the start of its line.
     fn the_closing_brace_is_refused(&self) -> Result<(), SyntaxError> {
         if self.the_brace_is_at_the_start_of_its_line() {
@@ -1575,6 +1683,13 @@ impl Parser {
             let value = self.parse_expression()?;
             self.end_of_statement()?;
             return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+        }
+        if token.kind == TokenKind::Op && token.value == "{" {
+            // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+            // opens a line is a block of its own, and the statements between
+            // the braces run.
+            let body = self.parse_block_that_opens_a_line()?;
+            return Ok(vec![Node::Block { body, line: token.line }]);
         }
         if token.kind == TokenKind::Op && matches!(token.value.as_str(), "++" | "--") {
             // Measured on the binary of v2.0.19 on 2026-10-31: the increment
@@ -6555,4 +6670,43 @@ mod tests {
         // part of it, and the whole line is named.
         let error = parse("x#y := 1").expect_err("does not parse");
         assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: x#y := 1");
+    }
+
+    #[test]
+    fn the_brace_that_opens_a_line_opens_a_block() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+        // opens a line is a block of its own, and the statements between the
+        // braces run. The content may be on the line of the brace that opens
+        // it, and the brace that closes it is alone in its line -- unless the
+        // block is empty, and then the brace may be written where it is.
+        let statements = parse("{\n}").expect("parses");
+        let Node::Block { body, .. } = &statements[0] else { panic!("a block") };
+        assert!(body.is_empty());
+        let statements = parse("{\nx := 1\n}").expect("parses");
+        let Node::Block { body, .. } = &statements[0] else { panic!("a block") };
+        assert_eq!(body.len(), 1);
+        // The empty block may be written in one line.
+        parse("{}").expect("parses");
+        parse("{ }").expect("parses");
+        // The content may be on the line of the brace that opens it.
+        let statements = parse("{x := 1\n}").expect("parses");
+        let Node::Block { body, .. } = &statements[0] else { panic!("a block") };
+        assert_eq!(body.len(), 1);
+    }
+
+    #[test]
+    fn the_brace_that_closes_the_block_is_alone_in_its_line() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+        // closes the block is alone in its line, and the v2 says so before it
+        // reads the content of the block. The text that is named is the line
+        // of the brace.
+        let error = parse("{x := 1}").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected \"}\"\n     Specifically: x := 1}");
+        let error = parse("{\nx := 1 }").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected \"}\"\n     Specifically: x := 1 }");
+        // The block that is not closed is named, and the line that is named
+        // is the line of the brace that opens it.
+        let error = parse("{\nx := 1").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"}\"");
+        assert_eq!(error.line, 1);
     }

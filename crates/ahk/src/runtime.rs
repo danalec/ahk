@@ -1432,6 +1432,7 @@ impl<'a> Runtime<'a> {
                         },
                     );
                 }
+                Node::Block { body, .. } => self.collect_functions(body),
                 Node::If { branches, otherwise, .. } => {
                     for branch in branches {
                         self.collect_functions(&branch.body);
@@ -1477,6 +1478,7 @@ impl<'a> Runtime<'a> {
                     let value = closure_value(&closure, &function);
                     self.assign_in_the_scope(name, value);
                 }
+                Node::Block { body, .. } => self.collect_the_nested_functions(body),
                 Node::If { branches, otherwise, .. } => {
                     for branch in branches {
                         self.collect_the_nested_functions(&branch.body);
@@ -1935,6 +1937,9 @@ impl<'a> Runtime<'a> {
             Node::Call { name, arguments, line } => {
                 let value = self.call(name, arguments, *line)?;
                 detail = value.to_text();
+            }
+            Node::Block { body, .. } => {
+                self.run_block(body)?;
             }
             Node::If { branches, otherwise, .. } => {
                 let mut taken = false;
@@ -8086,6 +8091,7 @@ impl<'a> Runtime<'a> {
                 Ok(Value::Text(String::new()))
             }
             Node::Expression { .. }
+            | Node::Block { .. }
             | Node::If { .. }
             | Node::Switch { .. }
             | Node::While { .. }
@@ -8899,7 +8905,10 @@ fn collect_the_labels(body: &[Node], labels: &mut Vec<String>) {
                     collect_the_labels(&case.body, labels);
                 }
             }
-            Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+            Node::Block { body, .. }
+            | Node::While { body, .. }
+            | Node::Loop { body, .. }
+            | Node::For { body, .. } => {
                 collect_the_labels(body, labels);
             }
             Node::Try { body, catches, otherwise, finally, .. } => {
@@ -8935,6 +8944,7 @@ pub fn op_name(statement: &Node) -> &str {
             },
             None => "Expression",
         },
+        Node::Block { .. } => "Block",
         Node::If { .. } => "If",
         Node::Switch { .. } => "Switch",
         Node::While { .. } => "While",

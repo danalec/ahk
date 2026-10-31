@@ -5301,3 +5301,17 @@ fn the_object_literal_that_is_written_in_more_than_one_line() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
 }
+
+#[test]
+fn the_block_that_opens_a_line_runs_its_statements() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the brace that opens
+    // a line is a block of its own, and the statements between the braces
+    // run.
+    let (report, _desktop) = run("{\nx := 1\n}\nFileAppend x, \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    // The content may be on the line of the brace that opens it.
+    let (report, _desktop) = run("{x := 2\n}\nFileAppend x, \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}

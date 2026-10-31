@@ -400,6 +400,14 @@ pub enum Node {
     /// with a parenthesis is an expression, and the value it leaves behind is
     /// not used.
     Expression { value: Box<Node>, line: u32 },
+    /// A block that opens a line: `{` and the statements, and `}`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the brace that opens
+    /// a line is a block of its own, and the statements between the braces
+    /// run. The content may be on the line of the brace that opens it, and
+    /// the brace that closes it is alone on its line, unless the block is
+    /// empty.
+    Block { body: Vec<Node>, line: u32 },
     /// `If cond { } ElseIf cond { } Else { }`.
     If { branches: Vec<Branch>, otherwise: Vec<Node>, line: u32 },
     /// `Switch value { Case 1 { } Default { } }`.
@@ -592,6 +600,7 @@ impl Node {
             | Node::Index { line, .. }
             | Node::Call { line, .. }
             | Node::Expression { line, .. }
+            | Node::Block { line, .. }
             | Node::If { line, .. }
             | Node::Switch { line, .. }
             | Node::While { line, .. }

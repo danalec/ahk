@@ -102,6 +102,10 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   it. `THE_DIRECTIVES` carries the names of the v2, and a name that is not
   one of them is not a directive: the line holds no action, and the lexer
   refuses it at the load with the line as it was written.
+- The semicolon is a comment when it is at the start of a line or when a
+  space comes before it. The one that is glued to the token that comes
+  before it is a character of the script, and the parser refuses it as an
+  illegal character.
 - The percent sign is an operator, and it builds a name: the name is the
   text that is written and the values of the expressions, joined without a
   space between them. `%x%` is the variable whose name is the value of `x`,
@@ -120,7 +124,7 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
 
 - `Node` -- one node of the tree. The variants are `Literal`, `Var`,
   `Unary`, `Binary`, `Ternary`, `Assign`, `Index`, `AssignIndex`,
-  `Call`, `If`, `Switch`, `While`, `Loop`, `For`, `Directive`, `Break`,
+  `Call`, `Block`, `If`, `Switch`, `While`, `Loop`, `For`, `Directive`, `Break`,
   `Continue`, `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`,
   `Property`, `AssignProperty`, `ArrayLiteral`, `ObjectLiteral`, `Lambda`,
   `Label`, `Goto`, `DynamicName` and `AssignDynamic`. Every variant carries
@@ -1354,6 +1358,12 @@ that asks for another one is refused with the reason.
   refusal names the text that holds them. The one that is inside an
   expression is an illegal character in an expression, and the one that
   begins a statement is a line that holds no action.
+
+- **The brace that opens a line opens a block.** The statements between
+  the braces run, the content may be on the line of the brace that opens
+  it, and the brace that closes it is alone in its line -- unless the
+  block is empty. The brace that follows a value opens the literal of an
+  object, and the place of the brace is what tells the two apart.
 
 ## Side Effects
 
