@@ -4991,3 +4991,46 @@ The key that is written between the braces and the button that is written
 as a word are the syntax of the v1, and they are not in the v2. The plan of
 the dialect of the v1 is in `docs/ahk-v1-dialect.md`, and it is the place
 where they may come back.
+
+## 112. The button of a mouse click is the first parameter
+
+Measured on the binary of v2.0.19 on 2026-10-31: the `MouseClick` of v2 is
+a function whose parameters are typed, and the button is the first one of
+them.
+
+- **The button is the first parameter, and it is a text that is not
+  spread:** `MouseClick "R D"` is refused, and so is `MouseClick 10, 20` --
+  the "10" is the button.
+- **A button that is not one of the words of v2 is refused:** "Parameter #1
+  of MouseClick is invalid." with the value in the `Extra`.
+- **The words of v2 are the three buttons and their first letter, the
+  fourth and the fifth button, and the wheel:** Left, Right and Middle (or
+  L, R and M), X1 and X2, and WheelUp, WheelDown, WheelLeft and WheelRight
+  (or WU, WD, WL and WR). The case of the word does not matter.
+- **A button that is not there is the left one,** and the space alone is
+  not a button: `MouseClick` clicks with the left one, and `MouseClick " "`
+  is refused.
+- **The value that failed is in the `Extra` with the space at the end of it
+  cut:** "Left " is refused with the "Left" in it, and "  nonsense  " with
+  the " nonsense" in it.
+- **The `Click` is not the same function,** and its components may be
+  spread across the parameters and in one text: `Click 100, 200, "R D"` is
+  the same as `Click "100 200 R D"`.
+
+The tree read the `MouseClick` with the rule of the `Click`, and it spread
+the words of the parameters: `MouseClick 10, 20` was a click at (10, 20)
+where the v2 refuses, and `MouseClick "nonsense"` was a click with the
+button of the first word. The wheel and the fourth and the fifth button
+are the ones that the desktop of the tree does not carry, and the refusal
+says so.
+
+Two differences are known and are not fixed yet: the tree refuses a
+component of a `Click` that the v2 takes (`Click 10, 20, "nonsense"` is a
+click in the v2), and the tree refuses at the load the parameter of a
+command that is not there (`MouseClick "Left",,,0` is a click in the v2).
+
+The probe that measured the rules is in `egm-review/probe_mouse_click.py`
+(31 cases) and in `egm-review/probe_mouse_click_load.py` (9 cases); the
+probes that measured the shape of the `Click` are in
+`egm-review/probe_click_shape.py` (13 cases) and in
+`egm-review/probe_click_button.py` (7 cases).

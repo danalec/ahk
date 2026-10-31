@@ -4946,3 +4946,73 @@ fn a_brace_that_opens_an_argument_of_a_command_opens_an_object() {
     let error = parse("Send {Enter}").expect_err("does not parse");
     assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
 }
+
+#[test]
+fn the_button_of_a_mouse_click_is_the_first_parameter() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the button of a
+    // `MouseClick` is the first parameter, and it is a text that is not
+    // spread. `MouseClick 10, 20` is refused, and the "10" is the button.
+    let (report, _desktop) = run("MouseClick 10, 20");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Parameter #1 of MouseClick is invalid."));
+}
+
+#[test]
+fn the_button_of_a_mouse_click_that_is_not_one_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31.
+    let (report, _desktop) = run("MouseClick \"nonsense\"");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Parameter #1 of MouseClick is invalid."));
+}
+
+#[test]
+fn the_button_of_a_mouse_click_is_not_spread() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the words of the
+    // button are not the words of a click.
+    let (report, _desktop) = run("MouseClick \"R D\"");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Parameter #1 of MouseClick is invalid."));
+}
+
+#[test]
+fn the_value_of_the_button_that_failed_is_in_the_extra() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value that
+    // failed is in the `Extra`, with the space at the end of it cut.
+    let (report, _desktop) = run(
+        "try {\n    MouseClick \"Left \"\n} catch as err {\n    MsgBox err.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Left".to_string()]);
+}
+
+#[test]
+fn a_mouse_click_takes_the_place_and_the_count() {
+    let (report, desktop) = run("MouseClick \"Right\", 10, 20, 3");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,right,3".to_string())]);
+}
+
+#[test]
+fn a_mouse_click_with_no_button_is_the_left_one() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a button that is
+    // not there is the left one.
+    let (report, desktop) = run("MouseClick");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("click".to_string(), "0,0,left,1".to_string())]);
+}
+
+#[test]
+fn the_wheel_of_a_mouse_click_is_not_carried_yet() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: v2 takes the wheel
+    // of a `MouseClick`, and the desktop of the tree does not.
+    let (report, _desktop) = run("MouseClick \"WheelUp\"");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the wheel is not carried yet."));
+}
+
+#[test]
+fn the_fourth_button_of_a_mouse_click_is_not_carried_yet() {
+    let (report, _desktop) = run("MouseClick \"X1\"");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the fourth button is not carried yet."));
+}

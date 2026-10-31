@@ -593,6 +593,17 @@ once, and the read of the name and the refusal of the name say the same
 thing. The variant is the reason of the name and not the reason of a group
 of names: the names of the shape of the runtime each say what they want.
 
+The `Click` and the `MouseClick` are two functions of v2 and not one. The
+components of a `Click` may be spread across the parameters and in one text
+-- `Click 100, 200, "R D"` is the same as `Click "100 200 R D"` -- and the
+handler of it reads the words of the parameters. The button of a
+`MouseClick` is the first parameter, and it is a text that is not spread:
+measured on the binary of v2.0.19 on 2026-10-31, `MouseClick "R D"` and
+`MouseClick 10, 20` are refused with "Parameter #1 of MouseClick is
+invalid." and the value in the `Extra`, with the space at the end of it
+cut. The wheel and the fourth and the fifth button are the ones that the
+desktop of the tree does not carry, and the refusal says so.
+
 ### The class types (`classes/`)
 
 - `names(class) -> Vec<&'static str>` -- the names a class type answers:
@@ -1152,6 +1163,12 @@ that asks for another one is refused with the reason.
   and not a key, and the button of a click is a value: `Click 10, 20,
   right` reads the variable `right`. The name of a property of the literal
   of an object may be built by the script.
+
+- **The button of a `MouseClick` is the first parameter, and it is
+  checked.** The words of it are not spread, and a button that is not one
+  of the words of v2 is refused with "Parameter #1 of MouseClick is
+  invalid." and the value in the `Extra`, with the space at the end of it
+  cut.
 
 ## Side Effects
 

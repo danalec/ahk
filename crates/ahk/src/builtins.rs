@@ -430,7 +430,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 1, variant: 114, handler: not_carried },
     Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 0, variant: 115, handler: not_carried },
     Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 1, max: 3, variant: 0, handler: load_picture },
-    Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: click },
+    Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: mouse_click },
     Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, handler: mouse_click_drag },
     Builtin { name: "OnError", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, handler: on_error },
     Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, handler: on_exit },
@@ -545,6 +545,15 @@ pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<Strin
     // Measured on the binary of v2.0.19 on 2026-10-31.
     if name == "ObjSetBase" && message.starts_with("Expected an Object but got") {
         return values.get(1).map(crate::runtime::the_extra_of_the_value);
+    }
+    // The button of a `MouseClick` is the first parameter, and the value
+    // that the refusal carries has the space at the end of it cut.
+    //
+    // Measured on the binary of v2.0.19 on 2026-10-31: "Left " is refused
+    // with the "Left" in the `Extra`, and "  nonsense  " with the
+    // " nonsense" in it.
+    if name == "MouseClick" && message == "Parameter #1 of MouseClick is invalid." {
+        return values.first().map(|value| value.to_text().trim_end().to_string());
     }
     if message != "Invalid option." {
         return None;
@@ -3521,6 +3530,20 @@ fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Res
             "left" | "l" => button = "left".to_string(),
             "right" | "r" => button = "right".to_string(),
             "middle" | "m" => button = "middle".to_string(),
+            // The fourth and the fifth button are the ones that the
+            // desktop of the tree does not carry.
+            "x1" => {
+                return Err(RuntimeError {
+                    message: "the fourth button is not carried yet.".into(),
+                    line,
+                })
+            }
+            "x2" => {
+                return Err(RuntimeError {
+                    message: "the fifth button is not carried yet.".into(),
+                    line,
+                })
+            }
             "down" | "d" | "up" | "u" => {
                 return Err(RuntimeError {
                     message: "the pressing of the button is not carried yet.".into(),
@@ -3560,6 +3583,86 @@ fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Res
         }
     };
     let detail = rt.desktop().click(x, y, &button, count).map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(detail))
+}
+
+/// `MouseClick`: the button goes first, and the parameters are the ones of
+/// the function of v2.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the button of a
+/// `MouseClick` is the first parameter, and it is a text that is not
+/// spread -- `MouseClick "R D"` is refused, and so is `MouseClick 10, 20`,
+/// with the "10" in the `Extra`. A button that is not one of the words of
+/// v2 is refused with "Parameter #1 of MouseClick is invalid." and the
+/// value in the `Extra`, with the space at the end of it cut. A button
+/// that is not there is the left one, and the space alone is not a button
+/// either.
+///
+/// The wheel and the fourth and the fifth button are the ones that the
+/// desktop of the tree does not carry, and the refusal says so.
+fn mouse_click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    let spelled = values.first().map(|value| value.to_text()).unwrap_or_default();
+    // A button that is not there is the left one.
+    let button = if spelled.is_empty() { "left".to_string() } else { spelled };
+    let name = match button.to_lowercase().as_str() {
+        "left" | "l" => "left",
+        "right" | "r" => "right",
+        "middle" | "m" => "middle",
+        "x1" => {
+            return Err(RuntimeError {
+                message: "the fourth button is not carried yet.".into(),
+                line,
+            })
+        }
+        "x2" => {
+            return Err(RuntimeError {
+                message: "the fifth button is not carried yet.".into(),
+                line,
+            })
+        }
+        "wheelup" | "wu" | "wheeldown" | "wd" | "wheelleft" | "wl" | "wheelright" | "wr" => {
+            return Err(RuntimeError {
+                message: "the wheel is not carried yet.".into(),
+                line,
+            })
+        }
+        _ => {
+            return Err(RuntimeError {
+                message: "Parameter #1 of MouseClick is invalid.".into(),
+                line,
+            })
+        }
+    };
+    // The place is the second and the third parameters, and the number of
+    // the clicks is the fourth. The speed is the fifth, and the tree does
+    // not carry it.
+    let x = values.get(1).and_then(|value| value.to_number()).map(|number| number as i64);
+    let y = values.get(2).and_then(|value| value.to_number()).map(|number| number as i64);
+    let count = values.get(3).and_then(|value| value.to_number()).unwrap_or(1.0).max(1.0) as u32;
+    // The pressing and the releasing of the button are the sixth parameter,
+    // and the place relative to the pointer is the seventh.
+    if values.get(5).map(|value| !value.to_text().trim().is_empty()).unwrap_or(false) {
+        return Err(RuntimeError {
+            message: "the pressing of the button is not carried yet.".into(),
+            line,
+        });
+    }
+    if values.get(6).map(|value| !value.to_text().trim().is_empty()).unwrap_or(false) {
+        return Err(RuntimeError {
+            message: "the place relative to the pointer is not carried yet.".into(),
+            line,
+        });
+    }
+    // A click with no place is a click where the pointer is.
+    let (x, y) = match (x, y) {
+        (Some(x), Some(y)) => (x, y),
+        _ => {
+            let (pointer_x, pointer_y) =
+                rt.desktop().mouse_position().map_err(|e| desktop_failure(e, line))?;
+            (pointer_x, pointer_y)
+        }
+    };
+    let detail = rt.desktop().click(x, y, name, count).map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Text(detail))
 }
 
