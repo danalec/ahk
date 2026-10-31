@@ -289,3 +289,76 @@ fn the_number_of_the_arguments_of_the_constructor_of_an_error_is_checked() {
         vec!["Too many parameters passed to function. | Object.Call | Error.Prototype.__New"]
     );
 }
+
+#[test]
+fn the_line_of_an_error_is_the_line_where_it_was_made() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the line of an error
+    // is the line where it was made, and not the line where it is read.
+    let report = run("e := Error(\"m\")\n\n\nMsgBox e.Line");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_line_of_an_error_that_was_thrown_is_the_line_of_the_throw() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the error that is
+    // thrown carries the line where it was thrown.
+    let report = run(
+        "try {\n    throw Error(\"m\")\n} catch as e {\n    MsgBox e.Line\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn an_error_has_no_prototype_of_its_own() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the prototype is a
+    // property of the class and not of an instance of it.
+    let report = run(
+        "try {\n    e := Error(\"m\")\n    x := e.Prototype\n} catch Any as e {\n    MsgBox e.Message\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["This value of type \"Error\" has no property named \"Prototype\"."]
+    );
+}
+
+#[test]
+fn the_prototype_of_the_error_is_the_prototype_of_the_error() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the class of the
+    // prototype is the class that it is the prototype of, and the base of
+    // it is the prototype of the class that it extends.
+    let report = run("MsgBox Error.Prototype.__Class \" | \" Error.Prototype.Base.__Class");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Error | Object"]);
+}
+
+#[test]
+fn the_base_of_the_error_is_the_class_that_it_extends() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the base of a class
+    // is the class that it extends.
+    let report = run("MsgBox Error.Base.__Class \" | \" Error.HasBase(Object)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Class | 1"]);
+}
+
+#[test]
+fn the_properties_of_an_error_are_its_own() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the message of an
+    // error is a property of it, and it is an own one.
+    let report = run("e := Error(\"m\")\nMsgBox e.HasProp(\"Message\") \" | \" e.HasOwnProp(\"Message\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 | 1"]);
+}
+
+#[test]
+fn the_properties_of_an_error_are_written() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the message, the
+    // what and the extra of an error are written the way the class says.
+    let report = run(
+        "e := Error(\"m\")\ne.Message := \"w\"\ne.What := \"n\"\ne.Extra := \"x\"\nMsgBox e.Message \" | \" e.What \" | \" e.Extra",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["w | n | x"]);
+}

@@ -5322,3 +5322,28 @@ with it, and the v2 names nothing there.
 The probes that measured the rules are in `egm-review/probe_brace_shape.py`
 (25 cases), `probe_brace_shape2.py` (17), `probe_brace_shape3.py` (15),
 `probe_brace_shape4.py` (12) and `probe_brace_shape5.py` (10).
+
+## 121. The error object of the binary
+
+Measured on the binary of v2.0.19 on 2026-11-01: the error of v2 is an
+object with six properties of its own, and the line of it is the line where
+it was made.
+
+- **The six properties are its own:** "Extra", "File", "Line", "Message",
+  "Stack" and "What", and they are written the way the class says.
+- **The line is the line where the error was made,** and not the line where
+  it is read: an error that is made in the third line answers 3 when it is
+  read in the fifth.
+- **The prototype is a property of the class and not of an instance:**
+  `e.Prototype` is refused with 'This value of type "Error" has no
+  property named "Prototype".', and `Error.Prototype` is the prototype of
+  the class, whose class is "Error" and whose base is the prototype of
+  "Object".
+
+The tree answers the same as the binary in all of it, except in the file of
+the script: the script of the runner has no file of its own, and the file of
+an error and the file of every frame of its stack are empty.
+
+The probes that measured the rules are in
+`egm-review/probe_error_props_v2.py` (10 cases), `probe_base_refusals.py`
+(10) and `compare_error_object.py` (40).

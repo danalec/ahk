@@ -1033,6 +1033,10 @@ that asks for another one is refused with the reason.
   every frame is empty. The host gives the source to the runtime with
   `Runtime::with_source`, and the runtime keeps the line of every frame as
   the statements run.
+- **The error carries the line where it was made.** The line is a property of
+  the error and not of the statement that reads it, and the file of it is the
+  file of the script: the script of the runner has no file, and the file of
+  an error and the file of every frame of its stack are empty.
 - **`Sleep` is capped at 60 000 ms**, in the statement and in the builtin.
 - **The timeout knows no line.** It stops the script between two statements,
   so `error_line` stays null and the message is "the script ran for more than
