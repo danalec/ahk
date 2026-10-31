@@ -228,6 +228,14 @@ fn the_token_is_an_operator(token: &Token) -> bool {
     false
 }
 
+/// Whether the number is a float: it has a point in it.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the name of a property
+/// may be a number, and the number that is a float is not a name.
+fn the_number_is_a_float(token: &Token) -> bool {
+    token.value.contains('.')
+}
+
 /// The name that v2 reads when it begins with a number.
 ///
 /// The name stops at the point, because a point is not part of a name.
@@ -543,6 +551,12 @@ pub struct Parser {
     /// cannot be there names the statement it is in, and the text is the
     /// statement and the token.
     statement_start: usize,
+    /// The base of every class of the script, and the place it was written.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the base of a
+    /// class is a class of the script or a class that a script can read,
+    /// and the one that is not there is refused at the load.
+    bases: Vec<(String, String, u32, u32)>,
 }
 
 /// An assignment of the script, and the place it was written.
@@ -588,6 +602,7 @@ impl Parser {
             pending_literal: None,
             expressions: Vec::new(),
             statement_start: 0,
+            bases: Vec::new(),
         }
     }
 
@@ -781,11 +796,41 @@ impl Parser {
         // The labels of the script are the scope of the script, and a label
         // that is written twice in it is refused.
         self.check_the_labels(&statements)?;
+        // The base of a class is a class, and the one that is not there is
+        // refused.
+        self.check_the_bases()?;
         // The assignments of the top level live in the scope of the script,
         // and the class that one of them names may be declared further down.
         let assignments = core::mem::take(self.assignments.first_mut().expect("the top level"));
         self.check_the_assignments(assignments)?;
         Ok(statements)
+    }
+
+    /// The refusal of the classes whose base is not there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the base of a
+    /// class is a class of the script or a class that a script can read,
+    /// and the one that is not there is named. The base may be declared
+    /// after the class that extends it, so the check is at the end of the
+    /// script.
+    ///
+    /// The rule lives here, and the v1 dialect may let the base of a class
+    /// be a name that is not there.
+    fn check_the_bases(&self) -> Result<(), SyntaxError> {
+        for (_, base, line, column) in &self.bases {
+            if self.classes.contains_key(&base.to_lowercase()) {
+                continue;
+            }
+            if crate::classes::is_a_name_of_a_class(base) {
+                continue;
+            }
+            return Err(SyntaxError {
+                message: format!("Unknown class.\n     Specifically: {base}"),
+                line: *line,
+                column: *column,
+            });
+        }
+        Ok(())
     }
 
     /// The refusal of the assignments whose output variable is a class.
@@ -2226,7 +2271,7 @@ impl Parser {
             let message = match name_token.kind {
                 TokenKind::Number => format!(
                     "This class name starts with a number, which is not allowed:\n{:?}",
-                    the_name_that_begins_with_a_number(&name_token)
+                    name_token.value
                 ),
                 TokenKind::Keyword => format!(
                     "The following reserved word must not be used as a class name:\n{:?}",
@@ -2241,8 +2286,14 @@ impl Parser {
             self.next();
             let base = self.next();
             if base.kind != TokenKind::Name {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the base
+                // of a class is a class, and the one that is not there is
+                // named.
                 return Err(SyntaxError {
-                    message: "a class needs the name of the class it extends".into(),
+                    message: format!(
+                        "Unknown class.\n     Specifically: {}",
+                        the_source_of_a_token(&base)
+                    ),
                     line: base.line,
                     column: base.column,
                 });
@@ -2255,6 +2306,11 @@ impl Parser {
             Some(outer) => format!("{outer}.{}", name_token.value),
             None => name_token.value.clone(),
         };
+        // The base of the class is checked when the script is read: it may
+        // be declared after the class that extends it.
+        if let Some(base) = &extends {
+            self.bases.push((name.clone(), base.clone(), name_token.line, name_token.column));
+        }
         // The duplicates of the class are refused while its body is read,
         // the way v2 refuses them: the first duplicate of the body is the
         // one that is reported.
@@ -2271,6 +2327,17 @@ impl Parser {
             nested: members.nested,
             line: token.line,
         })
+    }
+
+    /// A class with no name, inside a class.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: v2 reads the class
+    /// and drops it, and the class that holds it does not own it: the own
+    /// properties of the class that holds it are the ones it had before.
+    fn parse_the_class_with_no_name(&mut self, token: Token, name: &str) -> Result<(), SyntaxError> {
+        // The brace of the class is the token that was read as its name.
+        self.parse_the_members_of_a_class(token.line, name)?;
+        Ok(())
     }
 
     /// The members of a class: the methods and the properties.
@@ -2296,6 +2363,15 @@ impl Parser {
             });
         }
         self.expect_op("{")?;
+        self.parse_the_members_of_a_class(line, name)
+    }
+
+    /// The members of a class, after the brace that opens them.
+    fn parse_the_members_of_a_class(
+        &mut self,
+        line: u32,
+        name: &str,
+    ) -> Result<TheMembersOfAClass, SyntaxError> {
         if !self.the_body_begins_on_the_next_line() {
             return Err(self.error(self.the_message_of_the_opening_brace("class", line)));
         }
@@ -2364,12 +2440,38 @@ impl Parser {
                 // declaration.\n     Specifically: Inner", and the name of
                 // the class is not the name of the class that holds it.
                 let nested_name = self.next();
-                if nested_name.kind != TokenKind::Name {
-                    return Err(SyntaxError {
-                        message: "Unexpected \"{\"".to_string(),
-                        line: nested_name.line,
-                        column: nested_name.column,
-                    });
+                match nested_name.kind {
+                    TokenKind::Name => {}
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // name of a class may not begin with a number, and a
+                    // reserved word is not the name of a class.
+                    TokenKind::Number => {
+                        return Err(SyntaxError {
+                            message: format!(
+                                "This class name starts with a number, which is not allowed:\n{:?}",
+                                nested_name.value
+                            ),
+                            line: nested_name.line,
+                            column: nested_name.column,
+                        });
+                    }
+                    TokenKind::Keyword => {
+                        return Err(SyntaxError {
+                            message: format!(
+                                "The following reserved word must not be used as a class name:\n{:?}",
+                                nested_name.value
+                            ),
+                            line: nested_name.line,
+                            column: nested_name.column,
+                        });
+                    }
+                    // Measured on the binary of v2.0.19 on 2026-10-31: a
+                    // class with no name is read and dropped, and the class
+                    // that holds it does not own it.
+                    _ => {
+                        self.parse_the_class_with_no_name(name_token, name)?;
+                        continue;
+                    }
                 }
                 let key = nested_name.value.to_lowercase();
                 if class_properties.contains(&key) {
@@ -2405,7 +2507,48 @@ impl Parser {
                 nested.push(class);
                 continue;
             }
-            if name_token.kind != TokenKind::Name && name_token.kind != TokenKind::Keyword {
+            if name_token.kind == TokenKind::Number && the_number_is_a_float(&name_token) {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the name
+                // of a property may be a number, and the number that is a
+                // float is not a name at all.
+                if self.at_op(&[":=", "="]) {
+                    // The assignment of a name that is not a name of the
+                    // class is refused with the words of v2.
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Unknown class var.\n     Specifically: {}",
+                            the_source_of_the_line(self, name_token.line)
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+                return Err(SyntaxError {
+                    message: format!(
+                        "Not a valid method, class or property definition.\n     Specifically: {}",
+                        the_source_of_the_line(self, name_token.line)
+                    ),
+                    line: name_token.line,
+                    column: name_token.column,
+                });
+            }
+            if name_token.kind != TokenKind::Name
+                && name_token.kind != TokenKind::Keyword
+                && name_token.kind != TokenKind::Number
+            {
+                // Measured on the binary of v2.0.19 on 2026-10-31: a brace
+                // in a class is a token that cannot be there, and the line
+                // of it is named.
+                if name_token.kind == TokenKind::Op && name_token.value == "{" {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Unexpected \"{{\"\n     Specifically: {}",
+                            the_source_of_the_line(self, name_token.line)
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
                 // Measured on the binary of v2.0.19 on 2026-10-31: a member
                 // of a class that is not a name is not a valid definition,
                 // and the line that says it is named.
@@ -2483,6 +2626,19 @@ impl Parser {
                 let was_in_a_function = self.in_function;
                 self.in_function = true;
                 let body = self.parse_block("method", name_token.line)?;
+                // Measured on the binary of v2.0.19 on 2026-10-31: the name
+                // of a method may not begin with a number, and the name is
+                // named with it.
+                if name_token.kind == TokenKind::Number {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "This method name starts with a number, which is not allowed:\n{:?}",
+                            the_name_that_begins_with_a_number(&name_token)
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
                 self.in_function = was_in_a_function;
                 self.check_the_labels(&body)?;
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));

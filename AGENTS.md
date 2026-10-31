@@ -4345,3 +4345,46 @@ The comparison of the tree with the binary is in
 the rules are in `egm-review/probe_refused_member7.py`,
 `egm-review/probe_refused_member9.py` and
 `egm-review/probe_refused_member10.py`.
+
+## 95. The name of a property of a class may be a number
+
+Measured on the binary of v2.0.19 on 2026-10-31: the name of a property of a
+class may be a number, and the number that is a float is not a name at all.
+The tree refused every one of them with "Not a valid method, class or
+property definition.".
+
+- **The name of a property may be a number.** The property "123" is a name
+  of its own, and it is one of the own properties of the instance. A number
+  alone in a class is a line with no action: "This line does not contain a
+  recognized action." and the number.
+- **The name of a method may not begin with a number.** The refusal is "This
+  method name starts with a number, which is not allowed:" and the name. The
+  name of a class may not begin with a number either, and the whole of the
+  number is named: "1.5" and not "1".
+- **A reserved word is not the name of a class.** The refusal is "The
+  following reserved word must not be used as a class name:" and the word.
+- **A brace in a class is a token that cannot be there.** The refusal is
+  "Unexpected \"{\"" and the line of it.
+- **A class with no name is read and dropped.** v2 takes it, and the class
+  that holds it does not own it: the own properties of the class that holds
+  it are the ones it had before.
+- **The number that is a float is not a name.** The member that is one is
+  not a valid definition, and the assignment of one is refused with "Unknown
+  class var." and the line of it.
+- **The base of a class is a class.** The base that is not there is refused
+  at the load with "Unknown class." and the name of it, and the base may be
+  declared after the class that extends it. The name of a class of the
+  runtime is a base, and the name of a function is not: "Hotkey" is a
+  function of the dialect. The rule lives in `check_the_bases`, and the v1
+  dialect may let the base of a class be a name that is not there.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_refused_member.py` (31 cases), and the probes that
+measured the rules are in `egm-review/probe_refused_member.py`,
+`egm-review/probe_refused_member2.py`,
+`egm-review/probe_refused_member3.py`,
+`egm-review/probe_refused_member11.py`,
+`egm-review/probe_refused_member12.py`,
+`egm-review/probe_refused_member13.py`,
+`egm-review/probe_refused_member14.py` and
+`egm-review/probe_refused_member15.py`.

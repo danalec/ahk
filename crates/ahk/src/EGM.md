@@ -989,6 +989,9 @@ that asks for another one is refused with the reason.
 - **The operand that is not there is refused with the words of v2.** The
   operator that wants it names the failure, and a brace that closes a block
   is a token that cannot be there: the statement it is in is named with it.
+- **The name of a property of a class may be a number, and the base of a
+  class is a class.** The base that is not there is refused at the load, and
+  the base may be declared after the class that extends it.
 
 ## Side Effects
 

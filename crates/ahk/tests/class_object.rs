@@ -1223,3 +1223,123 @@ fn the_failure_of_a_method_of_the_base_object_names_the_method() {
         "Parameter #2 of Object.Prototype.DefineProp is invalid. | Object.Prototype.DefineProp | 1"
     );
 }
+
+#[test]
+fn the_name_of_a_property_may_be_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // property may be a number, and the property "123" is a name of its
+    // own.
+    assert_eq!(
+        the_answer_of("class C {\n    123 := 1\n}\no := C()\nMsgBox o.HasProp(\"123\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    static 123 := 1\n}\nMsgBox C.HasProp(\"123\")"),
+        "1"
+    );
+}
+
+#[test]
+fn a_number_alone_in_a_class_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a member that is a
+    // name and nothing else is a line with no action.
+    assert_eq!(
+        the_load_failure_of("class C {\n    123\n}"),
+        "This line does not contain a recognized action.\n     Specifically: 123"
+    );
+}
+
+#[test]
+fn the_name_of_a_method_may_not_begin_with_a_number() {
+    assert_eq!(
+        the_load_failure_of("class C {\n    123() {\n    }\n}"),
+        "This method name starts with a number, which is not allowed:\n\"123\""
+    );
+}
+
+#[test]
+fn the_name_of_a_class_may_not_begin_with_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the whole of the
+    // number is named, and not the part before the point.
+    assert_eq!(
+        the_load_failure_of("class 123 {\n}"),
+        "This class name starts with a number, which is not allowed:\n\"123\""
+    );
+    assert_eq!(
+        the_load_failure_of("class C {\n    class 123 {\n    }\n}"),
+        "This class name starts with a number, which is not allowed:\n\"123\""
+    );
+    assert_eq!(
+        the_load_failure_of("class 1.5 {\n}"),
+        "This class name starts with a number, which is not allowed:\n\"1.5\""
+    );
+}
+
+#[test]
+fn a_reserved_word_is_not_the_name_of_a_class() {
+    assert_eq!(
+        the_load_failure_of("class C {\n    class if {\n    }\n}"),
+        "The following reserved word must not be used as a class name:\n\"if\""
+    );
+}
+
+#[test]
+fn a_brace_in_a_class_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a brace in a class
+    // is a token that cannot be there, and the line of it is named.
+    assert_eq!(the_load_failure_of("class C {\n    {\n}"), "Unexpected \"{\"\n     Specifically: {");
+}
+
+#[test]
+fn the_class_with_no_name_is_read_and_dropped() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: v2 reads the class
+    // and drops it, and the class that holds it does not own it.
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    class {\n    }\n}\ns := \"\"\nfor p in ObjOwnProps(C)\n    s .= \"[\" p \"]\"\nMsgBox s"
+        ),
+        "[__Init][Prototype]"
+    );
+}
+
+#[test]
+fn the_float_is_not_the_name_of_a_property() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the number that is
+    // a float is not a name, and the assignment of one is refused.
+    assert_eq!(
+        the_load_failure_of("class C {\n    1.5 := 1\n}"),
+        "Unknown class var.\n     Specifically: 1.5 := 1"
+    );
+}
+
+#[test]
+fn the_base_of_a_class_that_is_not_there_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the base of a class
+    // is a class, and the one that is not there is refused at the load.
+    assert_eq!(
+        the_load_failure_of("class C extends Nope {\n}"),
+        "Unknown class.\n     Specifically: Nope"
+    );
+    assert_eq!(
+        the_load_failure_of("class C extends 123 {\n}"),
+        "Unknown class.\n     Specifically: 123"
+    );
+    assert_eq!(
+        the_load_failure_of("class C extends \"Nope\" {\n}"),
+        "Unknown class.\n     Specifically: \"Nope\""
+    );
+    // The name of a function is not the name of a class.
+    assert_eq!(
+        the_load_failure_of("class C extends Hotkey {\n}"),
+        "Unknown class.\n     Specifically: Hotkey"
+    );
+}
+
+#[test]
+fn the_base_of_a_class_may_be_declared_after_it() {
+    assert_eq!(
+        the_answer_of("class C extends D {\n}\nclass D {\n}\nMsgBox C.Prototype.__Class"),
+        "C"
+    );
+    assert_eq!(the_answer_of("class C extends Map {\n}\nMsgBox C.Prototype.__Class"), "C");
+}
