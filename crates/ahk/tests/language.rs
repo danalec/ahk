@@ -3777,3 +3777,153 @@ fn the_colon_of_the_ternary_needs_its_question() {
     let error = parse("x := :").expect_err("does not parse");
     assert_eq!(error.message, "A \":\" is missing its \"?\"");
 }
+
+#[test]
+fn the_section_joins_the_line_that_has_code_above_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a section begins with
+    // a parenthesis at the start of a line, and it continues the last line
+    // that has code. A name that ends that line is separated from the
+    // contents of the section by a space.
+    let (report, _desktop) = run("x := 1\n(\n2\n)\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["12"]);
+}
+
+#[test]
+fn the_section_joins_the_line_above_the_comments() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the blank lines and
+    // the comments between the line and the section are of no account.
+    let (report, _desktop) = run("x := 1\n; a comment\n\n(\n2\n)\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["12"]);
+}
+
+#[test]
+fn the_section_that_is_inside_a_text_is_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the section that
+    // begins inside a text keeps the quotes as literal characters, and the
+    // newlines of the section are kept.
+    let (report, _desktop) = run("x := \"\n(\na\nb\n)\"\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a\nb"]);
+}
+
+#[test]
+fn the_lines_of_a_section_are_spaces_in_an_expression() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the newlines of a
+    // section are spaces in an expression.
+    let (report, _desktop) = run("x := 1\n(\n2\n3\n)\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["123"]);
+}
+
+#[test]
+fn the_join_option_puts_the_lines_together() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the option `Join`
+    // connects the lines without anything between them.
+    let (report, _desktop) = run("x := \"\n( Join\na\nb\n)\"\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ab"]);
+}
+
+#[test]
+fn the_ltrim_option_takes_the_indentation_away() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the option `LTrim`
+    // removes the leading whitespace of every line.
+    let (report, _desktop) = run("x := \"\n( LTrim\n  a\n  b\n)\"\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a\nb"]);
+}
+
+#[test]
+fn the_indentation_of_the_first_line_goes_from_the_lines() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the leading
+    // whitespace of the lines follows the indentation of the first one, and
+    // a line that is indented less is left as it is.
+    let (report, _desktop) = run("x := \"\n(\n  a\n b\n    c\n)\"\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a\n b\n  c"]);
+}
+
+#[test]
+fn the_comments_option_takes_the_comments_away() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the option
+    // `Comments` removes the comments of the lines.
+    let (report, _desktop) = run("x := \"\n( Comments\na ; a comment\nb\n)\"\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a\nb"]);
+}
+
+#[test]
+fn the_option_that_v2_does_not_know_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the option that v2
+    // does not know is named, and the script does not load.
+    let error = parse("x := \"\n( Nope\na\n)\"").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid option.\n     Specifically: Nope");
+    assert_eq!(error.line, 2);
+}
+
+#[test]
+fn the_section_that_is_not_closed_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the section that is
+    // not closed is named, and the text it merged with the line above is
+    // named with it.
+    let error = parse("x := 1\n(\n2\n").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \")\"\n     Specifically: x := 1 2");
+}
+
+#[test]
+fn a_line_that_begins_with_a_parenthesis_is_an_expression() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a line that begins
+    // with a parenthesis is an expression, and the value it leaves behind is
+    // not used.
+    let (report, _desktop) = run("(2 + 3)\nMsgBox \"done\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["done"]);
+}
+
+#[test]
+fn the_literal_at_the_start_of_a_statement_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a literal at the
+    // start of a statement is a line that holds no action, and the line is
+    // named with it.
+    let error = parse("2").expect_err("does not parse");
+    assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: 2");
+    let error = parse("1 + 2").expect_err("does not parse");
+    assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: 1 + 2");
+}
+
+#[test]
+fn the_value_that_came_too_close_names_the_rest_of_the_line() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value that came
+    // too close is named, and the rest of the line is named with it.
+    let error = parse("x := \"a\"\"b\"\"c\"").expect_err("does not parse");
+    assert_eq!(error.message, "Missing space or operator before this.\n     Specifically: \"b\"\"c\"");
+}
+
+#[test]
+fn the_command_carries_the_parenthesis_that_closes_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the command of v2 is
+    // a call whose parentheses are not written, and the text that names the
+    // operator carries the one that closes it.
+    let error = parse("MsgBox \"x\"2").expect_err("does not parse");
+    assert_eq!(error.message, "Missing space or operator before this.\n     Specifically: 2)");
+}
+
+#[test]
+fn the_bracket_that_is_not_there_names_the_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the bracket that is
+    // not there is named with the statement that holds it, and the lines of
+    // the statement are written in one.
+    let error = parse("FileAppend \"[\" (\nabc").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \")\"\n     Specifically: FileAppend \"[\" ( abc");
+}
+
+#[test]
+fn the_escape_of_a_space_is_a_space() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `s is a space, and
+    // it is allowed wherever `t is.
+    let (report, _desktop) = run("MsgBox \"a`sb\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a b"]);
+}

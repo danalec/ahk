@@ -7,9 +7,8 @@
 
 use alloc::format;
 use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-#[cfg(test)]
 use alloc::vec;
+use alloc::vec::Vec;
 
 use serde::Serialize;
 
@@ -140,6 +139,353 @@ fn the_source_of_the_chars(chars: &[char], start: usize, end: usize) -> String {
     text
 }
 
+
+/// The escape of the dialect: the backtick and the character that follows.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: `n is a linefeed, `r a
+/// carriage return, `t a tab, `s a space, and the character that is not an
+/// escape of the dialect is the character itself.
+fn the_escape_of_the_dialect(next: char) -> char {
+    match next {
+        'n' => '\n',
+        'r' => '\r',
+        't' => '\t',
+        'b' => '\u{8}',
+        'f' => '\u{c}',
+        'v' => '\u{b}',
+        '0' => '\0',
+        's' => ' ',
+        other => other,
+    }
+}
+
+/// The options of a continuation section.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the options are on the
+/// line of the opening parenthesis, they are separated by spaces, and the
+/// option that v2 does not know is refused at the load.
+struct TheOptionsOfASection {
+    /// The string that joins the lines of the section.
+    ///
+    /// `None` is the default: every line but the last is followed by a
+    /// linefeed. `Some` with an empty string is the option `Join` and no
+    /// string of its own.
+    join: Option<String>,
+    /// The leading whitespace of every line is removed.
+    ltrim: bool,
+    /// The removal of the leading whitespace that follows the indentation of
+    /// the first line is off.
+    ltrim0: bool,
+    /// The trailing whitespace of every line is kept.
+    rtrim0: bool,
+    /// The comments of the lines are removed.
+    comments: bool,
+    /// The backtick is a literal.
+    accent: bool,
+}
+
+/// A continuation section: the lines between the parentheses.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the section begins with a
+/// parenthesis at the start of a line and ends with a parenthesis at the
+/// start of a line, and the text that follows the closing parenthesis is
+/// joined with the lines of the section.
+struct TheSection {
+    options: TheOptionsOfASection,
+    /// The lines of the section, without the line terminators.
+    lines: Vec<String>,
+    /// The text that follows the closing parenthesis.
+    rest: String,
+    /// The index of the source after the closing parenthesis.
+    end: usize,
+    /// The index of the source of the text that follows the closing
+    /// parenthesis.
+    rest_at: usize,
+    /// The index of the source after the line of the opening parenthesis.
+    after: usize,
+    /// Whether the section was closed.
+    closed: bool,
+}
+
+/// The section that opens at the line that begins at `start`, if there is one.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the section begins with a
+/// parenthesis at the start of a line. The line is an expression and not a
+/// section when it carries a parenthesis of its own after the opening one --
+/// the string of the option `Join` is the only one that may carry one.
+fn the_section_at(chars: &[char], start: usize, line: u32) -> Result<Option<TheSection>, SyntaxError> {
+    let mut index = start;
+    while matches!(chars.get(index), Some(' ') | Some('\t')) {
+        index += 1;
+    }
+    if chars.get(index) != Some(&'(') {
+        return Ok(None);
+    }
+    let column = (index - start + 1) as u32;
+    index += 1;
+    // The end of the line of the opening parenthesis.
+    let mut end_of_the_line = index;
+    while end_of_the_line < chars.len() && chars[end_of_the_line] != '\n' {
+        end_of_the_line += 1;
+    }
+    let mut text_of_the_options: String = chars[index..end_of_the_line].iter().collect();
+    // The comment of the line ends the options.
+    if let Some(at) = text_of_the_options.find(';') {
+        text_of_the_options.truncate(at);
+    }
+    // The options of the section.
+    let mut options = TheOptionsOfASection {
+        join: None,
+        ltrim: false,
+        ltrim0: false,
+        rtrim0: false,
+        comments: false,
+        accent: false,
+    };
+    let mut the_join = String::new();
+    let mut the_join_is_there = false;
+    let mut an_option_is_not_known: Option<String> = None;
+    let mut a_paren_is_in_the_line = false;
+    for option in text_of_the_options.split(' ') {
+        if option.is_empty() {
+            continue;
+        }
+        // The option `Join` takes the string that follows its name.
+        let (name, argument) = match option.get(..4) {
+            Some(head) if head.eq_ignore_ascii_case("join") => ("join", Some(&option[4..])),
+            _ => (option, None),
+        };
+        // The parenthesis of the line: the line is an expression and not a
+        // section when it carries one.
+        let text = argument.unwrap_or(option);
+        if text.contains('(') || text.contains(')') {
+            a_paren_is_in_the_line = true;
+        }
+        match name.to_lowercase().as_str() {
+            "join" => {
+                the_join_is_there = true;
+                the_join = argument.unwrap_or("").to_string();
+            }
+            "ltrim" => options.ltrim = true,
+            "ltrim0" => options.ltrim0 = true,
+            "rtrim0" => options.rtrim0 = true,
+            "comments" | "comment" | "com" | "c" => options.comments = true,
+            "`" => options.accent = true,
+            _ => {
+                if an_option_is_not_known.is_none() {
+                    an_option_is_not_known = Some(option.to_string());
+                }
+            }
+        }
+    }
+    if a_paren_is_in_the_line {
+        // The line is an expression: `(x.y)()` and the like.
+        return Ok(None);
+    }
+    if let Some(option) = an_option_is_not_known {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the option that
+        // v2 does not know is named, and the script does not load.
+        return Err(SyntaxError::new(
+            format!("Invalid option.\n     Specifically: {option}"),
+            line,
+            column,
+        ));
+    }
+    if the_join_is_there {
+        options.join = Some(the_escapes_of_a_text(&the_join, options.accent));
+    }
+    // The lines of the section, until the line that closes it.
+    let mut lines: Vec<String> = Vec::new();
+    let mut rest = String::new();
+    let mut rest_at = end_of_the_line;
+    let mut end = chars.len();
+    let mut closed = false;
+    let mut cursor = end_of_the_line;
+    while cursor < chars.len() {
+        let mut start_of_the_line = cursor + 1;
+        if chars.get(start_of_the_line) == Some(&'\r') {
+            start_of_the_line += 1;
+        }
+        let mut end_of_the_line = start_of_the_line;
+        while end_of_the_line < chars.len() && chars[end_of_the_line] != '\n' {
+            end_of_the_line += 1;
+        }
+        let text: String = chars[start_of_the_line..end_of_the_line].iter().collect();
+        let trimmed = text.trim_start_matches([' ', '\t']);
+        if let Some(after_the_parenthesis) = trimmed.strip_prefix(')') {
+            // The section is closed here, and the text that follows the
+            // closing parenthesis is joined with the lines of the section.
+            rest = after_the_parenthesis.to_string();
+            rest_at = start_of_the_line + (trimmed.len() - after_the_parenthesis.len());
+            end = end_of_the_line;
+            closed = true;
+            break;
+        }
+        lines.push(text);
+        cursor = end_of_the_line;
+    }
+    Ok(Some(TheSection { options, lines, rest, end, rest_at, after: end_of_the_line + 1, closed }))
+}
+
+/// The text of the lines of a section.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the lines are joined
+/// with a linefeed, the trailing whitespace is removed, and the leading
+/// whitespace is removed as the indentation of the first line says -- unless
+/// the option `LTrim` takes it all away or the option `LTrim0` keeps it.
+fn the_content_of_the_section(section: &TheSection) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for line in &section.lines {
+        let mut text = line.clone();
+        if section.options.comments {
+            // The comment of the line, and the whitespace before it, are of
+            // no account.
+            if let Some(at) = text.find(';') {
+                text.truncate(at);
+            }
+        }
+        if !section.options.rtrim0 {
+            while text.ends_with([' ', '\t', '\r']) {
+                text.pop();
+            }
+        }
+        lines.push(text);
+    }
+    // The indentation of the first line: the spaces or the tabs that come
+    // first, and only that kind of them.
+    let mut indentation = (0usize, ' ');
+    if !section.options.ltrim && !section.options.ltrim0 {
+        let first = lines.first().map(|line| line.as_str()).unwrap_or("");
+        let spaces = first.chars().take_while(|c| *c == ' ').count();
+        let tabs = first.chars().take_while(|c| *c == '\t').count();
+        indentation = if spaces > 0 { (spaces, ' ') } else { (tabs, '\t') };
+    }
+    if indentation.0 > 0 {
+        let (count, character) = indentation;
+        for line in lines.iter_mut() {
+            // A line that is indented less than the first one, or with the
+            // wrong characters, is left as it is.
+            if line.chars().take(count).all(|c| c == character) {
+                *line = line.chars().skip(count).collect();
+            }
+        }
+    }
+    if section.options.ltrim {
+        for line in lines.iter_mut() {
+            *line = line.trim_start_matches([' ', '\t']).to_string();
+        }
+    }
+    // The lines are joined with the string of the option `Join`.
+    let join = match &section.options.join {
+        Some(join) => join.clone(),
+        None => "\n".to_string(),
+    };
+    let mut content = String::new();
+    for (number, line) in lines.iter().enumerate() {
+        if number > 0 {
+            content.push_str(&join);
+        }
+        content.push_str(line);
+    }
+    content
+}
+
+/// The escapes of a text.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the backtick and the
+/// character that follows are one escape, and the accent of a section turns
+/// the backtick into a literal.
+fn the_escapes_of_a_text(text: &str, accent: bool) -> String {
+    if accent {
+        return text.to_string();
+    }
+    let mut result = String::new();
+    let mut characters = text.chars();
+    while let Some(character) = characters.next() {
+        if character == '`' {
+            match characters.next() {
+                Some(next) => result.push(the_escape_of_the_dialect(next)),
+                None => result.push('`'),
+            }
+            continue;
+        }
+        result.push(character);
+    }
+    result
+}
+
+/// The tokens of the text of a continuation section.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the newlines of a
+/// section are spaces in an expression.
+fn the_tokens_of_the_content(content: &str) -> Result<Vec<Token>, SyntaxError> {
+    let mut tokens = tokenize(content)?;
+    // The end of the text is not a token of the script.
+    if tokens.last().map(|token| token.kind == TokenKind::Eof).unwrap_or(false) {
+        tokens.pop();
+    }
+    let mut a_newline_was_there = false;
+    let mut the_tokens: Vec<Token> = Vec::new();
+    for mut token in tokens {
+        if token.kind == TokenKind::Newline {
+            a_newline_was_there = true;
+            continue;
+        }
+        if a_newline_was_there {
+            token.spaced = true;
+            a_newline_was_there = false;
+        }
+        the_tokens.push(token);
+    }
+    Ok(the_tokens)
+}
+
+/// The code of a line of the script: the text without its comment.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the section continues the
+/// last line that has code, and the name that ends that line is separated
+/// from the contents of the section by a space.
+fn the_code_of_a_line(text: &str) -> &str {
+    match text.find(';') {
+        Some(at) => &text[..at],
+        None => text,
+    }
+}
+
+/// Whether the last character of a line of code is a name.
+///
+/// A name is a letter, a digit or an underscore: the text of a string ends
+/// with a quote, and the quote is not a name.
+fn the_last_character_is_a_name(text: &str) -> bool {
+    match the_code_of_a_line(text).trim_end().chars().last() {
+        Some(last) => last.is_alphanumeric() || last == '_',
+        None => false,
+    }
+}
+
+/// The line that a section is joined with.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the section continues the
+/// last line that has code -- the blank lines and the comments between are of
+/// no account.
+fn the_line_the_section_joins(
+    chars: &[char],
+    the_starts_of_the_lines: &[usize],
+    the_line: u32,
+) -> Option<(u32, usize, usize)> {
+    let mut number = the_line as usize;
+    while number > 1 {
+        number -= 1;
+        let start = the_starts_of_the_lines[number - 1];
+        let end = the_starts_of_the_lines.get(number).copied().unwrap_or(chars.len());
+        let text: String = chars[start..end].iter().collect();
+        if !the_code_of_a_line(&text).trim().is_empty() {
+            return Some((number as u32, start, end));
+        }
+    }
+    None
+}
+
 /// Turn the source into tokens.
 ///
 /// A newline ends a statement. Inside a block the statements are separated
@@ -154,6 +500,9 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
 
     // The first token has no space before it.
     let mut spaced = false;
+    // The place where every line begins: the section that follows is joined
+    // with the line that has code above it.
+    let mut the_starts_of_the_lines: Vec<usize> = vec![0];
     while index < chars.len() {
         let current = chars[index];
         // The space belongs to the token that comes next, and to that one
@@ -161,10 +510,30 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
         let before = spaced;
         spaced = false;
         if current == '\n' {
+            // The line that comes may open a continuation section: the
+            // section continues the line above, and the newline is not a
+            // separator of statements.
+            if let Some(section) = the_section_at(&chars, index + 1, line + 1)? {
+                // The lines of the section are lines of the script too.
+                let mut cursor = index + 1;
+                while cursor < section.end {
+                    the_starts_of_the_lines.push(cursor);
+                    match chars[cursor..section.end].iter().position(|c| *c == '\n') {
+                        Some(at) => cursor += at + 1,
+                        None => break,
+                    }
+                }
+                the_section_joins_the_line_above(&mut tokens, &chars, &section, &the_starts_of_the_lines, line)?;
+                index = section.end;
+                line += section.lines.len() as u32 + 2;
+                column = 1;
+                continue;
+            }
             tokens.push(Token { kind: TokenKind::Newline, value: "\n".into(), line, column, spaced: before, quote: None });
             index += 1;
             line += 1;
             column = 1;
+            the_starts_of_the_lines.push(index);
             continue;
         }
         if current == ' ' || current == '\t' || current == '\r' {
@@ -234,31 +603,54 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             index += 1;
             column += 1;
             let mut buffer = String::new();
-            // The text of v2 ends at the end of the line: a text that is
-            // not closed before it is refused.
-            while index < chars.len() && chars[index] != quote && chars[index] != '\n' {
-                // The escape of v2 is the backtick. A backslash is a
-                // backslash: the path of a file is written with it, and
-                // v2 does not read it as an escape.
-                if chars[index] == '`' && index + 1 < chars.len() {
-                    let next = chars[index + 1];
-                    buffer.push(match next {
-                        'n' => '\n',
-                        'r' => '\r',
-                        't' => '\t',
-                        'b' => '\u{8}',
-                        'f' => '\u{c}',
-                        'v' => '\u{b}',
-                        '0' => '\0',
-                        other => other,
-                    });
-                    index += 2;
-                    column += 2;
-                    continue;
+            // The text of the section that the text holds, if there is one.
+            let mut the_text_of_the_section = String::new();
+            loop {
+                while index < chars.len() && chars[index] != quote && chars[index] != '\n' {
+                    // The escape of v2 is the backtick. A backslash is a
+                    // backslash: the path of a file is written with it, and
+                    // v2 does not read it as an escape.
+                    if chars[index] == '`' && index + 1 < chars.len() {
+                        buffer.push(the_escape_of_the_dialect(chars[index + 1]));
+                        index += 2;
+                        column += 2;
+                        continue;
+                    }
+                    buffer.push(chars[index]);
+                    index += 1;
+                    column += 1;
                 }
-                buffer.push(chars[index]);
-                index += 1;
-                column += 1;
+                if index >= chars.len() || chars[index] != '\n' {
+                    break;
+                }
+                // The line that comes may open a continuation section: the
+                // section is inside the text, and its lines are text.
+                let Some(section) = the_section_at(&chars, index + 1, line + 1)? else {
+                    break;
+                };
+                if !section.closed {
+                    // The section that is not closed is named, and the text
+                    // it merged with the line above is named with it.
+                    let start_of_the_line = quote_index - (start_column as usize - 1);
+                    let mut text: String = chars[start_of_the_line..index].iter().collect();
+                    let rest: String = chars[section.after..].iter().collect();
+                    text.push_str(&rest);
+                    return Err(SyntaxError::new(
+                        format!("Missing \")\"\n     Specifically: {text}"),
+                        start_line,
+                        start_column,
+                    ));
+                }
+                // The lines of the section are text: the quotes in them are
+                // literal and the newlines are kept.
+                let content = the_content_of_the_section(&section);
+                the_text_of_the_section = content.clone();
+                buffer.push_str(&the_escapes_of_a_text(&content, section.options.accent));
+                // The text that follows the closing parenthesis is the text
+                // that is being read: the quote that closes it is there.
+                index = section.rest_at;
+                line += section.lines.len() as u32 + 2;
+                column = 1;
             }
             if index >= chars.len() || chars[index] == '\n' {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the quote
@@ -269,8 +661,21 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                 while end < chars.len() && chars[end] != '\n' {
                     end += 1;
                 }
+                // The text that was read is the text of the line, and the
+                // lines of the section that it holds.
+                let mut text = the_source_of_the_chars(&chars, start, end);
+                if !the_text_of_the_section.is_empty() {
+                    // The line of the text is the line where the text began,
+                    // and the lines of the section are the text that follows.
+                    let mut end_of_the_line = start;
+                    while end_of_the_line < chars.len() && chars[end_of_the_line] != '\n' {
+                        end_of_the_line += 1;
+                    }
+                    text = the_source_of_the_chars(&chars, start, end_of_the_line);
+                    text.push_str(&the_text_of_the_section);
+                }
                 return Err(SyntaxError::new(
-                    format!("Missing \"{quote}\"\n     Specifically: {}", the_source_of_the_chars(&chars, start, end)),
+                    format!("Missing \"{quote}\"\n     Specifically: {text}"),
                     start_line,
                     start_column,
                 ));
@@ -379,6 +784,108 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
     }
     tokens.push(Token { kind: TokenKind::Eof, value: String::new(), line, column, spaced: false, quote: None });
     Ok(tokens)
+}
+
+/// The section that follows is joined with the line above it.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the section continues
+/// the last line that has code -- the blank lines and the comments between
+/// are of no account -- and the name that ends that line is separated from
+/// the contents of the section by a space.
+fn the_section_joins_the_line_above(
+    tokens: &mut Vec<Token>,
+    chars: &[char],
+    section: &TheSection,
+    the_starts_of_the_lines: &[usize],
+    line: u32,
+) -> Result<(), SyntaxError> {
+    // The section continues the last line that has code.
+    while tokens.last().map(|token| token.kind == TokenKind::Newline).unwrap_or(false) {
+        tokens.pop();
+    }
+    let (the_number, the_start, the_end) = match the_line_the_section_joins(chars, the_starts_of_the_lines, line + 1) {
+        Some(above) => above,
+        None => (line + 1, line as usize, line as usize),
+    };
+    let text_of_the_line: String = chars[the_start..the_end].iter().collect();
+    // The space that separates the name from the contents of the section.
+    let a_space = the_number != line + 1 && the_last_character_is_a_name(&text_of_the_line);
+    let content = the_content_of_the_section(section);
+    if !section.closed {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the section that is
+        // not closed is named, and the text it merged with the line above is
+        // named with it. The text is a line of the script, and the newline
+        // that ends it is not part of it.
+        let mut text = text_of_the_line.trim_end().to_string();
+        if a_space {
+            text.push(' ');
+        }
+        let mut rest: String = chars[section.after..].iter().collect();
+        if rest.ends_with("\r\n") {
+            rest.truncate(rest.len() - 2);
+        } else if rest.ends_with('\n') {
+            rest.pop();
+        }
+        text.push_str(&rest);
+        return Err(SyntaxError::new(
+            format!("Missing \")\"\n     Specifically: {text}"),
+            the_number,
+            1,
+        ));
+    }
+    // The directive takes the rest of its line: the section is part of its
+    // argument.
+    let the_directive_is_the_line_above = tokens
+        .iter()
+        .rev()
+        .take_while(|token| token.line == the_number)
+        .any(|token| token.kind == TokenKind::Directive);
+    if the_directive_is_the_line_above {
+        let mut argument = String::new();
+        if tokens.last().map(|token| token.kind == TokenKind::String).unwrap_or(false) {
+            argument = tokens.pop().map(|token| token.value).unwrap_or_default();
+        }
+        if a_space {
+            argument.push(' ');
+        }
+        argument.push_str(&content);
+        argument.push_str(&section.rest);
+        tokens.push(Token {
+            kind: TokenKind::String,
+            value: argument,
+            line: the_number,
+            column: 1,
+            spaced: false,
+            quote: None,
+        });
+        return Ok(());
+    }
+    // The tokens of the contents: the newlines of a section are spaces in an
+    // expression.
+    let mut the_tokens = the_tokens_of_the_content(&content).map_err(|mut error| {
+        error.line = the_number;
+        error
+    })?;
+    for token in the_tokens.iter_mut() {
+        token.line = the_number;
+    }
+    if let Some(first) = the_tokens.first_mut() {
+        first.spaced = first.spaced || a_space;
+    }
+    tokens.extend(the_tokens);
+    // The text that follows the closing parenthesis is joined with the lines
+    // of the section, and there is no delimiter between them.
+    if !section.rest.is_empty() {
+        let mut the_tokens = the_tokens_of_the_content(&section.rest).map_err(|mut error| {
+            error.line = the_number;
+            error
+        })?;
+        for token in the_tokens.iter_mut() {
+            token.line = the_number;
+        }
+        tokens.extend(the_tokens);
+    }
+    Ok(())
 }
 
 /// Where a number ends.

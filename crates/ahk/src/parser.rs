@@ -160,6 +160,52 @@ fn the_source_of_a_token(token: &Token) -> String {
     text
 }
 
+/// The source of a token and of what comes after it, in its line.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the value that came
+/// too close is named, and the rest of the line is named with it. The
+/// newline that ends the line is not part of it: the block that the error
+/// printer writes ends with a newline of its own, and the text that the
+/// error names is the block without it.
+fn the_source_of_the_rest_of_the_line(parser: &Parser, start: usize) -> String {
+    let mut end = start;
+    while end < parser.tokens.len()
+        && parser.tokens[end].line == parser.tokens[start].line
+        && parser.tokens[end].kind != TokenKind::Newline
+    {
+        end += 1;
+    }
+    the_source_of_the_tokens(parser, start, end)
+}
+
+/// The source of the statement that the parser is in.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the bracket that is not
+/// there is named with the statement that holds it, and the lines of the
+/// statement are written in one.
+fn the_source_of_the_statement(parser: &Parser) -> String {
+    let line = the_line_of_the_parser(parser);
+    let mut end = parser.statement_start;
+    while end < parser.tokens.len() && parser.tokens[end].line <= line {
+        end += 1;
+    }
+    the_source_of_a_definition(parser, parser.statement_start, end)
+}
+
+/// The message of a failure of a command-style call.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the command of v2 is a
+/// call whose parentheses are not written, and the text that names the
+/// operator carries the one that closes it.
+fn the_message_of_a_command(mut error: SyntaxError) -> SyntaxError {
+    // The bracket that is not there is not a failure of the parameters, and
+    // it is not named with the parenthesis of the call.
+    if !error.message.starts_with("Missing \"") && error.message.contains("\n     Specifically: ") {
+        error.message.push(')');
+    }
+    error
+}
+
 /// The source of a definition, the way v2 writes it.
 ///
 /// A definition may be written in more than one line, and v2 writes the
@@ -675,13 +721,12 @@ impl Parser {
         let token = self.next();
         if token.kind != TokenKind::Op || token.value != operator {
             // Measured on the binary of v2.0.19 on 2026-10-31: the bracket
-            // that is not there is named, and the line of the script says
-            // where it was.
-            let line = the_line_of_the_parser(self);
+            // that is not there is named, and the statement that holds it is
+            // named with it.
             return Err(SyntaxError {
                 message: format!(
                     "Missing {operator:?}\n     Specifically: {}",
-                    the_source_of_the_line(self, line)
+                    the_source_of_the_statement(self)
                 ),
                 line: token.line,
                 column: token.column,
@@ -1155,16 +1200,22 @@ impl Parser {
         if token.kind == TokenKind::Name {
             return self.parse_name_statement();
         }
+        if token.kind == TokenKind::Op && token.value == "(" {
+            // Measured on the binary of v2.0.19 on 2026-10-31: a line that
+            // begins with a parenthesis is an expression, and the value it
+            // leaves behind is not used.
+            let value = self.parse_expression()?;
+            self.end_of_statement()?;
+            return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+        }
         // Measured on the binary of v2.0.19 on 2026-10-31: the token that
         // is not wanted is named, and the line of the script says where it
         // was. The brace that closes a block is the one that has no line:
         // v2 says that it is unexpected, and nothing more.
         //
-        // A literal at the start of a statement is a syntax error, and a
-        // text is a line that holds no action.
-        let message = if token.kind == TokenKind::Number {
-            format!("Syntax error.\n     Specifically: {}", token.value)
-        } else if token.kind == TokenKind::String {
+        // A literal at the start of a statement is a line that holds no
+        // action, and the text that is named is the line itself.
+        let message = if token.kind == TokenKind::Number || token.kind == TokenKind::String {
             format!(
                 "This line does not contain a recognized action.\n     Specifically: {}",
                 the_source_of_the_line(self, token.line)
@@ -1458,7 +1509,7 @@ impl Parser {
                 if self.at_op(&["{"]) {
                     arguments.push(self.parse_brace_spec()?);
                 } else {
-                    arguments.push(self.parse_expression()?);
+                    arguments.push(self.parse_expression().map_err(the_message_of_a_command)?);
                 }
                 if self.at_op(&[","]) {
                     self.position += 1;
@@ -2993,10 +3044,9 @@ impl Parser {
                 // what makes it so. Without the space, v2 refuses and names
                 // the value that came too close.
                 if !self.peek().spaced {
-                    let token = self.peek().clone();
                     return Err(self.error(format!(
                         "Missing space or operator before this.\n     Specifically: {}",
-                        the_source_of_a_token(&token)
+                        the_source_of_the_rest_of_the_line(self, self.position)
                     )));
                 }
                 let right = self.parse_binary(precedence::CONCAT + 1)?;

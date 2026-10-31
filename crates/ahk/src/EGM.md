@@ -92,6 +92,12 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
 - `KEYWORDS: &[&str]` -- the words the language gives a meaning to.
 - `SyntaxError { message, line, column }` -- the error the lexer and the
   parser raise.
+- The continuation section of v2 is read here, and not by the parser: a line
+  that begins with a `(` is a section, and the lines between the `(` and the
+  `)` are merged with the line above them. The merge is a merge of the
+  source: the tokens of the section carry the line of the line they merged
+  with, and the newlines of the section are spaces in an expression and
+  linefeeds in a text.
 
 ### The AST (`ast.rs`)
 
@@ -239,6 +245,16 @@ named, and the line of the script says where it was -- "Missing parameter
 name.\n     Specifically: f(a, b,) {". A bracket that is not closed is named
 the same way, and a token that is not wanted is named too: "Unexpected
 \")\"\n     Specifically: x := 1 )".
+
+The text that a refusal names is the text of the source, and the newline of
+the line is not a part of it: the block that the error printer of v2 writes
+ends with a newline of its own, and the message is the block without it.
+The rest of the line is named when a value came too close -- "Missing space
+or operator before this.\n     Specifically: \"b\"\"c\"" -- and the
+statement is named when a bracket is not there -- "Missing \")\"\n
+     Specifically: FileAppend \"[\" ( abc". The parenthesis that closes a
+command-style call is carried by the text of the failure of the expression:
+"Missing space or operator before this.\n     Specifically: 2)".
 
 A line that is a label is a label before it is anything else: a name and a
 colon, and nothing else may be written on the line of it. The name is of

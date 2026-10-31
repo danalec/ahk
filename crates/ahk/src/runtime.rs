@@ -1984,6 +1984,11 @@ impl<'a> Runtime<'a> {
             // A label names a line of the script: it does nothing by
             // itself.
             Node::Label { .. } => {}
+            // The value of an expression that is a statement is computed and
+            // thrown away.
+            Node::Expression { value, .. } => {
+                self.evaluate(value)?;
+            }
             // The jump of a `Goto`: the run goes on at the label.
             Node::Goto { name, line } => {
                 return Err(RuntimeFailure::Flow(Flow::Goto { name: name.clone(), line: *line }));
@@ -7437,7 +7442,8 @@ impl<'a> Runtime<'a> {
                     }
                 })
             }
-            Node::If { .. }
+            Node::Expression { .. }
+            | Node::If { .. }
             | Node::Switch { .. }
             | Node::While { .. }
             | Node::Try { .. }
@@ -8140,6 +8146,7 @@ pub fn op_name(statement: &Node) -> &str {
             Some(builtin) => builtin.name,
             None => "Call",
         },
+        Node::Expression { .. } => "Expression",
         Node::If { .. } => "If",
         Node::Switch { .. } => "Switch",
         Node::While { .. } => "While",

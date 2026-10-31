@@ -4335,10 +4335,9 @@ refused all of them with `unexpected "\n"`.
   with it -- "Unexpected \"}\"" and the statement and the token. An
   operator that may not begin a value is a "Syntax error." and the operator,
   and the colon of the ternary is `A ":" is missing its "?"`.
-- **The continuation section is not carried yet.** The documentation says
-  that the lines between a `(` and a `)` that are both at the start of a
-  line are merged with the line above them: v2 answers 12 to `x := 1` and
-  then `(`, `2` and `)`, and the tree refuses it.
+- **The continuation section is section 97.** The lines between a `(` and a
+  `)` that are both at the start of a line are merged with the line above
+  them, and the tree carries them now.
 
 The comparison of the tree with the binary is in
 `egm-review/compare_continuation.py` (35 cases), and the probes that measured
@@ -4416,3 +4415,60 @@ measured the rules are in `egm-review/probe_error_members.py`,
 `egm-review/probe_error_line.py`, `egm-review/probe_error_line2.py`,
 `egm-review/probe_class_value.py`, `egm-review/probe_class_value2.py`,
 `egm-review/probe_class_value3.py` and `egm-review/probe_class_base.py`.
+
+## 97. The continuation section of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31, and read in the
+documentation of v2 (`Scripts.htm` and `v2-changes.htm`): the lines between
+a `(` and a `)` that are both at the start of a line are merged with the
+line above them, and the tree refused every one of them.
+
+- **A line that begins with a `(` is a section.** The line is an expression
+  and not a section when it carries a `)` of its own after the opening one:
+  the string of the option `Join` is the only one that may carry a
+  parenthesis. A section that is an expression is a statement whose value is
+  not used, and the tree reads it as one: `Node::Expression`.
+- **The section continues the last line that has code.** The blank lines and
+  the comments between the line and the section are of no account, and a
+  directive takes the rest of its line, so the section that follows one is
+  part of its argument.
+- **A space is put between the line and the section when the line ends with
+  a name.** A name is a letter, a digit or the underscore, and the quote of a
+  text is not a name: `x := 1` and then the section with `2` answers 12, and
+  `x := "a"` and then the section with `"b"` is refused with "Missing space
+  or operator before this." and the text.
+- **The newlines of the section are spaces in an expression, and they are
+  kept inside a text.** The quotes of a text that holds a section are
+  literal characters, and the closing quote has to be on the line of the
+  closing parenthesis.
+- **The options of the section are on the line of the `(`.** They are
+  separated by spaces, and a comment ends them: `Join` (with no string of
+  its own, or with the string that follows its name), `LTrim`, `LTrim0`,
+  `RTrim0`, `Comments` -- also `Comment`, `Com` and `C` -- and the accent,
+  which is a backtick and makes the backtick of the text a literal
+  character. The option that v2 does not know is refused at the load:
+  "Invalid option." and the name of it.
+- **The indentation of the first line goes from the lines.** The leading
+  whitespace of the lines follows the indentation of the first one, and a
+  line that is indented less is left as it is. The option `LTrim` takes all
+  of it away and `LTrim0` keeps it, and the trailing whitespace of the
+  lines is removed unless `RTrim0` keeps it.
+- **The section that is not closed is refused at the load.** The refusal is
+  "Missing \")\"" and the text it merged with the line above, and the
+  newline that ends that text is not a part of it.
+- **The text that a refusal names is the text of the source, and the newline
+  of the line is not a part of it.** The block that the error printer of v2
+  writes ends with a newline of its own, and the message is the block
+  without it. The rest of the line is named when a value came too close, and
+  the statement is named when a bracket is not there.
+- **The escape of a space is a space.** `` `s `` is a space in v2.0.19, and
+  the tree refused it: `"a`sb"` was "asb" and it is "a b".
+
+The comparison of the tree with the binary is in
+`egm-review/compare_section.py` (53 cases, two of them the dialog of v2
+that waits for a person that is not there) and in
+`egm-review/compare_section_messages.py` (18 cases, the messages compared
+byte by byte). The probes that measured the rules are in
+`egm-review/probe_section.py` .. `egm-review/probe_section19.py`,
+`egm-review/probe_escape_s.py`, `egm-review/probe_named_text.py` and
+`egm-review/probe_repeat.py`.

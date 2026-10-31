@@ -344,6 +344,12 @@ pub enum Node {
     /// A command is a call written without parentheses: `Send "hello"`
     /// is the same built-in with its arguments in the same order.
     Call { name: String, arguments: Vec<Node>, line: u32 },
+    /// A value that is computed and thrown away: `(2)`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a line that begins
+    /// with a parenthesis is an expression, and the value it leaves behind is
+    /// not used.
+    Expression { value: Box<Node>, line: u32 },
     /// `If cond { } ElseIf cond { } Else { }`.
     If { branches: Vec<Branch>, otherwise: Vec<Node>, line: u32 },
     /// `Switch value { Case 1 { } Default { } }`.
@@ -512,6 +518,7 @@ impl Node {
             | Node::AssignIndex { line, .. }
             | Node::Index { line, .. }
             | Node::Call { line, .. }
+            | Node::Expression { line, .. }
             | Node::If { line, .. }
             | Node::Switch { line, .. }
             | Node::While { line, .. }
