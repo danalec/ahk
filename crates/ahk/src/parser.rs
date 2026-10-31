@@ -1964,16 +1964,27 @@ impl Parser {
                     // parameter that is not there keeps its place, and the
                     // parameter has no value: one that has a default takes
                     // it, and one that has none is a missing parameter.
-                    arguments.push(Node::Empty { line: self.peek().line });
-                } else {
-                    // Measured on the binary of v2.0.19 on 2026-10-31: a
-                    // brace that opens an argument of a command opens the
-                    // literal of an object, and not a key: `Send {Enter}` is
-                    // refused with "Missing \"propertyname:\" in object
-                    // literal.". The key of the v2 is a text: `Send
-                    // "{Enter}"".
-                    arguments.push(self.parse_expression().map_err(the_message_of_a_command)?);
+                    let line = self.peek().line;
+                    self.position += 1;
+                    // The parameter that is not there and that is the last
+                    // one is dropped: the commas at the end of the
+                    // parameters add nothing.
+                    if self.the_rest_is_commas() {
+                        while self.at_op(&[","]) {
+                            self.position += 1;
+                        }
+                        break;
+                    }
+                    arguments.push(Node::Empty { line });
+                    continue;
                 }
+                // Measured on the binary of v2.0.19 on 2026-10-31: a
+                // brace that opens an argument of a command opens the
+                // literal of an object, and not a key: `Send {Enter}` is
+                // refused with "Missing \"propertyname:\" in object
+                // literal.". The key of the v2 is a text: `Send
+                // "{Enter}"`.
+                arguments.push(self.parse_expression().map_err(the_message_of_a_command)?);
                 if self.at_op(&[","]) {
                     self.position += 1;
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -2169,6 +2180,23 @@ impl Parser {
             return Ok(arguments);
         }
         loop {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the
+            // parameter that is not there keeps its place, and it has no
+            // value.
+            if self.at_op(&[","]) {
+                let line = self.peek().line;
+                self.position += 1;
+                // The parameter that is not there and that is the last one
+                // is dropped: the commas at the end of the list add
+                // nothing.
+                if self.the_hole_is_the_last_one(")") {
+                    break;
+                }
+                arguments.push(Node::Empty { line });
+                // The list may be written in more than one line.
+                self.skip_newlines();
+                continue;
+            }
             // The bracket that is not closed is the failure, and not the
             // operand that is not there inside it.
             let argument = match self.parse_expression() {
@@ -2191,6 +2219,28 @@ impl Parser {
         // The arguments may be written in more than one line.
         self.skip_newlines();
         Ok(arguments)
+    }
+
+    /// Whether the parameter that is not there is the last one of the list.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the commas at the
+    /// end of the list add nothing, and the parameter that is not there and
+    /// that is the last one is dropped with them. The list may be written in
+    /// more than one line.
+    fn the_hole_is_the_last_one(&self, bracket: &str) -> bool {
+        let mut index = self.position;
+        while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline {
+            index += 1;
+        }
+        while index < self.tokens.len() {
+            let token = &self.tokens[index];
+            match token.kind {
+                TokenKind::Op if token.value == "," => index += 1,
+                TokenKind::Op if token.value == bracket => return true,
+                _ => return false,
+            }
+        }
+        true
     }
 
     /// The parameters of a function, between the parentheses.
@@ -6185,4 +6235,29 @@ mod tests {
             panic!("the list of v1");
         };
         assert_eq!(items.len(), 1);
+    }
+
+    #[test]
+    fn the_parameter_that_is_not_there_in_a_call_keeps_its_place() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
+        // that is not there keeps its place in the list of the arguments of
+        // a call, and it has no value.
+        let statements = parse("MyFunc(\"a\",, \"b\")").expect("parses");
+        let Node::Call { arguments, .. } = &statements[0] else {
+            panic!("a call");
+        };
+        assert_eq!(arguments.len(), 3);
+        assert!(matches!(&arguments[1], Node::Empty { .. }));
+        // The one that is the last is dropped: the commas at the end of the
+        // list add nothing.
+        let statements = parse("MyFunc(\"a\",)").expect("parses");
+        let Node::Call { arguments, .. } = &statements[0] else {
+            panic!("a call");
+        };
+        assert_eq!(arguments.len(), 1);
+        let statements = parse("MyFunc(,)").expect("parses");
+        let Node::Call { arguments, .. } = &statements[0] else {
+            panic!("a call");
+        };
+        assert_eq!(arguments.len(), 0);
     }

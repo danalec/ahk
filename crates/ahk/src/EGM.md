@@ -404,7 +404,9 @@ parameter goes in the `Extra`. The number of the arguments is checked
 before the parameters are bound, so `Two "a",, "b"` is refused with "Too
 many parameters passed to function.". The value that is not there in the
 list of a group is a "Syntax error.", and the comma that follows it is
-named.
+named. The value that is not there in the list of the arguments of a call
+keeps its place, and the one that is the last is dropped: the commas at
+the end of the list add nothing.
 
 The statement of v2 is an expression, and the comma is what ends it.
 Measured on the binary of v2.0.19 on 2026-10-31: the expression of a
@@ -1298,7 +1300,8 @@ that asks for another one is refused with the reason.
 - **The parameter that a command does not give a value to keeps its
   place.** It has no value: a parameter that has a default takes it, and
   one that has none is a missing parameter, and the call is refused with
-  "Missing a required parameter.".
+  "Missing a required parameter.". The one that is the last of the list is
+  dropped: the commas at the end of the list add nothing.
 
 - **The statement of v2 is an expression, and the comma ends it.** The
   operators and the concatenation of v2 are a part of it, and the value of

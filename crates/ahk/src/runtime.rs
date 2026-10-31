@@ -6647,14 +6647,50 @@ impl<'a> Runtime<'a> {
         // The name is not a function of the script, not a class and not a
         // built-in: it is a variable of the script, and v2 reads it. A
         // variable that has no value is a variable that has no value.
-        if crate::builtins::find(name).is_none() {
+        let Some(builtin) = crate::builtins::find(name) else {
             return Err(self.the_unassigned_failure(name, line));
-        }
+        };
+        // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
+        // arguments is checked before the arguments are evaluated: v2
+        // refuses the script when it loads, and the refusal of the arity
+        // comes before the failure of an argument.
+        self.the_arity_of_a_builtin(builtin, arguments.len(), line, Route::Written)?;
         let mut values = Vec::with_capacity(arguments.len());
         for argument in arguments {
             values.push(self.evaluate(argument)?);
         }
         self.call_builtin(name, &values, line, Route::Written)
+    }
+
+    /// The number of the arguments of the call of a built-in.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-29: the arity is in the
+    /// table, so the check is the same for every built-in and it says what
+    /// AutoHotkey says.
+    fn the_arity_of_a_builtin(
+        &self,
+        builtin: &crate::builtins::Builtin,
+        count: usize,
+        line: u32,
+        route: Route,
+    ) -> Result<(), RuntimeFailure> {
+        if count < builtin.min as usize {
+            return Err(self.the_arity_failure(
+                "Too few parameters passed to function.",
+                builtin.name,
+                route,
+                line,
+            ));
+        }
+        if count > builtin.max as usize {
+            return Err(self.the_arity_failure(
+                "Too many parameters passed to function.",
+                builtin.name,
+                route,
+                line,
+            ));
+        }
+        Ok(())
     }
 
     /// Call a function the script defined.

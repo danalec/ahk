@@ -5068,6 +5068,7 @@ by a space and a parenthesis is a command in the v2 -- `MyFunc ("a"), "b"`
 calls `MyFunc` with two arguments -- and the tree reads it as a call; and
 the parameter of a command that is not there is ignored by the v2
 (`MouseClick "Left",,,0`) and the tree refuses the script at the load.
+The first one is in section 114 and the second one is in section 115.
 
 The probe that measured the rules is in
 `egm-review/probe_reserved_word.py` (33 cases: 28 the same, and 5 that
@@ -5113,7 +5114,7 @@ that is not there in the middle of the list keeps its place and carries no
 value (`One ("a"),, "b"` calls `One` with three parameters), and the tree
 needs a value of its own kind for it; and the definition with a space is
 refused by the v2 with the message `Unexpected "}"` and the tree names
-the brace that opens it.
+the brace that opens it. The first one is in section 119.
 
 The probes that measured the rules are in
 `egm-review/probe_name_space_paren.py` (13 cases),
@@ -5155,7 +5156,8 @@ the value that is not there has a default of its own for it -- `Format
 "{}{}", 1,, 2` is accepted by the v2 -- and the tree gives it an empty
 text; and the comma of an expression ends it -- `x := 1, 2` is "1" in the
 v2, and the tree refuses the script at the load. The comma is in section
-116.
+116, and the value that is not there in the arguments of a built-in is in
+section 119.
 
 The probes that measured the rules are in
 `egm-review/probe_empty_parameter.py` (7 cases),
@@ -5267,3 +5269,27 @@ and the tree refuses it when it runs -- the words are the same ones.
 
 The probe that measured the rules is in
 `egm-review/probe_comma_expression20.py` (4 cases).
+
+## 119. The parameter that is not there in a call
+
+Measured on the binary of v2.0.19 on 2026-10-31: the parameter that is
+not there keeps its place in the list of the arguments of a call, and the
+one that is the last is dropped.
+
+- **The hole inside the parentheses keeps its place:**
+  `Format("{}{}", 1,, 2)` is "1", and the built-in takes the hole for the
+  value that is not there.
+- **The hole that is the last one is dropped:** `Format("{}{}", 1,)` is
+  "1{}", and `StrLen(,)` is refused with "Too few parameters passed to
+  function.".
+- **The hole of a command is the same way:** `StrLen ,` is refused with
+  the same message, and the hole in the middle of the parameters keeps its
+  place.
+
+The tree refused the script at the load with "Missing \")\"" when the hole
+was inside the parentheses, and it gave the hole of a command a place that
+the v2 does not give it.
+
+The probes that measured the rules are in
+`egm-review/probe_builtin_hole.py` (7 cases) and in
+`egm-review/probe_builtin_hole2.py` (7).

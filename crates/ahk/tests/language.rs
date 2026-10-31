@@ -5253,3 +5253,36 @@ fn the_number_of_the_arguments_of_a_method_is_checked_before_the_values() {
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("Too many parameters passed to function."));
 }
+
+#[test]
+fn the_built_in_that_takes_the_parameter_that_is_not_there() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameter that
+    // is not there keeps its place in the list of the arguments of a call,
+    // and the built-in takes it for the value that is not there.
+    let (report, _desktop) = run("FileAppend Format(\"{}{}\", 1,, 2), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_built_in_with_the_parameter_that_is_not_there_at_the_end() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameter that
+    // is not there and that is the last one is dropped: the commas at the
+    // end of the list add nothing.
+    let (report, _desktop) = run("FileAppend Format(\"{}{}\", 1,), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1{}"]);
+}
+
+#[test]
+fn the_built_in_with_the_parameter_that_is_not_there_alone_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameter that
+    // is not there and that is the last one is dropped, and the built-in
+    // that wants one is refused with the number of the arguments.
+    let (report, _desktop) = run("FileAppend StrLen(,), \"*\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too few parameters passed to function.\n     Specifically: StrLen")
+    );
+}
