@@ -5248,3 +5248,22 @@ The probes that measured the rules are in
 `egm-review/probe_comma_expression19.py` (6),
 `egm-review/probe_comma_expression21.py` (4) and in
 `egm-review/probe_comma_expression22.py` (5).
+
+## 118. The number of the arguments comes before the values
+
+Measured on the binary of v2.0.19 on 2026-10-31: the number of the
+arguments of a call is checked before the arguments are evaluated.
+
+- **The refusal of the arity comes first:** `One("a", nothingHere)` is
+  refused with "Too many parameters passed to function.\n     Specifically:
+  One", and not with the failure of the argument that has no value.
+- **A method is the same way:** the arity of a method is checked before
+  its arguments are evaluated, and the failure carries the name of the
+  method in the `Extra`.
+
+The tree evaluated the arguments first, and the failure of an argument came
+before the refusal of the arity. The v2 refuses the script when it loads
+and the tree refuses it when it runs -- the words are the same ones.
+
+The probe that measured the rules is in
+`egm-review/probe_comma_expression20.py` (4 cases).

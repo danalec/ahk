@@ -504,6 +504,13 @@ and one that has none is a missing parameter, and the call is refused with
 "Missing a required parameter." and the name of the parameter goes in the
 `Extra`.
 
+The number of the arguments of a call is checked before the arguments are
+evaluated: the refusal of the arity comes before the failure of an
+argument, the way v2 has it -- v2 refuses the script when it loads, and the
+tree refuses it when it runs, with the same words. A method is the same
+way, and the failure of the arity of a method carries the name of the
+method in the `Extra`.
+
 The traits the runtime is handed:
 
 | Trait | Methods |
@@ -1305,6 +1312,10 @@ that asks for another one is refused with the reason.
   what separates the arguments, and the comma that comes right after the
   member with no space is not one of them. The line that ends with a comma
   continues on the next one.
+
+- **The number of the arguments comes before the values.** The refusal of
+  the arity comes before the failure of an argument, and a method is the
+  same way.
 
 ## Side Effects
 

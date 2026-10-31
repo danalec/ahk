@@ -3721,6 +3721,11 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
+        // arguments is checked before the arguments are evaluated: v2
+        // refuses the script when it loads, and the refusal of the arity
+        // comes before the failure of an argument.
+        self.the_arity_of_a_method(class, method, arguments, line)?;
         let mut values: Vec<Value> = Vec::with_capacity(arguments.len());
         for argument in arguments {
             values.push(self.evaluate(argument)?);
@@ -3731,6 +3736,45 @@ impl<'a> Runtime<'a> {
         let missing: Vec<bool> =
             arguments.iter().map(|argument| matches!(argument, Node::Empty { .. })).collect();
         self.call_method_with_missing(class, method, this, &values, line, &missing)
+    }
+
+    /// The number of the arguments of the call of a method.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-30: the failure of the
+    /// arity of a method carries the name of the method in the `Extra`, and
+    /// the parameter that is missing carries the name of it.
+    fn the_arity_of_a_method(
+        &self,
+        class: &str,
+        method: &MethodDef,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        // The rest of the arguments may be any number of them, and a
+        // method that has one has no maximum.
+        let variadic = method.parameters.iter().any(|parameter| parameter.variadic);
+        if !variadic && arguments.len() > method.parameters.len() {
+            let extra = self.the_name_of_the_method(class, method);
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message: "Too many parameters passed to function.".into(), line },
+                Detail { what: String::new(), extra },
+            ));
+        }
+        // A parameter that has no default is required: v2 refuses the call
+        // and says that the parameter is missing.
+        for (index, parameter) in method.parameters.iter().enumerate() {
+            let is_missing = matches!(arguments.get(index), Some(Node::Empty { .. }));
+            if (is_missing || arguments.get(index).is_none())
+                && parameter.default.is_none()
+                && !parameter.variadic
+            {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError { message: "Missing a required parameter.".into(), line },
+                    Detail { what: String::new(), extra: parameter.name.clone() },
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// A method, called with the values of the arguments.
@@ -6621,6 +6665,11 @@ impl<'a> Runtime<'a> {
         line: u32,
         route: Route,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
+        // arguments is checked before the arguments are evaluated: v2
+        // refuses the script when it loads, and the refusal of the arity
+        // comes before the failure of an argument.
+        self.the_arity_of_a_call(function, arguments.len(), line, route)?;
         let values = self.evaluate_all(arguments)?;
         // The parameters that the command does not give a value to are the
         // ones that are not there: the place of them is kept, and they have
@@ -6630,16 +6679,21 @@ impl<'a> Runtime<'a> {
         self.call_function_with(function, &values, line, route, &missing)
     }
 
-    /// The call of a function, with the values of the arguments already
-    /// there: a function held in a variable is called with values.
-    fn call_function_with(
-        &mut self,
+    /// The number of the arguments of a call, checked the way v2 checks it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-29: a call that the
+    /// script wrote is checked when the script loads, and the failure names
+    /// the function: "Too few parameters passed to function.\n     Specifically:
+    /// Abs". A call that goes through a value is checked when the call runs,
+    /// and it says so in other words: the name of the parameter that is
+    /// missing goes in the `Extra`.
+    fn the_arity_of_a_call(
+        &self,
         function: &Function,
-        values: &[Value],
+        count: usize,
         line: u32,
         route: Route,
-        missing: &[bool],
-    ) -> Result<Value, RuntimeFailure> {
+    ) -> Result<(), RuntimeFailure> {
         // The arity of a function is in its definition: the parameters that
         // have no default are needed, and the ones that are there are the
         // most it takes unless one of them takes the rest.
@@ -6648,7 +6702,7 @@ impl<'a> Runtime<'a> {
             .iter()
             .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
             .count();
-        if values.len() < needed {
+        if count < needed {
             // A call that the script wrote is checked when the script
             // loads, and the failure names the function. A call that
             // goes through a value is checked when the call runs, and
@@ -6665,13 +6719,13 @@ impl<'a> Runtime<'a> {
                 .parameters
                 .iter()
                 .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
-                .nth(values.len())
+                .nth(count)
                 .map(|parameter| parameter.name.clone())
                 .unwrap_or_default();
             return Err(self.the_missing_parameter(&missing, line));
         }
         let variadic = function.parameters.iter().any(|parameter| parameter.variadic);
-        if !variadic && values.len() > function.parameters.len() {
+        if !variadic && count > function.parameters.len() {
             return Err(self.the_arity_failure(
                 "Too many parameters passed to function.",
                 &function.name,
@@ -6679,6 +6733,20 @@ impl<'a> Runtime<'a> {
                 line,
             ));
         }
+        Ok(())
+    }
+
+    /// The call of a function, with the values of the arguments already
+    /// there: a function held in a variable is called with values.
+    fn call_function_with(
+        &mut self,
+        function: &Function,
+        values: &[Value],
+        line: u32,
+        route: Route,
+        missing: &[bool],
+    ) -> Result<Value, RuntimeFailure> {
+        self.the_arity_of_a_call(function, values.len(), line, route)?;
         // Measured on the binary of v2.0.19 on 2026-10-31: a parameter that
         // the command does not give a value to is a missing one, and the
         // call is refused with "Missing a required parameter." -- the name

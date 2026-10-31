@@ -5229,3 +5229,27 @@ fn the_line_that_ends_with_a_comma_continues_on_the_next_one() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
 }
+
+#[test]
+fn the_number_of_the_arguments_is_checked_before_the_values() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
+    // arguments of a call is checked before the arguments are evaluated: v2
+    // refuses the script when it loads, and the refusal of the arity comes
+    // before the failure of an argument.
+    let (report, _desktop) = run("One(a) {\n    MsgBox a\n}\nOne(\"a\", nothingHere)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too many parameters passed to function.\n     Specifically: One")
+    );
+}
+
+#[test]
+fn the_number_of_the_arguments_of_a_method_is_checked_before_the_values() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
+    // arguments of a method is checked before the arguments are evaluated,
+    // and the failure carries the name of the method in the \"Extra\".
+    let (report, _desktop) = run("class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method(\"a\", nothingHere)");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Too many parameters passed to function."));
+}
