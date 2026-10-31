@@ -691,9 +691,21 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             continue;
         }
         if current == ';' {
-            while index < chars.len() && chars[index] != '\n' {
-                index += 1;
+            // Measured on the binary of v2.0.19 on 2026-11-01: the
+            // semicolon is the beginning of a comment when it is at the
+            // start of a line or when a space comes before it. The one that
+            // is glued to the token that comes before it is an illegal
+            // character in an expression, and the parser is the one that
+            // says so.
+            if before || !tokens.iter().any(|token| token.line == line) {
+                while index < chars.len() && chars[index] != '\n' {
+                    index += 1;
+                }
+                continue;
             }
+            tokens.push(Token { kind: TokenKind::Op, value: ";".into(), line, column, spaced: before, quote: None });
+            index += 1;
+            column += 1;
             continue;
         }
         if current == '"' || current == '\'' {
@@ -1304,5 +1316,24 @@ mod tests {
             error.message,
             "This line does not contain a recognized action.\n     Specifically: #Foo Bar"
         );
+    }
+
+    #[test]
+    fn the_semicolon_is_a_comment_only_when_it_is_apart() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the semicolon is
+        // the beginning of a comment when it is at the start of a line or
+        // when a space comes before it. The one that is glued to the token
+        // that comes before it is a character of the script.
+        let tokens = tokenize("x := 1;c").expect("parses");
+        assert_eq!(tokens[3].kind, TokenKind::Op);
+        assert_eq!(tokens[3].value, ";");
+        // The semicolon that has a space before it is a comment.
+        let tokens = tokenize("x := 1 ;c").expect("parses");
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens[3].kind, TokenKind::Eof);
+        // The semicolon that opens a line is a comment.
+        let tokens = tokenize(";c").expect("parses");
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].kind, TokenKind::Eof);
     }
 }

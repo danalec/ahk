@@ -228,6 +228,14 @@ fn the_number_of_parameters_of_a_loop(kind: LoopKind) -> usize {
 /// printer writes ends with a newline of its own, and the text that the
 /// error names is the block without it.
 fn the_source_of_the_rest_of_the_line(parser: &Parser, start: usize) -> String {
+    let end = the_end_of_the_line_of(parser, start);
+    the_source_of_the_tokens(parser, start, end)
+}
+
+/// The place where the line of a token ends.
+///
+/// The newline that ends the line is not a part of it.
+fn the_end_of_the_line_of(parser: &Parser, start: usize) -> usize {
     let mut end = start;
     while end < parser.tokens.len()
         && parser.tokens[end].line == parser.tokens[start].line
@@ -235,7 +243,7 @@ fn the_source_of_the_rest_of_the_line(parser: &Parser, start: usize) -> String {
     {
         end += 1;
     }
-    the_source_of_the_tokens(parser, start, end)
+    end
 }
 
 /// The message of a failure of a command-style call.
@@ -266,6 +274,16 @@ fn the_message_of_a_command(mut error: SyntaxError) -> SyntaxError {
 /// Measured on the binary of v2.0.19 on 2026-10-31: the source of
 /// "static class Inner { }" is written with a space.
 fn the_source_of_a_definition(parser: &Parser, start: usize, end: usize) -> String {
+    the_source_with_the_newlines_as_spaces(parser, start, end)
+}
+
+/// The source of a range of tokens, with the newlines as spaces.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: a definition may be
+/// written in more than one line, and v2 writes the source of it in one:
+/// the newline is a space. The refusal of an illegal character writes the
+/// text of it in one line too.
+fn the_source_with_the_newlines_as_spaces(parser: &Parser, start: usize, end: usize) -> String {
     let mut text = String::new();
     let mut after_a_newline = false;
     for token in parser.tokens.get(start..end).unwrap_or(&[]) {
@@ -295,6 +313,78 @@ fn the_source_of_the_line(parser: &Parser, line: u32) -> String {
         end += 1;
     }
     the_source_of_the_tokens(parser, start, end).trim_end().to_string()
+}
+
+/// Whether the token is a character that may not be in the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
+/// semicolon are the two characters of v2 that are illegal where they are
+/// not a directive and not a comment.
+fn the_token_is_an_illegal_character(token: &Token) -> bool {
+    token.kind == TokenKind::Op && matches!(token.value.as_str(), "#" | ";")
+}
+
+/// The text that the refusal of an illegal character names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the text begins at the
+/// character. The one that is an illegal character in an expression ends
+/// where the expression ends: at the bracket that closes it, or at the end
+/// of the line. The one that is a line that holds no action ends at the end
+/// of the line.
+fn the_text_of_the_illegal_character(parser: &Parser, at: usize, in_an_expression: bool) -> String {
+    let end = if in_an_expression {
+        the_end_of_the_expression_of_the_illegal_character(parser, at)
+    } else {
+        the_end_of_the_line_of(parser, at)
+    };
+    the_source_with_the_newlines_as_spaces(parser, at, end)
+}
+
+/// The end of the expression that holds an illegal character.
+///
+/// The bracket that is open where the character is, and the bracket that
+/// closes it, are the ends of the expression.
+fn the_end_of_the_expression_of_the_illegal_character(parser: &Parser, at: usize) -> usize {
+    let mut depth = 0usize;
+    let mut open = None;
+    for index in (0..at).rev() {
+        let token = &parser.tokens[index];
+        if token.kind != TokenKind::Op {
+            continue;
+        }
+        match token.value.as_str() {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                if depth == 0 {
+                    open = Some(index);
+                    break;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+    }
+    let Some(open) = open else {
+        return the_end_of_the_line_of(parser, at);
+    };
+    let mut depth = 0usize;
+    for index in open..parser.tokens.len() {
+        let token = &parser.tokens[index];
+        if token.kind != TokenKind::Op {
+            continue;
+        }
+        match token.value.as_str() {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => {
+                depth -= 1;
+                if depth == 0 {
+                    return index + 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    the_end_of_the_line_of(parser, at)
 }
 
 /// Whether the token is the operator of two values.
@@ -771,7 +861,14 @@ impl Parser {
     }
 
     fn expect_op(&mut self, operator: &str) -> Result<Token, SyntaxError> {
+        let at = self.position;
         let token = self.next();
+        // Measured on the binary of v2.0.19 on 2026-11-01: the character
+        // that is where a bracket was expected is an illegal character in
+        // an expression, and the text of the expression is named.
+        if token.kind == TokenKind::Op && the_token_is_an_illegal_character(&token) {
+            return Err(self.the_error_of_the_illegal_character(at, true));
+        }
         if token.kind != TokenKind::Op || token.value != operator {
             // Measured on the binary of v2.0.19 on 2026-10-31: the bracket
             // that is not there is named, and the statement that holds it is
@@ -1098,12 +1195,13 @@ impl Parser {
     /// The line is the line of the construct, and the messages that name
     /// it need it.
     fn parse_block(&mut self, kind: &str, line: u32) -> Result<Vec<Node>, SyntaxError> {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the hash that is
-        // not a directive is an illegal character in an expression, and the
-        // text of the expression is named. The v2 looks at the hash before it
-        // says that the body of the block is not where it belongs.
-        if self.at_op(&["#"]) {
-            return Err(self.the_error_of_the_hash(self.position));
+        // Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
+        // semicolon that are not a directive and not a comment are illegal
+        // characters in an expression, and the text of the expression is
+        // named. The v2 looks at them before it says that the body of the
+        // block is not where it belongs.
+        if self.at_op(&["#", ";"]) {
+            return Err(self.the_error_of_the_illegal_character(self.position, true));
         }
         // Measured on the binary of v2.0.19 on 2026-10-31: the body of the
         // `if`, the `while`, the `loop`, the `for` and the `catch` is on
@@ -1124,6 +1222,12 @@ impl Parser {
             return self.the_body_without_braces(kind, line);
         }
         self.expect_op("{")?;
+        // Measured on the binary of v2.0.19 on 2026-11-01: the character that
+        // is glued to the brace that opens the body of a block is an illegal
+        // character in an expression, and the text of the body is named.
+        if self.at_op(&["#", ";"]) {
+            return Err(self.the_error_of_the_illegal_character(self.position, true));
+        }
         if !self.the_body_begins_on_the_next_line() {
             return Err(self.error(self.the_message_of_the_opening_brace(kind, line)));
         }
@@ -1294,6 +1398,14 @@ impl Parser {
             "?" | "??" => format!("Syntax error.\n     Specifically: {line}"),
             // The double colon is the separator of a hotkey.
             "::" => format!("Invalid hotkey.\n     Specifically: {line}"),
+            // Measured on the binary of v2.0.19 on 2026-11-01: the hash and
+            // the semicolon that are not a directive and not a comment are a
+            // line that holds no action, and the text that is named begins
+            // at the character.
+            "#" | ";" => format!(
+                "This line does not contain a recognized action.\n     Specifically: {}",
+                the_text_of_the_illegal_character(self, self.position, false)
+            ),
             // The other operators are not a statement of their own.
             _ => format!("This line does not contain a recognized action.\n     Specifically: {line}"),
         }
@@ -1439,6 +1551,13 @@ impl Parser {
             return Ok(vec![label]);
         }
         if token.kind == TokenKind::Name {
+            // Measured on the binary of v2.0.19 on 2026-11-01: the hash and
+            // the semicolon that are glued to the name that opens the
+            // statement are a part of it, and the statement holds no action:
+            // the whole line is named.
+            if self.the_illegal_character_is_glued_to_the_name_that_opens() {
+                return Err(self.the_line_holds_no_action(token.line));
+            }
             // Measured on the binary of v2.0.19 on 2026-10-31: the operator
             // that comes after the name is the increment, and it may be a
             // statement of its own.
@@ -1583,11 +1702,11 @@ impl Parser {
                     the_source_of_the_line(self, token.line)
                 )
             }
-        } else if token.kind == TokenKind::Op && token.value == "#" {
-            // Measured on the binary of v2.0.19 on 2026-10-31: the hash that
-            // is not a directive is an illegal character in an expression,
-            // and the text of the expression is named.
-            return Err(self.the_error_of_the_hash(self.position));
+        } else if token.kind == TokenKind::Op && the_token_is_an_illegal_character(&token) {
+            // Measured on the binary of v2.0.19 on 2026-11-01: the character
+            // that begins a statement is a line that holds no action, and
+            // the text that is named begins at it.
+            return Err(self.the_error_of_the_illegal_character(self.position, false));
         } else {
             format!(
                 "Unexpected {:?}\n     Specifically: {}",
@@ -1634,11 +1753,11 @@ impl Parser {
         if token.kind == TokenKind::Op && token.value == "}" {
             return Ok(());
         }
-        // Measured on the binary of v2.0.19 on 2026-10-31: the hash that is
-        // not a directive is an illegal character in an expression, and the
-        // text of the expression is named.
-        if token.kind == TokenKind::Op && token.value == "#" {
-            return Err(self.the_error_of_the_hash(self.position));
+        // Measured on the binary of v2.0.19 on 2026-11-01: the character that is
+        // not a comment and not a directive is an illegal character in an
+        // expression, and the text of the expression is named.
+        if token.kind == TokenKind::Op && the_token_is_an_illegal_character(&token) {
+            return Err(self.the_error_of_the_illegal_character(self.position, true));
         }
         // Measured on the binary of v2.0.19 on 2026-10-31: the reserved word
         // that is left over after an expression says what it is.
@@ -1965,6 +2084,13 @@ impl Parser {
             )));
         }
         let arguments = self.the_parameters_of_a_command()?;
+        // Measured on the binary of v2.0.19 on 2026-11-01: the command of v2
+        // is a call whose parentheses are not written, and the text that
+        // names the illegal character carries the one that closes them.
+        if self.peek().kind == TokenKind::Op && the_token_is_an_illegal_character(self.peek()) {
+            let error = self.the_error_of_the_illegal_character(self.position, true);
+            return Err(the_message_of_a_command(error));
+        }
         // The command of v2 is a call whose parentheses are not written, and
         // the text that names the operator carries the one that closes it.
         self.the_expression_is_done(self.position, true)?;
@@ -2878,6 +3004,20 @@ impl Parser {
             "This line does not contain a recognized action.\n     Specifically: {}",
             the_source_of_the_line(self, line)
         ))
+    }
+
+    /// Whether the character that is illegal is glued to the name that opens
+    /// the statement.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
+    /// semicolon that follow the name that opens the statement are a part of
+    /// it, and the statement holds no action. Anywhere else they are illegal
+    /// characters in an expression.
+    fn the_illegal_character_is_glued_to_the_name_that_opens(&self) -> bool {
+        match self.tokens.get(self.position + 1) {
+            Some(token) => the_token_is_an_illegal_character(token) && !token.spaced,
+            None => false,
+        }
     }
 
     /// `throw value`, or `throw` alone.
@@ -4067,24 +4207,20 @@ impl Parser {
         SyntaxError { message, line: token.line, column: token.column }
     }
 
-    /// The error of the hash that is not a directive.
+    /// The error of the character that is not a comment and not a directive.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-10-31: the hash that
-    /// follows a name is a part of it, and the line that holds it has no
-    /// action. The hash that is apart is an illegal character in an
-    /// expression, and the text of the expression is named.
-    fn the_error_of_the_hash(&self, at: usize) -> SyntaxError {
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
+    /// semicolon are illegal characters when they are glued to the token
+    /// that comes before them. The one that is inside an expression is an
+    /// illegal character in an expression, and the one that begins a
+    /// statement is a line that holds no action.
+    fn the_error_of_the_illegal_character(&self, at: usize, in_an_expression: bool) -> SyntaxError {
         let token = &self.tokens[at];
-        let message = if token.spaced {
-            format!(
-                "Illegal character in expression.\n     Specifically: {}",
-                the_source_of_the_rest_of_the_line(self, at)
-            )
+        let text = the_text_of_the_illegal_character(self, at, in_an_expression);
+        let message = if in_an_expression {
+            format!("Illegal character in expression.\n     Specifically: {text}")
         } else {
-            format!(
-                "This line does not contain a recognized action.\n     Specifically: {}",
-                the_source_of_the_line(self, token.line)
-            )
+            format!("This line does not contain a recognized action.\n     Specifically: {text}")
         };
         SyntaxError { message, line: token.line, column: token.column }
     }
@@ -4235,11 +4371,12 @@ impl Parser {
             // The colon of the ternary is a part of the question that is
             // not there.
             TokenKind::Op if token.value == ":" => "A \":\" is missing its \"?\"".to_string(),
-            // Measured on the binary of v2.0.19 on 2026-10-31: the hash that
-            // is not a directive is an illegal character in an expression,
-            // and the text of the expression is named.
-            TokenKind::Op if token.value == "#" => {
-                return self.the_error_of_the_hash(self.position.saturating_sub(1))
+            // Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
+            // semicolon that are not a directive and not a comment are illegal
+            // characters in an expression, and the text of the expression is
+            // named.
+            TokenKind::Op if the_token_is_an_illegal_character(token) => {
+                return self.the_error_of_the_illegal_character(self.position.saturating_sub(1), true)
             }
             // An operator may not begin a value.
             TokenKind::Op if token.value != "," => {
@@ -6396,4 +6533,26 @@ mod tests {
         assert_eq!(error.message, "Unexpected \"{\"");
         let error = parse("x := 1 { a: 1 }").expect_err("does not parse");
         assert_eq!(error.message, "Unexpected \"{\"");
+    }
+
+    #[test]
+    fn the_character_that_is_illegal_says_what_it_is() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
+        // semicolon that are glued to a token are illegal characters in an
+        // expression, and the text that is named begins at them.
+        let error = parse("x := 1#c").expect_err("does not parse");
+        assert_eq!(error.message, "Illegal character in expression.\n     Specifically: #c");
+        let error = parse("x := 1;c").expect_err("does not parse");
+        assert_eq!(error.message, "Illegal character in expression.\n     Specifically: ;c");
+        // The one that is inside a parenthesis names the text of the
+        // expression that holds it.
+        let error = parse("if (x#c) {").expect_err("does not parse");
+        assert_eq!(error.message, "Illegal character in expression.\n     Specifically: #c)");
+        // The one that begins a statement is a line that holds no action.
+        let error = parse("f() {\n}#c").expect_err("does not parse");
+        assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: #c");
+        // The one that is glued to the name that opens the statement is a
+        // part of it, and the whole line is named.
+        let error = parse("x#y := 1").expect_err("does not parse");
+        assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: x#y := 1");
     }

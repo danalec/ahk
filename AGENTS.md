@@ -5416,3 +5416,36 @@ the local time.
 The probes that measured the rules are in `egm-review/sweep_files.py` (36
 cases), `compare_file_answers.py` (12), `probe_copy_failure.py` (6) and
 `probe_omitted_what.py` (19).
+
+## 124. The character that is illegal where it is glued to a token
+
+Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
+semicolon are illegal characters where they are glued to the token that
+comes before them, and the refusal names the text that holds them.
+
+- **The semicolon is a comment only when it is apart.** It is a comment
+  when it is at the start of a line or when a space comes before it. The
+  one that is glued to a token is a character of the script: the tree read
+  it as a comment and accepted the scripts that the v2 refuses.
+- **The character that is inside an expression is an illegal character in
+  an expression,** and the text that is named begins at it. The text ends
+  where the expression ends: at the bracket that closes it, or at the end
+  of the line.
+- **The character that begins a statement is a line that holds no
+  action,** and the text that is named begins at it.
+- **The character that is glued to the name that opens the statement is a
+  part of it,** and the whole line is named: `x#y := 1` is a line that
+  holds no action, and the line is named with it.
+
+The tree told the two apart by the space that came before the character:
+the one that had a space before it was an illegal character in an
+expression, and the one that had none was a line that holds no action. The
+binary tells them apart by the place where they are: the one that is
+inside an expression is illegal, and the one that begins a statement is
+not. The tree read `x := 1#c` as a line that holds no action, and the
+binary refuses it as an illegal character in an expression.
+
+The probes that measured the rules are in
+`egm-review/probe_illegal_character.py` (16 cases),
+`probe_glued_to_the_first_name.py` (11), `probe_hash_name.py` (8),
+`probe_semicolon.py` (8) and `probe_semicolon_rule.py` (10).

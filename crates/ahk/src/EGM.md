@@ -1348,6 +1348,13 @@ that asks for another one is refused with the reason.
   closed, and with "Missing \"}\"" when it is not, and the statement is
   named with it.
 
+- **The character that is illegal is illegal where it is glued.** The hash
+  and the semicolon are a comment and a directive only when they are
+  apart; glued to a token they are characters of the script, and the
+  refusal names the text that holds them. The one that is inside an
+  expression is an illegal character in an expression, and the one that
+  begins a statement is a line that holds no action.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes
