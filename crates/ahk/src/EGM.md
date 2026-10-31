@@ -87,8 +87,10 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   `Eof`.
 - The number of v2 is a decimal, a hex -- `0x` and the digits of the base of
   sixteen -- or a decimal with an exponent, like `1e3`. A number has one
-  point, and the point of `1.5.2` is the member operator. A name that begins
-  with a number is refused at the load, with the message of v2.
+  point, and the point of `1.5.2` is the member operator. A number may begin
+  with a point: `.5` is the number 0.5, and the point that follows a value is
+  the point of a member. A name that begins with a number is refused at the
+  load, with the message of v2.
 - `KEYWORDS: &[&str]` -- the words the language gives a meaning to.
 - `SyntaxError { message, line, column }` -- the error the lexer and the
   parser raise.
@@ -125,7 +127,9 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
 - `ObjectLiteral { properties, line }` -- the literal of an object:
   `{a: 1}` is an object of the base class with the property `a`. The name of
   a property is a name of the script, and the names of the properties do not
-  know their case. A comma at the end of the list of an array, of an object
+  know their case. The name of a property may also be a whole number: `{5: 1}`
+  is an object with the property `5`, and a number with a point is not a
+  name. A comma at the end of the list of an array, of an object
   and of the arguments of a call is allowed.
 - `Lambda { parameters, body, line }` -- the literal of a function:
   `(a, b) => a + b`. The body is an expression and not a block of
@@ -1036,6 +1040,10 @@ that asks for another one is refused with the reason.
   `__New` of an instance is the constructor of it.** The statement that
   defines the class is a use, and the `__Init` of v1 runs before the
   `__New`.
+
+- **The number of v2 may begin with a point, and the point that follows a
+  value is the point of a member.** The number `.5` is 0.5, and the name of
+  a property of the literal of an object may be a whole number.
 
 ## Side Effects
 

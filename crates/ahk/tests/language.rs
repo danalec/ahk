@@ -4192,3 +4192,58 @@ fn a_static_that_fights_with_a_parameter_is_refused() {
         "This static variable declaration conflicts with an existing parameter.\n     Specifically: count"
     );
 }
+
+#[test]
+fn a_number_may_begin_with_a_point() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the numbers of v2
+    // may begin with a point, and `.5` is the number 0.5.
+    let (report, _desktop) = run("x := .5\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0.5"]);
+    let (report, _desktop) = run("x := .5e2\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["50.0"]);
+    let (report, _desktop) = run("x := .5 + 1\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1.5"]);
+    let (report, _desktop) = run("x := (.5)\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0.5"]);
+    let (report, _desktop) = run("x := [.5, 1]\nMsgBox x[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0.5"]);
+    let (report, _desktop) = run("x := StrLen(.5)\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+    let (report, _desktop) = run("x := {a: .5}\nMsgBox x.a");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0.5"]);
+}
+
+#[test]
+fn the_point_of_a_member_is_not_the_point_of_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the point that
+    // follows a value is the dot of the member, and the number that begins
+    // with a point is a number.
+    let (report, _desktop) = run("x := 1.5\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1.5"]);
+    let (report, _desktop) = run("x := {5: 1}\nMsgBox x.5");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_name_of_a_property_may_be_a_whole_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // property may be a whole number, and the number with a point is not a
+    // name.
+    let (report, _desktop) = run("x := {5: 1}\nMsgBox x.5");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    let (report, _desktop) = run("x := {0x10: 1}\nMsgBox x.0x10");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    let error = parse("x := {1.5: 1}").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid property name in object literal.");
+}

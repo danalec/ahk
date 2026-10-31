@@ -692,7 +692,12 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             });
             continue;
         }
-        if current.is_ascii_digit() {
+        // The numbers of v2 may begin with a point: `.5` is the number
+        // 0.5. The point of a member comes after a value, and it is not
+        // the point of a number.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31.
+        if current.is_ascii_digit() || (current == '.' && the_point_begins_a_number(&chars, index, &tokens)) {
             let (start_line, start_column) = (line, column);
             let start = index;
             index = the_end_of_the_number(&chars, index);
@@ -886,6 +891,37 @@ fn the_section_joins_the_line_above(
         tokens.extend(the_tokens);
     }
     Ok(())
+}
+
+/// Whether the point at the place begins a number.
+///
+/// The numbers of v2 may begin with a point, and the point of a member
+/// comes after a value: `x.5` is the member of `x` that is named `5`, and
+/// it is not the number 0.5.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31.
+fn the_point_begins_a_number(chars: &[char], index: usize, tokens: &[Token]) -> bool {
+    // A point that is not followed by a digit is the point of the member.
+    if !chars.get(index + 1).is_some_and(|next| next.is_ascii_digit()) {
+        return false;
+    }
+    // The point of a member comes after a value.
+    match tokens.last() {
+        Some(token) => !the_token_ends_a_value(token),
+        None => true,
+    }
+}
+
+/// Whether the token is one that a value may follow.
+///
+/// A name, a number and a text are values, and so is the group that
+/// closes with a bracket.
+fn the_token_ends_a_value(token: &Token) -> bool {
+    match token.kind {
+        TokenKind::Name | TokenKind::Number | TokenKind::String => true,
+        TokenKind::Op => matches!(token.value.as_str(), ")" | "]" | "}"),
+        _ => false,
+    }
 }
 
 /// Where a number ends.

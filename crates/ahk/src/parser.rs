@@ -3688,7 +3688,17 @@ impl Parser {
                 if !self.at_op(&["}"]) {
                     loop {
                         let name = self.next();
-                        if name.kind != TokenKind::Name && name.kind != TokenKind::Keyword {
+                        // The name of a property may be a whole number: the
+                        // number with a point is not a name, because the
+                        // point of it is the point of a member.
+                        //
+                        // Measured on the binary of v2.0.19 on 2026-10-31:
+                        // `{5: 1}` is an object with the property "5", and
+                        // `{1.5: 1}` is refused.
+                        if name.kind != TokenKind::Name
+                            && name.kind != TokenKind::Keyword
+                            && !the_number_is_a_whole_one(&name)
+                        {
                             return Err(SyntaxError {
                                 message: "Invalid property name in object literal.".into(),
                                 line: name.line,
@@ -4042,8 +4052,16 @@ fn the_operator_wants_a_number(op: BinaryOp) -> bool {
     )
 }
 
-/// The button of a click, a mouse down or a mouse up.
 ///
+/// Whether the token is a whole number, and it may be the name of a
+/// property.
+///
+/// The numbers of v2 that carry a point are not names: the point of them
+/// is the point of a member.
+fn the_number_is_a_whole_one(token: &Token) -> bool {
+    token.kind == TokenKind::Number && matches!(the_number_of(&token.value), LiteralValue::Integer(_))
+}
+
 /// The number of a token, as v2 reads it.
 ///
 /// The hex of v2 is a number of the base of sixteen, and it wraps the
@@ -4092,6 +4110,8 @@ fn the_assignment_operator(value: &str) -> Option<AssignOp> {
     })
 }
 
+/// The button of a click, a mouse down or a mouse up.
+///
 /// A button is a word: `Click 10, 20, right`. A word that is not one of
 /// the three buttons is a variable, and the value of that variable is
 /// the name of the button.

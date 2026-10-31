@@ -4585,3 +4585,35 @@ measured the rules are in
 `egm-review/probe_static_corners.py`,
 `egm-review/probe_static_method.py`, `egm-review/probe_static_value.py`
 and `egm-review/probe_static_when.py`.
+## 100. The number of v2 may begin with a point
+
+Measured on the binary of v2.0.19 on 2026-10-31: the numbers of v2 may
+begin with a point, and the point that follows a value is the point of a
+member.
+
+- **The number may begin with a point.** `.5` is the number 0.5, and it is
+  0.5 in every place where a number may be written: in an assignment, in a
+  sum, in a group, in an array, in the arguments of a call and in the value
+  of a property. `.5e2` is the number 50.0, and `-.5` is the number -0.5.
+- **The point that follows a value is the point of a member.** `x.5` is the
+  property of `x` that is named "5", and not the number 0.5. The point of a
+  member follows a name, a number, a text or a group.
+- **The name of a property of the literal of an object may be a whole
+  number.** `{5: 1}` is an object with the property "5", and the property
+  is read back with `x.5`. The hex is a name as well: `{0x10: 1}` is an
+  object with the property "0x10".
+- **The number with a point is not a name.** The literal of an object
+  refuses it with "Invalid property name in object literal.": `{1.5: 1}` and
+  `{.5: 1}` are both refused, and so is the text.
+- **The point alone is not a number.** It belongs to the family of the
+  statement that begins with an operator, and it is the next block: the v2
+  refuses `x := .` with "Missing operand." and the tree refuses it with
+  "Syntax error.".
+
+The comparison of the tree with the binary is in
+`egm-review/compare_number_point.py` (twelve cases, two of them the point
+alone) and in `egm-review/compare_property_number.py` (nine cases, none of
+them different). The probe of the cases that the two harnesses left out is
+in `egm-review/probe_number_point_skipped.py`: the v2 waits with a dialogue
+of its own when the member is a number, and the tree refuses it with the
+words of v2.
