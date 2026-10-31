@@ -4960,3 +4960,34 @@ is in `egm-review/probe_unclosed_bracket.py` (28 cases: 23 the same, and 5
 that are known to differ -- the object literal that is not closed inside a
 try, where the v2 reads the brace of the block as the brace of the object
 and refuses the catch that follows it).
+
+## 111. The word that the v2 wants as a value
+
+Measured on the binary of v2.0.19 on 2026-10-31: the argument of a command
+is a value of the dialect, and not a word of the language.
+
+- **The brace that opens an argument opens the literal of an object,** and
+  not a key: `Send {Enter}` is refused at the load with "Missing
+  "propertyname:" in object literal.", and the key of the v2 is a text --
+  `Send "{Enter}"`.
+- **The name of a property of the literal of an object may be built by the
+  script:** `{%name%: 1}` is the property whose name is the value of
+  `name`. The name of a property is a name of the script still (section
+  44), and the names that the script builds are the ones of section 109.
+- **The button of a click is a value,** and not a word: `Click 10, 20,
+  right` reads the variable `right`. The v2 refuses the script at the load
+  when that variable has no value, and the tree refuses it at the run.
+
+The tree read the bare brace as a key of the v1, it read the name of a
+property as a name that is written, and it read the word `right` as the
+button itself -- a click that the v2 does with the left button was a click
+with the right one. The comparison of the tree with the binary is in
+`egm-review/probe_dynamic_object.py` (14 cases, all the same) and in
+`egm-review/probe_brace_argument2.py` (12 cases, all the same); the probes
+that measured the rules are in `egm-review/probe_brace_argument.py`,
+`egm-review/probe_click_button.py` and `egm-review/probe_click_shape.py`.
+
+The key that is written between the braces and the button that is written
+as a word are the syntax of the v1, and they are not in the v2. The plan of
+the dialect of the v1 is in `docs/ahk-v1-dialect.md`, and it is the place
+where they may come back.

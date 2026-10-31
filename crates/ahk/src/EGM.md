@@ -145,7 +145,9 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   a property is a name of the script, and the names of the properties do not
   know their case. The name of a property may also be a whole number: `{5: 1}`
   is an object with the property `5`, and a number with a point is not a
-  name. A comma at the end of the list of an array, of an object
+  name. The name of a property may be built by the script as well:
+  `{%name%: 1}` is the property whose name is the value of `name`. A comma
+  at the end of the list of an array, of an object
   and of the arguments of a call is allowed.
 - `Lambda { parameters, body, line }` -- the literal of a function:
   `(a, b) => a + b`. The body is an expression and not a block of
@@ -226,6 +228,12 @@ the answer of the call is thrown away. A name that is neither is not
 refused at the load: it is a variable of the script, and the value of it
 is what the call asks for. A value that cannot be called is refused with
 the kind of it, the way v2 refuses it.
+
+The argument of a command is a value of the dialect, and not a word of the
+language. The brace that opens one opens the literal of an object, and not a
+key: `Send {Enter}` is refused at the load with "Missing \"propertyname:\" in
+object literal.", and the key of v2 is a text -- `Send "{Enter}"`. The button
+of a click is a value too: `Click 10, 20, right` reads the variable `right`.
 
 The answer of a call is a value, and the members of it are read the way
 the members of any other value are: `StrLen("abc").__Class` is "Integer",
@@ -1138,6 +1146,12 @@ that asks for another one is refused with the reason.
   not there inside it does not change the message, and a brace that closes
   a block is named before the bracket. The text that is named is the
   statement and the line of the failure.
+
+- **The argument of a command is a value of the dialect, and not a word of
+  the language.** The brace that opens one opens the literal of an object,
+  and not a key, and the button of a click is a value: `Click 10, 20,
+  right` reads the variable `right`. The name of a property of the literal
+  of an object may be built by the script.
 
 ## Side Effects
 

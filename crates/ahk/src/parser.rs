@@ -1832,40 +1832,6 @@ impl Parser {
         Ok(vec![self.parse_assignment(name_token)?])
     }
 
-    /// A key written between braces: `{Enter}`, `{a down}`.
-    ///
-    /// The braces are kept in the text, because the built-in that takes
-    /// the key is the one that knows what `{a down}` means.
-    fn parse_brace_spec(&mut self) -> Result<Node, SyntaxError> {
-        let open = self.next();
-        let key = self.next();
-        if key.kind != TokenKind::Name && key.kind != TokenKind::Keyword {
-            return Err(SyntaxError {
-                message: "expected a key name".into(),
-                line: key.line,
-                column: key.column,
-            });
-        }
-        let mut spec = format!("{{{}}}", key.value);
-        // `{a down}` and `{a up}`: the key goes down, or comes up.
-        if self.peek().kind == TokenKind::Name {
-            let word = self.next();
-            let word = word.value.to_lowercase();
-            if word == "down" || word == "up" {
-                spec = format!("{{{} {word}}}", key.value);
-            } else {
-                return Err(SyntaxError {
-                    message: format!("expected `down` or `up`, found {word:?}"),
-                    line: key.line,
-                    column: key.column,
-                });
-            }
-        }
-        self.expect_op("}")?;
-        let _ = open;
-        Ok(Node::Literal { value: LiteralValue::Text(spec), line: key.line })
-    }
-
     /// A call statement: a name at the start of a line, without
     /// parentheses.
     ///
@@ -1887,13 +1853,12 @@ impl Parser {
         let mut arguments = Vec::new();
         if !self.at_end_of_statement() {
             loop {
-                // `{Enter}` is a key, written without quotes. The built-in
-                // that takes it reads the text and knows what it means.
-                if self.at_op(&["{"]) {
-                    arguments.push(self.parse_brace_spec()?);
-                } else {
-                    arguments.push(self.parse_expression().map_err(the_message_of_a_command)?);
-                }
+                // Measured on the binary of v2.0.19 on 2026-10-31: a brace
+                // that opens an argument of a command opens the literal of
+                // an object, and not a key: `Send {Enter}` is refused with
+                // "Missing \"propertyname:\" in object literal.". The key
+                // of the v2 is a text: `Send "{Enter}"`.
+                arguments.push(self.parse_expression().map_err(the_message_of_a_command)?);
                 if self.at_op(&[","]) {
                     self.position += 1;
                     continue;
@@ -1905,16 +1870,6 @@ impl Parser {
         // the text that names the operator carries the one that closes it.
         self.the_expression_is_done(self.position, true)?;
         self.end_of_statement()?;
-        // The button of a `Click` may be written without quotes.
-        if name == "click" {
-            if let Some(button) = arguments.get_mut(2) {
-                let taken = core::mem::replace(
-                    button,
-                    Node::Literal { value: LiteralValue::Text(String::new()), line: name_token.line },
-                );
-                *button = button_node(taken, name_token.line);
-            }
-        }
         Ok(Node::Call { name, arguments, line: name_token.line })
     }
 
@@ -4298,30 +4253,50 @@ impl Parser {
                 if !self.at_op(&["}"]) {
                     loop {
                         let name = self.next();
-                        // The name of a property may be a whole number: the
-                        // number with a point is not a name, because the
-                        // point of it is the point of a member.
-                        //
                         // Measured on the binary of v2.0.19 on 2026-10-31:
-                        // `{5: 1}` is an object with the property "5", and
-                        // `{1.5: 1}` is refused.
-                        if name.kind != TokenKind::Name
-                            && name.kind != TokenKind::Keyword
-                            && !the_number_is_a_whole_one(&name)
-                        {
-                            // Measured on the binary of v2.0.19 on 2026-10-31:
-                            // the object that is not closed is the failure,
-                            // and the name of the property that is not there
-                            // is not it.
-                            if name.kind == TokenKind::Newline || name.kind == TokenKind::Eof {
-                                return Err(self.the_error_of_a_missing_bracket("}", name.line, name.column));
+                        // the name of a property may be built by the script:
+                        // `{%name%: 1}` is the property whose name is the
+                        // value of `name`.
+                        let member = if name.kind == TokenKind::Op && name.value == "%" {
+                            let open = self.position - 1;
+                            if self.at_op(&["%"]) {
+                                return Err(self.the_error_of_a_percent_inside());
                             }
-                            return Err(SyntaxError {
-                                message: "Invalid property name in object literal.".into(),
-                                line: name.line,
-                                column: name.column,
-                            });
-                        }
+                            let value = self.the_expression_of_a_dynamic_name(open)?;
+                            if !self.at_op(&["%"]) {
+                                return Err(self.the_error_of_a_missing_ending(open));
+                            }
+                            self.next();
+                            MemberName::Dynamic(self.the_pieces_after_the_percent(value)?)
+                        } else {
+                            // The name of a property may be a whole number: the
+                            // number with a point is not a name, because the
+                            // point of it is the point of a member.
+                            //
+                            // Measured on the binary of v2.0.19 on 2026-10-31:
+                            // `{5: 1}` is an object with the property "5", and
+                            // `{1.5: 1}` is refused.
+                            if name.kind != TokenKind::Name
+                                && name.kind != TokenKind::Keyword
+                                && !the_number_is_a_whole_one(&name)
+                            {
+                                // Measured on the binary of v2.0.19 on
+                                // 2026-10-31: the object that is not closed is
+                                // the failure, and the name of the property
+                                // that is not there is not it.
+                                if name.kind == TokenKind::Newline || name.kind == TokenKind::Eof {
+                                    return Err(
+                                        self.the_error_of_a_missing_bracket("}", name.line, name.column)
+                                    );
+                                }
+                                return Err(SyntaxError {
+                                    message: "Invalid property name in object literal.".into(),
+                                    line: name.line,
+                                    column: name.column,
+                                });
+                            }
+                            MemberName::Text(name.value)
+                        };
                         if !self.at_op(&[":"]) {
                             return Err(SyntaxError {
                                 message: "Missing \"propertyname:\" in object literal.".into(),
@@ -4336,7 +4311,7 @@ impl Parser {
                             Ok(value) => value,
                             Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
                         };
-                        properties.push((name.value, value));
+                        properties.push((member, value));
                         // The list may be written in more than one line.
                         self.skip_newlines();
                         if self.at_op(&[","]) {
@@ -4755,23 +4730,6 @@ fn the_assignment_operator(value: &str) -> Option<AssignOp> {
     })
 }
 
-/// The button of a click, a mouse down or a mouse up.
-///
-/// A button is a word: `Click 10, 20, right`. A word that is not one of
-/// the three buttons is a variable, and the value of that variable is
-/// the name of the button.
-fn button_node(node: Node, line: u32) -> Node {
-    match &node {
-        Node::Var { name, .. }
-            if matches!(name.to_lowercase().as_str(), "left" | "right" | "middle") =>
-        {
-            Node::Literal { value: LiteralValue::Text(name.to_lowercase()), line }
-        }
-        _ => node,
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4792,17 +4750,21 @@ mod tests {
     }
 
     #[test]
-    fn a_key_in_a_send_is_its_own_thing() {
-        let statements = parse("Send {Enter}").expect("parses");
+    fn a_key_in_a_send_is_a_text() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the key of the
+        // v2 is a text, and the braces of it are part of the text.
+        let statements = parse("Send \"{Enter}\"").expect("parses");
         let Node::Call { arguments, .. } = &statements[0] else { panic!("a send") };
         assert!(matches!(&arguments[0], Node::Literal { value: LiteralValue::Text(text), .. } if text == "{Enter}"));
     }
 
     #[test]
-    fn a_key_that_goes_down_says_so() {
-        let statements = parse("Send {a down}").expect("parses");
-        let Node::Call { arguments, .. } = &statements[0] else { panic!("a send") };
-        assert!(matches!(&arguments[0], Node::Literal { value: LiteralValue::Text(text), .. } if text == "{a down}"));
+    fn a_brace_that_opens_an_argument_opens_an_object() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the brace that
+        // opens an argument of a command opens the literal of an object,
+        // and not a key: `Send {Enter}` is refused at the load.
+        let error = parse("Send {Enter}").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
     }
 
     #[test]

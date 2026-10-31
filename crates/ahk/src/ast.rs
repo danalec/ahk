@@ -501,7 +501,11 @@ pub enum Node {
     /// v2 writes an object between braces, and the empty braces are the
     /// object of nothing. The name of a property is a name of the script,
     /// and the names of the properties do not know their case.
-    ObjectLiteral { properties: Vec<(String, Node)>, line: u32 },
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    /// property may be built by the script: `{%name%: 1}` is the property
+    /// whose name is the value of `name`.
+    ObjectLiteral { properties: Vec<(MemberName, Node)>, line: u32 },
     /// `(a, b) => a + b`: the literal of a function.
     ///
     /// The body of the arrow function of v2 is an expression, and not a

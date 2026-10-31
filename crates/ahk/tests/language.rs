@@ -1217,7 +1217,10 @@ fn a_click_can_have_a_count() {
 
 #[test]
 fn a_click_can_name_the_button_and_the_count() {
-    let (report, desktop) = run("Click 10, 20, right, 3");
+    // Measured on the binary of v2.0.19 on 2026-10-31: the button of a
+    // click is a value of the dialect, and not a word of the language:
+    // the word `right` is a variable of the script.
+    let (report, desktop) = run("right := \"right\"\nClick 10, 20, right, 3");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,right,3".to_string())]);
 }
@@ -4900,4 +4903,46 @@ fn the_brace_that_closes_the_block_is_named_before_the_bracket() {
         error.message,
         "Missing \")\" before \"}\"\n     Specifically: x := f(1 } catch as err {"
     );
+}
+
+#[test]
+fn the_button_of_a_click_is_a_value_and_not_a_word() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `Click 10, 20,
+    // right` reads the variable `right`. The v2 refuses the script at the
+    // load when that variable has no value, and the tree refuses it at the
+    // run.
+    let (report, _desktop) = run("Click 10, 20, right");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This global variable has not been assigned a value.")
+    );
+}
+
+#[test]
+fn the_button_of_a_click_may_be_the_value_of_a_variable() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value of the
+    // variable is the name of the button, and not the name of the
+    // variable.
+    let (report, desktop) = run("right := \"left\"\nClick 10, 20, right");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,left,1".to_string())]);
+}
+
+#[test]
+fn the_name_of_a_property_of_an_object_may_be_built() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `{%name%: 1}` is
+    // the property whose name is the value of `name`.
+    let (report, _desktop) = run("name := \"a\"\nx := {%name%: 1}\nFileAppend x.a, \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
+#[test]
+fn a_brace_that_opens_an_argument_of_a_command_opens_an_object() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `Send {Enter}` is
+    // refused at the load, because the brace opens the literal of an
+    // object and the name of a property is not there.
+    let error = parse("Send {Enter}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
 }

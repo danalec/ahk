@@ -7379,15 +7379,17 @@ impl<'a> Runtime<'a> {
                 LiteralValue::Text(text) => Value::Text(self.interpolate(text, *line)?),
                 LiteralValue::Bool(flag) => Value::Int(*flag as i64),
             }),
-            Node::ObjectLiteral { properties, .. } => {
+            Node::ObjectLiteral { properties, line } => {
                 // The literal of an object of v2: an object of the base
                 // class with the properties it writes. The names of the
-                // properties do not know their case.
+                // properties do not know their case, and a name that the
+                // script builds is the name of the property.
                 let object = crate::classes::object("Object");
                 if let Value::Object(cell) = &object {
                     for (name, value) in properties {
+                        let name = self.the_name_of_the_member(name, *line)?;
                         let value = self.evaluate(value)?;
-                        put(&mut cell.borrow_mut().properties, name, value);
+                        put(&mut cell.borrow_mut().properties, &name, value);
                     }
                 }
                 Ok(object)
