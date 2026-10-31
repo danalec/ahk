@@ -4173,3 +4173,52 @@ the same one.
 The comparison of the tree with the binary is in
 `egm-review/compare_method_values.py` (23 cases) and in
 `egm-review/probe_method_values.py` (14 cases).
+
+## 91. A static method belongs to the class, and a class may not be inside a function
+
+Measured on the binary of v2.0.19 on 2026-10-31: a static method is a member
+of the class and not of its instances, and the prototype of the class does not
+carry it either. A function may not contain a class: v2 refuses the load, and
+it names the line of the class.
+
+The rule of the function lives in the parser, in one place, so the v1 dialect
+can bypass it.
+
+- **A static method is not a member of an instance.** `obj.Say()` is refused
+  with `This value of type "C" has no method named "Say".`, and the read of it
+  is refused with `This value of type "C" has no property named "Say".`. The
+  tree called the method and answered 1.
+- **The `HasMethod` of it answers 0, and the `GetMethod` refuses it.** The
+  refusal of the `GetMethod` carries the name of it in the `What`.
+- **A static method does not hide the instance method of the base.** The
+  instance still has the method of the base, and the class value has the
+  static one.
+- **The prototype of the class does not carry a static method.** The read of
+  it and the call of it are refused with the words of the prototype, and the
+  `HasMethod` of it answers 0.
+- **The class value has the static methods.** `C.Say` is a function whose name
+  is "C.Say", and `C.GetMethod("Say")` hands the same one over. The tree
+  refused the `GetMethod` with the words of the class.
+- **The prototype has the methods of the class and the ones of its base.** The
+  `HasMethod` and the `HasProp` of them answer 1, and the method of a class of
+  the script runs on the prototype: `C.Prototype.Say()` answers 1, and `this`
+  is the prototype. The method of a class of the runtime cannot be called on
+  the prototype of it: it is refused with "Expected a Map but got a
+  Prototype.".
+- **The methods of a class are the properties of an instance.** `obj.HasProp("Say")`
+  answers 1, and so do the initialiser and the base. A static variable is not
+  a member of an instance, and a static method is not either.
+- **The automatic `__Init` is own of the prototype when the class has
+  variables of its own.** It is the one that carries them, and the prototype of
+  a class without variables owns none of it.
+- **A function may not contain a class.** The load is refused with "Functions
+  cannot contain classes." and the line of the class is named. A class inside
+  a block of the top level is fine.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_static_member.py` (84 cases), and the probes that measured
+the rules are in `egm-review/probe_static_member.py`,
+`egm-review/probe_prototype_inherit.py`, `egm-review/probe_hasprop_and_this.py`,
+`egm-review/probe_hasprop_runtime.py`, `egm-review/probe_hasprop_members.py`,
+`egm-review/probe_init_member.py`, `egm-review/probe_init_questions.py` and
+`egm-review/probe_prototype_own.py`.

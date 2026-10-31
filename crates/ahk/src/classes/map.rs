@@ -491,12 +491,31 @@ fn base_method(
         "hasownprop" => Some(Ok(Value::Int(own_property(object, &key) as i64))),
         "hasprop" => Some(Ok(Value::Int(
             (PROPERTIES.contains(&key.as_str())
+                // The methods of the class are the properties of the value.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `m.HasProp("Get")` answers 1.
+                || METHODS.contains(&key.as_str())
                 || own_property(object, &key)
                 // Every value carries its class, and the base object has
                 // the property of it.
-                || key == "__class") as i64,
+                || key == "__class"
+                // Every class has an initialiser, and every object has a
+                // base.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `m.HasProp("__Init")` and `m.HasProp("Base")` answer 1.
+                || key == "__init"
+                || key == "base") as i64,
         ))),
-        "hasmethod" => Some(Ok(Value::Int(METHODS.contains(&key.as_str()) as i64))),
+        "hasmethod" => Some(Ok(Value::Int(
+            (METHODS.contains(&key.as_str())
+                // Every class has an initialiser.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `m.HasMethod("__Init")` answers 1.
+                || key == "__init") as i64,
+        ))),
         "getownpropdesc" => {
             let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
             let value = object.borrow().value_of(&key);

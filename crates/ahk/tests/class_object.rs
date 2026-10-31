@@ -788,6 +788,188 @@ fn the_prototype_of_an_any_has_no_method_at_all() {
 }
 
 #[test]
+fn a_static_method_is_not_a_member_of_an_instance() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a static method
+    // belongs to the class and not to its instances.
+    assert_eq!(
+        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nobj.Say()"),
+        "This value of type \"C\" has no method named \"Say\". |  |"
+    );
+    assert_eq!(
+        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.Say"),
+        "This value of type \"C\" has no property named \"Say\". |  |"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.HasMethod(\"Say\")"),
+        "0"
+    );
+    assert_eq!(
+        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nobj.GetMethod(\"Say\")"),
+        "This value of type \"C\" has no method named \"Say\". | GetMethod |"
+    );
+}
+
+#[test]
+fn a_static_method_is_not_a_member_of_the_prototype() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
+    // class carries the methods of the class, and not the static ones.
+    assert_eq!(
+        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.Say"),
+        "This value of type \"Prototype\" has no property named \"Say\". |  |"
+    );
+    assert_eq!(
+        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nC.Prototype.Say()"),
+        "This value of type \"Prototype\" has no method named \"Say\". |  |"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.HasMethod(\"Say\")"),
+        "0"
+    );
+    assert_eq!(
+        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nC.Prototype.GetMethod(\"Say\")"),
+        "This value of type \"Prototype\" has no method named \"Say\". | GetMethod |"
+    );
+}
+
+#[test]
+fn a_static_method_does_not_hide_the_instance_method_of_the_base() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the instance still
+    // has the instance method of its base.
+    assert_eq!(
+        the_answer_of(
+            "class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n    static Say() {\n        return 2\n    }\n}\nobj := C()\nMsgBox obj.Say()"
+        ),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n    static Say() {\n        return 2\n    }\n}\nobj := C()\nMsgBox obj.Say.Name"
+        ),
+        "D.Prototype.Say"
+    );
+}
+
+#[test]
+fn a_class_value_has_the_static_methods_of_the_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the static methods
+    // are the own properties of the class value.
+    assert_eq!(
+        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Say.Name"),
+        "C.Say"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.GetMethod(\"Say\").Name"),
+        "C.Say"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.HasMethod(\"Say\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.HasProp(\"Say\")"),
+        "1"
+    );
+}
+
+#[test]
+fn the_prototype_has_the_methods_of_the_class_and_of_the_base() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
+    // class carries the methods of the class and the ones of its base.
+    assert_eq!(
+        the_answer_of("class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.HasMethod(\"Say\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.HasProp(\"Say\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.Say.Name"),
+        "D.Prototype.Say"
+    );
+    assert_eq!(
+        the_answer_of("class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.GetMethod(\"Say\").Name"),
+        "D.Prototype.Say"
+    );
+}
+
+#[test]
+fn the_method_of_a_class_runs_on_the_prototype_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: v2 calls the method
+    // of a class of the script on the prototype, and `this` is the
+    // prototype.
+    assert_eq!(
+        the_answer_of("class C {\n    Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.Say()"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    Say() {\n        return this\n    }\n}\nMsgBox C.Prototype.Say().__Class"),
+        "C"
+    );
+}
+
+#[test]
+fn the_methods_of_a_class_are_the_properties_of_an_instance() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `HasProp` of a
+    // method of the class answers 1, and so do the initialiser and the base.
+    assert_eq!(
+        the_answer_of("class C {\n    Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.HasProp(\"Say\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n}\nobj := C()\nMsgBox obj.HasProp(\"__Init\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n}\nobj := C()\nMsgBox obj.HasProp(\"Base\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n}\nobj := C()\nMsgBox obj.HasProp(\"Nope\")"),
+        "0"
+    );
+    assert_eq!(the_answer_of("m := Map()\nMsgBox m.HasProp(\"Get\")"), "1");
+    assert_eq!(the_answer_of("m := Map()\nMsgBox m.HasMethod(\"__Init\")"), "1");
+}
+
+#[test]
+fn a_static_variable_is_not_a_member_of_an_instance() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a static variable
+    // belongs to the class and not to its instances.
+    assert_eq!(
+        the_answer_of("class C {\n    static value := 1\n}\nobj := C()\nMsgBox obj.HasProp(\"value\")"),
+        "0"
+    );
+    assert_eq!(
+        the_failure_of("class C {\n    static value := 1\n}\nobj := C()\nMsgBox obj.value"),
+        "This value of type \"C\" has no property named \"value\". |  |"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    static value := 1\n}\nMsgBox C.value"),
+        "1"
+    );
+}
+
+#[test]
+fn the_prototype_owns_the_automatic_init_of_the_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the automatic
+    // `__Init` is own of the prototype when the class has variables of its
+    // own: it is the one that carries them.
+    assert_eq!(
+        the_answer_of("class C {\n    value := 1\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class__Init"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    __Init() {\n    }\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class__Init"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Class"
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

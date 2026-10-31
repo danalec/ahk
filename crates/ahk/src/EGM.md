@@ -965,6 +965,14 @@ that asks for another one is refused with the reason.
 - **A method is a value.** The read of a method hands a function over, and
   the `GetMethod` of a value hands the same one over; the object is one of
   the arguments of the call.
+- **A static method belongs to the class and not to its instances.** The
+  prototype of the class does not carry it either, and the class value has it
+  as one of its own properties.
+- **The methods of a class are the properties of an instance.** The `HasProp`
+  of a method answers 1, and so do the initialiser and the base; a static
+  method and a static variable are not members of an instance.
+- **A function may not contain a class.** The parser refuses it at the load,
+  and it names the line of the class.
 
 ## Side Effects
 

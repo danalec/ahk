@@ -2813,14 +2813,6 @@ impl<'a> Runtime<'a> {
         chain
     }
 
-    /// The method a name asks for, on a class.
-    ///
-    /// The class itself comes first, and then the classes it extends:
-    /// a method that is not in the class is in the one it extends.
-    fn find_method(&self, class: &str, name: &str) -> Option<MethodDef> {
-        self.find_method_in(class, name).map(|(_, method)| method)
-    }
-
     /// The method a name asks for, on a class, and the class that has it.
     ///
     /// The class matters: `super` asks the base of the class where the
@@ -2838,6 +2830,9 @@ impl<'a> Runtime<'a> {
     }
 
     /// The method a name asks for, on a value.
+    ///
+    /// A static method belongs to the class and not to its instances, and
+    /// the prototype of a class carries the methods of the class.
     fn find_method_on(&self, target: &Value, name: &str) -> Option<(String, MethodDef)> {
         let Value::Object(object) = target else { return None };
         let class = object.borrow().class.clone();
@@ -2850,7 +2845,15 @@ impl<'a> Runtime<'a> {
         if self.class_name_of(target).is_some() {
             return self.find_the_static_method_in(&class, name);
         }
-        self.find_method_in(&class, name)
+        // A static method is not a member of an instance, and it is not a
+        // member of the prototype of the class either.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `obj.Say()` is
+        // refused with 'This value of type "C" has no method named "Say".',
+        // and a static method of a class does not hide the instance method
+        // of its base: the instance has that one.
+        let class = self.the_class_of_the_prototype(target).unwrap_or(class);
+        self.find_the_instance_method_in(&class, name)
     }
 
     /// The object a class makes.
@@ -3301,6 +3304,17 @@ impl<'a> Runtime<'a> {
         // Prototype.".
         if let Some(class) = self.the_class_of_the_prototype(target) {
             if self.the_class_has_the_method(&class, name) {
+                // A method of a class of the script runs on the prototype:
+                // v2 calls it, and `this` is the prototype.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `D.Prototype.Say()` answers 1, and the class of the
+                // value that it answers is the class of the prototype.
+                if self.classes.contains_key(&class) {
+                    if let Some((defining, method)) = self.find_the_instance_method_in(&class, name) {
+                        return self.call_method_with(&defining, &method, target, &values, line);
+                    }
+                }
                 let spelled = self.the_spelling_of_the_method_of_a_class(&class, name);
                 return Err(RuntimeFailure::Detailed(
                     RuntimeError {
@@ -3593,6 +3607,16 @@ impl<'a> Runtime<'a> {
                 "GetMethod",
             ));
         }
+        // A static method that the class declares is its own, and the
+        // `GetMethod` of a class hands it over.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31:
+        // `C.GetMethod("Say")` is a function whose name is "C.Say".
+        if let Some(class) = self.class_name_of(target) {
+            if let Some((defining, method)) = self.find_the_static_method_in(&class, &lower) {
+                return Ok(self.static_method_reference(&defining, &method));
+            }
+        }
         if !crate::classes::the_static_methods_of_a_class().contains(&lower.as_str()) {
             // The class does not have the method: the words of the
             // dialect say so, and the name of the method goes in the
@@ -3732,7 +3756,13 @@ impl<'a> Runtime<'a> {
             return false;
         }
         if self.classes.contains_key(class) {
-            return self.find_method(class, &lower).is_some();
+            // A static method is not a method of the prototype.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31:
+            // `C.Prototype.Say()` is refused with 'This value of type
+            // "Prototype" has no method named "Say".' when `Say` is a
+            // static method of the class.
+            return self.find_the_instance_method_in(class, &lower).is_some();
         }
         crate::classes::the_methods_of_the_prototype(class)
             .iter()
@@ -3775,6 +3805,17 @@ impl<'a> Runtime<'a> {
                     if !method.is_static {
                         names.push(method.name.clone());
                     }
+                }
+                // The automatic `__Init` is own of the prototype when the
+                // class has variables of its own: it is the one that
+                // carries them.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // prototype of a class with a property owns "__Init".
+                if !definition.methods.contains_key("__init")
+                    && definition.properties.iter().any(|property| !property.is_static)
+                {
+                    names.push("__Init".to_string());
                 }
             }
             // A class of the runtime: the members of the class type.
@@ -4069,24 +4110,58 @@ impl<'a> Runtime<'a> {
                     return Some(Err(missing()));
                 };
                 let found = object.borrow().properties.contains_key(&name.to_lowercase())
-                    || self.declares_property(&class, &name)
+                    || self.declares_an_instance_property(&class, &name)
                     // Every value carries its class, and the base object
                     // has the property of it.
-                    || name.eq_ignore_ascii_case("__class");
+                    || name.eq_ignore_ascii_case("__class")
+                    // Every object has a base.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-10-31:
+                    // `obj.HasProp("Base")` answers 1.
+                    || name.eq_ignore_ascii_case("base")
+                    // The methods of the class are the properties of the
+                    // object, and a static method is not one of them.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-10-31:
+                    // `obj.HasProp("Say")` answers 1 when `Say` is a method
+                    // of the class, and 0 when it is a static one.
+                    || self.find_the_instance_method_in(&class, &name).is_some()
+                    || crate::classes::the_method_of(&class, &name).is_some()
+                    // Every class has an initialiser, and it is a member of
+                    // the class.
+                    || name.eq_ignore_ascii_case("__init")
+                    || crate::classes::the_base_object_has_the_method(&name);
                 // The prototype of a class has the properties of the class.
                 //
                 // Measured on the binary of v2.0.19 on 2026-10-31:
                 // `Map.Prototype.HasProp("Count")` answers 1.
                 let found = if let Some(class) = self.the_class_of_the_prototype(target) {
+                    // The prototype of a class has the methods of the class
+                    // and the ones of its base, and not the properties of
+                    // the class.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-10-31:
+                    // `Map.Prototype.HasProp("Count")` answers 1, and
+                    // `C.Prototype.HasProp("value")` answers 0 when `value`
+                    // is a variable of the class.
                     crate::classes::the_members_of_the_prototype(&class)
                         .iter()
                         .any(|member| member.to_lowercase() == name.to_lowercase())
+                        || self.find_the_instance_method_in(&class, &name).is_some()
+                        || name.eq_ignore_ascii_case("__init")
                         || name.eq_ignore_ascii_case("__class")
                 } else if self.class_name_of(target).is_some() {
                     // A class value has the prototype, the base and the
                     // static methods, and every value carries its class.
                     // The properties of the class are not its own.
-                    object.borrow().properties.contains_key(&name.to_lowercase())
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-10-31:
+                    // `C.HasProp("__Init")` answers 1, and the initialiser
+                    // is an own property of the class value.
+                    self.the_own_properties_of_a_class_value(target)
+                        .iter()
+                        .any(|own| own.to_lowercase() == name.to_lowercase())
+                        || object.borrow().properties.contains_key(&name.to_lowercase())
                         || name.eq_ignore_ascii_case("base")
                         || self
                             .the_static_methods_of_a_class_value(target)
@@ -4127,18 +4202,34 @@ impl<'a> Runtime<'a> {
                     self.the_static_methods_of_a_class_value(target)
                         .contains(&name.to_lowercase())
                 } else if let Some(class) = self.the_class_of_the_prototype(target) {
-                    // The prototype of a class has the methods of the class.
+                    // The prototype of a class has the methods of the class
+                    // and the ones of its base, and not the static ones.
                     //
-                    // Measured on the binary of v2.0.19 on 2026-10-31.
-                    crate::classes::the_methods_of_the_prototype(&class)
-                        .iter()
-                        .any(|method| method.to_lowercase() == name.to_lowercase())
+                    // Measured on the binary of v2.0.19 on 2026-10-31:
+                    // `C.Prototype.HasMethod("Say")` answers 1 when `Say` is
+                    // a method of the class, and 0 when it is a static one.
+                    self.find_the_instance_method_in(&class, &name).is_some()
+                        || crate::classes::the_methods_of_the_prototype(&class)
+                            .iter()
+                            .any(|method| method.to_lowercase() == name.to_lowercase())
                         || crate::classes::the_base_object_has_the_method(&name)
                 } else {
-                    self.find_method(&class, &name).is_some()
+                    // A static method is not a member of an instance.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-10-31:
+                    // `obj.HasMethod("Say")` answers 0 when `Say` is a
+                    // static method of the class of the object.
+                    self.find_the_instance_method_in(&class, &name).is_some()
                         || crate::classes::the_method_of(&class, &name).is_some()
                         || crate::classes::the_base_object_has_the_method(&name)
                 };
+                // Every class has an initialiser, and it is a method of the
+                // class and of its instances.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `m.HasMethod("__Init")` answers 1, and so does
+                // `C.HasMethod("__Init")`.
+                let found = found || name.eq_ignore_ascii_case("__init");
                 Some(Ok(Value::Int(found as i64)))
             }
             "getmethod" => {
@@ -4152,8 +4243,13 @@ impl<'a> Runtime<'a> {
                 // and `Object.Prototype.GetMethod("Clone")` is the method of
                 // the base object.
                 if let Some(class) = self.the_class_of_the_prototype(target) {
-                    // A method of a class of the script.
-                    if let Some((defining, method)) = self.find_method_in(&class, &name) {
+                    // A method of a class of the script. The static ones are
+                    // not the methods of the prototype.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-10-31:
+                    // `C.Prototype.GetMethod("Say")` is refused when `Say` is
+                    // a static method of the class.
+                    if let Some((defining, method)) = self.find_the_instance_method_in(&class, &name) {
                         return Some(Ok(self.method_reference(&defining, &method)));
                     }
                     // A method of a class type of the runtime.
@@ -4172,8 +4268,13 @@ impl<'a> Runtime<'a> {
                     }
                     return Some(Err(self.no_method(target, &name, line)));
                 }
-                // A method of a class of the script.
-                if let Some((defining, method)) = self.find_method_in(&class, &name) {
+                // A method of a class of the script. A static method is
+                // not a member of an instance.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `obj.GetMethod("Say")` is refused when `Say` is a static
+                // method of the class.
+                if let Some((defining, method)) = self.find_the_instance_method_in(&class, &name) {
                     return Some(Ok(self.method_reference(&defining, &method)));
                 }
                 // A method of a class type of the runtime.
@@ -4994,7 +5095,14 @@ impl<'a> Runtime<'a> {
         // function whose first parameter is `this`. A class is not an
         // instance, and its methods are not handed over.
         if self.class_name_of(target).is_none() {
-            if let Some((defining, method)) = self.find_method_in(&members, &name) {
+            // A static method is not a member of an instance, and it is not
+            // a member of the prototype of the class either.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31: `obj.Say` is
+            // refused with 'This value of type "C" has no property named
+            // "Say".', and the prototype of the class refuses it the same
+            // way.
+            if let Some((defining, method)) = self.find_the_instance_method_in(&members, &name) {
                 return Ok((self.method_reference(&defining, &method), false));
             }
             // A method of a class type of the runtime is a value too: v2
@@ -5021,7 +5129,7 @@ impl<'a> Runtime<'a> {
         }
         // `__Get` is asked when the property is not there. It takes the
         // name of the property and the parameters of the access.
-        if let Some((defining, method)) = self.find_method_in(&class, "__get") {
+        if let Some((defining, method)) = self.find_the_instance_method_in(&class, "__get") {
             let params = self.the_params(params, line)?;
             let value = self.call_method_with(
                 &defining,
@@ -5255,6 +5363,26 @@ impl<'a> Runtime<'a> {
                 .get(class)
                 .map(|definition| {
                     definition.properties.iter().any(|property| property.name.to_lowercase() == name)
+                })
+                .unwrap_or(false)
+        })
+    }
+
+    /// Whether the class declares a property of its instances.
+    ///
+    /// A static variable belongs to the class and not to its instances.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: `obj.HasProp("value")`
+    /// answers 0 when `value` is a static variable of the class.
+    fn declares_an_instance_property(&self, class: &str, name: &str) -> bool {
+        let name = name.to_lowercase();
+        self.class_chain(class).iter().any(|class| {
+            self.classes
+                .get(class)
+                .map(|definition| {
+                    definition.properties.iter().any(|property| {
+                        !property.is_static && property.name.to_lowercase() == name
+                    })
                 })
                 .unwrap_or(false)
         })

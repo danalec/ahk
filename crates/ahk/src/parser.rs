@@ -469,6 +469,10 @@ pub struct Parser {
     ///
     /// The `super` of v2 is only valid inside a class.
     in_class: bool,
+    /// Whether the parser is inside a function.
+    ///
+    /// A function may not contain a class: v2 refuses it at the load.
+    in_function: bool,
     /// The operator that may not follow a literal text.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the error is named
@@ -521,6 +525,7 @@ impl Parser {
             assignments: vec![Vec::new()],
             parameters: Vec::new(),
             in_class: false,
+            in_function: false,
             pending_literal: None,
             expressions: Vec::new(),
         }
@@ -1139,7 +1144,11 @@ impl Parser {
                 let at_the_top = self.parameters.is_empty();
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
                 self.assignments.push(Vec::new());
+                // A function may not contain a class.
+                let was_in_a_function = self.in_function;
+                self.in_function = true;
                 let body = self.parse_block("function", name_token.line)?;
+                self.in_function = was_in_a_function;
                 self.check_the_labels(&body)?;
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
                 self.assignments.pop();
@@ -2095,6 +2104,19 @@ impl Parser {
     /// A class: `class Name extends Base { }`.
     fn parse_class(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
+        // Measured on the binary of v2.0.19 on 2026-10-31: a function may
+        // not contain a class, and the line of the class is the one that is
+        // named.
+        if self.in_function {
+            return Err(SyntaxError {
+                message: format!(
+                    "Functions cannot contain classes.\n     Specifically: {}",
+                    the_source_of_the_line(self, token.line)
+                ),
+                line: token.line,
+                column: token.column,
+            });
+        }
         let name_token = self.next();
         if name_token.kind != TokenKind::Name {
             // Measured on the binary of v2.0.19 on 2026-10-31: a name that
@@ -2291,7 +2313,11 @@ impl Parser {
                 self.expect_op(")")?;
                 self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
                 self.assignments.push(Vec::new());
+                // A method may not contain a class either.
+                let was_in_a_function = self.in_function;
+                self.in_function = true;
                 let body = self.parse_block("method", name_token.line)?;
+                self.in_function = was_in_a_function;
                 self.check_the_labels(&body)?;
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
                 self.assignments.pop();
@@ -3992,6 +4018,29 @@ mod tests {
             error.message,
             "\"Goto\" accepts at most 1 parameter.\n     Specifically: Goto a, b"
         );
+    }
+
+    #[test]
+    fn a_class_may_not_be_declared_inside_a_function() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a function may
+        // not contain a class, and the line of the class is the one that is
+        // named.
+        let error = parse("F() {\n    class C {\n    }\n}\n").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Functions cannot contain classes.\n     Specifically: class C {"
+        );
+        assert_eq!(error.line, 2);
+        // A method is a function too.
+        let error =
+            parse("class C {\n    Make() {\n        class D {\n        }\n    }\n}\n").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Functions cannot contain classes.\n     Specifically: class D {"
+        );
+        // A class at the top level is fine, and so is one inside a block.
+        parse("class C {\n}\n").expect("parses");
+        parse("try {\n    class C {\n    }\n} catch Any as err {\n}\n").expect("parses");
     }
 
     #[test]
