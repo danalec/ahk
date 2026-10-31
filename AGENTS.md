@@ -4861,3 +4861,33 @@ that is empty answers an array with no piece in it.
 The tree answered one piece for the text that was empty, and the piece was
 the text itself. The comparison of the tree with the binary is in
 `egm-review/compare_str_split.py` (25 cases, all of them the same).
+
+## 108. The hash that is not a directive, and the directive that is not known
+
+Measured on the binary of v2.0.19 on 2026-10-31: the hash is a directive
+only at the start of a line, and the names of the directives of the v2 are
+nineteen.
+
+- **The hash that is apart is an illegal character in an expression.** The
+  text of the expression is named: "Illegal character in expression.
+  \n     Specifically: #y" for `x := 1 #y`, and the command of v2 carries
+  the parenthesis that closes it -- "#y)" for `MsgBox #y`.
+- **The hash that follows a name is a part of it,** and the line that holds
+  it holds no action: "This line does not contain a recognized action.
+  \n     Specifically: x#y" for `x#y`, and for `x#y := 1`.
+- **A hash that has no name, or a name that begins with a number, is not a
+  directive either,** and the line holds no action.
+- **A name that the v2 does not know is not a directive at all,** and the
+  refusal is at the load: "This line does not contain a recognized action.
+  \n     Specifically: #Foo Bar" for `#Foo Bar`.
+- **The names of the directives of the v2 are these:** ClipboardTimeout,
+  DllLoad, ErrorStdOut, HotIf, HotIfTimeout, Hotstring, Include,
+  IncludeAgain, InputLevel, MaxThreads, MaxThreadsBuffer,
+  MaxThreadsPerHotkey, NoTrayIcon, Requires, SingleInstance, SuspendExempt,
+  UseHook, Warn and WinActivateForce.
+
+The tree read the hash of the middle of a line as a directive and took the
+rest of the line for its argument, and it refused the line with a message
+that named something else. The probes that measured the rules are in
+`egm-review/probe_hash_place.py`, `egm-review/probe_directive_place.py`
+and `egm-review/probe_directive_names.py`.

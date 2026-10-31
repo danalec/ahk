@@ -97,6 +97,11 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   a name, the way it is in the v2, and the name that begins with a number
   and a mark is refused with the name in it -- the mark is written as a
   question mark, because it cannot be written.
+- The hash is a directive only at the start of a line. Anywhere else it is
+  an illegal character in an expression, and the parser names the text of
+  it. `THE_DIRECTIVES` carries the names of the v2, and a name that is not
+  one of them is not a directive: the line holds no action, and the lexer
+  refuses it at the load with the line as it was written.
 - `SyntaxError { message, line, column }` -- the error the lexer and the
   parser raise.
 - The continuation section of v2 is read here, and not by the parser: a line

@@ -124,6 +124,34 @@ impl SyntaxError {
     }
 }
 
+/// The directives of v2.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: these are the names
+/// that the binary knows. A name that is not in the list is not a directive
+/// at all: the line that holds it holds no action, and it is refused at the
+/// load.
+const THE_DIRECTIVES: [&str; 19] = [
+    "clipboardtimeout",
+    "dllload",
+    "errorstdout",
+    "hotif",
+    "hotiftimeout",
+    "hotstring",
+    "include",
+    "includeagain",
+    "inputlevel",
+    "maxthreads",
+    "maxthreadsbuffer",
+    "maxthreadsperhotkey",
+    "notrayicon",
+    "requires",
+    "singleinstance",
+    "suspendexempt",
+    "usehook",
+    "warn",
+    "winactivateforce",
+];
+
 /// Whether the character is a letter of a name.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the byte order mark is
@@ -146,6 +174,19 @@ fn the_character_is_of_a_name(character: char) -> bool {
 /// cannot be written is a question mark.
 fn the_name_of_a_message(name: &str) -> String {
     format!("{:?}", name.replace('\u{feff}', "?"))
+}
+
+/// The line of the script that holds the hash, from the hash.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the text that is named
+/// is the line from the hash, and the space at the end of it is not a part
+/// of it.
+fn the_line_of_the_hash(chars: &[char], start: usize) -> String {
+    let mut end = start;
+    while end < chars.len() && chars[end] != '\n' {
+        end += 1;
+    }
+    chars[start..end].iter().collect::<String>().trim_end().to_string()
 }
 
 /// The source of a part of the script, as it was written.
@@ -571,10 +612,21 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             continue;
         }
         if current == '#' {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the hash is a
+            // directive only at the start of a line. Anywhere else it is an
+            // illegal character in an expression, and the parser is the one
+            // that says so.
+            if tokens.iter().any(|token| token.line == line) {
+                tokens.push(Token { kind: TokenKind::Op, value: "#".into(), line, column, spaced: before, quote: None });
+                index += 1;
+                column += 1;
+                continue;
+            }
             // A directive: the name, and the rest of the line is its
             // argument. The argument is free text, so the lexer reads it
             // as it stands and the runtime says what it means.
             let (start_line, start_column) = (line, column);
+            let hash_at = index;
             index += 1;
             column += 1;
             let mut name = String::new();
@@ -583,14 +635,37 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                 index += 1;
                 column += 1;
             }
-            if name.is_empty() {
-                return Err(SyntaxError::new("a directive needs a name", start_line, start_column));
+            if name.is_empty() || name.starts_with(|character: char| character.is_ascii_digit()) {
+                // Measured on the binary of v2.0.19 on 2026-10-31: a hash that
+                // has no name, or a name that begins with a number, is not a
+                // directive: the line holds no action, and it is named.
+                return Err(SyntaxError::new(
+                    format!(
+                        "This line does not contain a recognized action.\n     Specifically: {}",
+                        the_line_of_the_hash(&chars, hash_at)
+                    ),
+                    start_line,
+                    start_column,
+                ));
             }
             let mut argument = String::new();
             while index < chars.len() && chars[index] != '\n' {
                 argument.push(chars[index]);
                 index += 1;
                 column += 1;
+            }
+            // Measured on the binary of v2.0.19 on 2026-10-31: a name that
+            // the v2 does not know is not a directive at all: the line holds
+            // no action, and it is named with it.
+            if !THE_DIRECTIVES.contains(&name.to_lowercase().as_str()) {
+                return Err(SyntaxError::new(
+                    format!(
+                        "This line does not contain a recognized action.\n     Specifically: #{name}{}",
+                        argument.trim_end()
+                    ),
+                    start_line,
+                    start_column,
+                ));
             }
             tokens.push(Token {
                 kind: TokenKind::Directive,
@@ -1194,6 +1269,40 @@ mod tests {
         assert_eq!(
             error.message,
             "This variable name starts with a number, which is not allowed:\n\"1?x\""
+        );
+    }
+
+    #[test]
+    fn the_directive_without_a_name_is_a_line_that_holds_no_action() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: a hash that has
+        // no name is not a directive, and the line holds no action.
+        let error = tokenize("#\n").expect_err("does not lex");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: #"
+        );
+    }
+
+    #[test]
+    fn the_directive_with_a_number_is_a_line_that_holds_no_action() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // directive may not begin with a number.
+        let error = tokenize("#123\n").expect_err("does not lex");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: #123"
+        );
+    }
+
+    #[test]
+    fn the_directive_that_is_not_known_is_a_line_that_holds_no_action() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the names that
+        // the v2 knows are nineteen, and a name that is not one of them is
+        // not a directive at all.
+        let error = tokenize("#Foo Bar\n").expect_err("does not lex");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: #Foo Bar"
         );
     }
 }

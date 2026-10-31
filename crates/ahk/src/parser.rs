@@ -260,7 +260,13 @@ fn the_source_of_the_statement(parser: &Parser) -> String {
 fn the_message_of_a_command(mut error: SyntaxError) -> SyntaxError {
     // The bracket that is not there is not a failure of the parameters, and
     // it is not named with the parenthesis of the call.
-    if !error.message.starts_with("Missing \"") && error.message.contains("\n     Specifically: ") {
+    //
+    // The line that holds no action is named with the line itself, and the
+    // parenthesis of the call is not a part of it.
+    if !error.message.starts_with("Missing \"")
+        && !error.message.starts_with("This line does not contain a recognized action.")
+        && error.message.contains("\n     Specifically: ")
+    {
         error.message.push(')');
     }
     error
@@ -1028,6 +1034,13 @@ impl Parser {
     /// The line is the line of the construct, and the messages that name
     /// it need it.
     fn parse_block(&mut self, kind: &str, line: u32) -> Result<Vec<Node>, SyntaxError> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the hash that is
+        // not a directive is an illegal character in an expression, and the
+        // text of the expression is named. The v2 looks at the hash before it
+        // says that the body of the block is not where it belongs.
+        if self.at_op(&["#"]) {
+            return Err(self.the_error_of_the_hash(self.position));
+        }
         // Measured on the binary of v2.0.19 on 2026-10-31: the body of the
         // `if`, the `while`, the `loop`, the `for` and the `catch` is on
         // the next line, and the `try`, the `else` and the `finally` take
@@ -1467,6 +1480,11 @@ impl Parser {
                     the_source_of_the_line(self, token.line)
                 )
             }
+        } else if token.kind == TokenKind::Op && token.value == "#" {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the hash that
+            // is not a directive is an illegal character in an expression,
+            // and the text of the expression is named.
+            return Err(self.the_error_of_the_hash(self.position));
         } else {
             format!(
                 "Unexpected {:?}\n     Specifically: {}",
@@ -1488,6 +1506,12 @@ impl Parser {
         }
         if token.kind == TokenKind::Op && token.value == "}" {
             return Ok(());
+        }
+        // Measured on the binary of v2.0.19 on 2026-10-31: the hash that is
+        // not a directive is an illegal character in an expression, and the
+        // text of the expression is named.
+        if token.kind == TokenKind::Op && token.value == "#" {
+            return Err(self.the_error_of_the_hash(self.position));
         }
         // Measured on the binary of v2.0.19 on 2026-10-31: the token that
         // is not wanted is named, and the line of the script says where it
@@ -3620,6 +3644,28 @@ impl Parser {
         the_source_of_a_definition(self, start, self.position)
     }
 
+    /// The error of the hash that is not a directive.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the hash that
+    /// follows a name is a part of it, and the line that holds it has no
+    /// action. The hash that is apart is an illegal character in an
+    /// expression, and the text of the expression is named.
+    fn the_error_of_the_hash(&self, at: usize) -> SyntaxError {
+        let token = &self.tokens[at];
+        let message = if token.spaced {
+            format!(
+                "Illegal character in expression.\n     Specifically: {}",
+                the_source_of_the_rest_of_the_line(self, at)
+            )
+        } else {
+            format!(
+                "This line does not contain a recognized action.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )
+        };
+        SyntaxError { message, line: token.line, column: token.column }
+    }
+
     /// The error of the operand that is not there.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the operator that
@@ -3654,6 +3700,12 @@ impl Parser {
             // The colon of the ternary is a part of the question that is
             // not there.
             TokenKind::Op if token.value == ":" => "A \":\" is missing its \"?\"".to_string(),
+            // Measured on the binary of v2.0.19 on 2026-10-31: the hash that
+            // is not a directive is an illegal character in an expression,
+            // and the text of the expression is named.
+            TokenKind::Op if token.value == "#" => {
+                return self.the_error_of_the_hash(self.position.saturating_sub(1))
+            }
             // An operator may not begin a value.
             TokenKind::Op if token.value != "," => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the text

@@ -4668,3 +4668,50 @@ fn the_property_of_the_answer_of_a_constructor_may_be_written() {
     let (report, _desktop) = run("class T {\n    P := 3\n}\nT().P := 1");
     assert!(report.ok, "{:?}", report.error);
 }
+
+#[test]
+fn the_hash_that_is_not_a_directive_is_an_illegal_character() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the hash is a
+    // directive only at the start of a line, and anywhere else it is an
+    // illegal character in an expression. The text that is named is the
+    // expression, and the command of v2 carries the parenthesis that closes
+    // it.
+    let error = parse("x := 1 #y").expect_err("does not parse");
+    assert_eq!(error.message, "Illegal character in expression.\n     Specifically: #y");
+    let error = parse("MsgBox #y").expect_err("does not parse");
+    assert_eq!(error.message, "Illegal character in expression.\n     Specifically: #y)");
+}
+
+#[test]
+fn the_hash_that_follows_a_name_is_a_line_that_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the hash that
+    // follows a name is a part of it, and the line that holds it holds no
+    // action.
+    let error = parse("x#y").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: x#y"
+    );
+    let error = parse("x#y := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: x#y := 1"
+    );
+}
+
+#[test]
+fn the_directive_that_is_not_known_is_a_line_that_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a name that the v2
+    // does not know is not a directive at all, and the refusal is at the
+    // load.
+    let error = parse("#Foo").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: #Foo"
+    );
+    let error = parse("#Foo Bar").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: #Foo Bar"
+    );
+}
