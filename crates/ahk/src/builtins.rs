@@ -877,7 +877,7 @@ fn dir_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) ->
 
 /// `FileDelete`: take a file away.
 fn file_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let path = text_of(values, 0);
+    let path = crate::files::the_name_of_a_file(values, 0, 1, "FileDelete", line)?;
     rt.desktop().delete_file(&path).map_err(|reason| RuntimeError { message: reason, line })?;
     Ok(Value::Text(path))
 }

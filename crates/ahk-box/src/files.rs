@@ -186,13 +186,7 @@ impl ahk::desktop::Files for LabDesktop {
     fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
         let text = std::fs::read_to_string(path)
             .map_err(|error| the_failure_of_the_machine(path, &error))?;
-        let mut lines: Vec<String> = text.lines().map(|line| line.to_string()).collect();
-        // A file that ends with a newline has no last empty line: the
-        // newline is the end of the last line, not a line of its own.
-        if text.ends_with('\n') {
-            lines.pop();
-        }
-        Ok(lines)
+        Ok(the_lines_of(&text))
     }
     fn read_the_bytes_of_a_file(&mut self, path: &str) -> Result<Vec<u8>, String> {
         match fs::read(path) {
@@ -836,6 +830,38 @@ fn write_key(text: &str, ending: &str, section: &str, key: &str, value: &str) ->
     written
 }
 
+/// The lines of a text, the way v2 counts them.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the linefeed, the
+/// carriage return and the two together end a line. A file that ends with
+/// an ending has no empty line at its end, and a file that ends with two
+/// of them has one.
+fn the_lines_of(text: &str) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut characters = text.chars().peekable();
+    while let Some(character) = characters.next() {
+        match character {
+            '\r' => {
+                if characters.peek() == Some(&'\n') {
+                    characters.next();
+                }
+                lines.push(current.clone());
+                current.clear();
+            }
+            '\n' => {
+                lines.push(current.clone());
+                current.clear();
+            }
+            other => current.push(other),
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -915,6 +941,31 @@ mod tests {
         let to = folder.join("b.txt").to_string_lossy().to_string();
         let mut desktop = LabDesktop::new();
         assert_eq!(desktop.copy_file(&from, &to, false), Err("Failed".to_string()));
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_lines_of_a_file_are_the_lines_of_v2() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the linefeed,
+        // the carriage return and the two together end a line, and a file
+        // that ends with an ending has no empty line at its end.
+        assert_eq!(the_lines_of("one\r\ntwo\r\n"), vec!["one", "two"]);
+        assert_eq!(the_lines_of("one\r\ntwo"), vec!["one", "two"]);
+        assert_eq!(the_lines_of("one\r\n\r\n"), vec!["one", ""]);
+        assert_eq!(the_lines_of("one\r\n"), vec!["one"]);
+        assert_eq!(the_lines_of("one"), vec!["one"]);
+        assert_eq!(the_lines_of("one\rtwo\r"), vec!["one", "two"]);
+        assert!(the_lines_of("").is_empty());
+    }
+
+    #[test]
+    fn the_file_of_the_machine_has_the_lines_that_v2_sees() {
+        let folder = scratch("read-lines");
+        let path = folder.join("lines.txt");
+        fs::write(&path, "one\r\ntwo\r\n").expect("the file of the case");
+        let mut desktop = LabDesktop::new();
+        let lines = desktop.read_file(&path.to_string_lossy()).expect("the lines");
+        assert_eq!(lines, vec!["one".to_string(), "two".to_string()]);
         let _ = fs::remove_dir_all(&folder);
     }
 

@@ -1026,6 +1026,16 @@ that asks for another one is refused with the reason.
 - **An object is not written as a text.** v2 reads the property "Ptr" of
   the value that it writes, and an object has none. A class is a class of
   its own kind ("Class"), and a prototype is of its own too ("Prototype").
+- **The name of a file that is empty is refused by the command that acts on
+  it.** The message is "Parameter #1 of FileDelete is invalid.", the name of
+  the built-in goes in the `What`, and the value that failed goes in the
+  `Extra` as "empty string". The commands that open a file or ask about one
+  let the machine answer.
+- **The name of the file of a `FileAppend` may be left out only inside the
+  body of a `Loop Read` that has a file of its own,** and the text goes to
+  that file. Everywhere else the refusal is "Parameter #2 of FileAppend must
+  not be omitted in this case.". The runtime keeps the file of the loop that
+  runs, and the tree asks the machine to append to it.
 - **The stack of an error names every frame of the call that failed.** The
   frame is the file, the line, the name of the frame and the source of the
   line, and the section that starts the script is the last frame and has no

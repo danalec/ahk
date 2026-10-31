@@ -5347,3 +5347,34 @@ an error and the file of every frame of its stack are empty.
 The probes that measured the rules are in
 `egm-review/probe_error_props_v2.py` (10 cases), `probe_base_refusals.py`
 (10) and `compare_error_object.py` (40).
+
+## 122. The name of a file, and the name that is not there
+
+Measured on the binary of v2.0.19 on 2026-11-01: the name of a file that is
+empty is refused by the command that acts on it, and the name of the file of
+a `FileAppend` may be left out only inside a loop that reads.
+
+- **The name of a file that is empty is refused:** "Parameter #1 of
+  FileDelete is invalid.", and the value that failed goes in the `Extra` as
+  "empty string". The commands that open a file or ask about one do not
+  refuse it -- `FileOpen` and `FileExist` let the machine answer.
+- **The name of the file of a `FileAppend` may be left out only inside the
+  body of a `Loop Read` that has a file of its own:** the text goes to that
+  file. Everywhere else the refusal is "Parameter #2 of FileAppend must not
+  be omitted in this case.".
+- **The `FileSetAttrib` names the first parameter when it is the second that
+  failed:** the name of the file is the second parameter of it, and the
+  message of v2 names the first one, which is the attributes.
+
+The tree asked the machine for the name of the file and answered with the
+failure of the machine -- "(2) The system cannot find the file specified."
+-- where the v2 refuses the name itself.
+
+The box dropped the last line of every file that ends with a newline: the
+linefeed, the carriage return and the two together end a line, and a file
+that ends with an ending has no empty line at its end.
+
+The probes that measured the rules are in `egm-review/probe_empty_name.py`
+(15 cases), `probe_empty_name2.py` (10), `probe_empty_name3.py` (7),
+`probe_empty_name4.py` (6), `probe_fileappend_name.py` (5),
+`probe_read_lines.py` (7) and `compare_file_name.py` (20).

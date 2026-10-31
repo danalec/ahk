@@ -2881,3 +2881,103 @@ fn a_desktop_that_cannot_ask_the_user_says_so() {
         Some("this desktop cannot ask the user for a text")
     );
 }
+
+#[test]
+fn the_name_of_a_file_that_is_empty_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the commands that
+    // act on the name of a file refuse it when it is empty, and the value
+    // that failed goes in the `Extra` as "empty string".
+    let cases = [
+        ("FileDelete \"\"", 1, "FileDelete"),
+        ("FileRead \"\"", 1, "FileRead"),
+        ("FileMove \"\", \"b.txt\"", 1, "FileMove"),
+        ("FileMove \"a.txt\", \"\"", 2, "FileMove"),
+        ("FileCopy \"\", \"b.txt\"", 1, "FileCopy"),
+        ("FileCopy \"a.txt\", \"\"", 2, "FileCopy"),
+        ("FileGetSize \"\"", 1, "FileGetSize"),
+        ("FileGetTime \"\"", 1, "FileGetTime"),
+        ("FileGetAttrib \"\"", 1, "FileGetAttrib"),
+        ("DirCopy \"\", \"b\"", 1, "DirCopy"),
+        ("DirCopy \"a\", \"\"", 2, "DirCopy"),
+        ("DirMove \"\", \"b\"", 1, "DirMove"),
+        ("DirMove \"a\", \"\"", 2, "DirMove"),
+        ("FileSetTime \"a.txt\", \"\", \"b.txt\"", 2, "FileSetTime"),
+        ("FileAppend \"a\", \"\"", 2, "FileAppend"),
+    ];
+    for (call, number, name) in cases {
+        let report = run(&format!(
+            "try {{\n    {call}\n}} catch Any as e {{\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}}"
+        ));
+        assert!(report.ok, "{call}: {:?}", report.error);
+        assert_eq!(
+            report.output,
+            vec![format!("Parameter #{number} of {name} is invalid. | {name} | empty string")],
+            "{call}"
+        );
+    }
+}
+
+#[test]
+fn the_name_of_the_file_of_the_attributes_is_the_second_one_and_the_message_names_the_first() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the name of the file
+    // is the second parameter of the `FileSetAttrib`, and the message of v2
+    // names the first one, which is the attributes. The value of the first
+    // one goes in the `Extra`.
+    let report = run(
+        "try {\n    FileSetAttrib(\"R\", \"\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of FileSetAttrib is invalid. | FileSetAttrib | R"]
+    );
+}
+
+#[test]
+fn the_file_append_without_the_name_of_the_file_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the name of the file
+    // of a `FileAppend` may be left out only inside the body of a `Loop
+    // Read` that has a file of its own.
+    let report = run(
+        "try {\n    FileAppend(\"a\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #2 of FileAppend must not be omitted in this case. | FileAppend | "]
+    );
+}
+
+#[test]
+fn the_file_append_without_the_name_writes_to_the_file_of_the_loop() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the text of a
+    // `FileAppend` that has no name of its own goes to the file of the
+    // `Loop Read` that runs.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        "Loop Read \"in.txt\", \"out.txt\" {\n    FileAppend \"x\"\n}",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![
+            ("append-file".to_string(), "out.txt x ".to_string()),
+            ("append-file".to_string(), "out.txt x ".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn the_file_append_without_the_name_is_refused_in_a_loop_without_a_file() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the loop that reads
+    // has no file of its own, and the name of the file may not be left out.
+    let report = run(
+        "try {\n    Loop Read \"in.txt\" {\n        FileAppend \"x\"\n    }\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #2 of FileAppend must not be omitted in this case. | FileAppend"]
+    );
+}

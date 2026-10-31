@@ -42,8 +42,8 @@ pub fn encoding() -> &'static str {
 
 /// `DirCopy`: take a copy of a folder and of everything in it.
 pub fn dir_copy(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let from = text_of(values, 0);
-    let to = text_of(values, 1);
+    let from = the_name_of_a_file(values, 0, 1, "DirCopy", line)?;
+    let to = the_name_of_a_file(values, 1, 2, "DirCopy", line)?;
     refuse_the_wildcards(&from, line)?;
     refuse_the_wildcards(&to, line)?;
     let overwrite = flag_of(values, 2, "DirCopy", line)?;
@@ -55,8 +55,8 @@ pub fn dir_copy(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8)
 
 /// `DirMove`: move a folder, with everything in it.
 pub fn dir_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let from = text_of(values, 0);
-    let to = text_of(values, 1);
+    let from = the_name_of_a_file(values, 0, 1, "DirMove", line)?;
+    let to = the_name_of_a_file(values, 1, 2, "DirMove", line)?;
     refuse_the_wildcards(&from, line)?;
     refuse_the_wildcards(&to, line)?;
     let overwrite = flag_of(values, 2, "DirMove", line)?;
@@ -68,8 +68,8 @@ pub fn dir_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8)
 
 /// `FileCopy`: take a copy of a file.
 pub fn file_copy(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let from = text_of(values, 0);
-    let to = text_of(values, 1);
+    let from = the_name_of_a_file(values, 0, 1, "FileCopy", line)?;
+    let to = the_name_of_a_file(values, 1, 2, "FileCopy", line)?;
     refuse_the_wildcards(&from, line)?;
     refuse_the_wildcards(&to, line)?;
     let overwrite = flag_of(values, 2, "FileCopy", line)?;
@@ -81,8 +81,8 @@ pub fn file_copy(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 
 /// `FileMove`: move a file.
 pub fn file_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let from = text_of(values, 0);
-    let to = text_of(values, 1);
+    let from = the_name_of_a_file(values, 0, 1, "FileMove", line)?;
+    let to = the_name_of_a_file(values, 1, 2, "FileMove", line)?;
     refuse_the_wildcards(&from, line)?;
     refuse_the_wildcards(&to, line)?;
     let overwrite = flag_of(values, 2, "FileMove", line)?;
@@ -113,7 +113,7 @@ pub fn file_install(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
 
 /// `FileGetAttrib`: the attributes of a file, as the letters of v2.
 pub fn file_get_attrib(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let path = text_of(values, 0);
+    let path = the_name_of_a_file(values, 0, 1, "FileGetAttrib", line)?;
     let letters = rt
         .desktop()
         .file_attributes(&path)
@@ -127,7 +127,7 @@ pub fn file_get_attrib(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
 /// the binary of v2.0.19 takes them.
 pub fn file_set_attrib(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let attributes = text_of(values, 0);
-    let path = text_of(values, 1);
+    let path = the_name_of_a_file(values, 1, 1, "FileSetAttrib", line)?;
     let mode = text_of(values, 2);
     refuse_the_recursion(&mode, line)?;
     refuse_the_wildcards(&path, line)?;
@@ -182,7 +182,7 @@ fn groups_of(attributes: &str) -> Option<Vec<String>> {
 
 /// `FileGetSize`: how big a file is.
 pub fn file_get_size(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let path = text_of(values, 0);
+    let path = the_name_of_a_file(values, 0, 1, "FileGetSize", line)?;
     let unit = text_of(values, 1);
     let kilobytes = match unit.trim() {
         "" => false,
@@ -218,7 +218,7 @@ pub fn file_get_size(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
 /// The answer is the stamp of v2: the fourteen digits of
 /// `YYYYMMDDHH24MISS`, in the local time of the machine.
 pub fn file_get_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let path = text_of(values, 0);
+    let path = the_name_of_a_file(values, 0, 1, "FileGetTime", line)?;
     let which = text_of(values, 1);
     let which = which.trim().to_ascii_uppercase();
     // The parameter is checked before the file is asked for, so that the
@@ -248,7 +248,7 @@ pub fn file_get_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
 /// binary of v2.0.19 takes them.
 pub fn file_set_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let stamp = text_of(values, 0);
-    let path = text_of(values, 1);
+    let path = the_name_of_a_file(values, 1, 2, "FileSetTime", line)?;
     let which = text_of(values, 2);
     let mode = text_of(values, 3);
     refuse_the_recursion(&mode, line)?;
@@ -315,7 +315,7 @@ pub fn file_encoding(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
 /// the options of the read: the encoding of the file, `RAW`, `m<n>` and a
 /// linefeed. The answer is a buffer when the script asks for the bytes.
 pub fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let path = text_of(values, 0);
+    let path = the_name_of_a_file(values, 0, 1, "FileRead", line)?;
     let options = the_options_of(&text_of(values, 1), true)
         .map_err(|failure| RuntimeError { message: failure.message(), line })?;
     let mut bytes = rt
@@ -361,7 +361,33 @@ pub fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
             line,
         });
     }
-    let path = text_of(values, 1);
+    // The name of the file may be left out only inside the body of a
+    // `Loop Read` that has a file of its own.
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-01: the refusal is
+    // "Parameter #2 of FileAppend must not be omitted in this case.", and
+    // the name of the built-in goes in the `What` of the failure.
+    let path = match values.get(1) {
+        Some(value) => {
+            let path = value.to_text();
+            if path.is_empty() {
+                return Err(RuntimeError {
+                    message: "Parameter #2 of FileAppend is invalid.".to_string(),
+                    line,
+                });
+            }
+            path
+        }
+        None => match rt.the_output_file_of_the_loop() {
+            Some(path) => path.to_string(),
+            None => {
+                return Err(RuntimeError {
+                    message: "Parameter #2 of FileAppend must not be omitted in this case.".to_string(),
+                    line,
+                })
+            }
+        },
+    };
     let options = the_options_of(&text_of(values, 2), false)
         .map_err(|failure| RuntimeError { message: failure.message(), line })?;
     // The star is the console of the machine, and the tree has no console of
@@ -641,6 +667,34 @@ pub fn ini_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u
 }
 
 // -- the helpers --------------------------------------------------------------------
+
+/// The name of a file, when it is not empty.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the commands that act
+/// on the name of a file refuse it when it is empty -- "Parameter #1 of
+/// FileDelete is invalid." -- and the value that failed goes in the `Extra`
+/// of the failure. A text that is empty is named "empty string" there.
+///
+/// The number that the message names is the place of the parameter that
+/// failed. The `FileSetAttrib` is the one that names another: the name of
+/// the file is its second parameter, and the message of v2 names the first
+/// one, which is the attributes.
+pub(crate) fn the_name_of_a_file(
+    values: &[Value],
+    index: usize,
+    named: usize,
+    name: &str,
+    line: u32,
+) -> Result<String, RuntimeError> {
+    let text = text_of(values, index);
+    if text.is_empty() {
+        return Err(RuntimeError {
+            message: format!("Parameter #{named} of {name} is invalid."),
+            line,
+        });
+    }
+    Ok(text)
+}
 
 /// The text of the argument at this place, or the empty string.
 fn text_of(values: &[Value], index: usize) -> String {

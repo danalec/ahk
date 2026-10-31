@@ -1021,6 +1021,12 @@ pub struct Runtime<'a> {
     /// one. The frame carries the line of the statement that runs in it,
     /// and the stack of an error names it.
     frames: Vec<Frame>,
+    /// The files of the file-reading loops that run.
+    ///
+    /// The name of the file of a `FileAppend` may be left out inside the
+    /// body of a `Loop Read` that has a file of its own, and the text goes
+    /// to that file. The last one of the list is the loop that runs.
+    loop_output_files: Vec<String>,
     /// The lines of the script, when the host gave them.
     ///
     /// The stack of an error names the source of the line that failed,
@@ -1139,6 +1145,7 @@ impl<'a> Runtime<'a> {
             declarations: Vec::new(),
             current_classes: Vec::new(),
             frames: Vec::new(),
+            loop_output_files: Vec::new(),
             source: Vec::new(),
             auto_execute_line: 0,
             functions: BTreeMap::new(),
@@ -1191,6 +1198,7 @@ impl<'a> Runtime<'a> {
             declarations: Vec::new(),
             current_classes: Vec::new(),
             frames: Vec::new(),
+            loop_output_files: Vec::new(),
             source: Vec::new(),
             auto_execute_line: 0,
             functions: BTreeMap::new(),
@@ -2154,10 +2162,23 @@ impl<'a> Runtime<'a> {
                     }
                     LoopKind::Read => {
                         let path = self.loop_argument(arguments, 0, *line)?.to_text();
+                        // The file of the loop is where a `FileAppend` that
+                        // has no name of its own writes.
+                        //
+                        // Measured on the binary of v2.0.19 on 2026-11-01:
+                        // the name of the file of a `FileAppend` may be left
+                        // out inside the body of a `Loop Read` that has a
+                        // file of its own.
+                        let output = match arguments.get(1) {
+                            Some(node) => self.evaluate(node)?.to_text(),
+                            None => String::new(),
+                        };
                         let lines = self
                             .desktop()
                             .read_file(&path)
                             .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line: *line }))?;
+                        self.loop_output_files.push(output);
+                        let mut failure = None;
                         for (index, line_text) in lines.iter().enumerate() {
                             self.set_global("A_Index", Value::Int(index as i64 + 1));
                             // Measured on the binary of v2.0.19 on
@@ -2169,8 +2190,15 @@ impl<'a> Runtime<'a> {
                                 Ok(()) => {}
                                 Err(RuntimeFailure::Flow(Flow::Break)) => break,
                                 Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                                Err(other) => return Err(other),
+                                Err(other) => {
+                                    failure = Some(other);
+                                    break;
+                                }
                             }
+                        }
+                        self.loop_output_files.pop();
+                        if let Some(other) = failure {
+                            return Err(other);
                         }
                     }
                     LoopKind::Reg => {
@@ -7291,6 +7319,18 @@ impl<'a> Runtime<'a> {
         self.initial_working_dir.as_deref()
     }
 
+    /// The file of the file-reading loop that runs, when it has one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the name of the
+    /// file of a `FileAppend` may be left out inside the body of a `Loop
+    /// Read` that has a file of its own, and the text goes to that file.
+    pub(crate) fn the_output_file_of_the_loop(&self) -> Option<&str> {
+        self.loop_output_files
+            .last()
+            .map(|path| path.as_str())
+            .filter(|path| !path.is_empty())
+    }
+
     /// The pause the script asked for.
     pub(crate) fn sleep_ms(&mut self, millis: u64) {
         self.clock.sleep_ms(millis)
@@ -8680,6 +8720,10 @@ fn the_parameter_that_failed(message: &str, values: &[Value]) -> String {
 /// of their own: an object, an array and a function have none.
 pub(crate) fn the_extra_of_the_value(value: &Value) -> String {
     match value {
+        // Measured on the binary of v2.0.19 on 2026-11-01: a text that is
+        // empty is named "empty string" in the `Extra` of a failure, the way
+        // the message of the kind of a value names it.
+        Value::Text(text) if text.is_empty() => "empty string".to_string(),
         Value::Text(text) => text.clone(),
         Value::Int(_) | Value::Float(_) => value.to_text(),
         Value::List(_) | Value::Object(_) | Value::Reference(_) => String::new(),
