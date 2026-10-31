@@ -4825,3 +4825,23 @@ them the same). The probes that measured the rules are in
 `egm-review/probe_readonly_properties.py`,
 `egm-review/probe_readonly_names.py` and
 `egm-review/probe_write_to_a_member_of_a_call2.py`.
+
+## 106. The byte order mark of the script
+
+Measured on the binary of v2.0.19 on 2026-10-31: the script may begin with
+the byte order mark, and the mark is not a character of it.
+
+- **Only the first mark is taken.** A second one is a character of the
+  script: the line that holds it has no action, and the v2 says "This line
+  does not contain a recognized action.\n     Specifically: ?#NoTrayIcon".
+- **The mark is a letter of a name.** `x<mark>y` is a name, and the name
+  that begins with a number and a mark is refused with the name in it.
+- **The mark is written as a question mark in a message,** because it cannot
+  be written: "This variable name starts with a number, which is not
+  allowed:\n\"1?\"".
+
+The tree refused a script that began with the mark with "unexpected
+character '\u{feff}'", and a script that an editor of Windows saved has the
+mark in it. The probes that measured the rules are in
+`egm-review/probe_script_bom.py` and
+`egm-review/probe_script_bom_middle.py`.

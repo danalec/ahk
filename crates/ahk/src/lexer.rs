@@ -124,6 +124,30 @@ impl SyntaxError {
     }
 }
 
+/// Whether the character is a letter of a name.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the byte order mark is
+/// a letter of a name, and a name may begin with it.
+fn the_character_is_a_letter(character: char) -> bool {
+    character.is_alphabetic() || character == '_' || character == '\u{feff}'
+}
+
+/// Whether the character is a part of a name.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the byte order mark is a
+/// part of a name, and the name that begins with it is a name.
+fn the_character_is_of_a_name(character: char) -> bool {
+    character.is_alphanumeric() || character == '_' || character == '\u{feff}'
+}
+
+/// The name of a script, the way v2 writes it in a message.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the character that
+/// cannot be written is a question mark.
+fn the_name_of_a_message(name: &str) -> String {
+    format!("{:?}", name.replace('\u{feff}', "?"))
+}
+
 /// The source of a part of the script, as it was written.
 ///
 /// The text of the dialect is the line as the script wrote it, and the
@@ -458,7 +482,7 @@ fn the_code_of_a_line(text: &str) -> &str {
 /// with a quote, and the quote is not a name.
 fn the_last_character_is_a_name(text: &str) -> bool {
     match the_code_of_a_line(text).trim_end().chars().last() {
-        Some(last) => last.is_alphanumeric() || last == '_',
+        Some(last) => the_character_is_of_a_name(last),
         None => false,
     }
 }
@@ -492,6 +516,10 @@ fn the_line_the_section_joins(
 /// by newlines too, so the parser reads a block as a list of statements and
 /// the newline is just a separator there as well.
 pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the script may begin
+    // with the byte order mark, and the mark is not a character of it. Only
+    // the first one is taken: a second one is a character of the script.
+    let source = source.strip_prefix('\u{feff}').unwrap_or(source);
     let chars: Vec<char> = source.chars().collect();
     let mut tokens: Vec<Token> = Vec::new();
     let mut index = 0usize;
@@ -550,7 +578,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             index += 1;
             column += 1;
             let mut name = String::new();
-            while index < chars.len() && (chars[index].is_alphanumeric() || chars[index] == '_') {
+            while index < chars.len() && the_character_is_of_a_name(chars[index]) {
                 name.push(chars[index]);
                 index += 1;
                 column += 1;
@@ -704,10 +732,10 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             column += (index - start) as u32;
             // A name that begins with a number is not a number: v2 refuses
             // the script at the load, and it says which name it is.
-            if index < chars.len() && (chars[index].is_alphabetic() || chars[index] == '_') {
+            if index < chars.len() && the_character_is_a_letter(chars[index]) {
                 let number_end = index;
                 let mut name = chars[start..index].iter().collect::<String>();
-                while index < chars.len() && (chars[index].is_alphanumeric() || chars[index] == '_') {
+                while index < chars.len() && the_character_is_of_a_name(chars[index]) {
                     name.push(chars[index]);
                     index += 1;
                 }
@@ -728,7 +756,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
                     continue;
                 }
                 return Err(SyntaxError::new(
-                    format!("This variable name starts with a number, which is not allowed:\n{name:?}"),
+                    format!("This variable name starts with a number, which is not allowed:\n{}", the_name_of_a_message(&name)),
                     start_line,
                     start_column,
                 ));
@@ -743,10 +771,10 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             });
             continue;
         }
-        if current.is_alphabetic() || current == '_' {
+        if the_character_is_a_letter(current) {
             let (start_line, start_column) = (line, column);
             let start = index;
-            while index < chars.len() && (chars[index].is_alphanumeric() || chars[index] == '_') {
+            while index < chars.len() && the_character_is_of_a_name(chars[index]) {
                 index += 1;
                 column += 1;
             }
@@ -1136,5 +1164,36 @@ mod tests {
         assert_eq!(tokens[1].value, "is");
         assert_eq!(tokens[3].kind, TokenKind::Keyword);
         assert_eq!(tokens[3].value, "and");
+    }
+
+    #[test]
+    fn the_script_may_begin_with_the_byte_order_mark() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the script may
+        // begin with the byte order mark, and the mark is not a character of
+        // it.
+        let tokens = tokenize("\u{feff}x := 1\n").expect("parses");
+        assert_eq!(tokens[0].kind, TokenKind::Name);
+        assert_eq!(tokens[0].value, "x");
+    }
+
+    #[test]
+    fn the_byte_order_mark_is_a_letter_of_a_name() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the mark is a
+        // letter of a name, and the name may begin with it.
+        let tokens = tokenize("x\u{feff}y := 1\n").expect("parses");
+        assert_eq!(tokens[0].kind, TokenKind::Name);
+        assert_eq!(tokens[0].value, "x\u{feff}y");
+    }
+
+    #[test]
+    fn the_name_that_begins_with_a_number_and_a_mark_is_refused() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name that
+        // begins with a number is refused, and the character that cannot be
+        // written is a question mark.
+        let error = tokenize("1\u{feff}x := 1\n").expect_err("does not lex");
+        assert_eq!(
+            error.message,
+            "This variable name starts with a number, which is not allowed:\n\"1?x\""
+        );
     }
 }

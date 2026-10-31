@@ -92,6 +92,11 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   the point of a member. A name that begins with a number is refused at the
   load, with the message of v2.
 - `KEYWORDS: &[&str]` -- the words the language gives a meaning to.
+- The script may begin with the byte order mark, and the mark is not a
+  character of it. Only the first one is taken. The mark is also a letter of
+  a name, the way it is in the v2, and the name that begins with a number
+  and a mark is refused with the name in it -- the mark is written as a
+  question mark, because it cannot be written.
 - `SyntaxError { message, line, column }` -- the error the lexer and the
   parser raise.
 - The continuation section of v2 is read here, and not by the parser: a line
