@@ -164,6 +164,15 @@ fn the_source_of_a_token(token: &Token) -> String {
     text
 }
 
+/// Whether the value may be written to.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the increment of a
+/// value that cannot be written is refused at the load, and it is an
+/// "Invalid assignment.".
+fn the_value_can_be_written(node: &Node) -> bool {
+    matches!(node, Node::Var { .. } | Node::Property { .. } | Node::Index { .. })
+}
+
 /// The source of a token and of what comes after it, in its line.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the value that came
@@ -1202,6 +1211,14 @@ impl Parser {
             return Ok(vec![label]);
         }
         if token.kind == TokenKind::Name {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the operator
+            // that comes after the name is the increment, and it may be a
+            // statement of its own.
+            if self.the_postfix_increment_is_next() {
+                let value = self.parse_expression()?;
+                self.end_of_statement()?;
+                return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+            }
             return self.parse_name_statement();
         }
         if token.kind == TokenKind::Op && token.value == "(" {
@@ -1212,6 +1229,38 @@ impl Parser {
             self.end_of_statement()?;
             return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
         }
+        if token.kind == TokenKind::Op && matches!(token.value.as_str(), "++" | "--") {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the increment
+            // may be a statement of its own.
+            let value = self.parse_expression()?;
+            self.end_of_statement()?;
+            return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+        }
+        // Measured on the binary of v2.0.19 on 2026-10-31: the number that
+        // is the left side of an assignment is refused at the parse, and the
+        // text it names is the number. The number that carries a point is
+        // the exception: the assignment is the one that is refused, and the
+        // text it names is the operator and the value. The compound
+        // operators refuse the number the same way, and the point at the
+        // end of the number is the dot of a member that is not there.
+        if token.kind == TokenKind::Number {
+            if let Some(operator) = self.the_assignment_operator_after_the_number() {
+                if token.value.ends_with('.') {
+                    return Err(self.error(format!(
+                        "This line does not contain a recognized action.\n     Specifically: {}",
+                        the_source_of_the_line(self, token.line)
+                    )));
+                }
+                if operator == ":=" && !token.value.contains('.') {
+                    return Err(self.error(format!("Syntax error.\n     Specifically: {}", token.value)));
+                }
+                // The assignment is parsed, and the refusal of its left side
+                // is the one of an assignment that cannot be written.
+                let value = self.parse_expression()?;
+                self.end_of_statement()?;
+                return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+            }
+        }
         // Measured on the binary of v2.0.19 on 2026-10-31: the token that
         // is not wanted is named, and the line of the script says where it
         // was. The brace that closes a block is the one that has no line:
@@ -1219,7 +1268,19 @@ impl Parser {
         //
         // A literal at the start of a statement is a line that holds no
         // action, and the text that is named is the line itself.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the array at
+        // the start of a statement is a line that holds no action, and the
+        // text that is named is the line itself.
         let message = if token.kind == TokenKind::Number || token.kind == TokenKind::String {
+            format!(
+                "This line does not contain a recognized action.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )
+        } else if token.kind == TokenKind::Op && token.value == "[" {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the array at
+            // the start of a statement is a line that holds no action, and
+            // the text that is named is the line itself.
             format!(
                 "This line does not contain a recognized action.\n     Specifically: {}",
                 the_source_of_the_line(self, token.line)
@@ -1345,6 +1406,16 @@ impl Parser {
             let arguments = self.parse_arguments()?;
             self.expect_op(")")?;
             self.the_expression_is_done(self.position, false)?;
+            // Measured on the binary of v2.0.19 on 2026-10-31: the operator
+            // that comes after the call is the increment, and the value of a
+            // call cannot be written to.
+            if self.at_op(&["++", "--"]) {
+                self.next();
+                return Err(self.error(format!(
+                    "Invalid assignment.\n     Specifically: {}",
+                    the_source_of_the_tokens(self, self.position - 1, self.position)
+                )));
+            }
             // Measured on the binary of v2.0.19 on 2026-10-31: the
             // assignment of a call is refused at the load, and the text
             // of it is named.
@@ -3219,13 +3290,15 @@ impl Parser {
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: a line that ends
     /// with an operator continues on the next one, and the empty lines
-    /// between the two are not a part of it.
+    /// between the two are not a part of it. The increment and the
+    /// decrement are not among the operators: the line that ends with one
+    /// of them wants an operand, and it does not continue.
     fn the_line_continues(&self) -> bool {
         let Some(token) = self.the_token_before(self.position) else { return false };
         match token.kind {
             TokenKind::Op => matches!(
                 token.value.as_str(),
-                "(" | "[" | "," | "?" | ":" | "=>" | "!" | "~" | "++" | "--"
+                "(" | "[" | "," | "?" | ":" | "=>" | "!" | "~"
                     | "+" | "-" | "*" | "/" | "//" | "**" | "<<" | ">>" | ">>>"
                     | "&" | "^" | "|" | "~=" | ">" | ">=" | "<" | "<=" | "=" | "=="
                     | "!=" | "!==" | "&&" | "||" | "??" | ":=" | "+=" | "-=" | "*="
@@ -3425,6 +3498,7 @@ impl Parser {
                 _ => None,
             };
             if let Some(op) = op {
+                let at_the_operator = self.position;
                 self.next();
                 // The power binds tighter than the sign and the bitwise
                 // operators: `-2 ** 2` is `-(2 ** 2)`, the way v2 reads
@@ -3434,6 +3508,17 @@ impl Parser {
                     UnaryOp::PreIncrement | UnaryOp::PreDecrement => self.parse_unary()?,
                     _ => self.parse_binary(precedence::POWER)?,
                 };
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // increment of a value that cannot be written is refused at
+                // the load, and the source of the operator is named with it.
+                if matches!(op, UnaryOp::PreIncrement | UnaryOp::PreDecrement)
+                    && !the_value_can_be_written(&operand)
+                {
+                    return Err(self.error(format!(
+                        "Invalid assignment.\n     Specifically: {}",
+                        the_source_of_the_tokens(self, at_the_operator, self.position)
+                    )));
+                }
                 return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
             }
         }
@@ -3520,8 +3605,9 @@ impl Parser {
                     let parameters = vec![Parameter { name: name.clone(), default: None, variadic: false, by_ref: false }];
                     return Ok(Node::Lambda { parameters, body: Box::new(body), line: token.line });
                 }
-                // `x++` and `x--`: the operator comes after the name.
-                if self.at_op(&["++", "--"]) {
+                // `x++` and `x--`: the operator comes after the name, and
+                // the space is what tells it apart from the concat.
+                if self.at_op(&["++", "--"]) && !self.peek().spaced {
                     let operator = self.next();
                     let op = if operator.value == "++" {
                         UnaryOp::PostIncrement
@@ -3702,12 +3788,58 @@ impl Parser {
                 node = Node::Cast { value: Box::new(node), target: target_type, line: token.line };
                 continue;
             }
+            if self.at_op(&["++", "--"]) && !self.peek().spaced {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // operator that comes after the value is the increment, and
+                // it binds to the value that is before it.
+                let operator = self.next();
+                let op = if operator.value == "++" {
+                    UnaryOp::PostIncrement
+                } else {
+                    UnaryOp::PostDecrement
+                };
+                let line = node.line();
+                // The increment of a value that cannot be written is refused
+                // at the load, and the source of the operator is named.
+                if !the_value_can_be_written(&node) {
+                    return Err(self.error(format!(
+                        "Invalid assignment.\n     Specifically: {}",
+                        the_source_of_the_tokens(self, self.position - 1, self.position)
+                    )));
+                }
+                node = Node::Unary { op, operand: Box::new(node), line };
+                continue;
+            }
             if assignment && self.at_an_assignment_operator() {
                 return self.parse_the_assignment(node);
             }
             break;
         }
         Ok(node)
+    }
+
+    /// The operator of an assignment that comes after the token.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the number that is
+    /// the left side of an assignment is refused at the parse by the plain
+    /// assignment, and the compound operators refuse it later, with the
+    /// operator and the value.
+    fn the_assignment_operator_after_the_number(&self) -> Option<String> {
+        let token = self.tokens.get(self.position + 1)?;
+        if token.kind != TokenKind::Op {
+            return None;
+        }
+        the_assignment_operator(&token.value).map(|_| token.value.clone())
+    }
+
+    /// Whether the operator of an increment comes after the name.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the space is what
+    /// tells the operator of the increment apart from the concat: `x++` is
+    /// the increment of `x`, and `x ++` is a call of `x`.
+    fn the_postfix_increment_is_next(&self) -> bool {
+        let Some(token) = self.tokens.get(self.position + 1) else { return false };
+        token.kind == TokenKind::Op && matches!(token.value.as_str(), "++" | "--") && !token.spaced
     }
 
     /// The record of an assignment, for the check of the classes.

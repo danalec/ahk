@@ -1023,6 +1023,11 @@ that asks for another one is refused with the reason.
   The table that the tree keeps is its own, and the name of the class is
   not a property of the class value.
 
+- **The increment writes to a variable, a property and an item, and the
+  left side of an assignment is a variable, a property or an item.** The
+  increment may be a statement of its own, and the value that cannot be
+  written to is refused at the load with the operator that writes it.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

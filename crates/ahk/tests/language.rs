@@ -3971,3 +3971,125 @@ fn the_escape_of_a_space_is_a_space() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["a b"]);
 }
+
+#[test]
+fn the_increment_may_be_a_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the increment may
+    // be a statement of its own, and it writes to the value that is before
+    // it.
+    let (report, _desktop) = run("x := 1\nx++\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    let (report, _desktop) = run("x := 1\n++x\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_increment_writes_to_a_property_and_to_an_item() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the increment of a
+    // property and of an item writes to them.
+    let (report, _desktop) = run("x := {a: 1}\nx.a++\nMsgBox x.a");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    let (report, _desktop) = run("x := [1]\nx[1]++\nMsgBox x[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    let (report, _desktop) = run("x := Map()\nx[\"a\"] := 1\nx[\"a\"]++\nMsgBox x[\"a\"]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_postfix_answers_the_value_of_before() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the postfix
+    // answers the value that was there, and the prefix answers the one that
+    // is there.
+    let (report, _desktop) = run("x := 1\ny := x++\nMsgBox y\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1", "2"]);
+    let (report, _desktop) = run("x := 1\ny := ++x\nMsgBox y\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2", "2"]);
+}
+
+#[test]
+fn the_increment_of_a_value_that_cannot_be_written_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the increment of a
+    // value that cannot be written is refused at the load, and the source
+    // of the operator is named with it.
+    let error = parse("x := StrLen(\"ab\")++").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: ++");
+    let error = parse("x := ++2").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: ++2");
+    let error = parse("++2").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: ++2");
+}
+
+#[test]
+fn the_number_at_the_left_of_an_assignment_is_refused_at_the_parse() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the number that is
+    // the left side of an assignment is refused at the parse, and the text
+    // it names is the number.
+    let error = parse("1 := 2").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: 1");
+    let error = parse("1e3 := 2").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: 1e3");
+    let error = parse("0x10 := 2").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: 0x10");
+}
+
+#[test]
+fn the_number_that_carries_a_point_is_refused_by_the_assignment() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the number that
+    // carries a point is not refused at the parse: the assignment is the one
+    // that is refused, and the text it names is the operator and the value.
+    let error = parse("1.5 := 2").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 2");
+    let error = parse("2.0 := 2").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 2");
+    let error = parse("1.5 := 2 + 3").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 2 + 3");
+}
+
+#[test]
+fn the_compound_assignment_refuses_the_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the compound
+    // operators refuse the number that is their left side, and the text
+    // they name is the operator and the value.
+    let error = parse("1 += 2").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: += 2");
+    let error = parse("1e3 -= 2").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: -= 2");
+    let error = parse("1.5 *= 2").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: *= 2");
+}
+
+#[test]
+fn the_number_with_a_point_at_its_end_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the point at the end
+    // of the number is the dot of a member that is not there, and the line
+    // holds no action.
+    let error = parse("1. := 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: 1. := 2"
+    );
+}
+
+#[test]
+fn the_array_at_the_start_of_a_statement_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the array at the
+    // start of a statement is a line that holds no action, and the line is
+    // named with it.
+    let error = parse("[1] := 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: [1] := 2"
+    );
+    let error = parse("[1]").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: [1]"
+    );
+}

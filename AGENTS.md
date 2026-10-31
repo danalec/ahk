@@ -4472,3 +4472,60 @@ byte by byte). The probes that measured the rules are in
 `egm-review/probe_section.py` .. `egm-review/probe_section19.py`,
 `egm-review/probe_escape_s.py`, `egm-review/probe_named_text.py` and
 `egm-review/probe_repeat.py`.
+
+## 98. The increment, and the assignment that is not one
+
+Measured on the binary of v2.0.19 on 2026-10-31: the increment may be a
+statement of its own, and it may be of a property and of an item, and the
+left side of an assignment is a variable, a property or an item -- and
+every other value is refused with a reason of its own.
+
+- **The increment may be a statement.** `x++` and `++x` are statements, and
+  they write to the variable that is before them. The postfix answers the
+  value that was there, and the prefix answers the one that is there.
+- **The increment of a property and of an item writes to them.** `x.a++`,
+  `x[1]++` and `m["a"]++` write to the property and to the item, and the
+  value of a call cannot be written to.
+- **The space tells the increment apart from the concat.** `x++` is the
+  increment of `x`, and `x ++` is a call of `x` with the argument `++`. A
+  line that ends with `++` does not continue on the next one, and the
+  operator of the increment binds to the value that is before it.
+- **The increment of a value that cannot be written is refused at the
+  load.** The refusal is "Invalid assignment." and the source of the
+  operator: "Invalid assignment." and "++".
+- **The number at the left of an assignment is refused at the parse.** The
+  refusal is "Syntax error." and the number: "Syntax error." and "1". The
+  number that carries no point is the one that is refused there, and the
+  exponent is not a point: `1`, `1e3` and `0x10` are refused there.
+- **The number that carries a point is refused by the assignment.** The
+  refusal is "Invalid assignment." and the operator and the value:
+  "Invalid assignment." and ":= 2". The compound operators refuse the
+  number the same way, and the point at the end of the number is not a
+  point of a number.
+- **The number with a point at its end holds no action.** The refusal is
+  "This line does not contain a recognized action." and the line: the
+  point is the dot of a member that is not there.
+- **The array and the text at the start of a statement hold no action.**
+  The refusal is "This line does not contain a recognized action." and the
+  line: `[1] := 2` and `"a" := 2` name the whole line.
+- **The statement that begins with a unary operator is not one that the
+  tree reads.** v2 reads `-x := 2` as the compound assignment of `x`, and
+  `-1 := 2` as a line that holds no action; the tree refuses the line with
+  "Unexpected \"-\"". The number that begins with a point is a number in
+  v2 and the tree does not read it: ".5" is refused with "Unexpected
+  \".\"".
+
+The comparison of the tree with the binary is in
+`egm-review/compare_assignment.py` (65 cases, six of them the two
+differences that are named above) and in
+`egm-review/compare_increment.py` (19 cases, none of them different). The
+probes that measured the rules are in
+`egm-review/probe_increment.py`, `egm-review/probe_increment2.py`,
+`egm-review/probe_invalid_assignment.py`,
+`egm-review/probe_number_target.py`,
+`egm-review/probe_number_forms.py`,
+`egm-review/probe_number_class.py`,
+`egm-review/probe_target_matrix.py`, `egm-review/probe_same_value.py`,
+`egm-review/probe_not_an_action.py`,
+`egm-review/probe_unary_statement.py` and
+`egm-review/probe_negated_target.py`.

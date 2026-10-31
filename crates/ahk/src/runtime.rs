@@ -6083,27 +6083,62 @@ impl<'a> Runtime<'a> {
         operand: &Node,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
-        let Node::Var { name, .. } = operand else {
-            return Err(RuntimeFailure::Error(RuntimeError {
-                message: "the operator needs a variable to work on".into(),
-                line,
-            }));
-        };
-        let current = self.lookup(name).ok_or_else(|| {
-            RuntimeFailure::Error(RuntimeError { message: self.the_unassigned(name), line })
-        })?;
         let step = match op {
             UnaryOp::PreIncrement | UnaryOp::PostIncrement => 1,
             _ => -1,
         };
-        let stored = match &current {
+        match operand {
+            Node::Var { name, .. } => {
+                let current = self.lookup(name).ok_or_else(|| {
+                    RuntimeFailure::Error(RuntimeError { message: self.the_unassigned(name), line })
+                })?;
+                let stored = self.the_number_after(&current, step, line)?;
+                self.assign(name, stored.clone());
+                Ok(match op {
+                    UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
+                    _ => current,
+                })
+            }
+            // Measured on the binary of v2.0.19 on 2026-10-31: the increment
+            // of a property and of an item writes to them.
+            Node::Property { target, name, line: property_line } => {
+                let target_value = self.evaluate(target)?;
+                let current = self.read_property(&target_value, name, *property_line)?;
+                let stored = self.the_number_after(&current, step, *property_line)?;
+                self.write_a_property(target, name, AssignOp::Set, stored.clone(), *property_line)?;
+                Ok(match op {
+                    UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
+                    _ => current,
+                })
+            }
+            Node::Index { target, index, line: item_line } => {
+                let target_value = self.evaluate(target)?;
+                let key = self.evaluate(index)?;
+                let current = self.index_a_value(&target_value, &key, *item_line)?;
+                let stored = self.the_number_after(&current, step, *item_line)?;
+                self.set_item(&target_value, &key, AssignOp::Set, stored.clone(), *item_line)?;
+                Ok(match op {
+                    UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
+                    _ => current,
+                })
+            }
+            _ => Err(RuntimeFailure::Error(RuntimeError {
+                message: "the operator needs a variable to work on".into(),
+                line,
+            })),
+        }
+    }
+
+    /// The value that comes after the increment of a value.
+    fn the_number_after(
+        &mut self,
+        current: &Value,
+        step: i64,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        Ok(match current {
             Value::Int(number) => Value::Int(number + step),
             other => Value::Float(self.number(other, line)? + step as f64),
-        };
-        self.assign(name, stored.clone());
-        Ok(match op {
-            UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
-            _ => current,
         })
     }
 
