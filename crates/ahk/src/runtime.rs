@@ -7288,7 +7288,12 @@ impl<'a> Runtime<'a> {
                         ),
                         line,
                     },
-                    Detail { what: String::new(), extra: String::new() },
+                    // The name of the built-in goes in the `What` of the
+                    // failure, the way it goes in the failure of a value
+                    // that is not the one that was wanted.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-11-01.
+                    Detail { what: builtin.name.to_string(), extra: String::new() },
                 ));
             }
         }

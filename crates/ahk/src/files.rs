@@ -719,7 +719,7 @@ pub(crate) fn flag_of(values: &[Value], index: usize, name: &str, line: u32) -> 
 ///
 /// A name that holds one is refused with the reason, because a copy of
 /// a name that is not a file is not a copy.
-fn refuse_the_wildcards(path: &str, line: u32) -> Result<(), RuntimeError> {
+pub(crate) fn refuse_the_wildcards(path: &str, line: u32) -> Result<(), RuntimeError> {
     if path.contains('*') || path.contains('?') {
         return Err(RuntimeError {
             message: "the wildcards of v2 are not carried yet.".to_string(),

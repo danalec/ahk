@@ -555,6 +555,15 @@ pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<Strin
     if name == "MouseClick" && message == "Parameter #1 of MouseClick is invalid." {
         return values.first().map(|value| value.to_text().trim_end().to_string());
     }
+    // The failure of a copy or of a move of a file carries the number of
+    // the files that failed.
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-01: the copy of a file
+    // that is not there fails with "Failed", and the `Extra` of the failure
+    // is 1.
+    if matches!(name, "FileCopy" | "FileMove") && message == "Failed" {
+        return Some("1".to_string());
+    }
     if message != "Invalid option." {
         return None;
     }
@@ -878,15 +887,22 @@ fn dir_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) ->
 /// `FileDelete`: take a file away.
 fn file_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let path = crate::files::the_name_of_a_file(values, 0, 1, "FileDelete", line)?;
+    // The wildcards of v2 are not carried: the name of a file that is not
+    // there is not a file.
+    crate::files::refuse_the_wildcards(&path, line)?;
     rt.desktop().delete_file(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Text(path))
+    // Measured on the binary of v2.0.19 on 2026-11-01: the answer of the
+    // command is an empty text.
+    Ok(Value::Text(String::new()))
 }
 
 /// `DirCreate`: make a directory.
 fn dir_create(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let path = text_of(values, 0);
     rt.desktop().create_dir(&path).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Text(path))
+    // Measured on the binary of v2.0.19 on 2026-11-01: the answer of the
+    // command is an empty text.
+    Ok(Value::Text(String::new()))
 }
 
 /// `DirDelete`: take a directory away.

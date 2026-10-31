@@ -145,6 +145,21 @@ impl Files for Fake {
         self.calls.push(("bytes-of-file".into(), path.into()));
         Ok(b"one\r\ntwo\r\n".to_vec())
     }
+    fn delete_file(&mut self, path: &str) -> Result<String, String> {
+        self.calls.push(("delete-file".into(), path.into()));
+        Ok(String::new())
+    }
+    fn create_dir(&mut self, path: &str) -> Result<String, String> {
+        self.calls.push(("create-dir".into(), path.into()));
+        Ok(String::new())
+    }
+    fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.calls.push(("copy-file".into(), format!("{from}|{to}|{overwrite}")));
+        // The machine says "Failed" when the file that is copied is not
+        // there, and the number of the files that failed goes in the
+        // `Extra` of the failure.
+        Err("Failed".to_string())
+    }
     fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
         self.calls.push((
             "append-file".into(),
@@ -1949,10 +1964,14 @@ fn the_drag_names_the_parameter_it_needs() {
 }
 
 #[test]
-fn the_failure_of_an_omitted_parameter_carries_no_name() {
-    // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
-    // parameter that may not be left out has an empty `What` and an empty
-    // `Extra`: the message carries the whole of it.
+fn the_failure_of_an_omitted_parameter_carries_the_name_of_the_built_in() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the failure of a
+    // parameter that may not be left out carries the name of the built-in
+    // in the `What`, and an empty `Extra`.
+    //
+    // The tree carried an empty `What` there, and the case of it pinned
+    // the tree and not the binary: the name of the built-in goes in the
+    // `What` of every failure of a built-in.
     let report = run(concat!(
         "try\n",
         "  FileGetAttrib()\n",
@@ -1962,7 +1981,7 @@ fn the_failure_of_an_omitted_parameter_carries_no_name() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["||Parameter #1 of FileGetAttrib must not be omitted in this case."]
+        vec!["FileGetAttrib||Parameter #1 of FileGetAttrib must not be omitted in this case."]
     );
 }
 
@@ -2980,4 +2999,55 @@ fn the_file_append_without_the_name_is_refused_in_a_loop_without_a_file() {
         report.output,
         vec!["Parameter #2 of FileAppend must not be omitted in this case. | FileAppend"]
     );
+}
+
+#[test]
+fn the_commands_of_the_files_answer_with_an_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the answer of the
+    // `DirCreate` and of the `FileDelete` is an empty text, and not the
+    // name of what they did.
+    let report = run("x := DirCreate(\"made\")\nMsgBox \"[\" x \"]\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]"]);
+    let report = run("x := FileDelete(\"a.txt\")\nMsgBox \"[\" x \"]\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]"]);
+}
+
+#[test]
+fn the_name_of_the_built_in_is_in_the_failure_of_a_parameter_that_may_not_be_left_out() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the failure of a
+    // parameter that may not be left out carries the name of the built-in
+    // in the `What`.
+    let report = run(
+        "try {\n    x := FileSetTime(\"20200101000000\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #2 of FileSetTime must not be omitted in this case. | FileSetTime"]
+    );
+}
+
+#[test]
+fn the_failure_of_a_copy_carries_the_number_of_the_files_that_failed() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the copy of a file
+    // that is not there fails with "Failed", and the `Extra` of the failure
+    // is the number of the files that failed.
+    let report = run(
+        "try {\n    x := FileCopy(\"nope.txt\", \"b.txt\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Failed | FileCopy | 1"]);
+}
+
+#[test]
+fn the_wildcards_of_the_delete_are_not_carried() {
+    // The wildcards of v2 are not carried: the name of a file that is not
+    // there is not a file, and the tree says so.
+    let report = run(
+        "try {\n    x := FileDelete(\"*.txt\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the wildcards of v2 are not carried yet. | FileDelete"]);
 }

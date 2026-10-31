@@ -261,6 +261,16 @@ impl ahk::desktop::Files for LabDesktop {
         } else {
             fs::create_dir_all(target).map_err(|_| FAILED.to_string())?;
         }
+        // A folder that is copied into itself is a copy that never ends:
+        // the folder that was made is inside the one that is copied, and
+        // the copy walks into it.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-01: the copy of a
+        // folder into itself fails with "Failed", and the folder that was
+        // made is there all the same.
+        if is_inside(source, target) {
+            return Err(FAILED.to_string());
+        }
         // v2 copies the *contents* of the folder: the folder that is
         // there is the one that holds the files.
         copy_tree(source, target, overwrite).map_err(|_| FAILED.to_string())?;
@@ -530,6 +540,16 @@ fn target_of(source: &Path, destination: &Path) -> PathBuf {
     } else {
         destination.to_path_buf()
     }
+}
+
+/// Whether the target is the source or is inside it.
+///
+/// The paths are the ones that the machine gives, so that a folder that is
+/// reached in two ways is seen as one.
+fn is_inside(source: &Path, target: &Path) -> bool {
+    let Ok(source) = source.canonicalize() else { return false };
+    let Ok(target) = target.canonicalize() else { return false };
+    target == source || target.starts_with(&source)
 }
 
 /// The files of a folder, and the folders in it, copied into another.
@@ -966,6 +986,25 @@ mod tests {
         let mut desktop = LabDesktop::new();
         let lines = desktop.read_file(&path.to_string_lossy()).expect("the lines");
         assert_eq!(lines, vec!["one".to_string(), "two".to_string()]);
+        let _ = fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_copy_of_a_folder_into_itself_fails() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the copy of a
+        // folder into itself fails with "Failed", and the folder that was
+        // made is there all the same.
+        let folder = scratch("copy-into-itself");
+        let source = folder.join("src");
+        fs::create_dir_all(&source).expect("the folder of the case");
+        fs::write(source.join("inner.txt"), "hello").expect("the file of the case");
+        let target = source.join("made");
+        let mut desktop = LabDesktop::new();
+        assert_eq!(
+            desktop.copy_dir(&source.to_string_lossy(), &target.to_string_lossy(), false),
+            Err("Failed".to_string())
+        );
+        assert!(target.is_dir(), "the folder that was made is there");
         let _ = fs::remove_dir_all(&folder);
     }
 

@@ -5383,3 +5383,36 @@ The probes that measured the rules are in `egm-review/probe_empty_name.py`
 (15 cases), `probe_empty_name2.py` (10), `probe_empty_name3.py` (7),
 `probe_empty_name4.py` (6), `probe_fileappend_name.py` (5),
 `probe_read_lines.py` (7) and `compare_file_name.py` (20).
+
+## 123. The answers of the commands of the files, and the copy into itself
+
+Measured on the binary of v2.0.19 on 2026-11-01: the commands of the files
+answer with an empty text, the failure of a parameter that may not be left
+out names the built-in, and the copy of a folder into itself fails.
+
+- **The commands of the files answer with an empty text.** The `DirCreate`
+  and the `FileDelete` do not answer with the name of what they did.
+- **The failure of a parameter that may not be left out names the
+  built-in:** the `What` of the failure is the name of the built-in, and
+  the `Extra` is empty. The tree carried an empty `What` there, and the case
+  of it pinned the tree and not the binary.
+- **The failure of a copy or of a move of a file carries the number of the
+  files that failed in the `Extra`:** the message is "Failed", and the
+  `Extra` is 1.
+- **The copy of a folder into itself fails with "Failed".** The folder that
+  was made is there all the same, and the copy does not walk into it: the
+  box copied the folder into itself and never ended.
+
+The tree carries the wildcards of v2 in no command: the delete of a name
+with wildcards asked the machine for a file that is named "*", and the copy
+and the move of one refuse the wildcards with the reason of the tree.
+
+The time of a file is the time of the local time of the machine, and the
+machine of a build of Windows does not know its timezone: the tree says so
+in the notes of the run, and the time of the file is the time of the UTC.
+The box of Linux knows the timezone of the machine and the time of a file is
+the local time.
+
+The probes that measured the rules are in `egm-review/sweep_files.py` (36
+cases), `compare_file_answers.py` (12), `probe_copy_failure.py` (6) and
+`probe_omitted_what.py` (19).

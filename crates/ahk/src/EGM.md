@@ -1026,6 +1026,13 @@ that asks for another one is refused with the reason.
 - **An object is not written as a text.** v2 reads the property "Ptr" of
   the value that it writes, and an object has none. A class is a class of
   its own kind ("Class"), and a prototype is of its own too ("Prototype").
+- **The failure of a built-in names the built-in.** The `What` of the failure
+  is the name of it, and the `Extra` is the value of the parameter that
+  failed -- "empty string" when the value is a text that is empty. A
+  parameter that may not be left out is refused the same way, and the
+  `Extra` is empty.
+- **The commands of the files answer with an empty text,** and not with the
+  name of what they did.
 - **The name of a file that is empty is refused by the command that acts on
   it.** The message is "Parameter #1 of FileDelete is invalid.", the name of
   the built-in goes in the `What`, and the value that failed goes in the
