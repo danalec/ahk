@@ -205,9 +205,11 @@ the kind of it, the way v2 refuses it.
 
 The answer of a call is a value, and the members of it are read the way
 the members of any other value are: `StrLen("abc").__Class` is "Integer",
-and `Map().Count` is 0. The assignment of an expression is refused at the
-load, and the text of it is named: "Invalid assignment.\n     Specifically:
-:= 1".
+and `Map().Count` is 0. A statement that reads the member of a call leaves
+the value behind, and the member of it may be written: `Map()["a"] := 1`
+writes the entry of a map that nothing keeps. The call itself is not a value
+that may be written, and the refusal of it is at the load, and the text of it
+is named: "Invalid assignment.\n     Specifically: := 1".
 
 The words that name something are separated by a newline and five spaces, and
 the text that is named is the text of the source. Measured on the binary of
@@ -601,6 +603,14 @@ The item of an object of a class type is asked of the module that owns
 the class, and the write of one goes the same way. Only a `Map` and an
 `Array` have a way to write an item: the others answer that they have
 none, and the statement fails with that reason.
+
+`READ_ONLY` carries the properties of the class types that may not be
+written: the count of a map, the pointer of a buffer, the name, the two
+numbers and the two flags of a function and of an enumerator, and the end
+and the handle of a file. The write of one of them is refused at the run
+with "Property is read-only.", the name of the property is in the `Extra`,
+and the `What` is empty. The class value is not an instance of it, and
+`Map.Count := 1` is the property of the class value itself.
 
 The encoding of a `File` is the encoding of the script when the script does
 not say which one it wants, and the code page of the machine is the default of

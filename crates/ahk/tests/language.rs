@@ -4606,3 +4606,65 @@ fn the_stack_names_every_frame_of_the_call() {
         vec![" (8) : [h] Throw Error(\"boom\")\n (5) : [f] h()\n (2) : [g] f()\n (11) : [] g()\n> Auto-execute"]
     );
 }
+
+#[test]
+fn the_member_of_the_answer_of_a_call_is_read_in_a_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the answer of a call
+    // is a value, and the member of it is read the way the member of any
+    // other value is. The statement reads it and leaves the value behind.
+    let (report, _desktop) = run("Map().Count");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn the_method_of_the_answer_of_a_call_is_called_in_a_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the method of the
+    // answer of a call is called when the statement is the call of it.
+    let (report, _desktop) = run(r#"Map().HasOwnProp("a")"#);
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn the_write_to_a_member_of_a_call_is_refused_when_the_property_is_read_only() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the write of a
+    // property that may not be written is refused at the run, with
+    // "Property is read-only.", the name of the property in the Extra, and
+    // nothing in the What.
+    let (report, _desktop) = run(
+        r#"try {
+    Map().Count := 1
+} catch Any as e {
+    MsgBox e.Message " | " e.What " | " e.Extra
+}"#,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Property is read-only. |  | Count"]);
+}
+
+#[test]
+fn the_call_itself_may_not_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the answer of a call
+    // is not a value that may be written, and the refusal is at the load,
+    // with the operator and the value named.
+    let error = parse("Map() := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 1");
+    let error = parse("Map()++").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: ++");
+}
+
+#[test]
+fn the_item_of_the_answer_of_a_call_may_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the item of the
+    // answer of a call is an item, and it may be written.
+    let (report, _desktop) = run(r#"Map()["a"] := 1"#);
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn the_property_of_the_answer_of_a_constructor_may_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the property of the
+    // answer of a constructor is a property of the instance, and it may be
+    // written.
+    let (report, _desktop) = run("class T {\n    P := 3\n}\nT().P := 1");
+    assert!(report.ok, "{:?}", report.error);
+}

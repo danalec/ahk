@@ -4782,3 +4782,46 @@ the statements run. The comparison of the tree with the binary is in
 is a call of a method on the result of a constructor, which the parser of
 the tree does not read yet). The probes that measured the rules are in
 `egm-review/probe_stack.py` and `egm-review/probe_error_stack.py`.
+
+## 105. The member of the answer of a call, and the property that may not be written
+
+Measured on the binary of v2.0.19 on 2026-10-31: the answer of a call is a
+value, and the member of it is read the way the member of any other value is.
+
+- **A statement that reads the member of a call leaves the value behind.**
+  `Map().Count` is a statement that reads the count of a map that nothing
+  keeps, and `T().M()` is a statement that calls the method of an instance
+  that nothing keeps.
+- **The member of the answer of a call may be written.** `Map()["a"] := 1`
+  writes the entry of a map that nothing keeps, and `T().P := 1` writes the
+  property of an instance that nothing keeps.
+- **The call itself is not a value that may be written.** The refusal is at
+  the load, and the operator and the value are named: "Invalid assignment.
+  \n     Specifically: := 1" for `Map() := 1`, and "Invalid assignment.
+  \n     Specifically: ++" for `Map()++`.
+
+The property that a class type of the runtime owns and that may not be
+written is refused at the run, and the refusal names it:
+
+- **The message is "Property is read-only.", the name of the property is in
+  the `Extra`, and the `What` is empty.** The name is the one that the script
+  wrote: `m.Count := 1` carries "Count" and `m.count := 1` carries "count".
+- **The properties that may not be written are these.** The count of a map,
+  the pointer of a buffer, the name, the two numbers and the two flags of a
+  function and of an enumerator, and the end and the handle of a file.
+- **The other properties are written the way the class says.** The capacity
+  and the case of a map, the length and the capacity of an array, the size of
+  a buffer, the properties of an error, and the place, the length and the
+  encoding of a file.
+- **The class value is not an instance of it.** `Map.Count := 1` is written,
+  and it is the property of the class value itself. The prototype is not
+  either: `Map.Prototype.Count := 1` is refused with the same message.
+
+The table of the properties that may not be written is `classes::READ_ONLY`,
+and the class module is asked before the base object: a class type of the
+runtime owns the whole of its properties. The comparison of the tree with the
+binary is in `egm-review/compare_member_and_readonly.py` (42 cases, all of
+them the same). The probes that measured the rules are in
+`egm-review/probe_readonly_properties.py`,
+`egm-review/probe_readonly_names.py` and
+`egm-review/probe_write_to_a_member_of_a_call2.py`.

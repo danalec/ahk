@@ -5649,6 +5649,17 @@ impl<'a> Runtime<'a> {
             }
         }
         // A class type of the runtime owns the whole of its properties.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the property that
+        // the class owns and that may not be written is refused with
+        // "Property is read-only.", the name of the property is in the
+        // `Extra`, and the `What` is empty.
+        if crate::classes::the_property_is_read_only(&class, &name) {
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message: "Property is read-only.".to_string(), line },
+                Detail { what: String::new(), extra: written },
+            ));
+        }
         if let Some(result) = crate::classes::set_property(&class, &name, target, value.clone(), self, line) {
             return result;
         }
@@ -8496,7 +8507,15 @@ pub fn op_name(statement: &Node) -> &str {
             Some(builtin) => builtin.name,
             None => "Call",
         },
-        Node::Expression { .. } => "Expression",
+        Node::Expression { value, .. } => match the_call_of(value) {
+            // The statement reads the member of the answer of a call, and
+            // it is still the call that the report names.
+            Some(name) => match crate::builtins::find(name) {
+                Some(builtin) => builtin.name,
+                None => "Call",
+            },
+            None => "Expression",
+        },
         Node::If { .. } => "If",
         Node::Switch { .. } => "Switch",
         Node::While { .. } => "While",
@@ -8528,6 +8547,20 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Ternary { .. } => "Ternary",
         Node::Cast { .. } => "Cast",
         Node::Index { .. } => "Index",
+    }
+}
+
+/// The call that a value holds, when it holds one.
+///
+/// A statement that reads the member of the answer of a call is the call
+/// itself: `Map().Count` is the call of `Map` and the reading of a member.
+fn the_call_of(node: &Node) -> Option<&str> {
+    match node {
+        Node::Call { name, .. } => Some(name),
+        Node::Property { target, .. }
+        | Node::Index { target, .. }
+        | Node::MethodCall { target, .. } => the_call_of(target),
+        _ => None,
     }
 }
 

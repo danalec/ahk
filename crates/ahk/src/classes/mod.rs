@@ -331,6 +331,35 @@ const PROPERTIES: [(&str, &str, &str); 28] = [
     ("error", "stack", "Stack"),
 ];
 
+/// The properties of the class types that may not be written.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the write of one of them
+/// is refused with "Property is read-only.", the name of the property goes in
+/// the `Extra` of the error, and the `What` is empty. The other properties
+/// are written the way the class says: the capacity and the case of a map,
+/// the length and the capacity of an array, the size of a buffer, the
+/// properties of an error, and the place, the length and the encoding of a
+/// file.
+const READ_ONLY: [(&str, &[&str]); 5] = [
+    ("map", &["count"]),
+    ("buffer", &["ptr"]),
+    ("func", &["name", "minparams", "maxparams", "isbuiltin", "isvariadic"]),
+    ("enumerator", &["name", "minparams", "maxparams", "isbuiltin", "isvariadic"]),
+    ("file", &["ateof", "handle"]),
+];
+
+/// Whether the property of a class type may not be written.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the write of it is
+/// refused with "Property is read-only.".
+pub(crate) fn the_property_is_read_only(class: &str, name: &str) -> bool {
+    let class = class.to_lowercase();
+    let name = name.to_lowercase();
+    READ_ONLY
+        .iter()
+        .any(|(owner, names)| *owner == class && names.iter().any(|property| *property == name))
+}
+
 /// The members that the prototype of a class owns.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a class

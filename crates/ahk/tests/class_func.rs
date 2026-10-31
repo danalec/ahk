@@ -120,3 +120,16 @@ fn a_function_is_not_made() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Invalid base. | Object.Call | "]);
 }
+
+#[test]
+fn the_name_of_a_function_may_not_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // function is a property that may not be written, and the write of it is
+    // refused with "Property is read-only.", the name of the property is in
+    // the Extra, and the What is empty.
+    let report = run(
+        "try {\n    f := (a, b) => a\n    f.Name := \"x\"\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Property is read-only. |  | Name"]);
+}

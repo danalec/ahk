@@ -1564,6 +1564,17 @@ impl Parser {
             let arguments = self.parse_arguments()?;
             self.expect_op(")")?;
             self.the_expression_is_done(self.position, false)?;
+            // Measured on the binary of v2.0.19 on 2026-10-31: the answer
+            // of a call is a value, and the members of it are read the way
+            // the members of any other value are: `Map().Count` is 0, and
+            // the statement reads it and leaves the value behind.
+            let call = Node::Call {
+                name: name_token.value.to_lowercase(),
+                arguments,
+                line: name_token.line,
+            };
+            let value = self.parse_suffixes(call, false)?;
+            self.the_expression_is_done(self.position, false)?;
             // Measured on the binary of v2.0.19 on 2026-10-31: the operator
             // that comes after the call is the increment, and the value of a
             // call cannot be written to.
@@ -1574,18 +1585,24 @@ impl Parser {
                     the_source_of_the_tokens(self, self.position - 1, self.position)
                 )));
             }
-            // Measured on the binary of v2.0.19 on 2026-10-31: the
-            // assignment of a call is refused at the load, and the text
-            // of it is named.
+            // Measured on the binary of v2.0.19 on 2026-10-31: the member of
+            // the answer of a call may be written, and the write of it is
+            // refused at the run when the property is read-only. The call
+            // itself is not a value that may be written, and its refusal is
+            // at the load, with the text of it named.
             if self.at_an_assignment_operator() {
-                return Err(self.the_invalid_assignment(name_token.line)?);
+                return Ok(vec![self.parse_the_assignment(value)?]);
             }
             self.end_of_statement()?;
-            return Ok(vec![Node::Call {
-                name: name_token.value.to_lowercase(),
-                arguments,
-                line: name_token.line,
-            }]);
+            // A call that carries a member is an expression: the statement
+            // reads the member and leaves the value behind. A call alone is
+            // a call, and the report names it the way it names a command.
+            let statement = if matches!(&value, Node::Call { .. }) {
+                value
+            } else {
+                Node::Expression { value: Box::new(value), line: name_token.line }
+            };
+            return Ok(vec![statement]);
         }
         // `obj.Prop := value` and `obj[key] := value`: the left side is a
         // value and not a name.
@@ -4186,28 +4203,6 @@ impl Parser {
                     column: operator.column,
                 });
             }
-        })
-    }
-
-    /// The refusal of an assignment whose left side is not a variable.
-    ///
-    /// Measured on the binary of v2.0.19 on 2026-10-31: the message names
-    /// the operator and the value that was written.
-    fn the_invalid_assignment(&mut self, line: u32) -> Result<SyntaxError, SyntaxError> {
-        let operator = self.next();
-        let start = self.position;
-        // The value is read to name it, and a value that does not parse is
-        // the failure that v2 says.
-        let _value = self.parse_expression()?;
-        let end = self.position;
-        Ok(SyntaxError {
-            message: format!(
-                "Invalid assignment.\n     Specifically: {} {}",
-                operator.value,
-                the_source_of_the_tokens(self, start, end)
-            ),
-            line,
-            column: operator.column,
         })
     }
 
