@@ -1858,14 +1858,26 @@ impl Parser {
             // is the list of v1, and it is evaluated.
             let value = match target {
                 Node::Property { target, name, line } => {
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // member that has no parentheses is a command of v2: the
+                    // rest of the line is the list of its arguments, and the
+                    // comma that comes right after it with no space is not
+                    // one of them. The line holds no action.
+                    if self.at_op(&[","]) && !self.peek().spaced {
+                        return Err(self.error(format!(
+                            "This line does not contain a recognized action.\n     Specifically: {}",
+                            the_source_of_the_line(self, name_token.line)
+                        )));
+                    }
                     // A name that is a statement is a call: `m.Method` calls
                     // the method, and the parentheses may be left out. An
                     // item is not a call: `m["a"]` reads it.
+                    let arguments = self.the_parameters_of_a_command()?;
                     self.end_of_statement()?;
                     return Ok(vec![Node::MethodCall {
                         target,
                         name,
-                        arguments: Vec::new(),
+                        arguments,
                         line,
                     }]);
                 }
@@ -1991,7 +2003,19 @@ impl Parser {
         while index < self.tokens.len() {
             let token = &self.tokens[index];
             match token.kind {
-                TokenKind::Newline | TokenKind::Eof => return true,
+                // Measured on the binary of v2.0.19 on 2026-10-31: the line
+                // that ends with a comma continues on the next one, and the
+                // empty lines between the two are not a part of it.
+                TokenKind::Newline => {
+                    if !self.the_line_continues_at(index) {
+                        return true;
+                    }
+                    index += 1;
+                    while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline {
+                        index += 1;
+                    }
+                }
+                TokenKind::Eof => return true,
                 TokenKind::Op if token.value == "}" => return true,
                 TokenKind::Op if token.value == "," => {}
                 _ => return false,
@@ -2057,7 +2081,14 @@ impl Parser {
         let mut items = Vec::new();
         loop {
             if self.at_end_of_statement() {
-                break;
+                // Measured on the binary of v2.0.19 on 2026-10-31: the line
+                // that ends with a comma continues on the next one, and the
+                // empty lines between the two are not a part of it.
+                if self.peek().kind == TokenKind::Newline && self.the_line_continues() {
+                    self.skip_newlines();
+                } else {
+                    break;
+                }
             }
             if self.at_op(&[","]) {
                 return Err(self.error(format!(
@@ -3876,7 +3907,18 @@ impl Parser {
     /// decrement are not among the operators: the line that ends with one
     /// of them wants an operand, and it does not continue.
     fn the_line_continues(&self) -> bool {
-        let Some(token) = self.the_token_before(self.position) else { return false };
+        self.the_line_continues_at(self.position)
+    }
+
+    /// Whether the line continues on the next one, at the given place.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a line that ends
+    /// with an operator continues on the next one, and the empty lines
+    /// between the two are not a part of it. The increment and the
+    /// decrement are not among the operators: the line that ends with one
+    /// of them wants an operand, and it does not continue.
+    fn the_line_continues_at(&self, at: usize) -> bool {
+        let Some(token) = self.the_token_before(at) else { return false };
         match token.kind {
             TokenKind::Op => matches!(
                 token.value.as_str(),
@@ -6106,6 +6148,39 @@ mod tests {
         let statements = parse("t.Method(), 2").expect("parses");
         assert_eq!(statements.len(), 2);
         assert!(matches!(&statements[0], Node::MethodCall { .. }));
+        let Node::Legacy { items, .. } = &statements[1] else {
+            panic!("the list of v1");
+        };
+        assert_eq!(items.len(), 1);
+    }
+
+    #[test]
+    fn the_member_that_has_no_parentheses_is_a_command() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the member that
+        // has no parentheses is a command of v2, and the rest of the line is
+        // the list of its arguments.
+        let statements = parse("t.Method 2").expect("parses");
+        let Node::MethodCall { arguments, .. } = &statements[0] else {
+            panic!("a method");
+        };
+        assert_eq!(arguments.len(), 1);
+        // The comma that comes right after the member with no space is not
+        // one of the arguments, and the line holds no action.
+        let error = parse("t.Method, 2").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: t.Method, 2"
+        );
+    }
+
+    #[test]
+    fn the_line_that_ends_with_a_comma_continues_on_the_next_one() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the line that
+        // ends with a comma continues on the next one, and the list of v1
+        // goes on with it.
+        let statements = parse("x := 1,\n2").expect("parses");
+        assert_eq!(statements.len(), 2);
+        assert!(matches!(&statements[0], Node::Assign { .. }));
         let Node::Legacy { items, .. } = &statements[1] else {
             panic!("the list of v1");
         };

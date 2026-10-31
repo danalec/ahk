@@ -5190,3 +5190,42 @@ fn the_member_that_has_parentheses_is_an_expression() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[m]", "[g]"]);
 }
+
+#[test]
+fn the_member_that_is_a_command_carries_its_arguments() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the member that has
+    // no parentheses is a command of v2, and the rest of the line is the
+    // list of its arguments.
+    let (report, _desktop) = run("class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method 7");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7"]);
+}
+
+#[test]
+fn the_parameters_of_the_command_of_a_member_are_separated_by_the_comma() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the space is the
+    // concatenation of v2, and the comma is what separates the arguments.
+    let (report, _desktop) = run("class Thing {\n    Method(a, b) {\n        MsgBox a \",\" b\n    }\n}\nt := Thing()\nt.Method 7, 8");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7,8"]);
+}
+
+#[test]
+fn the_parameter_that_is_not_there_in_a_method_is_a_missing_one() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameter that
+    // the command does not give a value to keeps its place, and the method
+    // is refused with "Missing a required parameter.".
+    let (report, _desktop) = run("class Thing {\n    Method(a, b) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method , 7");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Missing a required parameter."));
+}
+
+#[test]
+fn the_line_that_ends_with_a_comma_continues_on_the_next_one() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the line that ends
+    // with a comma continues on the next one, and the list of v1 goes on
+    // with it.
+    let (report, _desktop) = run("x := 1,\n2\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}

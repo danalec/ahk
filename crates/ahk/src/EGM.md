@@ -425,6 +425,17 @@ parentheses, and the item that is read, are expressions too, and the
 comma ends them; the write of a member is a statement like any other, and
 `x := 1, 2` writes the property and evaluates the list.
 
+The member that has no parentheses is a command of v2, and it carries its
+arguments. Measured on the binary of v2.0.19 on 2026-10-31: the rest of
+the line is the list of the arguments of the method, the space is the
+concatenation of v2 and the comma is what separates them (`t.Method 7 8`
+is one argument and `t.Method 7, 8` is two), and the comma that comes
+right after the member with no space is not one of them -- the line holds
+no action. The parameter that the command does not give a value to keeps
+its place, and the method is refused with "Missing a required parameter.".
+The line that ends with a comma continues on the next one, and the list of
+v1 goes on with it.
+
 ### The runtime (`runtime.rs`)
 
 The interpreter and everything it reports:
@@ -485,6 +496,13 @@ not when the statement that defines them runs: a function that is called
 before it is defined finds it. The name of a closure of v2 is empty, and the
 runtime keeps every one of them under a name of its own, that a script cannot
 reach.
+
+The call of a method binds its parameters the way the call of a function
+binds its own: the parameter that the command does not give a value to keeps
+its place, and it has no value -- a parameter that has a default takes it,
+and one that has none is a missing parameter, and the call is refused with
+"Missing a required parameter." and the name of the parameter goes in the
+`Extra`.
 
 The traits the runtime is handed:
 
@@ -1281,6 +1299,12 @@ that asks for another one is refused with the reason.
   v1: it is evaluated, and its value is thrown away too. The name of a
   command of v2 is followed by a space or a parenthesis, and the comma
   that is there instead of the space is refused with the words of v2.
+
+- **The member that has no parentheses is a command of v2, and it carries
+  its arguments.** The space is the concatenation of v2 and the comma is
+  what separates the arguments, and the comma that comes right after the
+  member with no space is not one of them. The line that ends with a comma
+  continues on the next one.
 
 ## Side Effects
 

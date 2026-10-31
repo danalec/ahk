@@ -5209,3 +5209,42 @@ The probes that measured the rules are in
 `egm-review/probe_comma_expression14.py` (7),
 `egm-review/probe_comma_expression16.py` (8) and in
 `egm-review/probe_comma_expression17.py` (4).
+
+## 117. The member that has no parentheses is a command of v2
+
+Measured on the binary of v2.0.19 on 2026-10-31: the member that has no
+parentheses is a command of v2, and it carries its arguments.
+
+- **The rest of the line is the list of the arguments:** `t.Method 7` calls
+  the method with the 7, and `t.Prop 2` calls the method `Prop` -- and the
+  failure of it is "This value of type "Thing" has no method named
+  "Prop.".
+- **The space is the concatenation of v2 and the comma is what separates
+  the arguments:** `t.Method 7 8` is one argument ("78"), and `t.Method 7,
+  8` is two.
+- **The comma that comes right after the member with no space is not one
+  of the arguments:** the line holds no action, and it is named with it:
+  "This line does not contain a recognized action.".
+- **The parameter that the command does not give a value to is a missing
+  one:** `t.Method , 7` calls the method with two arguments, and the first
+  one has no value -- "Missing a required parameter.".
+- **The line that ends with a comma continues on the next one:** the list of
+  v1 goes on with it. `x := 1,` and then `2` is the assignment and the 2,
+  which is thrown away.
+
+The tree read the member that has no parentheses as the call of the method
+with no arguments, and it refused the script at the load with
+"Unexpected \",\"" or "Unexpected \"2\"" when an argument came after it.
+
+The number of the arguments is checked before the arguments are evaluated
+in the v2, and the tree checks it after: it is in section 118.
+
+The probes that measured the rules are in
+`egm-review/probe_comma_expression6.py` (12 cases),
+`egm-review/probe_comma_expression7.py` (6),
+`egm-review/probe_comma_expression8.py` (6),
+`egm-review/probe_comma_expression9.py` (9),
+`egm-review/probe_comma_expression15.py` (6),
+`egm-review/probe_comma_expression19.py` (6),
+`egm-review/probe_comma_expression21.py` (4) and in
+`egm-review/probe_comma_expression22.py` (5).

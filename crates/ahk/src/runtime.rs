@@ -3725,7 +3725,12 @@ impl<'a> Runtime<'a> {
         for argument in arguments {
             values.push(self.evaluate(argument)?);
         }
-        self.call_method_with(class, method, this, &values, line)
+        // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
+        // that the command does not give a value to is the one that is not
+        // there: the place of it is kept, and it has no value.
+        let missing: Vec<bool> =
+            arguments.iter().map(|argument| matches!(argument, Node::Empty { .. })).collect();
+        self.call_method_with_missing(class, method, this, &values, line, &missing)
     }
 
     /// A method, called with the values of the arguments.
@@ -3740,6 +3745,26 @@ impl<'a> Runtime<'a> {
         this: &Value,
         values: &[Value],
         line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        self.call_method_with_missing(class, method, this, values, line, &[])
+    }
+
+    /// A method, called with the values of the arguments, and with the
+    /// parameters that the call does not give a value to.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a parameter that
+    /// the command does not give a value to is a missing one, and the call
+    /// is refused with "Missing a required parameter." -- the name of the
+    /// parameter is in the `Extra`. A parameter that has a default takes
+    /// it.
+    fn call_method_with_missing(
+        &mut self,
+        class: &str,
+        method: &MethodDef,
+        this: &Value,
+        values: &[Value],
+        line: u32,
+        missing: &[bool],
     ) -> Result<Value, RuntimeFailure> {
         // The rest of the arguments may be any number of them, and a
         // method that has one has no maximum.
@@ -3757,7 +3782,11 @@ impl<'a> Runtime<'a> {
         // A parameter that has no default is required: v2 refuses the
         // call and says that the parameter is missing.
         for (index, parameter) in method.parameters.iter().enumerate() {
-            if values.get(index).is_none() && parameter.default.is_none() && !parameter.variadic {
+            let is_missing = missing.get(index).copied().unwrap_or(false);
+            if (is_missing || values.get(index).is_none())
+                && parameter.default.is_none()
+                && !parameter.variadic
+            {
                 return Err(RuntimeFailure::Detailed(
                     RuntimeError {
                         message: "Missing a required parameter.".into(),
@@ -3774,9 +3803,15 @@ impl<'a> Runtime<'a> {
         // their default, and the ones that have none are empty.
         for (index, parameter) in method.parameters.iter().enumerate() {
             let given = values.get(index);
+            // A parameter that the command does not give a value to is a
+            // missing one: the default of it is taken, and one that has no
+            // default at all was refused above.
+            let is_missing = missing.get(index).copied().unwrap_or(false);
             let value = match given {
-                Some(value) => value.clone(),
-                None => match &parameter.default {
+                Some(value) if !is_missing => value.clone(),
+                // A parameter that the call does not give a value to takes
+                // its default, and one that has no default at all is empty.
+                _ => match &parameter.default {
                     Some(default) => self.evaluate(default)?,
                     None => Value::Text(String::new()),
                 },
@@ -3784,7 +3819,7 @@ impl<'a> Runtime<'a> {
             // A parameter that the call does not give a value to is a local
             // one, even when it is written `&x`: the default of v2 is a
             // value of its own.
-            if parameter.by_ref && given.is_some() {
+            if parameter.by_ref && given.is_some() && !is_missing {
                 // The caller must pass a reference: the parameter is an
                 // alias of the variable the reference points at.
                 let Value::Reference(reference) = value else {
