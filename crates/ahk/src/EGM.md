@@ -355,6 +355,20 @@ makes it so. Without the space, v2 refuses and names the value that came
 too close: "Missing space or operator before this.\n     Specifically:
 "b"".
 
+The reserved word that is not wanted says what it is. Measured on the binary
+of v2.0.19 on 2026-10-31: the words that may not be the name of a variable
+say "The following reserved word must not be used as a variable name:" and the
+word; the words that are reserved for a future of v2 -- `in` and `contains` --
+say "Unexpected reserved word."; and the words that are not operators -- `not`
+and `super` -- say "Syntax error.". The text that is named is the rest of the
+line, from the word. The words that begin a construct -- `elseif`, `default`,
+`exitapp`, `class` and `extends` -- are refused by v2 with a dialog, and the
+message of the dialog cannot be read.
+
+v2 has no cast. The word `as` is a reserved word, and `x := 1 as Integer` is
+refused with "Unexpected reserved word." and the rest of the line. The tree
+read it as a cast of its own, and a cast that the dialect does not have.
+
 ### The runtime (`runtime.rs`)
 
 The interpreter and everything it reports:
@@ -469,6 +483,11 @@ and a reference is an object, like an array, a map and a class. Where
 the parameter wants a text, a number or an object, the reference does
 not fit and the built-in says so. Measured on the binary of v2.0.19 on
 2026-10-31.
+
+The operator `is` asks whether a value is of a class, and the value that is
+not a class is refused with the value in the `Extra`: `1 is 2` says "Expected
+a Class but got an Integer." and the "2" is the `Extra`, and the `What` is
+empty. Measured on the binary of v2.0.19 on 2026-10-31.
 
 The built-in variables of v2 are in `variables.rs`: the ones the runtime
 knows, and the ones the runtime writes where it runs.
@@ -1169,6 +1188,16 @@ that asks for another one is refused with the reason.
   of the words of v2 is refused with "Parameter #1 of MouseClick is
   invalid." and the value in the `Extra`, with the space at the end of it
   cut.
+
+- **The reserved word that is not wanted says what it is.** The words that
+  may not be the name of a variable say so, the words that are reserved for
+  a future of v2 say "Unexpected reserved word.", and the words that are
+  not operators say "Syntax error.". The tree has no cast: the word `as`
+  is a reserved word.
+
+- **The operator `is` carries the value that failed in the `Extra`.** The
+  right side of it has to be a class, and the value that arrived goes in
+  the `Extra` of the failure, and the `What` is empty.
 
 ## Side Effects
 

@@ -5016,3 +5016,14 @@ fn the_fourth_button_of_a_mouse_click_is_not_carried_yet() {
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("the fourth button is not carried yet."));
 }
+
+#[test]
+fn the_value_that_the_is_refuses_is_in_the_extra() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value that
+    // arrived goes in the `Extra` of the failure, and the `What` is empty.
+    let (report, _desktop) = run(
+        "try {\n    x := 1 is 2\n} catch as err {\n    MsgBox err.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2".to_string()]);
+}

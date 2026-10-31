@@ -278,19 +278,6 @@ pub enum AssignOp {
     ShiftRightUnsigned,
 }
 
-/// The types a value can be cast to with `as`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum CastType {
-    /// `as Integer`.
-    Integer,
-    /// `as Float`.
-    Float,
-    /// `as String`.
-    String,
-    /// `as Number`.
-    Number,
-}
-
 /// One branch of an `If`: a condition and what happens when it holds.
 ///
 /// An `If` with `ElseIf` branches is one node with a list of them, because
@@ -377,8 +364,6 @@ pub enum Node {
     Binary { op: BinaryOp, left: Box<Node>, right: Box<Node>, line: u32 },
     /// `cond ? a : b`.
     Ternary { condition: Box<Node>, then: Box<Node>, otherwise: Box<Node>, line: u32 },
-    /// `x as Integer`.
-    Cast { value: Box<Node>, target: CastType, line: u32 },
     /// `%expr%`: the name that the script builds.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the dynamic
@@ -582,7 +567,6 @@ impl Node {
             | Node::Unary { line, .. }
             | Node::Binary { line, .. }
             | Node::Ternary { line, .. }
-            | Node::Cast { line, .. }
             | Node::DynamicName { line, .. }
             | Node::AssignDynamic { line, .. }
             | Node::Assign { line, .. }

@@ -5034,3 +5034,43 @@ The probe that measured the rules is in `egm-review/probe_mouse_click.py`
 probes that measured the shape of the `Click` are in
 `egm-review/probe_click_shape.py` (13 cases) and in
 `egm-review/probe_click_button.py` (7 cases).
+
+## 113. The reserved word that is not wanted
+
+Measured on the binary of v2.0.19 on 2026-10-31: the reserved word that is
+not wanted says what it is, and v2 has no cast.
+
+- **The words that may not be the name of a variable say so:** "The
+  following reserved word must not be used as a variable name:" and the
+  word. They are `if`, `else`, `switch`, `case`, `return`, `while`,
+  `loop`, `try`, `catch`, `finally`, `throw`, `for`, `break`, `continue`,
+  `goto`, `static`, `global` and `local`.
+- **The words that are reserved for a future of v2 say "Unexpected reserved
+  word.":** `in` and `contains`.
+- **The words that are not operators say "Syntax error.":** `not` and
+  `super`.
+- **The text that is named is the rest of the line, from the word.**
+- **The words that begin a construct are refused by the v2 with a dialog**
+  -- `elseif`, `default`, `exitapp`, `class` and `extends` -- and the
+  message of the dialog cannot be read.
+- **v2 has no cast:** the word `as` is a reserved word, and `x as Integer`
+  is refused with "Unexpected reserved word.".
+- **The operator `is` carries the value that failed in the `Extra`:** `1 is
+  2` says "Expected a Class but got an Integer." with the "2" in the
+  `Extra`.
+
+The tree said "Unexpected \"else\"" for every one of the words, and it
+read `x as Integer` as a cast of its own -- a cast that the dialect does
+not have.
+
+Two holes were measured and are not fixed yet: the name that is followed
+by a space and a parenthesis is a command in the v2 -- `MyFunc ("a"), "b"`
+calls `MyFunc` with two arguments -- and the tree reads it as a call; and
+the parameter of a command that is not there is ignored by the v2
+(`MouseClick "Left",,,0`) and the tree refuses the script at the load.
+
+The probe that measured the rules is in
+`egm-review/probe_reserved_word.py` (33 cases: 28 the same, and 5 that
+are known to differ -- the words whose refusal is a dialog), and in
+`egm-review/probe_cast.py` (11 cases) and in
+`egm-review/probe_unexpected.py` (9 cases).

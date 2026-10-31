@@ -45,8 +45,8 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use crate::ast::{
-    AccessBody, AccessDef, AssignOp, BinaryOp, CastType, DeclareKind, Declarations, DynamicPiece, LiteralValue,
-    LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, DeclareKind, Declarations, DynamicPiece, LiteralValue, LoopKind,
+    MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
@@ -2249,8 +2249,7 @@ impl<'a> Runtime<'a> {
             Node::Literal { .. }
             | Node::Var { .. }
             | Node::Binary { .. }
-            | Node::Ternary { .. }
-            | Node::Cast { .. } => {
+            | Node::Ternary { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
                     line: statement.line(),
@@ -7719,11 +7718,21 @@ impl<'a> Runtime<'a> {
                     BinaryOp::Is => {
                         // The right side has to be a class, and v2 says so
                         // when it is not.
+                        //
+                        // Measured on the binary of v2.0.19 on 2026-10-31:
+                        // the value that arrived goes in the `Extra` of the
+                        // failure, and the `What` is empty.
                         let Some(class) = self.class_name_of(&right_value) else {
-                            return Err(RuntimeFailure::Error(RuntimeError {
-                                message: expected_type(TypeName::Class, right_value.type_name()),
-                                line,
-                            }));
+                            return Err(RuntimeFailure::Detailed(
+                                RuntimeError {
+                                    message: expected_type(TypeName::Class, right_value.type_name()),
+                                    line,
+                                },
+                                Detail {
+                                    what: String::new(),
+                                    extra: the_extra_of_the_value(&right_value),
+                                },
+                            ));
                         };
                         let answer = match &left_value {
                             Value::Object(object) => {
@@ -7820,27 +7829,6 @@ impl<'a> Runtime<'a> {
                 let value = self.evaluate(value)?;
                 self.write_a_dynamic_name(&name, *op, value, *line)?;
                 Ok(Value::Text(String::new()))
-            }
-            Node::Cast { value, target, line } => {
-                let value = self.evaluate(value)?;
-                Ok(match target {
-                    CastType::Integer => {
-                        let number = self.number(&value, *line)?;
-                        Value::Int(number as i64)
-                    }
-                    CastType::Float => Value::Float(self.number(&value, *line)?),
-                    CastType::String => {
-                        let text = value.as_text().map_err(|got| RuntimeFailure::Error(RuntimeError {
-                            message: expected_type(TypeName::String, got),
-                            line: *line,
-                        }))?;
-                        Value::Text(text)
-                    }
-                    CastType::Number => {
-                        let number = self.number(&value, *line)?;
-                        Value::from_number(number)
-                    }
-                })
             }
             Node::Expression { .. }
             | Node::If { .. }
@@ -8717,7 +8705,6 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Unary { .. } => "Unary",
         Node::Binary { .. } => "Binary",
         Node::Ternary { .. } => "Ternary",
-        Node::Cast { .. } => "Cast",
         Node::DynamicName { .. } => "DynamicName",
         Node::AssignDynamic { .. } => "AssignDynamic",
         Node::Index { .. } => "Index",

@@ -36,9 +36,8 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::ast::{
-    AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, CastType, Catch, DeclareKind, Declared,
-    Declarations, DynamicPiece, LiteralValue, LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef,
-    UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, Catch, DeclareKind, Declared, Declarations, DynamicPiece,
+    LiteralValue, LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
 use crate::lexer::{SyntaxError, Token, TokenKind};
 
@@ -1590,6 +1589,11 @@ impl Parser {
         // text of the expression is named.
         if token.kind == TokenKind::Op && token.value == "#" {
             return Err(self.the_error_of_the_hash(self.position));
+        }
+        // Measured on the binary of v2.0.19 on 2026-10-31: the reserved word
+        // that is left over after an expression says what it is.
+        if token.kind == TokenKind::Keyword {
+            return Err(self.the_error_of_the_reserved_word(self.position));
         }
         // Measured on the binary of v2.0.19 on 2026-10-31: the token that
         // is not wanted is named, and the line of the script says where it
@@ -3732,6 +3736,41 @@ impl Parser {
         the_source_of_a_definition(self, start, self.position)
     }
 
+    /// The error of the reserved word that is not wanted.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the words that may
+    /// not be the name of a variable say so -- "The following reserved word
+    /// must not be used as a variable name:", and the words that are
+    /// reserved for a future of v2 -- `in` and `contains` -- say "Unexpected
+    /// reserved word.". The words that are not operators say "Syntax
+    /// error.". The text that is named is the rest of the line, from the
+    /// word.
+    ///
+    /// The words that begin a construct -- `elseif`, `default`, `exitapp`,
+    /// `class` and `extends` -- are refused by v2 with a dialog, and the
+    /// message of the dialog cannot be read.
+    fn the_error_of_the_reserved_word(&self, at: usize) -> SyntaxError {
+        let token = &self.tokens[at];
+        let word = token.value.to_lowercase();
+        let message = match word.as_str() {
+            "in" | "contains" => format!(
+                "Unexpected reserved word.\n     Specifically: {}",
+                the_source_of_the_rest_of_the_line(self, at)
+            ),
+            "not" | "super" => format!(
+                "Syntax error.\n     Specifically: {}",
+                the_source_of_the_rest_of_the_line(self, at)
+            ),
+            "elseif" | "default" | "exitapp" | "class" | "extends" => format!(
+                "Unexpected {:?}\n     Specifically: {}",
+                token.value,
+                the_source_of_the_line(self, token.line)
+            ),
+            _ => format!("The following reserved word must not be used as a variable name:\n{:?}", word),
+        };
+        SyntaxError { message, line: token.line, column: token.column }
+    }
+
     /// The error of the hash that is not a directive.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the hash that
@@ -4438,23 +4477,15 @@ impl Parser {
                 continue;
             }
             if self.at_keyword(&["as"]) {
-                let token = self.next();
-                let name = self.next();
-                let target_type = match name.value.to_lowercase().as_str() {
-                    "integer" => CastType::Integer,
-                    "float" => CastType::Float,
-                    "string" => CastType::String,
-                    "number" => CastType::Number,
-                    other => {
-                        return Err(SyntaxError {
-                            message: format!("{other:?} is not a type"),
-                            line: name.line,
-                            column: name.column,
-                        });
-                    }
-                };
-                node = Node::Cast { value: Box::new(node), target: target_type, line: token.line };
-                continue;
+                // Measured on the binary of v2.0.19 on 2026-10-31: v2 has no
+                // cast, and the word `as` is a reserved word that is not
+                // wanted there. The text that is named is the rest of the
+                // line, from the word.
+                let at = self.position;
+                return Err(self.error(format!(
+                    "Unexpected reserved word.\n     Specifically: {}",
+                    the_source_of_the_rest_of_the_line(self, at)
+                )));
             }
             if self.at_op(&["++", "--"]) && !self.peek().spaced {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -5620,4 +5651,41 @@ mod tests {
         assert!(matches!(&statements[0], Node::Goto { name, .. } if name == "\"done\""));
         let statements = parse("Goto(done)").expect("parses");
         assert!(matches!(&statements[0], Node::Goto { name, .. } if name == "done"));
+    }
+
+    #[test]
+    fn the_reserved_word_that_is_not_wanted_names_itself() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the words that
+        // may not be the name of a variable say so.
+        let error = parse("x := 1 else").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "The following reserved word must not be used as a variable name:\n\"else\""
+        );
+    }
+
+    #[test]
+    fn the_reserved_word_of_the_future_of_v2_is_named() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: `in` and
+        // `contains` are reserved for a future of v2, and the text that is
+        // named is the rest of the line, from the word.
+        let error = parse("x := 1 in").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: in");
+    }
+
+    #[test]
+    fn the_word_that_is_not_an_operator_is_a_syntax_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: `not` and `super`
+        // are not operators, and the text that is named is the rest of the
+        // line, from the word.
+        let error = parse("x := 1 not").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: not");
+    }
+
+    #[test]
+    fn v2_has_no_cast() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the word `as` is
+        // a reserved word, and v2 has no cast.
+        let error = parse("x := 1 as Integer").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: as Integer");
     }
