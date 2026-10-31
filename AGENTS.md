@@ -2423,9 +2423,21 @@ base-class declarations are evaluated but before __New is called".
   error. The variables that come *after* the `__Init` are another thing:
   v2 takes them, and the tree takes them too (section 85).
 
-What is not carried yet: the class of v2 is initialized when it is first
-referenced -- the static `__Init` and the static `__New` are called then --
-and the tree does not do that.
+- **The class of v2 is initialised when it is first referenced.** The tree
+  does that: the statement that defines the class is a use, the static
+  variables of the class are assigned then, and the static `__New` runs
+  then -- once, and the one of the base of it as well. The class that is
+  never used is initialised all the same, because the statement that
+  defines it is a use.
+- **The `__New` of an instance is the constructor of it, and the `__Init`
+  is the one of v1.** Both run when the instance is made, and the `__Init`
+  of v1 runs before the `__New`.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_class_init.py` (15 cases, none of them different) and
+in `egm-review/compare_class_first_use.py` (eight cases, none of them
+different). The probes that measured the rules are in
+`egm-review/probe_class_init.py` and `egm-review/probe_class_new.py`.
 
 ## 42. The numbers of v2 are the numbers of v2
 

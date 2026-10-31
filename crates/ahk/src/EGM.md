@@ -1032,6 +1032,10 @@ that asks for another one is refused with the reason.
   in the storage of the function, it keeps its value between the calls, and
   the value of the declaration runs the first time that declaration is
   reached.
+- **The class of v2 is initialised when it is first referenced, and the
+  `__New` of an instance is the constructor of it.** The statement that
+  defines the class is a use, and the `__Init` of v1 runs before the
+  `__New`.
 
 ## Side Effects
 
