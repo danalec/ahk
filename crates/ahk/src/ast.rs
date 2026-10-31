@@ -487,6 +487,12 @@ pub enum Node {
     /// list is the last of its items, and every item of it runs. The list
     /// of one item is the value of that item.
     Group { items: Vec<Node>, line: u32 },
+    /// A parameter of a command that is not there: `One "a",, "b"`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the place of it
+    /// is kept, and the parameter has no value: one that has a default
+    /// takes it, and one that has none is a missing parameter.
+    Empty { line: u32 },
     /// `{a: 1, b: 2}`: the literal of an object.
     ///
     /// v2 writes an object between braces, and the empty braces are the
@@ -596,6 +602,7 @@ impl Node {
             | Node::AssignProperty { line, .. }
             | Node::ArrayLiteral { line, .. }
             | Node::Group { line, .. }
+            | Node::Empty { line }
             | Node::ObjectLiteral { line, .. }
             | Node::Lambda { line, .. }
             | Node::Try { line, .. }

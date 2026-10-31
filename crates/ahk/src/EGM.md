@@ -386,6 +386,17 @@ concatenation of v2 takes the two: `x := MyFunc ("a")` says "Expected a
 String but got a Func." at the run. The commas at the end of the parameters
 of a command add nothing: `One "a",` calls `One` with one parameter.
 
+The parameter that a command does not give a value to keeps its place, and
+it has no value. Measured on the binary of v2.0.19 on 2026-10-31: `One
+"a",, "b"` calls `One` with three parameters, a parameter that has a
+default takes it, and one that has none is a missing parameter -- the call
+is refused with "Missing a required parameter." and the name of the
+parameter goes in the `Extra`. The number of the arguments is checked
+before the parameters are bound, so `Two "a",, "b"` is refused with "Too
+many parameters passed to function.". The value that is not there in the
+list of a group is a "Syntax error.", and the comma that follows it is
+named.
+
 ### The runtime (`runtime.rs`)
 
 The interpreter and everything it reports:
@@ -509,6 +520,12 @@ empty. Measured on the binary of v2.0.19 on 2026-10-31.
 The value of a parenthesized list is the last of its items, and every item
 of it runs. Measured on the binary of v2.0.19 on 2026-10-31: `x := ("a",
 "b")` is "b", and the list of three items runs all of them.
+
+The parameter that a command does not give a value to has no value, and
+the call that takes it knows it: a parameter that has a default takes it,
+and one that has none is a missing parameter. Measured on the binary of
+v2.0.19 on 2026-10-31: `One "a",, "b"` calls `One` with three parameters,
+and the second one has no value at all.
 
 The built-in variables of v2 are in `variables.rs`: the ones the runtime
 knows, and the ones the runtime writes where it runs.
@@ -1224,6 +1241,11 @@ that asks for another one is refused with the reason.
   its items.** Every item of it runs, the list of nothing is a "Syntax
   error.", and the parenthesis that is spaced is not the list of the
   arguments of a call: it is one parameter of a command.
+
+- **The parameter that a command does not give a value to keeps its
+  place.** It has no value: a parameter that has a default takes it, and
+  one that has none is a missing parameter, and the call is refused with
+  "Missing a required parameter.".
 
 ## Side Effects
 

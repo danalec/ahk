@@ -5099,3 +5099,45 @@ fn the_member_with_a_space_is_not_a_call_in_an_expression() {
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("Expected a String but got a Func."));
 }
+
+#[test]
+fn the_parameter_that_is_not_there_is_a_missing_one() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
+    // that the command does not give a value to is a missing one, and the
+    // call is refused with "Missing a required parameter.".
+    let (report, _desktop) = run("Three(a, b, c) {\n    MsgBox a\n}\nThree (\"a\"),, \"c\"");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Missing a required parameter."));
+    assert_eq!(report.error_line, Some(4));
+}
+
+#[test]
+fn the_parameter_that_is_not_there_takes_its_default() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a parameter that
+    // has a default takes it, and one that has none is a missing one.
+    let (report, _desktop) = run("WithDefault(a, b := \"the default\") {\n    MsgBox b\n}\nWithDefault (\"a\"),,");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["the default"]);
+}
+
+#[test]
+fn the_parameter_that_is_not_there_keeps_its_place() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the place of the
+    // parameter that is not there is kept, and the number of the arguments
+    // is checked before the parameters are bound.
+    let (report, _desktop) = run("Two(a, b) {\n    MsgBox a\n}\nTwo (\"a\"),, \"b\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too many parameters passed to function.\n     Specifically: Two")
+    );
+}
+
+#[test]
+fn the_value_that_is_not_there_in_a_group_is_refused_at_the_load() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value that is
+    // not there in the list of a group is a "Syntax error.", and the comma
+    // that follows it is named.
+    let error = parse("x := (\"a\",, \"c\")").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: , \"c\")");
+}

@@ -1869,15 +1869,25 @@ impl Parser {
     /// end of the statement. A parenthesis that opens one of them is a
     /// parameter of its own, and the value of it is the last of the list
     /// that it holds.
-    fn the_parameters_of_a_command(&mut self) -> Result<Vec<Node>, SyntaxError> {        let mut arguments = Vec::new();
+    fn the_parameters_of_a_command(&mut self) -> Result<Vec<Node>, SyntaxError> {
+        let mut arguments = Vec::new();
         if !self.at_end_of_statement() {
             loop {
-                // Measured on the binary of v2.0.19 on 2026-10-31: a brace
-                // that opens an argument of a command opens the literal of
-                // an object, and not a key: `Send {Enter}` is refused with
-                // "Missing \"propertyname:\" in object literal.". The key
-                // of the v2 is a text: `Send "{Enter}"`.
-                arguments.push(self.parse_expression().map_err(the_message_of_a_command)?);
+                if self.at_op(&[","]) {
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // parameter that is not there keeps its place, and the
+                    // parameter has no value: one that has a default takes
+                    // it, and one that has none is a missing parameter.
+                    arguments.push(Node::Empty { line: self.peek().line });
+                } else {
+                    // Measured on the binary of v2.0.19 on 2026-10-31: a
+                    // brace that opens an argument of a command opens the
+                    // literal of an object, and not a key: `Send {Enter}` is
+                    // refused with "Missing \"propertyname:\" in object
+                    // literal.". The key of the v2 is a text: `Send
+                    // "{Enter}"".
+                    arguments.push(self.parse_expression().map_err(the_message_of_a_command)?);
+                }
                 if self.at_op(&[","]) {
                     self.position += 1;
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -4292,8 +4302,10 @@ impl Parser {
                 let mut items = Vec::new();
                 // Measured on the binary of v2.0.19 on 2026-10-31: the list
                 // of nothing is a "Syntax error.", and the parenthesis that
-                // closes it is named.
-                if self.at_op(&[")"]) {
+                // closes it is named. The value that is not there at the
+                // front of the list is a "Syntax error." too, and the comma
+                // that names it is named.
+                if self.at_op(&[")"]) || self.at_op(&[","]) {
                     return Err(self.error(format!(
                         "Syntax error.\n     Specifically: {}",
                         the_source_of_the_rest_of_the_line(self, self.position)
@@ -4314,7 +4326,10 @@ impl Parser {
                         // Measured on the binary of v2.0.19 on 2026-10-31: a
                         // comma at the end of the list is a "Syntax error.",
                         // and the parenthesis that closes the list is named.
-                        if self.at_op(&[")"]) {
+                        // The value that is not there in the middle of the
+                        // list is a "Syntax error." too, and the comma that
+                        // follows it is named.
+                        if self.at_op(&[")"]) || self.at_op(&[","]) {
                             return Err(self.error(format!(
                                 "Syntax error.\n     Specifically: {}",
                                 the_source_of_the_rest_of_the_line(self, self.position)
@@ -5843,4 +5858,35 @@ mod tests {
         };
         assert_eq!(name, "myfunc");
         assert_eq!(arguments.len(), 2);
+    }
+
+    #[test]
+    fn the_parameter_that_is_not_there_keeps_its_place() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
+        // that is not there keeps its place, and it has no value.
+        let statements = parse("MyFunc \"a\",, \"b\"").expect("parses");
+        let Node::Call { name, arguments, .. } = &statements[0] else {
+            panic!("a call");
+        };
+        assert_eq!(name, "myfunc");
+        assert_eq!(arguments.len(), 3);
+        assert!(matches!(&arguments[1], Node::Empty { .. }));
+        // The commas at the end of the parameters add nothing.
+        let statements = parse("MyFunc \"a\",,").expect("parses");
+        let Node::Call { name, arguments, .. } = &statements[0] else {
+            panic!("a call");
+        };
+        assert_eq!(name, "myfunc");
+        assert_eq!(arguments.len(), 1);
+    }
+
+    #[test]
+    fn the_value_that_is_not_there_in_a_group_is_a_syntax_error() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the value that
+        // is not there in the list of a group is a "Syntax error.", and the
+        // comma that follows it is named.
+        let error = parse("x := (\"a\",, \"c\")").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: , \"c\")");
+        let error = parse("x := (,\"c\")").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: ,\"c\")");
     }

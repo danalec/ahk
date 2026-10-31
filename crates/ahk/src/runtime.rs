@@ -2250,7 +2250,8 @@ impl<'a> Runtime<'a> {
             | Node::Var { .. }
             | Node::Binary { .. }
             | Node::Ternary { .. }
-            | Node::Group { .. } => {
+            | Node::Group { .. }
+            | Node::Empty { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
                     line: statement.line(),
@@ -6310,6 +6311,17 @@ impl<'a> Runtime<'a> {
         )
     }
 
+    /// The failure of a parameter that has no value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the name of the
+    /// parameter is in the `Extra` of the failure, and the `What` is empty.
+    fn the_missing_parameter(&self, name: &str, line: u32) -> RuntimeFailure {
+        RuntimeFailure::Detailed(
+            RuntimeError { message: "Missing a required parameter.".into(), line },
+            Detail { what: String::new(), extra: name.to_string() },
+        )
+    }
+
     /// The value of a variable that has to be there.
     pub(crate) fn assigned(
         &self,
@@ -6567,7 +6579,12 @@ impl<'a> Runtime<'a> {
         route: Route,
     ) -> Result<Value, RuntimeFailure> {
         let values = self.evaluate_all(arguments)?;
-        self.call_function_with(function, &values, line, route)
+        // The parameters that the command does not give a value to are the
+        // ones that are not there: the place of them is kept, and they have
+        // no value.
+        let missing: Vec<bool> =
+            arguments.iter().map(|argument| matches!(argument, Node::Empty { .. })).collect();
+        self.call_function_with(function, &values, line, route, &missing)
     }
 
     /// The call of a function, with the values of the arguments already
@@ -6578,6 +6595,7 @@ impl<'a> Runtime<'a> {
         values: &[Value],
         line: u32,
         route: Route,
+        missing: &[bool],
     ) -> Result<Value, RuntimeFailure> {
         // The arity of a function is in its definition: the parameters that
         // have no default are needed, and the ones that are there are the
@@ -6607,10 +6625,7 @@ impl<'a> Runtime<'a> {
                 .nth(values.len())
                 .map(|parameter| parameter.name.clone())
                 .unwrap_or_default();
-            return Err(RuntimeFailure::Detailed(
-                RuntimeError { message: "Missing a required parameter.".into(), line },
-                Detail { what: String::new(), extra: missing },
-            ));
+            return Err(self.the_missing_parameter(&missing, line));
         }
         let variadic = function.parameters.iter().any(|parameter| parameter.variadic);
         if !variadic && values.len() > function.parameters.len() {
@@ -6621,14 +6636,31 @@ impl<'a> Runtime<'a> {
                 line,
             ));
         }
+        // Measured on the binary of v2.0.19 on 2026-10-31: a parameter that
+        // the command does not give a value to is a missing one, and the
+        // call is refused with "Missing a required parameter." -- the name
+        // of the parameter is in the `Extra`. The number of the arguments
+        // is checked before it.
+        for (index, parameter) in function.parameters.iter().enumerate() {
+            if missing.get(index).copied().unwrap_or(false)
+                && parameter.default.is_none()
+                && !parameter.variadic
+            {
+                return Err(self.the_missing_parameter(&parameter.name, line));
+            }
+        }
         let mut scope: BTreeMap<String, Value> = BTreeMap::new();
         for (index, parameter) in function.parameters.iter().enumerate() {
             let given = values.get(index);
+            // A parameter that the command does not give a value to is a
+            // missing one: the default of it is taken, and one that has no
+            // default at all was refused above.
+            let is_missing = missing.get(index).copied().unwrap_or(false);
             let value = match given {
-                Some(value) => value.clone(),
+                Some(value) if !is_missing => value.clone(),
                 // A parameter that the call does not give a value to takes
                 // its default, and one that has no default at all is empty.
-                None => match &parameter.default {
+                _ => match &parameter.default {
                     Some(default) => self.evaluate(default)?,
                     None => Value::Text(String::new()),
                 },
@@ -6636,7 +6668,7 @@ impl<'a> Runtime<'a> {
             // A parameter that the call does not give a value to is a local
             // one, even when it is written `&x`: the default of v2 is a
             // value of its own.
-            if parameter.by_ref && given.is_some() {
+            if parameter.by_ref && given.is_some() && !is_missing {
                 // The caller must pass a reference: the parameter is an
                 // alias of the variable the reference points at.
                 let Value::Reference(reference) = value else {
@@ -6880,10 +6912,10 @@ impl<'a> Runtime<'a> {
         // A function that is written inside another one is a variable of
         // the scope around it, and the call finds it there.
         if let Some(function) = self.function_in_a_variable(name) {
-            return self.call_function_with(&function, values, line, route);
+            return self.call_function_with(&function, values, line, route, &[]);
         }
         if let Some(function) = self.functions.get(&name.to_lowercase()).cloned() {
-            return self.call_function_with(&function, values, line, route);
+            return self.call_function_with(&function, values, line, route, &[]);
         }
         self.call_builtin(name, values, line, route)
     }
@@ -7426,6 +7458,17 @@ impl<'a> Runtime<'a> {
                     value = self.evaluate(item)?;
                 }
                 Ok(value)
+            }
+            Node::Empty { .. } => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // parameter that is not there keeps its place, and the
+                // parameter has no value. The call that takes it gives it
+                // the default of the parameter, or refuses the call with
+                // "Missing a required parameter.".
+                //
+                // The value here is the one that a built-in sees, and the
+                // built-in of v2 has a default of its own for it.
+                Ok(Value::Text(String::new()))
             }
             Node::For { line, .. } => {
                 // A for loop is a statement: the parser never gives one
@@ -8720,6 +8763,7 @@ pub fn op_name(statement: &Node) -> &str {
         Node::AssignDynamic { .. } => "AssignDynamic",
         Node::Index { .. } => "Index",
         Node::Group { .. } => "Group",
+        Node::Empty { .. } => "Empty",
     }
 }
 

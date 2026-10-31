@@ -5125,3 +5125,42 @@ The probes that measured the rules are in
 `egm-review/probe_name_space_paren7.py` (6),
 `egm-review/probe_name_space_paren8.py` (10) and in
 `egm-review/probe_empty_parameter.py` (7).
+
+## 115. The parameter that is not there
+
+Measured on the binary of v2.0.19 on 2026-10-31: the parameter that a
+command does not give a value to keeps its place, and it has no value.
+
+- **The place of it is kept:** `One "a",, "b"` calls `One` with three
+  parameters.
+- **The number of the arguments is checked before the parameters are
+  bound:** `Two "a",, "b"` is refused with "Too many parameters passed to
+  function.".
+- **A parameter that has a default takes it:** `WithDefault "a",,` calls
+  it with the default of the second one.
+- **A parameter that has no default is a missing one:** the call is refused
+  with "Missing a required parameter.", and the name of the parameter goes
+  in the `Extra`.
+- **The value that is not there in the list of a group is a "Syntax
+  error."**, and the comma that follows it is named. The value that is not
+  there at the front of the list is a "Syntax error." too.
+- **The commas at the end of the parameters add nothing:** `One "a",`
+  calls `One` with one parameter.
+
+The tree refused the script at the load with "Missing operand.", and the
+value that is not there had no place of its own.
+
+Two holes were measured and are not fixed yet: the built-in that takes
+the value that is not there has a default of its own for it -- `Format
+"{}{}", 1,, 2` is accepted by the v2 -- and the tree gives it an empty
+text; and the comma of an expression ends it -- `x := 1, 2` is "1" in the
+v2, and the tree refuses the script at the load.
+
+The probes that measured the rules are in
+`egm-review/probe_empty_parameter.py` (7 cases),
+`egm-review/probe_empty_parameter2.py` (7),
+`egm-review/probe_empty_parameter3.py` (6),
+`egm-review/probe_empty_parameter4.py` (7),
+`egm-review/probe_empty_parameter5.py` (6),
+`egm-review/probe_comma_expression.py` (9) and in
+`egm-review/probe_comma_expression2.py` (6).
