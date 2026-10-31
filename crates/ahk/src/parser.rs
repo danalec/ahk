@@ -4913,6 +4913,33 @@ impl Parser {
         false
     }
 
+    /// The failure of the literal of an object that is not closed.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the literal that is
+    /// not closed swallows the rest of the script, and the text that is
+    /// named is the statement with it. The newline between the lines is a
+    /// space.
+    fn the_error_of_a_literal_that_is_not_closed(&self, line: u32) -> SyntaxError {
+        let end = self
+            .tokens
+            .iter()
+            .rposition(|token| token.kind == TokenKind::Eof)
+            .unwrap_or(self.tokens.len());
+        let column = self
+            .tokens
+            .get(self.position.saturating_sub(1))
+            .map(|token| token.column)
+            .unwrap_or(1);
+        SyntaxError {
+            message: format!(
+                "Missing \"}}\"\n     Specifically: {}",
+                the_source_with_the_newlines_as_spaces(self, self.statement_start, end)
+            ),
+            line,
+            column,
+        }
+    }
+
     /// The literal of an object: `{a: 1, b: 2}`.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the literal may be
@@ -4921,6 +4948,21 @@ impl Parser {
     /// on a line of its own. The properties are separated by commas, and the
     /// newline is not a separator.
     fn the_object_literal(&mut self, line: u32) -> Result<Node, SyntaxError> {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 looks for
+        // the brace that closes the literal before it reads the properties of
+        // it, and the literal that is not closed swallows the rest of the
+        // script.
+        if !self.the_object_literal_is_closed() {
+            return Err(self.the_error_of_a_literal_that_is_not_closed(line));
+        }
+        // Measured on the binary of v2.0.19 on 2026-11-01: the failures of
+        // the literal are named with the line of the brace that opens it, and
+        // not with the line of the property that failed.
+        let open = self
+            .tokens
+            .get(self.position.saturating_sub(1))
+            .map(|token| token.column)
+            .unwrap_or(1);
         let mut properties = Vec::new();
         // The property may be on the line that follows the brace.
         self.skip_newlines();
@@ -4958,8 +5000,8 @@ impl Parser {
                     if name.kind == TokenKind::Op && name.value == "," {
                         return Err(SyntaxError {
                             message: "Missing \"propertyname:\" in object literal.".into(),
-                            line: name.line,
-                            column: name.column,
+                            line,
+                            column: open,
                         });
                     }
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -4972,8 +5014,8 @@ impl Parser {
                     }
                     return Err(SyntaxError {
                         message: "Invalid property name in object literal.".into(),
-                        line: name.line,
-                        column: name.column,
+                        line,
+                        column: open,
                     });
                 }
                 MemberName::Text(name.value)
@@ -4981,8 +5023,8 @@ impl Parser {
             if !self.at_op(&[":"]) {
                 return Err(SyntaxError {
                     message: "Missing \"propertyname:\" in object literal.".into(),
-                    line: name.line,
-                    column: name.column,
+                    line,
+                    column: open,
                 });
             }
             self.position += 1;
@@ -5006,11 +5048,10 @@ impl Parser {
                 continue;
             }
             if !self.at_op(&["}"]) && self.peek().kind != TokenKind::Eof {
-                let token = self.peek().clone();
                 return Err(SyntaxError {
                     message: "Invalid property name in object literal.".into(),
-                    line: token.line,
-                    column: token.column,
+                    line,
+                    column: open,
                 });
             }
             break;
@@ -6708,5 +6749,25 @@ mod tests {
         // is the line of the brace that opens it.
         let error = parse("{\nx := 1").expect_err("does not parse");
         assert_eq!(error.message, "Missing \"}\"");
+        assert_eq!(error.line, 1);
+    }
+
+    #[test]
+    fn the_literal_of_an_object_is_closed_before_it_is_read() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 looks for
+        // the brace that closes the literal before it reads the properties
+        // of it, and the literal that is not closed swallows the rest of the
+        // script.
+        let error = parse("x := {\na: 1").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"}\"\n     Specifically: x := { a: 1");
+        assert_eq!(error.line, 1);
+        // The property that is not there does not hide the brace that is
+        // not there.
+        let error = parse("Send {\nEnter").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"}\"\n     Specifically: Send { Enter");
+        // The failures of the literal are named with the line of the brace
+        // that opens it, and not with the line of the property that failed.
+        let error = parse("x := {\na\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
         assert_eq!(error.line, 1);
     }

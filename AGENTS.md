@@ -5479,3 +5479,27 @@ The probes that measured the rules are in
 `egm-review/compare_block_at_the_start.py` (18 cases),
 `probe_block_shape.py` (10), `probe_block_text.py` (13) and
 `probe_block_line.py` (6).
+
+## 126. The literal of an object is closed before it is read
+
+Measured on the binary of v2.0.19 on 2026-11-01: the v2 looks for the
+brace that closes the literal of an object before it reads the properties
+of it.
+
+- **The literal that is not closed is the failure,** and not the property
+  that is not there: `Send {` and then `Enter` is refused with
+  "Missing \"}\"" and not with "Missing \"propertyname:\" in object
+  literal.".
+- **The literal that is not closed swallows the rest of the script,** and
+  the text that is named is the statement with it. The newline between the
+  lines is a space.
+- **The failures of the literal are named with the line of the brace that
+  opens it,** and not with the line of the property that failed.
+
+The tree read the properties of the literal before it looked for the brace
+that closes it, and it refused `x := {a: 1` with the name of the property
+that was not there.
+
+The probes that measured the rules are in
+`egm-review/probe_object_unclosed.py` (7 cases) and
+`probe_command_brace.py` (6).

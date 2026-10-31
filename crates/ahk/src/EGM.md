@@ -1365,6 +1365,12 @@ that asks for another one is refused with the reason.
   block is empty. The brace that follows a value opens the literal of an
   object, and the place of the brace is what tells the two apart.
 
+- **The literal of an object is closed before it is read.** The v2 looks
+  for the brace that closes the literal before it reads the properties of
+  it: the literal that is not closed is the failure, and it swallows the
+  rest of the script. The failures of the literal are named with the line
+  of the brace that opens it.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes
