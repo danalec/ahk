@@ -4937,3 +4937,26 @@ The probes that measured the rules are in
 `egm-review/probe_dynamic_name.py`, `egm-review/probe_dynamic_name2.py`,
 `egm-review/probe_percent_empty.py`, `egm-review/probe_percent_inside.py`
 and `egm-review/probe_percent_space.py`.
+
+## 110. The bracket that is not closed
+
+Measured on the binary of v2.0.19 on 2026-10-31: the bracket that is not
+closed is the failure, and not the operand that is not there inside it.
+
+- **The bracket is named,** and the statement that holds it is named with
+  it: "Missing ")" for `x := f(`, "Missing "]"" for `x := [`, and "Missing
+  "}"" for `x := {`.
+- **The operand that is not there inside it does not change the
+  message:** `x := f(1,` is a "Missing ")" and not a "Missing operand.",
+  and `x := (1 +` is a "Missing ")" too.
+- **A brace that closes a block is named before the bracket:** "Missing ")"
+  before "}"" for `x := f(1` inside a try.
+- **The text that is named is the statement and the line of the failure,**
+  and the newline between them is a space.
+
+The tree named the operand that was not there, and it named the whole
+script when the failure was in a block. The probe that measured the rules
+is in `egm-review/probe_unclosed_bracket.py` (28 cases: 23 the same, and 5
+that are known to differ -- the object literal that is not closed inside a
+try, where the v2 reads the brace of the block as the brace of the object
+and refuses the catch that follows it).

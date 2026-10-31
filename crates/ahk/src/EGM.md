@@ -1134,6 +1134,11 @@ that asks for another one is refused with the reason.
   `x`. A name that the script builds does not create a variable, and a
   function that writes one says that it wants a global declaration.
 
+- **The bracket that is not closed is the failure.** The operand that is
+  not there inside it does not change the message, and a brace that closes
+  a block is named before the bracket. The text that is named is the
+  statement and the line of the failure.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

@@ -239,20 +239,6 @@ fn the_source_of_the_rest_of_the_line(parser: &Parser, start: usize) -> String {
     the_source_of_the_tokens(parser, start, end)
 }
 
-/// The source of the statement that the parser is in.
-///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the bracket that is not
-/// there is named with the statement that holds it, and the lines of the
-/// statement are written in one.
-fn the_source_of_the_statement(parser: &Parser) -> String {
-    let line = the_line_of_the_parser(parser);
-    let mut end = parser.statement_start;
-    while end < parser.tokens.len() && parser.tokens[end].line <= line {
-        end += 1;
-    }
-    the_source_of_a_definition(parser, parser.statement_start, end)
-}
-
 /// The message of a failure of a command-style call.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the command of v2 is a
@@ -310,17 +296,6 @@ fn the_source_of_the_line(parser: &Parser, line: u32) -> String {
         end += 1;
     }
     the_source_of_the_tokens(parser, start, end).trim_end().to_string()
-}
-
-/// The line that the parser is on: the one of the last token it read.
-fn the_line_of_the_parser(parser: &Parser) -> u32 {
-    parser
-        .tokens
-        .iter()
-        .rev()
-        .find(|token| token.kind != TokenKind::Eof)
-        .map(|token| token.line)
-        .unwrap_or(1)
 }
 
 /// Whether the token is the operator of two values.
@@ -801,17 +776,85 @@ impl Parser {
         if token.kind != TokenKind::Op || token.value != operator {
             // Measured on the binary of v2.0.19 on 2026-10-31: the bracket
             // that is not there is named, and the statement that holds it is
-            // named with it.
+            // named with it. A brace that closes a block is named before the
+            // bracket.
+            let named = if matches!(operator, ")" | "]")
+                && token.kind == TokenKind::Op
+                && token.value == "}"
+            {
+                format!("Missing {operator:?} before \"}}\"")
+            } else {
+                format!("Missing {operator:?}")
+            };
             return Err(SyntaxError {
                 message: format!(
-                    "Missing {operator:?}\n     Specifically: {}",
-                    the_source_of_the_statement(self)
+                    "{named}\n     Specifically: {}",
+                    self.the_source_of_the_statement_of_the_line(token.line)
                 ),
                 line: token.line,
                 column: token.column,
             });
         }
         Ok(token)
+    }
+
+    /// The failure of the bracket that is not closed.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the bracket that is
+    /// not closed is the failure, and not the operand that is not there
+    /// inside it: `x := f(1,` is a "Missing ")" and not a "Missing
+    /// operand.". A brace that closes a block is named before the bracket.
+    fn the_error_of_the_bracket(&self, error: SyntaxError, closing: &str) -> SyntaxError {
+        let (message, line) = if error.message.starts_with("Missing operand.") {
+            (format!("Missing {closing:?}"), error.line)
+        } else if error.message.starts_with("Unexpected \"}\"") {
+            // The brace that closes the block is on the line of the failure,
+            // and the text that is named is the statement and that line.
+            let line = self
+                .tokens
+                .get(self.position.saturating_sub(1))
+                .map(|token| token.line)
+                .unwrap_or(error.line);
+            (format!("Missing {closing:?} before \"}}\""), line)
+        } else {
+            return error;
+        };
+        SyntaxError {
+            message: format!(
+                "{message}\n     Specifically: {}",
+                self.the_source_of_the_statement_of_the_line(line)
+            ),
+            line,
+            column: error.column,
+        }
+    }
+
+    /// The failure of the bracket that is not closed, at a place of its own.
+    fn the_error_of_a_missing_bracket(&self, closing: &str, line: u32, column: u32) -> SyntaxError {
+        SyntaxError {
+            message: format!(
+                "Missing {closing:?}\n     Specifically: {}",
+                self.the_source_of_the_statement_of_the_line(line)
+            ),
+            line,
+            column,
+        }
+    }
+
+    /// The statement that holds the failure, and the line that it is in.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the text that is
+    /// named is the statement and the line of the failure, and the newline
+    /// between them is a space.
+    fn the_source_of_the_statement_of_the_line(&self, line: u32) -> String {
+        let mut end = self.statement_start;
+        while end < self.tokens.len()
+            && self.tokens[end].line <= line
+            && self.tokens[end].kind != TokenKind::Eof
+        {
+            end += 1;
+        }
+        the_source_of_a_definition(self, self.statement_start, end)
     }
 
     fn skip_newlines(&mut self) {
@@ -1966,7 +2009,13 @@ impl Parser {
             return Ok(arguments);
         }
         loop {
-            arguments.push(self.parse_expression()?);
+            // The bracket that is not closed is the failure, and not the
+            // operand that is not there inside it.
+            let argument = match self.parse_expression() {
+                Ok(argument) => argument,
+                Err(error) => return Err(self.the_error_of_the_bracket(error, ")")),
+            };
+            arguments.push(argument);
             // The list may be written in more than one line.
             self.skip_newlines();
             if self.at_op(&[","]) {
@@ -4199,7 +4248,12 @@ impl Parser {
                 Node::DynamicName { pieces, line: token.line }
             }
             TokenKind::Op if token.value == "(" => {
-                let node = self.parse_expression()?;
+                // The bracket that is not closed is the failure, and not the
+                // operand that is not there inside it.
+                let node = match self.parse_expression() {
+                    Ok(node) => node,
+                    Err(error) => return Err(self.the_error_of_the_bracket(error, ")")),
+                };
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // group may be written in more than one line.
                 self.skip_newlines();
@@ -4212,7 +4266,13 @@ impl Parser {
                 let mut items = Vec::new();
                 if !self.at_op(&["]"]) {
                     loop {
-                        items.push(self.parse_expression()?);
+                        // The bracket that is not closed is the failure, and
+                        // not the operand that is not there inside it.
+                        let item = match self.parse_expression() {
+                            Ok(item) => item,
+                            Err(error) => return Err(self.the_error_of_the_bracket(error, "]")),
+                        };
+                        items.push(item);
                         // The list may be written in more than one line.
                         self.skip_newlines();
                         if self.at_op(&[","]) {
@@ -4249,6 +4309,13 @@ impl Parser {
                             && name.kind != TokenKind::Keyword
                             && !the_number_is_a_whole_one(&name)
                         {
+                            // Measured on the binary of v2.0.19 on 2026-10-31:
+                            // the object that is not closed is the failure,
+                            // and the name of the property that is not there
+                            // is not it.
+                            if name.kind == TokenKind::Newline || name.kind == TokenKind::Eof {
+                                return Err(self.the_error_of_a_missing_bracket("}", name.line, name.column));
+                            }
                             return Err(SyntaxError {
                                 message: "Invalid property name in object literal.".into(),
                                 line: name.line,
@@ -4263,7 +4330,12 @@ impl Parser {
                             });
                         }
                         self.position += 1;
-                        let value = self.parse_expression()?;
+                        // The bracket that is not closed is the failure, and
+                        // not the operand that is not there inside it.
+                        let value = match self.parse_expression() {
+                            Ok(value) => value,
+                            Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                        };
                         properties.push((name.value, value));
                         // The list may be written in more than one line.
                         self.skip_newlines();

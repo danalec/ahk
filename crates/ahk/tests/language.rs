@@ -4873,3 +4873,31 @@ fn the_dynamic_name_of_a_function_is_the_function() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Func"]);
 }
+
+#[test]
+fn the_bracket_that_is_not_closed_is_the_failure() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the bracket that is
+    // not closed is the failure, and not the operand that is not there
+    // inside it: `x := f(1,` is a "Missing ")" and not a "Missing
+    // operand.".
+    let error = parse("x := f(1,").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \")\"\n     Specifically: x := f(1,");
+    let error = parse("x := [").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"]\"\n     Specifically: x := [");
+    let error = parse("x := {").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: x := {");
+    let error = parse("x := (1 +").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \")\"\n     Specifically: x := (1 +");
+}
+
+#[test]
+fn the_brace_that_closes_the_block_is_named_before_the_bracket() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a brace that closes
+    // a block is named before the bracket that is not closed, and the text
+    // that is named is the statement and the line of the failure.
+    let error = parse("try {\n    x := f(1\n} catch as err {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Missing \")\" before \"}\"\n     Specifically: x := f(1 } catch as err {"
+    );
+}
