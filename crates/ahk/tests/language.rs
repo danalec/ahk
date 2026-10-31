@@ -5141,3 +5141,52 @@ fn the_value_that_is_not_there_in_a_group_is_refused_at_the_load() {
     let error = parse("x := (\"a\",, \"c\")").expect_err("does not parse");
     assert_eq!(error.message, "Syntax error.\n     Specifically: , \"c\")");
 }
+
+#[test]
+fn the_expression_of_a_statement_goes_on() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the expression of a
+    // statement begins with the call, and the operators that follow it are
+    // a part of it. The value of it is thrown away.
+    let (report, _desktop) = run("f() {\n    MsgBox \"[f]\"\n    return 3\n}\nf() + 1");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[f]"]);
+}
+
+#[test]
+fn the_concatenation_of_a_statement_is_a_part_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the concatenation of
+    // v2 is a part of the expression of a statement, and it wants a String.
+    let (report, _desktop) = run("class Thing {\n    Method() {\n        return \"m\"\n    }\n}\nt := Thing()\nf() {\n    return t.Method\n}\nf() \"a\"");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Expected a String but got a Func."));
+}
+
+#[test]
+fn the_comma_ends_the_expression_of_a_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the expression of a
+    // statement ends at the comma, and the rest of the line is the list of
+    // v1: it is evaluated, and its value is thrown away.
+    let (report, _desktop) = run("f() {\n    MsgBox \"[f]\"\n}\ng() {\n    MsgBox \"[g]\"\n}\nf(), g()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[f]", "[g]"]);
+}
+
+#[test]
+fn the_assignment_that_is_followed_by_a_comma_keeps_its_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the expression of the
+    // assignment ends at the comma, and the value of it is the one of the
+    // expression.
+    let (report, _desktop) = run("x := 1, 2\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_member_that_has_parentheses_is_an_expression() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the member that has
+    // parentheses is an expression, and the comma ends it: the rest of the
+    // line is the list of v1, and it is evaluated.
+    let (report, _desktop) = run("class Thing {\n    Method() {\n        MsgBox \"[m]\"\n    }\n}\nt := Thing()\ng() {\n    MsgBox \"[g]\"\n}\nt.Method(), g()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[m]", "[g]"]);
+}

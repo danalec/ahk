@@ -914,6 +914,20 @@ impl Parser {
         Ok(node)
     }
 
+    /// The expression of a statement that begins with a value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the expression of
+    /// a statement may begin with a value that is already read -- the call
+    /// of a statement, or the member of one -- and the operators and the
+    /// concatenation of v2 that follow it are a part of it. The value of
+    /// the expression is thrown away.
+    fn the_expression_after(&mut self, value: Node) -> Result<Node, SyntaxError> {
+        self.the_expression_begins();
+        let value = self.parse_binary_after(value, precedence::COMMA)?;
+        self.the_expression_is_done(self.position, false)?;
+        Ok(value)
+    }
+
     /// The operator that may not follow a literal text.
     ///
     /// The line and the column are the ones of the expression that holds
@@ -1509,6 +1523,18 @@ impl Parser {
                 return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
             }
         }
+        // Measured on the binary of v2.0.19 on 2026-10-31: the number that
+        // is at the start of a statement and that is followed by a comma is
+        // a call of v2 that is not written: the name of it is the number,
+        // and the comma is not the space that a call wants. The number
+        // that carries a point is not a name, and the line holds no
+        // action.
+        if token.kind == TokenKind::Number && !token.value.contains('.') && self.the_comma_is_after_the_number() {
+            return Err(self.error(format!(
+                "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )));
+        }
         // Measured on the binary of v2.0.19 on 2026-10-31: the token that
         // is not wanted is named, and the line of the script says where it
         // was. The brace that closes a block is the one that has no line:
@@ -1730,6 +1756,16 @@ impl Parser {
             if self.at_an_assignment_operator() {
                 return Ok(vec![self.parse_the_assignment(value)?]);
             }
+            // Measured on the binary of v2.0.19 on 2026-10-31: the
+            // expression of a statement goes on: the operators and the
+            // concatenation of v2 are a part of it, and the value of it is
+            // thrown away. `f() + 1` is the sum, and `f() "a"` is the
+            // concatenation.
+            let value = self.the_expression_after(value)?;
+            // Measured on the binary of v2.0.19 on 2026-10-31: the
+            // expression of a statement ends at the comma, and the rest of
+            // the line is the list of v1.
+            let legacy = self.the_legacy_list()?;
             self.end_of_statement()?;
             // A call that carries a member is an expression: the statement
             // reads the member and leaves the value behind. A call alone is
@@ -1739,7 +1775,9 @@ impl Parser {
             } else {
                 Node::Expression { value: Box::new(value), line: name_token.line }
             };
-            return Ok(vec![statement]);
+            let mut statements = vec![statement];
+            statements.extend(legacy);
+            return Ok(statements);
         }
         // `obj.Prop := value` and `obj[key] := value`: the left side is a
         // value and not a name.
@@ -1778,8 +1816,13 @@ impl Parser {
                 let start = self.position;
                 let value = self.the_expression_of_a_statement()?;
                 let end = self.position;
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // expression of a statement ends at the comma, and the rest
+                // of the line is the list of v1. The write of a member is
+                // a statement like any other.
+                let legacy = self.the_legacy_list()?;
                 self.end_of_statement()?;
-                return Ok(vec![match target {
+                let mut statements = vec![match target {
                     Node::Property { target, name, .. } => Node::AssignProperty {
                         target,
                         name,
@@ -1804,21 +1847,42 @@ impl Parser {
                             the_source_of_the_tokens(self, start, end)
                         )));
                     }
-                }]);
+                }];
+                statements.extend(legacy);
+                return Ok(statements);
             }
+            // Measured on the binary of v2.0.19 on 2026-10-31: the member
+            // that has parentheses, and the item that is read, are
+            // expressions: the operators and the concatenation of v2 are a
+            // part of them, and the comma ends them. The rest of the line
+            // is the list of v1, and it is evaluated.
+            let value = match target {
+                Node::Property { target, name, line } => {
+                    // A name that is a statement is a call: `m.Method` calls
+                    // the method, and the parentheses may be left out. An
+                    // item is not a call: `m["a"]` reads it.
+                    self.end_of_statement()?;
+                    return Ok(vec![Node::MethodCall {
+                        target,
+                        name,
+                        arguments: Vec::new(),
+                        line,
+                    }]);
+                }
+                other => self.the_expression_after(other)?,
+            };
+            let legacy = self.the_legacy_list()?;
             self.end_of_statement()?;
-            // A name that is a statement is a call: `m.Method` calls the
-            // method, and the parentheses may be left out. An item is
-            // not a call: `m["a"]` reads it.
-            return Ok(vec![match target {
-                Node::Property { target, name, line } => Node::MethodCall {
-                    target,
-                    name,
-                    arguments: Vec::new(),
-                    line,
-                },
-                other => other,
-            }]);
+            // A method that is called is a statement of its own, and so is
+            // the item that is read. The value of an expression is a
+            // statement that reads it, and throws the value away.
+            let statement = match value {
+                Node::MethodCall { .. } | Node::Index { .. } => value,
+                other => Node::Expression { value: Box::new(other), line: name_token.line },
+            };
+            let mut statements = vec![statement];
+            statements.extend(legacy);
+            return Ok(statements);
         }
         // A name that is neither a call nor an assignment is a call
         // statement: `Send "hello"`. The parentheses may be left out, and
@@ -1833,7 +1897,7 @@ impl Parser {
         ) {
             return Ok(vec![self.parse_call_statement(name_token)?]);
         }
-        Ok(vec![self.parse_assignment(name_token)?])
+        self.parse_assignment(name_token)
     }
 
     /// A call statement: a name at the start of a line, without
@@ -1854,6 +1918,16 @@ impl Parser {
         // what the call asks for.
         let name = name_token.value.to_lowercase();
         self.the_expression_begins();
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // command of v2 is followed by a space or a parenthesis, and the
+        // comma that is there instead of the space is refused. The space
+        // may be there before the comma: `x , 2` is a command.
+        if self.at_op(&[","]) && !self.peek().spaced {
+            return Err(self.error(format!(
+                "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: {}",
+                the_source_of_the_line(self, name_token.line)
+            )));
+        }
         let arguments = self.the_parameters_of_a_command()?;
         // The command of v2 is a call whose parentheses are not written, and
         // the text that names the operator carries the one that closes it.
@@ -1927,7 +2001,7 @@ impl Parser {
         true
     }
 
-    fn parse_assignment(&mut self, name_token: Token) -> Result<Node, SyntaxError> {
+    fn parse_assignment(&mut self, name_token: Token) -> Result<Vec<Node>, SyntaxError> {
         let operator = self.peek().clone();
         let op = match operator.value.as_str() {
             ":=" => AssignOp::Set,
@@ -1953,9 +2027,55 @@ impl Parser {
         };
         self.next();
         let value = self.the_expression_of_a_statement()?;
+        // Measured on the binary of v2.0.19 on 2026-10-31: the expression
+        // ends at the comma, and the rest of the line is the list of v1.
+        let legacy = self.the_legacy_list()?;
         self.end_of_statement()?;
         self.the_assignment_is_recorded(&name_token.value, op, name_token.line, name_token.column);
-        Ok(Node::Assign { name: name_token.value, op, value: Box::new(value), line: name_token.line })
+        let mut statements = vec![Node::Assign {
+            name: name_token.value,
+            op,
+            value: Box::new(value),
+            line: name_token.line,
+        }];
+        statements.extend(legacy);
+        Ok(statements)
+    }
+
+    /// The list of v1 that may follow the expression of a statement.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the expression of
+    /// a statement ends at the comma, and the rest of the line is the list
+    /// of v1: it is evaluated, and its value is thrown away. The value
+    /// that is not there in the list is a "Syntax error.", and the comma
+    /// that follows it is named.
+    fn the_legacy_list(&mut self) -> Result<Vec<Node>, SyntaxError> {
+        if !self.at_op(&[","]) {
+            return Ok(Vec::new());
+        }
+        self.position += 1;
+        let mut items = Vec::new();
+        loop {
+            if self.at_end_of_statement() {
+                break;
+            }
+            if self.at_op(&[","]) {
+                return Err(self.error(format!(
+                    "Syntax error.\n     Specifically: {}",
+                    the_source_of_the_rest_of_the_line(self, self.position)
+                )));
+            }
+            items.push(self.parse_expression()?);
+            if self.at_op(&[","]) {
+                self.position += 1;
+                continue;
+            }
+            break;
+        }
+        if items.is_empty() {
+            return Ok(Vec::new());
+        }
+        Ok(vec![Node::Legacy { items, line: self.peek().line }])
     }
 
     /// The equal sign of v1 is not the equal sign of v2.
@@ -3517,7 +3637,17 @@ impl Parser {
     /// A right-associative operator reaches as far as it can; a
     /// left-associative one stops before the next of its own kind.
     fn parse_binary(&mut self, min: u8) -> Result<Node, SyntaxError> {
-        let mut left = self.parse_unary()?;
+        let left = self.parse_unary()?;
+        self.parse_binary_after(left, min)
+    }
+
+    /// The binary operators that come after the value that was read.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the expression of
+    /// a statement may begin with a value that is already read -- the call
+    /// of a statement, for instance -- and the operators that follow it
+    /// are a part of it.
+    fn parse_binary_after(&mut self, mut left: Node, min: u8) -> Result<Node, SyntaxError> {
         loop {
             // The ternary is not in the table: it takes two expressions
             // and a colon, and the colon belongs to it.
@@ -4642,6 +4772,19 @@ impl Parser {
             return None;
         }
         the_assignment_operator(&token.value).map(|_| token.value.clone())
+    }
+
+    /// Whether the comma that comes after the number is there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the number that is
+    /// at the start of a statement and that is followed by a comma is a call
+    /// of v2 that is not written: the name of it is the number, and the
+    /// comma is not the space that a call wants.
+    fn the_comma_is_after_the_number(&self) -> bool {
+        self.tokens
+            .get(self.position + 1)
+            .map(|token| token.kind == TokenKind::Op && token.value == ",")
+            .unwrap_or(false)
     }
 
     /// Whether the operator of an increment comes after the name.
@@ -5889,4 +6032,82 @@ mod tests {
         assert_eq!(error.message, "Syntax error.\n     Specifically: , \"c\")");
         let error = parse("x := (,\"c\")").expect_err("does not parse");
         assert_eq!(error.message, "Syntax error.\n     Specifically: ,\"c\")");
+    }
+
+    #[test]
+    fn the_comma_ends_the_expression_of_a_statement() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the expression of
+        // a statement ends at the comma, and the rest of the line is the
+        // list of v1.
+        let statements = parse("x := 1, 2").expect("parses");
+        assert_eq!(statements.len(), 2);
+        assert!(matches!(&statements[0], Node::Assign { .. }));
+        let Node::Legacy { items, .. } = &statements[1] else {
+            panic!("the list of v1");
+        };
+        assert_eq!(items.len(), 1);
+        // The call of a statement is one too.
+        let statements = parse("f(), 2").expect("parses");
+        assert_eq!(statements.len(), 2);
+        assert!(matches!(&statements[0], Node::Call { .. }));
+        let Node::Legacy { items, .. } = &statements[1] else {
+            panic!("the list of v1");
+        };
+        assert_eq!(items.len(), 1);
+    }
+
+    #[test]
+    fn the_expression_of_a_statement_goes_on() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the expression of
+        // a statement begins with the call, and the operators that follow
+        // it are a part of it.
+        let statements = parse("f() + 1").expect("parses");
+        let Node::Expression { value, .. } = &statements[0] else {
+            panic!("an expression");
+        };
+        assert!(matches!(&**value, Node::Binary { op: BinaryOp::Add, .. }));
+    }
+
+    #[test]
+    fn the_name_with_a_comma_is_a_call_that_is_not_written() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+        // command of v2 is followed by a space or a parenthesis, and the
+        // comma that is there instead of the space is refused.
+        let error = parse("x, 2").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: x, 2"
+        );
+    }
+
+    #[test]
+    fn the_number_that_is_at_the_start_of_a_statement_is_a_call() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the number that is
+        // at the start of a statement and that is followed by a comma is a
+        // call of v2 that is not written.
+        let error = parse("1, 2").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: 1, 2"
+        );
+        // The number that carries a point is not a name, and the line holds
+        // no action.
+        let error = parse("1.5, 2").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "This line does not contain a recognized action.\n     Specifically: 1.5, 2"
+        );
+    }
+
+    #[test]
+    fn the_member_that_has_parentheses_is_an_expression() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the member that
+        // has parentheses is an expression, and the comma ends it.
+        let statements = parse("t.Method(), 2").expect("parses");
+        assert_eq!(statements.len(), 2);
+        assert!(matches!(&statements[0], Node::MethodCall { .. }));
+        let Node::Legacy { items, .. } = &statements[1] else {
+            panic!("the list of v1");
+        };
+        assert_eq!(items.len(), 1);
     }

@@ -2257,6 +2257,14 @@ impl<'a> Runtime<'a> {
                     line: statement.line(),
                 }));
             }
+            Node::Legacy { items, .. } => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the list
+                // of v1 is evaluated, and its value is thrown away.
+                for item in items {
+                    self.evaluate(item)?;
+                }
+                detail = "the list of v1".into();
+            }
         }
 
         self.steps.push(Step {
@@ -7470,6 +7478,15 @@ impl<'a> Runtime<'a> {
                 // built-in of v2 has a default of its own for it.
                 Ok(Value::Text(String::new()))
             }
+            Node::Legacy { items, .. } => {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the list
+                // of v1 is evaluated, and its value is thrown away.
+                let mut value = Value::Text(String::new());
+                for item in items {
+                    value = self.evaluate(item)?;
+                }
+                Ok(value)
+            }
             Node::For { line, .. } => {
                 // A for loop is a statement: the parser never gives one
                 // where an expression is asked for.
@@ -8764,6 +8781,7 @@ pub fn op_name(statement: &Node) -> &str {
         Node::Index { .. } => "Index",
         Node::Group { .. } => "Group",
         Node::Empty { .. } => "Empty",
+        Node::Legacy { .. } => "Legacy",
     }
 }
 

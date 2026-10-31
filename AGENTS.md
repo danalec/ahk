@@ -5154,7 +5154,8 @@ Two holes were measured and are not fixed yet: the built-in that takes
 the value that is not there has a default of its own for it -- `Format
 "{}{}", 1,, 2` is accepted by the v2 -- and the tree gives it an empty
 text; and the comma of an expression ends it -- `x := 1, 2` is "1" in the
-v2, and the tree refuses the script at the load.
+v2, and the tree refuses the script at the load. The comma is in section
+116.
 
 The probes that measured the rules are in
 `egm-review/probe_empty_parameter.py` (7 cases),
@@ -5164,3 +5165,47 @@ The probes that measured the rules are in
 `egm-review/probe_empty_parameter5.py` (6),
 `egm-review/probe_comma_expression.py` (9) and in
 `egm-review/probe_comma_expression2.py` (6).
+
+## 116. The expression of a statement and the comma that ends it
+
+Measured on the binary of v2.0.19 on 2026-10-31: the statement of v2 is
+an expression, and the comma is what ends it.
+
+- **The expression of a statement goes on:** the operators and the
+  concatenation of v2 are a part of it, and the value of it is thrown
+  away. `f() + 1` is the sum, and `f() "a"` is the concatenation, and it
+  wants a String: "Expected a String but got a Func.".
+- **The comma ends it:** the rest of the line is the list of v1, and it is
+  evaluated, and its value is thrown away. `f(), g()` runs the two, and
+  `x := 1, 2` is "1".
+- **The name of a command of v2 is followed by a space or a parenthesis:**
+  the comma that is there instead of the space is refused with "Function
+  calls require a space or \"(\". Use comma only between parameters.",
+  and the line is named with it. The space before the comma makes it a
+  command: `x , 2` is one.
+- **The number that is at the start of a statement is the name of a
+  command:** `1, 2` is refused with the message above. The number that
+  carries a point is not a name, and the line holds no action:
+  `1.5, 2` is "This line does not contain a recognized action.".
+- **The member that has parentheses, and the item that is read, are
+  expressions:** the comma ends them. The write of a member is a statement
+  like any other: `t.Prop := 1, 2` writes the property and evaluates the
+  list.
+
+The tree read the statement of a call as the call alone, and it refused
+the script at the load with "Unexpected \",\"" when a comma or an
+operator came after it.
+
+The member that has no parentheses is a command of v2, and it is in
+section 117.
+
+The probes that measured the rules are in
+`egm-review/probe_comma_expression4.py` (8 cases),
+`egm-review/probe_comma_expression5.py` (12),
+`egm-review/probe_comma_expression10.py` (8),
+`egm-review/probe_comma_expression11.py` (7),
+`egm-review/probe_comma_expression12.py` (4),
+`egm-review/probe_comma_expression13.py` (7),
+`egm-review/probe_comma_expression14.py` (7),
+`egm-review/probe_comma_expression16.py` (8) and in
+`egm-review/probe_comma_expression17.py` (4).

@@ -119,7 +119,7 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
 ### The AST (`ast.rs`)
 
 - `Node` -- one node of the tree. The variants are `Literal`, `Var`,
-  `Unary`, `Binary`, `Ternary`, `Cast`, `Assign`, `Index`, `AssignIndex`,
+  `Unary`, `Binary`, `Ternary`, `Assign`, `Index`, `AssignIndex`,
   `Call`, `If`, `Switch`, `While`, `Loop`, `For`, `Directive`, `Break`,
   `Continue`, `Return`, `ExitApp`, `FunctionDef`, `ClassDef`, `MethodCall`,
   `Property`, `AssignProperty`, `ArrayLiteral`, `ObjectLiteral`, `Lambda`,
@@ -140,6 +140,15 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   `Array(a, b)`. It is a primary, so the suffixes of a value follow it
   the way they follow a variable: `[1, 2].Length` is the length of the
   array.
+- `Group { items, line }` -- the list of the values between parentheses:
+  the value of it is the last of them, and every item runs. The
+  parenthesis that is spaced is not a group.
+- `Empty { line }` -- the parameter that a command does not give a value
+  to: it keeps its place, and it has no value. A parameter that has a
+  default takes it, and one that has none is a missing parameter.
+- `Legacy { items, line }` -- the list of v1 that may follow the
+  expression of a statement: the comma ends the expression, and the rest
+  of the line is this list. It is evaluated, and its value is thrown away.
 - `ObjectLiteral { properties, line }` -- the literal of an object:
   `{a: 1}` is an object of the base class with the property `a`. The name of
   a property is a name of the script, and the names of the properties do not
@@ -396,6 +405,25 @@ before the parameters are bound, so `Two "a",, "b"` is refused with "Too
 many parameters passed to function.". The value that is not there in the
 list of a group is a "Syntax error.", and the comma that follows it is
 named.
+
+The statement of v2 is an expression, and the comma is what ends it.
+Measured on the binary of v2.0.19 on 2026-10-31: the expression of a
+statement goes on -- the operators and the concatenation of v2 are a part
+of it, and the value of it is thrown away -- so `f() + 1` is the sum and
+`f() "a"` is the concatenation, and it wants a String ("Expected a String
+but got a Func."). The comma ends the expression, and the rest of the
+line is the list of v1: it is evaluated, and its value is thrown away, so
+`f(), g()` runs the two and `x := 1, 2` is "1". The name of a command of
+v2 is followed by a space or a parenthesis, and the comma that is there
+instead of the space is refused with "Function calls require a space or
+\"(\". Use comma only between parameters." and the line is named with it;
+the space before the comma makes it a command, and `x , 2` is one. The
+number that is at the start of a statement is the name of a command, and
+`1, 2` is refused with the same message; the number that carries a point
+is not a name, and the line holds no action. The member that has
+parentheses, and the item that is read, are expressions too, and the
+comma ends them; the write of a member is a statement like any other, and
+`x := 1, 2` writes the property and evaluates the list.
 
 ### The runtime (`runtime.rs`)
 
@@ -1246,6 +1274,13 @@ that asks for another one is refused with the reason.
   place.** It has no value: a parameter that has a default takes it, and
   one that has none is a missing parameter, and the call is refused with
   "Missing a required parameter.".
+
+- **The statement of v2 is an expression, and the comma ends it.** The
+  operators and the concatenation of v2 are a part of it, and the value of
+  it is thrown away. The rest of the line after the comma is the list of
+  v1: it is evaluated, and its value is thrown away too. The name of a
+  command of v2 is followed by a space or a parenthesis, and the comma
+  that is there instead of the space is refused with the words of v2.
 
 ## Side Effects
 

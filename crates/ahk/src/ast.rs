@@ -493,6 +493,12 @@ pub enum Node {
     /// is kept, and the parameter has no value: one that has a default
     /// takes it, and one that has none is a missing parameter.
     Empty { line: u32 },
+    /// The list of v1 that may follow an expression: `x := 1, 2`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the expression
+    /// ends at the comma, and the rest of the line is evaluated, and its
+    /// value is thrown away.
+    Legacy { items: Vec<Node>, line: u32 },
     /// `{a: 1, b: 2}`: the literal of an object.
     ///
     /// v2 writes an object between braces, and the empty braces are the
@@ -603,6 +609,7 @@ impl Node {
             | Node::ArrayLiteral { line, .. }
             | Node::Group { line, .. }
             | Node::Empty { line }
+            | Node::Legacy { line, .. }
             | Node::ObjectLiteral { line, .. }
             | Node::Lambda { line, .. }
             | Node::Try { line, .. }
