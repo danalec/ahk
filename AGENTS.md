@@ -4258,3 +4258,55 @@ The comparison of the tree with the binary is in
 the rules are in `egm-review/probe_nested_class.py`,
 `egm-review/probe_nested_class_names.py` and
 `egm-review/probe_invalid_member.py`.
+
+## 93. A property of a class may have a getter and a setter
+
+Measured on the binary of v2.0.19 on 2026-10-31: a class may declare a
+property with a getter, a setter, or both, and the body of them is an
+expression after the arrow of v2, and a block of statements between braces.
+The tree refused the line with "Not a valid method, class or property
+definition." and read no property at all.
+
+- **The read of the property is the value of the getter, and the write of it
+  calls the setter.** The setter takes the value that is written after the
+  parameters of the property, and the name of it is "value":
+  `set => this.stored := value`.
+- **A property that has no getter is not read**, and it is refused with
+  `This value of type "C" has no property named "value".`. **A property that
+  has no setter is not written**, and the write is refused with "Property is
+  read-only." and the name of the property in the `Extra`.
+- **The property is own of the prototype of the class**, and the static one
+  is own of the class value: the own properties of `C.Prototype` are
+  "__Class" and the name of the property, and the own properties of `C` are
+  "__Init", "Prototype" and the name of the static property. The `HasProp` of
+  it answers 1, and the `HasMethod` of it answers 0.
+- **The properties of the base are the ones of the instances too.** The
+  getter of the base runs on the instance, and the setter of it writes on it.
+- **The parameters of the property are the ones of the index.** The read of a
+  property that takes parameters is refused with "Missing a required
+  parameter." and the name of the parameter in the `Extra`, and the call of
+  it invokes the getter. A property without parameters is not called at all:
+  it is refused with `This value of type "C" has no method named "value".`.
+- **A variable of the class that has a getter of its own is one name and not
+  two.** The write of the variable goes through the property, and the
+  construction of the class is refused with "Property is read-only." when
+  the property has no setter.
+- **The item of an object of a class of the script is the property `__Item`
+  of it**, and the getter of it takes the index. A property that takes no
+  parameter forwards the index to the `__Item` of the value that it answers.
+  **A method of that name is not the item**: the item of the object is the
+  method itself, and `obj[3]` is a function whose name is
+  "C.Prototype.__Item".
+- **The load refuses the property that has no body** with "Not a valid
+  property getter/setter." and the line of it, and it refuses the duplicate
+  of it with "Duplicate declaration." and the name of it.
+- **The assignment of a call is refused with the words of v2**: "Invalid
+  assignment." and the operator and the value are named.
+
+The comparison of the tree with the binary is in
+`egm-review/compare_accessor.py` (41 cases), and the probes that measured the
+rules are in `egm-review/probe_class_property_member.py`,
+`egm-review/probe_class_property_corners.py`,
+`egm-review/probe_accessor_parameters.py`,
+`egm-review/probe_accessor_inherit.py` and
+`egm-review/probe_accessor_call.py`.

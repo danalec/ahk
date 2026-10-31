@@ -45,8 +45,8 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use crate::ast::{
-    AssignOp, BinaryOp, CastType, Declarations, LiteralValue, LoopKind, MethodDef, Node, Parameter,
-    PropertyDef, UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, CastType, Declarations, LiteralValue, LoopKind, MethodDef,
+    Node, Parameter, PropertyDef, UnaryOp,
 };
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
@@ -559,6 +559,9 @@ pub struct Class {
     pub methods: BTreeMap<String, MethodDef>,
     /// The properties of the class.
     pub properties: Vec<PropertyDef>,
+    /// The properties that have a getter or a setter, by their name in
+    /// lower case.
+    pub accessors: BTreeMap<String, AccessDef>,
     /// The classes that the class holds, by their name in lower case.
     pub nested: Vec<String>,
 }
@@ -1290,10 +1293,14 @@ impl<'a> Runtime<'a> {
     fn collect_functions(&mut self, statements: &[Node]) {
         for statement in statements {
             match statement {
-                Node::ClassDef { name, extends, methods, properties, nested, .. } => {
+                Node::ClassDef { name, extends, methods, properties, accessors, nested, .. } => {
                     let mut table: BTreeMap<String, MethodDef> = BTreeMap::new();
                     for method in methods {
                         table.insert(method.name.to_lowercase(), method.clone());
+                    }
+                    let mut properties_with_a_getter: BTreeMap<String, AccessDef> = BTreeMap::new();
+                    for access in accessors {
+                        properties_with_a_getter.insert(access.name.to_lowercase(), access.clone());
                     }
                     // The classes that a class holds are classes of their own.
                     let mut held = Vec::new();
@@ -1309,6 +1316,7 @@ impl<'a> Runtime<'a> {
                             extends: extends.clone(),
                             methods: table,
                             properties: properties.clone(),
+                            accessors: properties_with_a_getter,
                             nested: held,
                         },
                     );
@@ -3052,7 +3060,7 @@ impl<'a> Runtime<'a> {
     /// The variables of a class, assigned to the object.
     fn assign_the_variables(&mut self, class: &str, object: &Value) -> Result<(), RuntimeFailure> {
         let Some(definition) = self.classes.get(class).cloned() else { return Ok(()) };
-        let Value::Object(object) = object else { return Ok(()) };
+        let Value::Object(cell) = object else { return Ok(()) };
         for property in &definition.properties {
             // A variable that belongs to the class is not one of the
             // instance: it is the class that has it.
@@ -3063,7 +3071,17 @@ impl<'a> Runtime<'a> {
                 Some(node) => self.evaluate(node)?,
                 None => Value::Text(String::new()),
             };
-            put(&mut object.borrow_mut().properties, &property.name, value);
+            // A variable of the class that has a getter of its own is one
+            // name and not two: the write of it goes through the property.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31: the
+            // construction of the class is refused with "Property is
+            // read-only." when the property has no setter.
+            if self.the_accessor_of(object, &property.name).is_some() {
+                self.the_write_of_an_accessor(object, &property.name, value, 0)?;
+                continue;
+            }
+            put(&mut cell.borrow_mut().properties, &property.name, value);
         }
         Ok(())
     }
@@ -3242,6 +3260,22 @@ impl<'a> Runtime<'a> {
             if let Some(value) = self.the_class_that_a_class_holds(target, name) {
                 let class = self.class_name_of(&value).unwrap_or_default();
                 return self.construct(&class, arguments, line);
+            }
+        }
+        // A property of the class that has a getter and that takes
+        // parameters: the call of it invokes the getter, and the parameters
+        // of the property are the ones of the index.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `obj.value("a")`
+        // is refused with "Missing a required parameter." when the property
+        // takes parameters, and a property without parameters is not called
+        // at all.
+        if let Some(access) = self.the_accessor_of(target, name) {
+            if !access.parameters.is_empty() {
+                let Some(getter) = &access.getter else {
+                    return Err(self.no_method(target, name, line));
+                };
+                return self.call_the_body_of_an_accessor(target, &access, getter, line, &[], None);
             }
         }
         // The automatic `__Init` of the class, the one that carries the
@@ -3799,7 +3833,11 @@ impl<'a> Runtime<'a> {
             return definition
                 .methods
                 .values()
-                .any(|method| !method.is_static && method.name.to_lowercase() == lower);
+                .any(|method| !method.is_static && method.name.to_lowercase() == lower)
+                || definition
+                    .accessors
+                    .values()
+                    .any(|access| !access.is_static && access.name.to_lowercase() == lower);
         }
         crate::classes::the_members_of_the_prototype(class)
             .iter()
@@ -3824,6 +3862,11 @@ impl<'a> Runtime<'a> {
                 for method in definition.methods.values() {
                     if !method.is_static {
                         names.push(method.name.clone());
+                    }
+                }
+                for access in definition.accessors.values() {
+                    if !access.is_static {
+                        names.push(access.name.clone());
                     }
                 }
                 // The automatic `__Init` is own of the prototype when the
@@ -3908,6 +3951,11 @@ impl<'a> Runtime<'a> {
                 for method in definition.methods.values() {
                     if method.is_static {
                         names.push(method.name.clone());
+                    }
+                }
+                for access in definition.accessors.values() {
+                    if access.is_static {
+                        names.push(access.name.clone());
                     }
                 }
                 for nested in &definition.nested {
@@ -4158,6 +4206,9 @@ impl<'a> Runtime<'a> {
                     // of the class, and 0 when it is a static one.
                     || self.find_the_instance_method_in(&class, &name).is_some()
                     || crate::classes::the_method_of(&class, &name).is_some()
+                    // The properties that have a getter are the properties
+                    // of the object.
+                    || self.the_accessor_of(target, &name).is_some()
                     // Every class has an initialiser, and it is a member of
                     // the class.
                     || name.eq_ignore_ascii_case("__init")
@@ -4179,6 +4230,9 @@ impl<'a> Runtime<'a> {
                         .iter()
                         .any(|member| member.to_lowercase() == name.to_lowercase())
                         || self.find_the_instance_method_in(&class, &name).is_some()
+                        // The properties that have a getter are the members
+                        // of the prototype.
+                        || self.the_accessor_of(target, &name).is_some()
                         || name.eq_ignore_ascii_case("__init")
                         || name.eq_ignore_ascii_case("__class")
                 } else if self.class_name_of(target).is_some() {
@@ -5079,6 +5133,15 @@ impl<'a> Runtime<'a> {
                 return result.map(|value| (value, false));
             }
         }
+        // A property of the class that has a getter: the read of it is the
+        // value of the getter.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `obj.value` is
+        // the value of the getter of the property, and a property that has
+        // no getter is not read.
+        if let Some(value) = self.the_value_of_an_accessor(target, &written, line)? {
+            return Ok((value, false));
+        }
         if let Some(value) = object.borrow().value_of(&name) {
             // A property may be a descriptor: the getter of it is asked
             // for the value of the property.
@@ -5271,6 +5334,15 @@ impl<'a> Runtime<'a> {
         if let Some(result) = crate::classes::set_property(&class, &name, target, value.clone(), self, line) {
             return result;
         }
+        // A property of the class that has a setter: the write of it calls
+        // the setter.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: a property that
+        // has no setter is not written, and the write of it is refused with
+        // "Property is read-only.".
+        if self.the_write_of_an_accessor(target, &written, value.clone(), line)? {
+            return Ok(());
+        }
         // A property that is a descriptor has a setter of its own, and a
         // descriptor that carries a value is written straight away.
         if let Some(current) = object.borrow().value_of(&name) {
@@ -5355,6 +5427,14 @@ impl<'a> Runtime<'a> {
         let Value::Object(object) = target else {
             return Err(self.no_property(target, written, line));
         };
+        // A property of the class that has a setter: the write of it calls
+        // the setter.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the static
+        // property of a class that has a setter is written through it.
+        if self.the_write_of_an_accessor(target, written, value.clone(), line)? {
+            return Ok(());
+        }
         // A property that is a descriptor has a setter of its own, and a
         // descriptor that carries a value is written straight away.
         if let Some(current) = object.borrow().value_of(name) {
@@ -5424,6 +5504,131 @@ impl<'a> Runtime<'a> {
                 })
                 .unwrap_or(false)
         })
+    }
+
+    /// The property of the class that has a getter or a setter.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: a class may
+    /// declare a property with a getter and a setter, and the properties
+    /// of the base are the ones of the instances too. A class value has the
+    /// static properties of the class, and the properties of the instances
+    /// are not its own.
+    fn the_accessor_of(&self, target: &Value, name: &str) -> Option<AccessDef> {
+        let lower = name.to_lowercase();
+        let (class, is_static) = match self.class_name_of(target) {
+            Some(class) => (class, true),
+            None => {
+                let class = match self.the_class_of_the_prototype(target) {
+                    Some(class) => class,
+                    None => match target {
+                        Value::Object(object) => object.borrow().class.clone(),
+                        _ => return None,
+                    },
+                };
+                (class, false)
+            }
+        };
+        for class in self.class_chain(&class) {
+            let Some(definition) = self.classes.get(&class) else { continue };
+            let Some(access) = definition.accessors.get(&lower) else { continue };
+            if access.is_static == is_static {
+                return Some(access.clone());
+            }
+        }
+        None
+    }
+
+    /// The value of a property that has a getter.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the read of the
+    /// property is the value of the getter, and a property that has no
+    /// getter is not read.
+    fn the_value_of_an_accessor(
+        &mut self,
+        target: &Value,
+        name: &str,
+        line: u32,
+    ) -> Result<Option<Value>, RuntimeFailure> {
+        let Some(access) = self.the_accessor_of(target, name) else { return Ok(None) };
+        let Some(getter) = &access.getter else {
+            return Err(self.no_property(target, name, line));
+        };
+        let value = self.call_the_body_of_an_accessor(target, &access, getter, line, &[], None)?;
+        Ok(Some(value))
+    }
+
+    /// The write of a property that has a setter.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the write of the
+    /// property calls the setter, and a property that has no setter is not
+    /// written: the write is refused with "Property is read-only." and the
+    /// name of the property is the `Extra`.
+    fn the_write_of_an_accessor(
+        &mut self,
+        target: &Value,
+        name: &str,
+        value: Value,
+        line: u32,
+    ) -> Result<bool, RuntimeFailure> {
+        let Some(access) = self.the_accessor_of(target, name) else { return Ok(false) };
+        let Some(setter) = &access.setter else {
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError { message: "Property is read-only.".to_string(), line },
+                Detail { what: String::new(), extra: name.to_string() },
+            ));
+        };
+        self.call_the_body_of_an_accessor(target, &access, setter, line, &[], Some(&value))?;
+        Ok(true)
+    }
+
+    /// The body of a getter or of a setter, run on a value.
+    ///
+    /// The body runs as the body of a method: `this` is the value, and the
+    /// parameters of the property are the ones of the method.
+    fn call_the_body_of_an_accessor(
+        &mut self,
+        target: &Value,
+        access: &AccessDef,
+        body: &AccessBody,
+        line: u32,
+        given: &[Value],
+        written: Option<&Value>,
+    ) -> Result<Value, RuntimeFailure> {
+        let mut parameters = access.parameters.clone();
+        let mut values: Vec<Value> = given.to_vec();
+        if let Some(written) = written {
+            // The setter of v2 takes the value that is written after the
+            // parameters of the property, and the name of it is "value".
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31: the setter of
+            // the property writes with it: `set => this.stored := value`.
+            parameters.push(Parameter {
+                name: "value".to_string(),
+                default: None,
+                variadic: false,
+                by_ref: false,
+            });
+            values.push(written.clone());
+        }
+        let method = MethodDef {
+            name: access.name.clone(),
+            parameters,
+            body: body.body.clone(),
+            declarations: body.declarations.clone(),
+            is_static: access.is_static,
+            line: access.line,
+        };
+        let class = match self.class_name_of(target) {
+            Some(class) => class,
+            None => match self.the_class_of_the_prototype(target) {
+                Some(class) => class,
+                None => match target {
+                    Value::Object(object) => object.borrow().class.clone(),
+                    _ => String::new(),
+                },
+            },
+        };
+        self.call_method_with(&class, &method, target, &values, line)
     }
 
     /// The name of a class, as the class that holds it writes it.
@@ -7323,9 +7528,38 @@ impl<'a> Runtime<'a> {
         let class = object.borrow().class.clone();
         // The class of the script first, and then the class types of the
         // runtime.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: the item of an
+        // object of a class of the script is the property `__Item` of it,
+        // and the getter of it takes the index.
+        if let Some(access) = self.the_accessor_of(target, "__Item") {
+            let Some(getter) = &access.getter else {
+                return Err(self.no_item(target, line));
+            };
+            if access.parameters.is_empty() {
+                // The index goes to the `__Item` of the value that the
+                // getter answers.
+                //
+                // Measured on the binary of v2.0.19 on 2026-10-31:
+                // `obj["a"]` is refused with 'This value of type "Integer"
+                // has no property named "__Item".' when the getter answers
+                // a number.
+                let value = self.call_the_body_of_an_accessor(target, &access, getter, line, &[], None)?;
+                return self.read_item(&value, key, line);
+            }
+            // The parameters of the property are the ones of the index.
+            let value =
+                self.call_the_body_of_an_accessor(target, &access, getter, line, core::slice::from_ref(key), None)?;
+            return Ok(value);
+        }
+        // A method of that name is not the item of the object: the item is
+        // the method itself.
+        //
+        // Measured on the binary of v2.0.19 on 2026-10-31: `obj[3]` is a
+        // function whose name is "C.Prototype.__Item" when the class
+        // declares a method of that name.
         if let Some((defining, method)) = self.find_method_in(&class, "__item") {
-            let arguments = [Node::Literal { value: LiteralValue::Text(key.to_text()), line }];
-            return self.call_method(&defining, &method, target, &arguments, line);
+            return Ok(self.method_reference(&defining, &method));
         }
         if let Some(result) = crate::classes::item(&class, key, target, self, line) {
             return result;

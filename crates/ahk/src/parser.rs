@@ -36,8 +36,8 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::ast::{
-    AssignOp, BinaryOp, Branch, Case, CastType, Catch, DeclareKind, Declared, Declarations,
-    LiteralValue, LoopKind, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, CastType, Catch, DeclareKind, Declared,
+    Declarations, LiteralValue, LoopKind, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
 use crate::lexer::{SyntaxError, Token, TokenKind};
 
@@ -466,9 +466,14 @@ pub fn parse(source: &str) -> Result<Vec<Node>, SyntaxError> {
     Parser::new(tokens).parse_script()
 }
 
-/// The members of a class: the methods, the properties and the classes
-/// that it holds.
-type TheMembersOfAClass = (Vec<MethodDef>, Vec<PropertyDef>, Vec<Node>);
+/// The members of a class: the methods, the properties, the properties
+/// that have a getter or a setter, and the classes that it holds.
+struct TheMembersOfAClass {
+    methods: Vec<MethodDef>,
+    properties: Vec<PropertyDef>,
+    accessors: Vec<AccessDef>,
+    nested: Vec<Node>,
+}
 
 /// The recursive descent parser.
 pub struct Parser {
@@ -1255,7 +1260,9 @@ impl Parser {
                     _ => AssignOp::ShiftRightUnsigned,
                 };
                 self.next();
+                let start = self.position;
                 let value = self.the_expression_of_a_statement()?;
+                let end = self.position;
                 self.end_of_statement()?;
                 return Ok(vec![match target {
                     Node::Property { target, name, .. } => Node::AssignProperty {
@@ -1273,9 +1280,14 @@ impl Parser {
                         line: name_token.line,
                     },
                     _ => {
-                        return Err(self.error(
-                            "the left side of an assignment is not a property and not an item",
-                        ));
+                        // Measured on the binary of v2.0.19 on 2026-10-31: the
+                        // assignment of a call is refused at the load, and
+                        // the operator and the value are named.
+                        return Err(self.error(format!(
+                            "Invalid assignment. Specifically: {} {}",
+                            operator.value,
+                            the_source_of_the_tokens(self, start, end)
+                        )));
                     }
                 }]);
             }
@@ -2210,16 +2222,17 @@ impl Parser {
         // The duplicates of the class are refused while its body is read,
         // the way v2 refuses them: the first duplicate of the body is the
         // one that is reported.
-        let (methods, properties, nested) = self.parse_class_body(name_token.line, &name)?;
+        let members = self.parse_class_body(name_token.line, &name)?;
         self.the_name_is_declared_twice(&name, true, name_token.line, name_token.column)?;
         self.classes.insert(name.to_lowercase(), name.clone());
         self.defined.insert(name.to_lowercase());
         Ok(Node::ClassDef {
             name,
             extends,
-            methods,
-            properties,
-            nested,
+            methods: members.methods,
+            properties: members.properties,
+            accessors: members.accessors,
+            nested: members.nested,
             line: token.line,
         })
     }
@@ -2252,20 +2265,24 @@ impl Parser {
         }
         let mut methods = Vec::new();
         let mut properties = Vec::new();
+        let mut accessors = Vec::new();
         let mut nested = Vec::new();
         // The names that are taken, and the table that each kind of member
         // has.
         //
         // Measured on the binary of v2.0.19 on 2026-10-31: a name may be
-        // declared only once in a table, and the tables of a class are four:
+        // declared only once in a table, and the tables of a class are six:
         // the methods of the instance, the methods of the class, the
-        // properties of the instance and the properties of the class. A
-        // method and a property are two names and not one, and the case of
-        // the name does not count.
+        // properties of the instance and the properties of the class, and
+        // the properties that have a getter or a setter. A method and a
+        // property are two names and not one, and the case of the name does
+        // not count.
         let mut instance_methods: Vec<String> = Vec::new();
         let mut class_methods: Vec<String> = Vec::new();
         let mut instance_properties: Vec<String> = Vec::new();
         let mut class_properties: Vec<String> = Vec::new();
+        let mut instance_accessors: Vec<String> = Vec::new();
+        let mut class_accessors: Vec<String> = Vec::new();
         // The body of a class is inside a class, and the `super` of v2 is
         // only valid there.
         let was_in_a_class = self.in_class;
@@ -2445,6 +2462,25 @@ impl Parser {
                 });
                 continue;
             }
+            // A property that has a getter or a setter: `value { get => 1 }`.
+            //
+            // Measured on the binary of v2.0.19 on 2026-10-31: the property
+            // has a name of its own, and the duplicate of it is refused the
+            // way the duplicate of a property is.
+            if self.at_op(&["[", "{"]) {
+                let key = name_token.value.to_lowercase();
+                let taken = if is_static { &mut class_accessors } else { &mut instance_accessors };
+                if taken.contains(&key) {
+                    return Err(SyntaxError {
+                        message: format!("Duplicate declaration.\n     Specifically: {}", name_token.value),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+                taken.push(key);
+                accessors.push(self.parse_the_accessor(name_token, is_static)?);
+                continue;
+            }
             // A property: `Name := value`.
             let operator = self.next();
             if operator.kind != TokenKind::Op || !matches!(operator.value.as_str(), "=" | ":=") {
@@ -2498,7 +2534,84 @@ impl Parser {
             });
         }
         self.in_class = was_in_a_class;
-        Ok((methods, properties, nested))
+        Ok(TheMembersOfAClass { methods, properties, accessors, nested })
+    }
+
+    /// A property of the class that has a getter or a setter.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the property may
+    /// take parameters, and the body of the getter and of the setter is an
+    /// expression after the arrow of v2, and a block of statements between
+    /// braces.
+    fn parse_the_accessor(&mut self, name_token: Token, is_static: bool) -> Result<AccessDef, SyntaxError> {
+        let mut parameters = Vec::new();
+        if self.at_op(&["["]) {
+            self.next();
+            parameters = self.parse_parameters()?;
+            self.expect_op("]")?;
+        }
+        self.expect_op("{")?;
+        let mut getter = None;
+        let mut setter = None;
+        loop {
+            self.skip_newlines();
+            if self.at_op(&["}"]) {
+                self.position += 1;
+                break;
+            }
+            let token = self.next();
+            let body = self.parse_the_body_of_an_accessor(token.line)?;
+            match token.value.to_lowercase().as_str() {
+                "get" => getter = Some(body),
+                "set" => setter = Some(body),
+                // Measured on the binary of v2.0.19 on 2026-10-31: the
+                // getter and the setter are the only members of the property,
+                // and the one that is not known is named.
+                _ => {
+                    return Err(self.error(format!(
+                        "Not a valid property getter/setter.\n     Specifically: {}",
+                        the_source_of_the_line(self, token.line)
+                    )));
+                }
+            }
+        }
+        Ok(AccessDef {
+            name: name_token.value,
+            parameters,
+            getter,
+            setter,
+            is_static,
+            line: name_token.line,
+        })
+    }
+
+    /// The body of a getter or of a setter.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the body is an
+    /// expression after the arrow of v2, and the assignment of v2 is an
+    /// expression, and a block of statements between braces.
+    fn parse_the_body_of_an_accessor(&mut self, line: u32) -> Result<AccessBody, SyntaxError> {
+        let body = if self.at_op(&["=>"]) {
+            let token = self.next();
+            let expression = self.parse_expression()?;
+            if self.at_an_assignment_operator() {
+                vec![self.parse_the_assignment(expression)?]
+            } else {
+                vec![Node::Return { value: Some(Box::new(expression)), line: token.line }]
+            }
+        } else if self.at_op(&["{"]) {
+            self.parse_block("accessor", line)?
+        } else {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the getter
+            // and the setter have a body, and the line that has none is
+            // named.
+            return Err(self.error(format!(
+                "Not a valid property getter/setter.\n     Specifically: {}",
+                the_source_of_the_line(self, line)
+            )));
+        };
+        let declarations = the_declarations_of_a_body(&body)?;
+        Ok(AccessBody { body, declarations })
     }
 
     /// A directive: the name, and the rest of the line.
@@ -4161,6 +4274,30 @@ mod tests {
         assert_eq!(nested.len(), 1);
         let Node::ClassDef { name, .. } = &nested[0] else { panic!("a class") };
         assert_eq!(name, "Outer.Inner");
+    }
+
+    #[test]
+    fn a_property_of_a_class_may_have_a_getter_and_a_setter() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the body of the
+        // getter and of the setter is an expression after the arrow of v2,
+        // and a block of statements between braces.
+        let statements = parse("class C {\n    value {\n        get => 1\n    }\n}\n").expect("parses");
+        let Node::ClassDef { accessors, .. } = &statements[0] else { panic!("a class") };
+        assert_eq!(accessors.len(), 1);
+        assert_eq!(accessors[0].name, "value");
+        assert!(accessors[0].getter.is_some());
+        assert!(accessors[0].setter.is_none());
+        // The getter without a body is refused.
+        let error = parse("class C {\n    value {\n        get\n    }\n}\n").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Not a valid property getter/setter.\n     Specifically: get"
+        );
+        // The duplicate of a property is refused.
+        let error =
+            parse("class C {\n    value {\n        get => 1\n    }\n    value {\n        get => 2\n    }\n}\n")
+                .expect_err("does not parse");
+        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: value");
     }
 
     #[test]

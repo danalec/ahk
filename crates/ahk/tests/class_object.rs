@@ -1066,6 +1066,150 @@ fn a_class_inside_a_class_may_not_be_static() {
 }
 
 #[test]
+fn a_property_of_a_class_may_have_a_getter_and_a_setter() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the read of the
+    // property is the value of the getter, and the write of it calls the
+    // setter.
+    assert_eq!(
+        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    value {\n        set => this.stored := value\n    }\n}\nobj := C()\nobj.value := 5\nMsgBox obj.stored"
+        ),
+        "5"
+    );
+    // A property that has no getter is not read.
+    assert_eq!(
+        the_failure_of("class C {\n    value {\n        set => this.stored := value\n    }\n}\nobj := C()\nMsgBox obj.value"),
+        "This value of type \"C\" has no property named \"value\". |  |"
+    );
+    // A property that has no setter is not written.
+    assert_eq!(
+        the_failure_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nobj.value := 5"),
+        "Property is read-only. |  | value"
+    );
+    // The property is own of the prototype, and it is not a method.
+    assert_eq!(
+        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        "__Classvalue"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasProp(\"value\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasMethod(\"value\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasOwnProp(\"value\")"),
+        "0"
+    );
+    // The getter of the prototype runs on the prototype.
+    assert_eq!(
+        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nMsgBox C.Prototype.value"),
+        "1"
+    );
+    // The property of an instance is not a method, and the property of the
+    // class is not own of the class value.
+    assert_eq!(
+        the_failure_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value()"),
+        "This value of type \"C\" has no method named \"value\". |  |"
+    );
+    assert_eq!(
+        the_failure_of("class C {\n    value {\n        get => 1\n    }\n}\nMsgBox C.value"),
+        "This value of type \"Class\" has no property named \"value\". |  |"
+    );
+}
+
+#[test]
+fn the_property_of_a_class_is_inherited() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the properties of
+    // the base are the ones of the instances too.
+    assert_eq!(
+        the_answer_of(
+            "class D {\n    value {\n        get => 1\n    }\n}\nclass C extends D {\n}\nobj := C()\nMsgBox obj.value"
+        ),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class D {\n    value {\n        set => this.stored := value\n    }\n}\nclass C extends D {\n}\nobj := C()\nobj.value := 5\nMsgBox obj.stored"
+        ),
+        "5"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class D {\n    value {\n        get => 1\n    }\n}\nclass C extends D {\n}\nobj := C()\nMsgBox obj.HasProp(\"value\")"
+        ),
+        "1"
+    );
+}
+
+#[test]
+fn a_static_property_of_a_class_may_have_a_getter() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the static property
+    // is own of the class value, and the getter of it runs on the class.
+    assert_eq!(
+        the_answer_of("class C {\n    static value {\n        get => 1\n    }\n}\nMsgBox C.value"),
+        "1"
+    );
+    assert_eq!(
+        the_failure_of("class C {\n    static value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value"),
+        "This value of type \"C\" has no property named \"value\". |  |"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    static value {\n        get => 1\n    }\n}\ns := \"\"\nfor p in C.OwnProps()\n    s .= p\nMsgBox s"
+        ),
+        "__InitPrototypevalue"
+    );
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    static value {\n        get => 1\n    }\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
+        "__Class"
+    );
+}
+
+#[test]
+fn the_item_of_a_class_is_the_property_that_is_named_item() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the item of an
+    // object of a class of the script is the property `__Item` of it, and
+    // the getter of it takes the index.
+    assert_eq!(
+        the_answer_of("class C {\n    __Item[key] {\n        get => key\n    }\n}\nobj := C()\nMsgBox obj[\"a\"]"),
+        "a"
+    );
+    // A property that takes no parameter forwards the index to the `__Item`
+    // of the value that it answers.
+    assert_eq!(
+        the_failure_of("class C {\n    __Item {\n        get => 7\n    }\n}\nobj := C()\nMsgBox obj[\"a\"]"),
+        "This value of type \"Integer\" has no property named \"__Item\". |  |"
+    );
+    // A method of that name is not the item: the item is the method itself.
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    __Item(key) {\n        return key\n    }\n}\nobj := C()\nx := obj[3]\nMsgBox x.Name"
+        ),
+        "C.Prototype.__Item"
+    );
+}
+
+#[test]
+fn a_variable_of_a_class_that_has_a_getter_is_one_name_and_not_two() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the construction of
+    // the class is refused with "Property is read-only." when the property
+    // has no setter.
+    assert_eq!(
+        the_failure_of("class C {\n    value := 1\n    value {\n        get => 2\n    }\n}\nobj := C()"),
+        "Property is read-only. |  | value"
+    );
+}
+
+#[test]
 fn the_failure_of_a_method_of_the_base_object_names_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
     // method of the base object carries the name of the method in the

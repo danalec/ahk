@@ -187,6 +187,36 @@ pub struct PropertyDef {
     pub line: u32,
 }
 
+/// The body of a getter or of a setter.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct AccessBody {
+    /// What the body does.
+    pub body: Vec<Node>,
+    /// The declarations of the body.
+    pub declarations: Declarations,
+}
+
+/// The definition of a property that has a getter or a setter.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: a class may declare a
+/// property with a getter and a setter, and the property is a member of the
+/// prototype of the class.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct AccessDef {
+    /// The name of the property.
+    pub name: String,
+    /// The parameters that the property takes.
+    pub parameters: Vec<Parameter>,
+    /// The getter of the property.
+    pub getter: Option<AccessBody>,
+    /// The setter of the property.
+    pub setter: Option<AccessBody>,
+    /// Whether the property belongs to the class and not to an instance.
+    pub is_static: bool,
+    /// The line the definition came from.
+    pub line: u32,
+}
+
 /// The kinds of loop.
 ///
 /// The plain loop counts; the others walk something: the files of a
@@ -358,6 +388,8 @@ pub enum Node {
         extends: Option<String>,
         methods: Vec<MethodDef>,
         properties: Vec<PropertyDef>,
+        /// The properties that have a getter or a setter.
+        accessors: Vec<AccessDef>,
         /// The classes that the class holds.
         nested: Vec<Node>,
         line: u32,

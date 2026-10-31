@@ -976,6 +976,12 @@ that asks for another one is refused with the reason.
 - **A class may be declared inside a class.** Its name is the name of the
   class that holds it and the name of it, and it is an own property of the
   class value of the class that holds it.
+- **A property of a class may have a getter and a setter.** The read of it is
+  the value of the getter, the write of it calls the setter, and the property
+  is own of the prototype of the class.
+- **The item of an object of a class of the script is the property `__Item`
+  of it.** A method of that name is not the item: the item is the method
+  itself.
 
 ## Side Effects
 
