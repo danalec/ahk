@@ -688,7 +688,7 @@ fn a_call_with_too_few_arguments_fails_with_the_reason() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Too few parameters passed to function. Specifically: Add")
+        Some("Too few parameters passed to function.\n     Specifically: Add")
     );
     assert_eq!(report.error_line, Some(4));
 }
@@ -699,7 +699,7 @@ fn a_call_with_too_many_arguments_fails_with_the_reason() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Too many parameters passed to function. Specifically: Add")
+        Some("Too many parameters passed to function.\n     Specifically: Add")
     );
     assert_eq!(report.error_line, Some(4));
 }
@@ -972,7 +972,7 @@ fn a_built_in_variable_cannot_have_its_reference_taken() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This built-in variable cannot have its reference taken. Specifically: A_ScreenWidth")
+        Some("This built-in variable cannot have its reference taken.\n     Specifically: A_ScreenWidth")
     );
 }
 
@@ -982,7 +982,7 @@ fn a_function_cannot_have_its_reference_taken() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This Func cannot have its reference taken. Specifically: Abs")
+        Some("This Func cannot have its reference taken.\n     Specifically: Abs")
     );
 }
 
@@ -2282,7 +2282,7 @@ fn a_thrown_value_is_not_an_error_and_a_catch_of_error_does_not_take_it() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Unhandled exception. Specifically: the error of the script")
+        Some("Unhandled exception.\n     Specifically: the error of the script")
     );
 }
 
@@ -2312,7 +2312,7 @@ fn a_throw_without_a_value_throws_again_what_the_catch_took() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Unhandled exception. Specifically: the error of the script")
+        Some("Unhandled exception.\n     Specifically: the error of the script")
     );
 }
 
@@ -3204,7 +3204,7 @@ fn the_assignment_of_a_call_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the assignment of
     // an expression is refused at the load, and the text of it is named.
     let error = parse("StrLen(\"abc\") := 1").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment. Specifically: := 1");
+    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 1");
 }
 
 #[test]
@@ -3628,7 +3628,7 @@ fn a_goto_to_a_label_that_is_not_there_fails_with_the_reason() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Label not found in current scope. Specifically: nowhere")
+        Some("Label not found in current scope.\n     Specifically: nowhere")
     );
     assert_eq!(report.error_line, Some(2));
 }
@@ -3655,7 +3655,7 @@ fn the_failure_of_a_goto_is_not_taken_by_a_catch() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Label not found in current scope. Specifically: nowhere")
+        Some("Label not found in current scope.\n     Specifically: nowhere")
     );
 }
 
@@ -3665,7 +3665,7 @@ fn a_label_of_a_function_is_not_a_label_of_the_script() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Label not found in current scope. Specifically: inner")
+        Some("Label not found in current scope.\n     Specifically: inner")
     );
 }
 
@@ -3764,6 +3764,50 @@ fn the_operand_that_is_not_there_names_the_statement() {
 fn an_operator_that_may_not_begin_a_value_is_refused() {
     let error = parse("x := *").expect_err("does not parse");
     assert_eq!(error.message, "Syntax error.\n     Specifically: *");
+}
+
+#[test]
+fn an_operator_that_may_not_begin_a_value_names_the_rest_of_the_line() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the text that the
+    // refusal names is the rest of the line.
+    let error = parse("x := * 2").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: * 2");
+}
+
+#[test]
+fn the_operator_that_wanted_the_operand_names_the_failure() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the operator that
+    // wanted the operand names the failure, and the rest of the line is
+    // named with it.
+    let error = parse("x := 1 + * 2").expect_err("does not parse");
+    assert_eq!(error.message, "Missing operand.\n     Specifically: + * 2");
+    let error = parse("x := 1 +").expect_err("does not parse");
+    assert_eq!(error.message, "Missing operand.\n     Specifically: +");
+}
+
+#[test]
+fn the_operator_that_is_the_last_item_of_a_list_names_no_text() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the text of the
+    // refusal is not there when the operator is the last item of the
+    // arguments of a call or of the items of an array. The group is not a
+    // list, and the text is there.
+    let error = parse("x := f(*)").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.");
+    let error = parse("x := [*]").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.");
+    let error = parse("x := (*)").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: *)");
+}
+
+#[test]
+fn the_dot_that_reaches_into_nothing_names_the_rest_of_the_line() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the dot that does not
+    // reach into a value is a "Syntax error." and the rest of the line, from
+    // the dot.
+    let error = parse("x := a. b").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: . b");
+    let error = parse("x := a.").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: .");
 }
 
 #[test]

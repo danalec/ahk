@@ -125,9 +125,9 @@ const NO_INITIAL_WORKING_DIR: &str = "this runtime does not keep the directory w
 /// Measured on the binary of v2.0.19 on 2026-10-31: the dialect refuses
 /// the name when the script writes it, and it names the name as the script
 /// spelled it: "This built-in variable cannot be used as an output
-/// variable. Specifically: A_AhkVersion".
+/// variable.\n     Specifically: A_AhkVersion".
 fn read_only(name: &str) -> String {
-    format!("This built-in variable cannot be used as an output variable. Specifically: {name}")
+    format!("This built-in variable cannot be used as an output variable.\n     Specifically: {name}")
 }
 
 /// The reason a name of the machine is not answered.

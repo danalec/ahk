@@ -1438,7 +1438,7 @@ fn format_without_a_pattern_fails() {
     let report = run("a := Format()");
     assert_eq!(
         failure_of(&report),
-        "Too few parameters passed to function. Specifically: Format"
+        "Too few parameters passed to function.\n     Specifically: Format"
     );
 }
 
@@ -1592,7 +1592,7 @@ fn sub_str_without_a_place_fails() {
     let report = run("a := SubStr(\"hello\")");
     assert_eq!(
         failure_of(&report),
-        "Too few parameters passed to function. Specifically: SubStr"
+        "Too few parameters passed to function.\n     Specifically: SubStr"
     );
 }
 
@@ -1896,7 +1896,7 @@ fn a_command_says_how_many_parameters_it_wants() {
     let report = run("PixelGetColor()");
     assert_eq!(
         failure_of(&report),
-        "Too few parameters passed to function. Specifically: PixelGetColor"
+        "Too few parameters passed to function.\n     Specifically: PixelGetColor"
     );
 }
 
@@ -1907,7 +1907,7 @@ fn a_command_says_when_there_are_too_many_parameters() {
     let report = run("MsgBox(\"a\", \"b\", \"c\", \"d\")");
     assert_eq!(
         failure_of(&report),
-        "Too many parameters passed to function. Specifically: MsgBox"
+        "Too many parameters passed to function.\n     Specifically: MsgBox"
     );
 }
 
@@ -2082,13 +2082,13 @@ fn a_callback_that_takes_the_rest_of_the_arguments_is_a_callback() {
 #[test]
 fn the_callback_of_the_exit_is_required() {
     let report = run("OnExit()");
-    assert_eq!(failure_of(&report), "Too few parameters passed to function. Specifically: OnExit");
+    assert_eq!(failure_of(&report), "Too few parameters passed to function.\n     Specifically: OnExit");
 }
 
 #[test]
 fn the_order_of_the_callbacks_is_one_minus_one_or_zero() {
     let report = run("OnExit Bye, 5\nBye(Reason, Code) {\n}\n");
-    assert_eq!(failure_of(&report), "Parameter #2 of OnExit is invalid. Specifically: 5");
+    assert_eq!(failure_of(&report), "Parameter #2 of OnExit is invalid.\n     Specifically: 5");
 }
 
 #[test]
@@ -2509,7 +2509,7 @@ fn the_input_box_of_too_many_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too many parameters passed to function. Specifically: InputBox"
+        "Too many parameters passed to function.\n     Specifically: InputBox"
     );
 }
 
@@ -2545,7 +2545,7 @@ fn the_file_select_of_too_many_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too many parameters passed to function. Specifically: FileSelect"
+        "Too many parameters passed to function.\n     Specifically: FileSelect"
     );
 }
 
@@ -2588,7 +2588,7 @@ fn the_dir_select_of_too_many_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too many parameters passed to function. Specifically: DirSelect"
+        "Too many parameters passed to function.\n     Specifically: DirSelect"
     );
 }
 
@@ -2633,7 +2633,7 @@ fn the_load_picture_without_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too few parameters passed to function. Specifically: LoadPicture"
+        "Too few parameters passed to function.\n     Specifically: LoadPicture"
     );
 }
 
@@ -2643,7 +2643,7 @@ fn the_load_picture_of_too_many_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too many parameters passed to function. Specifically: LoadPicture"
+        "Too many parameters passed to function.\n     Specifically: LoadPicture"
     );
 }
 
@@ -2697,7 +2697,7 @@ fn the_image_search_of_too_few_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too few parameters passed to function. Specifically: ImageSearch"
+        "Too few parameters passed to function.\n     Specifically: ImageSearch"
     );
 }
 
@@ -2707,7 +2707,7 @@ fn the_image_search_of_too_many_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too many parameters passed to function. Specifically: ImageSearch"
+        "Too many parameters passed to function.\n     Specifically: ImageSearch"
     );
 }
 
@@ -2747,7 +2747,7 @@ fn the_download_of_too_many_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too many parameters passed to function. Specifically: Download"
+        "Too many parameters passed to function.\n     Specifically: Download"
     );
 }
 
@@ -2757,7 +2757,7 @@ fn the_download_without_arguments_fails_the_way_v2_does() {
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
-        "Too few parameters passed to function. Specifically: Download"
+        "Too few parameters passed to function.\n     Specifically: Download"
     );
 }
 

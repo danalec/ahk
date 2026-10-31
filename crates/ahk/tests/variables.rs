@@ -574,7 +574,7 @@ fn a_built_in_variable_that_the_dialect_does_not_let_a_script_write_is_refused()
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This built-in variable cannot be used as an output variable. Specifically: A_AhkVersion")
+        Some("This built-in variable cannot be used as an output variable.\n     Specifically: A_AhkVersion")
     );
     assert_eq!(report.error_line, Some(1));
 }

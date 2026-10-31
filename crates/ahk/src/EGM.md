@@ -202,7 +202,17 @@ the kind of it, the way v2 refuses it.
 The answer of a call is a value, and the members of it are read the way
 the members of any other value are: `StrLen("abc").__Class` is "Integer",
 and `Map().Count` is 0. The assignment of an expression is refused at the
-load, and the text of it is named: "Invalid assignment. Specifically: := 1".
+load, and the text of it is named: "Invalid assignment.\n     Specifically:
+:= 1".
+
+The words that name something are separated by a newline and five spaces, and
+the text that is named is the text of the source. Measured on the binary of
+v2.0.19 on 2026-10-31: an operator that may not begin a value is a "Syntax
+error." and the rest of the line, and the operator that wanted the operand
+names the failure -- a "Missing operand." and the operator and the rest of
+the line. The text is not there when the operator is the last item of the
+arguments of a call or of the items of an array. The dot that does not reach
+into a value is a "Syntax error." and the rest of the line, from the dot.
 
 The body of a block begins on the next line, and the brace that closes it
 is at the start of its line. The word that `parse_block` takes is the
@@ -332,7 +342,7 @@ A `Goto` is a jump of the run: the run goes on at the label, and it goes out
 of the block when the block does not hold the label. The scope of a label is
 the scope it is written in -- the scope of the script, or the scope of a
 function or of a method -- and the jump of one scope is not the jump of
-another: "Label not found in current scope. Specifically: later" is the
+another: "Label not found in current scope.\n     Specifically: later" is the
 failure of a label that is elsewhere, and "A Goto must not jump into a
 block that doesn't enclose it." is the failure of a label of a block that
 does not enclose the jump. The failure is of its own kind -- `RuntimeFailure
@@ -778,7 +788,7 @@ The write of a built-in variable is the write of the dialect: the settings
 are written where they live, the names that v2 lets a script write keep the
 value that was written, and the names that it does not let a script write
 are refused with "This built-in variable cannot be used as an output
-variable. Specifically: A_AhkVersion".
+variable.\n     Specifically: A_AhkVersion".
 
 ### The regular expressions (`regex.rs`)
 

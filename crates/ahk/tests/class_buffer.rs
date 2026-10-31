@@ -356,7 +356,7 @@ fn num_get_wants_a_source_and_a_type() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Too few parameters passed to function. Specifically: NumGet")
+        Some("Too few parameters passed to function.\n     Specifically: NumGet")
     );
     assert_eq!(report.error_line, Some(2));
 }
@@ -367,7 +367,7 @@ fn num_put_wants_a_type_a_number_and_a_target() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("Too few parameters passed to function. Specifically: NumPut")
+        Some("Too few parameters passed to function.\n     Specifically: NumPut")
     );
     assert_eq!(report.error_line, Some(1));
 }

@@ -57,9 +57,13 @@ enum TheShapeOfASuper {
 /// The shape of a `super`, and the text of it.
 ///
 /// The text is the source as it stands: `super.m(1, 2)` is written back
-/// with the space after the comma. A member that is not called is written
-/// with the parentheses of a call, because that is what it is: a function.
-fn the_shape_of_a_super(parser: &Parser, start: usize) -> (TheShapeOfASuper, String) {
+/// with the space after the comma.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: a statement of v2 is a
+/// call, and the member that is not called is written with the parentheses
+/// of a call -- "super.x()". In an expression the text is the source, and
+/// the parentheses are not there -- "super.x".
+fn the_shape_of_a_super(parser: &Parser, start: usize, as_a_statement: bool) -> (TheShapeOfASuper, String) {
     let tokens = &parser.tokens;
     let mut end = start + 1;
     let mut shape = TheShapeOfASuper::Bare;
@@ -94,9 +98,9 @@ fn the_shape_of_a_super(parser: &Parser, start: usize) -> (TheShapeOfASuper, Str
         }
     }
     let mut text = the_source_of_the_tokens(parser, start, end);
-    // A member that is not called is a function, and v2 writes it with the
-    // parentheses of a call.
-    if shape == TheShapeOfASuper::Member && !called {
+    // A member that is not called is a function, and a statement of v2 is a
+    // call: the text of it carries the parentheses.
+    if as_a_statement && shape == TheShapeOfASuper::Member && !called {
         text.push_str("()");
     }
     (shape, text)
@@ -1412,7 +1416,7 @@ impl Parser {
                         // assignment of a call is refused at the load, and
                         // the operator and the value are named.
                         return Err(self.error(format!(
-                            "Invalid assignment. Specifically: {} {}",
+                            "Invalid assignment.\n     Specifically: {} {}",
                             operator.value,
                             the_source_of_the_tokens(self, start, end)
                         )));
@@ -2221,7 +2225,7 @@ impl Parser {
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the load refuses
     /// the second label of a name, and it says which name it is: "Duplicate
-    /// label. Specifically: done". The name of a label does not know its
+    /// label.\n     Specifically: done". The name of a label does not know its
     /// case, and the scope of a label is the scope it is written in.
     fn check_the_labels(&self, body: &[Node]) -> Result<(), SyntaxError> {
         let mut seen: Vec<String> = Vec::new();
@@ -3026,6 +3030,15 @@ impl Parser {
                 continue;
             }
             let Some((op, prec, right_associative)) = self.peek_binary_op() else {
+                // Measured on the binary of v2.0.19 on 2026-10-31: the dot
+                // that does not reach into a value is a "Syntax error." and
+                // the rest of the line, from the dot.
+                if self.at_op(&["."]) && self.the_space_after_is_there() {
+                    return Err(self.error(format!(
+                        "Syntax error.\n     Specifically: {}",
+                        the_source_of_the_rest_of_the_line(self, self.position)
+                    )));
+                }
                 // The implicit concatenation of v2: two values side by side
                 // are one value. It binds like the dot, and the dot is
                 // looser than the arithmetic.
@@ -3255,6 +3268,11 @@ impl Parser {
     /// there is named with it. A brace that closes a block is not an
     /// operand that is missing: it is a token that cannot be there, and
     /// the statement it is in is named with it.
+    ///
+    /// The text that is named is the rest of the line: "Missing operand."
+    /// and the operator and the rest of the line when the operator wanted
+    /// an operand, and "Syntax error." and the rest of the line when the
+    /// operator begins a value.
     fn the_error_of_a_missing_operand(&self, token: &Token) -> SyntaxError {
         let start = self.tokens.get(self.statement_start).unwrap_or(token);
         let message = match token.kind {
@@ -3272,7 +3290,23 @@ impl Parser {
             TokenKind::Op if token.value == ":" => "A \":\" is missing its \"?\"".to_string(),
             // An operator may not begin a value.
             TokenKind::Op if token.value != "," => {
-                format!("Syntax error.\n     Specifically: {}", token.value)
+                // Measured on the binary of v2.0.19 on 2026-10-31: the text
+                // of the failure is not there when the operator is the last
+                // item of a list.
+                if self.the_operator_is_the_last_item_of_a_list() {
+                    return SyntaxError {
+                        message: "Syntax error.".to_string(),
+                        line: start.line,
+                        column: start.column,
+                    };
+                }
+                let rest = the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1));
+                match self.the_operator_that_wants_the_operand() {
+                    Some(operator) => {
+                        format!("Missing operand.\n     Specifically: {operator} {rest}")
+                    }
+                    None => format!("Syntax error.\n     Specifically: {rest}"),
+                }
             }
             // The operand is not there, and the operator that wants it
             // names the failure.
@@ -3281,16 +3315,96 @@ impl Parser {
                 if let Some(operator) = self.the_token_before(self.position.saturating_sub(1)) {
                     text.push_str(&operator.value);
                 }
-                if token.kind != TokenKind::Eof && token.kind != TokenKind::Newline {
+                let rest = the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1));
+                if !rest.is_empty() {
                     if !text.is_empty() {
                         text.push(' ');
                     }
-                    text.push_str(&token.value);
+                    text.push_str(&rest);
                 }
                 format!("Missing operand.\n     Specifically: {text}")
             }
         };
         SyntaxError { message, line: start.line, column: start.column }
+    }
+
+    /// Whether the operator that may not begin a value is the last item of
+    /// a list.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the text of the
+    /// "Syntax error." is not there when the operator is the last item of the
+    /// arguments of a call or of the items of an array. The group and the
+    /// object are not lists, and the text is there.
+    fn the_operator_is_the_last_item_of_a_list(&self) -> bool {
+        // The closing bracket of the list comes after the operator.
+        let Some(next) = self.tokens.get(self.position) else { return false };
+        if next.kind != TokenKind::Op || !matches!(next.value.as_str(), ")" | "]") {
+            return false;
+        }
+        // The bracket that holds the operator is the one that is open.
+        let mut depth = 0usize;
+        let mut index = self.position;
+        while index > 0 {
+            index -= 1;
+            let token = &self.tokens[index];
+            if token.kind != TokenKind::Op {
+                continue;
+            }
+            match token.value.as_str() {
+                ")" | "]" | "}" => depth += 1,
+                "(" | "[" | "{" => {
+                    if depth > 0 {
+                        depth -= 1;
+                        continue;
+                    }
+                    // The items of an array are a list.
+                    if token.value == "[" {
+                        return true;
+                    }
+                    // The arguments of a call are a list, and the parenthesis
+                    // of a call is the one that follows a name.
+                    if token.value == "(" {
+                        return self
+                            .tokens
+                            .get(index.saturating_sub(1))
+                            .map(|before| {
+                                before.kind == TokenKind::Name || before.kind == TokenKind::Keyword
+                            })
+                            .unwrap_or(false);
+                    }
+                    return false;
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// The operator that wanted the operand that is not there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the operator that
+    /// joins two values wants an operand, and so do the compound
+    /// assignments and the question of the ternary. The plain assignment
+    /// does not: `x := * 2` is a "Syntax error." and not a "Missing
+    /// operand.".
+    fn the_operator_that_wants_the_operand(&self) -> Option<String> {
+        let token = self.the_token_before(self.position.saturating_sub(1))?;
+        let wants = match token.kind {
+            TokenKind::Op => matches!(
+                token.value.as_str(),
+                "**" | "*" | "/" | "//" | "+" | "-" | "<<" | ">>" | ">>>" | "&" | "^" | "|"
+                    | "~=" | ">" | ">=" | "<" | "<=" | "=" | "==" | "!=" | "!==" | "&&" | "||"
+                    | "??" | "?" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^="
+                    | "<<=" | ">>=" | ">>>="
+            ),
+            TokenKind::Keyword => matches!(token.value.to_lowercase().as_str(), "and" | "or" | "is"),
+            _ => false,
+        };
+        if wants {
+            Some(token.value.clone())
+        } else {
+            None
+        }
     }
 
     /// The operators with one side, and the values.
@@ -3530,6 +3644,7 @@ impl Parser {
                 continue;
             }
             if self.at_member_dot() {
+                let at_the_dot = self.position;
                 let dot = self.next();
                 let name = self.next();
                 // The member of v2 may be a number: the name of the
@@ -3539,10 +3654,16 @@ impl Parser {
                     && name.kind != TokenKind::Keyword
                     && name.kind != TokenKind::Number
                 {
+                    // Measured on the binary of v2.0.19 on 2026-10-31: the
+                    // dot that reaches into nothing is a "Syntax error." and
+                    // the rest of the line, from the dot.
                     return Err(SyntaxError {
-                        message: "a member needs a name".into(),
-                        line: name.line,
-                        column: name.column,
+                        message: format!(
+                            "Syntax error.\n     Specifically: {}",
+                            the_source_of_the_rest_of_the_line(self, at_the_dot)
+                        ),
+                        line: dot.line,
+                        column: dot.column,
                     });
                 }
                 // A member with parentheses is a method, and a member
@@ -3639,7 +3760,7 @@ impl Parser {
                 // the text of it is named.
                 return Err(SyntaxError {
                     message: format!(
-                        "Invalid assignment. Specifically: {} {}",
+                        "Invalid assignment.\n     Specifically: {} {}",
                         operator.value,
                         the_source_of_the_tokens(self, start, end)
                     ),
@@ -3663,7 +3784,7 @@ impl Parser {
         let end = self.position;
         Ok(SyntaxError {
             message: format!(
-                "Invalid assignment. Specifically: {} {}",
+                "Invalid assignment.\n     Specifically: {} {}",
                 operator.value,
                 the_source_of_the_tokens(self, start, end)
             ),
@@ -3681,14 +3802,14 @@ impl Parser {
         // The token of the keyword is the one before the place the parser
         // is at now.
         let start = self.position - 1;
-        let (shape, text) = the_shape_of_a_super(self, start);
+        let (shape, text) = the_shape_of_a_super(self, start, false);
         if shape == TheShapeOfASuper::Bare {
             // The keyword has to be followed by `.`, `[` or `(`.
-            return Err(self.error("Syntax error. Specifically: super"));
+            return Err(self.error("Syntax error.\n     Specifically: super"));
         }
         if !self.in_class {
             return Err(self.error(format!(
-                "\"Super\" is valid only inside a class. Specifically: {text}"
+                "\"Super\" is valid only inside a class.\n     Specifically: {text}"
             )));
         }
         if shape == TheShapeOfASuper::Call {
@@ -3711,14 +3832,22 @@ impl Parser {
     /// The `super` alone is a command of v2 at the top level, and it is
     /// refused with the name of the call.
     fn parse_super_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
-        let (shape, _text) = the_shape_of_a_super(self, self.position);
+        let (shape, text) = the_shape_of_a_super(self, self.position, true);
         if shape == TheShapeOfASuper::Bare {
             if self.in_class {
-                return Err(self.error("Syntax error. Specifically: super"));
+                return Err(self.error("Syntax error.\n     Specifically: super"));
             }
             return Err(self.error(
-                "\"Super\" is valid only inside a class. Specifically: super()",
+                "\"Super\" is valid only inside a class.\n     Specifically: super()",
             ));
+        }
+        if !self.in_class {
+            // Measured on the binary of v2.0.19 on 2026-10-31: the statement
+            // is a call, and the text of the call carries the parentheses
+            // that the statement does not write.
+            return Err(self.error(format!(
+                "\"Super\" is valid only inside a class.\n     Specifically: {text}"
+            )));
         }
         let node = self.the_expression_of_a_statement()?;
         self.end_of_statement()?;
@@ -4446,7 +4575,7 @@ mod tests {
         let error = parse("super.m()").expect_err("does not parse");
         assert_eq!(
             error.message,
-            "\"Super\" is valid only inside a class. Specifically: super.m()"
+            "\"Super\" is valid only inside a class.\n     Specifically: super.m()"
         );
     }
 
@@ -4455,7 +4584,7 @@ mod tests {
         let error = parse("super.m(1, 2)").expect_err("does not parse");
         assert_eq!(
             error.message,
-            "\"Super\" is valid only inside a class. Specifically: super.m(1, 2)"
+            "\"Super\" is valid only inside a class.\n     Specifically: super.m(1, 2)"
         );
     }
 
@@ -4464,14 +4593,14 @@ mod tests {
         let error = parse("super[\"x\"]").expect_err("does not parse");
         assert_eq!(
             error.message,
-            "\"Super\" is valid only inside a class. Specifically: super[\"x\"]"
+            "\"Super\" is valid only inside a class.\n     Specifically: super[\"x\"]"
         );
     }
 
     #[test]
     fn a_super_that_has_no_member_is_an_error() {
         let error = parse("class C {\n  m() {\n    return super\n  }\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error. Specifically: super");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: super");
     }
 
     #[test]
@@ -4479,7 +4608,19 @@ mod tests {
         let error = parse("super").expect_err("does not parse");
         assert_eq!(
             error.message,
-            "\"Super\" is valid only inside a class. Specifically: super()"
+            "\"Super\" is valid only inside a class.\n     Specifically: super()"
+        );
+    }
+
+    #[test]
+    fn the_super_of_an_expression_names_the_text_that_was_written() {
+        // Measured on the binary of v2.0.19 on 2026-10-31: in an expression
+        // the text of the `super` is the source, and the parentheses of a
+        // call are not there.
+        let error = parse("x := super.x").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "\"Super\" is valid only inside a class.\n     Specifically: super.x"
         );
     }
 
@@ -4509,7 +4650,7 @@ mod tests {
     #[test]
     fn a_dot_with_a_space_after_it_and_none_before_it_is_an_error() {
         // v2 refuses the line: "This line does not contain a recognized
-        // action. Specifically: o. x := 1".
+        // action.\n     Specifically: o. x := 1".
         let error = parse("o. x := 1").expect_err("does not parse");
         assert!(!error.message.is_empty());
     }

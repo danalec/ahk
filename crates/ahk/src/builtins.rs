@@ -1567,7 +1567,7 @@ fn on_exit(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> R
         _ => {
             return Err(RuntimeError {
                 message: format!(
-                    "{} Specifically: {}",
+                    "{}\n     Specifically: {}",
                     crate::runtime::invalid_parameter(2, "OnExit"),
                     values.get(1).map(|value| value.to_text()).unwrap_or_default()
                 ),
@@ -1596,7 +1596,7 @@ fn on_error(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> 
         _ => {
             return Err(RuntimeError {
                 message: format!(
-                    "{} Specifically: {}",
+                    "{}\n     Specifically: {}",
                     crate::runtime::invalid_parameter(2, "OnError"),
                     values.get(1).map(|value| value.to_text()).unwrap_or_default()
                 ),

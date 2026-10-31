@@ -178,7 +178,7 @@ the box: it does no I/O, and it has to keep building without `std`.
 - **The number of the arguments is checked in two places.** Measured on the
   binary of v2.0.19 on 2026-10-29: a call that the script writes is checked
   when the script loads, and the failure names the function: "Too few
-  parameters passed to function. Specifically: Abs". A call that goes
+  parameters passed to function.\n     Specifically: Abs". A call that goes
   through a value is checked when the call runs, and it says so in other
   words: a built-in answers "Too few parameters passed to function." and a
   function of the script answers "Missing a required parameter.". The name
@@ -2216,7 +2216,7 @@ of `Any` takes.
   runs.** The value is thrown again after the `finally`.
 - **`throw value` throws a value, and `throw` alone throws again what the
   catch took.** A value that no catch took is the error of the run:
-  "Unhandled exception. Specifically: the text that was thrown".
+  "Unhandled exception.\n     Specifically: the text that was thrown".
 
 Measured on the binary of v2.0.19 on 2026-10-29: a `try` with a `catch`
 takes an error of the runtime, and a `throw` of a text is not taken by a
@@ -2250,9 +2250,9 @@ binary of v2.0.19 on 2026-10-29 and 2026-10-30.
 - **The order is a number that is cut to a whole number, and it is 1, -1 or
   0.** One calls the callback after the ones that are registered, minus one
   before them, and zero does not call it at all -- it removes it. Anything
-  else is refused with "Parameter #2 of OnExit is invalid. Specifically: 5",
+  else is refused with "Parameter #2 of OnExit is invalid.\n     Specifically: 5",
   and a text that is not a number with "Parameter #2 of OnExit requires a
-  Number, but received a String. Specifically: x".
+  Number, but received a String".
 - **The callback of the exit takes the reason and the code.** The reasons the
   tree carries are "Exit" and "Error"; the reasons of Windows are not
   carried.
@@ -2346,8 +2346,8 @@ dot tells a member from a concatenation. Measured on the binary of v2.0.19 on
   `2`.
 - **`o. x` is neither.** The dot has no space before it and a space after
   it, and v2 refuses the line: "This line does not contain a recognized
-  action. Specifically: o. x := 1". In an expression it is a load error too:
-  "Syntax error. Specifically: . x".
+  action.\n     Specifically: o. x := 1". In an expression it is a load error too:
+  "Syntax error.\n     Specifically: . x".
 - **`o . x` joins two values.** The concatenation wants a space on both
   sides, and it is looser than the arithmetic.
 
@@ -2389,7 +2389,7 @@ entirely".
   it stands -- `super.m(1, 2)` keeps the space after the comma, and
   `super["x"]` keeps the quotes -- and a member that is not called is
   written with the parentheses of a call, because that is what it is.
-  The keyword alone is refused as well: "Syntax error. Specifically: super".
+  The keyword alone is refused as well: "Syntax error.\n     Specifically: super".
 - **The refusals of the base name the class of the value.** 'This value of
   type "Derived" has no method named "n".', and 'This value of type
   "Derived" has no property named "value".'
@@ -2741,12 +2741,12 @@ through a parenthesis.
   the members of any other value are: `StrLen("abc").__Class` is
   "Integer", and `Map().Count` is 0.
 - **The assignment of an expression is refused at the load.** v2 says
-  "Invalid assignment. Specifically: := 1", and the text that is named
+  "Invalid assignment.\n     Specifically: := 1", and the text that is named
   is the operator and the value that was written.
 
 Two differences are left, and they are the load errors of v2 that the
 tree does not carry: a literal at the start of a statement is "Syntax
-error. Specifically: 1", and the parenthesis of the group of an
+error.\n     Specifically: 1", and the parenthesis of the group of an
 assignment is named in the text of it ("Specifically: := 2)").
 
 Thirteen of the thirteen cases of the members of a call and five of the
@@ -2860,8 +2860,8 @@ of an `if` that has no braces, and v2 takes it.
 - **The switch needs the braces**, and it names what it found: "Unexpected
   \"Switch\"" and "Unexpected \"Case\"".
 - **The condition of the `if` and of the `while` is not optional:** "\"If\"
-  requires at least 1 parameter. Specifically: if" and "\"While\" requires
-  at least 1 parameter. Specifically: while".
+  requires at least 1 parameter.\n     Specifically: if" and "\"While\" requires
+  at least 1 parameter.\n     Specifically: while".
 
 The rule that says where the body may begin is in one place:
 `the_body_begins_on_the_next_line`, so that the v1 dialect -- which takes
@@ -3515,7 +3515,7 @@ the label is a statement too.
   of the underscore, and it may begin with a digit: `1abc:` is a label. A
   line that ends with a colon and is not one of them holds no action, and
   the message of the dialect is "This line does not contain a recognized
-  action. Specifically: a-b:" -- the message of `done :` and of `done:
+  action.\n     Specifically: a-b:" -- the message of `done :` and of `done:
   FileAppend "x", "*"` too.
 - **The parameter of a `Goto` is not an expression.** It is the name of a
   label, and it is read as the text of it: `Goto "done"` looks for a label
@@ -3525,7 +3525,7 @@ the label is a statement too.
 - **The `Goto` needs one parameter and it takes one.** The load refuses the
   one that has none -- "\"Goto\" requires at least 1 parameter. Specifically:
   Goto" -- and the one that has more -- "\"Goto\" accepts at most 1
-  parameter. Specifically: Goto a, b".
+  parameter.\n     Specifically: Goto a, b".
 - **A label belongs to the scope it is written in.** The scope of the
   script, or the scope of a function or of a method. A label of another
   scope is not found in the current one: "Label not found in current scope.
@@ -3537,7 +3537,7 @@ the label is a statement too.
   it.** The tree has a kind of failure for it -- `RuntimeFailure::Fatal` --
   and it is not given to the functions of the error either.
 - **A label that is written twice in the same scope is refused at the
-  load.** "Duplicate label. Specifically: done" is the message of the
+  load.** "Duplicate label.\n     Specifically: done" is the message of the
   dialect, and it names the line of the second label.
 - **`IsLabel` asks the scope that runs.** It answers one when the label is
   there and zero when it is not, and a name that is empty is a name that is
@@ -3639,7 +3639,7 @@ a text between single quotes did not parse.
   := "abc" for the double quote, and "Missing "'"" for the single one.
 - **Two values side by side are one value, and the space between them is
   what makes it so.** `x := "a" "b"` is "ab", and `x := "a""b"` is refused
-  with "Missing space or operator before this. Specifically: "b"". The name
+  with "Missing space or operator before this.\n     Specifically: "b"". The name
   of the value that came too close is the text of it, with the quote that
   was written.
 - **The token keeps the quote that was written.** The source of the script

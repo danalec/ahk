@@ -321,8 +321,8 @@ pub fn the_kind_of(value: &Value) -> String {
 ///
 /// A parameter that is an alias of a variable of the caller says that
 /// it is the parameter that has no value, and not the variable.
-pub fn unassigned_parameter(name: &str) -> String {
-    format!("This parameter has not been assigned a value. Specifically: {name}")
+pub fn unassigned_parameter() -> String {
+    "This parameter has not been assigned a value.".to_string()
 }
 
 /// The message v2 gives for a parameter that cannot be used.
@@ -1417,7 +1417,7 @@ impl<'a> Runtime<'a> {
             };
         }
         RuntimeError {
-            message: format!("Label not found in current scope. Specifically: {name}"),
+            message: format!("Label not found in current scope.\n     Specifically: {name}"),
             line,
         }
     }
@@ -1845,7 +1845,7 @@ impl<'a> Runtime<'a> {
                 // A `super` with no member: the parser refuses it, and the
                 // runtime refuses it too.
                 return Err(RuntimeFailure::Error(RuntimeError {
-                    message: "Syntax error. Specifically: super".into(),
+                    message: "Syntax error.\n     Specifically: super".into(),
                     line: *line,
                 }));
             }
@@ -6556,7 +6556,7 @@ impl<'a> Runtime<'a> {
     ///
     /// A call that the script wrote is checked when the script loads,
     /// and the failure names the function: "Too few parameters passed
-    /// to function. Specifically: Abs". A call that goes through a
+    /// to function.\n     Specifically: Abs". A call that goes through a
     /// value is checked when the call runs, and the failure is the one
     /// of the run: the name of the function goes in the `Extra`.
     pub(crate) fn the_arity_failure(
@@ -6568,7 +6568,7 @@ impl<'a> Runtime<'a> {
     ) -> RuntimeFailure {
         match route {
             Route::Written => RuntimeFailure::Error(RuntimeError {
-                message: format!("{message} Specifically: {name}"),
+                message: format!("{message}\n     Specifically: {name}"),
                 line,
             }),
             Route::ThroughValue => RuntimeFailure::Detailed(
@@ -7065,7 +7065,7 @@ impl<'a> Runtime<'a> {
                 // A `super` with no member: the parser refuses it, and the
                 // runtime refuses it too.
                 Err(RuntimeFailure::Error(RuntimeError {
-                    message: "Syntax error. Specifically: super".into(),
+                    message: "Syntax error.\n     Specifically: super".into(),
                     line: *line,
                 }))
             }
@@ -7091,7 +7091,7 @@ impl<'a> Runtime<'a> {
                         // A parameter that is an alias says that it is
                         // the parameter that has no value.
                         message: match self.alias_of(name) {
-                            Some(_) => unassigned_parameter(name),
+                            Some(_) => unassigned_parameter(),
                             None => self.the_unassigned(name),
                         },
                         line: *line,
@@ -7153,7 +7153,7 @@ impl<'a> Runtime<'a> {
                     if let Some(kind) = self.cannot_be_referenced(name) {
                         return Err(RuntimeFailure::Error(RuntimeError {
                             message: format!(
-                                "This {kind} cannot have its reference taken. Specifically: {name}"
+                                "This {kind} cannot have its reference taken.\n     Specifically: {name}"
                             ),
                             line: *line,
                         }));
@@ -8076,7 +8076,7 @@ fn the_key_of(name: &str) -> String {
 /// anything else is the message of an exception without a name.
 fn thrown_message(value: &Value) -> String {
     match value {
-        Value::Text(text) => format!("Unhandled exception. Specifically: {text}"),
+        Value::Text(text) => format!("Unhandled exception.\n     Specifically: {text}"),
         _ => "Unhandled exception.".to_string(),
     }
 }
@@ -8218,7 +8218,7 @@ pub struct Detail {
 /// v2 checks the number of the arguments in two places. A call that the
 /// script writes is checked when the script loads, and the failure says
 /// the name of the function: "Too few parameters passed to function.
-/// Specifically: Abs". A call that goes through a value is checked when
+/// \n     Specifically: Abs". A call that goes through a value is checked when
 /// the call runs, and the failure is the one of the run: "Missing a
 /// required parameter." for a function of the script, and "Too few
 /// parameters passed to function." for a built-in.
