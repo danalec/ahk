@@ -749,6 +749,15 @@ fn a_blank_delimiter_makes_a_piece_of_every_character() {
 }
 
 #[test]
+fn a_text_that_is_empty_has_no_piece() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a text that is empty
+    // has no piece at all, and the piece that is empty is not a piece.
+    let report = run("pieces := StrSplit(\"\", \",\")\nnumber := pieces.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "number"), 0);
+}
+
+#[test]
 fn the_delimiters_that_are_not_a_text_are_refused() {
     let report = run("pieces := StrSplit(\"a,b\", Map())");
     assert_eq!(failure_of(&report), "Parameter #2 of StrSplit is invalid.");

@@ -999,6 +999,11 @@ fn the_pieces(text: &str, delimiters: &[String], omit: &str, max: f64) -> Vec<St
     if max == 0.0 {
         return Vec::new();
     }
+    // Measured on the binary of v2.0.19 on 2026-10-31: a text that is empty
+    // has no piece at all, and the piece that is empty is not a piece.
+    if text.is_empty() {
+        return Vec::new();
+    }
     // The number of the pieces says how many times the text is cut: the
     // rest of the text is the last piece.
     let cuts = if max > 0.0 { max as usize - 1 } else { 0 };

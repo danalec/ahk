@@ -4845,3 +4845,19 @@ character '\u{feff}'", and a script that an editor of Windows saved has the
 mark in it. The probes that measured the rules are in
 `egm-review/probe_script_bom.py` and
 `egm-review/probe_script_bom_middle.py`.
+
+## 107. The text that is empty has no piece
+
+Measured on the binary of v2.0.19 on 2026-10-31: the `StrSplit` of a text
+that is empty answers an array with no piece in it.
+
+- **The piece that is empty is not a piece.** `StrSplit("", ",")` is an
+  array of zero pieces, and not an array with one piece in it.
+- **The rest of the family is the way it was.** A text that is cut in two
+  has two pieces, two delimiters in a row have a piece that is empty
+  between them, and a delimiter at the start or at the end of the text has
+  a piece that is empty beside it.
+
+The tree answered one piece for the text that was empty, and the piece was
+the text itself. The comparison of the tree with the binary is in
+`egm-review/compare_str_split.py` (25 cases, all of them the same).

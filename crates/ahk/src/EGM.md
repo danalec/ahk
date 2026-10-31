@@ -946,6 +946,9 @@ that asks for another one is refused with the reason.
 - **The delimiters of the split of a text are literals.** The `StrSplit` cuts
   on the text that is given and not on a set of characters, and the
   delimiters of an array are tried in the order they were given.
+- **A text that is empty has no piece.** The `StrSplit` of an empty text
+  answers an array with no piece in it, and the piece that is empty is not a
+  piece.
 - **A property is written with a descriptor.** The `DefineProp` takes an
   object with a `Value`, a `Get`, a `Set` or a `Call` in it, and the
   descriptor lives under the reserved key of the runtime.
