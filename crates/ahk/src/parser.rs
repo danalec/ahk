@@ -4071,6 +4071,16 @@ impl Parser {
                 return Ok(left);
             }
             let token = self.next();
+            // Measured on the binary of v2.0.19 on 2026-11-01: the or-maybe
+            // wants a variable on its left, and the v2 refuses the script at
+            // the load when it is another value. The text that is named is
+            // the rest of the line, from the operator.
+            if op == BinaryOp::Coalesce && !matches!(left, Node::Var { .. }) {
+                return Err(self.error(format!(
+                    "Syntax error.\n     Specifically: {}",
+                    the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1))
+                )));
+            }
             // Measured on the binary of v2.0.19 on 2026-10-31: an operator
             // that wants a number may not follow a literal text. The error
             // is named when the expression that holds the operator is done,
@@ -4507,8 +4517,15 @@ impl Parser {
                 }
                 let rest = the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1));
                 match self.the_operator_that_wants_the_operand() {
-                    Some(operator) => {
-                        format!("Missing operand.\n     Specifically: {operator} {rest}")
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // text that is named begins at the operator, and it is
+                    // the source of the line from there: `x := 1 === 1` names
+                    // "=== 1".
+                    Some(at) => {
+                        format!(
+                            "Missing operand.\n     Specifically: {}",
+                            the_source_of_the_rest_of_the_line(self, at)
+                        )
                     }
                     None => format!("Syntax error.\n     Specifically: {rest}"),
                 }
@@ -4592,7 +4609,8 @@ impl Parser {
     /// assignments and the question of the ternary. The plain assignment
     /// does not: `x := * 2` is a "Syntax error." and not a "Missing
     /// operand.".
-    fn the_operator_that_wants_the_operand(&self) -> Option<String> {
+    fn the_operator_that_wants_the_operand(&self) -> Option<usize> {
+        let at = self.position.saturating_sub(2);
         let token = self.the_token_before(self.position.saturating_sub(1))?;
         let wants = match token.kind {
             TokenKind::Op => matches!(
@@ -4606,7 +4624,7 @@ impl Parser {
             _ => false,
         };
         if wants {
-            Some(token.value.clone())
+            Some(at)
         } else {
             None
         }
@@ -6770,4 +6788,26 @@ mod tests {
         let error = parse("x := {\na\n}").expect_err("does not parse");
         assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
         assert_eq!(error.line, 1);
+    }
+
+    #[test]
+    fn the_or_maybe_wants_a_variable_on_its_left() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 refuses
+        // the script at the load when the left side of the or-maybe is
+        // another value, and it names the operator.
+        let error = parse("x := 1 ?? 2").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: ?? 2");
+        let error = parse("x := o.a ?? 2").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: ?? 2");
+        // The variable is the left side that the v2 accepts.
+        parse("x := y ?? 2").expect("parses");
+    }
+
+    #[test]
+    fn the_three_way_comparison_is_refused_with_the_text_of_the_signs() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the three signs
+        // are the `==` and the `=`, and the operand that the comparison
+        // wants is not there. The text that is named begins at the operator.
+        let error = parse("x := 1 === 1").expect_err("does not parse");
+        assert_eq!(error.message, "Missing operand.\n     Specifically: === 1");
     }

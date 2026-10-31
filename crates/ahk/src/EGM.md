@@ -1371,6 +1371,13 @@ that asks for another one is refused with the reason.
   rest of the script. The failures of the literal are named with the line
   of the brace that opens it.
 
+- **The point of a number is in the number when a name does not come
+  after it.** `1.ToString` is the number 1 and the member that follows
+  it, and `1.` is the number 1.0. The or-maybe wants a variable on its
+  left, and the v2 refuses the script at the load when it is another
+  value. The three-way comparison is not a token of the v2: the `===` is
+  the `==` and the `=`.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

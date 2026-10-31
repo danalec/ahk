@@ -4877,9 +4877,13 @@ nineteen.
   text of the expression is named: "Illegal character in expression.
   \n     Specifically: #y" for `x := 1 #y`, and the command of v2 carries
   the parenthesis that closes it -- "#y)" for `MsgBox #y`.
-- **The hash that follows a name is a part of it,** and the line that holds
-  it holds no action: "This line does not contain a recognized action.
-  \n     Specifically: x#y" for `x#y`, and for `x#y := 1`.
+- **The hash that follows the name that opens the statement is a part of
+  it,** and the line that holds it holds no action: "This line does not
+  contain a recognized action. \n     Specifically: x#y" for `x#y`, and
+  for `x#y := 1`. The hash that follows a name that is not the one that
+  opens the statement is an illegal character in an expression, and it is
+  section 124 that says where the place of the character is what tells
+  the two apart.
 - **A hash that has no name, or a name that begins with a number, is not a
   directive either,** and the line holds no action.
 - **A name that the v2 does not know is not a directive at all,** and the
@@ -5503,3 +5507,29 @@ that was not there.
 The probes that measured the rules are in
 `egm-review/probe_object_unclosed.py` (7 cases) and
 `probe_command_brace.py` (6).
+
+## 127. The expressions that the two do not read the same way
+
+Measured on the binary of v2.0.19 on 2026-11-01: the point of a number,
+the or-maybe and the three-way comparison.
+
+- **The point of a number is in the number when a name does not come
+  after it:** `1.ToString` is the number 1 and the member that follows it,
+  and `1.` is the number 1.0. The tree read the point as a part of the
+  number, and it refused the script at the load: the v2 loads it and
+  fails at the run.
+- **The or-maybe wants a variable on its left,** and the v2 refuses the
+  script at the load when it is another value: "Syntax error." and the
+  text of the operator. The tree refused it at the run, and with its own
+  words.
+- **The three-way comparison is not a token of the v2:** the table of the
+  v2 has `===`, and its lexer does not match it. The three signs are the
+  `==` and the `=`, and the operand that the comparison wants is not
+  there: "Missing operand." and the text of the signs.
+- **The text of the missing operand begins at the operator,** and it is
+  the source of the line from there.
+
+The probes that measured the rules are in
+`egm-review/sweep_operators.py` (47 cases),
+`probe_operator_holes.py` (16), `probe_expression_holes.py` (15) and
+`sweep_runtime_errors.py` (23).

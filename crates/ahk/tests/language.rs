@@ -5315,3 +5315,16 @@ fn the_block_that_opens_a_line_runs_its_statements() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2"]);
 }
+
+#[test]
+fn the_member_of_a_number_is_read_at_the_run() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: `1.abc` is the
+    // number 1 and the member that follows it. The script loads, and it
+    // fails at the run.
+    let (report, _desktop) = run("x := 1.abc");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Integer\" has no property named \"abc\".")
+    );
+}

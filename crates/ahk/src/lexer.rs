@@ -103,8 +103,13 @@ pub const KEYWORDS: &[&str] = &[
 /// The list is the whole of v2's symbolic operators. The order matters
 /// in one more way: `++` and `--` are not matched right after a number,
 /// because `5--3` is a subtraction and not a decrement of a literal.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the table of the v2
+/// has `===`, and its lexer does not match it: the three signs are the `==`
+/// and the `=` of the assignment, and the script is refused with a missing
+/// operand.
 const OPERATORS: &[&str] = &[
-    ">>>=", "<<=", "//=", ">>=", ":=", "+=", "-=", "*=", "/=", ".=", "|=", "^=", "&=", "~=", "===", "!==",
+    ">>>=", "<<=", "//=", ">>=", ":=", "+=", "-=", "*=", "/=", ".=", "|=", "^=", "&=", "~=", "!==",
     "==", "!=", "<=", ">=", "&&", "||", "??", "**", "//", "<<", ">>>", ">>", "++", "--", "::", "=>", "=", "<", ">",
     "+", "-", "*", "%", "/", ".", "(", ")", ",", "{", "}", "[", "]", "!", ":", "?", "&", "|", "^", "~",
 ];
@@ -1067,9 +1072,15 @@ fn the_end_of_the_number(chars: &[char], start: usize) -> usize {
         index += 1;
     }
     if chars.get(index) == Some(&'.') {
-        index += 1;
-        while index < chars.len() && chars[index].is_ascii_digit() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the point is in
+        // the number when a name does not come after it: `1.ToString` is the
+        // number 1 and the member that follows it, and `1.` is the number
+        // 1.0.
+        if !chars.get(index + 1).is_some_and(|character| the_character_is_a_letter(*character)) {
             index += 1;
+            while index < chars.len() && chars[index].is_ascii_digit() {
+                index += 1;
+            }
         }
     }
     // The exponent of v2: the `e`, the sign and the digits. An `e` that
@@ -1335,5 +1346,31 @@ mod tests {
         let tokens = tokenize(";c").expect("parses");
         assert_eq!(tokens.len(), 1);
         assert_eq!(tokens[0].kind, TokenKind::Eof);
+    }
+
+    #[test]
+    fn the_point_of_a_number_is_not_the_point_of_a_member() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the point is in
+        // the number when a name does not come after it: `1.ToString` is the
+        // number 1 and the member that follows it, and `1.` is the number
+        // 1.0.
+        let tokens = tokenize("x := 1.ToString").expect("parses");
+        assert_eq!(tokens[2].kind, TokenKind::Number);
+        assert_eq!(tokens[2].value, "1");
+        assert_eq!(tokens[3].value, ".");
+        assert_eq!(tokens[4].value, "ToString");
+        // The point with no name after it is in the number.
+        let tokens = tokenize("x := 1.").expect("parses");
+        assert_eq!(tokens[2].value, "1.");
+    }
+
+    #[test]
+    fn the_three_way_comparison_is_not_a_token() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the table of the
+        // v2 has `===`, and its lexer does not match it: the three signs are
+        // the `==` and the `=`.
+        let tokens = tokenize("x := 1 === 1").expect("parses");
+        assert_eq!(tokens[3].value, "==");
+        assert_eq!(tokens[4].value, "=");
     }
 }
