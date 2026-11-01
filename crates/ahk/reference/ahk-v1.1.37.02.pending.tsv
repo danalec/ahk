@@ -44,11 +44,13 @@
 #   of the v1, and the `A_FormatFloat` and the `A_FormatInteger` say the
 #   format that is in force. Measured on the binary of v1.1.37.02 on
 #   2026-11-02.
+# - The `StringCaseSense` is carried: the command turns the sense of the case
+#   of the comparisons on and off, and the `A_StringCaseSense` says the one
+#   that is in force. Measured on the binary of v1.1.37.02 on 2026-11-02.
 kind	class	name	reason
 
 command		IfInString	not-yet
 command		IfMsgBox	not-yet
 command		SetBatchLines	not-yet
-command		StringCaseSense	not-yet
 command		Transform	not-yet
 function		VarSetCapacity	not-yet

@@ -6228,3 +6228,36 @@ script at the load. The v1 answers "5-1" and "20" there, and the
 documentation of the v1 does not say what it means.
 
 
+## 150. The sense of the case of the v1 decides the comparison of the texts
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `StringCaseSense` turns the sense of the case on and off.** It takes
+  "On", "Off" or "Locale", and the numbers one and zero are the two first.
+  The value that it does not know is refused with "Parameter #1 invalid.".
+- **The `A_StringCaseSense` says the sense that is in force.** It is "Off"
+  when the script begins, and it is "On", "Off" or "Locale" after the
+  command.
+- **The comparison operators of the expressions follow the sense.** The `<`,
+  the `>`, the `<=`, the `>=` and the `!=` are with the case when the sense
+  is On: "ABC" < "abc" is true then, and it is false when the sense is Off.
+- **The `==` is always with the case, and the `=` is always without it.** The
+  equal sign of the v1 is without regard to the case whatever the sense is,
+  and the method of the locale is the one it uses when the sense is On:
+  `"ä" = "Ä"` is true when the sense is On, and it is false when the sense is
+  Off.
+- **The sense that is Off folds the letters A-Z only, and the sense of the
+  locale folds the letters of the Unicode.** The tree does not ask the
+  machine for the locale of it: the method of the locale is the one of the
+  Unicode, which is the method of every machine that is written in the Latin
+  alphabet.
+
+The `StringCaseSense` leaves the pending table of the v1: the surface of the v1
+has 271 values, 108 refusals and 5 pending names.
+
+The names that follow the sense of the case and that the tree carries with the
+shape of the v2 do not follow it yet: the `StringReplace`, the
+`StringGetPos`, the `StrReplace` and the `InStr` are the commands and the
+functions of the v2, and the shape of the v1 is not theirs.
+
+

@@ -750,3 +750,120 @@ fn the_comparison_of_the_v1_is_a_text_when_a_side_is_not_a_number() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
 }
+
+/// The sense of the case of the v1 is Off when the script begins, and the
+/// command turns it into On or into Locale.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `A_StringCaseSense`
+/// is "Off" when the script begins, and it is "On", "Off" or "Locale"
+/// after the command. The numbers one and zero are the two first.
+#[test]
+fn the_sense_of_the_case_of_the_v1_is_off_when_the_script_begins() {
+    let report = run("x := A_StringCaseSense");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Off".into())));
+
+    let report = run("StringCaseSense, On\nx := A_StringCaseSense");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("On".into())));
+
+    let report = run("StringCaseSense, Locale\nx := A_StringCaseSense");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Locale".into())));
+
+    let report = run("StringCaseSense, 1\nx := A_StringCaseSense");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("On".into())));
+
+    let report = run("StringCaseSense, 0\nx := A_StringCaseSense");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Off".into())));
+}
+
+/// The value that the `StringCaseSense` does not know is refused.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is
+/// "Parameter #1 invalid." and the value is in the `Extra`.
+#[test]
+fn the_value_that_the_string_case_sense_does_not_know_is_refused() {
+    let report = run("StringCaseSense, Maybe");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #1 invalid.\n     Specifically: Maybe")
+    );
+}
+
+/// The comparison of two texts follows the sense of the case.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: "ABC" < "abc" is
+/// false when the sense is Off, and it is true when the sense is On.
+#[test]
+fn the_comparison_of_two_texts_follows_the_sense_of_the_case() {
+    let report = run("x := (\"ABC\" < \"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("StringCaseSense, On\nx := (\"ABC\" < \"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    let report = run("StringCaseSense, On\nx := (\"ABC\" > \"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+}
+
+/// The equal sign of the v1 is always without regard to the case, and the
+/// two equals are always with it.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: "ABC" = "abc" is true
+/// with the sense Off and with the sense On, and "ABC" == "abc" is false
+/// with the two of them.
+#[test]
+fn the_equal_sign_of_the_v1_is_always_without_regard_to_the_case() {
+    for sense in ["Off", "On", "Locale"] {
+        let report = run(&format!("StringCaseSense, {sense}\nx := (\"ABC\" = \"abc\")"));
+        assert!(report.ok);
+        assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+        let report = run(&format!("StringCaseSense, {sense}\nx := (\"ABC\" == \"abc\")"));
+        assert!(report.ok);
+        assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+    }
+}
+
+/// The not equal sign of the v1 follows the sense of the case.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: "ABC" != "abc" is
+/// false when the sense is Off, and it is true when the sense is On.
+#[test]
+fn the_not_equal_sign_of_the_v1_follows_the_sense_of_the_case() {
+    let report = run("x := (\"ABC\" != \"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("StringCaseSense, On\nx := (\"ABC\" != \"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+}
+
+/// The sense of the locale folds the letters of the Unicode, and the sense
+/// that is Off folds only the letters of the English.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: "ä" = "Ä" is false
+/// when the sense is Off, and it is true when the sense is On or when it is
+/// the sense of the locale.
+#[test]
+fn the_sense_of_the_locale_folds_the_letters_of_the_unicode() {
+    let report = run("x := (\"ä\" = \"Ä\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("StringCaseSense, On\nx := (\"ä\" = \"Ä\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    let report = run("StringCaseSense, Locale\nx := (\"ä\" = \"Ä\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+}

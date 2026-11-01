@@ -26,6 +26,7 @@ pub use variables::{carries as carries_variable, refusal_of as refusal_of_variab
 
 pub(crate) use names::{
     auto_trim, file_read_line, func, input, is_by_ref, is_func, is_set, object, set_format,
+    string_case_sense,
 };
 
 /// The built-in variables of the v1 that the v2 does not carry.

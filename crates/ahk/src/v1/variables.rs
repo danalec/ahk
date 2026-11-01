@@ -28,6 +28,9 @@ enum TheValue {
     /// The value is the state of the runtime: the `A_FormatFloat` and the
     /// `A_FormatInteger` of the v1 say the format of the numbers.
     TheFormats,
+    /// The value is the state of the runtime: the `A_StringCaseSense` of the
+    /// v1 says the sense of the case of the comparisons.
+    TheCaseSense,
     /// The name is carried and the runtime refuses it: the reason is here.
     Refused(&'static str),
 }
@@ -94,8 +97,9 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     ("A_NumBatchLines", TheValue::Text("10ms")),
     // The type of the operating system: it is a type of Windows.
     ("A_OSType", TheValue::Refused(NOT_A_WINDOWS)),
-    // Measured: "Off".
-    ("A_StringCaseSense", TheValue::Text("Off")),
+    // Measured: "Off". The command `StringCaseSense` turns the sense of
+    // the case on and off, and the name of it follows it.
+    ("A_StringCaseSense", TheValue::TheCaseSense),
     // The label of the thread that runs: the script is at its top.
     ("A_ThisLabel", TheValue::Text("")),
     // The menu of the thread that runs: the tree has none.
@@ -159,6 +163,8 @@ pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError
                     rt.integer_format().name().to_string()
                 },
             )),
+            // The sense of the case is a state of the run as well.
+            TheValue::TheCaseSense => Ok(Value::Text(rt.case_sense().name().to_string())),
             TheValue::Refused(reason) => {
                 Err(RuntimeError { message: (*reason).to_string(), line: 0 })
             }

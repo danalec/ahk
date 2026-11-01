@@ -815,14 +815,14 @@ does not get worse without being seen.
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
 | **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 21 cases), and the `--surface --json` for the CI. |
 
-**What is left.** Six names of the pending table of the v1: the
-`IfInString`, the `IfMsgBox`, the `SetBatchLines`, the `StringCaseSense`,
-the `Transform` and the `VarSetCapacity`. The `SetBatchLines` is a decision
-of the plan (§5, the threads of the v1). The other five are work that is
-still to do, and the pending table is where they are written down.
+**What is left.** Five names of the pending table of the v1: the
+`IfInString`, the `IfMsgBox`, the `SetBatchLines`, the `Transform` and the
+`VarSetCapacity`. The `SetBatchLines` is a decision of the plan (§5, the
+threads of the v1). The other four are work that is still to do, and the
+pending table is where they are written down.
 
-The surface of the v1 has **384** entries: **270** answer with a value,
-**108** are refused and **6** are pending. The surface of the v2 did not
+The surface of the v1 has **384** entries: **271** answer with a value,
+**108** are refused and **5** are pending. The surface of the v2 did not
 move: **828** entries, **637** values, **191** refusals and no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an
@@ -844,6 +844,16 @@ since the block of the arithmetic (2026-11-02): the sum of a text that is
 written and of a number is a concatenation, the sum of a number and of a
 text that is written is blank, and a value that is not a number makes the
 operation blank.
+
+**The sense of the case.** The `StringCaseSense` of the v1 turns the sense of
+the case on and off, and the `A_StringCaseSense` says the one that is in
+force. The tree carries it since the block of the sense of the case
+(2026-11-02), with the comparison operators of the expressions: they follow
+the sense, the `==` is always with the case, and the `=` is always without
+it. The names that follow the sense in the v1 and that the tree carries with
+the shape of the v2 — the `StringReplace`, the `StringGetPos`, the
+`StrReplace` and the `InStr` — do not follow it yet, and the shape of the v1
+is not theirs.
 
 **What stays out.** The operator that comes after a text that is written is
 refused at the load, and the v1 accepts it: the v1 answers "5-1" and "20"

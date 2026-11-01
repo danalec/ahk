@@ -8,9 +8,9 @@
 //! v2, and the handler of the names that are here is one of their own.
 
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 
-use crate::runtime::{FloatFormat, IntegerFormat, Runtime, RuntimeError, Value};
+use crate::runtime::{CaseSense, FloatFormat, IntegerFormat, Runtime, RuntimeError, Value};
 
 /// Whether the function of this name asks for the name of a variable.
 ///
@@ -149,6 +149,35 @@ pub(crate) fn auto_trim(
             })
         }
     }
+    Ok(Value::Text(String::new()))
+}
+
+/// `StringCaseSense, On`: the sense of the case of the comparisons.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command takes
+/// "On", "Off" or "Locale", and the numbers one and zero are the two
+/// first. The value that it does not know is refused with "Parameter #1
+/// invalid." and the value in the `Extra`.
+pub(crate) fn string_case_sense(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let trimmed = text.trim();
+    let sense = match trimmed.to_lowercase().as_str() {
+        "on" | "1" => CaseSense::On,
+        "off" | "0" => CaseSense::Off,
+        "locale" => CaseSense::Locale,
+        _ => {
+            return Err(RuntimeError {
+                message: format!("Parameter #1 invalid.\n     Specifically: {trimmed}"),
+                line,
+            })
+        }
+    };
+    rt.set_case_sense(sense);
     Ok(Value::Text(String::new()))
 }
 

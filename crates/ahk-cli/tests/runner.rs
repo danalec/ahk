@@ -266,9 +266,9 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(report["dialect"], "v1");
     assert_eq!(report["total"], 384);
     // The names that the v1 has and the v2 does not are carried, and the
-    // six that are still to do are pending.
-    assert_eq!(report["values"], 270);
-    assert_eq!(report["pending"], 6);
+    // five that are still to do are pending.
+    assert_eq!(report["values"], 271);
+    assert_eq!(report["pending"], 5);
     let entries = report["entries"].as_array().expect("the entries are a list");
     let is_set = entries
         .iter()
@@ -289,6 +289,13 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
         .find(|entry| entry["name"] == "SetFormat")
         .expect("the name is in the report");
     assert_eq!(set_format["state"], "value");
+    // The `StringCaseSense` is carried: the command turns the sense of the
+    // case of the comparisons on and off.
+    let string_case_sense = entries
+        .iter()
+        .find(|entry| entry["name"] == "StringCaseSense")
+        .expect("the name is in the report");
+    assert_eq!(string_case_sense["state"], "value");
     // A name that is still to do is pending, and it carries the reason.
     let transform = entries
         .iter()

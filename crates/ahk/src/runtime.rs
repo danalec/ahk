@@ -1043,6 +1043,12 @@ pub struct Runtime<'a> {
     integer_format: IntegerFormat,
     /// The format of the floats, the way the dialect formats them.
     float_format: FloatFormat,
+    /// The sense of the case, the way the dialect compares the letters.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the sense is Off
+    /// when the script begins, and the `StringCaseSense` turns it into On or
+    /// into Locale.
+    case_sense: CaseSense,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
     /// The directory where the run started.
@@ -1214,6 +1220,7 @@ impl<'a> Runtime<'a> {
             auto_trim: true,
             integer_format: IntegerFormat::Decimal,
             float_format: FloatFormat::DEFAULT,
+            case_sense: CaseSense::Off,
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1272,6 +1279,7 @@ impl<'a> Runtime<'a> {
             auto_trim: true,
             integer_format: IntegerFormat::Decimal,
             float_format: FloatFormat::DEFAULT,
+            case_sense: CaseSense::Off,
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1373,6 +1381,20 @@ impl<'a> Runtime<'a> {
     /// The format of the floats, the way the dialect formats them.
     pub fn set_float_format(&mut self, format: FloatFormat) {
         self.float_format = format;
+    }
+
+    /// The sense of the case, the way the dialect compares the letters.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the sense is Off
+    /// when the script begins, and the `StringCaseSense` turns it into On or
+    /// into Locale.
+    pub fn case_sense(&self) -> CaseSense {
+        self.case_sense
+    }
+
+    /// The sense of the case of the run.
+    pub fn set_case_sense(&mut self, sense: CaseSense) {
+        self.case_sense = sense;
     }
 
     /// The text of a value, in the format of the dialect.
@@ -6956,7 +6978,8 @@ impl<'a> Runtime<'a> {
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the comparison is
     /// a number when both sides are numbers, and a text otherwise: "abc" > 1
-    /// is true, and "abc" < 1 is false.
+    /// is true, and "abc" < 1 is false. The sense of the case says whether
+    /// the letters of the texts are the same.
     fn the_comparison_of_the_v1(
         &self,
         left_node: &Node,
@@ -6983,15 +7006,19 @@ impl<'a> Runtime<'a> {
                 BinaryOp::GreaterEqual => left >= right,
                 _ => false,
             },
-            // The texts are compared, and the case of them does not matter.
+            // The texts are compared, and the sense of the case says
+            // whether the letters of them are the same.
             None => {
-                let left = left.to_text().to_lowercase();
-                let right = right.to_text().to_lowercase();
+                let order = the_order_of_the_texts(
+                    &left.to_text(),
+                    &right.to_text(),
+                    self.case_sense.the_method(),
+                );
                 match op {
-                    BinaryOp::Less => left < right,
-                    BinaryOp::Greater => left > right,
-                    BinaryOp::LessEqual => left <= right,
-                    BinaryOp::GreaterEqual => left >= right,
+                    BinaryOp::Less => order == core::cmp::Ordering::Less,
+                    BinaryOp::Greater => order == core::cmp::Ordering::Greater,
+                    BinaryOp::LessEqual => order != core::cmp::Ordering::Greater,
+                    BinaryOp::GreaterEqual => order != core::cmp::Ordering::Less,
                     _ => false,
                 }
             }
@@ -8574,9 +8601,26 @@ impl<'a> Runtime<'a> {
                     }
                     if matches!(
                         op,
-                        BinaryOp::Equal
-                            | BinaryOp::NotEqual
-                            | BinaryOp::StrictEqual
+                        BinaryOp::Equal | BinaryOp::NotEqual
+                    ) {
+                        // The equal sign of the v1 is always without regard
+                        // to the case, and the method of the locale is the
+                        // one it uses when the sense of the case is On. The
+                        // not equal sign follows the sense of the case.
+                        let method = match op {
+                            BinaryOp::Equal => self.case_sense.the_method_of_the_equal_sign(),
+                            _ => self.case_sense.the_method(),
+                        };
+                        let same = values_equal_with(&left_value, &right_value, method);
+                        let answer = match op {
+                            BinaryOp::Equal => same,
+                            _ => !same,
+                        };
+                        return Ok(Value::Int(answer as i64));
+                    }
+                    if matches!(
+                        op,
+                        BinaryOp::StrictEqual
                             | BinaryOp::StrictNotEqual
                             | BinaryOp::Concat
                             | BinaryOp::RegexMatch
@@ -9671,6 +9715,107 @@ impl FloatFormat {
     }
 }
 
+/// The sense of the case, the way the dialect compares the letters.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the sense is "Off"
+/// when the script begins, and the `StringCaseSense` turns it into "On" or
+/// into "Locale".
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CaseSense {
+    /// The letters A-Z are the same as their lower case, and the others are
+    /// not.
+    Off,
+    /// The letters are taken as they are.
+    On,
+    /// The letters follow the rules of the locale of the machine.
+    Locale,
+}
+
+impl CaseSense {
+    /// The name of the sense, the way the `A_StringCaseSense` says it.
+    pub fn name(&self) -> &'static str {
+        match self {
+            CaseSense::Off => "Off",
+            CaseSense::On => "On",
+            CaseSense::Locale => "Locale",
+        }
+    }
+
+    /// The method that compares two texts.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the sense that is
+    /// On takes the letters as they are, and the sense that is Off treats the
+    /// letters A-Z as their lower case and the others as they are.
+    pub fn the_method(&self) -> CaseMethod {
+        match self {
+            CaseSense::Off => CaseMethod::Ascii,
+            CaseSense::On => CaseMethod::Exact,
+            CaseSense::Locale => CaseMethod::Locale,
+        }
+    }
+
+    /// The method that the equal sign of the v1 uses.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the equal sign is
+    /// always without regard to the case, and the method of the locale is the
+    /// one it uses when the sense is On: `"ä" = "Ä"` is true when the sense
+    /// is On, and it is false when the sense is Off.
+    pub fn the_method_of_the_equal_sign(&self) -> CaseMethod {
+        match self {
+            CaseSense::Off => CaseMethod::Ascii,
+            CaseSense::On | CaseSense::Locale => CaseMethod::Locale,
+        }
+    }
+}
+
+/// The method that compares the letters of two texts.
+///
+/// The method of the locale is the one of the machine, and the tree does
+/// not ask the machine for it: it folds the letters of the Unicode, which
+/// is the method of the locale of every machine that is written in the
+/// Latin alphabet.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CaseMethod {
+    /// The letters A-Z are the same as their lower case, and the others are
+    /// not.
+    Ascii,
+    /// The letters are taken as they are.
+    Exact,
+    /// The letters follow the rules of the locale of the machine.
+    Locale,
+}
+
+/// Whether two texts are the same, with the method of the case.
+pub(crate) fn the_same_text(left: &str, right: &str, method: CaseMethod) -> bool {
+    match method {
+        CaseMethod::Ascii => left.eq_ignore_ascii_case(right),
+        CaseMethod::Exact => left == right,
+        CaseMethod::Locale => left.to_lowercase() == right.to_lowercase(),
+    }
+}
+
+/// How two texts stand to each other, with the method of the case.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the texts of the v1
+/// are compared letter by letter, and the method of the case says whether
+/// the letters of them are the same: `"a" < "B"` is true when the sense is
+/// Off, and it is false when the sense is On.
+pub(crate) fn the_order_of_the_texts(
+    left: &str,
+    right: &str,
+    method: CaseMethod,
+) -> core::cmp::Ordering {
+    match method {
+        CaseMethod::Ascii => {
+            let left = left.to_ascii_lowercase();
+            let right = right.to_ascii_lowercase();
+            left.cmp(&right)
+        }
+        CaseMethod::Exact => left.cmp(right),
+        CaseMethod::Locale => left.to_lowercase().cmp(&right.to_lowercase()),
+    }
+}
+
 /// The digits of the exponent of the scientific notation: two at least.
 fn the_digits_of_the_exponent(digits: &str) -> String {
     let digits = digits.trim_start_matches('0');
@@ -9720,6 +9865,18 @@ pub(crate) fn split_on_any(text: &str, delimiters: &str) -> Vec<String> {
 /// was written down: `2` and `2.0` are the same number, even though one
 /// of them is a whole number and the other is not.
 fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
+    values_equal_with(
+        left,
+        right,
+        if case_sensitive { CaseMethod::Exact } else { CaseMethod::Ascii },
+    )
+}
+
+/// Whether two values are equal, with the method of the case.
+///
+/// The numbers are the same number, and the texts are the same text with
+/// the method that the caller asks for.
+fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
     // An object is the same object and nothing else.
     //
     // Measured on the binary of v2.0.19 on 2026-10-31: two maps that hold
@@ -9740,13 +9897,7 @@ fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
     if let (Some(a), Some(b)) = (left.to_number(), right.to_number()) {
         return a == b;
     }
-    let left = left.to_text();
-    let right = right.to_text();
-    if case_sensitive {
-        left == right
-    } else {
-        left.eq_ignore_ascii_case(&right)
-    }
+    the_same_text(&left.to_text(), &right.to_text(), method)
 }
 
 
