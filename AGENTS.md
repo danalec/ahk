@@ -6760,3 +6760,18 @@ that is not an expression -- the `Exit, )` is refused with "Unexpected \")\""
 and the tree gives zero -- and the grammar of the expression of the v1, which
 is the old one: the `x := 1e2` is empty in the v1 and a hundred in the tree.
 
+## 165. The class of the v1 has no static method and no property with a getter
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The class of the v1 has no static method.** The v1 refuses it with "Invalid class variable declaration.\n     Specifically: __Init() {", and the text is the member, from the name to the brace that opens the body: "Say() {".
+- **The class of the v1 has no property with a getter.** The getter that is on the same line as the name is refused with "Not a valid method, class or property definition.\n     Specifically: x { get => 1 }", and the getter that is in a block with "Not a valid property getter/setter.\n     Specifically: get => 1".
+
+The rules are two hooks of the dialect (`crates/ahk/src/dialect.rs`): the
+static method is refused, and the property that has a getter or a setter is
+refused. The parser asks them (`crates/ahk/src/parser.rs`).
+
+What stays out: the name of a class and the name of a variable of the script
+may be the same in the v1 -- the `C := 5` with the class `C` is taken, and the
+value of `C` is five -- and the tree refuses it.
+

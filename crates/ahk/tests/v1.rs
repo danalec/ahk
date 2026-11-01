@@ -2684,3 +2684,51 @@ fn the_parameter_of_a_command_of_the_v1_that_is_a_text_is_the_number_that_it_hol
     assert_eq!(report.exit_code, Some(16));
 }
 
+/// The class of the v1 has no static method.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// refuses it with "Invalid class variable declaration.\n     Specifically:
+/// __Init() {", and the text is the member, from the name to the brace that
+/// opens the body.
+#[test]
+fn the_class_of_the_v1_has_no_static_method() {
+    let error = ahk::parse_with("class C\n{\n    static __Init() {\n    }\n}", dialect::v1())
+        .expect_err("the static method is refused");
+    assert_eq!(
+        error.message,
+        "Invalid class variable declaration.\n     Specifically: __Init() {"
+    );
+
+    let error =
+        ahk::parse_with("class C\n{\n    static Say() {\n        return 1\n    }\n}", dialect::v1())
+            .expect_err("the static method is refused");
+    assert_eq!(
+        error.message,
+        "Invalid class variable declaration.\n     Specifically: Say() {"
+    );
+}
+
+/// The class of the v1 has no property with a getter.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the getter
+/// that is on the same line as the name is refused with "Not a valid method,
+/// class or property definition.\n     Specifically: x { get => 1 }", and the
+/// getter that is in a block with "Not a valid property
+/// getter/setter.\n     Specifically: get => 1".
+#[test]
+fn the_class_of_the_v1_has_no_property_with_a_getter() {
+    let error = ahk::parse_with("class C\n{\n    x { get => 1 }\n}", dialect::v1())
+        .expect_err("the getter is refused");
+    assert_eq!(
+        error.message,
+        "Not a valid method, class or property definition.\n     Specifically: x { get => 1 }"
+    );
+
+    let error = ahk::parse_with("class C\n{\n    x {\n        get => 1\n    }\n}", dialect::v1())
+        .expect_err("the getter is refused");
+    assert_eq!(
+        error.message,
+        "Not a valid property getter/setter.\n     Specifically: get => 1"
+    );
+}
+

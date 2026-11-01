@@ -1138,6 +1138,27 @@ refused with "Unexpected \")\"" and the tree gives zero -- and the grammar of
 the expression of the v1, which is the old one: the `x := 1e2` is empty in the
 v1 and a hundred in the tree.
 
+
+**The body of a class of the v1.** The class of the v1 has no static method,
+and the v1 refuses it with "Invalid class variable declaration.\n
+Specifically: __Init() {" -- the text is the member, from the name to the brace
+that opens the body. The class of the v1 has no property with a getter, and
+the v1 refuses it too: the getter that is on the same line as the name with
+"Not a valid method, class or property definition.\n Specifically: x { get =>
+1 }", and the getter that is in a block with "Not a valid property
+getter/setter.\n Specifically: get => 1".
+
+**The block carries.** The tree carries these two rules since the block of the
+body of a class (2026-11-02), with the two hooks of the dialect
+(`crates/ahk/src/dialect.rs`) and the parser that asks them
+(`crates/ahk/src/parser.rs`). The probes that compare the two are
+`egm-review/probe_v1_class_refusals3.py` and
+`egm-review/check_v1_class_body.py`.
+
+**What stays out of the body of a class.** The name of a class and the name of
+a variable of the script may be the same in the v1 -- the `C := 5` with the
+class `C` is taken, and the value of `C` is five -- and the tree refuses it.
+
 ---
 
 ## 5. The risks

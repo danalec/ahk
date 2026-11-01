@@ -363,6 +363,29 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the static method of a class is refused.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has no
+    /// static method, and it refuses it with "Invalid class variable
+    /// declaration.\n     Specifically: __Init() {". The v2 has the static
+    /// method.
+    fn the_static_method_is_refused(&self) -> bool {
+        false
+    }
+
+    /// Whether the property that has a getter or a setter is refused.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the class of the v1
+    /// has no property with a getter, and the refusal is the one of the v1:
+    /// the getter that is on the same line as the name with "Not a valid
+    /// method, class or property definition.\n     Specifically: x { get => 1
+    /// }", and the getter that is in a block with "Not a valid property
+    /// getter/setter.\n     Specifically: get => 1". The v2 has the property
+    /// with a getter.
+    fn the_accessor_of_a_class_is_refused(&self) -> bool {
+        false
+    }
+
     /// Whether the refusal of a duplicate names the member that was written.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
@@ -748,6 +771,18 @@ impl Dialect for V1 {
     fn the_names_of_the_body_of_a_class_are_one_set(&self) -> bool {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the body of a
         // class of the v1 has one set of names.
+        true
+    }
+
+    fn the_static_method_is_refused(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has no
+        // static method.
+        true
+    }
+
+    fn the_accessor_of_a_class_is_refused(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the class of the
+        // v1 has no property with a getter.
         true
     }
 

@@ -5100,6 +5100,21 @@ impl Parser {
                 });
             }
             if self.at_op(&["("]) {
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
+                // has no static method, and it refuses it with the words of
+                // the v1: "Invalid class variable declaration.\n     Specifically:
+                // __Init() {". The text is the member, from the name to the
+                // brace that opens the body.
+                if is_static && self.dialect.the_static_method_is_refused() {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Invalid class variable declaration.\n     Specifically: {}",
+                            self.the_text_of_a_static_member(name_at)
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
                 // The `__Init` of the class is one that every class has: a
                 // static one of its own is a duplicate of it.
                 //
@@ -5243,7 +5258,18 @@ impl Parser {
             // Measured on the binary of v2.0.19 on 2026-10-31: the property
             // has a name of its own, and the duplicate of it is refused the
             // way the duplicate of a property is.
+            //
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the class
+            // of the v1 has no property with a getter, and the refusal is the
+            // one of the v1: the getter that is on the same line as the name
+            // with "Not a valid method, class or property definition.\n
+            // Specifically: x { get => 1 }", and the getter that is in a block
+            // with "Not a valid property getter/setter.\n     Specifically:
+            // get => 1".
             if self.at_op(&["[", "{"]) {
+                if self.dialect.the_accessor_of_a_class_is_refused() {
+                    return Err(self.the_refusal_of_an_accessor(name_token));
+                }
                 let key = name_token.value.to_lowercase();
                 let taken = if is_static { &mut class_accessors } else { &mut instance_accessors };
                 if taken.contains(&key) {
@@ -5342,6 +5368,88 @@ impl Parser {
         self.in_class = was_in_a_class;
         self.statement_start = statement_start;
         Ok(TheMembersOfAClass { methods, properties, accessors, nested })
+    }
+
+    /// The text of a static member of a class that the dialect refuses.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text is the
+    /// member, from the name to the brace that opens the body: "__Init() {".
+    fn the_text_of_a_static_member(&self, name_at: usize) -> String {
+        let mut end = name_at;
+        while end < self.tokens.len() {
+            let token = &self.tokens[end];
+            if token.kind == TokenKind::Op && token.value == "{" {
+                break;
+            }
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                break;
+            }
+            end += 1;
+        }
+        let text = the_source_of_the_tokens(self, name_at, end);
+        if self.tokens.get(end).map(|token| token.value == "{").unwrap_or(false) {
+            format!("{text} {{")
+        } else {
+            text
+        }
+    }
+
+    /// The refusal of the property that has a getter or a setter.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the getter that is
+    /// on the same line as the name is refused with "Not a valid method, class
+    /// or property definition.\n     Specifically: x { get => 1 }", and the
+    /// getter that is in a block with "Not a valid property
+    /// getter/setter.\n     Specifically: get => 1".
+    fn the_refusal_of_an_accessor(&self, name_token: Token) -> SyntaxError {
+        // The brace opens the body of the getter, and the token that comes
+        // after it says whether the getter is on the same line as the name.
+        let mut at = self.position;
+        while at < self.tokens.len() {
+            let token = &self.tokens[at];
+            if token.kind == TokenKind::Op && token.value == "{" {
+                break;
+            }
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                break;
+            }
+            at += 1;
+        }
+        // The token that comes after the brace: the newline that ends the line
+        // of the member is not a part of it.
+        let mut after = at + 1;
+        while self
+            .tokens
+            .get(after)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
+            after += 1;
+        }
+        let after = self.tokens.get(after);
+        let on_the_same_line = after
+            .map(|token| token.line == name_token.line)
+            .unwrap_or(false);
+        if on_the_same_line {
+            return SyntaxError {
+                message: format!(
+                    "Not a valid method, class or property definition.\n     Specifically: {}",
+                    the_source_of_the_line(self, name_token.line)
+                ),
+                line: name_token.line,
+                column: name_token.column,
+            };
+        }
+        // The getter is in a block, and the refusal is at the line of it.
+        let line = after.map(|token| token.line).unwrap_or(name_token.line);
+        SyntaxError {
+            message: format!(
+                "Not a valid property getter/setter.\n     Specifically: {}",
+                the_source_of_the_line(self, line)
+            ),
+            line,
+            column: name_token.column,
+        }
     }
 
     /// A property of the class that has a getter or a setter.
