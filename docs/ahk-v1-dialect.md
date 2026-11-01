@@ -1111,6 +1111,33 @@ in the v1. And the grammar of the expression of the v1 is the old one: the
 comes from a literal in hexadecimal keeps the format of it -- the `x := 0x10`
 is sixteen and the text of it is "0x10".
 
+
+**The parameter of a command of the v1 that wants a number is an expression.**
+The documentation of the v1 says so: "Numeric parameters accept a literal
+number or an expression, and can be identified by phrasing like 'This
+parameter can be an expression.'". The `Exit, 1+1` leaves the code at 2, the
+`Exit, StrLen("abcd")` leaves it at 4, and the `Random, x, n, n` leaves `x` at
+the value of `n`. A parameter that is not an expression is the number zero --
+the `Exit, 100abc` and the `Exit, 1+` -- and a parameter that is a text is the
+number that the text holds: the `Exit, "3"` is 3 and the `Exit, 0x10` is 16.
+The substitution of the v1 is a text and not an expression: the `Exit, %n%` is
+the value of `n`, and the `Exit, %n%+50` is fifty and not a hundred.
+
+**The block carries.** The tree carries these rules since the block of the
+parameter of a command (2026-11-02), with the table of the parameters that
+want a number (`crates/ahk/src/v1/kinds.rs`), the parser that reads the
+parameter as an expression (`crates/ahk/src/parser.rs`), the tree that carries
+the parameter as a text or as an expression (`crates/ahk/src/ast.rs`), and the
+runtime that evaluates it (`crates/ahk/src/runtime.rs`). The probes that
+compare the two are `egm-review/probe_v1_bad_parameter.py` and
+`egm-review/check_v1_u.py`.
+
+**What stays out of the parameter of a command.** The refusal of the load that
+the v1 makes for a parameter that is not an expression -- the `Exit, )` is
+refused with "Unexpected \")\"" and the tree gives zero -- and the grammar of
+the expression of the v1, which is the old one: the `x := 1e2` is empty in the
+v1 and a hundred in the tree.
+
 ---
 
 ## 5. The risks

@@ -6731,10 +6731,32 @@ of the built-in runs. The `SubStr` and the `InStr` of the v1 have handlers of
 their own (`crates/ahk/src/v1/strings.rs`), because the places and the sense of
 the case are theirs.
 
-What stays out: the parameter of a command of the v1, which the tree reads as
-the text that it is -- the `Exit, "3"` is zero in the tree and three in the v1
--- and the grammar of the expression of the v1, which is the old one: the
-`x := 1e2` is empty in the v1 and a hundred in the tree, and the number that
-comes from a literal in hexadecimal keeps the format of it -- the `x := 0x10`
-is sixteen and the text of it is "0x10".
+What stays out: the grammar of the expression of the v1, which is the old
+one: the `x := 1e2` is empty in the v1 and a hundred in the tree, and the
+number that comes from a literal in hexadecimal keeps the format of it -- the
+`x := 0x10` is sixteen and the text of it is "0x10". The parameter of a
+*command* of the v1 is an expression, and §164 carries it.
+
+## 164. The parameter of a command of the v1 that wants a number is an expression
+
+Measured on the binary of v1.1.37.02 on 2026-11-02, and on the CHM of the v1.
+
+- **The parameter of a command of the v1 that wants a number is an expression.** The documentation of the v1 says so: "Numeric parameters accept a literal number or an expression, and can be identified by phrasing like 'This parameter can be an expression.'". The `Exit, 1+1` leaves the code at 2, the `Exit, StrLen("abcd")` leaves it at 4, and the `Random, x, n, n` leaves `x` at the value of `n`.
+- **A parameter that is not an expression is the number zero.** The `Exit, 100abc` leaves the code at zero, and the `Exit, 1+` as well.
+- **A parameter that is a text is the number that the text holds.** The `Exit, "3"` leaves the code at 3, and the `Exit, 0x10` leaves it at 16.
+- **The substitution of the v1 is a text and not an expression.** The `Exit, %n%` is the value of `n`, and the `Exit, %n%+50` is fifty and not a hundred: the text that comes out of the substitution is read with the number rule.
+
+The rule lives in the module of the kinds of the v1
+(`crates/ahk/src/v1/kinds.rs`): the table says which parameter of which
+command wants a number, and the places are the ones of the v1 -- the command
+that writes into a variable of the script has that variable as its first
+parameter. The parser reads the parameter as an expression
+(`crates/ahk/src/parser.rs`), the tree carries it as a text or as an
+expression (`crates/ahk/src/ast.rs`), and the runtime evaluates it
+(`crates/ahk/src/runtime.rs`).
+
+What stays out: the refusal of the load that the v1 makes for a parameter
+that is not an expression -- the `Exit, )` is refused with "Unexpected \")\""
+and the tree gives zero -- and the grammar of the expression of the v1, which
+is the old one: the `x := 1e2` is empty in the v1 and a hundred in the tree.
 

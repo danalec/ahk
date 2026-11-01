@@ -7878,7 +7878,7 @@ impl<'a> Runtime<'a> {
     pub(crate) fn the_legacy_command(
         &mut self,
         name: &str,
-        parameters: &[String],
+        parameters: &[crate::ast::LegacyParameter],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         let Some(builtin) = self.builtin(name) else {
@@ -7901,12 +7901,12 @@ impl<'a> Runtime<'a> {
     pub(crate) fn the_parameters_of_a_legacy_command(
         &mut self,
         builtin: &'static crate::builtins::Builtin,
-        parameters: &[String],
+        parameters: &[crate::ast::LegacyParameter],
         line: u32,
     ) -> Result<Vec<Value>, RuntimeFailure> {
         let mut values = Vec::with_capacity(parameters.len());
-        for (index, text) in parameters.iter().enumerate() {
-            values.push(self.the_parameter_of_a_legacy_command(builtin, index, text, line)?);
+        for (index, parameter) in parameters.iter().enumerate() {
+            values.push(self.the_parameter_of_a_legacy_command(builtin, index, parameter, line)?);
         }
         Ok(values)
     }
@@ -7924,7 +7924,13 @@ impl<'a> Runtime<'a> {
         let Some(builtin) = self.builtin(name) else {
             return Ok(false);
         };
-        let values = self.the_parameters_of_a_legacy_command(builtin, parameters, line)?;
+        // The command of the v1 that has a body takes texts: the haystack
+        // and the needle are texts.
+        let parameters: Vec<crate::ast::LegacyParameter> = parameters
+            .iter()
+            .map(|text| crate::ast::LegacyParameter::Text(text.clone()))
+            .collect();
+        let values = self.the_parameters_of_a_legacy_command(builtin, &parameters, line)?;
         let answer = self.call_the_row(builtin, &values, line, Route::Written)?;
         Ok(answer.truthy())
     }
@@ -7936,30 +7942,40 @@ impl<'a> Runtime<'a> {
         &mut self,
         builtin: &'static crate::builtins::Builtin,
         index: usize,
-        text: &str,
+        parameter: &crate::ast::LegacyParameter,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
-        let trimmed = text.trim();
         match builtin.parameters.get(index) {
             // The name of a variable of the script: the command writes into
             // it, and the reference is the alias of that variable.
-            Some(crate::builtins::Parameter::Output) => Ok(Value::Reference(Reference {
-                name: trimmed.to_string(),
-                scope: self.the_scope_of(trimmed),
-                alias: true,
-            })),
+            Some(crate::builtins::Parameter::Output) => {
+                let name = the_text_of_the_parameter(parameter);
+                let scope = self.the_scope_of(&name);
+                Ok(Value::Reference(Reference { name, scope, alias: true }))
+            }
             // The name of a variable of the script: the value of it is the
             // parameter.
-            Some(crate::builtins::Parameter::Variable) => match self.lookup(trimmed) {
-                Some(value) => Ok(value),
-                // Measured on the binary of v1.1.37.02 on 2026-11-01: a
-                // variable that has no value is blank, and it is not a
-                // failure.
-                None if self.dialect.unset_is_blank() => Ok(Value::Text(String::new())),
-                None => Err(self.the_unassigned_failure(trimmed, line)),
+            Some(crate::builtins::Parameter::Variable) => {
+                let name = the_text_of_the_parameter(parameter);
+                match self.lookup(&name) {
+                    Some(value) => Ok(value),
+                    // Measured on the binary of v1.1.37.02 on 2026-11-01: a
+                    // variable that has no value is blank, and it is not a
+                    // failure.
+                    None if self.dialect.unset_is_blank() => Ok(Value::Text(String::new())),
+                    None => Err(self.the_unassigned_failure(&name, line)),
+                }
+            }
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+            // parameter that wants a number is an expression: the `Sleep,
+            // 100+50` waits for a hundred and fifty milliseconds.
+            _ => match parameter {
+                crate::ast::LegacyParameter::Expression(node) => self.evaluate(node),
+                // The text of the parameter, with the substitution of the v1.
+                crate::ast::LegacyParameter::Text(text) => {
+                    Ok(Value::Text(self.the_substitution_of_the_v1(text, line)?))
+                }
             },
-            // The text of the parameter, with the substitution of the v1.
-            _ => Ok(Value::Text(self.the_substitution_of_the_v1(text, line)?)),
         }
     }
 
@@ -9818,6 +9834,18 @@ fn class_value(name: &str, class: &Class) -> Value {
 
 /// The value of the parameter that a failure names.
 ///
+/// The text of a parameter of a command of the v1.
+///
+/// The parameter that wants the name of a variable is a text, and the
+/// parameter that is an expression has no name: the shape of the command
+/// says which one it is.
+fn the_text_of_the_parameter(parameter: &crate::ast::LegacyParameter) -> String {
+    match parameter {
+        crate::ast::LegacyParameter::Text(text) => text.trim().to_string(),
+        crate::ast::LegacyParameter::Expression(_) => String::new(),
+    }
+}
+
 /// v2 carries the value that a built-in complained about in the `Extra`
 /// of the error: the message names the parameter, and the value is the
 /// one that was given to it.

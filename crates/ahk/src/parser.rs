@@ -2026,7 +2026,11 @@ impl Parser {
             self.next();
         }
         self.end_of_statement()?;
-        Ok(Node::LegacyCall { name: "hotstring".into(), parameters: vec![text], line: token.line })
+        Ok(Node::LegacyCall {
+            name: "hotstring".into(),
+            parameters: vec![crate::ast::LegacyParameter::Text(text)],
+            line: token.line,
+        })
     }
 
     fn parse_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
@@ -2948,8 +2952,9 @@ impl Parser {
         // The command of the v1 that has a body: the action is the rest of
         // the line, the block, or the statement of the next line.
         if self.dialect.the_command_has_a_body(&name) {
-            return self.parse_the_body_of_a_legacy_command(name, parameters, name_token.line);
+            return self.parse_the_body_of_a_legacy_command(name, parameters, places, name_token.line);
         }
+        let parameters = self.the_parameters_of_a_legacy_command(&name, &places);
         Ok(Node::LegacyCall { name, parameters, line: name_token.line })
     }
 
@@ -3021,6 +3026,7 @@ impl Parser {
         &mut self,
         name: String,
         parameters: Vec<String>,
+        places: Vec<(usize, usize)>,
         line: u32,
     ) -> Result<Node, SyntaxError> {
         // The parameters of the command are the first ones, and the rest of
@@ -3036,11 +3042,19 @@ impl Parser {
             (parameters, None)
         };
         let body = match action {
-            Some(action) => vec![Node::LegacyCall {
-                name: action[0].to_lowercase(),
-                parameters: action[1..].to_vec(),
-                line,
-            }],
+            Some(action) => {
+                let action_name = action[0].to_lowercase();
+                // The first of the action is the name of the command, and the
+                // places of the parameters come after it.
+                let action_places = &places[own + 1..];
+                let action_parameters =
+                    self.the_parameters_of_a_legacy_command(&action_name, action_places);
+                vec![Node::LegacyCall {
+                    name: action_name,
+                    parameters: action_parameters,
+                    line,
+                }]
+            }
             None => self.parse_block(&name, line)?,
         };
         // The `else` is the action of the other side, and it comes after the
@@ -3054,7 +3068,7 @@ impl Parser {
             // named.
             if self.at_op(&[","]) {
                 self.next();
-                let mut parameters = self.the_parameters_of_a_legacy_command()?;
+                let mut parameters = self.the_texts_of_the_parameters_of_a_legacy_command()?;
                 // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // comma at the end of the line does not open a parameter, and
                 // the `else` that has it takes no action.
@@ -3098,19 +3112,87 @@ impl Parser {
         name == "else" && self.dialect.the_command_is_the_else(&name)
     }
 
-    /// The parameters of a command of the v1: the texts that the commas
-    /// separate.
+    /// The texts of the parameters of a command of the v1: the texts that the
+    /// commas separate.
     ///
     /// The text of a parameter is the text that the script wrote, and the
     /// commas that are inside a text or inside a group of parentheses do
     /// not separate them. The line that comes begins with an operator
     /// continues the parameter that is being read.
-    fn the_parameters_of_a_legacy_command(&mut self) -> Result<Vec<String>, SyntaxError> {
+    fn the_texts_of_the_parameters_of_a_legacy_command(&mut self) -> Result<Vec<String>, SyntaxError> {
         let places = self.the_places_of_the_parameters_of_a_legacy_command()?;
         Ok(places
             .iter()
             .map(|(start, end)| self.the_verbatim_source(*start, *end).trim().to_string())
             .collect())
+    }
+
+    /// The parameters of a command of the v1: the texts that the commas
+    /// separate, and the expressions of the ones that want a number.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter that
+    /// wants a number is an expression -- the `Sleep, 100+50` waits for a
+    /// hundred and fifty milliseconds -- and the others are texts.
+    fn the_parameters_of_a_legacy_command(
+        &mut self,
+        name: &str,
+        places: &[(usize, usize)],
+    ) -> Vec<crate::ast::LegacyParameter> {
+        let mut parameters = Vec::with_capacity(places.len());
+        for (index, (start, end)) in places.iter().enumerate() {
+            let text = self.the_verbatim_source(*start, *end).trim().to_string();
+            match self.the_expression_of_a_parameter(name, index, *start, *end) {
+                Some(node) => parameters.push(crate::ast::LegacyParameter::Expression(node)),
+                None => parameters.push(crate::ast::LegacyParameter::Text(text)),
+            }
+        }
+        parameters
+    }
+
+    /// The expression of a parameter of a command of the v1.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter that
+    /// wants a number is an expression -- the `Sleep, 100+50` waits for a
+    /// hundred and fifty milliseconds, and the `Random, x, n, n` reads the
+    /// variable `n` -- and a parameter that is not an expression is the number
+    /// zero: the `Exit, 100abc` is zero, and the `Exit, 1+` is zero too.
+    ///
+    /// The percent sign is the substitution of the v1, and the text that comes
+    /// out of it is a text and not an expression: the `Exit, %n%+50` is fifty
+    /// and not a hundred.
+    fn the_expression_of_a_parameter(
+        &mut self,
+        name: &str,
+        index: usize,
+        start: usize,
+        end: usize,
+    ) -> Option<Node> {
+        // The parameter that wants a number is an expression, and the others
+        // are texts.
+        if !self.dialect.the_parameter_wants_a_number(name, index) {
+            return None;
+        }
+        // The substitution of the v1 is a text.
+        if self.the_verbatim_source(start, end).contains('%') {
+            return None;
+        }
+        // The expression is read from the tokens of the parameter.
+        let saved = self.position;
+        self.position = start;
+        let parsed = self.parse_expression();
+        let after = self.position;
+        self.position = saved;
+        let line = self.tokens.get(start).map(|token| token.line).unwrap_or(0);
+        match parsed {
+            // The expression is the whole parameter.
+            Ok(node) if after == end => Some(node),
+            // The parameter is not an expression, and the v1 reads it as the
+            // number zero.
+            _ => Some(Node::Literal {
+                value: crate::ast::LiteralValue::Integer(0),
+                line,
+            }),
+        }
     }
 
     /// The place of each parameter of a command of the v1.

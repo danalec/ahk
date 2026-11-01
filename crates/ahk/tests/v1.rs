@@ -2620,3 +2620,67 @@ fn the_needle_that_is_empty_is_at_the_first_character_of_the_haystack() {
     assert_eq!(report.output, vec!["1".to_string()]);
 }
 
+/// The parameter of a command of the v1 that wants a number is an expression.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `Exit, 1+1` leaves the code at 2, and the documentation of the v1 says so:
+/// "Numeric parameters accept a literal number or an expression".
+#[test]
+fn the_parameter_of_a_command_of_the_v1_that_wants_a_number_is_an_expression() {
+    let report = run("Exit, 1+1");
+    assert!(report.ok);
+    assert_eq!(report.exit_code, Some(2));
+
+    // The call of a function is an expression too.
+    let report = run("Exit, StrLen(\"abcd\")");
+    assert!(report.ok);
+    assert_eq!(report.exit_code, Some(4));
+}
+
+/// The parameter of a command of the v1 reads the variable of the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `Random, x, n, n` leaves `x` at the value of `n`, and the `Exit, n` leaves
+/// the code at it too.
+#[test]
+fn the_parameter_of_a_command_of_the_v1_reads_the_variable_of_the_script() {
+    let report = run("n := 5\nRandom, x, n, n");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+
+    let report = run("n := 5\nExit, n");
+    assert!(report.ok);
+    assert_eq!(report.exit_code, Some(5));
+}
+
+/// The parameter of a command of the v1 that is not an expression is zero.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `Exit, 100abc` leaves the code at zero, and the `Exit, 1+` as well.
+#[test]
+fn the_parameter_of_a_command_of_the_v1_that_is_not_an_expression_is_zero() {
+    let report = run("Exit, 1+");
+    assert!(report.ok);
+    assert_eq!(report.exit_code, Some(0));
+
+    let report = run("Exit, 100abc");
+    assert!(report.ok);
+    assert_eq!(report.exit_code, Some(0));
+}
+
+/// The parameter of a command of the v1 that is a text is the number that the
+/// text holds.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `Exit, "3"` leaves the code at 3, and the `Exit, 0x10` leaves it at 16.
+#[test]
+fn the_parameter_of_a_command_of_the_v1_that_is_a_text_is_the_number_that_it_holds() {
+    let report = run("Exit, \"3\"");
+    assert!(report.ok);
+    assert_eq!(report.exit_code, Some(3));
+
+    let report = run("Exit, 0x10");
+    assert!(report.ok);
+    assert_eq!(report.exit_code, Some(16));
+}
+

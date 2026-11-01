@@ -359,8 +359,7 @@ impl PartialEq<str> for MemberName {
 /// One node of the tree.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Node {
-    /// A value.
+pub enum Node {    /// A value.
     Literal { value: LiteralValue, line: u32 },
     /// A variable.
     Var { name: String, line: u32 },
@@ -426,7 +425,11 @@ pub enum Node {
     /// Measured on the binary of v1.1.37.02 on 2026-11-01: `FileAppend,
     /// hello, *` writes `hello`, and `FileAppend, "hello", *` writes
     /// `"hello"` with the quotes.
-    LegacyCall { name: String, parameters: Vec<String>, line: u32 },
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter
+    /// that wants a number is an expression: the `Sleep, 100+50` waits for
+    /// a hundred and fifty milliseconds.
+    LegacyCall { name: String, parameters: Vec<LegacyParameter>, line: u32 },
     /// A command of the v1 that has a body: the `IfInString` and the
     /// `IfMsgBox`.
     ///
@@ -689,4 +692,18 @@ impl Node {
             | Node::Goto { line, .. } => *line,
         }
     }
+}
+
+/// The parameter of a command of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter that
+/// wants a number is an expression -- the `Sleep, 100+50` waits for a
+/// hundred and fifty milliseconds -- and the others are texts.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum LegacyParameter {
+    /// The text of the parameter, with the substitution of the v1.
+    Text(String),
+    /// The expression of the parameter.
+    Expression(Node),
 }
