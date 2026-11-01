@@ -266,9 +266,9 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(report["dialect"], "v1");
     assert_eq!(report["total"], 384);
     // The names that the v1 has and the v2 does not are carried, and the
-    // five that are still to do are pending.
-    assert_eq!(report["values"], 271);
-    assert_eq!(report["pending"], 5);
+    // three that are still to do are pending.
+    assert_eq!(report["values"], 273);
+    assert_eq!(report["pending"], 3);
     let entries = report["entries"].as_array().expect("the entries are a list");
     let is_set = entries
         .iter()
@@ -296,13 +296,26 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
         .find(|entry| entry["name"] == "StringCaseSense")
         .expect("the name is in the report");
     assert_eq!(string_case_sense["state"], "value");
-    // A name that is still to do is pending, and it carries the reason.
+    // The `Transform` is carried: the command answers the math of the v1.
     let transform = entries
         .iter()
         .find(|entry| entry["name"] == "Transform")
         .expect("the name is in the report");
-    assert_eq!(transform["state"], "pending");
-    assert!(transform["reason"].is_string());
+    assert_eq!(transform["state"], "value");
+    // The `VarSetCapacity` is carried: the function empties the variable of
+    // the caller.
+    let var_set_capacity = entries
+        .iter()
+        .find(|entry| entry["name"] == "VarSetCapacity")
+        .expect("the name is in the report");
+    assert_eq!(var_set_capacity["state"], "value");
+    // A name that is still to do is pending, and it carries the reason.
+    let if_in_string = entries
+        .iter()
+        .find(|entry| entry["name"] == "IfInString")
+        .expect("the name is in the report");
+    assert_eq!(if_in_string["state"], "pending");
+    assert!(if_in_string["reason"].is_string());
 }
 
 /// The names of the surface: the rows of the table, without the comments

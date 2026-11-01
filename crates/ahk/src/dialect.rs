@@ -55,6 +55,18 @@ pub trait Dialect: Sync {
     /// function that asks for a name.
     fn wants_the_name_of_the_argument(&self, name: &str) -> bool;
 
+    /// Whether the function of this name asks for the variable itself.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the
+    /// `VarSetCapacity` of the v1 takes the variable of the caller and not
+    /// its value: `VarSetCapacity(y, 100)` empties `y`, and a text that is
+    /// not the name of a variable is refused with the number zero. The v2
+    /// writes the reference in the call itself (`&y`).
+    fn wants_the_variable_of_the_argument(&self, name: &str) -> bool {
+        let _ = name;
+        false
+    }
+
     /// The class of an object of the dialect.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the object of
@@ -316,6 +328,10 @@ impl Dialect for V1 {
 
     fn wants_the_name_of_the_argument(&self, name: &str) -> bool {
         crate::v1::wants_the_name_of_the_argument(name)
+    }
+
+    fn wants_the_variable_of_the_argument(&self, name: &str) -> bool {
+        crate::v1::wants_the_variable_of_the_argument(name)
     }
 
     fn class_of_an_object(&self) -> &'static str {

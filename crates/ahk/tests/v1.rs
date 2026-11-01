@@ -867,3 +867,102 @@ fn the_sense_of_the_locale_folds_the_letters_of_the_unicode() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
 }
+
+/// The `Transform` of the v1 answers the math of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the answer goes
+/// into the variable of the caller, and it is the number that the
+/// sub-command asks for: the `Mod` of 7 and 3 is 1, and the `Sqrt` of 9 is
+/// "3.000000".
+#[test]
+fn the_transform_of_the_v1_answers_the_math_of_the_v1() {
+    let report = run("Transform, out, Mod, 7, 3");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Int(1)));
+
+    let report = run("Transform, out, Sqrt, 9");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Float(3.0)));
+
+    let report = run("Transform, out, Ceil, 1.2");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Int(2)));
+
+    let report = run("Transform, out, Pow, 2, 10");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Int(1024)));
+
+    // The bits of the v1: the `BitNot` is of thirty-two bits and the rest
+    // is of sixty-four.
+    let report = run("Transform, out, BitNot, 0");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Int(4294967295)));
+
+    let report = run("Transform, out, BitShiftLeft, 1, 40");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Int(1099511627776)));
+}
+
+/// The `Asc` of the `Transform` of the v1 sees the text as it is, and the
+/// numbers see it without the quotes.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `Asc, "a"` is 34,
+/// and `Ceil, "1.2"` is 2.
+#[test]
+fn the_asc_of_the_transform_of_the_v1_sees_the_text_as_it_is() {
+    let report = run("Transform, out, Asc, \"a\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Int(34)));
+
+    let report = run("Transform, out, Ceil, \"1.2\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Int(2)));
+}
+
+/// The absolute value of the `Transform` of the v1 is the text of the
+/// number, and the sign of the minus is not a part of it.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `Abs, "-5.50"` is
+/// "5.50", and `Abs, "  -5 "` is "5 ".
+#[test]
+fn the_absolute_value_of_the_transform_of_the_v1_is_the_text_of_the_number() {
+    let report = run("Transform, out, Abs, \"-5.50\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Text("5.50".into())));
+
+    let report = run("Transform, out, Abs, \"  -5 \"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Text("5 ".into())));
+}
+
+/// The sub-command that the `Transform` of the v1 does not know is refused.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is
+/// "Parameter #2 invalid." and the sub-command is in the `Extra`.
+#[test]
+fn the_sub_command_that_the_transform_of_the_v1_does_not_know_is_refused() {
+    let report = run("Transform, out, Hex, 255");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #2 invalid.\n     Specifically: Hex")
+    );
+}
+
+/// The `VarSetCapacity` of the v1 empties the variable of the caller.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the function answers
+/// the number of bytes that were asked for, and the variable is emptied. A
+/// target that is not a variable is answered with zero.
+#[test]
+fn the_var_set_capacity_of_the_v1_empties_the_variable_of_the_caller() {
+    let report = run("y := \"hello\"\nx := VarSetCapacity(y, 100)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(100)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    // A target that is not a variable is answered with zero.
+    let report = run("x := VarSetCapacity(\"hello\", 100)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+}

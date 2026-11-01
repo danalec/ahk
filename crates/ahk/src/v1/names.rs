@@ -23,6 +23,16 @@ pub(crate) fn wants_the_name_of_the_argument(name: &str) -> bool {
     matches!(name.to_lowercase().as_str(), "isset" | "isbyref")
 }
 
+/// Whether the function of this name asks for the variable of the caller.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the
+/// `VarSetCapacity` takes the variable itself and not its value:
+/// `VarSetCapacity(y, 100)` empties `y`, and a target that is not a
+/// variable is answered with zero.
+pub(crate) fn wants_the_variable_of_the_argument(name: &str) -> bool {
+    matches!(name.to_lowercase().as_str(), "varsetcapacity")
+}
+
 /// `SetFormat, Integer, H`: the format of the numbers of the v1.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the number type is
@@ -179,6 +189,277 @@ pub(crate) fn string_case_sense(
     };
     rt.set_case_sense(sense);
     Ok(Value::Text(String::new()))
+}
+
+/// The text of a value of a command, without the quotes that surround it.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the numbers of the
+/// `Transform` are the numbers of the text without its quotes: `Ceil, "1.2"`
+/// is 2, and `Abs, "-5"` is "5". The `Asc` and the `Deref` see the text as
+/// it is.
+fn the_text_without_the_quotes(text: &str) -> &str {
+    let text = text.trim();
+    if text.len() >= 2 && text.starts_with('"') && text.ends_with('"') {
+        return &text[1..text.len() - 1];
+    }
+    text
+}
+
+/// `Transform, out, SubCommand, Value1, Value2`: the math of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command takes
+/// the name of the variable of the answer, the sub-command and the two
+/// values, and the answer goes into the variable. The sub-command that it
+/// does not know is refused with "Parameter #2 invalid.".
+pub(crate) fn transform(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let sub = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let first = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+    let second = values.get(3).map(|value| value.to_text()).unwrap_or_default();
+    let answer = the_answer_of_the_transform(rt, &sub, &first, &second, line)?;
+    crate::v1::write_the_answer(rt, "Transform", values, 0, answer.clone(), line)?;
+    Ok(answer)
+}
+
+/// The answer of one sub-command of the `Transform`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: every sub-command
+/// has its own answer, and some of them have their own failure.
+fn the_answer_of_the_transform(
+    rt: &mut Runtime<'_>,
+    sub: &str,
+    first: &str,
+    second: &str,
+    line: u32,
+) -> Result<Value, RuntimeError> {
+    // The number of a value of the command: a text that is not a number is
+    // zero, and the v1 does not fail.
+    let number = |text: &str| {
+        crate::v1::the_number_of_a_text(text)
+            .and_then(|value| value.to_number())
+            .unwrap_or(0.0)
+    };
+    // The value of the v1 as a number: a whole one or a float.
+    let value = |text: &str| crate::v1::the_number_of_a_text(text);
+    // The numbers of the command are the numbers of the text without the
+    // quotes that surround it.
+    fn plain(text: &str) -> &str {
+        the_text_without_the_quotes(text)
+    }
+    let invalid = |message: String| Err(RuntimeError { message, line });
+    match sub.trim().to_lowercase().as_str() {
+        // The code of the first letter of the text, and an empty text is an
+        // empty answer. The text of this one is the text as it is: the
+        // quotes are a part of it.
+        "asc" => Ok(match first.chars().next() {
+            Some(character) => Value::Int(character as i64),
+            None => Value::Text(String::new()),
+        }),
+        // The letter of a code: the codes of the v1 are the ones of the
+        // ANSI, and the code zero is an empty letter.
+        "chr" => {
+            let code = number(plain(first));
+            if !(0.0..=255.0).contains(&code) {
+                return invalid(format!(
+                    "Parameter #3 invalid.\n     Specifically: {}",
+                    plain(first)
+                ));
+            }
+            let code = code as u32;
+            Ok(match char::from_u32(code) {
+                Some(character) if code != 0 => Value::Text(character.to_string()),
+                _ => Value::Text(String::new()),
+            })
+        }
+        // The remainder of a division, and the divisor of zero is a failure.
+        "mod" => {
+            let divisor = number(plain(second));
+            if divisor == 0.0 {
+                return invalid(format!("Divide by zero\n     Specifically: {}", plain(second)));
+            }
+            let left = number(plain(first));
+            Ok(Value::Int((left % divisor) as i64))
+        }
+        "exp" => Ok(Value::Float(crate::runtime::exp(number(plain(first))))),
+        // The square root, and the number of the root that is not one.
+        "sqrt" => {
+            let root = number(plain(first));
+            if root < 0.0 {
+                return invalid(format!(
+                    "Parameter #3 must be a positive integer in this case.\n     Specifically: {}",
+                    plain(first)
+                ));
+            }
+            Ok(Value::Float(crate::runtime::sqrt(root)))
+        }
+        // The logarithm, and the number of it that is not one.
+        "log" | "ln" => {
+            let logarithm = number(plain(first));
+            if logarithm < 0.0 {
+                return invalid(format!(
+                    "Parameter #3 must be a positive integer in this case.\n     Specifically: {}",
+                    plain(first)
+                ));
+            }
+            let answer = if sub.trim().eq_ignore_ascii_case("log") {
+                crate::runtime::log10(logarithm)
+            } else {
+                crate::runtime::ln(logarithm)
+            };
+            Ok(Value::Float(answer))
+        }
+        // The number rounded to the digits of the second value: without
+        // them the answer is a whole number.
+        "round" => {
+            let digits = number(plain(second));
+            let rounded = number(plain(first));
+            let factor = crate::runtime::powf(10.0, digits);
+            let answer = crate::runtime::round(rounded * factor) / factor;
+            if digits <= 0.0 {
+                return Ok(Value::Int(answer as i64));
+            }
+            Ok(Value::Float(answer))
+        }
+        "ceil" => Ok(Value::Int(crate::runtime::ceil(number(plain(first))) as i64)),
+        "floor" => Ok(Value::Int(crate::runtime::floor(number(plain(first))) as i64)),
+        // The absolute value of the v1 is the text of the number without the
+        // sign of the minus: "5.50" stays "5.50". A text that does not
+        // begin with a number is the text as it is.
+        "abs" => {
+            let text = plain(first);
+            if text.is_empty() {
+                return invalid("Parameter #3 must be a number in this case.".to_string());
+            }
+            let text = text.trim_start();
+            match text.strip_prefix('-') {
+                Some(rest) => {
+                    if value(rest).is_none() {
+                        return Ok(Value::Text(String::new()));
+                    }
+                    Ok(Value::Text(rest.to_string()))
+                }
+                None => Ok(Value::Text(text.to_string())),
+            }
+        }
+        "sin" => Ok(Value::Float(crate::runtime::sin(number(plain(first))))),
+        "cos" => Ok(Value::Float(crate::runtime::cos(number(plain(first))))),
+        "tan" => Ok(Value::Float(crate::runtime::tan(number(plain(first))))),
+        // The arc of the trigonometry: a number that is out of the arc is
+        // not a number, and the v1 answers nothing.
+        "asin" | "acos" | "atan" => {
+            let arc = number(plain(first));
+            let answer = match sub.trim().to_lowercase().as_str() {
+                "asin" => crate::runtime::asin(arc),
+                "acos" => crate::runtime::acos(arc),
+                _ => crate::runtime::atan(arc),
+            };
+            if answer.is_nan() {
+                return Ok(Value::Text(String::new()));
+            }
+            Ok(Value::Float(answer))
+        }
+        // The power, and the base that is negative is a failure.
+        "pow" => {
+            let base = number(plain(first));
+            if base < 0.0 {
+                return invalid(format!(
+                    "Parameter #3 must be a positive integer in this case.\n     Specifically: {}",
+                    plain(first)
+                ));
+            }
+            // The v1 answers with a whole number when the two are whole.
+            if let (Some(Value::Int(left)), Some(Value::Int(right))) =
+                (value(plain(first)), value(plain(second)))
+            {
+                if right >= 0 {
+                    if let Some(answer) = left.checked_pow(right as u32) {
+                        return Ok(Value::Int(answer));
+                    }
+                }
+            }
+            Ok(Value::Float(crate::runtime::powf(base, number(plain(second)))))
+        }
+        // The bits of the v1: the `BitNot` is of thirty-two bits and the
+        // rest is of sixty-four.
+        "bitnot" => {
+            let bits = number(plain(first)) as u32;
+            Ok(Value::Int((!bits) as i64))
+        }
+        "bitand" => Ok(Value::Int(number(plain(first)) as i64 & number(plain(second)) as i64)),
+        "bitor" => Ok(Value::Int(number(plain(first)) as i64 | number(plain(second)) as i64)),
+        "bitxor" => Ok(Value::Int(number(plain(first)) as i64 ^ number(plain(second)) as i64)),
+        "bitshiftleft" => Ok(Value::Int(
+            (number(plain(first)) as i64) << (number(plain(second)) as i64 & 63),
+        )),
+        "bitshiftright" => Ok(Value::Int(
+            (number(plain(first)) as i64) >> (number(plain(second)) as i64 & 63),
+        )),
+        // The references that are inside the text are expanded.
+        "deref" => {
+            let text = rt
+                .the_substitution_of_the_v1(first, line)
+                .map_err(|failure| RuntimeError {
+                    message: crate::runtime::the_message_of(&failure),
+                    line,
+                })?;
+            Ok(Value::Text(text))
+        }
+        // The HTML of the v1 is a table of the names of the characters that
+        // are not of the English, and the tree does not carry it.
+        "html" => invalid(
+            "this runtime does not carry the sub-command of the v1.\n     Specifically: HTML".to_string(),
+        ),
+        // The sub-command that the v1 does not know, and the one of the
+        // clipboard that a Unicode build does not have.
+        _ => invalid(format!("Parameter #2 invalid.\n     Specifically: {sub}")),
+    }
+}
+
+/// `VarSetCapacity(TargetVar, RequestedCapacity, FillByte)`: the capacity
+/// of a variable.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the function takes
+/// the variable of the caller and empties it, and it answers the number of
+/// bytes that were asked for. A target that is not a variable is answered
+/// with zero.
+pub(crate) fn var_set_capacity(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The target is the variable of the caller, and a text that is not a
+    // variable is answered with zero.
+    let Some(Value::Reference(_)) = values.first() else {
+        return Ok(Value::Int(0));
+    };
+    let capacity = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    if capacity.trim().is_empty() {
+        // The capacity that the variable has is not the one of the tree:
+        // the tree keeps no capacity, and it says so.
+        return Err(RuntimeError {
+            message: "this runtime does not keep the capacity of a variable.".into(),
+            line,
+        });
+    }
+    let capacity = crate::v1::the_number_of_a_text(&capacity)
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0) as i64;
+    // The variable is emptied. The byte of the fill is not written: the
+    // tree has no memory of its own to fill.
+    crate::v1::write_the_answer(
+        rt,
+        "VarSetCapacity",
+        values,
+        0,
+        Value::Text(String::new()),
+        line,
+    )?;
+    Ok(Value::Int(capacity))
 }
 
 /// `IsSet(name)`: whether the variable of that name has a value.

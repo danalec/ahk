@@ -7193,7 +7193,21 @@ impl<'a> Runtime<'a> {
         // for its value: `IsSet(x)` asks whether the variable `x` has a
         // value. Measured on the binary of v1.1.37.02 on 2026-11-02.
         let wants_the_name = self.dialect.wants_the_name_of_the_argument(builtin.name);
+        // The v1 has functions that ask for the variable itself: the
+        // `VarSetCapacity(y, 100)` empties `y`. Measured on the binary of
+        // v1.1.37.02 on 2026-11-02.
+        let wants_the_variable = self.dialect.wants_the_variable_of_the_argument(builtin.name);
         for argument in arguments {
+            if wants_the_variable {
+                if let Node::Var { name, .. } = argument {
+                    values.push(Value::Reference(Reference {
+                        name: name.clone(),
+                        scope: self.the_scope_of(name),
+                        alias: true,
+                    }));
+                    continue;
+                }
+            }
             if wants_the_name {
                 if let Node::Var { name, .. } = argument {
                     values.push(Value::Text(name.clone()));
@@ -7755,7 +7769,7 @@ impl<'a> Runtime<'a> {
     /// value of the variable of the script when it has one, and the value
     /// of the environment otherwise. A `%` that does not close a name is
     /// left alone.
-    fn the_substitution_of_the_v1(&mut self, text: &str, line: u32) -> Result<String, RuntimeFailure> {
+    pub(crate) fn the_substitution_of_the_v1(&mut self, text: &str, line: u32) -> Result<String, RuntimeFailure> {
         if !text.contains('%') {
             return Ok(text.to_string());
         }

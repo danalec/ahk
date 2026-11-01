@@ -6261,3 +6261,40 @@ shape of the v2 do not follow it yet: the `StringReplace`, the
 functions of the v2, and the shape of the v1 is not theirs.
 
 
+## 151. The math of the v1 is a command, and the capacity of a variable is a function
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `Transform` of the v1 is a command, and it has a sub-command.** The
+  command takes the name of the variable of the answer, the sub-command and
+  the two values: `Transform, out, Mod, 7, 3` leaves `out` at 1. The
+  sub-command that it does not know is refused with "Parameter #2 invalid.".
+- **The answer of the `Transform` keeps the kind of the number.** The `Sqrt`
+  of 9 is "3.000000" (a float), and the `Ceil` of 1.2 is 2 (a whole number).
+- **The numbers of the `Transform` are the numbers of the text without the
+  quotes.** `Ceil, "1.2"` is 2, and the `Asc` sees the text as it is:
+  `Asc, "a"` is 34.
+- **The absolute value of the `Transform` is the text of the number.** `Abs,
+  "-5.50"` is "5.50", and `Abs, "  -5 "` is "5 ": the sign of the minus is
+  not a part of it, and the text that does not begin with a number is the
+  text as it is.
+- **The bits of the `Transform`:** the `BitNot` is of thirty-two bits and
+  the rest is of sixty-four. `BitNot, 0` is 4294967295, and
+  `BitShiftLeft, 1, 40` is 1099511627776.
+- **The `VarSetCapacity` of the v1 empties the variable of the caller.** The
+  function answers the number of bytes that were asked for, and the variable
+  is left empty. A target that is not a variable is answered with zero.
+
+The `Transform` and the `VarSetCapacity` leave the pending table of the v1:
+the surface of the v1 has 273 values, 108 refusals and 3 pending names.
+
+Two things of the `VarSetCapacity` are not the ones of the v1, and the tree
+says so: the tree keeps no capacity of its own, and the number that it
+answers is the one that was asked for -- the capacity that the variable has
+is refused with the reason -- and the byte of the fill is not written,
+because the tree has no memory of its own to fill. The `HTML` of the
+`Transform` is a table of the names of the characters that are not of the
+English, and the tree refuses it with the reason. The letter of a code that
+is above 127 is a byte in the v1 and a character in the tree.
+
+

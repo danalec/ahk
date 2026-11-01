@@ -47,10 +47,11 @@
 # - The `StringCaseSense` is carried: the command turns the sense of the case
 #   of the comparisons on and off, and the `A_StringCaseSense` says the one
 #   that is in force. Measured on the binary of v1.1.37.02 on 2026-11-02.
+# - The `Transform` is carried: the command answers the math of the v1, and
+#   the `VarSetCapacity` answers the capacity of a variable. Measured on the
+#   binary of v1.1.37.02 on 2026-11-02.
 kind	class	name	reason
 
 command		IfInString	not-yet
 command		IfMsgBox	not-yet
 command		SetBatchLines	not-yet
-command		Transform	not-yet
-function		VarSetCapacity	not-yet

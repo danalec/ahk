@@ -815,14 +815,13 @@ does not get worse without being seen.
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
 | **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 21 cases), and the `--surface --json` for the CI. |
 
-**What is left.** Five names of the pending table of the v1: the
-`IfInString`, the `IfMsgBox`, the `SetBatchLines`, the `Transform` and the
-`VarSetCapacity`. The `SetBatchLines` is a decision of the plan (§5, the
-threads of the v1). The other four are work that is still to do, and the
-pending table is where they are written down.
+**What is left.** Three names of the pending table of the v1: the
+`IfInString`, the `IfMsgBox` and the `SetBatchLines`. The `SetBatchLines` is
+a decision of the plan (§5, the threads of the v1). The other two are work
+that is still to do, and the pending table is where they are written down.
 
-The surface of the v1 has **384** entries: **271** answer with a value,
-**108** are refused and **5** are pending. The surface of the v2 did not
+The surface of the v1 has **384** entries: **273** answer with a value,
+**108** are refused and **3** are pending. The surface of the v2 did not
 move: **828** entries, **637** values, **191** refusals and no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an
@@ -854,6 +853,14 @@ it. The names that follow the sense in the v1 and that the tree carries with
 the shape of the v2 — the `StringReplace`, the `StringGetPos`, the
 `StrReplace` and the `InStr` — do not follow it yet, and the shape of the v1
 is not theirs.
+
+**The math and the capacity.** The `Transform` of the v1 is a command with a
+sub-command, and the `VarSetCapacity` is a function that empties the variable
+of the caller. The tree carries both since the block of the math (2026-11-02),
+with the kind of the answer of each sub-command, the quotes of the
+parameters and the bits of thirty-two and of sixty-four. The tree keeps
+no capacity of its own, and the number that it answers is the one that was
+asked for.
 
 **What stays out.** The operator that comes after a text that is written is
 refused at the load, and the v1 accepts it: the v1 answers "5-1" and "20"
