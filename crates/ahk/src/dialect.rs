@@ -259,6 +259,25 @@ pub trait Dialect: Sync {
     fn the_maximum_of_the_parameters(&self, max: u8) -> u32 {
         max as u32
     }
+
+    /// Whether a member that a value does not have is answered.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+    /// refuse a member that is not there, and the answer is a blank text --
+    /// the property of an object that does not have it, and the property of a
+    /// value that is not an object. The v2 refuses with the reason.
+    fn a_member_that_is_not_there_is_answered(&self) -> bool {
+        false
+    }
+
+    /// Whether an object has no text.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text of an
+    /// object of the v1 is the empty text -- `Object()` is a blank text, and
+    /// `Object() . "a"` is "a". The v2 gives the class of the object.
+    fn an_object_has_no_text(&self) -> bool {
+        false
+    }
 }
 
 /// The dialect of the tree: AutoHotkey v2.0.19.
@@ -522,5 +541,15 @@ impl Dialect for V1 {
         } else {
             max as u32
         }
+    }
+
+    fn a_member_that_is_not_there_is_answered(&self) -> bool {
+        // The v1 answers a member that a value does not have.
+        true
+    }
+
+    fn an_object_has_no_text(&self) -> bool {
+        // The text of an object of the v1 is the empty text.
+        true
     }
 }

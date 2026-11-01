@@ -6533,3 +6533,31 @@ refusals and one pending. The `RunWait` is the name. The AGENTS.md and the
 plan say so.
 
 
+## 158. A member that a value does not have is a blank text of the v1, and an object of the v1 has no text
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **A member that a value does not have is a blank text.** The v1 does not
+  refuse it: `o.nothing` and `o.nothing()` are blank texts, and so are
+  `x.nothing` and `x.nothing()` when `x` is a number, and so is the item
+  `o["a"]`. The v2 refuses with the reason.
+- **An object of the v1 has no text.** `Object()` is a blank text, and the
+  concatenation of an object and of "a" is "a". The object of the `Func` is
+  an object too, and it is a blank text as well. The v2 gives the class of
+  the object.
+- **A built-in that wants a text takes the empty text of the object.**
+  `StrLen(Object())` is zero, and `InStr(Object(), "a")` is zero. The v2
+  refuses with "Parameter #1 of StrLen requires a String, but received an
+  Object.".
+
+The classes of the script of the v1 are not carried yet: the tree parses the
+`class` and the `this`, but the `new` of the v1 is not the operator of it,
+and the instance of a class is a blank text. It comes with the block of the
+classes of the script.
+
+The built-in that wants a number refuses an object with the words of the v2,
+and the v1 answers a blank text there: `Abs(Object())` is a blank text in the
+v1, and the tree refuses it with "Parameter #1 of Abs requires a Number, but
+received an Object.".
+
+

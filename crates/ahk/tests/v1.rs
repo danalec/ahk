@@ -1859,3 +1859,73 @@ fn the_run_wait_of_the_v1_writes_the_error_level() {
     assert_eq!(report.error.as_deref(), Some("this fake has no processes"));
     assert_eq!(report.variables.get("errorlevel"), Some(&Value::Text("ERROR".into())));
 }
+
+/// A member that a value does not have is a blank text of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+/// refuse a member that is not there, and the answer is a blank text -- the
+/// property of an object that does not have it, and the property of a value
+/// that is not an object.
+#[test]
+fn a_member_that_is_not_there_is_a_blank_text_of_the_v1() {
+    let report = run("o := {}\ny := o.nothing");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("".into())));
+
+    let report = run("o := {}\ny := o.nothing()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("".into())));
+
+    // A value that is not an object.
+    let report = run("x := 5\ny := x.nothing");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("".into())));
+
+    let report = run("x := 5\ny := x.nothing()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("".into())));
+
+    // The item of an object.
+    let report = run("o := {}\ny := o[\"a\"]");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("".into())));
+
+    // The property that is there is still there.
+    let report = run("o := {a: 1}\ny := o.a");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(1)));
+}
+
+/// The text of an object of the v1 is the empty text.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `Object()` is a
+/// blank text, and the concatenation of an object and of "a" is "a".
+#[test]
+fn the_text_of_an_object_of_the_v1_is_the_empty_text() {
+    let report = run("x := Object() . \"a\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("a".into())));
+
+    let report = run("x := \"a\" . Object()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("a".into())));
+
+    // The object of the `Func` is an object too.
+    let report = run("x := Func(\"StrLen\") . \"a\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("a".into())));
+
+    // The sum of an object and of a number is blank.
+    let report = run("x := Object() + 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
+
+    // A built-in that wants a text takes the empty text of the object.
+    let report = run("x := StrLen(Object())");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("x := InStr(Object(), \"a\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+}

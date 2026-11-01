@@ -352,6 +352,13 @@ pub fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 /// made, and a raw write writes the text of v2: the units of UTF-16.
 pub fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let text = values.first().cloned().unwrap_or(Value::Text(String::new()));
+    // Measured on the binary of v1.1.37.02 on 2026-11-02: the text of an
+    // object of the v1 is the empty text, and the v1 writes it.
+    let text = if rt.an_object_has_no_text() && matches!(text, Value::Object(_)) {
+        Value::Text(String::new())
+    } else {
+        text
+    };
     // Measured on the binary of v2.0.19 on 2026-10-31: v2 reads the
     // property "Ptr" of the value that it writes, and an object has none:
     // 'This value of type "Map" has no property named "Ptr".'.
@@ -393,7 +400,8 @@ pub fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
     // The star is the console of the machine, and the tree has no console of
     // its own: the output of the script is the output of the report.
     if path == "*" {
-        rt.push_output(text.to_text());
+        let output = rt.the_text_of(&text);
+        rt.push_output(output);
         return Ok(Value::Text(String::new()));
     }
     let (bytes, mark) = the_bytes_of_the_write(&text, &options, line)?;

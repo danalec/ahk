@@ -1411,6 +1411,14 @@ impl<'a> Runtime<'a> {
         self.case_sense = sense;
     }
 
+    /// Whether an object has no text in the dialect that runs.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text of an
+    /// object of the v1 is the empty text.
+    pub(crate) fn an_object_has_no_text(&self) -> bool {
+        self.dialect.an_object_has_no_text()
+    }
+
     /// The text of a value, in the format of the dialect.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the numbers of
@@ -1418,6 +1426,14 @@ impl<'a> Runtime<'a> {
     /// decimals of the format, and the whole number is in the base of the
     /// format. The v2 writes the numbers the way they are.
     pub fn the_text_of(&self, value: &Value) -> String {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the text of an
+        // object of the v1 is the empty text -- `Object()` is a blank text,
+        // and `Object() . "a"` is "a".
+        if self.dialect.an_object_has_no_text() {
+            if let Value::Object(_) = value {
+                return String::new();
+            }
+        }
         if !self.dialect.formats_the_numbers() {
             return value.to_text();
         }
@@ -4188,6 +4204,12 @@ impl<'a> Runtime<'a> {
                 line,
             );
         }
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+        // not refuse the method that a value does not have, and the answer
+        // is a blank text.
+        if self.dialect.a_member_that_is_not_there_is_answered() {
+            return Ok(Value::Text(String::new()));
+        }
         Err(self.no_method(target, name, line))
     }
 
@@ -5985,6 +6007,12 @@ impl<'a> Runtime<'a> {
             if name == "__class" {
                 return Ok((Value::Text(self.the_class_of_the_value(target)), false));
             }
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+            // not refuse the property of a value that is not an object, and
+            // the answer is a blank text.
+            if self.dialect.a_member_that_is_not_there_is_answered() {
+                return Ok((Value::Text(String::new()), false));
+            }
             return Err(self.no_property(target, &written, line));
         };
         let class = object.borrow().class.clone();
@@ -6140,6 +6168,12 @@ impl<'a> Runtime<'a> {
                 line,
             )?;
             return Ok((value, true));
+        }
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+        // not refuse the property that an object does not have, and the
+        // answer is a blank text.
+        if self.dialect.a_member_that_is_not_there_is_answered() {
+            return Ok((Value::Text(String::new()), false));
         }
         Err(self.no_property(target, &written, line))
     }
@@ -6994,12 +7028,17 @@ impl<'a> Runtime<'a> {
     ///
     /// v2 wants a text or a number: an object, an array and a function are
     /// refused, and the message names the kind of the value that arrived.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+    /// refuse the object, and the text of it is the empty text -- the
+    /// concatenation of an object and of "a" is "a".
     fn the_text_of_the_concat(&self, value: &Value, line: u32) -> Result<String, RuntimeFailure> {
         match value {
             Value::Text(text) => Ok(text.clone()),
             // The numbers of the v1 are formatted by the `SetFormat` when
             // they become a text.
             Value::Int(_) | Value::Float(_) => Ok(self.the_text_of(value)),
+            Value::Object(_) if self.dialect.an_object_has_no_text() => Ok(String::new()),
             other => Err(RuntimeFailure::Detailed(
                 RuntimeError {
                     message: expected_the_kind(TypeName::String, &self.the_type_of(other)),
@@ -8081,6 +8120,16 @@ impl<'a> Runtime<'a> {
             let message = match crate::builtins::wants(builtin.name, index) {
                 crate::builtins::Wants::Declared(kind) => {
                     if accepts(kind, value) {
+                        continue;
+                    }
+                    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                    // v1 does not refuse an object where a parameter wants a
+                    // text -- the text of the object is the empty text, and
+                    // `StrLen(Object())` is zero.
+                    if kind == TypeName::String
+                        && matches!(value, Value::Object(_))
+                        && self.dialect.an_object_has_no_text()
+                    {
                         continue;
                     }
                     requires(index + 1, builtin.name, kind, value)
@@ -9199,6 +9248,12 @@ impl<'a> Runtime<'a> {
             line,
         ) {
             return result;
+        }
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+        // not refuse the item that an object does not have, and the answer is
+        // a blank text.
+        if self.dialect.a_member_that_is_not_there_is_answered() {
+            return Ok(Value::Text(String::new()));
         }
         Err(self.no_item(target, line))
     }
