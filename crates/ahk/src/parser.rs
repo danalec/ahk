@@ -754,9 +754,26 @@ struct TheMembersOfAClass {
     nested: Vec<Node>,
 }
 
+/// A call of the script whose arity is checked at the end of the parse.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses the
+/// call of a function at the load, and the name of a function of the script
+/// may be defined after the call: the arity of it is known only when the
+/// parse is over.
+struct TheCallOfTheScript {
+    /// The name of the function, in lower case.
+    name: String,
+    /// The number of the arguments of the call.
+    count: usize,
+    /// The text of the call, the way the script wrote it.
+    source: String,
+    /// The place of the call in the script.
+    line: u32,
+    column: u32,
+}
+
 /// The recursive descent parser.
-pub struct Parser {
-    tokens: Vec<Token>,
+pub struct Parser {    tokens: Vec<Token>,
     position: usize,
     /// The names the script defines: its functions and its classes.
     defined: BTreeSet<String>,
@@ -770,6 +787,17 @@ pub struct Parser {
     /// A name may be declared only once, and a function that is written
     /// inside another one is not a name of the script.
     functions: BTreeSet<String>,
+    /// The arity of the functions of the script: the name, the least number
+    /// of the arguments and the most.
+    ///
+    /// The v1 refuses the call of a function at the load, and the number of
+    /// the arguments of it is one of the things that it refuses there.
+    arities: BTreeMap<String, (usize, usize)>,
+    /// The calls of the script that the v1 refuses at the load.
+    ///
+    /// The name of a function of the script may be defined after the call, so
+    /// the calls wait for the end of the parse.
+    calls: Vec<TheCallOfTheScript>,
     /// The assignments of the script, one list for each function.
     ///
     /// The list of the top level is the first one, and the list of a
@@ -895,6 +923,8 @@ impl Parser {
             defined: BTreeSet::new(),
             classes: BTreeMap::new(),
             functions: BTreeSet::new(),
+            arities: BTreeMap::new(),
+            calls: Vec::new(),
             assignments: vec![Vec::new()],
             parameters: Vec::new(),
             in_class: false,
@@ -1196,6 +1226,8 @@ impl Parser {
         self.defined.clear();
         self.classes.clear();
         self.functions.clear();
+        self.arities.clear();
+        self.calls.clear();
         self.assignments.clear();
         self.assignments.push(Vec::new());
         self.skip_newlines();
@@ -1213,7 +1245,96 @@ impl Parser {
         // and the class that one of them names may be declared further down.
         let assignments = core::mem::take(self.assignments.first_mut().expect("the top level"));
         self.check_the_assignments(assignments)?;
+        // The v1 refuses the call of a function at the load, and the arity of
+        // a function of the script is known only now.
+        self.the_calls_of_the_v1_are_checked()?;
         Ok(statements)
+    }
+
+    /// The calls of the v1 are checked at the end of the parse.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the name that is
+    /// not a function is refused with "Call to nonexistent function." and it
+    /// names the call as it was written -- the spaces of the script are in
+    /// it -- and the number of the arguments that is wrong is refused with
+    /// "Too few parameters passed to function." or with "Too many parameters
+    /// passed to function.", and it names it too.
+    ///
+    /// A command of the v1 is not a function: `FileAppend("hello", "*")` is
+    /// a call to a name that does not exist. The calls are checked in the
+    /// order of the script.
+    fn the_calls_of_the_v1_are_checked(&self) -> Result<(), SyntaxError> {
+        if !self.dialect.refuses_the_call_of_a_function_at_the_load() {
+            return Ok(());
+        }
+        for call in &self.calls {
+            let wanted = &call.name;
+            // The function of the dialect: the arity is in the table.
+            let function = self
+                .dialect
+                .builtins()
+                .iter()
+                .find(|builtin| {
+                    builtin.name.to_lowercase() == *wanted
+                        && builtin.kind == crate::builtins::BuiltinKind::Function
+                });
+            if let Some(function) = function {
+                if call.count < function.min as usize {
+                    return Err(self.the_error_of_the_arity_of_the_call(
+                        call,
+                        "Too few parameters passed to function.",
+                    ));
+                }
+                if call.count > function.max as usize {
+                    return Err(self.the_error_of_the_arity_of_the_call(
+                        call,
+                        "Too many parameters passed to function.",
+                    ));
+                }
+                continue;
+            }
+            // The function of the script: the arity is the one of the
+            // parameters of it.
+            if let Some((required, most)) = self.arities.get(wanted) {
+                if call.count < *required {
+                    return Err(self.the_error_of_the_arity_of_the_call(
+                        call,
+                        "Too few parameters passed to function.",
+                    ));
+                }
+                if call.count > *most {
+                    return Err(self.the_error_of_the_arity_of_the_call(
+                        call,
+                        "Too many parameters passed to function.",
+                    ));
+                }
+                continue;
+            }
+            // The name that is not a function of the dialect and not a
+            // function of the script.
+            return Err(SyntaxError {
+                message: format!(
+                    "Call to nonexistent function.\n     Specifically: {}",
+                    call.source
+                ),
+                line: call.line,
+                column: call.column,
+            });
+        }
+        Ok(())
+    }
+
+    /// The refusal of the number of the arguments of a call of the v1.
+    fn the_error_of_the_arity_of_the_call(
+        &self,
+        call: &TheCallOfTheScript,
+        message: &str,
+    ) -> SyntaxError {
+        SyntaxError {
+            message: format!("{message}\n     Specifically: {}", call.source),
+            line: call.line,
+            column: call.column,
+        }
     }
 
     /// The refusal of the classes whose base is not there.
@@ -2444,6 +2565,15 @@ impl Parser {
                 if at_the_top {
                     self.the_name_is_declared_twice(&name_token.value, false, name_token.line, name_token.column)?;
                     self.functions.insert(name_token.value.to_lowercase());
+                    // The v1 refuses the call of a function at the load, and
+                    // the number of the arguments is one of the things that it
+                    // refuses there: the least number is the one of the
+                    // parameters that have no default, and the most is the
+                    // number of them.
+                    self.arities.insert(
+                        name_token.value.to_lowercase(),
+                        the_arity_of_the_parameters(&parameters),
+                    );
                 }
                 self.defined.insert(name_token.value.to_lowercase());
                 return Ok(vec![Node::FunctionDef {
@@ -2719,11 +2849,18 @@ impl Parser {
         // The name of the command is the token that comes before the
         // parameters of it, and the text of a refusal names it.
         let name_at = self.position - 1;
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: a function of
+        // the v1 is not a command: `StrLen "abc"` is a line that holds no
+        // action, and the load refuses it with the text of the line.
         let carried = self
             .dialect
             .builtins()
             .iter()
-            .any(|builtin| builtin.name.to_lowercase() == name);
+            .any(|builtin| {
+                builtin.name.to_lowercase() == name
+                    && (!self.dialect.the_command_has_to_be_a_command()
+                        || builtin.kind == crate::builtins::BuiltinKind::Command)
+            });
         if !carried {
             return Err(self.error(format!(
                 "This line does not contain a recognized action.\n     Specifically: {}",
@@ -6991,17 +7128,61 @@ impl Parser {
 
     /// A call in an expression: the name, the arguments, the closing paren.
     fn parse_call(&mut self, name: String, line: u32) -> Result<Node, SyntaxError> {
+        // The name of the call is the token that comes before the parenthesis,
+        // and the text that the refusal of the v1 names is the text of the
+        // call, from the name to the parenthesis that closes it.
+        let at = self.position - 1;
         self.expect_op("(")?;
         let arguments = self.parse_arguments()?;
         self.expect_op(")")?;
+        let end = self.position;
+        if self.dialect.refuses_the_call_of_a_function_at_the_load() {
+            self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at, end);
+        }
         Ok(Node::Call { name, arguments, line })
     }
+
+    /// The call of the v1 is recorded, and it is checked at the end of the
+    /// parse.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the call is
+    /// refused at the load, and the text of it is the text of the script.
+    fn the_call_of_the_v1_is_recorded(&mut self, name: &str, count: usize, at: usize, end: usize) {
+        let source = self.the_verbatim_source(at, end);
+        let line = self.tokens.get(at).map(|token| token.line).unwrap_or(0);
+        let column = self.tokens.get(at).map(|token| token.column).unwrap_or(0);
+        self.calls.push(TheCallOfTheScript {
+            name: name.to_lowercase(),
+            count,
+            source,
+            line,
+            column,
+        });
+    }
+}
+
+/// The arity of a function of the script: the least number of the arguments
+/// and the most.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter that
+/// has a default may be left out, and the parameter that takes the rest of
+/// the arguments takes none of them.
+fn the_arity_of_the_parameters(parameters: &[Parameter]) -> (usize, usize) {
+    let required = parameters
+        .iter()
+        .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+        .count();
+    let most = if parameters.iter().any(|parameter| parameter.variadic) {
+        usize::MAX
+    } else {
+        parameters.len()
+    };
+    (required, most)
 }
 
 /// Whether the value is a text that was written as a literal.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the operator that
-/// wants a number may not follow a literal text, and a variable that holds
+/// Measured on the binary of v2.0.19 on 2026-10-31: the operator that/// wants a number may not follow a literal text, and a variable that holds
 /// one is not a literal. The concatenation of two literal texts is a
 /// literal text, and the concatenation of a text and a number is not.
 fn the_literal_is_a_text(node: &Node) -> bool {

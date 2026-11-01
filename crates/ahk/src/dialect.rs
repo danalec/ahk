@@ -73,6 +73,28 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// Whether the dialect refuses the call of a function at the load.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
+    /// the call of a name that is not a function at the load -- "Call to
+    /// nonexistent function." -- and it refuses the number of the arguments
+    /// that is wrong at the load too, and it names the call as it was
+    /// written. The v2 refuses the two at the run, and a name that is not a
+    /// function is a variable of the script whose value is called.
+    fn refuses_the_call_of_a_function_at_the_load(&self) -> bool {
+        false
+    }
+
+    /// Whether the command of the v1 has to be a command of the dialect.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: a function of the
+    /// v1 is not a command: `StrLen "abc"` is a line that holds no action,
+    /// and the load refuses it with the text of the line. The v2 has no
+    /// command at all.
+    fn the_command_has_to_be_a_command(&self) -> bool {
+        false
+    }
+
     /// Whether the command of this name has a body.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IfInString`
@@ -363,6 +385,14 @@ impl Dialect for V1 {
 
     fn the_command_has_a_body(&self, name: &str) -> bool {
         crate::v1::the_command_has_a_body(name)
+    }
+
+    fn refuses_the_call_of_a_function_at_the_load(&self) -> bool {
+        true
+    }
+
+    fn the_command_has_to_be_a_command(&self) -> bool {
+        true
     }
 
     fn the_command_is_the_else(&self, name: &str) -> bool {

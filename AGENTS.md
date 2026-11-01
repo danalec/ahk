@@ -6390,10 +6390,37 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
 The `ErrorLevel` of the v1 is not carried yet: the `StringGetPos` and the
 `StringReplace` of the v1 put their answer there, and the variable comes
 with its own block, the one of the `ErrorLevel` of the machine, because it
-touches the two dialects. The arity of the **functions** of the v1 is
-refused at the load and names the call as it was written -- "Too few
-parameters passed to function. Specifically: InStr(\"ABCabc\")" -- and the
-tree refuses it at the run and names the name of the function; it comes with
-its own block too.
+touches the two dialects. The arity of the **functions** of the v1 came
+with the block of the call (section 154).
+
+
+## 154. The call of a function of the v1 is refused at the load, and the refusal names the call
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The number of the arguments of a call of the v1 is checked at the load.**
+  The refusal is the one of the v1 -- "Too few parameters passed to
+  function." or "Too many parameters passed to function." -- and it names
+  the call as it was written: "Specifically: InStr(\"ABCabc\")". The spaces
+  of the script are in the text: "InStr( \"ABCabc\" )".
+- **The name that is not a function is refused at the load.** The refusal is
+  "Call to nonexistent function." and it names the call too: "Specifically:
+  Nonsense(1)". The v2 refuses the name at the run, and a name that is not a
+  function is a variable of the script whose value is called.
+- **A command of the v1 is not a function.** `FileAppend("hello", "*")` is a
+  call to a name that does not exist, and `MsgBox("hello")` as well.
+- **The arity of a function of the script is the one of its parameters.** The
+  least number is the number of the parameters that have no default, and the
+  most is the number of them: `f(a, b := 1)` takes one argument and two.
+  The name of a function of the script may be defined after the call, and the
+  call waits for the end of the parse.
+- **A function of the v1 is not a command.** `StrLen "abc"` is a line that
+  holds no action, and the load refuses it with the text of the line: "This
+  line does not contain a recognized action. Specifically: StrLen \"abc\"".
+
+The call of a function of the v1 that is written without the parentheses and
+inside an expression is not carried yet: `x := InStr "abc"` calls the
+function in the v1, and the tree reads the name as a value and the text as
+another one. It comes with the block of the grammar of the v1.
 
 

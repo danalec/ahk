@@ -1395,3 +1395,116 @@ fn the_refusal_of_a_command_of_the_v1_names_the_first_parameter() {
         "\"IfMsgBox\" requires at least 1 parameter.\n     Specifically: IfMsgBox"
     );
 }
+
+/// The call of a function of the v1 is refused at the load.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the number of the
+/// arguments that is wrong is refused at the load, and the refusal names the
+/// call as it was written -- the spaces of the script are in it. The name
+/// that is not a function is refused at the load too: a command of the v1 is
+/// not a function, and a name that the script does not define is not one
+/// either.
+#[test]
+fn the_call_of_a_function_of_the_v1_is_refused_at_the_load() {
+    // The built-in that has too few arguments.
+    let error = ahk::parse_with("x := InStr(\"ABCabc\")", dialect::v1())
+        .expect_err("the function wants two arguments");
+    assert_eq!(
+        error.message,
+        "Too few parameters passed to function.\n     Specifically: InStr(\"ABCabc\")"
+    );
+
+    // The built-in that has too many arguments.
+    let error = ahk::parse_with("x := InStr(\"a\", \"b\", 1, 1, 1, 1)", dialect::v1())
+        .expect_err("the function wants five arguments");
+    assert_eq!(
+        error.message,
+        "Too many parameters passed to function.\n     Specifically: InStr(\"a\", \"b\", 1, 1, 1, 1)"
+    );
+
+    // The spaces of the script are in the text that is named.
+    let error = ahk::parse_with("x := InStr( \"ABCabc\" )", dialect::v1())
+        .expect_err("the function wants two arguments");
+    assert_eq!(
+        error.message,
+        "Too few parameters passed to function.\n     Specifically: InStr( \"ABCabc\" )"
+    );
+
+    // The name that is not there.
+    let error = ahk::parse_with("x := Nonsense(1)", dialect::v1())
+        .expect_err("the name is not a function");
+    assert_eq!(
+        error.message,
+        "Call to nonexistent function.\n     Specifically: Nonsense(1)"
+    );
+
+    // The command of the v1 is not a function.
+    let error = ahk::parse_with("x := FileAppend(\"hello\", \"*\")", dialect::v1())
+        .expect_err("the command is not a function");
+    assert_eq!(
+        error.message,
+        "Call to nonexistent function.\n     Specifically: FileAppend(\"hello\", \"*\")"
+    );
+
+    // The function of the script with too few arguments.
+    let error = ahk::parse_with("f(a, b) {\n}\nx := f(1)", dialect::v1())
+        .expect_err("the function wants two arguments");
+    assert_eq!(
+        error.message,
+        "Too few parameters passed to function.\n     Specifically: f(1)"
+    );
+
+    // The function of the script with too many arguments.
+    let error = ahk::parse_with("f(a) {\n}\nx := f(1, 2)", dialect::v1())
+        .expect_err("the function wants one argument");
+    assert_eq!(
+        error.message,
+        "Too many parameters passed to function.\n     Specifically: f(1, 2)"
+    );
+
+    // The parameter that has a default may be left out.
+    let error = ahk::parse_with("f(a, b := 1) {\n}\nx := f()", dialect::v1())
+        .expect_err("the function wants one argument");
+    assert_eq!(
+        error.message,
+        "Too few parameters passed to function.\n     Specifically: f()"
+    );
+
+    // The name of a function of the script may be defined after the call.
+    let error = ahk::parse_with("x := f(1)\nf(a, b) {\n}", dialect::v1())
+        .expect_err("the function wants two arguments");
+    assert_eq!(
+        error.message,
+        "Too few parameters passed to function.\n     Specifically: f(1)"
+    );
+}
+
+/// A function of the v1 is not a command.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command that is
+/// written with the name of a function is a line that holds no action, and
+/// the load refuses it with the text of the line.
+#[test]
+fn a_function_of_the_v1_is_not_a_command() {
+    let error = ahk::parse_with("StrLen \"abc\"", dialect::v1())
+        .expect_err("the function is not a command");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: StrLen \"abc\""
+    );
+
+    let error = ahk::parse_with("InStr \"abc\"", dialect::v1())
+        .expect_err("the function is not a command");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: InStr \"abc\""
+    );
+
+    // The function of the script is not a command either.
+    let error = ahk::parse_with("f(a) {\n}\nf \"abc\"", dialect::v1())
+        .expect_err("the function is not a command");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: f \"abc\""
+    );
+}
