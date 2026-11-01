@@ -124,6 +124,47 @@ pub(crate) fn the_number_of_a_legacy_text(text: &str) -> Option<Value> {
     text.parse::<i64>().ok().map(Value::Int)
 }
 
+/// The number of a text in the v1, when the text is one.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: "5" is 5, and "5.5"
+/// is 5.5, and " 5 " is 5, and "0x10" is 16. A text that is not a number
+/// ("abc", "5abc", "1e3" and the empty text) is not a number at all, and the
+/// operation that wants one is blank.
+pub(crate) fn the_number_of_a_text(text: &str) -> Option<Value> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    // The hex of the v1: 0x10 is 16.
+    if let Some(hex) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        return i64::from_str_radix(hex, 16).ok().map(Value::Int);
+    }
+    let body = text.strip_prefix('+').or_else(|| text.strip_prefix('-')).unwrap_or(text);
+    if body.is_empty() {
+        return None;
+    }
+    // A number of base ten: the sign, the digits and the point.
+    let mut whole = true;
+    let mut digits = 0usize;
+    for character in body.chars() {
+        match character {
+            '0'..='9' => digits += 1,
+            '.' if whole => whole = false,
+            _ => return None,
+        }
+    }
+    if digits == 0 {
+        return None;
+    }
+    if whole {
+        // The whole number: the sign is a part of it.
+        return text.parse::<i64>().ok().map(Value::Int);
+    }
+    // The number with a point: the sign is a part of it.
+    let number: f64 = text.parse().ok()?;
+    Some(Value::Float(number))
+}
+
 /// The write of the built-in variable of this name, when the name is one.
 ///
 /// `None` means the name is not a built-in variable of the v1, or that the

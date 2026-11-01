@@ -167,6 +167,15 @@ pub trait Dialect: Sync {
     fn the_number_may_be_followed_by_a_name(&self) -> bool {
         false
     }
+
+    /// Whether a value that is not a number makes the operation blank.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the value of a
+    /// variable is a number when it can be one, and the operation that
+    /// cannot have it is blank. The v2 refuses with the reason.
+    fn a_value_that_is_not_a_number_is_blank(&self) -> bool {
+        false
+    }
 }
 
 /// The dialect of the tree: AutoHotkey v2.0.19.
@@ -389,6 +398,10 @@ impl Dialect for V1 {
     }
 
     fn the_number_may_be_followed_by_a_name(&self) -> bool {
+        true
+    }
+
+    fn a_value_that_is_not_a_number_is_blank(&self) -> bool {
         true
     }
 }

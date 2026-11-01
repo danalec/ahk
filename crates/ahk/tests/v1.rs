@@ -670,3 +670,83 @@ fn the_parameter_of_a_command_of_the_v1_may_be_a_number_and_a_name() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["2px".to_string()]);
 }
+
+/// The value of a variable of the v1 is a number when it can be one.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `x + 1` is 6 when
+/// `x` holds the text "5", and "0x10" is 16, and " 5 " is 5.
+#[test]
+fn the_value_of_a_variable_of_the_v1_is_a_number_when_it_can_be_one() {
+    let report = run("x := \"5\"\ny := x + 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("x := \"0x10\"\ny := x + 0");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(16)));
+
+    let report = run("x := \" 5 \"\ny := x + 0");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(5)));
+
+    // A text that is not a number is not a number at all: "1e3" is not one.
+    let report = run("x := \"1e3\"\ny := x + 0");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+}
+
+/// A value that is not a number makes the operation of the v1 blank.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `x - 1` is blank
+/// when `x` holds the text "abc", and it is not a failure.
+#[test]
+fn a_value_that_is_not_a_number_makes_the_operation_of_the_v1_blank() {
+    let report = run("x := \"abc\"\ny := x - 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    let report = run("x := \"abc\"\ny := x * 2");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+}
+
+/// The sum of a number and of a text that is written is blank in the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `5 + "1"` is blank,
+/// and the sum of two texts that are written is a concatenation.
+#[test]
+fn the_sum_of_a_number_and_of_a_text_that_is_written_is_blank_in_the_v1() {
+    let report = run("x := 5 + \"1\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+
+    let report = run("x := \"5\" + \"1\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("51".into())));
+}
+
+/// The comparison of the v1 is a number when both sides are numbers, and a
+/// text otherwise.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: "abc" > 1 is true,
+/// and "abc" < 1 is false.
+#[test]
+fn the_comparison_of_the_v1_is_a_text_when_a_side_is_not_a_number() {
+    let report = run("x := \"abc\" > 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    let report = run("x := \"abc\" < 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The text that is written is a string: "10" < "3" is true.
+    let report = run("x := \"10\" < 3");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The value of a variable is a number: 10 < 3 is false.
+    let report = run("z := \"10\"\nx := z < 3");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+}

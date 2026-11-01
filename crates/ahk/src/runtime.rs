@@ -6923,6 +6923,81 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The number of a value in the v1, when it can be one.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text that is
+    /// written between quotes is a string, and it is never a number. The
+    /// value of a variable is a number when it can be one: "5" is 5, and
+    /// "0x10" is 16, and " 5 " is 5.
+    fn the_number_of_the_v1(&self, node: &Node, value: &Value) -> Option<Value> {
+        match value {
+            Value::Int(number) => Some(Value::Int(*number)),
+            Value::Float(number) => Some(Value::Float(*number)),
+            Value::Text(text) => {
+                if self.the_node_is_a_quoted_text(node) {
+                    return None;
+                }
+                crate::v1::the_number_of_a_text(text)
+            }
+            _ => None,
+        }
+    }
+
+    /// Whether the node is a text that is written between quotes.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text that is
+    /// written between quotes is a string, and the arithmetic of the v1
+    /// never turns it into a number: `"5" + 1` is "51".
+    fn the_node_is_a_quoted_text(&self, node: &Node) -> bool {
+        matches!(node, Node::Literal { value: LiteralValue::Text(_), .. })
+    }
+
+    /// The comparison of the v1.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the comparison is
+    /// a number when both sides are numbers, and a text otherwise: "abc" > 1
+    /// is true, and "abc" < 1 is false.
+    fn the_comparison_of_the_v1(
+        &self,
+        left_node: &Node,
+        right_node: &Node,
+        left: &Value,
+        right: &Value,
+        op: &BinaryOp,
+    ) -> bool {
+        let numbers = match (
+            self.the_number_of_the_v1(left_node, left),
+            self.the_number_of_the_v1(right_node, right),
+        ) {
+            (Some(left), Some(right)) => Some((
+                left.to_number().unwrap_or(0.0),
+                right.to_number().unwrap_or(0.0),
+            )),
+            _ => None,
+        };
+        match numbers {
+            Some((left, right)) => match op {
+                BinaryOp::Less => left < right,
+                BinaryOp::Greater => left > right,
+                BinaryOp::LessEqual => left <= right,
+                BinaryOp::GreaterEqual => left >= right,
+                _ => false,
+            },
+            // The texts are compared, and the case of them does not matter.
+            None => {
+                let left = left.to_text().to_lowercase();
+                let right = right.to_text().to_lowercase();
+                match op {
+                    BinaryOp::Less => left < right,
+                    BinaryOp::Greater => left > right,
+                    BinaryOp::LessEqual => left <= right,
+                    BinaryOp::GreaterEqual => left >= right,
+                    _ => false,
+                }
+            }
+        }
+    }
+
     /// The amount of a shift: a whole number between zero and sixty-three.
     fn shift(&self, value: &Value, line: u32) -> Result<u32, RuntimeFailure> {
         let count = self.integer(value, line)?;
@@ -8474,6 +8549,57 @@ impl<'a> Runtime<'a> {
                     _ => {}
                 }
                 let right_value = self.evaluate(right)?;
+                // The arithmetic of the v1 is not the one of the v2: the text
+                // that is written between quotes is a string, and the value
+                // of a variable is a number when it can be one.
+                let (left_value, right_value) = if self.dialect.a_value_that_is_not_a_number_is_blank()
+                {
+                    // The sum of a text that is written is a concatenation.
+                    if *op == BinaryOp::Add && self.the_node_is_a_quoted_text(left) {
+                        let text = format!("{}{}", left_value.to_text(), self.the_text_of(&right_value));
+                        return Ok(Value::Text(text));
+                    }
+                    // The comparison is a number when both sides are numbers,
+                    // and a text otherwise.
+                    if matches!(
+                        op,
+                        BinaryOp::Less
+                            | BinaryOp::Greater
+                            | BinaryOp::LessEqual
+                            | BinaryOp::GreaterEqual
+                    ) {
+                        let answer =
+                            self.the_comparison_of_the_v1(left, right, &left_value, &right_value, op);
+                        return Ok(Value::Int(answer as i64));
+                    }
+                    if matches!(
+                        op,
+                        BinaryOp::Equal
+                            | BinaryOp::NotEqual
+                            | BinaryOp::StrictEqual
+                            | BinaryOp::StrictNotEqual
+                            | BinaryOp::Concat
+                            | BinaryOp::RegexMatch
+                    ) {
+                        // The equality compares the values as they are, and
+                        // the concatenation wants the text of them.
+                        (left_value, right_value)
+                    } else {
+                        // The operands of the arithmetic are numbers: the text
+                        // that is written between quotes is not one, and the
+                        // value of a variable is one when it can be.
+                        let left = self.the_number_of_the_v1(left, &left_value);
+                        let right = self.the_number_of_the_v1(right, &right_value);
+                        match (left, right) {
+                            (Some(left), Some(right)) => (left, right),
+                            // A value that is not a number makes the operation
+                            // blank, and it is not a failure.
+                            _ => return Ok(Value::Text(String::new())),
+                        }
+                    }
+                } else {
+                    (left_value, right_value)
+                };
                 Ok(match op {
                     BinaryOp::Equal => {
                         Value::Int(values_equal(&left_value, &right_value, false) as i64)

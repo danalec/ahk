@@ -838,11 +838,17 @@ formats (2026-11-02), with the `A_FormatFloat` and the `A_FormatInteger`
 that say which one is in force.
 
 **The arithmetic with a text.** The v1 does not concatenate when an operand
-is a text: the text that is written on the left of a `+` makes it a
-concatenation, the text that is written on the right of it makes the result
-blank, and the value of a variable is converted to a number when it can be.
-The tree still has the rule of the v2 here, and the block that carries it
-comes next.
+is a text: the text that is written between quotes is a string, and the
+value of a variable is a number when it can be one. The tree carries it
+since the block of the arithmetic (2026-11-02): the sum of a text that is
+written and of a number is a concatenation, the sum of a number and of a
+text that is written is blank, and a value that is not a number makes the
+operation blank.
+
+**What stays out.** The operator that comes after a text that is written is
+refused at the load, and the v1 accepts it: the v1 answers "5-1" and "20"
+for `"5" - 1` and `"5" * 2`, and the documentation of the v1 does not say
+what it means. The `SetBatchLines` is a decision of the plan (§5).
 
 ---
 

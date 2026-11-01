@@ -6204,3 +6204,27 @@ The `SetFormat` leaves the pending table of the v1: the surface of the v1
 has 270 values, 108 refusals and 6 pending names.
 
 
+## 149. The arithmetic of the v1 converts a value and does not concatenate
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The text that is written between quotes is a string, and it is never a
+  number.** `"5" + 1` is "51", and `5 + "1"` is blank. The tree had the rule
+  of the v2: it concatenated when an operand was a text.
+- **The value of a variable is a number when it can be one.** `x + 1` is 6
+  when `x` holds the text "5", and "0x10" is 16, and " 5 " is 5, and "1e3"
+  and "5abc" and "abc" are not numbers at all.
+- **A value that is not a number makes the operation blank, and it is not a
+  failure.** `x - 1` is blank when `x` holds the text "abc", and the v2
+  refuses with "Expected a Number but got a String.".
+- **The comparison is a number when both sides are numbers, and a text
+  otherwise.** "abc" > 1 is true, and "abc" < 1 is false, and the text that
+  is written between quotes is compared as a text ("10" < 3 is true) while
+  the value of a variable is a number (10 < 3 is false).
+
+The operator that comes after a text that is written is a difference that
+stays: the v1 accepts `"5" - 1` and `"5" * 2`, and the tree refuses the
+script at the load. The v1 answers "5-1" and "20" there, and the
+documentation of the v1 does not say what it means.
+
+
