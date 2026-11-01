@@ -810,18 +810,18 @@ does not get worse without being seen.
 |---|---|---|
 | **F0 — the gate** | Done | The trait `Dialect`, the `V1` and the `V2`, the column `parameters` of the table of the built-ins and the flag `--dialect` of the runner. Commit `9d57bf8`. |
 | **F1 — the surface** | Done | The table of the v1 (`crates/ahk/src/v1/table.rs`), the call in the shape of the v1, and the pending table of the v1. Commit `48ef559`. |
-| **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues on a comma, the hotstring as a statement, and the directives of the v1. Commit `12331ab`. |
+| **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
 | **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 21 cases), and the `--surface --json` for the CI. |
 
-**What is left.** Three names of the pending table of the v1: the
-`IfInString`, the `IfMsgBox` and the `SetBatchLines`. The `SetBatchLines` is
-a decision of the plan (§5, the threads of the v1). The other two are work
-that is still to do, and the pending table is where they are written down.
+**What is left.** One name of the pending table of the v1: the
+`SetBatchLines`, and it is a decision of the plan (§5, the threads of the
+v1). The `IfInString`, the `IfNotInString`, the `IfMsgBox` and the `Else`
+were carried by the block of the body of the action (2026-11-02).
 
-The surface of the v1 has **384** entries: **273** answer with a value,
-**108** are refused and **3** are pending. The surface of the v2 did not
+The surface of the v1 has **386** entries: **277** answer with a value,
+**108** are refused and **1** is pending. The surface of the v2 did not
 move: **828** entries, **637** values, **191** refusals and no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an
@@ -862,10 +862,26 @@ parameters and the bits of thirty-two and of sixty-four. The tree keeps
 no capacity of its own, and the number that it answers is the one that was
 asked for.
 
+**The body of the action.** The commands of the v1 that have a body are the
+`IfInString`, the `IfNotInString` and the `IfMsgBox`, and the `else` is the
+action of the other side. The tree carries them since the block of the body
+of the action (2026-11-02), with the action of the same line, the block and
+the statement of the next line, and with the refusal of the load: the
+`else` that has no `if` before it, the number of the parameters of a command,
+and the parameter that wants the name of a variable and is blank. The
+measurement of the binary changed the grammar of the v1 that the tree
+carried: the line of a command of the v1 continues when the line that comes
+begins with an operator, and not when it ends with a comma -- the comma at
+the end of the line is the rule of the v2.
+
 **What stays out.** The operator that comes after a text that is written is
 refused at the load, and the v1 accepts it: the v1 answers "5-1" and "20"
 for `"5" - 1` and `"5" * 2`, and the documentation of the v1 does not say
-what it means. The `SetBatchLines` is a decision of the plan (§5).
+what it means. The `if (expression)` of the v1 takes the statement of the
+next line as its body and not the statement of the same line, and the tree
+refuses the script that writes it; the `else if` that comes after a command
+that has a body is refused with it. The `SetBatchLines` is a decision of the
+plan (§5).
 
 ---
 

@@ -264,11 +264,11 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     let (code, report) = surface_json("v1");
     assert_eq!(code, 0);
     assert_eq!(report["dialect"], "v1");
-    assert_eq!(report["total"], 384);
-    // The names that the v1 has and the v2 does not are carried, and the
-    // three that are still to do are pending.
-    assert_eq!(report["values"], 273);
-    assert_eq!(report["pending"], 3);
+    assert_eq!(report["total"], 386);
+    // The names that the v1 has and the v2 does not are carried, and the one
+    // that is still to do is pending.
+    assert_eq!(report["values"], 277);
+    assert_eq!(report["pending"], 1);
     let entries = report["entries"].as_array().expect("the entries are a list");
     let is_set = entries
         .iter()
@@ -309,13 +309,41 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
         .find(|entry| entry["name"] == "VarSetCapacity")
         .expect("the name is in the report");
     assert_eq!(var_set_capacity["state"], "value");
-    // A name that is still to do is pending, and it carries the reason.
+    // The `IfInString` is carried: the command of the v1 that has a body runs
+    // its action when the text of the needle is in the variable.
     let if_in_string = entries
         .iter()
         .find(|entry| entry["name"] == "IfInString")
         .expect("the name is in the report");
-    assert_eq!(if_in_string["state"], "pending");
-    assert!(if_in_string["reason"].is_string());
+    assert_eq!(if_in_string["state"], "value");
+    // The `IfNotInString` is carried: it is the other side of the
+    // `IfInString`.
+    let if_not_in_string = entries
+        .iter()
+        .find(|entry| entry["name"] == "IfNotInString")
+        .expect("the name is in the report");
+    assert_eq!(if_not_in_string["state"], "value");
+    // The `IfMsgBox` is carried: the command holds when the person pressed
+    // the button that is named.
+    let if_msg_box = entries
+        .iter()
+        .find(|entry| entry["name"] == "IfMsgBox")
+        .expect("the name is in the report");
+    assert_eq!(if_msg_box["state"], "value");
+    // The `Else` is carried: it is the action of the other side of the `if`
+    // that comes before it.
+    let else_of_the_v1 = entries
+        .iter()
+        .find(|entry| entry["name"] == "Else")
+        .expect("the name is in the report");
+    assert_eq!(else_of_the_v1["state"], "value");
+    // A name that is still to do is pending, and it carries the reason.
+    let set_batch_lines = entries
+        .iter()
+        .find(|entry| entry["name"] == "SetBatchLines")
+        .expect("the name is in the report");
+    assert_eq!(set_batch_lines["state"], "pending");
+    assert!(set_batch_lines["reason"].is_string());
 }
 
 /// The names of the surface: the rows of the table, without the comments

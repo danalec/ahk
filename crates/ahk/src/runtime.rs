@@ -1418,7 +1418,7 @@ impl<'a> Runtime<'a> {
     ///
     /// The name is matched the way AutoHotkey matches it: without regard
     /// to the case.
-    fn builtin(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
+    pub(crate) fn builtin(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
         let wanted = name.to_lowercase();
         self.dialect
             .builtins()
@@ -1616,6 +1616,10 @@ impl<'a> Runtime<'a> {
                     );
                 }
                 Node::Block { body, .. } => self.collect_functions(body),
+                Node::LegacyIf { body, otherwise, .. } => {
+                    self.collect_functions(body);
+                    self.collect_functions(otherwise);
+                }
                 Node::If { branches, otherwise, .. } => {
                     for branch in branches {
                         self.collect_functions(&branch.body);
@@ -1662,6 +1666,10 @@ impl<'a> Runtime<'a> {
                     self.assign_in_the_scope(name, value);
                 }
                 Node::Block { body, .. } => self.collect_the_nested_functions(body),
+                Node::LegacyIf { body, otherwise, .. } => {
+                    self.collect_the_nested_functions(body);
+                    self.collect_the_nested_functions(otherwise);
+                }
                 Node::If { branches, otherwise, .. } => {
                     for branch in branches {
                         self.collect_the_nested_functions(&branch.body);
@@ -2068,6 +2076,18 @@ impl<'a> Runtime<'a> {
                 // The legacy command of the v1: `Msg, text`.
                 let value = self.the_legacy_command(name, parameters, *line)?;
                 detail = value.to_text();
+            }
+            Node::LegacyIf { name, parameters, body, otherwise, line } => {
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // command of the v1 that has a body runs its action when the
+                // condition holds, and the action of the other side when it
+                // does not.
+                let holds = self.the_condition_of_a_legacy_if(name, parameters, *line)?;
+                if holds {
+                    self.run_block(body)?;
+                } else {
+                    self.run_block(otherwise)?;
+                }
             }
             Node::ClassDef { name, line, .. } => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the class
@@ -7722,11 +7742,42 @@ impl<'a> Runtime<'a> {
                 line,
             }));
         };
+        let values = self.the_parameters_of_a_legacy_command(builtin, parameters, line)?;
+        self.call_the_row(builtin, &values, line, Route::Written)
+    }
+
+    /// The values of the parameters of a command of the v1.
+    ///
+    /// The shape of the command says what the text of each one of them is.
+    pub(crate) fn the_parameters_of_a_legacy_command(
+        &mut self,
+        builtin: &'static crate::builtins::Builtin,
+        parameters: &[String],
+        line: u32,
+    ) -> Result<Vec<Value>, RuntimeFailure> {
         let mut values = Vec::with_capacity(parameters.len());
         for (index, text) in parameters.iter().enumerate() {
             values.push(self.the_parameter_of_a_legacy_command(builtin, index, text, line)?);
         }
-        self.call_the_row(builtin, &values, line, Route::Written)
+        Ok(values)
+    }
+
+    /// The condition of a command of the v1 that has a body.
+    ///
+    /// The row of the command answers the condition, and the shape of the
+    /// command says what the text of each parameter of it is.
+    fn the_condition_of_a_legacy_if(
+        &mut self,
+        name: &str,
+        parameters: &[String],
+        line: u32,
+    ) -> Result<bool, RuntimeFailure> {
+        let Some(builtin) = self.builtin(name) else {
+            return Ok(false);
+        };
+        let values = self.the_parameters_of_a_legacy_command(builtin, parameters, line)?;
+        let answer = self.call_the_row(builtin, &values, line, Route::Written)?;
+        Ok(answer.truthy())
     }
 
     /// The value of a parameter of a command of the v1.
@@ -8931,6 +8982,7 @@ impl<'a> Runtime<'a> {
             Node::Expression { .. }
             | Node::Block { .. }
             | Node::LegacyCall { .. }
+            | Node::LegacyIf { .. }
             | Node::LegacyAssign { .. }
             | Node::If { .. }
             | Node::Switch { .. }
@@ -9808,6 +9860,22 @@ pub(crate) fn the_same_text(left: &str, right: &str, method: CaseMethod) -> bool
     }
 }
 
+/// Whether the text of the needle is in the text of the haystack, with the
+/// method of the case.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IfInString` of
+/// the v1 finds the text of the needle in the variable, and the sense of the
+/// case says whether the letters of them are the same.
+pub(crate) fn the_text_contains(haystack: &str, needle: &str, method: CaseMethod) -> bool {
+    match method {
+        CaseMethod::Ascii => haystack
+            .to_ascii_lowercase()
+            .contains(&needle.to_ascii_lowercase()),
+        CaseMethod::Exact => haystack.contains(needle),
+        CaseMethod::Locale => haystack.to_lowercase().contains(&needle.to_lowercase()),
+    }
+}
+
 /// How two texts stand to each other, with the method of the case.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the texts of the v1
@@ -10005,6 +10073,10 @@ fn collect_the_labels(body: &[Node], labels: &mut Vec<String>) {
             | Node::For { body, .. } => {
                 collect_the_labels(body, labels);
             }
+            Node::LegacyIf { body, otherwise, .. } => {
+                collect_the_labels(body, labels);
+                collect_the_labels(otherwise, labels);
+            }
             Node::Try { body, catches, otherwise, finally, .. } => {
                 collect_the_labels(body, labels);
                 for catch in catches {
@@ -10053,6 +10125,9 @@ pub fn op_name_in<'a>(
         },
         // The legacy command of the v1 is reported under its own name.
         Node::LegacyCall { name, .. } => name,
+        // The command of the v1 that has a body is reported under its own
+        // name as well.
+        Node::LegacyIf { name, .. } => name,
         Node::Expression { value, .. } => match the_call_of(value) {
             // The statement reads the member of the answer of a call, and
             // it is still the call that the report names.

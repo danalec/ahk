@@ -67,6 +67,27 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the command of this name has a body.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IfInString`
+    /// and the `IfMsgBox` of the v1 have an action: the command that is on
+    /// the same line, the block, or the statement of the next line. The v2
+    /// has no command that has a body.
+    fn the_command_has_a_body(&self, name: &str) -> bool {
+        let _ = name;
+        false
+    }
+
+    /// Whether the command of this name is the `else` of the v1.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `else` of the
+    /// v1 is a command of its own, and it takes no parameter. It is the
+    /// action of the other side of the `if` that comes before it.
+    fn the_command_is_the_else(&self, name: &str) -> bool {
+        let _ = name;
+        false
+    }
+
     /// The class of an object of the dialect.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the object of
@@ -332,6 +353,14 @@ impl Dialect for V1 {
 
     fn wants_the_variable_of_the_argument(&self, name: &str) -> bool {
         crate::v1::wants_the_variable_of_the_argument(name)
+    }
+
+    fn the_command_has_a_body(&self, name: &str) -> bool {
+        crate::v1::the_command_has_a_body(name)
+    }
+
+    fn the_command_is_the_else(&self, name: &str) -> bool {
+        crate::v1::the_command_is_the_else(name)
     }
 
     fn class_of_an_object(&self) -> &'static str {

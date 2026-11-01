@@ -205,6 +205,108 @@ fn the_text_without_the_quotes(text: &str) -> &str {
     text
 }
 
+/// Whether the command of this name has a body.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IfInString`,
+/// the `IfNotInString` and the `IfMsgBox` have an action: the command that
+/// is on the same line, the block, or the statement of the next line.
+pub(crate) fn the_command_has_a_body(name: &str) -> bool {
+    matches!(
+        name.to_lowercase().as_str(),
+        "ifinstring" | "ifnotinstring" | "ifmsgbox"
+    )
+}
+
+/// Whether the command of this name is the `else` of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `else` of the v1
+/// is a command of its own, and it takes no parameter.
+pub(crate) fn the_command_is_the_else(name: &str) -> bool {
+    name.to_lowercase() == "else"
+}
+
+/// The condition of the `IfInString` of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command holds
+/// when the text of the needle is in the variable, and the sense of the
+/// case says whether the letters of them are the same. The needle that is
+/// not there is a failure.
+pub(crate) fn if_in_string(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_condition_of_the_search(rt, values, line, "IfInString")
+}
+
+/// The condition of the `IfNotInString` of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command is the
+/// other side of the `IfInString`.
+pub(crate) fn if_not_in_string(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_condition_of_the_search(rt, values, line, "IfNotInString")
+}
+
+/// The condition of a search of the v1 that has a body.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command holds
+/// when the text of the needle is in the variable, and the sense of the
+/// case says whether the letters of them are the same.
+///
+/// The needle that is empty is a refusal of the load, and not of the run:
+/// the number of the parameters is checked there, and the needle that is
+/// written as nothing does not count. The needle that becomes empty at the
+/// run -- the substitution of a name that has no value -- is a text that is
+/// in every text, and the command holds.
+fn the_condition_of_the_search(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    let haystack = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let needle = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let holds = crate::runtime::the_text_contains(&haystack, &needle, rt.case_sense().the_method());
+    Ok(Value::Int(if name == "IfNotInString" { !holds } else { holds } as i64))
+}
+
+/// The condition of the `IfMsgBox` of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command holds
+/// when the person pressed the button that is named. The message box of
+/// this runtime has no buttons, and the button that was pressed is not
+/// there: the condition is false.
+pub(crate) fn if_msg_box(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(0))
+}
+
+/// The `else` of the v1 that has no `if`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `else` without
+/// an `if` is refused at the load with "ELSE with no matching IF".
+pub(crate) fn else_of_the_v1(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "ELSE with no matching IF".into(),
+        line,
+    })
+}
+
 /// `Transform, out, SubCommand, Value1, Value2`: the math of the v1.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the command takes

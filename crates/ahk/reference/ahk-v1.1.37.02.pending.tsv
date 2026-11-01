@@ -50,8 +50,10 @@
 # - The `Transform` is carried: the command answers the math of the v1, and
 #   the `VarSetCapacity` answers the capacity of a variable. Measured on the
 #   binary of v1.1.37.02 on 2026-11-02.
+# - The `IfInString`, the `IfNotInString`, the `IfMsgBox` and the `Else` are
+#   carried: the commands of the v1 that have a body run their action when
+#   the condition holds, and the `Else` is the action of the other side.
+#   Measured on the binary of v1.1.37.02 on 2026-11-02.
 kind	class	name	reason
 
-command		IfInString	not-yet
-command		IfMsgBox	not-yet
 command		SetBatchLines	not-yet

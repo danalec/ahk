@@ -419,6 +419,23 @@ pub enum Node {
     /// hello, *` writes `hello`, and `FileAppend, "hello", *` writes
     /// `"hello"` with the quotes.
     LegacyCall { name: String, parameters: Vec<String>, line: u32 },
+    /// A command of the v1 that has a body: the `IfInString` and the
+    /// `IfMsgBox`.
+    ///
+    /// The body is the action of the command: the command that is on the
+    /// same line, the block, or the statement of the next line. The `else`
+    /// of the v1 is the body of the other side.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: `IfInString, x, b`
+    /// runs the line that comes after it when the text is in the variable,
+    /// and it does not run it when it is not.
+    LegacyIf {
+        name: String,
+        parameters: Vec<String>,
+        body: Vec<Node>,
+        otherwise: Vec<Node>,
+        line: u32,
+    },
     /// A value that is computed and thrown away: `(2)`.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: a line that begins
@@ -631,6 +648,7 @@ impl Node {
             | Node::Index { line, .. }
             | Node::Call { line, .. }
             | Node::LegacyCall { line, .. }
+            | Node::LegacyIf { line, .. }
             | Node::Expression { line, .. }
             | Node::Block { line, .. }
             | Node::If { line, .. }

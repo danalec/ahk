@@ -1912,6 +1912,16 @@ impl Parser {
         }
         if token.kind == TokenKind::Keyword {
             let word = token.value.to_lowercase();
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the `else`
+            // of the v1 is a command of its own, and the parser of the v2
+            // does not take it.
+            if self.dialect.the_command_is_the_else(&word) {
+                // The name of the command is consumed before the parameters
+                // of it are read, and the name of the command is not one of
+                // them.
+                self.next();
+                return Ok(vec![self.parse_call_statement(token)?]);
+            }
             // Measured on the binary of v2.0.19 on 2026-11-01: the word that
             // is the name of a variable refuses with the reason of the word,
             // and the reason does not depend on the place where the word is.
@@ -2706,6 +2716,9 @@ impl Parser {
     /// the load with the text of the line.
     fn parse_legacy_call_statement(&mut self, name_token: Token) -> Result<Node, SyntaxError> {
         let name = name_token.value.to_lowercase();
+        // The name of the command is the token that comes before the
+        // parameters of it, and the text of a refusal names it.
+        let name_at = self.position - 1;
         let carried = self
             .dialect
             .builtins()
@@ -2714,20 +2727,224 @@ impl Parser {
         if !carried {
             return Err(self.error(format!(
                 "This line does not contain a recognized action.\n     Specifically: {}",
-                the_source_of_the_line(self, name_token.line)
+                self.the_source_of_the_legacy_command(name_at)
             )));
         }
-        let mut parameters = Vec::new();
+        let mut places = Vec::new();
         // The comma that comes right after the name is the one that
         // separates it from the first parameter.
         if self.at_op(&[","]) {
             self.next();
-            parameters = self.the_parameters_of_a_legacy_command()?;
+            places = self.the_places_of_the_parameters_of_a_legacy_command()?;
         } else if !self.at_end_of_statement() {
-            parameters = self.the_parameters_of_a_legacy_command()?;
+            places = self.the_places_of_the_parameters_of_a_legacy_command()?;
+        }
+        let mut parameters: Vec<String> = places
+            .iter()
+            .map(|(start, end)| self.the_verbatim_source(*start, *end).trim().to_string())
+            .collect();
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the comma at
+        // the end of the line does not open a parameter: the number of the
+        // parameters of a command is the number of the commas that are not
+        // the last one.
+        if parameters.last().map(|text| text.is_empty()).unwrap_or(false) {
+            parameters.pop();
+            places.pop();
         }
         self.end_of_statement()?;
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the `else` of
+        // the v1 is the action of the other side of the `if` that comes
+        // before it, and it is a failure when there is no `if`.
+        if self.dialect.the_command_is_the_else(&name) {
+            // The `else` takes no parameter, and the text of the one that is
+            // there is named.
+            if let Some(parameter) = parameters.first() {
+                return Err(self.error(format!(
+                    "This line does not contain a recognized action.\n     Specifically: {parameter}"
+                )));
+            }
+            return Err(self.error("ELSE with no matching IF".to_string()));
+        }
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the number of
+        // the parameters of a command is checked at the load, and the
+        // complaint of the v1 is its own.
+        if let Some(builtin) = self.the_builtin_of_the_legacy_command(&name) {
+            let count = parameters.len();
+            if (count as u8) < builtin.min {
+                return Err(self.error(format!(
+                    "\"{}\" requires at least {} parameter{}.\n     Specifically: {}",
+                    builtin.name,
+                    builtin.min,
+                    if builtin.min == 1 { "" } else { "s" },
+                    self.the_text_of_a_legacy_command(name_at, &places, count),
+                )));
+            }
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+            // parameter that wants the name of a variable may not be blank,
+            // and the complaint of the v1 is its own.
+            for (index, parameter) in parameters.iter().enumerate() {
+                let wants_a_name = matches!(
+                    builtin.parameters.get(index),
+                    Some(crate::builtins::Parameter::Variable | crate::builtins::Parameter::Output)
+                );
+                if wants_a_name && parameter.trim().is_empty() {
+                    return Err(self.error(format!(
+                        "\"{}\" requires that parameter #{} be non-blank.\n     Specifically: {}",
+                        builtin.name,
+                        index + 1,
+                        self.the_text_of_a_legacy_command(name_at, &places, index + 1),
+                    )));
+                }
+            }
+        }
+        // The command of the v1 that has a body: the action is the rest of
+        // the line, the block, or the statement of the next line.
+        if self.dialect.the_command_has_a_body(&name) {
+            return self.parse_the_body_of_a_legacy_command(name, parameters, name_token.line);
+        }
         Ok(Node::LegacyCall { name, parameters, line: name_token.line })
+    }
+
+    /// The source of a command of the v1, from its name to the end of the
+    /// line.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal of a
+    /// command that the dialect does not have names the command, and not the
+    /// line that holds it: the `else` that is on the same line is not a part
+    /// of it.
+    fn the_source_of_the_legacy_command(&self, name_at: usize) -> String {
+        let line = self.tokens.get(name_at).map(|token| token.line).unwrap_or(0);
+        let mut end = name_at;
+        while end < self.tokens.len() && self.tokens[end].line == line {
+            end += 1;
+        }
+        the_source_of_the_tokens(self, name_at, end).trim_end().to_string()
+    }
+
+    /// The row of the command of the v1 that has this name.
+    fn the_builtin_of_the_legacy_command(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
+        self.dialect
+            .builtins()
+            .iter()
+            .find(|builtin| builtin.name.to_lowercase() == name)
+    }
+
+    /// The text of a command of the v1 that a refusal names.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text is the
+    /// text of the command, from the name of it to the end of the parameter
+    /// that is named. The command that has no parameter names the name and
+    /// the comma that comes after it.
+    fn the_text_of_a_legacy_command(
+        &self,
+        name_at: usize,
+        places: &[(usize, usize)],
+        count: usize,
+    ) -> String {
+        let end = match count.checked_sub(1).and_then(|last| places.get(last)) {
+            Some((_, end)) => *end,
+            None => {
+                // The command has no parameter: the text is the name and the
+                // comma that comes after it.
+                let comma = self.tokens.get(name_at + 1);
+                let has_a_comma = comma
+                    .map(|token| token.kind == TokenKind::Op && token.value == ",")
+                    .unwrap_or(false);
+                if has_a_comma {
+                    name_at + 2
+                } else {
+                    name_at + 1
+                }
+            }
+        };
+        self.the_verbatim_source(name_at, end)
+    }
+
+    /// The body of a command of the v1 that has a body.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IfInString`
+    /// and the `IfMsgBox` have an action: the command that is on the same
+    /// line, the block, or the statement of the next line. The `else` that
+    /// comes after the action is the action of the other side.
+    fn parse_the_body_of_a_legacy_command(
+        &mut self,
+        name: String,
+        parameters: Vec<String>,
+        line: u32,
+    ) -> Result<Node, SyntaxError> {
+        // The parameters of the command are the first ones, and the rest of
+        // the line is the action that is on the same line.
+        let own = self
+            .the_builtin_of_the_legacy_command(&name)
+            .map(|builtin| builtin.parameters.len())
+            .unwrap_or(parameters.len());
+        let (own_parameters, action) = if parameters.len() > own {
+            let action = parameters[own..].to_vec();
+            (parameters[..own].to_vec(), Some(action))
+        } else {
+            (parameters, None)
+        };
+        let body = match action {
+            Some(action) => vec![Node::LegacyCall {
+                name: action[0].to_lowercase(),
+                parameters: action[1..].to_vec(),
+                line,
+            }],
+            None => self.parse_block(&name, line)?,
+        };
+        // The `else` is the action of the other side, and it comes after the
+        // action of the command.
+        let mut otherwise = Vec::new();
+        self.skip_newlines();
+        if self.the_else_comes_next() {
+            self.next();
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the `else`
+            // takes no parameter, and the text of the one that is there is
+            // named.
+            if self.at_op(&[","]) {
+                self.next();
+                let mut parameters = self.the_parameters_of_a_legacy_command()?;
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // comma at the end of the line does not open a parameter, and
+                // the `else` that has it takes no action.
+                if parameters.last().map(|text| text.is_empty()).unwrap_or(false) {
+                    parameters.pop();
+                }
+                if let Some(parameter) = parameters.first() {
+                    return Err(self.error(format!(
+                        "This line does not contain a recognized action.\n     Specifically: {parameter}"
+                    )));
+                }
+            }
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the action
+            // of the `else` is the statement that is on the same line, the
+            // block that comes after it, or the statement of the next line.
+            // The `else` that is at the end of the script has no action.
+            if self.at_end_of_statement() {
+                self.end_of_statement()?;
+                if self.peek().kind != TokenKind::Eof {
+                    otherwise = self.parse_block("Else", line)?;
+                }
+            } else {
+                otherwise = self.parse_statement()?;
+            }
+        }
+        Ok(Node::LegacyIf {
+            name,
+            parameters: own_parameters,
+            body,
+            otherwise,
+            line,
+        })
+    }
+
+    /// Whether the `else` of the v1 comes next.
+    fn the_else_comes_next(&self) -> bool {
+        let Some(token) = self.tokens.get(self.position) else {
+            return false;
+        };
+        let name = token.value.to_lowercase();
+        name == "else" && self.dialect.the_command_is_the_else(&name)
     }
 
     /// The parameters of a command of the v1: the texts that the commas
@@ -2735,15 +2952,30 @@ impl Parser {
     ///
     /// The text of a parameter is the text that the script wrote, and the
     /// commas that are inside a text or inside a group of parentheses do
-    /// not separate them. A line that ends with a comma continues on the
-    /// next one.
+    /// not separate them. The line that comes begins with an operator
+    /// continues the parameter that is being read.
     fn the_parameters_of_a_legacy_command(&mut self) -> Result<Vec<String>, SyntaxError> {
-        let mut parameters = Vec::new();
+        let places = self.the_places_of_the_parameters_of_a_legacy_command()?;
+        Ok(places
+            .iter()
+            .map(|(start, end)| self.the_verbatim_source(*start, *end).trim().to_string())
+            .collect())
+    }
+
+    /// The place of each parameter of a command of the v1.
+    ///
+    /// The place of a parameter is the place of the tokens that it is made
+    /// of: the first one and the one that comes after it. The refusal of
+    /// the v1 names the text of the command, and the text is the text of
+    /// the script.
+    fn the_places_of_the_parameters_of_a_legacy_command(
+        &mut self,
+    ) -> Result<Vec<(usize, usize)>, SyntaxError> {
+        let mut places = Vec::new();
         let mut start = self.position;
         loop {
             let end = self.the_end_of_a_parameter(start);
-            let text = self.the_verbatim_source(start, end);
-            parameters.push(text.trim().to_string());
+            places.push((start, end));
             // The parser is after the parameter, and the comma that
             // separates it from the next one comes after that.
             self.position = end;
@@ -2757,7 +2989,7 @@ impl Parser {
             self.position = end + 1;
             start = self.position;
         }
-        Ok(parameters)
+        Ok(places)
     }
 
     /// The legacy assignment of the v1: `x = 5`.
@@ -2832,20 +3064,31 @@ impl Parser {
 
     /// Whether the line of a command of the v1 continues on the next one.
     ///
-    /// Measured on the binary of v1.1.37.02 on 2026-11-01: the line of a
-    /// command of the v1 continues when it ends with a comma. The v2
-    /// continues a line that ends with any operator, and the v1 does not:
-    /// the star of `FileAppend, hello, *` is the end of the command.
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the line of a
+    /// command of the v1 continues when the line that comes begins with an
+    /// operator, and not when it ends with a comma. The comma at the end of
+    /// the line of `FileAppend, hello,` does not open a parameter, and the
+    /// line that comes is a statement of its own.
+    ///
+    /// The increment and the decrement are not among the operators: the line
+    /// that begins with one of them does not continue the one before it.
     fn the_line_of_a_legacy_command_continues_at(&self, at: usize) -> bool {
-        let Some(token) = self.the_token_before(at) else { return false };
-        token.kind == TokenKind::Op && token.value == ","
+        let mut index = at;
+        while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline {
+            index += 1;
+        }
+        let Some(token) = self.tokens.get(index) else { return false };
+        if token.kind == TokenKind::Op && (token.value == "++" || token.value == "--") {
+            return false;
+        }
+        the_token_is_an_operator(token)
     }
 
     /// The place where the parameter that starts here ends.
     ///
     /// The end of the parameter is the comma that separates it from the
-    /// next one, or the end of the statement. The line that ends with a
-    /// comma continues on the next one.
+    /// next one, or the end of the statement. The line that comes begins
+    /// with an operator continues the parameter that is being read.
     fn the_end_of_a_parameter(&self, start: usize) -> usize {
         let mut index = start;
         let mut depth = 0usize;
@@ -2853,9 +3096,9 @@ impl Parser {
             let token = &self.tokens[index];
             match token.kind {
                 TokenKind::Newline => {
-                    // The line continues when the comma that ends it is
-                    // there, and the empty lines between the two are not a
-                    // part of it.
+                    // The line continues when the line that comes begins with
+                    // an operator, and the empty lines between the two are
+                    // not a part of it.
                     if !self.the_line_of_a_legacy_command_continues_at(index) {
                         break;
                     }

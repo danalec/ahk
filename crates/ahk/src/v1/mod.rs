@@ -22,6 +22,9 @@ mod variables;
 
 pub(crate) use names::wants_the_name_of_the_argument;
 pub(crate) use names::wants_the_variable_of_the_argument;
+pub(crate) use names::the_command_has_a_body;
+pub(crate) use names::the_command_is_the_else;
+pub(crate) use names::{else_of_the_v1, if_in_string, if_msg_box, if_not_in_string};
 pub use table::BUILTINS;
 pub use variables::{carries as carries_variable, refusal_of as refusal_of_variable};
 

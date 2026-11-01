@@ -966,3 +966,197 @@ fn the_var_set_capacity_of_the_v1_empties_the_variable_of_the_caller() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
 }
+
+/// The command of the v1 that has a body runs its action when the condition
+/// holds.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IfInString` holds
+/// when the text of the needle is in the variable, and its action is the
+/// statement of the next line, the block that comes after it, or the command
+/// that is on the same line.
+#[test]
+fn the_command_of_the_v1_that_has_a_body_runs_its_action_when_the_condition_holds() {
+    // The action is the statement of the next line.
+    let report = run("x := \"ABC\"\nIfInString, x, b\nFileAppend, [yes], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[yes]".to_string()]);
+
+    // The action is the block that comes after it.
+    let report = run("x := \"ABC\"\nIfInString, x, b\n{\nFileAppend, [yes], *\n}");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[yes]".to_string()]);
+
+    // The action is the command that is on the same line.
+    let report = run("x := \"ABC\"\nIfInString, x, b, FileAppend, [yes], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[yes]".to_string()]);
+
+    // The action does not run when the text of the needle is not there.
+    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
+/// The `IfNotInString` of the v1 is the other side of the `IfInString`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the action runs when
+/// the text of the needle is not in the variable.
+#[test]
+fn the_if_not_in_string_of_the_v1_is_the_other_side() {
+    let report = run("x := \"ABC\"\nIfNotInString, x, z\nFileAppend, [yes], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[yes]".to_string()]);
+
+    let report = run("x := \"ABC\"\nIfNotInString, x, b\nFileAppend, [yes], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
+/// The `IfMsgBox` of the v1 holds when the person pressed the button that is
+/// named, and the message box of this runtime has no buttons.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the action does not
+/// run, and the script goes on.
+#[test]
+fn the_if_msg_box_of_the_v1_does_not_hold() {
+    let report = run("IfMsgBox, OK\nFileAppend, [yes], *\nFileAppend, [after], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[after]".to_string()]);
+}
+
+/// The `else` of the v1 is the action of the other side of the `if` that
+/// comes before it.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `else` follows the
+/// action of the `if`, and it may be a block, the statement of the next line
+/// or the command that is on the same line.
+#[test]
+fn the_else_of_the_v1_is_the_action_of_the_other_side() {
+    // The else is a block.
+    let report = run("x := \"ABC\"\nIfInString, x, z\n{\nFileAppend, [yes], *\n}\nelse\n{\nFileAppend, [no], *\n}");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[no]".to_string()]);
+
+    // The else is the statement of the next line.
+    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse\nFileAppend, [no], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[no]".to_string()]);
+
+    // The else is the command that is on the same line.
+    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse FileAppend, [no], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[no]".to_string()]);
+
+    // The action of the `if` runs when the condition holds.
+    let report = run("x := \"ABC\"\nIfInString, x, b\nFileAppend, [yes], *\nelse\nFileAppend, [no], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[yes]".to_string()]);
+}
+
+/// The action of the `else` of the v1 may be on the same line.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the action is the
+/// command that is on the same line, and it may be an assignment too. The
+/// `else` that is at the end of the script has no action.
+#[test]
+fn the_action_of_the_else_of_the_v1_may_be_on_the_same_line() {
+    // The action is the command that is on the same line.
+    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse FileAppend, [no], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[no]".to_string()]);
+
+    // The action is the assignment that is on the same line.
+    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse y = 5");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(5)));
+
+    // The `else` that is at the end of the script has no action.
+    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
+/// The `else` of the v1 that has no `if` before it is refused at the load.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is "ELSE
+/// with no matching IF", and the `else` that carries a parameter names the
+/// parameter of it.
+#[test]
+fn the_else_of_the_v1_that_has_no_if_before_it_is_refused_at_the_load() {
+    let error = ahk::parse_with("else", dialect::v1()).expect_err("the else has no if");
+    assert_eq!(error.message, "ELSE with no matching IF");
+
+    let error = ahk::parse_with("else, something", dialect::v1())
+        .expect_err("the else takes no parameter");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: something"
+    );
+}
+
+/// The number of the parameters of a command of the v1 is checked at the load.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is the one
+/// of the v1, and it names the command and the parameters that were written.
+#[test]
+fn the_number_of_the_parameters_of_a_command_of_the_v1_is_checked_at_the_load() {
+    let error = ahk::parse_with("IfInString, x", dialect::v1())
+        .expect_err("the command wants two parameters");
+    assert_eq!(
+        error.message,
+        "\"IfInString\" requires at least 2 parameters.\n     Specifically: IfInString, x"
+    );
+
+    let error = ahk::parse_with("IfMsgBox", dialect::v1())
+        .expect_err("the command wants one parameter");
+    assert_eq!(
+        error.message,
+        "\"IfMsgBox\" requires at least 1 parameter.\n     Specifically: IfMsgBox"
+    );
+
+    // The comma at the end of the line does not open a parameter.
+    let error = ahk::parse_with("Send,", dialect::v1())
+        .expect_err("the command wants one parameter");
+    assert_eq!(
+        error.message,
+        "\"Send\" requires at least 1 parameter.\n     Specifically: Send,"
+    );
+}
+
+/// The parameter of a command of the v1 that wants the name of a variable may
+/// not be blank.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is the one
+/// of the v1, and it names the parameter that is blank.
+#[test]
+fn the_parameter_of_a_command_of_the_v1_that_wants_a_name_may_not_be_blank() {
+    let error = ahk::parse_with("IfInString, , b", dialect::v1())
+        .expect_err("the variable of the search has no name");
+    assert_eq!(
+        error.message,
+        "\"IfInString\" requires that parameter #1 be non-blank.\n     Specifically: IfInString,"
+    );
+}
+
+/// The needle of the `IfInString` of the v1 that is written as nothing is a
+/// refusal of the load, and the one that becomes empty at the run is a text
+/// that is in every text.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the needle that is
+/// written as nothing does not count, and the load refuses the command. The
+/// needle that is the substitution of a name that has no value is empty at the
+/// run, and the command holds.
+#[test]
+fn the_needle_of_the_search_of_the_v1_that_is_empty_is_a_refusal_of_the_load() {
+    let error = ahk::parse_with("x := \"ABC\"\nIfInString, x,", dialect::v1())
+        .expect_err("the needle is not there");
+    assert_eq!(
+        error.message,
+        "\"IfInString\" requires at least 2 parameters.\n     Specifically: IfInString, x"
+    );
+
+    // The needle that becomes empty at the run is in every text.
+    let report = run("x := \"ABC\"\nIfInString, x, %nothing%\nFileAppend, [yes], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[yes]".to_string()]);
+}

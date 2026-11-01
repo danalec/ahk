@@ -6298,3 +6298,53 @@ English, and the tree refuses it with the reason. The letter of a code that
 is above 127 is a byte in the v1 and a character in the tree.
 
 
+
+## 152. The command of the v1 that has a body runs its action, and the `else` is the other side
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The commands of the v1 that have a body are the `IfInString`, the
+  `IfNotInString` and the `IfMsgBox`.** The action is the command that is
+  on the same line, the block that comes after it, or the statement of the
+  next line.
+- **The `else` is the action of the other side, and it comes after the
+  action of the `if`.** Its own action is the block that comes after it,
+  the statement of the next line, or the statement that is on the same
+  line -- a command or an assignment. The `else` that is at the end of the
+  script has no action.
+- **The `else` that has no `if` before it is refused at the load.** The
+  refusal is "ELSE with no matching IF", and the `else` that carries a
+  parameter names it: "This line does not contain a recognized action.
+  Specifically: something".
+- **The number of the parameters of a command of the v1 is checked at the
+  load, and the complaint of the v1 is its own.** The refusal is `"IfInString"
+  requires at least 2 parameters.` and it names the command and the
+  parameters that were written: "Specifically: IfInString, x".
+- **The parameter of a command of the v1 that wants the name of a variable
+  may not be blank.** The refusal is `"IfInString" requires that parameter
+  #1 be non-blank.`, and the text that is named ends at the parameter that
+  is blank.
+- **The comma at the end of the line does not open a parameter.** The number
+  of the parameters of a command is the number of the commas that are not
+  the last one, and `Send,` has no parameter at all.
+- **The line of a command of the v1 continues when the line that comes
+  begins with an operator, and not when it ends with a comma.** The comma
+  at the end of the line is the rule of the v2, and the v1 does not have
+  it: `FileAppend, hello,` and the line that comes is a statement of its
+  own.
+- **The needle of the `IfInString` that is written as nothing is a refusal
+  of the load, and the one that becomes empty at the run is a text that is
+  in every text.** The needle that is written as nothing does not count,
+  and the load refuses the command; the needle that is the substitution of
+  a name that has no value is empty at the run, and the command holds.
+
+The `IfInString`, the `IfNotInString`, the `IfMsgBox` and the `Else` leave
+the pending table of the v1: the surface of the v1 has 277 values, 108
+refusals and 1 pending name, and the pending one is the `SetBatchLines`.
+
+The `if (expression)` of the v1 is not the one of the tree: the body of it is
+the statement of the next line and not the statement of the same line, and
+the tree refuses the script that writes the body of the same line. The
+`else if` that comes after a command that has a body is refused with it.
+
+
