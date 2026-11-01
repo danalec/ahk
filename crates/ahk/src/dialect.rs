@@ -46,25 +46,31 @@ pub trait Dialect: Sync {
     /// `None` means the dialect answers the name.
     fn refusal_of_variable(&self, name: &str) -> Option<&'static str>;
 
-    /// Whether the function of this name asks for the name of a variable.
+    /// The place of the argument of this function that asks for the name of a
+    /// variable.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IsSet` of
     /// the v1 asks for the name of the variable and not for its value --
     /// `IsSet(x)` asks whether the variable `x` has a value -- and the
-    /// `IsFunc` of the same binary asks for the value. The v2 has no
-    /// function that asks for a name.
-    fn wants_the_name_of_the_argument(&self, name: &str) -> bool;
+    /// dialect says so. The v2 has no function that asks for a name.
+    fn the_place_of_the_argument_that_wants_the_name(&self, name: &str) -> Option<usize> {
+        let _ = name;
+        None
+    }
 
-    /// Whether the function of this name asks for the variable itself.
+    /// The place of the argument of this function that asks for the variable
+    /// of the caller and not for its value.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the
     /// `VarSetCapacity` of the v1 takes the variable of the caller and not
-    /// its value: `VarSetCapacity(y, 100)` empties `y`, and a text that is
-    /// not the name of a variable is refused with the number zero. The v2
-    /// writes the reference in the call itself (`&y`).
-    fn wants_the_variable_of_the_argument(&self, name: &str) -> bool {
+    /// its value -- `VarSetCapacity(y, 100)` empties `y`, and a text that is
+    /// not the name of a variable is refused with the number zero -- and the
+    /// variable is the first argument. The `StrReplace` of the v1 writes the
+    /// number of the replacements into the variable of the fourth argument.
+    /// The v2 writes the reference in the call itself (`&y`).
+    fn the_place_of_the_argument_that_wants_the_variable(&self, name: &str) -> Option<usize> {
         let _ = name;
-        false
+        None
     }
 
     /// Whether the command of this name has a body.
@@ -255,8 +261,8 @@ impl Dialect for V2 {
         crate::variables::refusal_of(name)
     }
 
-    fn wants_the_name_of_the_argument(&self, _name: &str) -> bool {
-        false
+    fn the_place_of_the_argument_that_wants_the_name(&self, _name: &str) -> Option<usize> {
+        None
     }
 
     fn class_of_an_object(&self) -> &'static str {
@@ -347,12 +353,12 @@ impl Dialect for V1 {
         crate::v1::refusal_of_variable(name)
     }
 
-    fn wants_the_name_of_the_argument(&self, name: &str) -> bool {
-        crate::v1::wants_the_name_of_the_argument(name)
+    fn the_place_of_the_argument_that_wants_the_name(&self, name: &str) -> Option<usize> {
+        crate::v1::the_place_of_the_argument_that_wants_the_name(name)
     }
 
-    fn wants_the_variable_of_the_argument(&self, name: &str) -> bool {
-        crate::v1::wants_the_variable_of_the_argument(name)
+    fn the_place_of_the_argument_that_wants_the_variable(&self, name: &str) -> Option<usize> {
+        crate::v1::the_place_of_the_argument_that_wants_the_variable(name)
     }
 
     fn the_command_has_a_body(&self, name: &str) -> bool {

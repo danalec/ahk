@@ -12,6 +12,7 @@
 
 use alloc::format;
 use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 
 use crate::builtins::BuiltinHandler;
 use crate::runtime::{Runtime, RuntimeError, Value};
@@ -20,8 +21,8 @@ mod names;
 mod table;
 mod variables;
 
-pub(crate) use names::wants_the_name_of_the_argument;
-pub(crate) use names::wants_the_variable_of_the_argument;
+pub(crate) use names::the_place_of_the_argument_that_wants_the_name;
+pub(crate) use names::the_place_of_the_argument_that_wants_the_variable;
 pub(crate) use names::the_command_has_a_body;
 pub(crate) use names::the_command_is_the_else;
 pub(crate) use names::{else_of_the_v1, if_in_string, if_msg_box, if_not_in_string};
@@ -433,31 +434,210 @@ pub(crate) fn string_mid(
     the_answer_goes_into_the_first_output(rt, "StringMid", values, line, crate::builtins::sub_str, 0)
 }
 
-/// `StringGetPos, name, text, search, offset`: the place of a text.
+/// `StringGetPos, name, text, search, occurrence, offset`: the place of a text.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the place counts from
+/// zero, and it is minus one when the text is not there. The occurrence is
+/// the one that the caller wants: "L1" is the first from the left and "R1" is
+/// the first from the right, and the number that is alone is the first from
+/// the right. The offset is the number of characters that the search skips
+/// over, and it is on the side that the occurrence names.
 pub(crate) fn string_get_pos(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(rt, "StringGetPos", values, line, crate::builtins::in_str, 0)
+    let haystack = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let needle = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+    let occurrence = values.get(3).map(|value| value.to_text()).unwrap_or_default();
+    let offset = values.get(4).and_then(|value| value.to_number()).unwrap_or(0.0);
+    let (from_the_right, number) = the_occurrence_of_the_v1(&occurrence, line)?;
+    let method = rt.case_sense().the_method();
+    let offset = if offset < 0.0 { 0usize } else { offset as usize };
+    let characters: Vec<char> = haystack.chars().collect();
+    let needle_characters: Vec<char> = needle.chars().collect();
+    // The offset is on the side that the occurrence names: the left one
+    // skips the characters of the beginning, and the right one skips the
+    // characters of the end.
+    let (text, from) = if from_the_right {
+        let end = characters.len().saturating_sub(offset);
+        (characters[..end].to_vec(), 0usize)
+    } else {
+        let from = offset.min(characters.len());
+        (characters[from..].to_vec(), from)
+    };
+    let places = the_places_of_the_needle(&text, &needle_characters, method);
+    // The place is the one of the occurrence that the caller wants, and it
+    // is always relative to the first character of the text.
+    let place = if number == 0 {
+        None
+    } else if from_the_right {
+        places.iter().rev().nth(number - 1).copied()
+    } else {
+        places.get(number - 1).copied()
+    };
+    let answer = match place {
+        Some(place) => Value::Int((place + from) as i64),
+        None => Value::Int(-1),
+    };
+    write_the_answer(rt, "StringGetPos", values, 0, answer.clone(), line)?;
+    Ok(answer)
 }
 
-/// `StringReplace, name, text, search, replace, case`: a text with another.
+/// The occurrence of the `StringGetPos` of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the occurrence is the
+/// letter "L" or "R" and the number of the one that the caller wants, and
+/// the number that is alone is the first from the right. The number that is
+/// not a number is no occurrence at all, and the place is minus one.
+fn the_occurrence_of_the_v1(text: &str, line: u32) -> Result<(bool, usize), RuntimeError> {
+    let wanted = text.trim();
+    let Some(first) = wanted.chars().next() else {
+        // The occurrence that is not there is the first from the left.
+        return Ok((false, 1));
+    };
+    let from_the_right = match first {
+        'L' | 'l' => false,
+        'R' | 'r' => true,
+        // The number that is alone is the first from the right.
+        '1' => return Ok((true, 1)),
+        _ => {
+            return Err(RuntimeError {
+                message: format!("Parameter #4 invalid.\n     Specifically: {wanted}"),
+                line,
+            })
+        }
+    };
+    let number = wanted[1..].trim().parse::<usize>().unwrap_or(0);
+    Ok((from_the_right, number))
+}
+
+/// The places where the needle is in the text, with the method of the case.
+fn the_places_of_the_needle(
+    text: &[char],
+    needle: &[char],
+    method: crate::runtime::CaseMethod,
+) -> Vec<usize> {
+    let mut places = Vec::new();
+    if needle.len() > text.len() {
+        return places;
+    }
+    let wanted: String = needle.iter().collect();
+    for at in 0..=(text.len() - needle.len()) {
+        let found: String = text[at..at + needle.len()].iter().collect();
+        if crate::runtime::the_same_text(&found, &wanted, method) {
+            places.push(at);
+        }
+    }
+    places
+}
+
+/// `StringReplace, name, text, search, replace, all`: a text with another.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the first occurrence
+/// of the text is the one that is replaced, and the parameter that says
+/// "all" replaces every one of them. The sense of the case says whether the
+/// letters of the text and of the search are the same.
 pub(crate) fn string_replace(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(
-        rt,
-        "StringReplace",
-        values,
-        line,
-        crate::builtins::str_replace,
-        0,
-    )
+    let haystack = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let needle = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+    let replacement = values.get(3).map(|value| value.to_text()).unwrap_or_default();
+    let every = values.get(4).map(|value| value.to_text()).unwrap_or_default();
+    let method = rt.case_sense().the_method();
+    let limit = if the_replace_all_of_the_v1(&every) { usize::MAX } else { 1 };
+    let (answer, _) =
+        the_text_with_the_needle_in_it(&haystack, &needle, &replacement, limit, method);
+    write_the_answer(rt, "StringReplace", values, 0, Value::Text(answer.clone()), line)?;
+    Ok(Value::Text(answer))
+}
+
+/// Whether the `ReplaceAll` of the `StringReplace` of the v1 replaces every
+/// occurrence of the text.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter says
+/// "all" when it has the letter "a" -- in any case -- or the digit "1" in
+/// it, and when it begins with "useerrorlevel" -- in any case. The parameter
+/// that says nothing replaces the first occurrence and no other.
+fn the_replace_all_of_the_v1(text: &str) -> bool {
+    let wanted = text.trim();
+    if wanted.to_lowercase().starts_with("useerrorlevel") {
+        return true;
+    }
+    wanted.contains('a') || wanted.contains('A') || wanted.contains('1')
+}
+
+/// The text with the needle in it replaced by the other text, and the number
+/// of the replacements.
+///
+/// The limit is the number of the replacements that the caller allows, and the
+/// part of the text that is at the right of the last one is left as it is.
+fn the_text_with_the_needle_in_it(
+    haystack: &str,
+    needle: &str,
+    replacement: &str,
+    limit: usize,
+    method: crate::runtime::CaseMethod,
+) -> (String, usize) {
+    let characters: Vec<char> = haystack.chars().collect();
+    let needle_characters: Vec<char> = needle.chars().collect();
+    let places = the_places_of_the_needle(&characters, &needle_characters, method);
+    let mut answer = String::new();
+    let mut at = 0usize;
+    let mut count = 0usize;
+    for place in places {
+        if place < at || count >= limit {
+            break;
+        }
+        answer.extend(characters[at..place].iter());
+        answer.push_str(replacement);
+        at = place + needle_characters.len();
+        count += 1;
+    }
+    answer.extend(characters[at.min(characters.len())..].iter());
+    (answer, count)
+}
+
+/// `StrReplace(Haystack, Needle, ReplaceText, OutputVarCount, Limit)`: a text
+/// with another.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the needle is not
+/// with the case when the sense of the case is Off, and every occurrence of
+/// it is replaced when the limit is not there. The fourth parameter is the
+/// variable that receives the number of the replacements -- a bare name
+/// receives it and a text, a number or an expression does not -- and the
+/// fifth is the number of the replacements that the caller allows. The limit
+/// that is zero replaces none of them.
+pub(crate) fn str_replace(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let haystack = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let needle = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let replacement = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+    let limit = values.get(4).and_then(|value| value.to_number()).unwrap_or(-1.0);
+    let method = rt.case_sense().the_method();
+    let limit = if limit < 0.0 { usize::MAX } else { limit as usize };
+    let (answer, count) = the_text_with_the_needle_in_it(
+        &haystack,
+        &needle,
+        &replacement,
+        limit,
+        method,
+    );
+    // The number of the replacements goes into the variable of the caller,
+    // and a fourth argument that is not a variable has nowhere to go.
+    if let Some(Value::Reference(_)) = values.get(3) {
+        rt.write_reference(&values[3], Value::Int(count as i64));
+    }
+    Ok(Value::Text(answer))
 }
 
 /// `StringSplit, name, text, delimiters, chars`: the parts of a text.

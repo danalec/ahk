@@ -12,25 +12,36 @@ use alloc::string::{String, ToString};
 
 use crate::runtime::{CaseSense, FloatFormat, IntegerFormat, Runtime, RuntimeError, Value};
 
-/// Whether the function of this name asks for the name of a variable.
+/// The place of the argument of this function that asks for the name of a
+/// variable.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IsSet` asks
 /// for the name of the variable and not for its value -- `IsSet(y)` asks
 /// whether the variable `y` has a value, and not whether the value of `y`
 /// is the name of a variable -- and the `IsByRef` asks for the name as
 /// well. The `IsFunc` asks for the value.
-pub(crate) fn wants_the_name_of_the_argument(name: &str) -> bool {
-    matches!(name.to_lowercase().as_str(), "isset" | "isbyref")
+pub(crate) fn the_place_of_the_argument_that_wants_the_name(name: &str) -> Option<usize> {
+    match name.to_lowercase().as_str() {
+        "isset" | "isbyref" => Some(0),
+        _ => None,
+    }
 }
 
-/// Whether the function of this name asks for the variable of the caller.
+/// The place of the argument of this function that asks for the variable of
+/// the caller and not for its value.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the
-/// `VarSetCapacity` takes the variable itself and not its value:
+/// `VarSetCapacity` takes the variable itself and not its value --
 /// `VarSetCapacity(y, 100)` empties `y`, and a target that is not a
-/// variable is answered with zero.
-pub(crate) fn wants_the_variable_of_the_argument(name: &str) -> bool {
-    matches!(name.to_lowercase().as_str(), "varsetcapacity")
+/// variable is answered with zero -- and the variable is the first
+/// argument. The `StrReplace` takes the variable that receives the number
+/// of the replacements, and that variable is the fourth argument.
+pub(crate) fn the_place_of_the_argument_that_wants_the_variable(name: &str) -> Option<usize> {
+    match name.to_lowercase().as_str() {
+        "varsetcapacity" => Some(0),
+        "strreplace" => Some(3),
+        _ => None,
+    }
 }
 
 /// `SetFormat, Integer, H`: the format of the numbers of the v1.

@@ -2776,7 +2776,7 @@ impl Parser {
                     builtin.name,
                     builtin.min,
                     if builtin.min == 1 { "" } else { "s" },
-                    self.the_text_of_a_legacy_command(name_at, &places, count),
+                    self.the_text_of_a_legacy_command(name_at, &places),
                 )));
             }
             // Measured on the binary of v1.1.37.02 on 2026-11-02: the
@@ -2792,7 +2792,7 @@ impl Parser {
                         "\"{}\" requires that parameter #{} be non-blank.\n     Specifically: {}",
                         builtin.name,
                         index + 1,
-                        self.the_text_of_a_legacy_command(name_at, &places, index + 1),
+                        self.the_text_of_a_legacy_command(name_at, &places),
                     )));
                 }
             }
@@ -2832,16 +2832,19 @@ impl Parser {
     /// The text of a command of the v1 that a refusal names.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text is the
-    /// text of the command, from the name of it to the end of the parameter
-    /// that is named. The command that has no parameter names the name and
-    /// the comma that comes after it.
+    /// text of the command, from the name of it to the end of the **first**
+    /// parameter -- and the first one and no other, whatever the refusal is
+    /// about: `StringReplace, out, a` names `StringReplace, out` when the
+    /// command has too few parameters, and `StringReplace, out, , b` names it
+    /// too when the second parameter is blank. The command that has no
+    /// parameter names the name and the comma that comes after it, and the
+    /// first parameter that is blank adds nothing to the text.
     fn the_text_of_a_legacy_command(
         &self,
         name_at: usize,
         places: &[(usize, usize)],
-        count: usize,
     ) -> String {
-        let end = match count.checked_sub(1).and_then(|last| places.get(last)) {
+        let end = match places.first() {
             Some((_, end)) => *end,
             None => {
                 // The command has no parameter: the text is the name and the

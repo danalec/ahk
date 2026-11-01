@@ -54,6 +54,10 @@
 #   carried: the commands of the v1 that have a body run their action when
 #   the condition holds, and the `Else` is the action of the other side.
 #   Measured on the binary of v1.1.37.02 on 2026-11-02.
+# - The `StringGetPos`, the `StringReplace` and the `StrReplace` are carried
+#   with the shape of the v1: the place of the text, the first occurrence that
+#   is replaced, and the variable that receives the number of the
+#   replacements. Measured on the binary of v1.1.37.02 on 2026-11-02.
 kind	class	name	reason
 
 command		SetBatchLines	not-yet

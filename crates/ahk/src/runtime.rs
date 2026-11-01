@@ -7212,13 +7212,18 @@ impl<'a> Runtime<'a> {
         // The v1 has functions that ask for the name of a variable and not
         // for its value: `IsSet(x)` asks whether the variable `x` has a
         // value. Measured on the binary of v1.1.37.02 on 2026-11-02.
-        let wants_the_name = self.dialect.wants_the_name_of_the_argument(builtin.name);
+        let wants_the_name = self.dialect.the_place_of_the_argument_that_wants_the_name(builtin.name);
         // The v1 has functions that ask for the variable itself: the
-        // `VarSetCapacity(y, 100)` empties `y`. Measured on the binary of
-        // v1.1.37.02 on 2026-11-02.
-        let wants_the_variable = self.dialect.wants_the_variable_of_the_argument(builtin.name);
-        for argument in arguments {
-            if wants_the_variable {
+        // `VarSetCapacity(y, 100)` empties `y`, and the `StrReplace` of the
+        // v1 writes the number of the replacements into the variable of its
+        // fourth argument. Measured on the binary of v1.1.37.02 on
+        // 2026-11-02. The argument that is not a variable is a value, and
+        // the built-in has nowhere to write into.
+        let wants_the_variable = self
+            .dialect
+            .the_place_of_the_argument_that_wants_the_variable(builtin.name);
+        for (index, argument) in arguments.iter().enumerate() {
+            if wants_the_variable == Some(index) {
                 if let Node::Var { name, .. } = argument {
                     values.push(Value::Reference(Reference {
                         name: name.clone(),
@@ -7228,7 +7233,7 @@ impl<'a> Runtime<'a> {
                     continue;
                 }
             }
-            if wants_the_name {
+            if wants_the_name == Some(index) {
                 if let Node::Var { name, .. } = argument {
                     values.push(Value::Text(name.clone()));
                     continue;

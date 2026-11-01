@@ -6348,3 +6348,52 @@ the tree refuses the script that writes the body of the same line. The
 `else if` that comes after a command that has a body is refused with it.
 
 
+## 153. The searches of the v1 have the shape of the v1, and the refusal of a command names the first parameter
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The place of the `StringGetPos` of the v1 counts from zero, and it is
+  minus one when the text is not there.** The occurrence is the one that the
+  caller wants: "L2" is the second from the left and "R1" is the first from
+  the right, and the number that is alone is the first from the right. The
+  offset is the number of the characters that the search skips over, and it
+  is on the side that the occurrence names.
+- **The occurrence of the `StringGetPos` that is not one is refused.** The
+  refusal is "Parameter #4 invalid." and it names the occurrence that was
+  written.
+- **The `StringReplace` of the v1 replaces the first occurrence of the text.**
+  The parameter that says "all" replaces every one of them, and it says it
+  with a letter: the parameter says "all" when it has the letter "a" -- in
+  any case -- or the digit "1" in it, and when it begins with "useerrorlevel"
+  -- in any case. The parameter that says nothing replaces the first
+  occurrence and no other.
+- **The `StrReplace` of the v1 is a function, and its fourth parameter is the
+  variable that receives the number of the replacements.** It is a variable
+  and not a name of one: a text, a number or an expression has nowhere to go,
+  and the number is written nowhere. The fifth parameter is the number of the
+  replacements that the caller allows, and the limit that is zero replaces
+  none of them. The variable of a function is the one of the function, and the
+  word `global` is what makes it the one of the script.
+- **The refusal of a command of the v1 names the first parameter of it, and
+  not the parameter that the refusal is about.** The text that is named is the
+  text of the command, from the name of it to the end of the first parameter:
+  `StringReplace, out, a` names `StringReplace, out` when the command has too
+  few parameters, and `StringReplace, out, , b` names it too when the second
+  parameter is blank. The command that has no parameter names the name and the
+  comma that comes after it, and the first parameter that is blank adds
+  nothing to the text.
+- **The place of an argument that wants the variable of the caller is a place,
+  and not a flag.** The `VarSetCapacity` of the v1 wants the variable of the
+  caller in its first argument and the `StrReplace` wants it in its fourth,
+  and the argument that is not a variable is a value.
+
+The `ErrorLevel` of the v1 is not carried yet: the `StringGetPos` and the
+`StringReplace` of the v1 put their answer there, and the variable comes
+with its own block, the one of the `ErrorLevel` of the machine, because it
+touches the two dialects. The arity of the **functions** of the v1 is
+refused at the load and names the call as it was written -- "Too few
+parameters passed to function. Specifically: InStr(\"ABCabc\")" -- and the
+tree refuses it at the run and names the name of the function; it comes with
+its own block too.
+
+

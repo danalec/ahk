@@ -184,7 +184,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "StrGet", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: not_carried },
     Builtin { name: "StrLen", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: str_len },
     Builtin { name: "StrPut", kind: BuiltinKind::Function, min: 1, max: 4, variant: 100, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value], handler: not_carried },
-    Builtin { name: "StrReplace", kind: BuiltinKind::Function, min: 2, max: 5, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Output, Parameter::Value], handler: str_replace },
+    Builtin { name: "StrReplace", kind: BuiltinKind::Function, min: 2, max: 5, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Output, Parameter::Value], handler: super::str_replace },
     Builtin { name: "StrSplit", kind: BuiltinKind::Function, min: 1, max: 4, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value], handler: str_split },
     Builtin { name: "StringCaseSense", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: super::string_case_sense },
     Builtin { name: "StringGetPos", kind: BuiltinKind::Command, min: 3, max: 255, variant: 0, parameters: &[Parameter::Output, Parameter::Variable, Parameter::Value, Parameter::Value, Parameter::Value], handler: super::string_get_pos },

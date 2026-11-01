@@ -813,12 +813,14 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 21 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 63 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
 v1). The `IfInString`, the `IfNotInString`, the `IfMsgBox` and the `Else`
-were carried by the block of the body of the action (2026-11-02).
+were carried by the block of the body of the action (2026-11-02), and the
+`StringGetPos`, the `StringReplace` and the `StrReplace` by the block of the
+searches (2026-11-02).
 
 The surface of the v1 has **386** entries: **277** answer with a value,
 **108** are refused and **1** is pending. The surface of the v2 did not
@@ -851,8 +853,8 @@ force. The tree carries it since the block of the sense of the case
 the sense, the `==` is always with the case, and the `=` is always without
 it. The names that follow the sense in the v1 and that the tree carries with
 the shape of the v2 — the `StringReplace`, the `StringGetPos`, the
-`StrReplace` and the `InStr` — do not follow it yet, and the shape of the v1
-is not theirs.
+`StrReplace` and the `InStr` — follow it since the block of the searches
+(2026-11-02), with the shape of the v1.
 
 **The math and the capacity.** The `Transform` of the v1 is a command with a
 sub-command, and the `VarSetCapacity` is a function that empties the variable
@@ -882,6 +884,33 @@ next line as its body and not the statement of the same line, and the tree
 refuses the script that writes it; the `else if` that comes after a command
 that has a body is refused with it. The `SetBatchLines` is a decision of the
 plan (§5).
+
+**The searches of the v1.** The `StringGetPos`, the `StringReplace` and the
+`StrReplace` are the names that find a text in another one, and the v1 gives
+each one of them a shape of its own. The tree carries them since the block of
+the searches (2026-11-02): the place of the `StringGetPos` counts from zero
+and is minus one when the text is not there, the occurrence is "L2" or "R1"
+and the number that is alone is the first from the right, and the offset is on
+the side that the occurrence names; the `StringReplace` replaces the first
+occurrence of the text, and the parameter that says "all" says it with a
+letter — the letter "a" in any case, the digit "1", or a parameter that
+begins with "useerrorlevel"; the `StrReplace` is a function whose fourth
+parameter is the variable that receives the number of the replacements, and
+whose fifth is the number of the replacements that the caller allows.
+
+The refusal of a command of the v1 names **the first parameter** of it, and
+not the parameter that the refusal is about: `StringReplace, out, a` names
+`StringReplace, out` when the command has too few parameters, and
+`StringReplace, out, , b` names it too when the second parameter is blank.
+
+**What stays out of the searches.** The `ErrorLevel` is a variable of the v1
+that the tree does not have, and the `StringGetPos` and the `StringReplace`
+of the v1 put their answer there — it comes with the block of the
+`ErrorLevel` of the machine, and it touches the two dialects. The arity of
+the **functions** of the v1 is refused at the load and names the call as it
+was written — "Too few parameters passed to function. Specifically:
+InStr(\"ABCabc\")" — and the tree refuses it at the run and names the name of
+the function; it comes with its own block.
 
 ---
 

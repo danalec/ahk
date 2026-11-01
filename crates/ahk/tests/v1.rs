@@ -965,6 +965,12 @@ fn the_var_set_capacity_of_the_v1_empties_the_variable_of_the_caller() {
     let report = run("x := VarSetCapacity(\"hello\", 100)");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The capacity that a variable holds is the capacity that is asked for.
+    let report = run("size := 100\ny := \"hello\"\nx := VarSetCapacity(y, size)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(100)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
 }
 
 /// The command of the v1 that has a body runs its action when the condition
@@ -1159,4 +1165,233 @@ fn the_needle_of_the_search_of_the_v1_that_is_empty_is_a_refusal_of_the_load() {
     let report = run("x := \"ABC\"\nIfInString, x, %nothing%\nFileAppend, [yes], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[yes]".to_string()]);
+}
+
+/// The place of the `StringGetPos` of the v1 counts from zero.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the place of the text
+/// is the number of the characters that come before it, and it is minus one
+/// when the text is not there. The occurrence is the one that the caller
+/// wants: "L2" is the second from the left and "R1" is the first from the
+/// right. The offset is the number of characters that the search skips over.
+#[test]
+fn the_place_of_the_string_get_pos_of_the_v1_counts_from_zero() {
+    // The place of the text.
+    let report = run("text := \"banana\"\nStringGetPos, pos, text, nan");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("pos"), Some(&Value::Int(2)));
+
+    // The text that is not there.
+    let report = run("text := \"banana\"\nStringGetPos, pos, text, zzz");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("pos"), Some(&Value::Int(-1)));
+
+    // The second occurrence from the left.
+    let report = run("text := \"banana\"\nStringGetPos, pos, text, a, L2");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("pos"), Some(&Value::Int(3)));
+
+    // The first occurrence from the right.
+    let report = run("text := \"banana\"\nStringGetPos, pos, text, a, R1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("pos"), Some(&Value::Int(5)));
+
+    // The offset skips the characters of the left.
+    let report = run("text := \"banana\"\nStringGetPos, pos, text, a, , 2");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("pos"), Some(&Value::Int(3)));
+
+    // The sense of the case says whether the letters are the same.
+    let report = run("StringCaseSense, On\ntext := \"banana\"\nStringGetPos, pos, text, NAN");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("pos"), Some(&Value::Int(-1)));
+}
+
+/// The occurrence of the `StringGetPos` of the v1 that is not one is refused.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is the
+/// one of the v1, and it names the occurrence that was written.
+#[test]
+fn the_occurrence_of_the_string_get_pos_of_the_v1_that_is_not_one_is_refused() {
+    let report = run("text := \"banana\"\nStringGetPos, pos, text, a, 0");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error,
+        Some("Parameter #4 invalid.\n     Specifically: 0".to_string())
+    );
+}
+
+/// The `StringReplace` of the v1 replaces the first occurrence of the text.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the first occurrence
+/// is the one that is replaced, and the parameter that says "all" replaces
+/// every one of them. The sense of the case says whether the letters of the
+/// text and of the search are the same.
+#[test]
+fn the_string_replace_of_the_v1_replaces_the_first_occurrence_of_the_text() {
+    // The first occurrence.
+    let report = run("out := \"banana\"\nStringReplace, out, out, a, b");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Text("bbnana".to_string())));
+
+    // Every occurrence.
+    let report = run("out := \"banana\"\nStringReplace, out, out, a, b, All");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Text("bbnbnb".to_string())));
+
+    // The text that is put in the place may be nothing.
+    let report = run("out := \"banana\"\nStringReplace, out, out, a");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Text("bnana".to_string())));
+
+    // The sense of the case says whether the letters are the same.
+    let report = run("StringCaseSense, On\nout := \"banana\"\nStringReplace, out, out, A, b");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Text("banana".to_string())));
+
+    let report = run("out := \"banana\"\nStringReplace, out, out, A, b");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("out"), Some(&Value::Text("bbnana".to_string())));
+}
+
+/// The parameter of the `StringReplace` of the v1 that says "all" says it
+/// with a letter.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter says
+/// "all" when it has the letter "a" -- in any case -- or the digit "1" in
+/// it, and when it begins with "useerrorlevel" -- in any case. The parameter
+/// that says nothing replaces the first occurrence and no other.
+#[test]
+fn the_parameter_of_the_string_replace_of_the_v1_that_says_all_is_a_letter() {
+    for (parameter, answer) in [
+        ("All", "bbnbnb"),
+        ("A", "bbnbnb"),
+        ("1", "bbnbnb"),
+        ("UseErrorLevel", "bbnbnb"),
+        ("0", "bbnana"),
+        ("2", "bbnana"),
+        ("yes", "bbnana"),
+    ] {
+        let report = run(&format!(
+            "out := \"banana\"\nStringReplace, out, out, a, b, {parameter}"
+        ));
+        assert!(report.ok, "{parameter}");
+        assert_eq!(
+            report.variables.get("out"),
+            Some(&Value::Text(answer.to_string())),
+            "{parameter}"
+        );
+    }
+}
+
+/// The `StrReplace` of the v1 writes the number of the replacements into the
+/// variable of the caller.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the fourth parameter
+/// is the variable that receives the number of the replacements, and it is a
+/// variable and not a name of one -- a text, a number or an expression has
+/// nowhere to go and the number is written nowhere. The fifth parameter is
+/// the number of the replacements that the caller allows, and the limit that
+/// is zero replaces none of them. The variable of a function is the one of
+/// the function, and the word `global` is what makes it the one of the
+/// script.
+#[test]
+fn the_str_replace_of_the_v1_writes_the_number_of_the_replacements() {
+    // Every occurrence of the text is replaced when the limit is not there.
+    let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("XX".to_string())));
+
+    // The number of the replacements goes into the variable of the caller.
+    let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\", count)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("XX".to_string())));
+    assert_eq!(report.variables.get("count"), Some(&Value::Int(2)));
+
+    // The needle that is not there replaces nothing.
+    let report = run("x := StrReplace(\"abcabc\", \"zzz\", \"X\", count)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("abcabc".to_string())));
+    assert_eq!(report.variables.get("count"), Some(&Value::Int(0)));
+
+    // The limit says how many of them are replaced.
+    let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\", count, 1)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Xabc".to_string())));
+    assert_eq!(report.variables.get("count"), Some(&Value::Int(1)));
+
+    // The limit that is zero replaces none of them.
+    let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\", count, 0)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("abcabc".to_string())));
+    assert_eq!(report.variables.get("count"), Some(&Value::Int(0)));
+
+    // The fourth parameter that is not a variable has nowhere to go.
+    let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\", 1 + 1)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("XX".to_string())));
+
+    // The sense of the case says whether the letters are the same.
+    let report = run("StringCaseSense, On\nx := StrReplace(\"ABCabc\", \"abc\", \"X\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("ABCX".to_string())));
+
+    let report = run("x := StrReplace(\"ABCabc\", \"abc\", \"X\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("XX".to_string())));
+
+    // The variable of a function is the one of the function.
+    let report = run("f() {\n    x := StrReplace(\"abcabc\", \"abc\", \"X\", count)\n}\nf()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("count"), None);
+
+    // The word `global` is what makes it the one of the script.
+    let report = run(
+        "f() {\n    global count\n    x := StrReplace(\"abcabc\", \"abc\", \"X\", count)\n}\nf()",
+    );
+    assert!(report.ok);
+    assert_eq!(report.variables.get("count"), Some(&Value::Int(2)));
+}
+
+/// The refusal of a command of the v1 names the first parameter of it.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the text that the
+/// refusal names is the text of the command, from the name of it to the end
+/// of the first parameter -- and the first one and no other, whatever the
+/// refusal is about. The command that has no parameter names the name and the
+/// comma that comes after it, and the first parameter that is blank adds
+/// nothing to the text.
+#[test]
+fn the_refusal_of_a_command_of_the_v1_names_the_first_parameter() {
+    // The command that has too few parameters.
+    let error = ahk::parse_with("StringReplace, out, a", dialect::v1())
+        .expect_err("the command wants three parameters");
+    assert_eq!(
+        error.message,
+        "\"StringReplace\" requires at least 3 parameters.\n     Specifically: StringReplace, out"
+    );
+
+    // The parameter that is blank.
+    let error = ahk::parse_with("StringReplace, out, , b", dialect::v1())
+        .expect_err("the text of the command is blank");
+    assert_eq!(
+        error.message,
+        "\"StringReplace\" requires that parameter #2 be non-blank.\n     Specifically: StringReplace, out"
+    );
+
+    // The first parameter that is blank adds nothing to the text.
+    let error = ahk::parse_with("StringReplace, , a", dialect::v1())
+        .expect_err("the command wants three parameters");
+    assert_eq!(
+        error.message,
+        "\"StringReplace\" requires at least 3 parameters.\n     Specifically: StringReplace,"
+    );
+
+    // The command that has no parameter names the comma that comes after it.
+    let error = ahk::parse_with("IfMsgBox", dialect::v1())
+        .expect_err("the command wants one parameter");
+    assert_eq!(
+        error.message,
+        "\"IfMsgBox\" requires at least 1 parameter.\n     Specifically: IfMsgBox"
+    );
 }
