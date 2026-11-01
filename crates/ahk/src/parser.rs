@@ -759,6 +759,12 @@ pub struct Parser {
     /// that closes a name that the script builds is the end of it, and not
     /// the beginning of another one: `%x%` is one name.
     derefs: usize,
+    /// The loops that the parser is inside.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the `break` and the
+    /// `continue` need a loop around them, and the script is refused at the
+    /// load when there is none.
+    loops: usize,
 }
 
 /// An assignment of the script, and the place it was written.
@@ -806,6 +812,7 @@ impl Parser {
             statement_start: 0,
             bases: Vec::new(),
             derefs: 0,
+            loops: 0,
         }
     }
 
@@ -1596,11 +1603,13 @@ impl Parser {
                 "break" => {
                     self.next();
                     self.end_of_statement()?;
+                    self.the_loop_of_the_break_or_the_continue(token.line, token.column)?;
                     return Ok(vec![Node::Break { line: token.line }]);
                 }
                 "continue" => {
                     self.next();
                     self.end_of_statement()?;
+                    self.the_loop_of_the_break_or_the_continue(token.line, token.column)?;
                     return Ok(vec![Node::Continue { line: token.line }]);
                 }
                 "class" => {
@@ -1879,6 +1888,16 @@ impl Parser {
         if token.kind == TokenKind::Keyword {
             return Err(self.the_error_of_the_reserved_word(self.position));
         }
+        // Measured on the binary of v2.0.19 on 2026-11-01: the colon that is
+        // left over after an expression is the colon of a question that is
+        // not there, and it says so.
+        if token.kind == TokenKind::Op && token.value == ":" {
+            return Err(SyntaxError {
+                message: "A \":\" is missing its \"?\"".to_string(),
+                line: token.line,
+                column: token.column,
+            });
+        }
         // Measured on the binary of v2.0.19 on 2026-10-31: the token that
         // is not wanted is named, and the line of the script says where it
         // was.
@@ -1954,7 +1973,7 @@ impl Parser {
                 // A function may not contain a class.
                 let was_in_a_function = self.in_function;
                 self.in_function = true;
-                let body = self.parse_block("function", name_token.line)?;
+                let body = self.the_body_of_a_scope("function", name_token.line)?;
                 self.in_function = was_in_a_function;
                 self.check_the_labels(&body)?;
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
@@ -3135,6 +3154,45 @@ impl Parser {
         }
     }
 
+    /// The body of a loop.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the `break` and the
+    /// `continue` need a loop around them, and the count of the loops that
+    /// the parser is inside says whether there is one.
+    fn the_body_of_a_loop(&mut self, kind: &str, line: u32) -> Result<Vec<Node>, SyntaxError> {
+        self.loops += 1;
+        let body = self.parse_block(kind, line);
+        self.loops -= 1;
+        body
+    }
+
+    /// The failure of a `break` or a `continue` that has no loop around it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the message is the
+    /// one of the dialect, and it names no text.
+    fn the_loop_of_the_break_or_the_continue(&self, line: u32, column: u32) -> Result<(), SyntaxError> {
+        if self.loops > 0 {
+            return Ok(());
+        }
+        Err(SyntaxError {
+            message: "Break/Continue must be enclosed by a Loop.".to_string(),
+            line,
+            column,
+        })
+    }
+
+    /// The body of a block that is not the body of a loop.
+    ///
+    /// The body of a function is a scope of its own: the `break` and the
+    /// `continue` of it do not belong to the loop that holds the function.
+    fn the_body_of_a_scope(&mut self, kind: &str, line: u32) -> Result<Vec<Node>, SyntaxError> {
+        let loops = self.loops;
+        self.loops = 0;
+        let body = self.parse_block(kind, line);
+        self.loops = loops;
+        body
+    }
+
     /// `throw value`, or `throw` alone.
     fn parse_throw(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
@@ -3159,7 +3217,7 @@ impl Parser {
         }
         let condition = self.the_expression_of_a_statement()?;
         self.end_of_block()?;
-        let body = self.parse_block("While", token.line)?;
+        let body = self.the_body_of_a_loop("While", token.line)?;
         Ok(Node::While { condition: Box::new(condition), body, line: token.line })
     }
 
@@ -3564,7 +3622,7 @@ impl Parser {
                 // A method may not contain a class either.
                 let was_in_a_function = self.in_function;
                 self.in_function = true;
-                let body = self.parse_block("method", name_token.line)?;
+                let body = self.the_body_of_a_scope("method", name_token.line)?;
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name
                 // of a method may not begin with a number, and the name is
                 // named with it.
@@ -3870,7 +3928,7 @@ impl Parser {
         self.the_expression_is_done(self.position, false)?;
         self.end_of_block()?;
         let body_start = self.position;
-        let body = self.parse_block(&the_name_of_the_loop(&name), token.line)?;
+        let body = self.the_body_of_a_loop(&the_name_of_the_loop(&name), token.line)?;
         // The command of v2 checks its parameters when the script loads,
         // and the parameter that is not there is named.
         if kind.is_some() && arguments.is_empty() {
@@ -3948,7 +4006,7 @@ impl Parser {
         }
         self.the_expression_is_done(self.position, false)?;
         self.end_of_block()?;
-        let body = self.parse_block("For", token.line)?;
+        let body = self.the_body_of_a_loop("For", token.line)?;
         Ok(Node::For { variables, source: Box::new(source), body, line: token.line })
     }
 
@@ -4012,9 +4070,25 @@ impl Parser {
             // The ternary is not in the table: it takes two expressions
             // and a colon, and the colon belongs to it.
             if self.at_op(&["?"]) && precedence::TERNARY >= min {
+                let at = self.position;
                 let token = self.next();
                 let then = self.parse_binary(precedence::COALESCE)?;
-                self.expect_op(":")?;
+                // Measured on the binary of v2.0.19 on 2026-11-01: the
+                // question that has no colon says so, and the text that is
+                // named begins at the question mark.
+                if let Err(error) = self.expect_op(":") {
+                    if !error.message.starts_with("Missing \":\"") {
+                        return Err(error);
+                    }
+                    return Err(SyntaxError {
+                        message: format!(
+                            "A \"?\" is missing its \":\"\n     Specifically: {}",
+                            the_source_of_the_rest_of_the_line(self, at)
+                        ),
+                        line: token.line,
+                        column: token.column,
+                    });
+                }
                 let otherwise = self.parse_binary(precedence::TERNARY)?;
                 left = Node::Ternary {
                     condition: Box::new(left),
@@ -6443,6 +6517,50 @@ mod tests {
         assert!(matches!(&statements[0], Node::Goto { name, .. } if name == "\"done\""));
         let statements = parse("Goto(done)").expect("parses");
         assert!(matches!(&statements[0], Node::Goto { name, .. } if name == "done"));
+    }
+
+    #[test]
+    fn the_break_that_has_no_loop_around_it_is_refused() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the `break` and
+        // the `continue` need a loop around them, and the script is refused
+        // at the load when there is none.
+        let error = parse("break").expect_err("does not parse");
+        assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
+        let error = parse("continue").expect_err("does not parse");
+        assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
+        // The body of a function is a scope of its own: the loop that holds
+        // the function is not around the `break` of it.
+        let error = parse("f() {\n    break\n}").expect_err("does not parse");
+        assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
+    }
+
+    #[test]
+    fn the_break_inside_a_loop_is_not_refused() {
+        parse("Loop 3 {\n    break\n}").expect("parses");
+        parse("x := 0\nwhile (x < 3) {\n    x += 1\n    break\n}").expect("parses");
+        parse("for v in [1, 2] {\n    break\n}").expect("parses");
+        parse("Loop 3 {\n    if (1) {\n        break\n    }\n}").expect("parses");
+    }
+
+    #[test]
+    fn the_question_that_has_no_colon_says_so() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the question
+        // that has no colon says so, and the text that is named begins at
+        // the question mark.
+        let error = parse("x := 1 ? 2").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "A \"?\" is missing its \":\"\n     Specifically: ? 2"
+        );
+    }
+
+    #[test]
+    fn the_colon_that_is_left_over_says_so() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the colon that is
+        // left over after an expression is the colon of a question that is
+        // not there.
+        let error = parse("x := 1 : 2").expect_err("does not parse");
+        assert_eq!(error.message, "A \":\" is missing its \"?\"");
     }
 
     #[test]

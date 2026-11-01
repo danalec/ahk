@@ -5560,3 +5560,24 @@ The probes that measured the rules are in
 `egm-review/probe_array_hole.py` (13 cases), `probe_array_hole_enum.py` (7),
 `probe_array_hole_more.py` (13), `probe_array_hole_newline.py` (7),
 `probe_array_hole_key.py` (6) and `probe_array_hole_turns.py` (4).
+
+## 129. The break, the continue and the question that has no colon
+
+Measured on the binary of v2.0.19 on 2026-11-01: the shapes of the
+statements that the tree read the wrong way.
+
+- **The `break` and the `continue` need a loop around them,** and the script
+  is refused at the load when there is none: "Break/Continue must be enclosed
+  by a Loop." The body of a function is a scope of its own: the `break` of a
+  function that is written inside a loop is refused too. The tree ran the
+  script and the loop of it broke.
+- **The question that has no colon says so:** "A \"?\" is missing its \":\"",
+  and the text that is named begins at the question mark. The tree said
+  "Missing \":\"" and named the whole statement.
+- **The colon that is left over after an expression is the colon of a
+  question that is not there:** "A \":\" is missing its \"?\"", and no text
+  is named. The tree said "Unexpected \":\"" and named the line.
+
+The probes that measured the rules are in
+`egm-review/probe_break_ternary.py` (23 cases) and
+`egm-review/probe_statement_shapes2.py` (29).

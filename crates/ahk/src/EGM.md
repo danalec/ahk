@@ -281,6 +281,13 @@ is at the start of its line. The word that `parse_block` takes is the
 construct the block belongs to, and it says in its own words that the
 brace is not where it belongs.
 
+The `break` and the `continue` need a loop around them, and the parser
+counts the loops that it is inside: the body of a loop is read with
+`the_body_of_a_loop`, and the body of a function with `the_body_of_a_scope`,
+which starts the count again. A `break` or a `continue` that has no loop
+around it is refused at the load: "Break/Continue must be enclosed by a
+Loop."
+
 The body of a block may also be one statement, and the braces may be
 absent: `if (1)` and then `x := 1` on the next line is an `if` with a body.
 The body is one statement, and the `if`, the `while`, the `loop`, the `for`
@@ -1391,6 +1398,14 @@ that asks for another one is refused with the reason.
   turn has no value of its own: the variable of the loop is left without
   one, and the script that reads it is told that the variable has no
   value.
+
+- **The `break` and the `continue` need a loop around them.** The script
+  is refused at the load when there is none: "Break/Continue must be
+  enclosed by a Loop.". The body of a function is a scope of its own, and
+  the `break` of a function that is written inside a loop is refused too.
+  The question that has no colon says "A \"?\" is missing its \":\"", and
+  the colon that is left over after an expression says "A \":\" is missing
+  its \"?\"".
 
 ## Side Effects
 
