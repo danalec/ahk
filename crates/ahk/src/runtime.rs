@@ -2184,8 +2184,8 @@ impl<'a> Runtime<'a> {
                 let value = self.call(name, arguments, *line)?;
                 detail = value.to_text();
             }
-            Node::New { name, arguments, line } => {
-                let value = self.new_instance(name, arguments, *line)?;
+            Node::New { path, arguments, line } => {
+                let value = self.new_instance(path, arguments, *line)?;
                 detail = value.to_text();
             }
             Node::Block { body, .. } => {
@@ -3758,7 +3758,7 @@ impl<'a> Runtime<'a> {
     /// the v1 does not fail.
     fn new_instance(
         &mut self,
-        class: &str,
+        path: &[String],
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
@@ -3766,8 +3766,11 @@ impl<'a> Runtime<'a> {
         // class of the v1 is a variable of the script, and the `new` reads
         // it.
         if self.dialect.the_class_is_a_variable() {
-            return self.new_instance_of_the_v1(class, arguments, line);
+            return self.new_instance_of_the_v1(path, arguments, line);
         }
+        let Some(class) = path.first() else {
+            return Ok(Value::Text(String::new()));
+        };
         if !self.classes.contains_key(&class.to_lowercase()) {
             return Ok(Value::Text(String::new()));
         }
@@ -3781,14 +3784,39 @@ impl<'a> Runtime<'a> {
     /// it: `new v` makes an instance of the class that `v` holds, and the
     /// `new` of an instance makes another one of the same class. A name that
     /// holds another value makes nothing, and the v1 does not fail.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// name may be followed by the names of the classes that the class of
+    /// the value holds: the `new C.D` is an instance of D, and the
+    /// `new this.D` is an instance of the class that the instance of the
+    /// method holds.
     fn new_instance_of_the_v1(
         &mut self,
-        name: &str,
+        path: &[String],
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
-        let value = self.lookup_variable(name).or_else(|| self.class_value_of(name));
-        let Some(value) = value else { return Ok(Value::Text(String::new())) };
+        let Some(first) = path.first() else {
+            return Ok(Value::Text(String::new()));
+        };
+        // The first name of the path: the variable that holds the class, or
+        // the class of the script, or the instance of the method that runs.
+        let mut value = if first == "this" {
+            self.the_this()
+        } else {
+            match self.lookup_variable(first).or_else(|| self.class_value_of(first)) {
+                Some(value) => value,
+                None => return Ok(Value::Text(String::new())),
+            }
+        };
+        // Each name that follows is a class that the class of the value
+        // holds.
+        for name in &path[1..] {
+            let Some(class) = self.the_class_that_the_v1_holds(&value, name) else {
+                return Ok(Value::Text(String::new()));
+            };
+            value = class;
+        }
         let Value::Object(object) = &value else { return Ok(Value::Text(String::new())) };
         // The class of the value: a class carries its own name, and an
         // instance carries the class of it.
@@ -4139,6 +4167,14 @@ impl<'a> Runtime<'a> {
         if self.class_name_of(target).is_some() {
             if name.eq_ignore_ascii_case("call") {
                 let class = self.class_name_of(target).unwrap_or_default();
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-02: the class of the v1 has no `Call`, and the
+                // call of it makes nothing: the `C.Call()` is the empty
+                // text. The instance of a class of the script is made with
+                // the `new`.
+                if self.dialect.the_call_of_a_class_makes_nothing() {
+                    return Ok(Value::Text(String::new()));
+                }
                 return self.construct(&class, arguments, line);
             }
             if name.eq_ignore_ascii_case("clone") {
@@ -4157,7 +4193,15 @@ impl<'a> Runtime<'a> {
             //
             // Measured on the binary of v2.0.19 on 2026-10-31:
             // `Outer.Inner()` is an object of the class inside `Outer`.
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+            // the class of the v1 has no `Call`, and the call of the class
+            // that a class holds makes nothing: the `C.D()` is the empty
+            // text. The instance is made with the `new`.
             if let Some(value) = self.the_class_that_a_class_holds(target, name) {
+                if self.dialect.the_call_of_a_class_makes_nothing() {
+                    return Ok(Value::Text(String::new()));
+                }
                 let class = self.class_name_of(&value).unwrap_or_default();
                 return self.construct(&class, arguments, line);
             }
@@ -6211,6 +6255,15 @@ impl<'a> Runtime<'a> {
         //
         // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Call` is a
         // function whose name is "Map.Call".
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // class that a class holds is a member of the instance of it too:
+        // the `o.D` is the class that C holds.
+        if self.dialect.the_nested_class_is_a_member_of_the_instance() {
+            if let Some(value) = self.the_class_that_the_v1_holds(target, &name) {
+                return Ok((value, false));
+            }
+        }
         if self.class_name_of(target).is_some() {
             if let Some(value) = self.the_static_method_of_a_class_value(target, &name, line)? {
                 return Ok((value, false));
@@ -6715,6 +6768,32 @@ impl<'a> Runtime<'a> {
             .map(|definition| definition.name.clone())
             .unwrap_or_else(|| class.to_string());
         name.rsplit('.').next().unwrap_or(&name).to_string()
+    }
+
+    /// The class that a value holds, as a value, the way the v1 reads it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// `new` of the v1 reads the class that the value holds: the `new o.D`
+    /// is an instance of the class that the instance of C holds, and the
+    /// `new C.D` is an instance of the class that the class holds.
+    fn the_class_that_the_v1_holds(&self, target: &Value, name: &str) -> Option<Value> {
+        // The class of the value: a class carries its own name, and an
+        // instance carries the class of it.
+        let class = match self.class_name_of(target) {
+            Some(class) => class,
+            None => match target {
+                Value::Object(object) => object.borrow().class.clone(),
+                _ => return None,
+            },
+        };
+        let definition = self.classes.get(&class)?;
+        let lower = name.to_lowercase();
+        for nested in &definition.nested {
+            if self.the_name_of_a_class(nested).to_lowercase() == lower {
+                return self.class_value_of(nested);
+            }
+        }
+        None
     }
 
     /// The class that a class holds, as a value.
@@ -9399,7 +9478,7 @@ impl<'a> Runtime<'a> {
                 })
             }
             Node::Call { name, arguments, line } => self.call(name, arguments, *line),
-            Node::New { name, arguments, line } => self.new_instance(name, arguments, *line),
+            Node::New { path, arguments, line } => self.new_instance(path, arguments, *line),
             Node::MethodCall { target, name, arguments, line } => {
                 // `super.m()`: the method of the base.
                 if let Node::Super { .. } = &**target {

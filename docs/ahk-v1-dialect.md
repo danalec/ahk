@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 123 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 124 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -841,7 +841,18 @@ machine commands (2026-11-02), and the objects by the block of the objects
 class (2026-11-02), and the scope of a function by the block of the scope of
 a function (2026-11-02), and the name that begins with a number by the block
 of the name that begins with a number (2026-11-02), and the number that
-keeps the text that was written by the block of the number (2026-11-02).
+keeps the text that was written by the block of the number (2026-11-02), and
+the path of the class of the `new` by the block of the path (2026-11-02).
+
+**The path of the class.** The `new` of the v1 takes the path of the class:
+the name that follows the word and the names of the classes that it holds.
+The `new C.D` is an instance of D, and the `new o.D` is an instance of the
+class that the instance holds, and the `new this.D` is an instance of the
+class that the instance of the method holds. The class that a class holds is
+a member of the instance of it too, and the class of the v1 has no `Call`:
+the call of it makes nothing. The block of the path (2026-11-02) carried it,
+with the path of the `new` (`crates/ahk/src/ast.rs`) and the walk of it
+(`crates/ahk/src/runtime.rs`).
 
 **The number of the v1.** The number of the v1 is a "pure number": it keeps
 the text that was written -- the `x := 0x10` is "0x10", and the

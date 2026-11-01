@@ -6957,4 +6957,41 @@ the `FloatSlow` -- the tree refuses them with "Parameter #1 invalid.", and
 the v1 takes them. The mode that is slow is a rule of its own: the numbers
 are converted to texts when they are written into a variable.
 
+## 171. The `new` of the v1 takes the path of the class
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The name of the class may be followed by the names of the classes that
+  it holds.** The `new C.D` is an instance of D, and the `new o.D` is an
+  instance of the class that the instance holds, and the `new this.D` is an
+  instance of the class that the instance of the method holds. The path may
+  be longer than one name: the `new C.D.E` is an instance of E.
+- **The class of the instance is the path that was written.** The `__Class`
+  of the instance of the `new C.D` is "C.D", and the methods and the
+  properties of the class that is held are there.
+- **The class that is not there is the empty text, and the v1 does not
+  fail.** The `new Nothing.D` is the empty text, and so is the `new C.D`
+  when C holds no class that is called D.
+- **The class without a name inside a class is read, and the class that
+  holds it does not own it.** The v1 takes the `class C { class { } }`, and
+  the tree takes it too.
+- **The class that a class holds is a member of the instance of it too.**
+  The `o.D` is the class that C holds, and o is an instance of C. The v2 has
+  the class only in the class value of C.
+- **The class of the v1 has no `Call`, and the call of it makes nothing.**
+  The `C.Call()` is the empty text, and so is the `C.D()` of the class that
+  C holds. The instance of a class of the script is made with the `new`.
+  The v2 calls the class, and the call of it makes an object of it.
+
+The path is the name that follows the word and the names that follow it
+(`crates/ahk/src/ast.rs`): the `new` of the v1 carries a path and not a name.
+The parser reads it (`crates/ahk/src/parser.rs`), and the runtime walks it
+(`crates/ahk/src/runtime.rs`): the first name is the variable that holds the
+class or the class of the script, and each name that follows is a class
+that the class of the value holds.
+
+The rules are three hooks of the dialect (`crates/ahk/src/dialect.rs`): the
+class that a class holds is a member of the instance of it, and the call of
+a class makes nothing.
+
 

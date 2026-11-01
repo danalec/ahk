@@ -2048,6 +2048,86 @@ fn the_new_of_the_v1_makes_an_instance() {
     assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
 }
 
+/// The `new` of the v1 takes the path of the class.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name
+/// of the class may be followed by the name of the class that it holds: the
+/// `new C.D` is an instance of D, and the `new o.D` is an instance of the
+/// class that the instance holds, and the `new this.D` is an instance of the
+/// class that the instance of the method holds.
+#[test]
+fn the_new_of_the_v1_takes_the_path_of_the_class() {
+    // The `new C.D` is an instance of the class that C holds.
+    let report = run(
+        "class C {\n    class D {\n    }\n}\no := new C.D\nx := o.__Class\nFileAppend, %x%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["C.D".to_string()]);
+
+    // The `new o.D` is an instance of the class that the instance holds.
+    let report = run(
+        "class C {\n    class D {\n    }\n}\no := new C\np := new o.D\nx := p.__Class\nFileAppend, %x%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["C.D".to_string()]);
+
+    // The `new this.D` is an instance of the class that the instance of the
+    // method holds.
+    let report = run(
+        "class C {\n    class D {\n    }\n    M() {\n        return new this.D\n    }\n}\no := new C\np := o.M()\nx := p.__Class\nFileAppend, %x%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["C.D".to_string()]);
+
+    // The path may be longer than one name.
+    let report = run(
+        "class C {\n    class D {\n        class E {\n        }\n    }\n}\no := new C.D.E\nx := o.__Class\nFileAppend, %x%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["C.D.E".to_string()]);
+
+    // The methods and the properties of the class that is held are there.
+    let report = run(
+        "class C {\n    class D {\n        M() {\n            return 7\n        }\n        x := 5\n    }\n}\no := new C.D\ny := o.M()\nz := o.x\nFileAppend, %y% %z%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["7 5".to_string()]);
+
+    // The class that is not there is the empty text, and the v1 does not
+    // fail.
+    let report = run("class C {\n}\no := new C.D\nx := o");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+
+    // The name that is not there is the empty text too.
+    let report = run("o := new Nothing.D\nx := o");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+
+    // The class without a name inside a class is read, and the class that
+    // holds it does not own it.
+    let report = run("class C {\n    class {\n    }\n}\no := new C\nx := o");
+    assert!(report.ok);
+    assert!(report.variables.contains_key("x"));
+
+    // The class that a class holds is a member of the instance of it too.
+    let report = run(
+        "class C {\n    class D {\n    }\n}\no := new C\nx := o.D\ny := x.__Class\nFileAppend, %y%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["C.D".to_string()]);
+
+    // The class of the v1 has no `Call`, and the call of it makes nothing.
+    let report = run("class C {\n}\no := C.Call()\nx := o");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+
+    // The call of the class that a class holds makes nothing too.
+    let report = run("class C {\n    class D {\n    }\n}\no := C.D()\nx := o");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
 /// The class of an instance of the v1 is the name of the class.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the

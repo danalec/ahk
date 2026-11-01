@@ -423,7 +423,11 @@ pub enum Node {    /// A value.
     /// parenthesis that may follow the name of the class carries the
     /// arguments of the constructor. The v2 has no `new`: the class is
     /// called.
-    New { name: String, arguments: Vec<Node>, line: u32 },
+    ///
+    /// The path is the name that follows the word and the names of the
+    /// classes that it holds: the `new C.D` is an instance of D, and the
+    /// `new o.D` is an instance of the class that the instance holds.
+    New { path: Vec<String>, arguments: Vec<Node>, line: u32 },
     /// The legacy command of the v1: `Msg, text`.
     ///
     /// The parameters of a command of the v1 are texts, and the shape of

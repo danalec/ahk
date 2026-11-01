@@ -245,6 +245,28 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the class that a class holds is a member of the instance of
+    /// it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// `o.D` is the class that C holds, and o is an instance of C. The v2
+    /// has the class only in the class value of C.
+    fn the_nested_class_is_a_member_of_the_instance(&self) -> bool {
+        false
+    }
+
+    /// Whether the call of a class makes nothing.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// class of the v1 has no `Call`, and the call of it makes nothing: the
+    /// `C.Call()` is the empty text, and so is the `C.D()` of the class
+    /// that C holds. The instance of a class of the script is made with the
+    /// `new`. The v2 calls the class, and the call of it makes an object of
+    /// it.
+    fn the_call_of_a_class_makes_nothing(&self) -> bool {
+        false
+    }
+
     /// Whether a value that is not a number makes the operation blank.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the value of a
@@ -828,6 +850,19 @@ impl Dialect for V1 {
     }
 
     fn a_value_that_is_not_a_number_is_blank(&self) -> bool {
+        true
+    }
+
+    fn the_nested_class_is_a_member_of_the_instance(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // `o.D` is the class that C holds, and o is an instance of C.
+        true
+    }
+
+    fn the_call_of_a_class_makes_nothing(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // class of the v1 has no `Call`, and the instance of it is made with
+        // the `new`.
         true
     }
 

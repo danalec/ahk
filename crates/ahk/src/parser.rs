@@ -7609,16 +7609,28 @@ impl Parser {
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the name that
     /// follows the word is the class, and the parenthesis that may follow
     /// the name of the class carries the arguments of the constructor.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// name of the class may be followed by the name of the class that it
+    /// holds: the `new C.D` is an instance of D, and the `new o.D` is an
+    /// instance of the class that the instance of C holds, and the
+    /// `new this.D` is an instance of the class that the instance of the
+    /// method holds.
     fn parse_new(&mut self, line: u32) -> Result<Node, SyntaxError> {
         let token = self.next();
-        let name = token.value.to_lowercase();
+        let mut path = vec![token.value.to_lowercase()];
+        while self.at_op(&["."]) {
+            self.next();
+            let name = self.next();
+            path.push(name.value.to_lowercase());
+        }
         let mut arguments = Vec::new();
         if self.at_op(&["("]) && !self.peek().spaced {
             self.expect_op("(")?;
             arguments = self.parse_arguments()?;
             self.expect_op(")")?;
         }
-        Ok(Node::New { name, arguments, line })
+        Ok(Node::New { path, arguments, line })
     }
 
     /// The call of the v1 is recorded, and it is checked at the end of the
