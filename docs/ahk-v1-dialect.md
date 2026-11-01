@@ -813,7 +813,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 66 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 70 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -821,10 +821,11 @@ v1). The `IfInString`, the `IfNotInString`, the `IfMsgBox` and the `Else`
 were carried by the block of the body of the action (2026-11-02), the
 `StringGetPos`, the `StringReplace` and the `StrReplace` by the block of the
 searches (2026-11-02), the call of a function by the block of the call
-(2026-11-02), and the `ErrorLevel` by the block of the `ErrorLevel`
-(2026-11-02).
+(2026-11-02), the `ErrorLevel` by the block of the `ErrorLevel`
+(2026-11-02), and the name of a function by the block of the name of a
+function (2026-11-02).
 
-The surface of the v1 has **386** entries: **277** answer with a value,
+The surface of the v1 has **387** entries: **278** answer with a value,
 **108** are refused and **1** is pending. The surface of the v2 did not
 move: **828** entries, **637** values, **191** refusals and no pending.
 
@@ -935,10 +936,25 @@ command of the v1 is not a function, and a function of the v1 is not a
 command.
 
 **What stays out of the call.** The call of a function of the v1 that is
-written without the parentheses and inside an expression — `x := InStr
-"abc"` — calls the function in the v1, and the tree reads the name as a
-value and the text as another one. It comes with the block of the grammar of
-the v1.
+written without the parentheses and inside an expression -- `x := InStr
+"abc"` -- is not a call: it is the name of the function and the text, side by
+side. The measurement of the binary corrected the plan, which said that the
+call happens: the name of a function is not a value, and the text is what is
+left of it. It came with the block of the name of a function.
+
+**The name of a function.** The name of a function of the v1 is not a value:
+`x := StrLen` is a blank text, and so is the name of a function of the script
+and the name of a command. The tree carries it since the block of the name of
+a function (2026-11-02): the `IsFunc` of the v1 takes a value and not a name,
+a command of the v1 is not a function, and the `Func` of the v1 is the
+reference to the function -- it carries the name of it, whether it is built
+in, and the number of its parameters -- and the name that is not a function
+is the number zero.
+
+**What stays out of the name of a function.** The text of an object of the
+v1 is the empty text -- `Object()` is a blank text, and `Object() . "a"` is
+"a" -- and the tree gives the class of it. It comes with the block of the
+objects of the v1.
 
 ---
 

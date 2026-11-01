@@ -1639,3 +1639,132 @@ fn the_file_commands_of_the_v1_write_the_error_level() {
     assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(1)));
     assert_eq!(report.variables.get("x"), None);
 }
+
+/// The name of a function is not a value of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `x := StrLen` is a
+/// blank text, and so is the name of a function of the script and the name
+/// of a command. The `Func` is the way that the v1 has a function as a
+/// value.
+#[test]
+fn the_name_of_a_function_is_not_a_value_of_the_v1() {
+    let report = run("x := StrLen");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
+
+    let report = run("f() {\n    return 1\n}\nx := f");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
+
+    // A command of the v1 is not a value either.
+    let report = run("x := MsgBox");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
+
+    // The name that is followed by a text is a concatenation, and the name
+    // contributes nothing to it.
+    let report = run("x := StrLen \"abc\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("abc".into())));
+}
+
+/// The `IsFunc` of the v1 takes a value and not a name.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the value of the name
+/// of a function is a blank text, and so `IsFunc(StrLen)` is zero. A command
+/// of the v1 is not a function, and a reference to a function is a function.
+#[test]
+fn the_is_func_of_the_v1_takes_a_value() {
+    let report = run("n := IsFunc(StrLen)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(0)));
+
+    // A command of the v1 is not a function.
+    let report = run("n := IsFunc(\"MsgBox\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(0)));
+
+    // The name that is a command and a function at the same time is a
+    // function.
+    let report = run("n := IsFunc(\"GetKeyState\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(2)));
+
+    // A reference to a function is a function.
+    let report = run("n := IsFunc(Func(\"StrLen\"))");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(2)));
+
+    let report = run("f() {\n    return 1\n}\nn := IsFunc(Func(\"f\"))");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(1)));
+}
+
+/// The `Func` of the v1 is the reference to the function.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the reference of a
+/// built-in carries the name of it and the number of its parameters, and the
+/// most parameters of a built-in that takes any number of them is ten
+/// thousand. The name of a command is not a function, and the name of
+/// nothing is the number zero.
+#[test]
+fn the_func_of_the_v1_is_the_reference_to_the_function() {
+    let report = run("fn := Func(\"StrLen\")\nx := fn.Name");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("StrLen".into())));
+
+    let report = run("fn := Func(\"StrLen\")\nx := fn.IsBuiltIn");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    let report = run("fn := Func(\"StrLen\")\nx := fn.MinParams");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    let report = run("fn := Func(\"StrLen\")\nx := fn.MaxParams");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The built-in that takes any number of arguments.
+    let report = run("fn := Func(\"Format\")\nx := fn.MaxParams");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(10000)));
+
+    // The function of the script.
+    let report = run("f(a, b) {\n}\nfn := Func(\"f\")\nx := fn.Name");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("f".into())));
+
+    let report = run("f(a, b) {\n}\nfn := Func(\"f\")\nx := fn.IsBuiltIn");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("f(a, b) {\n}\nfn := Func(\"f\")\nx := fn.MinParams");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(2)));
+
+    // The call of the reference.
+    let report = run("fn := Func(\"StrLen\")\nx := fn.Call(\"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(3)));
+
+    // The name of a command is not a function.
+    let report = run("x := Func(\"MsgBox\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The name of nothing is the number zero.
+    let report = run("x := Func(\"nothing\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The name that is a command and a function at the same time is a
+    // function.
+    let report = run("fn := Func(\"GetKeyState\")\nx := fn.IsBuiltIn");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    let report = run("fn := Func(\"GetKeyState\")\nx := fn.MinParams");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+}

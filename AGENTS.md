@@ -6417,9 +6417,9 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   line does not contain a recognized action. Specifically: StrLen \"abc\"".
 
 The call of a function of the v1 that is written without the parentheses and
-inside an expression is not carried yet: `x := InStr "abc"` calls the
-function in the v1, and the tree reads the name as a value and the text as
-another one. It comes with the block of the grammar of the v1.
+inside an expression is not a call: `x := InStr "abc"` is the name of the
+function and the text, side by side, and the name of a function is not a
+value. It comes with the block of the name of a function (section 156).
 
 
 ## 155. The `ErrorLevel` of the v1 is the global variable of the script
@@ -6458,5 +6458,39 @@ the block that carries them. The `Process` is refused by the tree in the v1.
 The `global ErrorLevel` is refused by the v1 -- "Built-in variables must not
 be declared." -- and the tree does not refuse the `global` of any built-in
 variable.
+
+
+## 156. The name of a function is not a value of the v1, and the `Func` is the reference to it
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The name of a function is not a value in the v1.** `x := StrLen` is a
+  blank text, and so is the name of a function of the script and the name of
+  a command: `x := f` and `x := MsgBox` are blank texts too. The v2 hands the
+  function over as a value, and the value is of the class `Func`.
+- **The name that is followed by a text is a concatenation, and not a call.**
+  `x := StrLen "abc"` is "abc": the name of the function contributes nothing
+  to it. The v1 asks for the parentheses -- `StrLen("abc")` is three -- and
+  the tree refuses the call of a function that is written without them.
+- **The `IsFunc` of the v1 takes a value and not a name.** `IsFunc("StrLen")`
+  asks about the function of that name and it is two, and `IsFunc("f")` is
+  one for a function of the script. `IsFunc(StrLen)` asks about the value of
+  the name, which is a blank text, and it is zero.
+- **A command of the v1 is not a function.** `IsFunc("MsgBox")` is zero.
+- **The `Func` of the v1 is the reference to the function.** `Func("StrLen")`
+  is an object that carries the name of it, whether it is built in, and the
+  number of its parameters: `fn.Name`, `fn.IsBuiltIn`, `fn.MinParams` and
+  `fn.MaxParams`. The call of it is the call of the function: `fn.Call("abc")`
+  is three.
+- **The most parameters of a built-in that takes any number of them is ten
+  thousand.** `Func("Format").MaxParams` is 10000, and the table of the v1
+  says 255 there.
+- **The name that is not a function is the number zero.** `Func("nothing")` is
+  zero, and so is the name of a command: `Func("MsgBox")` is zero.
+
+The text of an object of the v1 is not carried yet: the v1 gives the empty
+text to an object -- `Object()` is a blank text, and `Object() . "a"` is "a"
+-- and the tree gives the class of it. It comes with the block of the objects
+of the v1.
 
 

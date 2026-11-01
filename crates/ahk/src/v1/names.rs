@@ -596,16 +596,33 @@ pub(crate) fn is_set(
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the answer is 1 for
 /// a function of the script, 2 for a built-in and 0 for a name that is
 /// neither.
+///
+/// The `IsFunc` of the v1 takes a value and not a name: `IsFunc("StrLen")`
+/// asks about the function of that name, and `IsFunc(StrLen)` asks about the
+/// value of the name -- which is a blank text, because the name of a
+/// function is not a value -- and it is zero. A command of the v1 is not a
+/// function: `IsFunc("MsgBox")` is zero.
+///
+/// A reference to a function is a function: `IsFunc(Func("StrLen"))` is 2
+/// and `IsFunc(Func("f"))` is 1.
 pub(crate) fn is_func(
     rt: &mut Runtime<'_>,
     values: &[Value],
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let value = values.first();
+    if let Some(Value::Object(object)) = value {
+        let object = object.borrow();
+        if object.class == "func" {
+            let builtin = matches!(object.value_of("isbuiltin"), Some(Value::Int(1)));
+            return Ok(Value::Int(if builtin { 2 } else { 1 }));
+        }
+    }
+    let name = value.map(|value| value.to_text()).unwrap_or_default();
     let answer = if rt.has_a_function(&name) {
         1
-    } else if rt.has_a_builtin(&name) {
+    } else if rt.has_a_builtin_function(&name) {
         2
     } else {
         0
@@ -642,25 +659,28 @@ pub(crate) fn object(
     Ok(crate::classes::object(""))
 }
 
-/// `Func(name)`: the function of the script of that name.
+/// `Func(name)`: the reference to the function of that name.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the answer is a
 /// value that carries the name of the function and the number of its
-/// parameters, and the call of it is the call of the function.
+/// parameters, and the call of it is the call of the function. The name of a
+/// built-in function is a function too, and the name of a command is not a
+/// function at all -- `Func("MsgBox")` is zero, and so is the name of
+/// nothing.
 pub(crate) fn func(
     rt: &mut Runtime<'_>,
     values: &[Value],
-    line: u32,
+    _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let name = values.first().map(|value| value.to_text()).unwrap_or_default();
-    match rt.the_function_of_the_script(&name) {
-        Some(value) => Ok(value),
-        None => Err(RuntimeError {
-            message: format!("there is no function of the script named {name}."),
-            line,
-        }),
+    if let Some(value) = rt.the_function_of_the_script(&name) {
+        return Ok(value);
     }
+    if let Some(value) = rt.the_builtin_function(&name) {
+        return Ok(value);
+    }
+    Ok(Value::Int(0))
 }
 
 /// `FileReadLine, name, file, n`: the n-th line of a file.

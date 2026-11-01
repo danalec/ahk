@@ -2932,12 +2932,20 @@ impl<'a> Runtime<'a> {
     ///
     /// A function and a class are values too: a script can hold one and
     /// hand it on, and `Func` is the class of a function.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the name of a
+    /// function of the v1 is not a value, and the name of a command of the
+    /// v1 is not a value either -- `x := StrLen` is a blank text -- and the
+    /// dialect says so.
     fn lookup(&self, name: &str) -> Option<Value> {
         if let Some(value) = self.lookup_variable(name) {
             return Some(value);
         }
         let key = name.to_lowercase();
         if let Some(function) = self.functions.get(&key) {
+            if !self.dialect.the_name_of_a_function_is_a_value() {
+                return Some(Value::Text(String::new()));
+            }
             return Some(func_value(&function.name, function));
         }
         // A built-in is a function, and a function is a value. The name
@@ -2945,7 +2953,10 @@ impl<'a> Runtime<'a> {
         // dialect, and the class of a hotkey is the class of the object
         // that the function makes.
         if let Some(builtin) = self.builtin(&key) {
-            return Some(builtin_value(builtin.name, builtin.min, builtin.max));
+            if !self.dialect.the_name_of_a_function_is_a_value() {
+                return Some(Value::Text(String::new()));
+            }
+            return Some(builtin_value(builtin.name, builtin.min, builtin.max as u32));
         }
         if self.classes.contains_key(&key) || crate::classes::is_type(&key) {
             return self.class_value_of(&key);
@@ -3226,16 +3237,36 @@ impl<'a> Runtime<'a> {
         self.functions.contains_key(&name.to_lowercase())
     }
 
-    /// Whether the dialect has the built-in of this name.
+    /// Whether the dialect has the built-in function of this name.
     ///
-    /// The table of the dialect is the one that answers: the v1 has the
-    /// names that the v2 does not have, and the `IsFunc` of the v1 asks
-    /// about them.
-    pub(crate) fn has_a_builtin(&self, name: &str) -> bool {
+    /// A command of the v1 is not a function: `IsFunc("MsgBox")` is zero in
+    /// the v1. Measured on the binary of v1.1.37.02 on 2026-11-02.
+    pub(crate) fn has_a_builtin_function(&self, name: &str) -> bool {
         self.dialect
             .builtins()
             .iter()
-            .any(|builtin| builtin.name.eq_ignore_ascii_case(name))
+            .any(|builtin| {
+                builtin.kind == crate::builtins::BuiltinKind::Function
+                    && builtin.name.eq_ignore_ascii_case(name)
+            })
+    }
+
+    /// The value of the built-in function of this name.
+    ///
+    /// The v1 asks for it: the `Func` of the v1 is a reference to a function,
+    /// and the reference of a built-in carries the name of it and the number
+    /// of its parameters. Measured on the binary of v1.1.37.02 on 2026-11-02.
+    ///
+    /// The name that is a command and a function at the same time -- the
+    /// `GetKeyState` of the v1 -- is a function: the table has a row for
+    /// each of them, and the row of the function is the one that answers.
+    pub(crate) fn the_builtin_function(&self, name: &str) -> Option<Value> {
+        let builtin = self.dialect.builtins().iter().find(|builtin| {
+            builtin.kind == crate::builtins::BuiltinKind::Function
+                && builtin.name.eq_ignore_ascii_case(name)
+        })?;
+        let max = self.dialect.the_maximum_of_the_parameters(builtin.max);
+        Some(builtin_value(builtin.name, builtin.min, max))
     }
 
     /// Whether the variable of this name is a reference.
@@ -9597,7 +9628,11 @@ fn closure_value(name: &str, function: &Function) -> Value {
 ///
 /// A built-in is a function of the runtime, and it is a value like any
 /// other: it can be held in a variable and called through it.
-fn builtin_value(name: &str, min: u8, max: u8) -> Value {
+///
+/// The most parameters that it takes is the one of the dialect: the v1
+/// counts ten thousand for a built-in that takes a variable number of
+/// arguments.
+fn builtin_value(name: &str, min: u8, max: u32) -> Value {
     let mut properties: BTreeMap<String, Property> = BTreeMap::new();
     put(&mut properties, "name", Value::Text(name.to_string()));
     put(&mut properties, "minparams", Value::Int(min as i64));

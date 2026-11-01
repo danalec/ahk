@@ -237,6 +237,28 @@ pub trait Dialect: Sync {
     fn a_value_that_is_not_a_number_is_blank(&self) -> bool {
         false
     }
+
+    /// Whether the name of a function is a value.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the name of a
+    /// function of the v1 is not a value -- `x := StrLen` is a blank text --
+    /// and the name of a command of the v1 is not a value either. The v2
+    /// hands the function over as a value, and the value is of the class
+    /// `Func`.
+    fn the_name_of_a_function_is_a_value(&self) -> bool {
+        true
+    }
+
+    /// The most parameters that a built-in function takes.
+    ///
+    /// The number of the table is the answer for the v2. Measured on the
+    /// binary of v1.1.37.02 on 2026-11-02: the `MaxParams` of the `Func` of
+    /// the v1 is ten thousand for a built-in that takes a variable number of
+    /// arguments -- `Format` takes two in the table and ten thousand in the
+    /// v1 -- and it is the number of the table for the others.
+    fn the_maximum_of_the_parameters(&self, max: u8) -> u32 {
+        max as u32
+    }
 }
 
 /// The dialect of the tree: AutoHotkey v2.0.19.
@@ -484,5 +506,21 @@ impl Dialect for V1 {
 
     fn a_value_that_is_not_a_number_is_blank(&self) -> bool {
         true
+    }
+
+    fn the_name_of_a_function_is_a_value(&self) -> bool {
+        // The name of a function of the v1 is not a value, and the name of a
+        // command of the v1 is not a value either.
+        false
+    }
+
+    fn the_maximum_of_the_parameters(&self, max: u8) -> u32 {
+        // The table of the v1 says 255 when the built-in takes any number of
+        // arguments, and the v1 counts ten thousand there.
+        if max == 255 {
+            10000
+        } else {
+            max as u32
+        }
     }
 }
