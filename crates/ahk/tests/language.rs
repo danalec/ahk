@@ -5351,3 +5351,20 @@ fn the_definition_may_be_written_with_the_fat_arrow() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2"]);
 }
+
+#[test]
+fn the_case_of_a_switch_may_name_many_values() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: a case may name
+    // many values, and it matches when the subject of the switch is one of
+    // them.
+    let (report, _desktop) = run("x := 2\nswitch (x) {\n    case 1, 2:\n        FileAppend \"one_or_two=\", \"*\"\n    default:\n        FileAppend \"other=\", \"*\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["one_or_two="]);
+    let (report, _desktop) = run("x := 9\nswitch (x) {\n    case 1, 2:\n        FileAppend \"one_or_two=\", \"*\"\n    default:\n        FileAppend \"other=\", \"*\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["other="]);
+    // The comma at the end of the list adds nothing.
+    let (report, _desktop) = run("x := 2\nswitch (x) {\n    case 1, 2,:\n        FileAppend \"one_or_two=\", \"*\"\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["one_or_two="]);
+}

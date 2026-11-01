@@ -1973,20 +1973,24 @@ impl<'a> Runtime<'a> {
                 let value = self.evaluate(subject)?;
                 let mut matched = false;
                 for case in cases {
-                    match &case.value {
-                        Some(expected) => {
-                            let expected = self.evaluate(expected)?;
-                            if values_equal(&value, &expected, false) {
-                                self.run_block(&case.body)?;
-                                matched = true;
-                                break;
-                            }
-                        }
-                        None => {
+                    if case.values.is_empty() {
+                        // The default: it matches when no other case did.
+                        self.run_block(&case.body)?;
+                        matched = true;
+                        break;
+                    }
+                    // A case may name many values, and it matches when the
+                    // subject of the switch is one of them.
+                    for expected in &case.values {
+                        let expected = self.evaluate(expected)?;
+                        if values_equal(&value, &expected, false) {
                             self.run_block(&case.body)?;
                             matched = true;
                             break;
                         }
+                    }
+                    if matched {
+                        break;
                     }
                 }
                 let _ = (matched, line);

@@ -2732,15 +2732,30 @@ impl Parser {
             }
             if self.at_keyword(&["case"]) {
                 self.next();
-                let value = self.the_expression_of_a_statement()?;
+                // Measured on the binary of v2.0.19 on 2026-11-01: a case may
+                // name many values, and it matches when the subject of the
+                // switch is one of them.
+                let mut values = Vec::new();
+                loop {
+                    values.push(self.the_expression_of_a_statement()?);
+                    if !self.at_op(&[","]) {
+                        break;
+                    }
+                    self.position += 1;
+                    self.skip_newlines();
+                    // The comma at the end of the list adds nothing.
+                    if self.at_op(&[":"]) {
+                        break;
+                    }
+                }
                 let body = self.parse_case_body()?;
-                cases.push(Case { value: Some(value), body });
+                cases.push(Case { values, body });
                 continue;
             }
             if self.at_keyword(&["default"]) {
                 self.next();
                 let body = self.parse_case_body()?;
-                cases.push(Case { value: None, body });
+                cases.push(Case { values: Vec::new(), body });
                 continue;
             }
             // Measured on the binary of v2.0.19 on 2026-10-31: v2 looks
@@ -5770,7 +5785,19 @@ mod tests {
             .expect("parses");
         let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
         assert_eq!(cases.len(), 2);
-        assert!(cases[1].value.is_none());
+        assert!(cases[1].values.is_empty());
+    }
+
+    #[test]
+    fn a_case_may_name_many_values() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: a case may name
+        // many values, and it matches when the subject of the switch is one
+        // of them.
+        let statements = parse("Switch x {\n  Case 1, 2, 3:\n    MsgBox \"one\"\n}")
+            .expect("parses");
+        let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+        assert_eq!(cases.len(), 1);
+        assert_eq!(cases[0].values.len(), 3);
     }
 
     #[test]

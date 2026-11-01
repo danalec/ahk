@@ -224,8 +224,9 @@ Two values side by side are one value: that is the implicit
 concatenation of v2, and it binds like the dot. The parser makes it a
 `Concat` as well, so the two ways of writing it are the same node.
 - `Branch { condition: Node, body: Vec<Node> }` -- one branch of an `If`.
-- `Case { value: Option<Node>, body: Vec<Node> }` -- one `Case` of a
-  `Switch`; a `None` value is the `Default`.
+- `Case { values: Vec<Node>, body: Vec<Node> }` -- one `Case` of a
+  `Switch`; an empty list of values is the `Default`. A case may name many
+  values, and it matches when the subject of the switch is one of them.
 
 ### The parser (`parser.rs`)
 
@@ -1420,6 +1421,10 @@ that asks for another one is refused with the reason.
   are the ones of a function, and the method of a class may be written the
   same way. The definition that has no body is refused at the load:
   "Invalid function declaration.".
+
+- **A case of a switch may name many values.** `case 1, 2:` matches when
+  the subject of the switch is one of them, and the comma at the end of the
+  list adds nothing. The `Default` is the case with no values.
 
 ## Side Effects
 

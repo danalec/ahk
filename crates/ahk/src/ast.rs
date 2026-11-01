@@ -294,9 +294,12 @@ pub struct Branch {
 /// One `Case` of a `Switch`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Case {
-    /// The value to match; `None` is the `Default`, which matches whatever
-    /// no other case matched.
-    pub value: Option<Node>,
+    /// The values to match; an empty list is the `Default`, which matches
+    /// whatever no other case matched.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: a case may name
+    /// many values, and it matches when the subject is one of them.
+    pub values: Vec<Node>,
     /// What runs when the case is the one that matched.
     pub body: Vec<Node>,
 }

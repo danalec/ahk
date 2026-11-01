@@ -5600,3 +5600,18 @@ may be an expression.
 
 The probe that measured the rules is in `egm-review/probe_fat_arrow.py`
 (15 cases).
+
+## 131. The case of a switch may name many values
+
+Measured on the binary of v2.0.19 on 2026-11-01: the values of a case.
+
+- **A case may name many values,** and it matches when the subject of the
+  switch is one of them: `case 1, 2:` matches one and two. The tree refused
+  the script at the load with a "Missing \":\"".
+- **The comma at the end of the list adds nothing,** the way it adds nothing
+  at the end of the parameters of a call: `case 1, 2,:` names two values.
+- **The `Default` is the case with no values,** and it runs when no other
+  case matched.
+
+The probe that measured the rules is in `egm-review/probe_case_values.py`
+(8 cases).
