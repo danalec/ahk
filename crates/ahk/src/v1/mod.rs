@@ -27,7 +27,7 @@ pub(crate) use names::the_command_has_a_body;
 pub(crate) use names::the_command_is_the_else;
 pub(crate) use names::{else_of_the_v1, if_in_string, if_msg_box, if_not_in_string};
 pub use table::BUILTINS;
-pub use variables::{carries as carries_variable, refusal_of as refusal_of_variable};
+pub use variables::{carries as carries_variable, may_not_be_declared, refusal_of as refusal_of_variable};
 
 pub(crate) use names::{
     auto_trim, file_read_line, func, input, is_by_ref, is_func, is_set, object, set_format,

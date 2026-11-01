@@ -4228,6 +4228,16 @@ impl Parser {
                     name.value
                 )));
             }
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
+            // refuses the `global` of a built-in variable at the load, and
+            // the name of it is in the refusal.
+            if kind == DeclareKind::Global {
+                if let Some(message) =
+                    self.dialect.the_refusal_of_a_global_of_a_built_in_variable(&name.value)
+                {
+                    return Err(self.error(message));
+                }
+            }
             // The value of the declaration: `global g := 1`.
             let mut text = name.value.clone();
             let value = if self.at_op(&[":="]) {

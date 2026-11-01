@@ -1929,3 +1929,112 @@ fn the_text_of_an_object_of_the_v1_is_the_empty_text() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
 }
+
+/// The `global` of a built-in variable is refused by the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses it at
+/// the load -- "Built-in variables must not be declared.\n     Specifically:
+/// ErrorLevel" -- and the v2 allows it: the global names the built-in
+/// variable of the dialect and not a variable of the script.
+#[test]
+fn the_global_of_a_built_in_variable_is_refused_by_the_v1() {
+    // Every built-in variable of the v1 is refused, and the refusal names
+    // it. Three of the variables of the v1 have a name that the v1 spells
+    // without the prefix -- the `Clipboard`, the `ComSpec` and the
+    // `ProgramFiles` -- and the `ErrorLevel` has no prefix at all.
+    for name in [
+        "ErrorLevel",
+        "A_Clipboard",
+        "Clipboard",
+        "A_ComSpec",
+        "ComSpec",
+        "A_ProgramFiles",
+        "ProgramFiles",
+        "A_Cursor",
+        "A_ScriptDir",
+    ] {
+        let error = ahk::parse_with(&format!("global {name}\nx := 1"), dialect::v1())
+            .expect_err("the built-in variable may not be declared");
+        assert_eq!(
+            error.message,
+            format!("Built-in variables must not be declared.\n     Specifically: {name}")
+        );
+    }
+
+    // A name that the v1 spells without the prefix and that is not one of
+    // those four is a variable of the script: the v1 reads it through the
+    // environment, and the environment of the machine has no `Cursor` of
+    // its own.
+    for name in ["Cursor", "Temp", "Desktop", "AhkPath"] {
+        let report = run(&format!("global {name}\nx := 1"));
+        assert!(report.ok, "the v1 accepts the global of {name}");
+    }
+
+    // The `A_Args` is a variable of the script: the interpreter creates it
+    // at the load, and the v1 does not refuse it.
+    let report = run("global A_Args\nx := 1");
+    assert!(report.ok);
+
+    // The names that the v1 does not have as variables are not refused
+    // either: the five of them are directives of the v1 and the
+    // `A_TrayMenu` is a variable of the v2.
+    for name in [
+        "A_AllowMainWindow",
+        "A_HotkeyInterval",
+        "A_HotkeyModifierTimeout",
+        "A_MaxHotkeysPerInterval",
+        "A_MenuMaskKey",
+        "A_TrayMenu",
+    ] {
+        let report = run(&format!("global {name}\nx := 1"));
+        assert!(report.ok, "the v1 accepts the global of {name}");
+    }
+
+    // The global of a variable of the script is fine.
+    let report = run("global x\nx := 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The global of a built-in function is fine too: the name is not a
+    // variable.
+    let report = run("global StrLen\nx := 1");
+    assert!(report.ok);
+}
+
+/// Every variable of the surface of the v1 is a variable that a script may
+/// not declare as global.
+///
+/// The table of the surface is the list of the names of the v1, read out of
+/// the binary, and every one of them is refused. The `A_Args` is the one
+/// that is not: the interpreter creates it at the load, and it is a
+/// variable of the script.
+#[test]
+fn every_variable_of_the_surface_of_the_v1_may_not_be_declared_global() {
+    let surface = include_str!("../reference/ahk-v1.1.37.02.surface.tsv");
+    let mut count = 0;
+    for line in surface.lines() {
+        let line = line.trim_end_matches('\r');
+        if line.is_empty() || line.starts_with('#') || line.starts_with("kind") {
+            continue;
+        }
+        let fields: Vec<&str> = line.split('\t').collect();
+        if fields[0] != "variable" {
+            continue;
+        }
+        let name = fields[2];
+        if name == "A_Args" {
+            continue;
+        }
+        count += 1;
+        let error = ahk::parse_with(&format!("global {name}\nx := 1"), dialect::v1())
+            .expect_err("the built-in variable may not be declared");
+        assert_eq!(
+            error.message,
+            format!("Built-in variables must not be declared.\n     Specifically: {name}"),
+            "the v1 refuses the global of {name}"
+        );
+    }
+    // The surface of the v1 carries 138 variables, and the `A_Args` is the
+    // one that is not refused.
+    assert_eq!(count, 137);
+}

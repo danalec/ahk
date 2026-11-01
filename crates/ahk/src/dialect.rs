@@ -12,6 +12,9 @@
 //! of the runner: without it the tree speaks the v2, and with it the tree
 //! speaks the v1.
 
+use alloc::format;
+use alloc::string::String;
+
 use crate::ast::AssignOp;
 use crate::builtins::Builtin;
 use crate::runtime::{Runtime, RuntimeError, Value};
@@ -277,6 +280,19 @@ pub trait Dialect: Sync {
     /// `Object() . "a"` is "a". The v2 gives the class of the object.
     fn an_object_has_no_text(&self) -> bool {
         false
+    }
+
+    /// The refusal of a `global` that names a built-in variable.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
+    /// it at the load -- "Built-in variables must not be declared.\n
+    ///     Specifically: ErrorLevel" -- and the refusal names the variable.
+    /// The v2 allows it: the global names the built-in variable of the
+    /// dialect and not a variable of the script.
+    ///
+    /// `None` means that the dialect allows the global.
+    fn the_refusal_of_a_global_of_a_built_in_variable(&self, _name: &str) -> Option<String> {
+        None
     }
 }
 
@@ -551,5 +567,16 @@ impl Dialect for V1 {
     fn an_object_has_no_text(&self) -> bool {
         // The text of an object of the v1 is the empty text.
         true
+    }
+
+    fn the_refusal_of_a_global_of_a_built_in_variable(&self, name: &str) -> Option<String> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
+        // the `global` of a built-in variable.
+        if crate::v1::may_not_be_declared(name) {
+            return Some(format!(
+                "Built-in variables must not be declared.\n     Specifically: {name}"
+            ));
+        }
+        None
     }
 }

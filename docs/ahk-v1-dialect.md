@@ -288,20 +288,25 @@ Measured on the two binaries:
 | `FileRead` | **command** (with an output variable) | **command** |
 | `GetKeyState` | **command and function** | **command** |
 | `StrReplace` | **function** (parameters in a different order) | **function** |
-| `Clipboard` | **does not exist** | **does not exist** either |
-| `A_Clipboard` | **variable** (the text) | **variable** (the text) — the same name |
+| `Clipboard` | **variable** (the text of the clipboard, since v1.1.35) | **does not exist** either |
+| `A_Clipboard` | **variable** (the text; the alias of the `Clipboard`) | **variable** (the text) — the same name |
 | `ClipboardAll` | **variable** (an object with all the formats) | does not exist |
 | `Length` of the array | **method**: `a.Length()` | **property**: `a.Length` |
 
 The clipboard is not a difference of names: the two dialects spell the text
 `A_Clipboard` , and what the v1 has and the v2 does not is `ClipboardAll` ,
-the object with all the formats. There is **no** name `Clipboard` in either
-dialect — measured on the v1: `Clipboard, 0, hello` →
+the object with all the formats. The name `Clipboard` is not a command and
+not a function of the v1 — measured on the v1: `Clipboard, 0, hello` →
 *"This line does not contain a recognized action. Specifically: Clipboard, 0, hello"*
 , and `Clipboard()` → *"Call to nonexistent function"* ; measured on the
 v2.0.19: `x := Clipboard` answers *"Warning: This global variable appears
-to never be assigned a value. Specifically: Clipboard"*. The two variables
-of the v1 were confirmed with the `IsSet` of the v1: `IsSet(A_Clipboard)`
+to never be assigned a value. Specifically: Clipboard"*. It is a **variable**
+of the v1 all the same, since v1.1.35: the documentation of the v1 says that
+the `Clipboard` is the built-in variable of the clipboard and that the
+`A_Clipboard` is its alias, and the binary agrees — the `global Clipboard` is
+refused with *"Built-in variables must not be declared. Specifically:
+Clipboard"* , and so is the `global A_Clipboard`. The two variables of the v1
+were confirmed with the `IsSet` of the v1: `IsSet(A_Clipboard)`
 and `IsSet(ClipboardAll)` give 1, and an invented name gives 0.
 
 One table per dialect, with the column of the kind, is what solves this.
@@ -931,8 +936,8 @@ the v1 does.
 write it as well -- the `ClipWait`, the `DllCall` and the `Run` -- are not
 carried yet: theirs is the answer of the machine and not a count of the
 failures. The `global ErrorLevel` is refused by the v1 -- "Built-in variables
-must not be declared." -- and the tree does not refuse the `global` of any
-built-in variable.
+must not be declared." -- and the tree refuses it since the block of the
+`global` (2026-11-02).
 
 **The `ErrorLevel` of the machine.** The commands of the machine write it
 too, and the tree carries it since the block of the machine commands
@@ -988,6 +993,23 @@ v1 is not the operator of it, and the instance of a class is a blank text. It
 comes with the block of the classes of the script. And the built-in that
 wants a number refuses an object with the words of the v2, where the v1
 answers a blank text: `Abs(Object())` is a blank text in the v1.
+
+**The `global` of a built-in variable.** The v1 refuses it at the load, and
+the refusal names the variable: "Built-in variables must not be declared.
+Specifically: ErrorLevel". The set of the names that are refused is the set
+of the built-in variables of the v1, spelled the way the v1 spells them:
+every one of them has the prefix `A_` , and four of them have a name without
+it -- the `Clipboard` (the `A_Clipboard` is its alias, and the documentation
+of the v1 says so), the `ComSpec` , the `ProgramFiles` and the `ErrorLevel` .
+A name without the prefix that is not one of those four is a variable of the
+script: the v1 reads it through the environment, and the environment of the
+machine has no `Cursor` of its own. The `A_Args` is the one built-in variable
+that is not refused -- the interpreter creates it at the load, and it is a
+variable of the script -- and the names that the v1 does not have as
+variables are not refused either: five of them are directives of the v1 and
+the `A_TrayMenu` is a variable of the v2. The tree carries it since the
+block of the `global` (2026-11-02), and the test that walks the surface of
+the v1 asks the tree about every variable of it.
 
 ---
 

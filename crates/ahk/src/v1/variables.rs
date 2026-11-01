@@ -118,6 +118,66 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
 /// The reason the name is not written: the v1 refuses it at the load.
 const NOT_AN_OUTPUT: &str = "Not allowed as an output variable.";
 
+/// The built-in variables of the v1 that the v1 spells without the prefix.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `Clipboard` is the variable of the clipboard and the `A_Clipboard` is
+/// its alias -- the documentation of the v1 says so -- the `ComSpec` and
+/// the `ProgramFiles` are two names of the same thing, and the
+/// `ErrorLevel` has no prefix at all.
+///
+/// Every other built-in variable of the v1 has the prefix, and a name
+/// without it is a variable of the script: the v1 reads it through the
+/// environment when the environment has it -- the `Temp` of the machine is
+/// the environment variable and not a built-in variable of the v1 -- and the
+/// environment has no `Cursor` of its own.
+const THE_WITHOUT_THE_PREFIX: &[&str] =
+    &["clipboard", "comspec", "errorlevel", "programfiles"];
+
+/// The names that the tree carries and the v1 does not have as a variable.
+///
+/// Five of them are the directives of the v1 -- the `#AllowMainWindow`,
+/// the `#HotkeyInterval`, the `#HotkeyModifierTimeout`, the
+/// `#MaxHotkeysPerInterval` and the `#MenuMaskKey` -- and the `A_TrayMenu`
+/// is a variable of the v2 that the v1 does not carry. Measured on the
+/// binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1 accepts the
+/// `global` of every one of them.
+const NOT_A_VARIABLE_OF_THE_V1: &[&str] = &[
+    "allowmainwindow",
+    "hotkeyinterval",
+    "hotkeymodifiertimeout",
+    "maxhotkeysperinterval",
+    "menumaskkey",
+    "traymenu",
+];
+
+/// Whether a script may declare the variable of this name as global.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// refuses the `global` of every built-in variable of the dialect, and the
+/// refusal names the variable. The `A_Args` is the one that is not
+/// refused: the interpreter creates it at the load, and it is a variable
+/// of the script.
+pub fn may_not_be_declared(name: &str) -> bool {
+    let wanted = name.to_lowercase();
+    if THE_WITHOUT_THE_PREFIX.contains(&wanted.as_str()) {
+        return true;
+    }
+    // Every other built-in variable of the v1 has the prefix.
+    let Some(stem) = wanted.strip_prefix("a_") else {
+        return false;
+    };
+    // The `A_Args` is a variable of the script, and not a built-in one.
+    if stem == "args" {
+        return false;
+    }
+    // The names that the v1 does not have as variables are not refused.
+    if NOT_A_VARIABLE_OF_THE_V1.contains(&stem) {
+        return false;
+    }
+    crate::variables::carries(stem) || carries(&wanted)
+}
+
 /// Whether the v1 carries the built-in variable of this name.
 ///
 /// The name is the one that the dialect spells, with the prefix that it

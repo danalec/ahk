@@ -6560,4 +6560,35 @@ and the v1 answers a blank text there: `Abs(Object())` is a blank text in the
 v1, and the tree refuses it with "Parameter #1 of Abs requires a Number, but
 received an Object.".
 
+## 159. The `global` of a built-in variable is refused by the v1
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The v1 refuses it at the load.** The refusal is "Built-in variables must
+  not be declared.\n     Specifically: ErrorLevel", and the name of the
+  variable is in it. The refusal happens in a function as well, and the
+  global of a built-in function is not refused: the name is not a variable.
+- **The set of the names that are refused is the set of the built-in
+  variables of the v1, spelled the way the v1 spells them.** Every one of
+  them has the prefix `A_`, and four of them have a name without it: the
+  `Clipboard` (the `A_Clipboard` is its alias, and the documentation of the
+  v1 says so), the `ComSpec`, the `ProgramFiles` and the `ErrorLevel`. A name
+  without the prefix that is not one of those four is a variable of the
+  script: the v1 reads it through the environment, and the environment of the
+  machine has no `Cursor` of its own.
+- **The `A_Args` is the one that is not refused.** The interpreter creates it
+  at the load, and it is a variable of the script.
+- **The names that the v1 does not have as variables are not refused.** Five
+  of them are directives of the v1 -- the `#AllowMainWindow`, the
+  `#HotkeyInterval`, the `#HotkeyModifierTimeout`, the `#MaxHotkeysPerInterval`
+  and the `#MenuMaskKey` -- and the `A_TrayMenu` is a variable of the v2.
+
+The rule lives in `crates/ahk/src/v1/variables.rs` (`may_not_be_declared`),
+and the parser asks the dialect for it, so the v2 keeps the global of a
+built-in variable: the global names the built-in variable of the dialect and
+not a variable of the script.
+
+The test that walks the surface of the v1 asks the tree about every variable
+of it, so a name that the v1 refuses and the tree does not is a failure of
+the test and not of the reader.
 
