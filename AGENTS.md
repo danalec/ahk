@@ -6810,3 +6810,39 @@ rule. The built-in variables of the v1 are another rule as well: the v1
 refuses the `A_AhkPath := 5` with "Not allowed as an output variable.", and
 the tree says the words of the v2.
 
+## 167. The grammar of a class of the v1
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The name of a class of the v1 may be a word of the language.** The v1
+  takes the name as it is written: the `class if` is a class, and the
+  `new if` makes an instance of it. The v2 refuses the name with "The
+  following reserved word must not be used as a class name.".
+- **The brace that opens a class of the v1 names the class.** The v1 names
+  the text that comes after the word "class": the `class C { }` is a
+  "Missing \"{\"\n     Specifically: C { }", and the `class C` is a
+  "Missing \"{\"\n     Specifically: C". The v2 names the whole of the line.
+- **The class of the v1 that is not closed names the class.** The v1 refuses
+  it with "Missing \"}\"\n     Specifically: C", and the name of the class is
+  in it even when the file ends inside a method of it.
+- **The word "class" alone holds no action of the v1.** The v1 refuses the
+  line with "This line does not contain a recognized action.\n
+  Specifically: class", and the word is a variable of the script when it is
+  assigned.
+- **The base of a class of the v1 is a class of the script.** The v1 has no
+  class types, and a base that is not a class of the script is refused with
+  "Unknown class.\n     Specifically: Object". The v2 takes the base of a
+  class type of the runtime.
+
+The rules are five hooks of the dialect (`crates/ahk/src/dialect.rs`): the
+name of a class may be a word of the language, the brace that opens a class
+names the class, the class that is not closed names the class, the word
+"class" alone holds an action, and the base may be a class of the runtime.
+The parser asks them (`crates/ahk/src/parser.rs`).
+
+What stays out: the name of a class of the v1 may begin with a number -- the
+`class 1C` is a class, and the `new 1C` makes an instance of it -- and the
+tree refuses it. The class inside a class of the v1 may also be used with a
+dotted name -- the `new C.D` and the `new this.D` are taken -- and the tree
+refuses the dot.
+

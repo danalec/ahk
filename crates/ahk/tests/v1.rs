@@ -2838,3 +2838,90 @@ fn the_new_of_the_v1_is_a_statement_of_its_own() {
     assert_eq!(report.output, vec!["ok".to_string()]);
 }
 
+/// The name of a class of the v1 may be a word of the language.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// takes the name of a class as it is written: the `class if` is a class, and
+/// the `new if` makes an instance of it. The v2 refuses the name with "The
+/// following reserved word must not be used as a class name.".
+#[test]
+fn the_name_of_a_class_of_the_v1_may_be_a_word_of_the_language() {
+    let report = run(
+        "class if\n{\n    Say() {\n        return \"said\"\n    }\n}\no := new if\nx := o.Say()\n\
+         FileAppend, %x%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["said".to_string()]);
+}
+
+/// The brace that opens a class of the v1 names the class.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// names the text that comes after the word "class": the `class C { }` is a
+/// "Missing \"{\"\n     Specifically: C { }", and the `class C` is a
+/// "Missing \"{\"\n     Specifically: C". The v2 names the whole of the line.
+#[test]
+fn the_brace_that_opens_a_class_of_the_v1_names_the_class() {
+    let error = ahk::parse_with("class C { }", dialect::v1())
+        .expect_err("the brace of the class is refused");
+    assert_eq!(error.message, "Missing \"{\"\n     Specifically: C { }");
+
+    let error = ahk::parse_with("class C", dialect::v1())
+        .expect_err("the brace of the class is refused");
+    assert_eq!(error.message, "Missing \"{\"\n     Specifically: C");
+}
+
+/// The class of the v1 that is not closed names the class.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// refuses it with "Missing \"}\"\n     Specifically: C", and the name of the
+/// class is in it even when the file ends inside a method of it.
+#[test]
+fn the_class_of_the_v1_that_is_not_closed_names_the_class() {
+    let error = ahk::parse_with("class C\n{\n", dialect::v1())
+        .expect_err("the brace that closes the class is refused");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: C");
+
+    let error = ahk::parse_with("class C\n{\n    Say() {\n", dialect::v1())
+        .expect_err("the brace that closes the class is refused");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: C");
+}
+
+/// The word "class" alone holds no action of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// refuses the line with "This line does not contain a recognized action.\n
+/// Specifically: class", and the word is a variable when it is assigned.
+#[test]
+fn the_word_class_alone_holds_no_action_of_the_v1() {
+    let error = ahk::parse_with("class", dialect::v1())
+        .expect_err("the word alone is refused");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: class"
+    );
+
+    // The word is a variable when it is assigned.
+    let report = run("class := 5\nFileAppend, %class%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["5".to_string()]);
+}
+
+/// The base of a class of the v1 is a class of the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1 has
+/// no class types, and a base that is not a class of the script is refused
+/// with "Unknown class.\n     Specifically: Object". The v2 takes the base of
+/// a class type of the runtime.
+#[test]
+fn the_base_of_a_class_of_the_v1_is_a_class_of_the_script() {
+    let error = ahk::parse_with("class C extends Object\n{\n}", dialect::v1())
+        .expect_err("the base is refused");
+    assert_eq!(error.message, "Unknown class.\n     Specifically: Object");
+
+    // The base that is a class of the script is taken.
+    let report = run("class A\n{\n}\nclass B extends A\n{\n}\nFileAppend, ok, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["ok".to_string()]);
+}
+

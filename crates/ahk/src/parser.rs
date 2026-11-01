@@ -1352,7 +1352,8 @@ impl Parser {
             if self.classes.contains_key(&base.to_lowercase()) {
                 continue;
             }
-            if crate::classes::is_a_name_of_a_class(base) {
+            if crate::classes::is_a_name_of_a_class(base) && self.dialect.the_base_may_be_a_class_of_the_runtime()
+            {
                 continue;
             }
             return Err(SyntaxError {
@@ -2194,6 +2195,14 @@ impl Parser {
                     if self.a_class_declaration_comes_next() {
                         return Ok(vec![self.parse_class()?]);
                     }
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-02: the v1 refuses the word alone with "This
+                    // line does not contain a recognized action.\n
+                    // Specifically: class", and the word is a variable when
+                    // it is assigned.
+                    if !self.dialect.the_word_class_alone_holds_an_action() {
+                        return Err(self.the_line_holds_no_action(token.line));
+                    }
                     let keyword = self.next();
                     let mut arguments = Vec::new();
                     if self.at_op(&["("]) && !self.peek().spaced {
@@ -2530,6 +2539,19 @@ impl Parser {
         Ok(())
     }
 
+    /// Whether the token that comes next may be the name of a class.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// takes the name of a class as it is written, and a word of the language
+    /// is a name of it: the `class if` is a class, and the `new if` makes an
+    /// instance of it.
+    fn a_class_name_may_come_next(&self) -> bool {
+        let kind = self.peek().kind;
+        kind == TokenKind::Name
+            || (kind == TokenKind::Keyword
+                && self.dialect.the_name_of_a_class_may_be_a_word_of_the_language())
+    }
+
     /// A statement that starts with a name: an assignment, a call, or the
     /// definition of a function.
     fn parse_name_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
@@ -2540,7 +2562,7 @@ impl Parser {
         // that no name follows is a variable of the script.
         if self.dialect.the_new_makes_an_instance()
             && name_token.value.eq_ignore_ascii_case("new")
-            && self.peek().kind == TokenKind::Name
+            && self.a_class_name_may_come_next()
         {
             let instance = self.parse_new(name_token.line)?;
             self.end_of_statement()?;
@@ -4786,6 +4808,9 @@ impl Parser {
         name_token: Token,
         outer: Option<&str>,
     ) -> Result<Node, SyntaxError> {
+        // The name of the class is the token that was read last: the place of
+        // it is where the text of the refusal of the brace begins.
+        let name_at = self.position - 1;
         // Measured on the binary of v2.0.19 on 2026-10-31: a function may
         // not contain a class, and the line of the class is the one that is
         // named.
@@ -4808,7 +4833,12 @@ impl Parser {
                 crate::lexer::the_refusal_of_a_word(&name_token.value),
                 Some(TheRefusal::Func)
             );
-        if name_token.kind != TokenKind::Name && !the_name_is_a_function {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // v1 takes the name of a class as it is written, and a word of the
+        // language is a name of it: the `class if` is a class.
+        let the_name_is_a_word = self.dialect.the_name_of_a_class_may_be_a_word_of_the_language()
+            && name_token.kind == TokenKind::Keyword;
+        if name_token.kind != TokenKind::Name && !the_name_is_a_function && !the_name_is_a_word {
             // Measured on the binary of v2.0.19 on 2026-10-31: a name that
             // begins with a number is refused by the lexer, a reserved word
             // is a word that cannot be a name, and the brace is what is
@@ -4874,7 +4904,7 @@ impl Parser {
         // The duplicates of the class are refused while its body is read,
         // the way v2 refuses them: the first duplicate of the body is the
         // one that is reported.
-        let members = self.parse_class_body(name_token.line, &name)?;
+        let members = self.parse_class_body(name_token.line, &name, name_at)?;
         self.the_name_is_declared_twice(&name, true, name_token.line, name_token.column)?;
         self.classes.insert(name.to_lowercase(), name.clone());
         self.defined.insert(name.to_lowercase());
@@ -4898,26 +4928,33 @@ impl Parser {
         &mut self,
         token: Token,
         name: &str,
-        open: usize,
+        class_at: usize,
     ) -> Result<(), SyntaxError> {
-        // The brace of the class is the token that was read as its name.
-        self.parse_the_members_of_a_class(token.line, name, open)?;
+        // The brace of the class is the token that was read as its name, and
+        // the name of the class is where the text of the refusal begins.
+        self.parse_the_members_of_a_class(token.line, name, class_at, class_at)?;
         Ok(())
     }
 
     /// The members of a class: the methods and the properties.
-    fn parse_class_body(&mut self, line: u32, name: &str) -> Result<TheMembersOfAClass, SyntaxError> {
+    fn parse_class_body(&mut self, line: u32, name: &str, name_at: usize) -> Result<TheMembersOfAClass, SyntaxError> {
         // The brace may be on a line of its own.
         self.skip_newlines();
         if !self.at_op(&["{"]) {
             // Measured on the binary of v2.0.19 on 2026-10-31: the class
             // needs the braces, and the line of the class is the one that is
             // named.
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+            // the v1 names the text that comes after the word "class", and
+            // the name of the class is where that text begins.
+            let text = if self.dialect.the_missing_brace_of_a_class_names_the_class() {
+                the_source_of_the_rest_of_the_line(self, name_at)
+            } else {
+                the_source_of_the_line(self, line)
+            };
             return Err(SyntaxError {
-                message: format!(
-                    "Missing \"{{\"\n     Specifically: {}",
-                    the_source_of_the_line(self, line)
-                ),
+                message: format!("Missing \"{{\"\n     Specifically: {text}"),
                 line,
                 column: self
                     .tokens
@@ -4929,7 +4966,7 @@ impl Parser {
         }
         let open = self.position;
         self.expect_op("{")?;
-        self.parse_the_members_of_a_class(line, name, open)
+        self.parse_the_members_of_a_class(line, name, name_at, open)
     }
 
     /// The members of a class, after the brace that opens them.
@@ -4937,10 +4974,22 @@ impl Parser {
         &mut self,
         line: u32,
         name: &str,
+        class_at: usize,
         open: usize,
     ) -> Result<TheMembersOfAClass, SyntaxError> {
         if !self.the_body_begins_on_the_next_line() {
-            return Err(self.error(self.the_message_of_the_opening_brace("class", line)));
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+            // the v1 names the text that comes after the word "class", and
+            // the name of the class is where that text begins.
+            let message = if self.dialect.the_missing_brace_of_a_class_names_the_class() {
+                format!(
+                    "Missing \"{{\"\n     Specifically: {}",
+                    the_source_of_the_rest_of_the_line(self, class_at)
+                )
+            } else {
+                self.the_message_of_the_opening_brace("class", line)
+            };
+            return Err(self.error(message));
         }
         let mut methods = Vec::new();
         let mut properties = Vec::new();
@@ -5260,10 +5309,19 @@ impl Parser {
                 // Measured on the binary of v2.0.19 on 2026-11-01: the body of
                 // a method may be an expression too, and the fat arrow is
                 // what says so.
+                let names_the_class = self.dialect.the_class_that_is_not_closed_names_the_class();
                 let body = if self.the_fat_arrow_comes_next() {
                     self.the_body_of_a_fat_arrow(name_token.line)?
                 } else {
-                    self.the_body_of_a_scope("method", name_token.line)?
+                    self.the_body_of_a_scope("method", name_token.line).map_err(|mut error| {
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-02: the v1 names the class when the file
+                        // ends inside a method of it.
+                        if names_the_class && error.message.starts_with("Missing \"}\"") {
+                            error.message = format!("Missing \"}}\"\n     Specifically: {name}");
+                        }
+                        error
+                    })?
                 };
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name
                 // of a method may not begin with a number, and the name is
@@ -6790,7 +6848,7 @@ impl Parser {
                 // so is a `new` that no name follows.
                 if self.dialect.the_new_makes_an_instance()
                     && token.value.eq_ignore_ascii_case("new")
-                    && self.peek().kind == TokenKind::Name
+                    && self.a_class_name_may_come_next()
                 {
                     return self.parse_new(token.line);
                 }

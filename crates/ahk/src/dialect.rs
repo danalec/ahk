@@ -465,6 +465,55 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the name of a class may be a word of the language.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// takes the name of a class as it is written, and a word of the language
+    /// is a name of it: the `class if` is a class, and the `new if` makes an
+    /// instance of it. The v2 refuses the name with "The following reserved
+    /// word must not be used as a class name.".
+    fn the_name_of_a_class_may_be_a_word_of_the_language(&self) -> bool {
+        false
+    }
+
+    /// Whether the refusal of the brace that opens a class names the class.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// names the text that comes after the word "class": the `class C { }` is
+    /// a "Missing \"{\"\n     Specifically: C { }". The v2 names the whole of
+    /// the line.
+    fn the_missing_brace_of_a_class_names_the_class(&self) -> bool {
+        false
+    }
+
+    /// Whether the class that is not closed names the class.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// refuses it with "Missing \"}\"\n     Specifically: C", and the name of
+    /// the class is in it even when the file ends inside a method of it.
+    fn the_class_that_is_not_closed_names_the_class(&self) -> bool {
+        false
+    }
+
+    /// Whether the word "class" alone holds an action.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// refuses the line with "This line does not contain a recognized
+    /// action.\n     Specifically: class". The v2 reads the word as a class
+    /// of the dialect.
+    fn the_word_class_alone_holds_an_action(&self) -> bool {
+        true
+    }
+
+    /// Whether the base of a class may be a class of the runtime.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// has no class types, and a base that is not a class of the script is
+    /// refused with "Unknown class.\n     Specifically: Object".
+    fn the_base_may_be_a_class_of_the_runtime(&self) -> bool {
+        true
+    }
+
     /// Whether the `base` of the dialect is the base of the class where the
     /// method was defined.
     ///
@@ -888,6 +937,36 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 calls
         // the built-in and not the variable that carries its name.
         true
+    }
+
+    fn the_name_of_a_class_may_be_a_word_of_the_language(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 takes
+        // the name of a class as it is written.
+        true
+    }
+
+    fn the_missing_brace_of_a_class_names_the_class(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 names
+        // the text that comes after the word "class".
+        true
+    }
+
+    fn the_class_that_is_not_closed_names_the_class(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 names
+        // the class when the brace that closes it is not there.
+        true
+    }
+
+    fn the_word_class_alone_holds_an_action(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
+        // the word alone.
+        false
+    }
+
+    fn the_base_may_be_a_class_of_the_runtime(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has no
+        // class types, and the base of a class is a class of the script.
+        false
     }
 
     fn the_base_is_the_base_of_the_class(&self) -> bool {
