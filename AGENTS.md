@@ -5886,3 +5886,49 @@ The probes that measured the rules are in `egm-review/probe_block_q31.py`
 (9 cases, the scope of the label) and in
 `egm-review/probe_block_q32.py` (6 cases, the label of a class and of a
 method).
+
+## 139. The dialect is a gate, and the shape of a parameter is a column
+
+Measured on the binary of v1.1.37.02 on 2026-11-01. The plan of the v1
+dialect is `docs/ahk-v1-dialect.md`, and this is the gate that the plan
+asks for: the phase F0.
+
+- **The dialect is a trait, and the runner opens the gate.** The tree
+  speaks the v2, and it is the dialect of every run that does not ask for
+  another one. The `--dialect=v1` asks for the legacy dialect, and the
+  parser and the runtime carry it: the tables of the v2 are the tables of
+  the v2, and the v1 has a table of its own names.
+- **The shape of a parameter is a column of the table of the built-ins.**
+  It is the value of an expression, the reference that the caller passes,
+  the name of a variable of the script, or the name of the variable that
+  the built-in writes into. The flag of the table of v2 -- the place of
+  the first parameter that is written back -- is read out of that column
+  now, and `builtins::reference_parameters` is the column turned into the
+  places of the parameters.
+- **The `=` of the v1 and the `=` of the v2 are the same.** Measured on
+  the binary of v2.0.19 on 2026-11-01: `"ABC" = "abc"` is one and
+  `"ABC" == "abc"` is zero, in the v2 as in the v1. The plan of the v1
+  dialect said that the v2 had them the other way round, and the binary
+  says otherwise. The comparison of the tree does not change.
+- **The variables of a function are local in the v1 as in the v2.**
+  Measured on the binary of v1.1.37.02 on 2026-11-01: a variable that a
+  function writes is not seen outside of it, and the word `global` is
+  what makes it so. The plan of the v1 dialect said that the variables
+  were global by default, and the binary says otherwise.
+- **The parameters of a command of the v1 are texts.** Measured on the
+  binary of v1.1.37.02 on 2026-11-01: `FileAppend, hello, *` writes
+  `hello`, `FileAppend, "hello", *` writes `"hello"` with the quotes,
+  and the shape of the parameter says what the text is -- the value of an
+  expression, the name of a variable of the script, or the name of the
+  variable that the command writes into. `StringLen, n, hello` is five
+  when `hello` is a variable of the script, and zero when it is not: the
+  second parameter of that command is the *name* of a variable.
+- **The surface is per dialect.** `--surface --dialect=v1` prints the
+  names of the v1 and where each one stands here, and the names of the v1
+  are the ones that the dialect spells: `A_Clipboard` and not
+  `Clipboard`.
+
+The probes that measured the rules are in
+`egm-review/probe_v1_semantics.py` (24 cases), in
+`egm-review/probe_v1_semantics2.py` (30 cases) and in
+`egm-review/probe_v1_semantics3.py` (21 cases).

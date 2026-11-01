@@ -115,7 +115,7 @@ on stdout and the process ends).
 | Text parameter | `StringLen, n, %x%` → `n` = 0 (the `%…%` form is the *legacy* substitution) | there is none |
 | Expression parameter | `StringLen, n, (x)` → refused: *"The following variable name contains an illegal character: "(x)""* — the `(…)` form exists only in the parameters that are expressions | the whole expression |
 | Assignment | `x = 5` assigns (and `y := 7` as well) | `:=` assigns; `=` compares |
-| Comparison | `"ABC" = "abc"` → **true**; `"ABC" == "abc"` → false; `"ABC" === "abc"` → false | `=` is strict, `==` is the one that does not distinguish case (`runtime.rs:2798-2809`) |
+| Comparison | `"ABC" = "abc"` → **true**; `"ABC" == "abc"` → false | the same as the v1: `=` does not distinguish the case and `==` does (`runtime.rs:2798-2809`, measured on the binary of v2.0.19 on 2026-11-01: `"ABC" = "abc"` is 1 and `"ABC" == "abc"` is 0) |
 | `if` | `if (x > 1)` with **one** statement and `else` — without braces | `if` with an expression and a block `{ }` |
 | *Labels* | `MyLabel:` and `goto MyLabel2` work | they do not exist |
 | Hotstring | it is a **statement**: `::btw::by the way`, or `::btw::` followed by the lines and the `return` | `Hotstring(":btw:", Callback)` — a command |
@@ -558,8 +558,8 @@ pub trait Dialect {
     fn equal_is_case_insensitive(&self) -> bool;
     /// The `%name%` is the environment variable.
     fn percent_is_environment(&self) -> bool;
-    /// The variables are global by default.
-    fn scope_is_global(&self) -> bool;
+    /// The variables of a function are local by default.
+    fn scope_is_local(&self) -> bool;
     /// The hotstring is a statement: `::btw::`.
     fn hotstrings_are_statements(&self) -> bool;
 }
@@ -757,8 +757,7 @@ v1 uses the two in the same place ( `if (a = b)` compares; `a = b` assigns).
   **The tree today interpolates `%nome%` with the variable of the script** (
   `runtime.rs:3073` ) — it is the rule of the v1 with the sense of the v2, and
   the plan corrects it per dialect.
-- The variables are global by default ( `runtime.rs:1648-1661` creates a local
-  one); the v1 needs `global` .
+- The variables of a function are **local** by default, in the v1 as in the v2 ( `runtime.rs:1648-1661` creates a local one): measured on the binary of v1.1.37.02 on 2026-11-01, a variable that a function writes is not seen outside of it, and the word `global` is what makes it so. The plan said the opposite, and the binary says otherwise.
 - The text is everything: the v1 has no integer and float apart, and the
   `Value` of the runtime has them ( `runtime.rs:57-82` ).
 - The classes of the v1: `Object` and the literal `{}` .

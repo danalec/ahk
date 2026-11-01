@@ -726,9 +726,23 @@ pub mod precedence {
 }
 
 /// Parse a script into statements.
+///
+/// The script is a script of the v2, the dialect of the tree.
 pub fn parse(source: &str) -> Result<Vec<Node>, SyntaxError> {
     let tokens = crate::lexer::tokenize(source)?;
     Parser::new(tokens).parse_script()
+}
+
+/// Parse a script into statements, in the dialect of this name.
+///
+/// The v2 is the dialect of the tree, and it is the one of every script
+/// that does not ask for another one. The v1 has a grammar of its own.
+pub fn parse_with(
+    source: &str,
+    dialect: &'static dyn crate::dialect::Dialect,
+) -> Result<Vec<Node>, SyntaxError> {
+    let tokens = crate::lexer::tokenize(source)?;
+    Parser::with_dialect(tokens, dialect).parse_script()
 }
 
 /// The members of a class: the methods, the properties, the properties
@@ -808,6 +822,13 @@ pub struct Parser {
     /// `continue` need a loop around them, and the script is refused at the
     /// load when there is none.
     loops: usize,
+    /// The dialect that the parser speaks.
+    ///
+    /// The v2 is the dialect of the tree, and it is the one of every script
+    /// that does not ask for another one. The v1 has a grammar of its own:
+    /// the legacy command, the equal sign that assigns, and the body of a
+    /// single statement.
+    dialect: &'static dyn crate::dialect::Dialect,
 }
 
 /// An assignment of the script, and the place it was written.
@@ -838,8 +859,16 @@ struct PendingLiteral {
 }
 
 impl Parser {
-    /// A parser over the tokens.
+    /// A parser over the tokens, in the dialect of the tree.
     pub fn new(tokens: Vec<Token>) -> Self {
+        Self::with_dialect(tokens, crate::dialect::v2())
+    }
+
+    /// A parser over the tokens, in the dialect of this name.
+    pub fn with_dialect(
+        tokens: Vec<Token>,
+        dialect: &'static dyn crate::dialect::Dialect,
+    ) -> Self {
         Self {
             tokens,
             position: 0,
@@ -856,6 +885,7 @@ impl Parser {
             bases: Vec::new(),
             derefs: 0,
             loops: 0,
+            dialect,
         }
     }
 

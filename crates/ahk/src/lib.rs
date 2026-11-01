@@ -107,6 +107,7 @@ pub mod builtins;
 pub mod classes;
 pub mod date;
 pub mod desktop;
+pub mod dialect;
 pub mod dialogs;
 pub mod dll;
 pub mod files;
@@ -119,12 +120,13 @@ pub mod regex;
 pub mod runtime;
 pub mod settings;
 pub mod surface;
+pub mod v1;
 pub mod variables;
 
 pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, Parameter, UnaryOp};
 pub use keys::{KeyStroke, UnknownKey, parse_spec, resolve_name};
 pub use lexer::{SyntaxError, Token, TokenKind, tokenize};
-pub use parser::{Parser, parse, precedence};
+pub use parser::{Parser, parse, parse_with, precedence};
 pub use desktop::{Desktop, WindowAnswer};
 pub use runtime::{Clock, Report, Runtime, RuntimeError, Step, Timeout, Value};
 #[cfg(feature = "std")]

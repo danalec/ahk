@@ -984,6 +984,13 @@ struct Frame {
 pub struct Runtime<'a> {
     desktop: &'a mut dyn Desktop,
     clock: ClockSource<'a>,
+    /// The dialect that the run speaks.
+    ///
+    /// The v2 is the dialect of the tree, and it is the one of every run
+    /// that does not ask for another one. The v1 is behind the gate of the
+    /// `--dialect=v1` of the runner, and it has a table of its own names
+    /// and rules of its own.
+    dialect: &'static dyn crate::dialect::Dialect,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
     /// The directory where the run started.
@@ -1150,6 +1157,7 @@ impl<'a> Runtime<'a> {
         Self {
             desktop,
             clock: ClockSource::System(SystemClock::new()),
+            dialect: crate::dialect::v2(),
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1203,6 +1211,7 @@ impl<'a> Runtime<'a> {
         Self {
             desktop,
             clock: ClockSource::Borrowed(clock),
+            dialect: crate::dialect::v2(),
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1256,6 +1265,33 @@ impl<'a> Runtime<'a> {
     pub fn with_source(mut self, source: &str) -> Self {
         self.source = source.lines().map(|line| line.to_string()).collect();
         self
+    }
+
+    /// A runtime that speaks the dialect of this name.
+    ///
+    /// The v2 is the dialect of the tree, and a runtime that does not ask
+    /// for another one speaks it. The v1 is behind the gate of the
+    /// `--dialect=v1` of the runner.
+    pub fn with_dialect(mut self, dialect: &'static dyn crate::dialect::Dialect) -> Self {
+        self.dialect = dialect;
+        self
+    }
+
+    /// The dialect that the run speaks.
+    pub fn dialect(&self) -> &'static dyn crate::dialect::Dialect {
+        self.dialect
+    }
+
+    /// The built-in of this name, in the dialect that runs.
+    ///
+    /// The name is matched the way AutoHotkey matches it: without regard
+    /// to the case.
+    fn builtin(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
+        let wanted = name.to_lowercase();
+        self.dialect
+            .builtins()
+            .iter()
+            .find(|builtin| builtin.name.to_lowercase() == wanted)
     }
 
     /// The milliseconds since the run started.
@@ -2355,7 +2391,7 @@ impl<'a> Runtime<'a> {
 
         self.steps.push(Step {
             line: statement.line(),
-            op: op_name(statement).to_string(),
+            op: op_name_in(statement, self.dialect).to_string(),
             detail,
             ok: true,
             elapsed_ms: self.clock.now_ms().saturating_sub(started),
@@ -2729,7 +2765,7 @@ impl<'a> Runtime<'a> {
         // of it comes before the class: the `Hotkey` is a function of the
         // dialect, and the class of a hotkey is the class of the object
         // that the function makes.
-        if let Some(builtin) = crate::builtins::find(&key) {
+        if let Some(builtin) = self.builtin(&key) {
             return Some(builtin_value(builtin.name, builtin.min, builtin.max));
         }
         if self.classes.contains_key(&key) || crate::classes::is_type(&key) {
@@ -3217,7 +3253,7 @@ impl<'a> Runtime<'a> {
         if crate::variables::is_built_in(name) {
             return Some("built-in variable");
         }
-        if self.functions.contains_key(&key) || crate::builtins::find(&key).is_some() {
+        if self.functions.contains_key(&key) || self.builtin(&key).is_some() {
             return Some("Func");
         }
         if self.classes.contains_key(&key) || crate::classes::is_type(&key) {
@@ -6846,7 +6882,7 @@ impl<'a> Runtime<'a> {
         // The name is not a function of the script, not a class and not a
         // built-in: it is a variable of the script, and v2 reads it. A
         // variable that has no value is a variable that has no value.
-        let Some(builtin) = crate::builtins::find(name) else {
+        let Some(builtin) = self.builtin(name) else {
             return Err(self.the_unassigned_failure(name, line));
         };
         // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
@@ -7345,7 +7381,7 @@ impl<'a> Runtime<'a> {
         line: u32,
         route: Route,
     ) -> Result<Value, RuntimeFailure> {
-        let Some(builtin) = crate::builtins::find(name) else {
+        let Some(builtin) = self.builtin(name) else {
             return Err(RuntimeFailure::Error(RuntimeError {
                 message: "Call to nonexistent function.".into(),
                 line,
@@ -9101,21 +9137,43 @@ fn collect_the_labels(body: &[Node], labels: &mut Vec<String>) {
     }
 }
 
+/// The built-in of this name, in the dialect that runs.
+///
+/// The name is matched the way AutoHotkey matches it: without regard
+/// to the case.
+pub fn the_builtin_in(
+    dialect: &'static dyn crate::dialect::Dialect,
+    name: &str,
+) -> Option<&'static crate::builtins::Builtin> {
+    let wanted = name.to_lowercase();
+    dialect
+        .builtins()
+        .iter()
+        .find(|builtin| builtin.name.to_lowercase() == wanted)
+}
 /// The name a statement is reported under.
 pub fn op_name(statement: &Node) -> &str {
+    op_name_in(statement, crate::dialect::v2())
+}
+
+/// The name a statement is reported under, in the dialect of the run.
+pub fn op_name_in<'a>(
+    statement: &'a Node,
+    dialect: &'static dyn crate::dialect::Dialect,
+) -> &'a str {
     match statement {
         Node::Assign { .. } => "Assign",
         Node::AssignIndex { .. } => "AssignIndex",
         // A call to a built-in is reported under the name of the built-in,
         // the way AutoHotkey reports a command.
-        Node::Call { name, .. } => match crate::builtins::find(name) {
+        Node::Call { name, .. } => match the_builtin_in(dialect, name) {
             Some(builtin) => builtin.name,
             None => "Call",
         },
         Node::Expression { value, .. } => match the_call_of(value) {
             // The statement reads the member of the answer of a call, and
             // it is still the call that the report names.
-            Some(name) => match crate::builtins::find(name) {
+            Some(name) => match the_builtin_in(dialect, name) {
                 Some(builtin) => builtin.name,
                 None => "Call",
             },

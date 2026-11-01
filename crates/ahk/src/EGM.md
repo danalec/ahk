@@ -28,7 +28,9 @@ The files, in the order the data moves through them:
 | `files.rs` | the files of the machine, in the dialect of v2 |
 | `settings.rs` | the settings of the script, and the state that keeps them |
 | `hotkeys.rs` | the hotkeys of the script: the registry and the watcher |
-| `surface.rs` | the state of every name of v2: the value it answers, or the reason it does not |
+| `surface.rs` | the state of every name of a dialect: the value it answers, or the reason it does not |
+| `dialect.rs` | the dialects that the runtime speaks: the trait, the v2 and the v1 |
+| `v1.rs` | the table of the v1: the names of the legacy dialect and the shape of their parameters |
 
 The dependency between them runs one way: `parser.rs` reads `ast.rs` and
 `lexer.rs`, and `runtime.rs` reads `ast.rs`, `builtins.rs`, `classes/`,
@@ -53,6 +55,7 @@ pub mod builtins;
 pub mod classes;
 pub mod date;
 pub mod desktop;
+pub mod dialect;
 pub mod dll;
 pub mod files;
 pub mod hotkeys;
@@ -62,13 +65,15 @@ pub mod parser;
 pub mod regex;
 pub mod runtime;
 pub mod settings;
+pub mod surface;
+pub mod v1;
 pub mod variables;
 
-pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, UnaryOp};
+pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, Parameter, UnaryOp};
 pub use desktop::{Desktop, WindowAnswer};
 pub use keys::{KeyStroke, UnknownKey, parse_spec, resolve_name};
 pub use lexer::{SyntaxError, Token, TokenKind, tokenize};
-pub use parser::{Parser, parse, precedence};
+pub use parser::{Parser, parse, parse_with, precedence};
 pub use runtime::{Clock, Report, Runtime, RuntimeError, Step, Timeout, Value};
 #[cfg(feature = "std")]
 pub use runtime::SystemClock;
@@ -713,10 +718,10 @@ not while the body of a `try` runs.
 
 ### The built-in table (`builtins.rs`)
 
-- `Builtin { name, kind, min, max, variant, handler }` -- one name of the
+- `Builtin { name, kind, min, max, variant, parameters, handler }` -- one name of the
   table: the name as v2 spells it, which of the two tables of the binary
   it came from, the fewest and the most parameters, the byte that picks
-  the flavour of a shared handler, and the handler. The arity of the
+  the flavour of a shared handler, the shape of each parameter, and the handler. The arity of the
   commands was measured on the binary of v2.0.19 on 2026-10-31: the call
   that asks for too few is refused at the load, and the call that asks for
   too many is refused as well, so the two refusals say where the bounds

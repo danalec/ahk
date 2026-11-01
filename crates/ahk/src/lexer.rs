@@ -207,6 +207,14 @@ const THE_DIRECTIVES: [&str; 19] = [
     "winactivateforce",
 ];
 
+/// Whether the dialect knows the directive of this name.
+///
+/// The name is the one of the directive without the hash, and the case of
+/// it does not matter.
+pub fn carries_directive(name: &str) -> bool {
+    THE_DIRECTIVES.contains(&name.to_lowercase().as_str())
+}
+
 /// Whether the character is a letter of a name.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the byte order mark is

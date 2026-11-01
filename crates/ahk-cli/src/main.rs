@@ -18,7 +18,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use ahk::parse;
+use ahk::dialect::{self, Dialect};
+use ahk::parse_with;
 use ahk::runtime::Runtime;
 use ahk::surface;
 use ahk_box::LabDesktop;
@@ -66,11 +67,12 @@ const STACK_BYTES: usize = 128 * 1024 * 1024;
 const STACK_BUDGET: usize = 64 * 1024 * 1024;
 
 fn main() -> std::process::ExitCode {
+    let dialect = the_dialect();
     // The flag is answered before the script is read: the command is
     // about the tree, and it must not wait for a script that is not
     // coming.
     if std::env::args().skip(1).any(|argument| argument == "--surface") {
-        print_surface();
+        print_surface(dialect);
         return std::process::ExitCode::from(0);
     }
 
@@ -104,7 +106,7 @@ fn main() -> std::process::ExitCode {
         }
     };
 
-    let statements = match parse(&source) {
+    let statements = match parse_with(&source, dialect) {
         Ok(statements) => statements,
         Err(error) => {
             let report = serde_json::json!({
@@ -138,6 +140,7 @@ fn main() -> std::process::ExitCode {
             let report = Runtime::new(&mut desktop, Duration::from_secs_f64(timeout))
                 .with_stack_budget(STACK_BUDGET)
                 .with_source(&source)
+                .with_dialect(dialect)
                 .run(&statements);
             let mut payload = serde_json::to_value(&report).expect("the report serialises");
             if let Some(map) = payload.as_object_mut() {
@@ -165,19 +168,38 @@ fn main() -> std::process::ExitCode {
     std::process::ExitCode::from(if ok { 0 } else { 1 })
 }
 
+/// The dialect that the run speaks.
+///
+/// The v2 is the dialect of the tree, and it is the one of every run that
+/// does not ask for another one. The `--dialect=v1` asks for the legacy
+/// dialect of AutoHotkey, which is measured on the binary of v1.1.37.02.
+fn the_dialect() -> &'static dyn Dialect {
+    let asked = std::env::args().skip(1).find_map(|argument| {
+        argument.strip_prefix("--dialect=").map(|value| value.to_lowercase())
+    });
+    match asked.as_deref() {
+        Some("v1") => dialect::v1(),
+        Some("v2") | None => dialect::v2(),
+        Some(other) => {
+            eprintln!("the dialect {other} is not one this tree speaks: the tree speaks v1 and v2.");
+            std::process::exit(2);
+        }
+    }
+}
+
 /// Print the surface of v2 and where every name of it stands here.
 ///
 /// The report is a line for every name of the surface and a summary at
 /// the end: the number is the point of the command, and it is what makes
 /// "what is missing" a measurement and not an opinion.
-fn print_surface() {
-    let entries = surface::entries();
+fn print_surface(dialect: &'static dyn Dialect) {
+    let entries = surface::entries_of(dialect);
     let mut out = String::new();
     for entry in &entries {
         out.push_str(&entry.line());
         out.push('\n');
     }
-    out.push_str(&surface::summary(&entries).text());
+    out.push_str(&surface::summary_of(&entries, dialect).text());
     out.push('\n');
     print!("{out}");
 }

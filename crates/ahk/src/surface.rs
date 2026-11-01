@@ -21,13 +21,19 @@ use alloc::vec::Vec;
 
 use crate::builtins;
 use crate::classes;
-use crate::variables;
+use crate::dialect::Dialect;
 
 /// The surface of v2.0.19, read out of the binary of AutoHotkey64.exe.
-const SURFACE: &str = include_str!("../reference/ahk-v2.0.19.surface.tsv");
+pub const SURFACE_V2: &str = include_str!("../reference/ahk-v2.0.19.surface.tsv");
 
 /// The names of v2 that this tree does not carry yet.
-const PENDING: &str = include_str!("../reference/ahk-v2.0.19.pending.tsv");
+pub const PENDING_V2: &str = include_str!("../reference/ahk-v2.0.19.pending.tsv");
+
+/// The surface of v1.1.37.02, read out of the binary of AutoHotkeyU64.exe.
+pub const SURFACE_V1: &str = include_str!("../reference/ahk-v1.1.37.02.surface.tsv");
+
+/// The names of v1 that this tree does not carry yet.
+pub const PENDING_V1: &str = include_str!("../reference/ahk-v1.1.37.02.pending.tsv");
 
 /// The reason of a name that is not carried and that the pending table
 /// does not name.
@@ -52,6 +58,8 @@ pub enum Kind {
     Method,
     /// A class type: a name that a script reads as the class.
     Class,
+    /// A directive of the script: `#NoEnv` and the rest.
+    Directive,
 }
 
 impl Kind {
@@ -63,6 +71,7 @@ impl Kind {
             Kind::Variable => "variable",
             Kind::Method => "method",
             Kind::Class => "class",
+            Kind::Directive => "directive",
         }
     }
 
@@ -73,6 +82,7 @@ impl Kind {
             "function" => Kind::Function,
             "variable" => Kind::Variable,
             "class" => Kind::Class,
+            "directive" => Kind::Directive,
             _ => Kind::Method,
         }
     }
@@ -134,6 +144,8 @@ impl Entry {
 /// The counts of the states of the surface.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Summary {
+    /// The dialect that the surface is the surface of.
+    pub dialect: &'static str,
     /// The entries of the table: one for every row of it.
     pub total: usize,
     /// The entries the tree answers with a value.
@@ -148,8 +160,8 @@ impl Summary {
     /// The counts as a sentence: the number is the point of the command.
     pub fn text(&self) -> String {
         format!(
-            "the surface of v2 has {} entries: {} answer with a value, {} are refused, {} are pending.",
-            self.total, self.values, self.refusals, self.pending
+            "the surface of {} has {} entries: {} answer with a value, {} are refused, {} are pending.",
+            self.dialect, self.total, self.values, self.refusals, self.pending
         )
     }
 }
@@ -161,19 +173,36 @@ impl Summary {
 /// variable is in the table of the built-in variables, and a method is in
 /// the class that owns it.
 pub fn entries() -> Vec<Entry> {
-    rows(SURFACE)
+    entries_of(crate::dialect::v2())
+}
+
+/// Every name of the dialect, with the state of each one in this tree.
+///
+/// The table of the dialect is the list of its names, and the tree is
+/// asked about each one: a command and a function are in the table of the
+/// built-ins of the dialect, a variable is in the table of the built-in
+/// variables, and a method is in the class that owns it.
+pub fn entries_of(dialect: &'static dyn Dialect) -> Vec<Entry> {
+    let (surface, pending) = dialect.tables();
+    rows(surface)
         .into_iter()
         .map(|row| {
             let kind = Kind::of(row[0]);
             let (class, name) = (row[1], row[2]);
-            Entry { kind, class, name, state: state_of(kind, class, name) }
+            Entry { kind, class, name, state: state_of(dialect, kind, class, name, pending) }
         })
         .collect()
 }
 
 /// The counts of the states of the surface.
 pub fn summary(entries: &[Entry]) -> Summary {
-    let mut summary = Summary { total: entries.len(), values: 0, refusals: 0, pending: 0 };
+    summary_of(entries, crate::dialect::v2())
+}
+
+/// The counts of the states of the surface of the dialect.
+pub fn summary_of(entries: &[Entry], dialect: &'static dyn Dialect) -> Summary {
+    let mut summary =
+        Summary { dialect: dialect.name(), total: entries.len(), values: 0, refusals: 0, pending: 0 };
     for entry in entries {
         match entry.state {
             State::Value => summary.values += 1,
@@ -205,27 +234,34 @@ fn rows(table: &'static str) -> Vec<Vec<&'static str>> {
     out
 }
 
-/// The state of a name of v2 in this tree.
+/// The state of a name of the dialect in this tree.
 ///
 /// The kind says where the answer comes from: a command and a function
-/// are in the built-in table, a variable is in the table of the built-in
-/// variables, and a method is in the class that owns it.
-fn state_of(kind: Kind, class: &'static str, name: &'static str) -> State {
+/// are in the table of the built-ins, a variable is in the table of the
+/// built-in variables, and a method is in the class that owns it.
+fn state_of(
+    dialect: &'static dyn Dialect,
+    kind: Kind,
+    class: &'static str,
+    name: &'static str,
+    pending: &'static str,
+) -> State {
     match kind {
-        Kind::Command | Kind::Function => match builtins::find(name) {
+        Kind::Command | Kind::Function => match the_builtin_of(dialect, name) {
             // The name is not in the table of the built-ins: the tree does
             // not answer it at all.
-            None => State::Pending(reason_of_pending(kind, class, name)),
-            Some(_) => match builtins::refusal_of(name) {
+            None => State::Pending(reason_of_pending(pending, kind, class, name)),
+            Some(builtin) => match builtins::refusal_of_the(builtin) {
                 None => State::Value,
                 Some(reason) => State::Refusal(reason),
             },
         },
         Kind::Variable => {
-            if !variables::carries(name) {
-                return State::Pending(reason_of_pending(kind, class, name));
+            let bare = the_bare_name(name);
+            if !dialect.carries_variable(bare) {
+                return State::Pending(reason_of_pending(pending, kind, class, name));
             }
-            match variables::refusal_of(name) {
+            match dialect.refusal_of_variable(bare) {
                 None => State::Value,
                 Some(reason) => State::Refusal(reason),
             }
@@ -237,7 +273,7 @@ fn state_of(kind: Kind, class: &'static str, name: &'static str) -> State {
             if classes::is_a_name_of_a_class(name) {
                 return State::Value;
             }
-            State::Pending(reason_of_pending(kind, class, name))
+            State::Pending(reason_of_pending(pending, kind, class, name))
         }
         Kind::Method => {
             if classes::carries(class, name) {
@@ -248,8 +284,44 @@ fn state_of(kind: Kind, class: &'static str, name: &'static str) -> State {
             if !carries_class(class) {
                 return State::Refusal(NO_CLASS);
             }
-            State::Pending(reason_of_pending(kind, class, name))
+            State::Pending(reason_of_pending(pending, kind, class, name))
         }
+        Kind::Directive => {
+            // A directive is read by the parser, and not by the runtime.
+            if crate::lexer::carries_directive(name) {
+                return State::Value;
+            }
+            State::Pending(reason_of_pending(pending, kind, class, name))
+        }
+    }
+}
+
+/// The built-in of this name, in the dialect.
+///
+/// The name is matched the way AutoHotkey matches it: without regard to
+/// the case.
+fn the_builtin_of(
+    dialect: &'static dyn Dialect,
+    name: &str,
+) -> Option<&'static builtins::Builtin> {
+    let wanted = name.to_lowercase();
+    dialect
+        .builtins()
+        .iter()
+        .find(|builtin| builtin.name.to_lowercase() == wanted)
+}
+
+/// The name of a built-in variable without the prefix that the dialect
+/// gives it.
+///
+/// The table of the v2 carries the name without the prefix, and the table
+/// of the v1 carries it as the dialect spells it: `A_Clipboard` and not
+/// `Clipboard`.
+fn the_bare_name(name: &str) -> &str {
+    if name.len() > 2 && name[..2].eq_ignore_ascii_case("a_") {
+        &name[2..]
+    } else {
+        name
     }
 }
 
@@ -265,8 +337,13 @@ fn carries_class(class: &str) -> bool {
 ///
 /// The pending table says why, in a word, and the word is turned into the
 /// sentence the tree answers with elsewhere.
-fn reason_of_pending(kind: Kind, class: &'static str, name: &'static str) -> &'static str {
-    for row in rows(PENDING) {
+fn reason_of_pending(
+    pending: &'static str,
+    kind: Kind,
+    class: &'static str,
+    name: &'static str,
+) -> &'static str {
+    for row in rows(pending) {
         if row[0] != kind.as_str() || row[1] != class || row[2] != name {
             continue;
         }
