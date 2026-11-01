@@ -817,14 +817,12 @@ pub fn variable(name: &str, rt: &mut Runtime<'_>) -> Option<Result<Value, Runtim
     let name = spelled.strip_prefix("a_").unwrap_or(spelled.as_str());
     let value = match name {
         "hotkeyinterval" => Value::Int(2000),
-        // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of
-        // the change of a hotkey has no value until a script writes one.
-        "hotkeymodifiertimeout" => {
-            return Some(Err(RuntimeError {
-                message: rt.the_unassigned(name),
-                line: 0,
-            }))
-        }
+        // Measured on the binary of v2.0.19 on 2026-11-01: the timeout of
+        // the change of a hotkey is fifty until a script writes another
+        // one. The name is `A_HotkeyModifierTimeout`: the tree had measured
+        // a name that does not exist, and it said that the variable had no
+        // value.
+        "hotkeymodifiertimeout" => Value::Int(50),
         "maxhotkeysperinterval" => Value::Int(70),
         "priorhotkey" => match shared_state(rt) {
             Some(shared) => match &shared.borrow().prior {
@@ -1221,9 +1219,9 @@ impl Dialogs for Fake {}
         let mut rt = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10));
         assert_eq!(variable("hotkeyinterval", &mut rt).unwrap().unwrap(), Value::Int(2000));
         assert_eq!(variable("maxhotkeysperinterval", &mut rt).unwrap().unwrap(), Value::Int(70));
-        // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of
-        // the change of a hotkey has no value until a script writes one.
-        assert!(variable("hotkeymodifiertimeout", &mut rt).unwrap().is_err());
+        // Measured on the binary of v2.0.19 on 2026-11-01: the timeout of
+        // the change of a hotkey is fifty until a script writes another one.
+        assert_eq!(variable("hotkeymodifiertimeout", &mut rt).unwrap().unwrap(), Value::Int(50));
     }
 
     /// The variables of the hotkeys carry the state of the last one that

@@ -899,12 +899,9 @@ impl Dialogs for Fake {}
         // measured on the binary on 2026-10-28.
         assert_eq!(value("a_hotkeyinterval"), Value::Int(2000));
         assert_eq!(value("a_maxhotkeysperinterval"), Value::Int(70));
-        // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of
-        // the change of a hotkey has no value until a script writes one.
-        assert_eq!(
-            reason("a_hotkeymodifiertimeout"),
-            "This global variable has not been assigned a value."
-        );
+        // Measured on the binary of v2.0.19 on 2026-11-01: the timeout of
+        // the change of a hotkey is fifty until a script writes another one.
+        assert_eq!(value("a_hotkeymodifiertimeout"), Value::Int(50));
         // Until a hotkey fires, the two names are empty.
         assert_eq!(value("a_thishotkey"), Value::Text(String::new()));
         assert_eq!(value("a_priorkey"), Value::Text(String::new()));

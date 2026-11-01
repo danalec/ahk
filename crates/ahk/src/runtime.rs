@@ -1997,6 +1997,15 @@ impl<'a> Runtime<'a> {
             }
             Node::While { condition, body, .. } => {
                 let mut iterations = 0usize;
+                // Measured on the binary of v2.0.19 on 2026-11-01: the index
+                // of the turn is the number of it, and a while loop counts
+                // as well. The body may write the index, and the loop does
+                // not mind: the next turn sets it again.
+                let mut turn = 1i64;
+                // Measured on the binary of v2.0.19 on 2026-11-01: every
+                // loop saves the value of `A_Index` when it starts and
+                // gives it back when it ends.
+                let saved = self.the_index_is_saved();
                 while self.evaluate(condition)?.truthy() {
                     iterations += 1;
                     if iterations > Self::MAX_ITERATIONS {
@@ -2005,6 +2014,8 @@ impl<'a> Runtime<'a> {
                             line: statement.line(),
                         }));
                     }
+                    self.set_global("A_Index", Value::Int(turn));
+                    turn += 1;
                     match self.run_block(body) {
                         Ok(()) => {}
                         Err(RuntimeFailure::Flow(Flow::Break)) => break,
@@ -2012,6 +2023,7 @@ impl<'a> Runtime<'a> {
                         Err(other) => return Err(other),
                     }
                 }
+                self.the_index_is_given_back(saved);
             }
             Node::Try { body, catches, otherwise, finally, .. } => {
                 self.run_try(body, catches, otherwise, finally)?;
@@ -2064,18 +2076,32 @@ impl<'a> Runtime<'a> {
                 return Err(RuntimeFailure::Thrown(value));
             }
             Node::Loop { mode, arguments, body, line } => {
+                // Measured on the binary of v2.0.19 on 2026-11-01: every loop
+                // saves the value of `A_Index` when it starts and gives it
+                // back when it ends.
+                let saved = self.the_index_is_saved();
                 match mode {
                     LoopKind::Count => {
                         match arguments.first() {
                             Some(node) => {
                                 let count = self.evaluate(node)?.to_number().unwrap_or(0.0) as i64;
-                                for _ in 0..count.max(0) {
-                                    match self.run_block(body) {
-                                        Ok(()) => {}
-                                        Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                                        Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
+                                // Measured on the binary of v2.0.19 on 2026-11-01:
+                                // the index of the turn is the value of
+                                // `A_Index`, and the body may write it: the
+                                // loop goes on from the value that was written.
+                                let mut turn = 1i64;
+                                while turn <= count.max(0) {
+                                    self.set_global("A_Index", Value::Int(turn));
+                                    let broken = match self.run_block(body) {
+                                        Ok(()) => false,
+                                        Err(RuntimeFailure::Flow(Flow::Break)) => true,
+                                        Err(RuntimeFailure::Flow(Flow::Continue)) => false,
                                         Err(other) => return Err(other),
+                                    };
+                                    if broken {
+                                        break;
                                     }
+                                    turn = self.the_index_of_the_turn() + 1;
                                 }
                             }
                             None => {
@@ -2083,6 +2109,11 @@ impl<'a> Runtime<'a> {
                                 // 2026-10-31: the loop without a count goes
                                 // on until a break. The step count is the
                                 // bound of it, and the body may be empty.
+                                // Measured on the binary of v2.0.19 on 2026-11-01:
+                                // the index of the turn is the number of it,
+                                // and the loop without a count counts as
+                                // well.
+                                let mut turn = 1i64;
                                 loop {
                                     self.steps_taken += 1;
                                     if self.steps_taken > Self::MAX_STEPS {
@@ -2094,6 +2125,8 @@ impl<'a> Runtime<'a> {
                                             line: *line,
                                         }));
                                     }
+                                    self.set_global("A_Index", Value::Int(turn));
+                                    turn += 1;
                                     match self.run_block(body) {
                                         Ok(()) => {}
                                         Err(RuntimeFailure::Flow(Flow::Break)) => break,
@@ -2232,6 +2265,7 @@ impl<'a> Runtime<'a> {
                         }));
                     }
                 }
+                self.the_index_is_given_back(saved);
             }
             Node::Directive { name, argument, line } => {
                 detail = self.directive(name, argument, *line)?;
@@ -2368,6 +2402,10 @@ impl<'a> Runtime<'a> {
             }
             return Err(failure);
         }
+        // Measured on the binary of v2.0.19 on 2026-11-01: every loop saves
+        // the value of `A_Index` when it starts and gives it back when it
+        // ends.
+        let saved_index = self.the_index_is_saved();
         let mut turns = 0usize;
         let mut outcome = Ok(());
         loop {
@@ -2409,6 +2447,7 @@ impl<'a> Runtime<'a> {
         for (name, value) in saved {
             self.restore_variable(&name, value);
         }
+        self.the_index_is_given_back(saved_index);
         outcome
     }
 
@@ -6469,6 +6508,39 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The value of the index of the turn, and the way to give it back.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: every loop saves the
+    /// value of `A_Index` when it starts and gives it back when it ends, and
+    /// a loop that is inside another one does not disturb the index of the
+    /// outer one. A name that had no value before the loop has no value
+    /// after it either.
+    fn the_index_is_saved(&self) -> Option<Value> {
+        self.variables.get(&the_key_of("A_Index")).cloned()
+    }
+
+    /// The index of the turn, given back the way it was.
+    fn the_index_is_given_back(&mut self, saved: Option<Value>) {
+        match saved {
+            Some(value) => self.set_global("A_Index", value),
+            None => {
+                self.variables.remove(&the_key_of("A_Index"));
+            }
+        }
+    }
+
+    /// The value of the index of the turn, as a number.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the index of a
+    /// counted loop is the value of `A_Index`, and the body may write it:
+    /// the loop goes on from the value that was written.
+    fn the_index_of_the_turn(&self) -> i64 {
+        self.variables
+            .get(&the_key_of("A_Index"))
+            .and_then(|value| value.to_number())
+            .unwrap_or(0.0) as i64
+    }
+
     /// The message v2 gives for a variable that has no value.
     ///
     /// v2 names the kind of the variable and not the name of it: a
@@ -7088,7 +7160,13 @@ impl<'a> Runtime<'a> {
                     Some(value) => Some(value),
                     None => match crate::variables::lookup(name, self) {
                         Some(Ok(value)) => Some(value),
-                        _ => None,
+                        // A name that the runtime owns has a value before the
+                        // first loop runs: the index of the turn is zero.
+                        // Measured on the binary of v2.0.19 on 2026-11-01,
+                        // the compound operator reads the value that is
+                        // there, and it does not say that the variable has
+                        // no value.
+                        _ => self.the_value_of_a_variable_of_the_runtime(name),
                     },
                 };
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name

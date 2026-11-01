@@ -5736,3 +5736,36 @@ no value in the tree and fifty in the v2, and the shape of the cursor is not
 read by this runtime. The tree does not read the definition of a hotkey at
 the load either: `F1:: { }` is a syntax error of the tree and a hotkey of
 the v2.
+
+## 135. The index of the turn is the number of it, and the loop gives it back
+
+Measured on the binary of v2.0.19 on 2026-11-01: the index of the turn,
+the timeout of the change of a hotkey, and the way that a loop gives the
+index back when it ends.
+
+- **Every loop counts the turns with `A_Index`:** the counted one, the one
+  without a count, the `while` and the `for`. The tree counted the `for`
+  and the loops over the files and over the lines, and it answered zero in
+  the other ones.
+- **The loop gives the index back when it ends,** and a loop that is inside
+  another one does not disturb the index of the outer one. The value that
+  the index had before the loop is the value it has after it, and a name
+  that had no value before the loop has no value after it either.
+- **The index of a counted loop is the value of `A_Index`,** and the body
+  may write it: the loop goes on from the value that was written. A write
+  that is below the turn sends the loop back, and the loop of the v2 does
+  not end -- the tree stops it with the count of the statements, and it
+  says "the script ran more than 20000 statements".
+- **The compound operator reads the value that is there,** and the index of
+  the turn is zero before the first loop runs: `A_Index += 1` is one.
+- **The timeout of the change of a hotkey is fifty** until a script writes
+  another one. The name is `A_HotkeyModifierTimeout`, and the tree had
+  measured `A_HotkeyModifyTimeout` -- a name that does not exist -- and it
+  said that the variable had no value.
+
+The probes that measured the rules are in `egm-review/probe_block_o3.py`
+(10 cases, the timeout and the index), in `egm-review/probe_block_o4.py`
+(7 cases, the write of the index inside the loop), in
+`egm-review/probe_block_o5.py` (6 cases, the names of the loop outside a
+loop) and in `egm-review/probe_block_o6.py` (10 cases, the loops that are
+inside one another).

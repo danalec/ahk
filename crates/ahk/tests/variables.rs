@@ -542,20 +542,31 @@ fn a_number_of_hotkeys_that_is_not_one_is_refused() {
 }
 
 #[test]
-fn the_timeout_of_the_change_of_a_hotkey_has_no_value_until_it_is_written() {
-    // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of the
-    // change of a hotkey has no value, and a script that writes one gives
-    // it the value it wrote.
-    let report = run("A_HotkeyModifyTimeout := 5\nMsgBox A_HotkeyModifyTimeout");
+fn the_timeout_of_the_change_of_a_hotkey_is_fifty() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the timeout of the
+    // change of a hotkey is fifty until a script writes another one. The
+    // name is `A_HotkeyModifierTimeout`: the tree had measured a name that
+    // does not exist.
+    let report = run("MsgBox A_HotkeyModifierTimeout");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["50"]);
+}
+
+#[test]
+fn the_timeout_of_the_change_of_a_hotkey_keeps_the_value_that_was_written() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: a script that writes
+    // the timeout of the change of a hotkey gives it the value it wrote.
+    let report = run("A_HotkeyModifierTimeout := 5\nMsgBox A_HotkeyModifierTimeout");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["5"]);
 }
 
 #[test]
-fn the_timeout_of_the_change_of_a_hotkey_that_has_no_value_is_refused() {
-    // Measured on the binary of v2.0.19 on 2026-10-31: the timeout of the
-    // change of a hotkey has no value, and a variable that has no value is
-    // the failure that says so.
+fn the_name_that_is_not_a_built_in_variable_has_no_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: `A_HotkeyModifyTimeout`
+    // is not the name of a built-in variable of the dialect -- the name is
+    // `A_HotkeyModifierTimeout` -- and a variable that has no value is the
+    // failure that says so.
     let report = run("MsgBox A_HotkeyModifyTimeout");
     assert!(!report.ok);
     assert_eq!(
@@ -563,6 +574,56 @@ fn the_timeout_of_the_change_of_a_hotkey_that_has_no_value_is_refused() {
         Some("This global variable has not been assigned a value.")
     );
     assert_eq!(report.error_line, Some(1));
+}
+
+#[test]
+fn the_index_of_the_turn_is_the_number_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the index of the
+    // turn is the number of it, and every loop counts: the counted one,
+    // the one without a count and the while.
+    let report = run(
+        "Loop 3 {\n    MsgBox A_Index\n}\nn := 0\nwhile n < 2 {\n    MsgBox A_Index\n    n += 1\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1", "2", "3", "1", "2"]);
+}
+
+#[test]
+fn the_index_that_the_body_writes_changes_the_course_of_the_loop() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the index of a
+    // counted loop is the value of `A_Index`, and the body may write it:
+    // the loop goes on from the value that was written.
+    let report = run("Loop 5 {\n    A_Index := 9\n    MsgBox A_Index\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["9"]);
+}
+
+#[test]
+fn the_index_of_the_turn_goes_back_when_the_loop_ends() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: every loop saves the
+    // value of the index when it starts and gives it back when it ends.
+    let report = run("Loop 2 {\n}\nMsgBox A_Index");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn the_index_of_the_outer_loop_is_not_disturbed_by_the_inner_one() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: a loop that is
+    // inside another one does not disturb the index of the outer one.
+    let report = run("Loop 2 {\n    Loop 2 {\n        MsgBox A_Index\n    }\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1", "2", "1", "2"]);
+}
+
+#[test]
+fn the_index_of_the_turn_is_zero_outside_a_loop() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the index of the
+    // turn is zero before the first loop runs, and the compound operator
+    // reads the value that is there.
+    let report = run("A_Index += 1\nMsgBox A_Index");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
 }
 
 #[test]

@@ -1066,6 +1066,13 @@ that asks for another one is refused with the reason.
 - **The variables of the loops are there before the first loop runs.** The
   index is zero and the others are empty, and the line of the file is
   `A_LoopReadLine` -- `A_LoopField` is the field of the loop that parses.
+- **The index of the turn is the number of it,** and every loop counts:
+  the counted one, the one without a count, the `while` and the `for`. The
+  loop saves the value of the index when it starts and gives it back when
+  it ends, and a loop that is inside another one does not disturb the index
+  of the outer one. The index of a counted loop is the value of `A_Index`,
+  and the body may write it: the loop goes on from the value that was
+  written.
 - **A variable that has no value is a text that is empty.** The capacity of
   a text is the length of it: the tree keeps no capacity of its own, and
   the strings of the tree have no room to spare.
