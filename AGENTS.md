@@ -6103,3 +6103,16 @@ The numbers: the surface of the v1 has **384** entries -- **268** answer
 with a value, **108** are refused and **8** are pending. The surface of
 the v2 did not move.
 
+## 145. The surface is JSON for the CI, and the text is for a human
+
+The plan of the v1 dialect asks for the JSON: "the JSON, for the CI, is a
+piece of F5". The runner answers it with `--surface --json`, and the
+dialect is the one that `--dialect` names.
+
+The JSON carries the numbers of the summary -- the dialect, the total, the
+values, the refusals and the pending -- and the state of every name: the
+name, the kind, the class of a method, the state and the reason of the
+names that are refused or that are pending. The text of the surface is
+the same thing for a human, and it is what the command prints when the
+JSON is not asked for.
+

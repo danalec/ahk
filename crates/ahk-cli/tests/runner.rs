@@ -195,6 +195,93 @@ fn surface() -> (i32, String) {
     (status.code().unwrap_or(-1), text)
 }
 
+/// Ask the runner for the surface of the dialect, as JSON.
+///
+/// The JSON is for the CI, and it carries the numbers of the summary and
+/// the state of every name.
+fn surface_json(dialect: &str) -> (i32, serde_json::Value) {
+    let mut child = Command::new(RUNNER)
+        .arg("--surface")
+        .arg("--json")
+        .arg(format!("--dialect={dialect}"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the runner starts");
+    let _script = child.stdin.take().expect("the runner reads a script");
+    let stdout = child.stdout.take().expect("the runner writes the surface");
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut text = String::new();
+        let mut stdout = stdout;
+        let _ = stdout.read_to_string(&mut text);
+        let _ = sender.send(text);
+    });
+    let text = match receiver.recv_timeout(Duration::from_secs(30)) {
+        Ok(text) => text,
+        Err(_) => {
+            let _ = child.kill();
+            panic!("the runner did not answer the flag without a script on stdin");
+        }
+    };
+    let status = child.wait().expect("the runner finishes");
+    let report: serde_json::Value =
+        serde_json::from_str(text.trim()).expect("the surface is json");
+    (status.code().unwrap_or(-1), report)
+}
+
+#[test]
+fn the_surface_flag_answers_with_json() {
+    let (code, report) = surface_json("v2");
+    assert_eq!(code, 0);
+    assert_eq!(report["dialect"], "v2");
+    assert_eq!(report["total"], 828);
+    assert_eq!(report["values"], 637);
+    assert_eq!(report["refusals"], 191);
+    assert_eq!(report["pending"], 0);
+
+    let entries = report["entries"].as_array().expect("the entries are a list");
+    assert_eq!(entries.len(), 828);
+    // A name that the tree answers is a value, and a name that the tree
+    // refuses carries the reason of the refusal.
+    let abs = entries
+        .iter()
+        .find(|entry| entry["name"] == "Abs")
+        .expect("the name is in the report");
+    assert_eq!(abs["kind"], "function");
+    assert_eq!(abs["state"], "value");
+    let windows = entries
+        .iter()
+        .find(|entry| entry["name"] == "ControlSendText")
+        .expect("the name is in the report");
+    assert_eq!(windows["state"], "refusal");
+    assert!(windows["reason"].is_string());
+}
+
+#[test]
+fn the_surface_flag_answers_with_the_json_of_the_v1() {
+    let (code, report) = surface_json("v1");
+    assert_eq!(code, 0);
+    assert_eq!(report["dialect"], "v1");
+    assert_eq!(report["total"], 384);
+    // The names that the v1 has and the v2 does not are carried, and the
+    // eight that are still to do are pending.
+    assert_eq!(report["pending"], 8);
+    let entries = report["entries"].as_array().expect("the entries are a list");
+    let is_set = entries
+        .iter()
+        .find(|entry| entry["name"] == "IsSet")
+        .expect("the name is in the report");
+    assert_eq!(is_set["state"], "value");
+    let auto_trim = entries
+        .iter()
+        .find(|entry| entry["name"] == "AutoTrim")
+        .expect("the name is in the report");
+    assert_eq!(auto_trim["state"], "pending");
+    assert!(auto_trim["reason"].is_string());
+}
+
 /// The names of the surface: the rows of the table, without the comments
 /// and without the line of column names.
 fn names_of_the_surface() -> usize {

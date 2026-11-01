@@ -72,7 +72,12 @@ fn main() -> std::process::ExitCode {
     // about the tree, and it must not wait for a script that is not
     // coming.
     if std::env::args().skip(1).any(|argument| argument == "--surface") {
-        print_surface(dialect);
+        // The JSON is for the CI, and the text is for a human.
+        if std::env::args().skip(1).any(|argument| argument == "--json") {
+            print_surface_json(dialect);
+        } else {
+            print_surface(dialect);
+        }
         return std::process::ExitCode::from(0);
     }
 
@@ -202,6 +207,53 @@ fn print_surface(dialect: &'static dyn Dialect) {
     out.push_str(&surface::summary_of(&entries, dialect).text());
     out.push('\n');
     print!("{out}");
+}
+
+/// Print the surface of the dialect as JSON.
+///
+/// The text of the surface is for a human, and the JSON is for the CI: the
+/// numbers of the summary and the state of every name, with the reason of
+/// the ones that are refused or that are pending.
+///
+/// The plan of the v1 dialect asks for this shape: "the JSON, for the CI,
+/// is a piece of F5".
+fn print_surface_json(dialect: &'static dyn Dialect) {
+    let entries = surface::entries_of(dialect);
+    let summary = surface::summary_of(&entries, dialect);
+    let names: Vec<serde_json::Value> = entries
+        .iter()
+        .map(|entry| {
+            let mut row = serde_json::json!({
+                "name": entry.name,
+                "kind": entry.kind.as_str(),
+                "state": match entry.state {
+                    surface::State::Value => "value",
+                    surface::State::Refusal(_) => "refusal",
+                    surface::State::Pending(_) => "pending",
+                },
+            });
+            if !entry.class.is_empty() {
+                row["class"] = serde_json::json!(entry.class);
+            }
+            let reason = match entry.state {
+                surface::State::Value => None,
+                surface::State::Refusal(reason) | surface::State::Pending(reason) => Some(reason),
+            };
+            if let Some(reason) = reason {
+                row["reason"] = serde_json::json!(reason);
+            }
+            row
+        })
+        .collect();
+    let report = serde_json::json!({
+        "dialect": summary.dialect,
+        "total": summary.total,
+        "values": summary.values,
+        "refusals": summary.refusals,
+        "pending": summary.pending,
+        "entries": names,
+    });
+    println!("{report}");
 }
 
 /// The source with the includes put in place of the lines that ask for
