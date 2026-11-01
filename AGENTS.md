@@ -6178,3 +6178,29 @@ value of a variable is converted to a number when it can be. The block that
 carries it comes next.
 
 
+## 148. The numbers of the v1 have a format, and a parameter is a text
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `SetFormat` turns the format of the numbers.** The number type is
+  "Integer", "IntegerFast", "Float" or "FloatFast", the format of the whole
+  numbers is "D", "H" or "h", and the format of the floats is
+  "<width>.<decimals>" with an optional "e" for the scientific notation. The
+  value that is not a format is refused with "Parameter #2 invalid.".
+- **The format is in force when the number becomes a text.** `x := 1/3` is
+  "0.333333" and not "0.3333333333333333", and `SetFormat, Float, 0.2` makes
+  it "0.33". The whole number follows the base of the format: with the "H"
+  it is "0xFF", and with the "h" it is "0xff".
+- **The float that is written keeps the text that was written.** `x := 1.5` is
+  "1.5", and the format of the floats does not change it: the format rounds
+  the floats that are computed, and not the ones that are written.
+- **The `A_FormatFloat` and the `A_FormatInteger` say the format that is in
+  force.** They are "0.6" and "D" when the script begins.
+- **The parameter of a command of the v1 is a text, and a number may be
+  followed by a name there.** `FileAppend, 2px, *` writes `2px`. The v2
+  refuses the script at the load, because a name cannot begin with a number.
+
+The `SetFormat` leaves the pending table of the v1: the surface of the v1
+has 270 values, 108 refusals and 6 pending names.
+
+

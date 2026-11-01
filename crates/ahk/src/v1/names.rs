@@ -10,7 +10,7 @@
 use alloc::format;
 use alloc::string::String;
 
-use crate::runtime::{Runtime, RuntimeError, Value};
+use crate::runtime::{FloatFormat, IntegerFormat, Runtime, RuntimeError, Value};
 
 /// Whether the function of this name asks for the name of a variable.
 ///
@@ -21,6 +21,109 @@ use crate::runtime::{Runtime, RuntimeError, Value};
 /// well. The `IsFunc` asks for the value.
 pub(crate) fn wants_the_name_of_the_argument(name: &str) -> bool {
     matches!(name.to_lowercase().as_str(), "isset" | "isbyref")
+}
+
+/// `SetFormat, Integer, H`: the format of the numbers of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the number type is
+/// "Integer", "IntegerFast", "Float" or "FloatFast", the format of the
+/// whole numbers is "D", "H" or "h", and the format of the floats is
+/// "<width>.<decimals>" with an optional "e" for the scientific notation.
+/// The value that is not a format is refused with "Parameter #2 invalid."
+/// and the value in the `Extra`.
+pub(crate) fn set_format(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = |index: usize| {
+        values
+            .get(index)
+            .map(|value| value.to_text())
+            .unwrap_or_default()
+            .trim()
+            .to_string()
+    };
+    let number_type = text(0);
+    let format = text(1);
+    match number_type.to_lowercase().as_str() {
+        "integer" | "integerfast" => {
+            let format = match format.as_str() {
+                "D" | "d" => IntegerFormat::Decimal,
+                "H" | "HEX" | "hex" => IntegerFormat::Hexadecimal,
+                "h" => IntegerFormat::HexadecimalLower,
+                _ => {
+                    return Err(RuntimeError {
+                        message: format!("Parameter #2 invalid.\n     Specifically: {format}"),
+                        line,
+                    })
+                }
+            };
+            rt.set_integer_format(format);
+        }
+        "float" | "floatfast" => {
+            let format = match the_float_format_of_the_v1(&format) {
+                Some(format) => format,
+                None => {
+                    return Err(RuntimeError {
+                        message: format!("Parameter #2 invalid.\n     Specifically: {format}"),
+                        line,
+                    })
+                }
+            };
+            rt.set_float_format(format);
+        }
+        _ => {
+            return Err(RuntimeError {
+                message: format!("Parameter #1 invalid.\n     Specifically: {number_type}"),
+                line,
+            })
+        }
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// The format of the floats of the v1, when the text is one.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the format is
+/// "<width>.<decimals>", and the width may be in zero ("06.2") or in minus
+/// ("-6.2") for the padding, and the "e" at the end asks for the scientific
+/// notation.
+fn the_float_format_of_the_v1(text: &str) -> Option<FloatFormat> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    let (body, scientific) = match text.strip_suffix('e') {
+        Some(body) => (body, true),
+        None => match text.strip_suffix('E') {
+            Some(body) => (body, true),
+            None => (text, false),
+        },
+    };
+    let (width, decimals) = body.split_once('.')?;
+    let (left, width) = match width.strip_prefix('-') {
+        Some(rest) => (true, rest),
+        None => (false, width),
+    };
+    // Measured on the binary of v1.1.37.02 on 2026-11-02: the width "0" is
+    // the width zero, and the zeroes that pad the text are a zero in front
+    // of a width that has more digits ("06.2").
+    let (zeroes, width) = match width.strip_prefix('0') {
+        Some(rest) if !rest.is_empty() => (true, rest),
+        _ => (false, width),
+    };
+    let width: u32 = width.parse().ok()?;
+    let decimals: u32 = decimals.parse().ok()?;
+    Some(FloatFormat {
+        width,
+        zeroes,
+        left,
+        decimals,
+        scientific,
+        upper: text.ends_with('E'),
+    })
 }
 
 /// `AutoTrim, On`: the trim of the text of a legacy assignment.

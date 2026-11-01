@@ -155,6 +155,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: set_control_delay },
     Builtin { name: "SetDefaultMouseSpeed", kind: BuiltinKind::Command, min: 1, max: 255, variant: 5, parameters: &[Parameter::Value], handler: set_default_mouse_speed },
     Builtin { name: "SetEnv", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Output, Parameter::Value], handler: env_set },
+    Builtin { name: "SetFormat", kind: BuiltinKind::Command, min: 2, max: 255, variant: 0, parameters: &[Parameter::Value, Parameter::Value], handler: super::set_format },
     Builtin { name: "SetKeyDelay", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: set_key_delay },
     Builtin { name: "SetMouseDelay", kind: BuiltinKind::Command, min: 1, max: 255, variant: 5, parameters: &[Parameter::Value, Parameter::Value], handler: set_mouse_delay },
     Builtin { name: "SetRegView", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: set_reg_view },

@@ -140,6 +140,33 @@ pub trait Dialect: Sync {
     /// The sum of a text and a number is a concatenation. Measured on the
     /// binary of v1.1.37.02 on 2026-11-01: `"5" + 1` is `51`.
     fn add_concatenates(&self) -> bool;
+
+    /// Whether the dialect formats the numbers.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `SetFormat`
+    /// of the v1 formats the numbers, and the v2 writes them the way they
+    /// are.
+    fn formats_the_numbers(&self) -> bool {
+        false
+    }
+
+    /// Whether the float that is written is a text.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the float that
+    /// is written in the v1 keeps the text that was written: `x := 1.5` is
+    /// "1.5", and the format of the floats does not change it.
+    fn the_float_that_is_written_is_a_text(&self) -> bool {
+        false
+    }
+
+    /// Whether a number may be followed by a name.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter of
+    /// a command of the v1 is a text, and "2px" is a text there. The v2
+    /// refuses the script at the load.
+    fn the_number_may_be_followed_by_a_name(&self) -> bool {
+        false
+    }
 }
 
 /// The dialect of the tree: AutoHotkey v2.0.19.
@@ -350,6 +377,18 @@ impl Dialect for V1 {
     }
 
     fn add_concatenates(&self) -> bool {
+        true
+    }
+
+    fn formats_the_numbers(&self) -> bool {
+        true
+    }
+
+    fn the_float_that_is_written_is_a_text(&self) -> bool {
+        true
+    }
+
+    fn the_number_may_be_followed_by_a_name(&self) -> bool {
         true
     }
 }

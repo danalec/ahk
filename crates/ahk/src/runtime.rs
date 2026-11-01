@@ -1039,6 +1039,10 @@ pub struct Runtime<'a> {
     /// The text of a legacy assignment is trimmed when it is On, and the
     /// command parameters of the v1 are not trimmed by it.
     auto_trim: bool,
+    /// The format of the whole numbers, the way the dialect formats them.
+    integer_format: IntegerFormat,
+    /// The format of the floats, the way the dialect formats them.
+    float_format: FloatFormat,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
     /// The directory where the run started.
@@ -1208,6 +1212,8 @@ impl<'a> Runtime<'a> {
             dialect: crate::dialect::v2(),
             no_env: false,
             auto_trim: true,
+            integer_format: IntegerFormat::Decimal,
+            float_format: FloatFormat::DEFAULT,
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1264,6 +1270,8 @@ impl<'a> Runtime<'a> {
             dialect: crate::dialect::v2(),
             no_env: false,
             auto_trim: true,
+            integer_format: IntegerFormat::Decimal,
+            float_format: FloatFormat::DEFAULT,
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1345,6 +1353,43 @@ impl<'a> Runtime<'a> {
     /// The trim of the legacy assignments of the v1, on or off.
     pub fn set_auto_trim(&mut self, on: bool) {
         self.auto_trim = on;
+    }
+
+    /// The format of the integers, the way the dialect formats them.
+    pub fn integer_format(&self) -> IntegerFormat {
+        self.integer_format
+    }
+
+    /// The format of the floats, the way the dialect formats them.
+    pub fn float_format(&self) -> FloatFormat {
+        self.float_format
+    }
+
+    /// The format of the integers, the way the dialect formats them.
+    pub fn set_integer_format(&mut self, format: IntegerFormat) {
+        self.integer_format = format;
+    }
+
+    /// The format of the floats, the way the dialect formats them.
+    pub fn set_float_format(&mut self, format: FloatFormat) {
+        self.float_format = format;
+    }
+
+    /// The text of a value, in the format of the dialect.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the numbers of
+    /// the v1 are formatted by the `SetFormat`: the float is rounded to the
+    /// decimals of the format, and the whole number is in the base of the
+    /// format. The v2 writes the numbers the way they are.
+    pub fn the_text_of(&self, value: &Value) -> String {
+        if !self.dialect.formats_the_numbers() {
+            return value.to_text();
+        }
+        match value {
+            Value::Int(number) => self.integer_format.the_text_of(*number),
+            Value::Float(number) => self.float_format.the_text_of(*number),
+            other => other.to_text(),
+        }
     }
 
     /// The built-in of this name, in the dialect that runs.
@@ -6865,7 +6910,9 @@ impl<'a> Runtime<'a> {
     fn the_text_of_the_concat(&self, value: &Value, line: u32) -> Result<String, RuntimeFailure> {
         match value {
             Value::Text(text) => Ok(text.clone()),
-            Value::Int(_) | Value::Float(_) => Ok(value.to_text()),
+            // The numbers of the v1 are formatted by the `SetFormat` when
+            // they become a text.
+            Value::Int(_) | Value::Float(_) => Ok(self.the_text_of(value)),
             other => Err(RuntimeFailure::Detailed(
                 RuntimeError {
                     message: expected_the_kind(TypeName::String, &self.the_type_of(other)),
@@ -7620,7 +7667,10 @@ impl<'a> Runtime<'a> {
                     let name: String = chars[index + 1..close].iter().collect();
                     match self.the_value_of_the_substitution(name.trim(), line)? {
                         Some(value) => {
-                            out.push_str(&value.to_text());
+                            // The numbers of the v1 are formatted by the
+                            // `SetFormat` when they become a text.
+                            let text = self.the_text_of(&value);
+                            out.push_str(&text);
                             index = close + 1;
                             continue;
                         }
@@ -8162,7 +8212,17 @@ impl<'a> Runtime<'a> {
                 // whole number of v2 is a whole number, and a number with
                 // a point or with an exponent is a float.
                 LiteralValue::Integer(number) => Value::Int(*number),
-                LiteralValue::Float(number) => Value::Float(*number),
+                LiteralValue::Float(number) => {
+                    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                    // float that is written in the v1 keeps the text that was
+                    // written: `x := 1.5` is "1.5", and the format of the
+                    // floats does not change it.
+                    if self.dialect.the_float_that_is_written_is_a_text() {
+                        Value::Text(Value::Float(*number).to_text())
+                    } else {
+                        Value::Float(*number)
+                    }
+                }
                 // A string is read where it is written: the names it
                 // holds are the names of the scope that writes it.
                 LiteralValue::Text(text) => Value::Text(self.interpolate(text, *line)?),
@@ -9348,6 +9408,153 @@ pub(crate) fn prototype_value(name: &str) -> Value {
         class: "prototype".to_string(),
         properties,
     })))
+}
+
+/// The format of the whole numbers, the way the dialect formats them.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the format is "D"
+/// when the script begins, and the `SetFormat` turns it into "H" or "h".
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum IntegerFormat {
+    /// The base ten: 255.
+    Decimal,
+    /// The base sixteen with the prefix: 0xFF.
+    Hexadecimal,
+    /// The base sixteen with the prefix and the lower case digits: 0xff.
+    HexadecimalLower,
+}
+
+impl IntegerFormat {
+    /// The name of the format, the way the `A_FormatInteger` says it.
+    pub fn name(&self) -> &'static str {
+        match self {
+            IntegerFormat::Decimal => "D",
+            IntegerFormat::Hexadecimal => "H",
+            IntegerFormat::HexadecimalLower => "h",
+        }
+    }
+
+    /// The text of a whole number in this format.
+    pub fn the_text_of(&self, number: i64) -> String {
+        match self {
+            IntegerFormat::Decimal => number.to_string(),
+            IntegerFormat::Hexadecimal => format!("0x{:X}", number),
+            IntegerFormat::HexadecimalLower => format!("0x{:x}", number),
+        }
+    }
+}
+
+/// The format of the floats, the way the dialect formats them.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the format is "0.6"
+/// when the script begins, and it is the width of the text, the number of
+/// the decimals and the scientific notation.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct FloatFormat {
+    /// The width of the text: the number is padded to it.
+    pub width: u32,
+    /// The text is padded with zeroes and not with spaces.
+    pub zeroes: bool,
+    /// The text is justified to the left and not to the right.
+    pub left: bool,
+    /// The number of the decimals of the text.
+    pub decimals: u32,
+    /// The text is in the scientific notation.
+    pub scientific: bool,
+    /// The exponent is in upper case.
+    pub upper: bool,
+}
+
+impl FloatFormat {
+    /// The format of the v1 when the script begins: "0.6".
+    pub const DEFAULT: FloatFormat = FloatFormat {
+        width: 0,
+        zeroes: false,
+        left: false,
+        decimals: 6,
+        scientific: false,
+        upper: false,
+    };
+
+    /// The name of the format, the way the `A_FormatFloat` says it.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the name is the
+    /// format that was written, with the width and the decimals.
+    pub fn name(&self) -> String {
+        let mut name = String::new();
+        if self.left {
+            name.push('-');
+        }
+        if self.zeroes {
+            name.push('0');
+        }
+        name.push_str(&self.width.to_string());
+        name.push('.');
+        name.push_str(&self.decimals.to_string());
+        if self.scientific {
+            name.push(if self.upper { 'E' } else { 'e' });
+        }
+        name
+    }
+
+    /// The text of a float in this format.
+    ///
+    /// The number is rounded to the decimals of the format, and the text is
+    /// padded to the width of it.
+    pub fn the_text_of(&self, number: f64) -> String {
+        let decimals = self.decimals as usize;
+        let text = if self.scientific {
+            let formatted = format!("{:.*e}", decimals, number);
+            // The exponent of the v1 has a sign and two digits: `1.0e+03`.
+            let (mantissa, exponent) = match formatted.split_once('e') {
+                Some((mantissa, exponent)) => (mantissa.to_string(), exponent.to_string()),
+                None => (formatted.clone(), String::new()),
+            };
+            let exponent = match exponent.strip_prefix('-') {
+                Some(rest) => format!("-{}", the_digits_of_the_exponent(rest)),
+                None => format!("+{}", the_digits_of_the_exponent(&exponent)),
+            };
+            format!("{mantissa}e{exponent}")
+        } else {
+            format!("{:.*}", decimals, number)
+        };
+        let width = self.width as usize;
+        if text.chars().count() >= width {
+            return text;
+        }
+        let padding = width - text.chars().count();
+        if self.zeroes {
+            // The zeroes go before the number, and the sign keeps its place.
+            let (sign, rest) = match text.strip_prefix('-') {
+                Some(rest) => ("-", rest),
+                None => ("", text.as_str()),
+            };
+            let mut padded = String::from(sign);
+            padded.push_str(&"0".repeat(padding));
+            padded.push_str(rest);
+            padded
+        } else if self.left {
+            let mut padded = text;
+            padded.push_str(&" ".repeat(padding));
+            padded
+        } else {
+            let mut padded = " ".repeat(padding);
+            padded.push_str(&text);
+            padded
+        }
+    }
+}
+
+/// The digits of the exponent of the scientific notation: two at least.
+fn the_digits_of_the_exponent(digits: &str) -> String {
+    let digits = digits.trim_start_matches('0');
+    if digits.is_empty() {
+        "00".to_string()
+    } else if digits.len() < 2 {
+        format!("0{digits}")
+    } else {
+        digits.to_string()
+    }
 }
 
 /// The failure of the runtime, as the failure of a built-in.

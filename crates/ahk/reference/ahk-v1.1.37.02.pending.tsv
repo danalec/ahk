@@ -40,12 +40,15 @@
 # - The `AutoTrim` is carried: the command turns the trim of the text of a
 #   legacy assignment on and off, and the `A_AutoTrim` says which one is in
 #   force. Measured on the binary of v1.1.37.02 on 2026-11-02.
+# - The `SetFormat` is carried: the command turns the format of the numbers
+#   of the v1, and the `A_FormatFloat` and the `A_FormatInteger` say the
+#   format that is in force. Measured on the binary of v1.1.37.02 on
+#   2026-11-02.
 kind	class	name	reason
 
 command		IfInString	not-yet
 command		IfMsgBox	not-yet
 command		SetBatchLines	not-yet
-command		SetFormat	not-yet
 command		StringCaseSense	not-yet
 command		Transform	not-yet
 function		VarSetCapacity	not-yet

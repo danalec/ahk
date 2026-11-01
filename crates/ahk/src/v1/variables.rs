@@ -25,6 +25,9 @@ enum TheValue {
     /// The value is the state of the runtime: the `A_AutoTrim` of the v1
     /// says whether the text of a legacy assignment is trimmed.
     TheTrim,
+    /// The value is the state of the runtime: the `A_FormatFloat` and the
+    /// `A_FormatInteger` of the v1 say the format of the numbers.
+    TheFormats,
     /// The name is carried and the runtime refuses it: the reason is here.
     Refused(&'static str),
 }
@@ -67,10 +70,12 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     ("A_DefaultTreeView", TheValue::Text("")),
     // The reason of the exit: the script has not exited yet.
     ("A_ExitReason", TheValue::Text("")),
-    // Measured: "0.6".
-    ("A_FormatFloat", TheValue::Text("0.6")),
-    // Measured: "D".
-    ("A_FormatInteger", TheValue::Text("D")),
+    // Measured: "0.6". The command `SetFormat` turns the format of the
+    // floats, and the name of it follows it.
+    ("A_FormatFloat", TheValue::TheFormats),
+    // Measured: "D". The command `SetFormat` turns the format of the whole
+    // numbers, and the name of it follows it.
+    ("A_FormatInteger", TheValue::TheFormats),
     // The window and its controls: the tree has no GUI.
     ("A_Gui", TheValue::Text("")),
     ("A_GuiControl", TheValue::Text("")),
@@ -145,6 +150,14 @@ pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError
             // the name of it says which one is in force.
             TheValue::TheTrim => Ok(Value::Text(
                 if rt.auto_trim() { "On" } else { "Off" }.to_string(),
+            )),
+            // The format of the numbers is a state of the run too.
+            TheValue::TheFormats => Ok(Value::Text(
+                if wanted.starts_with("a_formatfloat") {
+                    rt.float_format().name()
+                } else {
+                    rt.integer_format().name().to_string()
+                },
             )),
             TheValue::Refused(reason) => {
                 Err(RuntimeError { message: (*reason).to_string(), line: 0 })

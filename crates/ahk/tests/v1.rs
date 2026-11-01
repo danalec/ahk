@@ -599,3 +599,74 @@ fn the_equal_sign_of_the_v1_does_not_write_a_member_of_an_object() {
         "This line does not contain a recognized action.\n     Specifically: o.a = 5"
     );
 }
+
+/// The format of the numbers of the v1 is the one of the `SetFormat`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the whole number is
+/// in the base of the format, and the float is rounded to the decimals of it.
+#[test]
+fn the_format_of_the_numbers_of_the_v1_is_the_one_of_the_set_format() {
+    // The whole number in base sixteen, with the prefix.
+    let report = run("SetFormat, Integer, H\nx := 255");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(255)));
+    let report = run("SetFormat, Integer, H\nx := 255\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0xFF".to_string()]);
+
+    // The float is rounded to the decimals of the format.
+    let report = run("x := 1/3\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0.333333".to_string()]);
+    let report = run("SetFormat, Float, 0.2\nx := 1/3\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0.33".to_string()]);
+
+    // The float that is written keeps the text that was written.
+    let report = run("x := 1.5\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1.5".to_string()]);
+}
+
+/// The formats of the v1 say which one is in force.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `A_FormatFloat`
+/// is "0.6" and the `A_FormatInteger` is "D" when the script begins.
+#[test]
+fn the_formats_of_the_v1_say_which_one_is_in_force() {
+    let report = run("x := A_FormatFloat\ny := A_FormatInteger");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0.6".into())));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("D".into())));
+
+    let report = run("SetFormat, Float, 0.2\nSetFormat, Integer, H\nx := A_FormatFloat\ny := A_FormatInteger");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0.2".into())));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("H".into())));
+}
+
+/// The format that the `SetFormat` does not know is refused.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the value is refused
+/// with "Parameter #2 invalid." and the value in the `Extra`.
+#[test]
+fn the_format_that_the_set_format_does_not_know_is_refused() {
+    let report = run("SetFormat, Integer, X");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #2 invalid.\n     Specifically: X")
+    );
+}
+
+/// The parameter of a command of the v1 is a text, and a number may be
+/// followed by a name there.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `FileAppend, 2px, *`
+/// writes `2px`.
+#[test]
+fn the_parameter_of_a_command_of_the_v1_may_be_a_number_and_a_name() {
+    let report = run("FileAppend, 2px, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["2px".to_string()]);
+}

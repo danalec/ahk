@@ -917,6 +917,21 @@ pub fn tokenize_with(
                     });
                     continue;
                 }
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // parameter of a command of the v1 is a text, and "2px" is a
+                // text there: the number and the name are two tokens.
+                if dialect.the_number_may_be_followed_by_a_name() {
+                    index = number_end;
+                    tokens.push(Token {
+                        kind: TokenKind::Number,
+                        value: chars[start..number_end].iter().collect(),
+                        quote: None,
+                        line: start_line,
+                        column: start_column,
+                        spaced: before,
+                    });
+                    continue;
+                }
                 return Err(SyntaxError::new(
                     format!("This variable name starts with a number, which is not allowed:\n{}", the_name_of_a_message(&name)),
                     start_line,
