@@ -31,6 +31,11 @@
 # A name that is a command and a function (GetKeyState) has two rows, the
 # way the table of the v2 carries a name twice when it is two things:
 # SendMode is a command and a variable of the v2.
+#
+# The `ErrorLevel` was measured on the binary of v1.1.37.02 on 2026-11-02:
+# it is the one built-in variable of the v1 that has no prefix, and the
+# measurement of 2026-10-29 took the names of the page of the built-in
+# variables and left it out.
 kind	class	name	min	max	shape
 function		Asc	1	1	Value
 command		AutoTrim	1	255	Value
@@ -75,6 +80,7 @@ command		EnvMult	2	255	Variable,Value
 command		EnvSet	1	255	Value,Value
 command		EnvSub	2	255	Variable,Value,Value
 command		EnvUpdate	0	255	
+variable		ErrorLevel			
 command		Exit	0	255	Value
 command		ExitApp	0	255	Value
 command		FileAppend	0	255	Value,Value,Value

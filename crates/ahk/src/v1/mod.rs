@@ -179,9 +179,11 @@ pub(crate) fn the_number_of_a_text(text: &str) -> Option<Value> {
 pub(crate) fn write_variable(
     name: &str,
     op: crate::ast::AssignOp,
+    value: &Value,
     line: u32,
+    rt: &mut Runtime,
 ) -> Option<Result<Value, RuntimeError>> {
-    variables::write(name, op, line)
+    variables::write(name, op, value, line, rt)
 }
 
 // -- the answer that goes into the variable of the caller ---------------------
@@ -317,13 +319,24 @@ pub(crate) fn file_get_time(
 }
 
 /// `FileRead, name, file`: the text of a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is zero when the load was successful and one when it was not.
 pub(crate) fn file_read(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(rt, "FileRead", values, line, crate::builtins::file_read, 0)
+    let answer = the_answer_goes_into_the_first_output(
+        rt,
+        "FileRead",
+        values,
+        line,
+        crate::builtins::file_read,
+        0,
+    );
+    the_error_level_of_a_file_command(rt, answer)
 }
 
 /// `FormatTime, name, format, time`: the time of the machine as a text.
@@ -481,6 +494,9 @@ pub(crate) fn string_get_pos(
         Some(place) => Value::Int((place + from) as i64),
         None => Value::Int(-1),
     };
+    // Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel`
+    // of the v1 is zero when the text is there and one when it is not.
+    rt.set_the_error_level(Value::Int(if place.is_some() { 0 } else { 1 }));
     write_the_answer(rt, "StringGetPos", values, 0, answer.clone(), line)?;
     Ok(answer)
 }
@@ -551,8 +567,16 @@ pub(crate) fn string_replace(
     let every = values.get(4).map(|value| value.to_text()).unwrap_or_default();
     let method = rt.case_sense().the_method();
     let limit = if the_replace_all_of_the_v1(&every) { usize::MAX } else { 1 };
-    let (answer, _) =
+    let (answer, count) =
         the_text_with_the_needle_in_it(&haystack, &needle, &replacement, limit, method);
+    // Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel`
+    // of the v1 is the number of the replacements when the parameter says
+    // "useerrorlevel", and zero when it does not.
+    rt.set_the_error_level(Value::Int(if the_use_error_level_of_the_v1(&every) {
+        count as i64
+    } else {
+        0
+    }));
     write_the_answer(rt, "StringReplace", values, 0, Value::Text(answer.clone()), line)?;
     Ok(Value::Text(answer))
 }
@@ -562,14 +586,25 @@ pub(crate) fn string_replace(
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter says
 /// "all" when it has the letter "a" -- in any case -- or the digit "1" in
-/// it, and when it begins with "useerrorlevel" -- in any case. The parameter
-/// that says nothing replaces the first occurrence and no other.
+/// it, and when it has the word "useerrorlevel" in it -- in any case, and
+/// wherever it is in the parameter. The parameter that says nothing replaces
+/// the first occurrence and no other.
 fn the_replace_all_of_the_v1(text: &str) -> bool {
     let wanted = text.trim();
-    if wanted.to_lowercase().starts_with("useerrorlevel") {
+    if the_use_error_level_of_the_v1(wanted) {
         return true;
     }
     wanted.contains('a') || wanted.contains('A') || wanted.contains('1')
+}
+
+/// Whether the parameter of the `StringReplace` of the v1 says that the
+/// number of the replacements goes into the `ErrorLevel`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter says
+/// it when it has the word "useerrorlevel" in it, in any case, and wherever
+/// it is in the parameter.
+fn the_use_error_level_of_the_v1(text: &str) -> bool {
+    text.trim().to_lowercase().contains("useerrorlevel")
 }
 
 /// The text with the needle in it replaced by the other text, and the number
@@ -689,6 +724,94 @@ pub(crate) fn string_lower(
         crate::builtins::change_case,
         0,
     )
+}
+
+// -- the files of the machine, and the ErrorLevel ---------------------------------
+
+/// `FileAppend, text, file`: add to the end of a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is one when there was a problem and zero otherwise.
+pub(crate) fn file_append(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::files::file_append(rt, values, line, variant);
+    the_error_level_of_a_file_command(rt, answer)
+}
+
+/// `FileCopy, source, destination`: take a copy of a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is the number of the files that could not be copied, and the tree
+/// refuses the wildcards, so it is one when the command fails and zero when
+/// it does not.
+pub(crate) fn file_copy(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::files::file_copy(rt, values, line, variant);
+    the_error_level_of_a_file_command(rt, answer)
+}
+
+/// `FileDelete, file`: delete a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is the number of the files that failed to be deleted.
+pub(crate) fn file_delete(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::builtins::file_delete(rt, values, line, variant);
+    the_error_level_of_a_file_command(rt, answer)
+}
+
+/// `FileMove, source, destination`: move a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is the number of the files that could not be moved.
+pub(crate) fn file_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::files::file_move(rt, values, line, variant);
+    the_error_level_of_a_file_command(rt, answer)
+}
+
+/// `FileSetTime, file, ...`: change the time of a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is the number of the files that failed to be changed.
+pub(crate) fn file_set_time(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::files::file_set_time(rt, values, line, variant);
+    the_error_level_of_a_file_command(rt, answer)
+}
+
+/// The `ErrorLevel` of a file command of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` is
+/// the number of the files that the command could not do, and the tree
+/// refuses the wildcards, so the number is one when the command fails and
+/// zero when it does not.
+fn the_error_level_of_a_file_command(
+    rt: &mut Runtime<'_>,
+    answer: Result<Value, RuntimeError>,
+) -> Result<Value, RuntimeError> {
+    rt.set_the_error_level(Value::Int(if answer.is_ok() { 0 } else { 1 }));
+    answer
 }
 
 /// `FileSelectFile, name, ...`: the file that the user chose.

@@ -813,14 +813,15 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 65 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 66 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
 v1). The `IfInString`, the `IfNotInString`, the `IfMsgBox` and the `Else`
 were carried by the block of the body of the action (2026-11-02), the
 `StringGetPos`, the `StringReplace` and the `StrReplace` by the block of the
-searches (2026-11-02), and the call of a function by the block of the call
+searches (2026-11-02), the call of a function by the block of the call
+(2026-11-02), and the `ErrorLevel` by the block of the `ErrorLevel`
 (2026-11-02).
 
 The surface of the v1 has **386** entries: **277** answer with a value,
@@ -908,6 +909,21 @@ not the parameter that the refusal is about: `StringReplace, out, a` names
 that the tree does not have, and the `StringGetPos` and the `StringReplace`
 of the v1 put their answer there — it comes with the block of the
 `ErrorLevel` of the machine, and it touches the two dialects.
+
+**The `ErrorLevel` of the v1.** It is the one built-in variable of the v1
+that has no prefix, and the measurement of the surface took the names of the
+page of the built-in variables and left it out. The tree carries it since
+the block of the `ErrorLevel` (2026-11-02): it is the global variable of the
+script, it is zero when the script begins, a script may write it, and the
+`StringGetPos`, the `StringReplace` and the file commands write it the way
+the v1 does.
+
+**What stays out of the `ErrorLevel`.** The commands of the machine that
+write it as well -- the `ClipWait`, the `DllCall` and the `Run` -- are not
+carried yet: theirs is the answer of the machine and not a count of the
+failures. The `global ErrorLevel` is refused by the v1 -- "Built-in variables
+must not be declared." -- and the tree does not refuse the `global` of any
+built-in variable.
 
 **The call of a function of the v1.** The v1 refuses the call of a function
 at the load, and the refusal names the call as it was written. The tree

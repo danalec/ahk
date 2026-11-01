@@ -37,6 +37,27 @@ impl Files for Fake {
             .map_err(|reason| format!("{reason}"))?;
         Ok(text.lines().map(|line| line.to_string()).collect())
     }
+
+    fn append_file(&mut self, _path: &str, _bytes: &[u8], _mark: &[u8]) -> Result<String, String> {
+        Ok(String::new())
+    }
+
+    fn delete_file(&mut self, path: &str) -> Result<String, String> {
+        // The name that is not there is the one that the cases use for the
+        // command that fails.
+        if path.contains("nothere") {
+            return Err("the file is not there".into());
+        }
+        Ok(String::new())
+    }
+
+    fn copy_file(&mut self, _from: &str, _to: &str, _overwrite: bool) -> Result<String, String> {
+        Ok(String::new())
+    }
+
+    fn move_file(&mut self, _from: &str, _to: &str, _overwrite: bool) -> Result<String, String> {
+        Ok(String::new())
+    }
 }
 impl Hotkeys for Fake {}
 impl Native for Fake {}
@@ -1485,8 +1506,7 @@ fn the_call_of_a_function_of_the_v1_is_refused_at_the_load() {
 /// written with the name of a function is a line that holds no action, and
 /// the load refuses it with the text of the line.
 #[test]
-fn a_function_of_the_v1_is_not_a_command() {
-    let error = ahk::parse_with("StrLen \"abc\"", dialect::v1())
+fn a_function_of_the_v1_is_not_a_command() {    let error = ahk::parse_with("StrLen \"abc\"", dialect::v1())
         .expect_err("the function is not a command");
     assert_eq!(
         error.message,
@@ -1507,4 +1527,115 @@ fn a_function_of_the_v1_is_not_a_command() {
         error.message,
         "This line does not contain a recognized action.\n     Specifically: f \"abc\""
     );
+}
+
+/// The `ErrorLevel` of the v1 is the global variable of the script.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: it is zero when the
+/// script begins, and a script may write it -- with any value, and with the
+/// operators of the v1. The `StringGetPos` writes zero when it finds the
+/// text and one when it does not, and the `StringReplace` writes the number
+/// of the replacements when the parameter says "useerrorlevel" and zero when
+/// it does not. The write of a function is a local one, and the machine
+/// writes the global.
+#[test]
+fn the_error_level_of_the_v1_is_the_global_variable_of_the_script() {
+    // The value that the name has when nothing wrote it.
+    let report = run("x := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The name has a value, and the v1 says so.
+    let report = run("x := IsSet(ErrorLevel)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // A script may write it.
+    let report = run("ErrorLevel := 5\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+
+    // The operators of it are the ones of the v1.
+    let report = run("ErrorLevel := 5\nErrorLevel += 3\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(8)));
+
+    let report = run("ErrorLevel := 5\nErrorLevel -= 3\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(2)));
+
+    // The value that is written is kept as it is.
+    let report = run("ErrorLevel := \"abc\"\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("abc".to_string())));
+
+    // The write of a function is a local one, and the global keeps the value
+    // that the machine wrote.
+    let report = run(
+        "f() {\n    ErrorLevel := 5\n    return ErrorLevel\n}\nx := f()\ny := ErrorLevel",
+    );
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(0)));
+
+    // The `StringGetPos` writes it.
+    let report = run("text := \"banana\"\nStringGetPos, pos, text, nan\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("text := \"banana\"\nStringGetPos, pos, text, zzz\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The `StringReplace` writes the number of the replacements when the
+    // parameter says "useerrorlevel", and zero when it does not.
+    let report = run(
+        "text := \"banana\"\nStringReplace, out, text, a, b, UseErrorLevel\nx := ErrorLevel",
+    );
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(3)));
+
+    let report = run("text := \"banana\"\nStringReplace, out, text, a, b, All\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The `StrReplace` does not write it.
+    let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\")\ny := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(0)));
+}
+
+/// The file commands of the v1 write the `ErrorLevel`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `FileAppend` is
+/// one when there was a problem and zero otherwise, and the `FileCopy`, the
+/// `FileDelete`, the `FileMove`, the `FileRead` and the `FileSetTime` are
+/// the number of the files that failed, and the tree refuses the wildcards,
+/// so the number is one when the command fails and zero when it does not.
+#[test]
+fn the_file_commands_of_the_v1_write_the_error_level() {
+    // The command that works writes zero.
+    let report = run("ErrorLevel := 5\nFileAppend, hello, *\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("ErrorLevel := 5\nFileCopy, a, b\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("ErrorLevel := 5\nFileDelete, a\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    let report = run("ErrorLevel := 5\nFileMove, a, b\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The command that fails writes one, and the tree fails the script where
+    // the v1 goes on.
+    let report = run("ErrorLevel := 5\nFileDelete, nothere.txt\nx := ErrorLevel");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the file is not there"));
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("x"), None);
 }

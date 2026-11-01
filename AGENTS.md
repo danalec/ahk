@@ -6364,9 +6364,9 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
 - **The `StringReplace` of the v1 replaces the first occurrence of the text.**
   The parameter that says "all" replaces every one of them, and it says it
   with a letter: the parameter says "all" when it has the letter "a" -- in
-  any case -- or the digit "1" in it, and when it begins with "useerrorlevel"
-  -- in any case. The parameter that says nothing replaces the first
-  occurrence and no other.
+  any case -- or the digit "1" in it, and when it has the word "useerrorlevel"
+  in it -- in any case, and wherever it is in the parameter. The parameter
+  that says nothing replaces the first occurrence and no other.
 - **The `StrReplace` of the v1 is a function, and its fourth parameter is the
   variable that receives the number of the replacements.** It is a variable
   and not a name of one: a text, a number or an expression has nowhere to go,
@@ -6387,11 +6387,9 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   caller in its first argument and the `StrReplace` wants it in its fourth,
   and the argument that is not a variable is a value.
 
-The `ErrorLevel` of the v1 is not carried yet: the `StringGetPos` and the
-`StringReplace` of the v1 put their answer there, and the variable comes
-with its own block, the one of the `ErrorLevel` of the machine, because it
-touches the two dialects. The arity of the **functions** of the v1 came
-with the block of the call (section 154).
+The `ErrorLevel` of the v1 came with the block of the `ErrorLevel` (section
+155). The arity of the **functions** of the v1 came with the block of the
+call (section 154).
 
 
 ## 154. The call of a function of the v1 is refused at the load, and the refusal names the call
@@ -6422,5 +6420,43 @@ The call of a function of the v1 that is written without the parentheses and
 inside an expression is not carried yet: `x := InStr "abc"` calls the
 function in the v1, and the tree reads the name as a value and the text as
 another one. It comes with the block of the grammar of the v1.
+
+
+## 155. The `ErrorLevel` of the v1 is the global variable of the script
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `ErrorLevel` is the one built-in variable of the v1 that has no
+  prefix.** The other ones are `A_Clipboard` and not `Clipboard`, and the
+  measurement of the surface took the names of the page of the built-in
+  variables and left this one out. It is zero when the script begins, and
+  `IsSet(ErrorLevel)` is one.
+- **The `ErrorLevel` is the global variable of the script, and a script may
+  write it.** The value that is written is kept as it is -- a text stays a
+  text -- and the operators of it are the ones of the v1: `ErrorLevel += 3`
+  adds to what is there. The write of a function is a local one, and the
+  global keeps the value that the machine wrote.
+- **The `StringGetPos` writes the `ErrorLevel`:** zero when it finds the text
+  and one when it does not.
+- **The `StringReplace` writes the `ErrorLevel`:** the number of the
+  replacements when the parameter says "useerrorlevel", and zero when it does
+  not. The parameter says it when it has the word "useerrorlevel" in it, in
+  any case, and wherever it is in the parameter -- and the word makes it
+  replace every occurrence of the text as well.
+- **The `StrReplace` does not write the `ErrorLevel`.** The v1 has no
+  parameter that says "useerrorlevel" in it.
+- **The file commands of the v1 write the `ErrorLevel`.** The `FileAppend` is
+  one when there was a problem and zero otherwise, and the `FileCopy`, the
+  `FileDelete`, the `FileMove`, the `FileRead` and the `FileSetTime` are the
+  number of the files that failed -- the tree refuses the wildcards, so the
+  number is one when the command fails and zero when it does not.
+
+The commands of the machine that write the `ErrorLevel` as well -- the
+`ClipWait`, the `DllCall` and the `Run` -- are not carried yet: theirs is the
+answer of the machine and not a count of the failures, and they come with
+the block that carries them. The `Process` is refused by the tree in the v1.
+The `global ErrorLevel` is refused by the v1 -- "Built-in variables must not
+be declared." -- and the tree does not refuse the `global` of any built-in
+variable.
 
 

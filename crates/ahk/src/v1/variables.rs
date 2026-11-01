@@ -8,6 +8,10 @@
 //! dialect gives to every one of them: `A_Clipboard` and not `Clipboard`.
 //! The table of the v2 carries the name without the prefix, and the two
 //! conventions meet in the dialect, and nowhere else.
+//!
+//! The `ErrorLevel` is the one built-in variable of the v1 that has no
+//! prefix: it is the last error of the run, and the commands that fail
+//! write it.
 
 use alloc::format;
 use alloc::string::ToString;
@@ -100,6 +104,9 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     // Measured: "Off". The command `StringCaseSense` turns the sense of
     // the case on and off, and the name of it follows it.
     ("A_StringCaseSense", TheValue::TheCaseSense),
+    // The last error of the run: the name has no prefix, and it is the only
+    // one of the v1 that has not. Measured: "0", and a script may write it.
+    ("ErrorLevel", TheValue::Number(0)),
     // The label of the thread that runs: the script is at its top.
     ("A_ThisLabel", TheValue::Text("")),
     // The menu of the thread that runs: the tree has none.
@@ -176,10 +183,20 @@ pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError
 /// The write of the built-in variable of this name.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: every
-/// one of the names is read-only, and the only one that a script may write
-/// is the `A_Args`. The refusal is the one of the v1, and it is a load
-/// error there.
-pub fn write(name: &str, _op: AssignOp, line: u32) -> Option<Result<Value, RuntimeError>> {
+/// one of the names is read-only, and the only ones that a script may write
+/// are the `A_Args` and the `ErrorLevel`. The refusal is the one of the v1,
+/// and it is a load error there.
+///
+/// The `ErrorLevel` is the global variable of the script, and the runtime
+/// keeps it in the table of the script: the write of it is the write of any
+/// other variable, and the operators of it are the ones of the v1.
+pub fn write(
+    name: &str,
+    _op: AssignOp,
+    _value: &Value,
+    line: u32,
+    _rt: &mut Runtime,
+) -> Option<Result<Value, RuntimeError>> {
     let wanted = name.to_lowercase();
     for (carried, _) in THE_VARIABLES {
         if carried.to_lowercase() != wanted {
@@ -188,6 +205,11 @@ pub fn write(name: &str, _op: AssignOp, line: u32) -> Option<Result<Value, Runti
         // The arguments of the script are the ones the script writes, and
         // the runtime keeps them in the table of the script.
         if wanted == "a_args" {
+            return None;
+        }
+        // The last error of the run is the global variable of the script,
+        // and the runtime keeps it in the table of the script.
+        if wanted == "errorlevel" {
             return None;
         }
         // The message of the v1 names the variable that was written, and it

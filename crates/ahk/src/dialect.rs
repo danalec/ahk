@@ -435,7 +435,7 @@ impl Dialect for V1 {
         rt: &mut Runtime,
     ) -> Option<Result<Value, RuntimeError>> {
         crate::variables::write(name, op, value, line, rt)
-            .or_else(|| crate::v1::write_variable(name, op, line))
+            .or_else(|| crate::v1::write_variable(name, op, value, line, rt))
     }
 
     fn legacy_commands(&self) -> bool {

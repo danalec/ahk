@@ -1392,6 +1392,20 @@ impl<'a> Runtime<'a> {
         self.case_sense
     }
 
+    /// The write of the last error of the run, the way the v1 keeps it.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel`
+    /// of the v1 is the global variable of the script, and a command that
+    /// fails writes it -- the `StringGetPos` writes zero when it finds the
+    /// text and one when it does not, and the `StringReplace` writes the
+    /// number of the replacements when the parameter says "useerrorlevel" and
+    /// zero when it does not. The write is the one of the script, and it does
+    /// not care about the scope that runs: a function that writes the name
+    /// writes a local one, and the machine writes the global.
+    pub(crate) fn set_the_error_level(&mut self, value: Value) {
+        self.variables.insert(the_key_of("ErrorLevel"), value);
+    }
+
     /// The sense of the case of the run.
     pub fn set_case_sense(&mut self, sense: CaseSense) {
         self.case_sense = sense;
