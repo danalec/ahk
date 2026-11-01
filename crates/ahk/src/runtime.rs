@@ -2806,9 +2806,15 @@ impl<'a> Runtime<'a> {
             return Scope::Global;
         }
         // A name that a scope around the call has is shared with it.
-        for (depth, scope) in self.scopes.iter().enumerate().rev().skip(1) {
-            if scope.borrow().contains_key(&name) {
-                return Scope::Local(depth);
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // v1 does not share them: the name lives in the scope of the
+        // function that runs.
+        if self.the_scopes_around_are_shared() {
+            for (depth, scope) in self.scopes.iter().enumerate().rev().skip(1) {
+                if scope.borrow().contains_key(&name) {
+                    return Scope::Local(depth);
+                }
             }
         }
         match self.scopes.len() {
@@ -3185,13 +3191,18 @@ impl<'a> Runtime<'a> {
         if let Some(value) = self.the_static_of_the_frame(&name) {
             return Some(value);
         }
-        for scope in self.scopes.iter().rev().skip(1) {
-            match scope.borrow().get(&name) {
-                Some(Value::Reference(reference)) if reference.alias => {
-                    return self.read_reference(reference);
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // v1 does not share the scopes around the call: a function has its
+        // own scope, and the name of an outer call is not visible in it.
+        if self.the_scopes_around_are_shared() {
+            for scope in self.scopes.iter().rev().skip(1) {
+                match scope.borrow().get(&name) {
+                    Some(Value::Reference(reference)) if reference.alias => {
+                        return self.read_reference(reference);
+                    }
+                    Some(value) => return Some(value.clone()),
+                    None => continue,
                 }
-                Some(value) => return Some(value.clone()),
-                None => continue,
             }
         }
         // A name that the function declares local is the local one, and not
@@ -3204,7 +3215,27 @@ impl<'a> Runtime<'a> {
         if self.is_declared_local(&name) {
             return None;
         }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // v1 does not fall back to the scope of the script either: the name
+        // of the script is not visible in a function, and only the `global`
+        // declaration makes it visible.
+        if self.dialect.the_scope_of_a_function_is_its_own()
+            && !self.scopes.is_empty()
+            && !self.lives_in_the_script(&name)
+        {
+            return None;
+        }
         self.variables.get(&name).cloned()
+    }
+
+    /// Whether the scopes around the call are shared with it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// does not share them: every function of the v1 has its own scope, and
+    /// the name of an outer call is not visible in it. The v2 shares the name
+    /// that a scope around the call has.
+    fn the_scopes_around_are_shared(&self) -> bool {
+        !self.dialect.the_scope_of_a_function_is_its_own()
     }
 
     /// Whether the name is one that the function that runs declares
@@ -3509,10 +3540,16 @@ impl<'a> Runtime<'a> {
         // A name that a scope around the call has is shared with it: v2
         // writes there, and not in the scope of the function that closes
         // over it.
-        for scope in self.scopes.iter().rev().skip(1) {
-            if scope.borrow().contains_key(&name) {
-                scope.borrow_mut().insert(name, value);
-                return;
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // v1 does not share them: the name is written in the scope of the
+        // function that runs.
+        if self.the_scopes_around_are_shared() {
+            for scope in self.scopes.iter().rev().skip(1) {
+                if scope.borrow().contains_key(&name) {
+                    scope.borrow_mut().insert(name, value);
+                    return;
+                }
             }
         }
         match self.scopes.last() {

@@ -6846,3 +6846,33 @@ tree refuses it. The class inside a class of the v1 may also be used with a
 dotted name -- the `new C.D` and the `new this.D` are taken -- and the tree
 refuses the dot.
 
+## 168. The scope of a function of the v1 is its own
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The function of the v1 does not see the scope of the script.** The name
+  of the script is not visible in the function: the `x := 1` and the
+  `f() { return x }` gives the empty text. Only the `global` declaration
+  makes it visible, and the `global x` and the `f() { global x; return x }`
+  gives the one.
+- **The function of the v1 does not share the scopes around the call.** The
+  name of an outer call is not visible in the function that it calls.
+- **The write of a function of the v1 is its own.** The `x := 2` inside a
+  function does not touch the scope of the script, and the scope of the
+  script keeps the one.
+
+The v2 is the other way: a function assumes the scope of the function, and
+the reading of a name that was never assigned in it falls back to the scope
+of the script.
+
+The rule is one hook of the dialect (`crates/ahk/src/dialect.rs`): the scope
+of a function is its own. The runtime asks it
+(`crates/ahk/src/runtime.rs`), in the read of a name, in the write of it, and
+in the scope that a name lives in.
+
+What stays out: the numbers of the v1 keep the text that was written -- the
+`x := 0x1C` is "0x1C" and not "28" -- and the tree says "28". The name of the
+v1 may also begin with a number -- the `1C` is a name, and the `1e2` is a
+name too, because the scientific notation needs a decimal point -- and the
+tree refuses the name that begins with a number.
+

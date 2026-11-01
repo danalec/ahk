@@ -2925,3 +2925,43 @@ fn the_base_of_a_class_of_the_v1_is_a_class_of_the_script() {
     assert_eq!(report.output, vec!["ok".to_string()]);
 }
 
+/// The function of the v1 does not see the scope of the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: every
+/// function of the v1 has its own scope: the name of the script is not
+/// visible in the function, and only the `global` declaration makes it
+/// visible. The v2 reads the scope of the script when the name is only read.
+#[test]
+fn the_function_of_the_v1_does_not_see_the_scope_of_the_script() {
+    // The name of the script is not visible in the function.
+    let report = run("x := 1\nf() {\n    return x\n}\nr := f()\nFileAppend, [%r%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The name that the function declares global is visible.
+    let report = run("x := 1\nf() {\n    global x\n    return x\n}\nr := f()\nFileAppend, [%r%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+
+    // The write of the function is its own, and the scope of the script is
+    // not touched.
+    let report = run("x := 1\nf() {\n    x := 2\n}\nf()\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The function of the v1 does not share the scopes around the call.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of
+/// an outer call is not visible in the function that it calls, and the write
+/// of it is in the scope of the function that runs.
+#[test]
+fn the_function_of_the_v1_does_not_share_the_scopes_around_the_call() {
+    let report = run(
+        "x := 5\ng() {\n    return x\n}\nf() {\n    local x := 1\n    return g()\n}\nr := f()\n\
+         FileAppend, [%r%], *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+

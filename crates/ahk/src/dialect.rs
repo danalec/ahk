@@ -514,6 +514,17 @@ pub trait Dialect: Sync {
         true
     }
 
+    /// Whether the scope of a function is its own.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// gives every function its own scope: the function does not see the
+    /// scope of the script, nor the scopes around the call, and only the
+    /// `global` declaration makes a name of the script visible in it. The v2
+    /// reads the scope of the script when the name is only read.
+    fn the_scope_of_a_function_is_its_own(&self) -> bool {
+        false
+    }
+
     /// Whether the `base` of the dialect is the base of the class where the
     /// method was defined.
     ///
@@ -967,6 +978,12 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has no
         // class types, and the base of a class is a class of the script.
         false
+    }
+
+    fn the_scope_of_a_function_is_its_own(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: every function
+        // of the v1 has its own scope.
+        true
     }
 
     fn the_base_is_the_base_of_the_class(&self) -> bool {
