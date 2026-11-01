@@ -381,6 +381,11 @@ fn the_is_func_of_the_v1_answers_with_the_kind_of_the_name() {
     assert!(report.ok);
     assert_eq!(report.variables.get("n"), Some(&Value::Int(2)));
 
+    // A built-in of the v1 that the v2 does not have is a built-in too.
+    let report = run("n := IsFunc(\"IsSet\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(2)));
+
     let report = run("x := 5\nn := IsFunc(\"x\")");
     assert!(report.ok);
     assert_eq!(report.variables.get("n"), Some(&Value::Int(0)));

@@ -53,7 +53,7 @@ pub(crate) fn is_func(
     let name = values.first().map(|value| value.to_text()).unwrap_or_default();
     let answer = if rt.has_a_function(&name) {
         1
-    } else if crate::builtins::find(&name).is_some() {
+    } else if rt.has_a_builtin(&name) {
         2
     } else {
         0

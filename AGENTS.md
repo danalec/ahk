@@ -6116,3 +6116,28 @@ names that are refused or that are pending. The text of the surface is
 the same thing for a human, and it is what the command prints when the
 JSON is not asked for.
 
+## 146. The v1 runs on the box
+
+Verified on the box on 2026-11-02, on 192.168.0.40, with the runner
+built from this tree and the flag `--dialect=v1`. The script was in the
+names of the v1: the `PixelGetColor`, the `MouseGetPos`, the `FileRead`,
+the `StrLen`, the `IsSet`, the `IsFunc` and the `Object`.
+
+The report was `ok: true`, with the note that the absolute pointer was
+opened, the colour of the pixel (`#565656`), the name of the machine
+(`pod158c`) and the answers of the names that the v1 has and the v2 does
+not (`set 1 func 2 object 42`).
+
+Two things came out of the run:
+
+- **The `PixelGet` is not a name of the v1.** The `PixelGetColor` is, and
+  it is a command: the table of the surface of the v1 is right, and a
+  script that says `PixelGet` is refused with "This line does not contain
+  a recognized action.". The names of the table come from the CHM of the
+  portable v1 and the kinds come from the binary, and the two agree.
+- **The `IsFunc` asks the table of the dialect.** A built-in of the v1
+  that the v2 does not have is a built-in, and the answer is 2. The
+  handler was asking the table of the v2, and it answered 0 for the
+  `IsSet`.
+
+

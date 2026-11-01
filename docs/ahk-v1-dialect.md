@@ -804,6 +804,28 @@ do almost all of this.
 **Result.** `ahk --surface --dialect=v1` says what is missing, and the number
 does not get worse without being seen.
 
+### The state of the phases — 2026-11-02
+
+| Phase | State | What is in the tree |
+|---|---|---|
+| **F0 — the gate** | Done | The trait `Dialect`, the `V1` and the `V2`, the column `parameters` of the table of the built-ins and the flag `--dialect` of the runner. Commit `9d57bf8`. |
+| **F1 — the surface** | Done | The table of the v1 (`crates/ahk/src/v1/table.rs`), the call in the shape of the v1, and the pending table of the v1. Commit `48ef559`. |
+| **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues on a comma, the hotstring as a statement, and the directives of the v1. Commit `12331ab`. |
+| **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
+| **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 21 cases), and the `--surface --json` for the CI. |
+
+**What is left.** Eight names of the pending table of the v1: the
+`AutoTrim`, the `IfInString`, the `IfMsgBox`, the `SetBatchLines`, the
+`SetFormat`, the `StringCaseSense`, the `Transform` and the
+`VarSetCapacity`. The `SetBatchLines` is a decision of the plan (§5, the
+threads of the v1). The other seven are work that is still to do, and the
+pending table is where they are written down.
+
+The surface of the v1 has **384** entries: **268** answer with a value,
+**108** are refused and **8** are pending. The surface of the v2 did not
+move: **828** entries, **637** values, **191** refusals and no pending.
+
 ---
 
 ## 5. The risks

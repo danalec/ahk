@@ -3095,6 +3095,18 @@ impl<'a> Runtime<'a> {
         self.functions.contains_key(&name.to_lowercase())
     }
 
+    /// Whether the dialect has the built-in of this name.
+    ///
+    /// The table of the dialect is the one that answers: the v1 has the
+    /// names that the v2 does not have, and the `IsFunc` of the v1 asks
+    /// about them.
+    pub(crate) fn has_a_builtin(&self, name: &str) -> bool {
+        self.dialect
+            .builtins()
+            .iter()
+            .any(|builtin| builtin.name.eq_ignore_ascii_case(name))
+    }
+
     /// Whether the variable of this name is a reference.
     pub(crate) fn is_a_reference(&self, name: &str) -> bool {
         matches!(self.lookup_variable(name), Some(Value::Reference(_)))
