@@ -478,6 +478,56 @@ fn the_increment_of_a_built_in_variable_of_the_v1_is_refused_at_the_load() {
     }
 }
 
+/// The space does not separate the operator of the increment from the name.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `x ++` is the
+/// increment of the `x`, and the `x --` is the decrement of it. The v2 is the
+/// other way round: the space tells the operator of the increment apart from
+/// the call.
+#[test]
+fn the_space_does_not_separate_the_increment_of_the_v1() {
+    let report = run("x := 5\nx ++");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(6)));
+
+    let report = run("x := 5\nx --");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(4)));
+}
+
+/// The rest of the line after the increment is evaluated, and its value is
+/// thrown away.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `x ++ 5` is the
+/// increment of the `x`, and the `5` is the list of the v1.
+#[test]
+fn the_rest_of_the_line_after_the_increment_of_the_v1_is_thrown_away() {
+    let report = run("x := 5\nx ++ 5");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(6)));
+
+    let report = run("x := 5\nx -- 5");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(4)));
+}
+
+/// The increment of a built-in variable of the v1 is only refused when the
+/// line is the increment alone.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `A_AhkPath++ 5`
+/// is accepted, and the increment of a built-in variable answers the empty
+/// text and changes nothing.
+#[test]
+fn the_increment_of_a_built_in_variable_of_the_v1_is_refused_only_alone() {
+    let report = run("A_AhkPath++ 5");
+    assert!(report.ok);
+
+    let report = run("y := A_AutoTrim++\nx := A_AutoTrim");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("".into())));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("On".into())));
+}
+
 /// The directive of the v1 that the runtime already is is accepted, and the
 /// one that asks for a thing the runtime does not have is refused with the
 /// reason.

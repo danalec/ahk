@@ -7018,9 +7018,10 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   concat with "This built-in variable cannot be assigned a value.".
 - **The refusal names the variable as the script spelled it.** The
   `a_ahkpath := 5` names "a_ahkpath".
-- **The refusal is at the load, in every scope.** A local variable may not
-  carry the name either, and the body of a class is the one place where the
-  name is a property and not a variable.
+- **The refusal of the write is at the load, in every scope.** A local variable
+  may not carry the name either, and the body of a class is the one place
+  where the name is a property and not a variable. The increment of a built-in
+  variable is refused too, and that is section 173.
 
 The rule is three hooks of the dialect (`crates/ahk/src/dialect.rs`): the
 refusal of the write of a built-in variable, the refusal of the increment of
@@ -7038,5 +7039,36 @@ of the v1 (`crates/ahk/src/v1/variables.rs`): the table of the names that the
 v2 has and the v1 does not, the table of the names that the v1 has and the v2
 does not, and the rule that a name of the v1 that the v2 does not have as a
 variable -- the directives of the v1 and the `A_TrayMenu` -- is not refused.
+
+## 173. The increment of the v1 does not mind the space, and the rest of the line is the list of the v1
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The space does not separate the operator of the increment from the name.**
+  The `x ++` is the increment of the `x`, and the `x --` is the decrement of
+  it. The v2 is the other way round: the space is what tells the operator of
+  the increment apart from the call -- the `x++` is the increment of the `x`,
+  and the `x ++` is a call of the `x`.
+- **The rest of the line after the increment is evaluated, and its value is
+  thrown away.** The `x ++ 5` is the increment of the `x`, and the `5` is the
+  list of the v1. The call that is not there is still a failure: the
+  `x ++ NoSuchFunc()` answers "Call to nonexistent function.".
+- **The increment of a built-in variable is refused only when the line is the
+  increment alone.** The `A_AhkPath++` is refused at the load with the reason
+  of the write (section 172), and the `A_AhkPath++ 5` is accepted. The
+  increment of a built-in variable that is inside an expression answers the
+  empty text, and the built-in keeps the value that it had: the `y :=
+  A_AutoTrim++` leaves the `y` empty, and the `A_AutoTrim` is still `On`.
+- **The v1 does not accept a line that is an expression.** The `5`, the
+  `x + 1` and the `x` alone are refused with "This line does not contain a
+  recognized action.", and a call alone is accepted. The tree already refuses
+  them.
+
+The rule is two hooks of the dialect (`crates/ahk/src/dialect.rs`): whether
+the space separates the increment, and whether the increment of a built-in
+variable changes nothing. The parser asks the first one
+(`crates/ahk/src/parser.rs`), and the runtime asks the second one
+(`crates/ahk/src/runtime.rs`): the value is the empty text, and nothing is
+written. The v2 keeps its own rule, and the tree does not change it.
 
 

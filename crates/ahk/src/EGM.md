@@ -1079,6 +1079,13 @@ v1 is accepted, and the built-in keeps the value that it had. The settings
 of the run are written where they live, and the settings of the v2 are
 built-in variables of the v1.
 
+The increment is a rule of the dialect as well. The space that separates the
+operator of the increment from the name is the rule of v2 -- the `x ++` is a
+call of the `x` -- and the v1 does not have it: the `x ++` is the increment
+of the `x`. The increment of a built-in variable of the v1 answers the empty
+text and changes nothing, and the refusal of it at the load is the one of the
+line that is the increment alone.
+
 ### The regular expressions (`regex.rs`)
 
 - `Regex` -- a compiled pattern.

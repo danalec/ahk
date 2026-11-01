@@ -2302,6 +2302,14 @@ impl Parser {
             // statement of its own.
             if self.the_postfix_increment_is_next() {
                 let value = self.parse_expression()?;
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // increment of a built-in variable of the v1 is refused at the
+                // load when the line is the increment alone: the increment
+                // that is inside an expression, or the one that has
+                // something after it, is accepted.
+                if let Some(message) = self.the_refusal_of_the_increment(&value) {
+                    return Err(self.error(message));
+                }
                 self.end_of_statement()?;
                 return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
             }
@@ -3582,10 +3590,18 @@ impl Parser {
 
     /// The refusal of the dialect to the increment of a value.
     ///
+    /// The value is the one of the statement, and the refusal is the one of
+    /// the line that is the increment alone: the increment that is inside an
+    /// expression, or the one that has something after it, is not refused.
+    ///
     /// The name of the value is the one that the script spelled, and the
     /// reason is the one of the dialect.
     fn the_refusal_of_the_increment(&self, node: &Node) -> Option<String> {
-        let Node::Var { name, .. } = node else { return None };
+        let Node::Unary { op: UnaryOp::PostIncrement | UnaryOp::PostDecrement, operand, .. } = node
+        else {
+            return None;
+        };
+        let Node::Var { name, .. } = operand.as_ref() else { return None };
         self.dialect.the_refusal_of_the_increment_of_a_built_in_variable(name)
     }
 
@@ -6764,19 +6780,13 @@ impl Parser {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // increment of a value that cannot be written is refused at
                 // the load, and the source of the operator is named with it.
-                if matches!(op, UnaryOp::PreIncrement | UnaryOp::PreDecrement) {
-                    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
-                    // increment of a built-in variable of the v1 is refused
-                    // with the reason of the write.
-                    if let Some(message) = self.the_refusal_of_the_increment(&operand) {
-                        return Err(self.error(message));
-                    }
-                    if !the_value_can_be_written(&operand) {
-                        return Err(self.error(format!(
-                            "Invalid assignment.\n     Specifically: {}",
-                            the_source_of_the_tokens(self, at_the_operator, self.position)
-                        )));
-                    }
+                if matches!(op, UnaryOp::PreIncrement | UnaryOp::PreDecrement)
+                    && !the_value_can_be_written(&operand)
+                {
+                    return Err(self.error(format!(
+                        "Invalid assignment.\n     Specifically: {}",
+                        the_source_of_the_tokens(self, at_the_operator, self.position)
+                    )));
                 }
                 // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
                 // the sign of the v1 is part of the number that was written:
@@ -6940,8 +6950,11 @@ impl Parser {
                     return Ok(Node::Lambda { parameters, body: Box::new(body), line: token.line });
                 }
                 // `x++` and `x--`: the operator comes after the name, and
-                // the space is what tells it apart from the concat.
-                if self.at_op(&["++", "--"]) && !self.peek().spaced {
+                // the space is what tells it apart from the concat -- unless
+                // the dialect does not separate them.
+                if self.at_op(&["++", "--"])
+                    && (!self.dialect.the_space_separates_the_increment() || !self.peek().spaced)
+                {
                     let operator = self.next();
                     let op = if operator.value == "++" {
                         UnaryOp::PostIncrement
@@ -6949,12 +6962,6 @@ impl Parser {
                         UnaryOp::PostDecrement
                     };
                     let operand = Node::Var { name, line: token.line };
-                    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
-                    // increment of a built-in variable of the v1 is refused
-                    // with the reason of the write.
-                    if let Some(message) = self.the_refusal_of_the_increment(&operand) {
-                        return Err(self.error(message));
-                    }
                     return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
                 }
                 Node::Var { name, line: token.line }
@@ -7423,13 +7430,6 @@ impl Parser {
                 let line = node.line();
                 // The increment of a value that cannot be written is refused
                 // at the load, and the source of the operator is named.
-                //
-                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
-                // increment of a built-in variable of the v1 is refused with
-                // the reason of the write.
-                if let Some(message) = self.the_refusal_of_the_increment(&node) {
-                    return Err(self.error(message));
-                }
                 if !the_value_can_be_written(&node) {
                     return Err(self.error(format!(
                         "Invalid assignment.\n     Specifically: {}",
@@ -7479,9 +7479,15 @@ impl Parser {
     /// Measured on the binary of v2.0.19 on 2026-10-31: the space is what
     /// tells the operator of the increment apart from the concat: `x++` is
     /// the increment of `x`, and `x ++` is a call of `x`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// has no call without parentheses, and the space does not separate the
+    /// operator: the `x ++` is the increment of `x`.
     fn the_postfix_increment_is_next(&self) -> bool {
         let Some(token) = self.tokens.get(self.position + 1) else { return false };
-        token.kind == TokenKind::Op && matches!(token.value.as_str(), "++" | "--") && !token.spaced
+        token.kind == TokenKind::Op
+            && matches!(token.value.as_str(), "++" | "--")
+            && (!self.dialect.the_space_separates_the_increment() || !token.spaced)
     }
 
     /// The record of an assignment, for the check of the classes.

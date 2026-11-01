@@ -7487,6 +7487,14 @@ impl<'a> Runtime<'a> {
         };
         match operand {
             Node::Var { name, .. } => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-02: the v1 does not let a script write a built-in
+                // variable, and the increment of one changes nothing: the
+                // value is the empty text, and the built-in keeps the value
+                // that it had.
+                if self.dialect.the_increment_of_a_built_in_variable_changes_nothing(name) {
+                    return Ok(Value::Text(String::new()));
+                }
                 let current = self.lookup(name).ok_or_else(|| self.the_unassigned_failure(name, line))?;
                 let stored = self.the_number_after(&current, step, line)?;
                 self.assign(name, stored.clone());

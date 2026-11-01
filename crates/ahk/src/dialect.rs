@@ -621,9 +621,33 @@ pub trait Dialect: Sync {
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
     /// increment of a built-in variable of the v1 is refused with the reason
-    /// of the write.
+    /// of the write, and the refusal is the one of the line that is the
+    /// increment alone: the increment that is inside an expression, or the
+    /// one that has something after it, is accepted.
     fn the_refusal_of_the_increment_of_a_built_in_variable(&self, _name: &str) -> Option<String> {
         None
+    }
+
+    /// Whether the space separates the increment from the name.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the space is what
+    /// tells the operator of the increment apart from the concat -- `x++` is
+    /// the increment of `x`, and `x ++` is a call of `x`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// has no call without parentheses, and the space does not separate the
+    /// operator: the `x ++` is the increment of `x`.
+    fn the_space_separates_the_increment(&self) -> bool {
+        true
+    }
+
+    /// Whether the increment of a built-in variable changes nothing.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// does not let a script write a built-in variable, and the increment of
+    /// one changes nothing: the value is the one that the built-in has.
+    fn the_increment_of_a_built_in_variable_changes_nothing(&self, _name: &str) -> bool {
+        false
     }
 
     /// Whether the write of a built-in variable goes nowhere.
@@ -980,6 +1004,20 @@ impl Dialect for V1 {
             return None;
         }
         Some(format!("Not allowed as an output variable.\n     Specifically: {name}"))
+    }
+
+    fn the_space_separates_the_increment(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+        // has no call without parentheses, and the space does not separate the
+        // operator of the increment from the name.
+        false
+    }
+
+    fn the_increment_of_a_built_in_variable_changes_nothing(&self, name: &str) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+        // does not let a script write a built-in variable, and the increment of
+        // one changes nothing.
+        crate::v1::is_read_only(name)
     }
 
     fn the_write_of_a_built_in_variable_goes_nowhere(&self, name: &str, op: AssignOp) -> bool {
