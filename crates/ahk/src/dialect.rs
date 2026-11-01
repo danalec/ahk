@@ -58,6 +58,14 @@ pub trait Dialect: Sync {
     /// The hotstring is a statement: `::btw::by the way`.
     fn hotstrings_are_statements(&self) -> bool;
 
+    /// Whether the dialect knows the directive of this name.
+    ///
+    /// The name is the one of the directive without the hash, and the
+    /// case of it does not matter. A directive that the dialect does not
+    /// know is not a directive at all: the line that holds it holds no
+    /// action, and it is refused at the load.
+    fn carries_directive(&self, name: &str) -> bool;
+
     /// A value that is not there is a blank result and not a failure.
     /// Measured on the binary of v1.1.37.02 on 2026-11-01: a variable that
     /// was never assigned is blank, and so is an index out of range.
@@ -132,6 +140,10 @@ impl Dialect for V2 {
         false
     }
 
+    fn carries_directive(&self, name: &str) -> bool {
+        crate::lexer::carries_directive(name)
+    }
+
     fn unset_is_blank(&self) -> bool {
         false
     }
@@ -183,6 +195,10 @@ impl Dialect for V1 {
 
     fn hotstrings_are_statements(&self) -> bool {
         true
+    }
+
+    fn carries_directive(&self, name: &str) -> bool {
+        crate::lexer::carries_directive(name) || crate::v1::carries_directive(name)
     }
 
     fn unset_is_blank(&self) -> bool {

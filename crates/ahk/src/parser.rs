@@ -741,7 +741,7 @@ pub fn parse_with(
     source: &str,
     dialect: &'static dyn crate::dialect::Dialect,
 ) -> Result<Vec<Node>, SyntaxError> {
-    let tokens = crate::lexer::tokenize(source)?;
+    let tokens = crate::lexer::tokenize_with(source, dialect)?;
     Parser::with_dialect(tokens, dialect).parse_script()
 }
 
@@ -1860,6 +1860,22 @@ impl Parser {
         format!("{name}({arguments})")
     }
 
+    /// The hotstring of the v1: `::btw::by the way`.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-01: the line is a
+    /// hotstring, and it registers the text that it holds.
+    fn parse_the_hotstring_of_the_v1(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let text = the_source_of_the_line(self, token.line);
+        // The whole line is the hotstring, and the parser goes to the end
+        // of it.
+        while self.peek().kind != TokenKind::Newline && self.peek().kind != TokenKind::Eof {
+            self.next();
+        }
+        self.end_of_statement()?;
+        Ok(Node::LegacyCall { name: "hotstring".into(), parameters: vec![text], line: token.line })
+    }
+
     fn parse_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
         // The statement begins here, and a token that cannot be there
         // names it.
@@ -1867,6 +1883,11 @@ impl Parser {
         let token = self.peek().clone();
         if token.kind == TokenKind::Directive {
             return Ok(vec![self.parse_directive()?]);
+        }
+        // Measured on the binary of v1.1.37.02 on 2026-11-01: the hotstring of
+        // the v1 is a statement, and the line is the hotstring.
+        if self.dialect.hotstrings_are_statements() && self.at_op(&["::"]) {
+            return Ok(vec![self.parse_the_hotstring_of_the_v1()?]);
         }
         if token.kind == TokenKind::Keyword {
             let word = token.value.to_lowercase();
@@ -2709,6 +2730,17 @@ impl Parser {
         Ok(parameters)
     }
 
+    /// Whether the line of a command of the v1 continues on the next one.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-01: the line of a
+    /// command of the v1 continues when it ends with a comma. The v2
+    /// continues a line that ends with any operator, and the v1 does not:
+    /// the star of `FileAppend, hello, *` is the end of the command.
+    fn the_line_of_a_legacy_command_continues_at(&self, at: usize) -> bool {
+        let Some(token) = self.the_token_before(at) else { return false };
+        token.kind == TokenKind::Op && token.value == ","
+    }
+
     /// The place where the parameter that starts here ends.
     ///
     /// The end of the parameter is the comma that separates it from the
@@ -2724,7 +2756,7 @@ impl Parser {
                     // The line continues when the comma that ends it is
                     // there, and the empty lines between the two are not a
                     // part of it.
-                    if !self.the_line_continues_at(index) {
+                    if !self.the_line_of_a_legacy_command_continues_at(index) {
                         break;
                     }
                     index += 1;
@@ -4818,25 +4850,44 @@ impl Parser {
                 // The count of the loop. It may be left out, and the loop
                 // goes on until a break.
                 if self.at_op(&[","]) {
-                    // The comma of a call is not there.
-                    return Err(self.error(format!(
-                        "Function calls require a space or \"(\".  Use comma only between parameters.\n     Specifically: {}",
-                        the_source_of_the_line(self, token.line)
-                    )));
-                }
-                empty = self.the_parenthesis_of_a_condition_is_empty();
-                if empty.is_some() {
-                    self.next();
-                    self.next();
-                } else if !self.at_end_of_statement() && !self.at_op(&["::", "{"]) {
-                    self.the_expression_begins();
-                    arguments.push(self.parse_expression()?);
-                    if self.at_op(&[","]) {
-                        // The count of the loop is not a name of a kind.
+                    // Measured on the binary of v1.1.37.02 on 2026-11-01: the
+                    // count of the loop of the v1 comes after a comma:
+                    // `Loop, 3`.
+                    if self.dialect.legacy_commands() {
+                        self.next();
+                        self.the_expression_begins();
+                        arguments.push(self.parse_expression()?);
+                        if self.at_op(&[","]) {
+                            // The kinds of the loop of the v1 come after
+                            // the count, and the tree does not carry them
+                            // yet.
+                            return Err(self.error(format!(
+                                "Invalid loop type.\n     Specifically: {}",
+                                the_source_of_the_line(self, token.line)
+                            )));
+                        }
+                    } else {
+                        // The comma of a call is not there.
                         return Err(self.error(format!(
-                            "Invalid loop type.\n     Specifically: {}",
+                            "Function calls require a space or \"(\".  Use comma only between parameters.\n     Specifically: {}",
                             the_source_of_the_line(self, token.line)
                         )));
+                    }
+                } else {
+                    empty = self.the_parenthesis_of_a_condition_is_empty();
+                    if empty.is_some() {
+                        self.next();
+                        self.next();
+                    } else if !self.at_end_of_statement() && !self.at_op(&["::", "{"]) {
+                        self.the_expression_begins();
+                        arguments.push(self.parse_expression()?);
+                        if self.at_op(&[","]) {
+                            // The count of the loop is not a name of a kind.
+                            return Err(self.error(format!(
+                                "Invalid loop type.\n     Specifically: {}",
+                                the_source_of_the_line(self, token.line)
+                            )));
+                        }
                     }
                 }
             }

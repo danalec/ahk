@@ -620,6 +620,18 @@ fn the_line_the_section_joins(
 /// by newlines too, so the parser reads a block as a list of statements and
 /// the newline is just a separator there as well.
 pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
+    tokenize_with(source, crate::dialect::v2())
+}
+
+/// Turn the source into tokens, in the dialect of this name.
+///
+/// The directives are the ones of the dialect: a name that the dialect
+/// does not know is not a directive at all, and the line that holds it
+/// holds no action.
+pub fn tokenize_with(
+    source: &str,
+    dialect: &'static dyn crate::dialect::Dialect,
+) -> Result<Vec<Token>, SyntaxError> {
     // Measured on the binary of v2.0.19 on 2026-10-31: the script may begin
     // with the byte order mark, and the mark is not a character of it. Only
     // the first one is taken: a second one is a character of the script.
@@ -720,7 +732,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
             // Measured on the binary of v2.0.19 on 2026-10-31: a name that
             // the v2 does not know is not a directive at all: the line holds
             // no action, and it is named with it.
-            if !THE_DIRECTIVES.contains(&name.to_lowercase().as_str()) {
+            if !dialect.carries_directive(&name) {
                 return Err(SyntaxError::new(
                     format!(
                         "This line does not contain a recognized action.\n     Specifically: #{name}{}",

@@ -93,7 +93,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "GuiControl", kind: BuiltinKind::Command, min: 2, max: 255, variant: 100, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: not_carried },
     Builtin { name: "GuiControlGet", kind: BuiltinKind::Command, min: 1, max: 255, variant: 100, parameters: &[Parameter::Output, Parameter::Value, Parameter::Value, Parameter::Value], handler: not_carried },
     Builtin { name: "Hotkey", kind: BuiltinKind::Command, min: 1, max: 255, variant: 1, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: hotkey },
-    Builtin { name: "Hotstring", kind: BuiltinKind::Function, min: 1, max: 3, variant: 1, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: hotstring },
+    Builtin { name: "Hotstring", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: super::hotstring_of_the_v1 },
     Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, parameters: &[Parameter::Output, Parameter::Output, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value], handler: image_search },
     Builtin { name: "InStr", kind: BuiltinKind::Function, min: 2, max: 5, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value], handler: in_str },
     Builtin { name: "IniDelete", kind: BuiltinKind::Command, min: 2, max: 255, variant: 6, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: ini_delete },

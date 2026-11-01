@@ -55,6 +55,34 @@ pub const VARIABLES: &[&str] = &[
     "A_ThisMenuItemPos",
 ];
 
+/// The directives of the v1 that the v2 does not know.
+///
+/// The name of a directive is the one of the dialect without the hash,
+/// and the case of it does not matter.
+pub const DIRECTIVES: &[&str] = &[
+    "commentflag",
+    "escapechar",
+    "hotkeyinterval",
+    "hotkeymodifiertimeout",
+    "if",
+    "iftimeout",
+    "ifwinactive",
+    "installkeybdhook",
+    "installmousehook",
+    "keyhistory",
+    "maxhotkeysperinterval",
+    "maxmem",
+    "menumaskkey",
+    "noenv",
+    "persistent",
+];
+
+/// Whether the v1 knows the directive of this name.
+pub fn carries_directive(name: &str) -> bool {
+    let wanted = name.to_lowercase();
+    DIRECTIVES.iter().any(|carried| *carried == wanted)
+}
+
 /// Whether the v1 carries the built-in variable of this name.
 pub fn carries_variable(name: &str) -> bool {
     let wanted = name.to_lowercase();
@@ -70,6 +98,36 @@ pub fn refusal_of_variable(name: &str) -> Option<&'static str> {
 }
 
 // -- the answer that goes into the variable of the caller ---------------------
+
+/// The hotstring of the v1: `::btw::by the way`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-01: the line is a
+/// hotstring, and the text that comes after the second pair of colons is
+/// the action of it.
+pub(crate) fn hotstring_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let invalid = RuntimeError {
+        message: "Parameter #1 of Hotstring is invalid.".to_string(),
+        line,
+    };
+    // The trigger of the hotstring is between the two pairs of colons, and
+    // the action is what comes after them.
+    let Some(rest) = text.strip_prefix("::") else { return Err(invalid) };
+    let Some((trigger, action)) = rest.split_once("::") else { return Err(invalid) };
+    // The v2 writes the trigger between two colons.
+    let definition = format!(":{trigger}:");
+    crate::builtins::hotstring(
+        rt,
+        &[Value::Text(definition), Value::Text(action.to_string())],
+        line,
+        1,
+    )
+}
 
 /// The answer of a command of the v1 goes into the variable of the caller.
 ///

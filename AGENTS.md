@@ -5968,3 +5968,29 @@ of the plan of the v1 dialect.
 - **The surface of the v1 is 384 names: 220 answer with a value, 106 are
   refused and 58 are pending.** The refusals are the names of Windows,
   and the pending are the names that the tree does not carry yet.
+
+## 141. The grammar of the v1, and the line that continues on a comma
+
+Measured on the binary of v1.1.37.02 on 2026-11-01. This is the phase F2
+of the plan of the v1 dialect.
+
+- **The body of a construct of the v1 is one statement.** The `if`, the
+  `else`, the `while` and the `loop` take the statement that comes after
+  them, and not a block: `if (1)` and then `FileAppend, yes, *` on the
+  next line is an `if` with a body. The tree already read the body of a
+  construct without braces, and the v1 is that.
+- **The count of the loop of the v1 comes after a comma.** `Loop, 3` is a
+  loop of three turns, and the kinds of the loop of the v1 (`Files`,
+  `Reg`, `Read` and `Parse`) are not carried yet.
+- **The line of a command of the v1 continues only after a comma.** The
+  v2 continues a line that ends with any operator, and the v1 does not:
+  the star of `FileAppend, hello, *` is the end of the command, and the
+  line that follows it is another statement. The rule of the v2 was
+  swallowing the line of the label that came after the command.
+- **The hotstring of the v1 is a statement.** `::btw::by the way` is a
+  hotstring, and the trigger of it is between the two pairs of colons and
+  the action is what comes after them.
+- **The directives are the ones of the dialect.** The v1 knows fifteen
+  directives that the v2 does not know, and the name of a directive that
+  the dialect does not know is a line that holds no action, and it is
+  refused at the load.
