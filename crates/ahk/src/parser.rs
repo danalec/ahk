@@ -1377,6 +1377,13 @@ impl Parser {
     /// assignment either, and the refusal is the same with "Func" in the
     /// place of "Class".
     fn check_the_assignments(&self, assignments: Vec<Assignment>) -> Result<(), SyntaxError> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // v1 takes the name of a class and the name of a function of the
+        // machine as the name of a variable, and it refuses no assignment of
+        // the top level.
+        if self.dialect.the_name_of_a_class_or_of_a_function_may_be_assigned() {
+            return Ok(());
+        }
         for assignment in assignments {
             let key = assignment.name.to_lowercase();
             if let Some(class) = self.the_name_of_the_class(&key) {
@@ -1447,13 +1454,37 @@ impl Parser {
                 }
                 Some("This class declaration conflicts with an existing Class.")
             } else if self.functions.contains(&key) {
-                Some("This class declaration conflicts with an existing Func.")
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+                // the v1 takes a class and a function of the same name.
+                if self.dialect.a_class_and_a_function_may_have_the_same_name() {
+                    None
+                } else {
+                    Some("This class declaration conflicts with an existing Func.")
+                }
             } else {
                 None
             }
         } else if self.classes.contains_key(&key) {
-            Some("This function declaration conflicts with an existing Class.")
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+            // v1 takes a class and a function of the same name.
+            if self.dialect.a_class_and_a_function_may_have_the_same_name() {
+                None
+            } else {
+                Some("This function declaration conflicts with an existing Class.")
+            }
         } else if self.functions.contains(&key) {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+            // v1 refuses the function that is declared twice with "Duplicate
+            // function definition.\n     Specifically: C()", and the name is
+            // written the way the script spelled it and with the parenthesis
+            // of the call.
+            if self.dialect.the_function_that_is_declared_twice_has_its_own_words() {
+                return Err(SyntaxError {
+                    message: format!("Duplicate function definition.\n     Specifically: {name}()"),
+                    line,
+                    column,
+                });
+            }
             Some("This function declaration conflicts with an existing Func.")
         } else {
             None
@@ -2503,6 +2534,21 @@ impl Parser {
     /// definition of a function.
     fn parse_name_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
         let name_token = self.next();
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // `new` of the v1 is a statement of its own: `new C` makes an instance
+        // of the class and throws it away. The word is not reserved: a `new`
+        // that no name follows is a variable of the script.
+        if self.dialect.the_new_makes_an_instance()
+            && name_token.value.eq_ignore_ascii_case("new")
+            && self.peek().kind == TokenKind::Name
+        {
+            let instance = self.parse_new(name_token.line)?;
+            self.end_of_statement()?;
+            return Ok(vec![Node::Expression {
+                value: Box::new(instance),
+                line: name_token.line,
+            }]);
+        }
         // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
         // variable that the script builds is a statement of its own, and it
         // may be written to: `MyArray%i% := 1`.

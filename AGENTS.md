@@ -6773,5 +6773,40 @@ refused. The parser asks them (`crates/ahk/src/parser.rs`).
 
 What stays out: the name of a class and the name of a variable of the script
 may be the same in the v1 -- the `C := 5` with the class `C` is taken, and the
-value of `C` is five -- and the tree refuses it.
+value of `C` is five -- and that is section 166.
+
+## 166. The class of the v1 is a variable, and the `new` reads it
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The name of a class of the v1 is the name of a variable.** The v1 takes
+  the `C := 5` with the class `C`, and the value of `C` is five. It takes the
+  name of a function of the machine as well -- the `Abs := 5` is taken -- and
+  the call still goes to the built-in: the `Abs(3)` answers 3.
+- **A class and a function of the v1 may carry the same name**, in either
+  order: the call goes to the function and the `new` goes to the class. The
+  name of the class is not read as a function and the name of the function is
+  not read as a class.
+- **The function that is declared twice is refused with the words of the
+  v1**: "Duplicate function definition.\n     Specifically: C()". The name is
+  written the way the script spelled it and with the parenthesis of the call.
+- **The `new` of the v1 reads the variable of the name.** The `new v` makes an
+  instance of the class that `v` holds, and a name that holds another value
+  makes nothing -- the empty text, and the v1 does not fail. The `new` is a
+  statement of its own as well: the `new C` makes an instance and throws it
+  away.
+
+The rules are five hooks of the dialect (`crates/ahk/src/dialect.rs`): the
+name of a class or of a function may be assigned, a class and a function may
+have the same name, the function that is declared twice has the words of the
+dialect, the class is a variable, and the call of a built-in wins over the
+variable that carries its name. The parser asks the first three
+(`crates/ahk/src/parser.rs`), and the runtime asks the last two
+(`crates/ahk/src/runtime.rs`).
+
+What stays out: the name of a class that a function of the v1 assigns is the
+global one, and the tree writes a local one -- the scope of the v1 is its own
+rule. The built-in variables of the v1 are another rule as well: the v1
+refuses the `A_AhkPath := 5` with "Not allowed as an output variable.", and
+the tree says the words of the v2.
 

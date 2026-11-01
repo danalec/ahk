@@ -2732,3 +2732,109 @@ fn the_class_of_the_v1_has_no_property_with_a_getter() {
     );
 }
 
+/// The name of a class of the v1 is the name of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// takes the name of a class as the name of a variable: `C := 5` is accepted,
+/// and the value of the name is the one that was written. The v2 refuses it
+/// with "This Class cannot be used as an output variable.".
+#[test]
+fn the_name_of_a_class_of_the_v1_is_the_name_of_a_variable() {
+    let report = run("class C\n{\n}\nC := 5\nFileAppend, %C%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["5".to_string()]);
+
+    // The name of a class of the machine is a variable as well.
+    let report = run("Abs := 5\nFileAppend, %Abs%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["5".to_string()]);
+}
+
+/// The call of a built-in of the v1 goes to the built-in.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name
+/// of a built-in is the name of a variable, and the call still goes to the
+/// built-in: `Abs := 5` and then `Abs(3)` answers 3.
+#[test]
+fn the_call_of_a_built_in_of_the_v1_goes_to_the_built_in() {
+    let report = run("Abs := 5\nx := Abs(3)\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["3".to_string()]);
+}
+
+/// A class and a function of the v1 may carry the same name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// takes the two, in either order: the call goes to the function and the
+/// `new` goes to the class. The v2 refuses the second one with "This
+/// function declaration conflicts with an existing Class.".
+#[test]
+fn a_class_and_a_function_of_the_v1_may_carry_the_same_name() {
+    let report = run(
+        "class C\n{\n    Say() {\n        return \"said\"\n    }\n}\nC() {\n    return 1\n}\n\
+         x := C()\no := new C\ny := o.Say()\nFileAppend, %x% %y%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1 said".to_string()]);
+
+    // The function may come first.
+    let report = run("C() {\n    return 1\n}\nclass C\n{\n}\nx := C()\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
+/// The function that is declared twice has the words of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// refuses it with "Duplicate function definition.\n     Specifically: C()",
+/// and the name is written the way the script spelled it and with the
+/// parenthesis of the call.
+#[test]
+fn the_function_that_is_declared_twice_has_the_words_of_the_v1() {
+    let error = ahk::parse_with("C() {\n    return 1\n}\nC() {\n    return 2\n}", dialect::v1())
+        .expect_err("the function is refused");
+    assert_eq!(error.message, "Duplicate function definition.\n     Specifically: C()");
+
+    let error = ahk::parse_with("Foo() {\n    return 1\n}\nfoo() {\n    return 2\n}", dialect::v1())
+        .expect_err("the function is refused");
+    assert_eq!(error.message, "Duplicate function definition.\n     Specifically: foo()");
+}
+
+/// The `new` of the v1 reads the variable of the name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the class
+/// of the v1 is a variable: `new v` makes an instance of the class that `v`
+/// holds, and a name that holds another value makes nothing, and the v1 does
+/// not fail.
+#[test]
+fn the_new_of_the_v1_reads_the_variable_of_the_name() {
+    let report = run(
+        "class C\n{\n    Say() {\n        return \"said\"\n    }\n}\nv := C\no := new v\n\
+         x := o.Say()\nFileAppend, %x%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["said".to_string()]);
+
+    // The name that holds another value makes nothing, and the v1 does not
+    // fail.
+    let report = run("class C\n{\n}\nC := 5\no := new C\nFileAppend, [%o%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The `new` of the v1 is a statement of its own.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: `new C`
+/// makes an instance of the class and throws it away, and the v1 does not
+/// fail when the name holds something else.
+#[test]
+fn the_new_of_the_v1_is_a_statement_of_its_own() {
+    let report = run("class C\n{\n}\nnew C\nFileAppend, ok, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["ok".to_string()]);
+
+    let report = run("new Nope\nFileAppend, ok, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["ok".to_string()]);
+}
+

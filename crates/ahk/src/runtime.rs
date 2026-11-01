@@ -3725,10 +3725,41 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // class of the v1 is a variable of the script, and the `new` reads
+        // it.
+        if self.dialect.the_class_is_a_variable() {
+            return self.new_instance_of_the_v1(class, arguments, line);
+        }
         if !self.classes.contains_key(&class.to_lowercase()) {
             return Ok(Value::Text(String::new()));
         }
         self.construct(class, arguments, line)
+    }
+
+    /// The instance that the `new` of the v1 makes.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// `new` reads the variable of the name, and the class is the value of
+    /// it: `new v` makes an instance of the class that `v` holds, and the
+    /// `new` of an instance makes another one of the same class. A name that
+    /// holds another value makes nothing, and the v1 does not fail.
+    fn new_instance_of_the_v1(
+        &mut self,
+        name: &str,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let value = self.lookup_variable(name).or_else(|| self.class_value_of(name));
+        let Some(value) = value else { return Ok(Value::Text(String::new())) };
+        let Value::Object(object) = &value else { return Ok(Value::Text(String::new())) };
+        // The class of the value: a class carries its own name, and an
+        // instance carries the class of it.
+        let class = match self.class_name_of(&value) {
+            Some(class) => class,
+            None => object.borrow().class.clone(),
+        };
+        self.construct(&class, arguments, line)
     }
 
     /// The object a class makes, with the arguments already read.
@@ -7299,6 +7330,13 @@ impl<'a> Runtime<'a> {
         if let Some(function) = self.function_in_a_variable(name) {
             return self.call_function(&function, arguments, line, Route::ThroughValue);
         }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // v1 takes the name of a built-in as the name of a variable, and the
+        // call still goes to the built-in: `Abs := 5` and then `Abs(3)`
+        // answers 3.
+        if self.dialect.the_call_of_a_built_in_wins_over_the_variable() && self.builtin(name).is_some() {
+            return self.call_a_builtin_by_name(name, arguments, line);
+        }
         // The value of the name is what the call asks for: a variable of
         // the script, or a built-in variable of the dialect.
         let from_the_script = self.lookup_variable(name);
@@ -7344,6 +7382,22 @@ impl<'a> Runtime<'a> {
         // The name is not a function of the script, not a class and not a
         // built-in: it is a variable of the script, and v2 reads it. A
         // variable that has no value is a variable that has no value.
+        self.call_a_builtin_by_name(name, arguments, line)
+    }
+
+    /// The call of a built-in: the arguments are read, and the built-in
+    /// answers.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the number of the
+    /// arguments is checked before the arguments are evaluated: v2 refuses
+    /// the script when it loads, and the refusal of the arity comes before
+    /// the failure of an argument.
+    fn call_a_builtin_by_name(
+        &mut self,
+        name: &str,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
         let Some(builtin) = self.builtin(name) else {
             return Err(self.the_unassigned_failure(name, line));
         };

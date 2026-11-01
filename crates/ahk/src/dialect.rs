@@ -406,6 +406,65 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the name of a class or the name of a function may be the
+    /// output variable of an assignment.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// takes the name of a class and the name of a function of the machine as
+    /// the name of a variable: `C := 5` and `Abs := 5` are accepted, and the
+    /// value of the name is the one that was written. The v2 refuses the
+    /// first one with "This Class cannot be used as an output variable." and
+    /// the second one with "This Func cannot be used as an output
+    /// variable.".
+    fn the_name_of_a_class_or_of_a_function_may_be_assigned(&self) -> bool {
+        false
+    }
+
+    /// Whether a class and a function may carry the same name.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// takes a class and a function of the same name, in either order: the
+    /// call goes to the function and the `new` goes to the class. The v2
+    /// refuses the second one with "This function declaration conflicts with
+    /// an existing Class.".
+    fn a_class_and_a_function_may_have_the_same_name(&self) -> bool {
+        false
+    }
+
+    /// Whether the function that is declared twice has the words of the
+    /// dialect.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// refuses it with "Duplicate function definition.\n     Specifically:
+    /// C()", and the name is written with the parenthesis of the call and
+    /// the way the script spelled it. The v2 refuses it with "This function
+    /// declaration conflicts with an existing Func.".
+    fn the_function_that_is_declared_twice_has_its_own_words(&self) -> bool {
+        false
+    }
+
+    /// Whether the class of the dialect is a variable of the script.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// class of the v1 is a variable: the `new` reads the variable, and the
+    /// name of a class that the script assigned something else makes
+    /// nothing. The v2 has no `new`, and the name of a class is the name of
+    /// a class.
+    fn the_class_is_a_variable(&self) -> bool {
+        false
+    }
+
+    /// Whether the call of a built-in wins over the variable that carries its
+    /// name.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// takes the name of a built-in as the name of a variable, and the call
+    /// still goes to the built-in: `Abs := 5` and then `Abs(3)` answers 3.
+    /// The v2 refuses the assignment, and the question does not arise.
+    fn the_call_of_a_built_in_wins_over_the_variable(&self) -> bool {
+        false
+    }
+
     /// Whether the `base` of the dialect is the base of the class where the
     /// method was defined.
     ///
@@ -796,6 +855,38 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
         // the class that is declared twice with "Duplicate class
         // definition.".
+        true
+    }
+
+    fn the_name_of_a_class_or_of_a_function_may_be_assigned(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 takes
+        // the name of a class and the name of a function of the machine as
+        // the name of a variable.
+        true
+    }
+
+    fn a_class_and_a_function_may_have_the_same_name(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 takes a
+        // class and a function of the same name, in either order.
+        true
+    }
+
+    fn the_function_that_is_declared_twice_has_its_own_words(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
+        // the function that is declared twice with "Duplicate function
+        // definition.".
+        true
+    }
+
+    fn the_class_is_a_variable(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the class of
+        // the v1 is a variable of the script, and the `new` reads it.
+        true
+    }
+
+    fn the_call_of_a_built_in_wins_over_the_variable(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 calls
+        // the built-in and not the variable that carries its name.
         true
     }
 
