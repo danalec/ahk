@@ -359,6 +359,12 @@ of the binary that says what it is, and they are of two kinds:
   `LoopReadFile` , `LoopReg` , `Math` , `SetExpression` ,
   `SetNumScrollCapsLockState` , `TreeView` . They are pages, not names.
 
+**A page that carries two names is a blind spot of the list.** The `Run` and
+the `RunWait` are documented together, in the same page of the CHM, and the
+list of the names took one of them and left the other out. The `RunWait` was
+measured on the binary on 2026-11-02 -- it is a command of the v1, with the
+shape of the `Run` -- and the table carries it.
+
 And the last one is a **directive that the docs still carry and that the binary
 removed** : `#AllowSameLineComments` . The page of the CHM says *" [v1.1.09+]:
 This directive was removed"* , and the binary says *"This line does not contain
@@ -813,7 +819,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 70 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 73 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -822,10 +828,11 @@ were carried by the block of the body of the action (2026-11-02), the
 `StringGetPos`, the `StringReplace` and the `StrReplace` by the block of the
 searches (2026-11-02), the call of a function by the block of the call
 (2026-11-02), the `ErrorLevel` by the block of the `ErrorLevel`
-(2026-11-02), and the name of a function by the block of the name of a
-function (2026-11-02).
+(2026-11-02), the name of a function by the block of the name of a
+function (2026-11-02), and the commands of the machine by the block of the
+machine commands (2026-11-02).
 
-The surface of the v1 has **387** entries: **278** answer with a value,
+The surface of the v1 has **388** entries: **279** answer with a value,
 **108** are refused and **1** is pending. The surface of the v2 did not
 move: **828** entries, **637** values, **191** refusals and no pending.
 
@@ -925,6 +932,16 @@ carried yet: theirs is the answer of the machine and not a count of the
 failures. The `global ErrorLevel` is refused by the v1 -- "Built-in variables
 must not be declared." -- and the tree does not refuse the `global` of any
 built-in variable.
+
+**The `ErrorLevel` of the machine.** The commands of the machine write it
+too, and the tree carries it since the block of the machine commands
+(2026-11-02): the `ClipWait` writes one when the wait expires and zero when
+the clipboard has data, the `Run` writes nothing unless the options say
+"useerrorlevel" -- and then it writes zero when the program starts and the
+word "ERROR" when it does not -- and the `RunWait` writes the code of the
+program that ran. The `RunWait` is a command of the v1 that the surface did
+not carry: the page of the documentation has the `Run` and the `RunWait`
+together, and the list of the names took one of them.
 
 **The call of a function of the v1.** The v1 refuses the call of a function
 at the load, and the refusal names the call as it was written. The tree

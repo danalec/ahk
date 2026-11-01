@@ -36,6 +36,10 @@
 # it is the one built-in variable of the v1 that has no prefix, and the
 # measurement of 2026-10-29 took the names of the page of the built-in
 # variables and left it out.
+# The `RunWait` was measured on the binary of v1.1.37.02 on 2026-11-02: it
+# is a command of the v1, and the page of the documentation carries the
+# `Run` and the `RunWait` together, so the list of the names took one of
+# them and left the other out. The two have the same shape.
 kind	class	name	min	max	shape
 function		Asc	1	1	Value
 command		AutoTrim	1	255	Value
@@ -178,6 +182,7 @@ function		RegisterCallback	1	4	Value,Value,Value,Value
 command		Reload	0	255	
 command		Run	1	255	Value,Value,Value,Output
 command		RunAs	0	255	Value,Value,Value
+command		RunWait	1	255	Value,Value,Value,Output
 command		Send	1	255	Value
 command		SendLevel	1	255	Value
 command		SendMode	1	255	Value

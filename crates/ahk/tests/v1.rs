@@ -21,7 +21,10 @@ use std::time::Duration;
 /// A desktop that does nothing: the cases of the dialect do not need the
 /// machine, and the methods that a capability does not have answer that
 /// they do not have it.
-struct Fake;
+struct Fake {
+    /// What is on the clipboard of the fake.
+    clipboard: String,
+}
 
 impl Desktop for Fake {}
 impl Pictures for Fake {}
@@ -29,7 +32,13 @@ impl Network for Fake {}
 impl Sound for Fake {}
 impl Machine for Fake {}
 impl Dialogs for Fake {}
-impl Clipboard for Fake {}
+impl Clipboard for Fake {
+    fn clipboard_read(&mut self) -> Result<String, String> {
+        // The cases of the `ClipWait` put nothing on the clipboard, and the
+        // one that waits for the data puts something there.
+        Ok(self.clipboard.clone())
+    }
+}
 impl Files for Fake {
     fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
         // The cases that read a file write one that is there.
@@ -81,8 +90,13 @@ impl Pointer for Fake {
 }
 
 impl Processes for Fake {
-    fn run(&mut self, _command: &str, _window: &str) -> Result<(i32, String, String), String> {
-        Err("this fake has no processes".into())
+    fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
+        // The name that is not there is the one that the cases use for the
+        // command that fails, and the program that runs answers with seven.
+        if command.contains("nothere") {
+            return Err("this fake has no processes".into());
+        }
+        Ok((7, String::new(), String::new()))
     }
 }
 
@@ -105,8 +119,14 @@ impl Screen for Fake {
 
 /// Run a script of the v1 and answer with the report.
 fn run(script: &str) -> Report {
+    run_with_the_clipboard(script, "")
+}
+
+/// Run a script of the v1 with something on the clipboard, and answer with
+/// the report.
+fn run_with_the_clipboard(script: &str, clipboard: &str) -> Report {
     let statements = ahk::parse_with(script, dialect::v1()).expect("the script of the v1 parses");
-    let mut desktop = Fake;
+    let mut desktop = Fake { clipboard: clipboard.to_string() };
     Runtime::new(&mut desktop, Duration::from_secs(60))
         .with_dialect(dialect::v1())
         .run(&statements)
@@ -1767,4 +1787,75 @@ fn the_func_of_the_v1_is_the_reference_to_the_function() {
     let report = run("fn := Func(\"GetKeyState\")\nx := fn.MinParams");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+}
+
+/// The `ClipWait` of the v1 writes the `ErrorLevel`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` is
+/// one when the wait expires and zero when the clipboard has data -- the
+/// other way round from the answer of the v2.
+#[test]
+fn the_clip_wait_of_the_v1_writes_the_error_level() {
+    // The clipboard has nothing: the wait expires.
+    let report = run("ErrorLevel := 5\nClipWait, 0.05\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The clipboard has data: the wait is over at once.
+    let report = run_with_the_clipboard(
+        "ErrorLevel := 5\nClipWait, 0.05\nx := ErrorLevel",
+        "the data of the clipboard",
+    );
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+}
+
+/// The `Run` of the v1 writes the `ErrorLevel` when the options say it.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` is
+/// not touched, unless the options say "useerrorlevel": then it is zero when
+/// the program starts, and the word "ERROR" when it does not. The option
+/// says it when the word is in it, in any case, and wherever it is in it.
+#[test]
+fn the_run_of_the_v1_writes_the_error_level() {
+    // The program starts: the `ErrorLevel` is zero.
+    let report = run("ErrorLevel := 5\nRun, program.exe, , UseErrorLevel\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The word of the option is in the options in any case.
+    let report = run("ErrorLevel := 5\nRun, program.exe, , xUseErrorLevel\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // Without the option the `ErrorLevel` is not touched.
+    let report = run("ErrorLevel := 5\nRun, program.exe\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+
+    // The program does not start: the `ErrorLevel` is the word that says it,
+    // and the tree fails the script where the v1 goes on.
+    let report = run("ErrorLevel := 5\nRun, nothere.exe, , UseErrorLevel");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("this fake has no processes"));
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Text("ERROR".into())));
+}
+
+/// The `RunWait` of the v1 writes the code of the program in the
+/// `ErrorLevel`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `RunWait` is a
+/// command of the v1, and the code of the program that ran is the
+/// `ErrorLevel`, and the word "ERROR" is the one of a program that did not
+/// start.
+#[test]
+fn the_run_wait_of_the_v1_writes_the_error_level() {
+    let report = run("ErrorLevel := 5\nRunWait, program.exe\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(7)));
+
+    let report = run("ErrorLevel := 5\nRunWait, nothere.exe, , UseErrorLevel");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("this fake has no processes"));
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Text("ERROR".into())));
 }

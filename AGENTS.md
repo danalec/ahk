@@ -6452,11 +6452,10 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   number is one when the command fails and zero when it does not.
 
 The commands of the machine that write the `ErrorLevel` as well -- the
-`ClipWait`, the `DllCall` and the `Run` -- are not carried yet: theirs is the
-answer of the machine and not a count of the failures, and they come with
-the block that carries them. The `Process` is refused by the tree in the v1.
-The `global ErrorLevel` is refused by the v1 -- "Built-in variables must not
-be declared." -- and the tree does not refuse the `global` of any built-in
+`ClipWait`, the `DllCall` and the `Run` -- are carried by the block of the
+machine commands (section 157). The `Process` is refused by the tree in the
+v1. The `global ErrorLevel` is refused by the v1 -- "Built-in variables must
+not be declared." -- and the tree does not refuse the `global` of any built-in
 variable.
 
 
@@ -6492,5 +6491,45 @@ The text of an object of the v1 is not carried yet: the v1 gives the empty
 text to an object -- `Object()` is a blank text, and `Object() . "a"` is "a"
 -- and the tree gives the class of it. It comes with the block of the objects
 of the v1.
+
+
+## 157. The machine commands of the v1 write the `ErrorLevel`, and the `RunWait` is a command of the v1
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `ClipWait` writes the `ErrorLevel`.** It is one when the wait expires
+  and zero when the clipboard has data -- the other way round from the answer
+  of the v2, which is one when the data is there and zero when the wait
+  expires.
+- **The `Run` writes the `ErrorLevel` only when the options say it.** The
+  options say it when the word "useerrorlevel" is in them, in any case, and
+  wherever it is in them -- "xUseErrorLevel" says it as well, and an option
+  that is not known is ignored. Then the `ErrorLevel` is zero when the
+  program starts, and the word "ERROR" when it does not. Without the option
+  the `ErrorLevel` is not touched.
+- **The `RunWait` writes the code of the program.** It is a command of the v1,
+  and the page of the documentation carries it with the `Run` -- the list of
+  the names took one of them and left the other out. The `ErrorLevel` is the
+  code of the program that ran, and the word "ERROR" is the one of a program
+  that did not start, when the options say it.
+- **The shape of the `Run` and of the `RunWait` is the one of the v1.** The
+  target, the working directory, the options and the variable that takes the
+  pid of the process: `Run, program, , , pid`. The tree took the last
+  parameter for the output of every call, and the `Run` of a program was a
+  call to a variable that has no name.
+- **The `DllCall` writes the `ErrorLevel` when the call works.** It is zero.
+  The code of the failure is not carried: the machine of this runtime answers
+  with a reason and not with the code of the v1.
+
+The pid of the process is not carried: the machine of this runtime does not
+give it, and the tree refuses the parameter with the reason. The `Run` of the
+v1 does not wait for the program, and the tree waits, because the machine
+runs the program and answers with its code. The launch that failed on a
+machine that runs the program through a shell is the other one: the box
+answers 127 where the v1 writes "ERROR".
+
+The surface of the v1 has one name more: 388 entries, 279 values, 108
+refusals and one pending. The `RunWait` is the name. The AGENTS.md and the
+plan say so.
 
 

@@ -869,18 +869,125 @@ pub(crate) fn input_box_of_the_v1(
     Ok(answer)
 }
 
-/// `Run, program, dir, use, name`: the program that runs, and its pid.
+/// `Run, target, dir, options, pid`: the program that runs.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the shape of the v1
+/// is the target, the working directory, the options and the variable that
+/// takes the pid of the process. The `ErrorLevel` is not touched, unless the
+/// options say "useerrorlevel": then it is zero when the program starts, and
+/// the word "ERROR" when it does not.
 pub(crate) fn run_of_the_v1(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    // The pid of the v1 goes into the last parameter of the command, and
-    // the parameters of the program are the ones before it.
-    let last = values.len().saturating_sub(1);
-    let answer = crate::builtins::run(rt, &values[..last], line, 0)?;
-    write_the_answer(rt, "Run", values, last, answer.clone(), line)?;
+    run_or_wait_of_the_v1(rt, values, line, false)
+}
+
+/// `RunWait, target, dir, options, pid`: the program that runs, and the wait.
+///
+/// The `RunWait` of the v1 is a command of its own, and the page of the
+/// documentation carries it with the `Run`. Measured on the binary of
+/// v1.1.37.02 on 2026-11-02: the shape is the one of the `Run`, and the
+/// `ErrorLevel` is the code of the program that ran.
+pub(crate) fn run_wait_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    run_or_wait_of_the_v1(rt, values, line, true)
+}
+
+/// The program that runs, and the `ErrorLevel` of it.
+///
+/// The two commands of the v1 have the same shape, and the `ErrorLevel` of
+/// them is not the same: the `RunWait` writes the code of the program, and
+/// the `Run` writes nothing unless the options say "useerrorlevel".
+fn run_or_wait_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    waits: bool,
+) -> Result<Value, RuntimeError> {
+    let target = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let dir = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let options = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+    // The pid of the process: the machine of this runtime does not give it.
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the pid of the process is not carried yet.".into(),
+            line,
+        });
+    }
+    let says = the_options_say_use_error_level(&options);
+    let (code, stdout, stderr) = match rt.desktop().run(&target, &dir) {
+        Ok(answer) => answer,
+        Err(reason) => {
+            // The v1 goes on when the program does not start, and the
+            // `ErrorLevel` is the word that says it.
+            if says {
+                rt.set_the_error_level(Value::Text("ERROR".into()));
+            }
+            return Err(RuntimeError { message: reason, line });
+        }
+    };
+    if !stdout.trim().is_empty() {
+        rt.push_output(stdout.trim_end().to_string());
+    }
+    if !stderr.trim().is_empty() {
+        rt.push_output(stderr.trim_end().to_string());
+    }
+    if waits {
+        // The code of the program is the `ErrorLevel` of the `RunWait`.
+        rt.set_the_error_level(Value::Int(code as i64));
+    } else if says {
+        rt.set_the_error_level(Value::Int(0));
+    }
+    Ok(Value::Int(code as i64))
+}
+
+/// Whether the options of the command say "useerrorlevel".
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the word is in the
+/// options in any case, and wherever it is in them -- "xUseErrorLevel" says
+/// it as well, and an option that is not known is ignored.
+fn the_options_say_use_error_level(options: &str) -> bool {
+    options.to_lowercase().contains("useerrorlevel")
+}
+
+/// `ClipWait, timeout, kind`: the wait for the clipboard.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is one when the wait expires and zero when the clipboard has data
+/// -- the other way round from the answer of the v2.
+pub(crate) fn clip_wait_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::builtins::clip_wait(rt, values, line, variant)?;
+    let expired = matches!(answer, Value::Int(0));
+    rt.set_the_error_level(Value::Int(if expired { 1 } else { 0 }));
+    Ok(answer)
+}
+
+/// `DllCall("function", ...)`: the call into a library of the machine.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is zero when the call works. The code of the failure is not
+/// carried: the machine of this runtime answers with a reason and not with
+/// the code of the v1.
+pub(crate) fn dll_call_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::builtins::dll_call(rt, values, line, variant)?;
+    rt.set_the_error_level(Value::Int(0));
     Ok(answer)
 }
 
