@@ -949,6 +949,25 @@ pub fn tokenize_with(
             tokens.push(Token { kind, value: word, line: start_line, column: start_column, spaced: before, quote: None });
             continue;
         }
+        // The backslash of a command of the v1 is a letter of the text of
+        // the parameter: `FileRead, text, C:\temp\x.txt` is a command of
+        // the v1, and the binary accepts it.
+        //
+        // Measured on the binary of v1.1.37.02 on 2026-11-02. The v2
+        // refuses the backslash outside of a text.
+        if current == '\\' && dialect.accepts_a_bare_backslash() {
+            tokens.push(Token {
+                kind: TokenKind::Name,
+                value: "\\".into(),
+                quote: None,
+                line,
+                column,
+                spaced: before,
+            });
+            index += 1;
+            column += 1;
+            continue;
+        }
         let mut matched = false;
         for operator in OPERATORS {
             // A `++` or a `--` right after a number is a subtraction: `5--3`

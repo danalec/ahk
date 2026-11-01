@@ -723,6 +723,12 @@ impl Value {
                     return "Class".to_string();
                 }
                 let mut name = borrowed.class.clone();
+                if name.is_empty() {
+                    // An object without a class is an object: the v1 has no
+                    // classes, and the name of the kind of it is the one of
+                    // the base.
+                    name = "Object".to_string();
+                }
                 if let Some(first) = name.get_mut(0..1) {
                     first.make_ascii_uppercase();
                 }
@@ -3071,6 +3077,37 @@ impl<'a> Runtime<'a> {
     ) -> Option<Result<Value, RuntimeError>> {
         let dialect = self.dialect;
         dialect.write_variable(name, op, value, line, self)
+    }
+
+    /// Whether a variable of this name has a value.
+    ///
+    /// The name is the one that the dialect spells, and the built-in
+    /// variables of the dialect are the ones that its table carries.
+    pub(crate) fn has_a_value(&mut self, name: &str) -> bool {
+        if self.lookup_variable(name).is_some() {
+            return true;
+        }
+        self.dialect.carries_variable(name)
+    }
+
+    /// Whether the script has a function of this name.
+    pub(crate) fn has_a_function(&self, name: &str) -> bool {
+        self.functions.contains_key(&name.to_lowercase())
+    }
+
+    /// Whether the variable of this name is a reference.
+    pub(crate) fn is_a_reference(&self, name: &str) -> bool {
+        matches!(self.lookup_variable(name), Some(Value::Reference(_)))
+    }
+
+    /// The value of the function of the script of this name.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `Func` of
+    /// the v1 hands the function of the script over as a value, and the
+    /// value carries the name of it and the number of its parameters.
+    pub(crate) fn the_function_of_the_script(&self, name: &str) -> Option<Value> {
+        let function = self.functions.get(&name.to_lowercase())?;
+        Some(func_value(&function.name, function))
     }
 
 
@@ -6887,7 +6924,13 @@ impl<'a> Runtime<'a> {
         // The name of a class makes an object. The class types of the
         // runtime are classes too: the script cannot extend one, but it
         // can make one.
-        if self.classes.contains_key(&name.to_lowercase()) || crate::classes::is_type(name) {
+        //
+        // The v1 has no class types: the name `Func` of it is a function,
+        // and not a class. Measured on the binary of v1.1.37.02 on
+        // 2026-11-02.
+        if self.classes.contains_key(&name.to_lowercase())
+            || self.dialect.carries_the_class_of_the_runtime(name)
+        {
             return self.construct(name, arguments, line);
         }
         // A method of a class of the script that is held in a variable
@@ -6955,7 +6998,17 @@ impl<'a> Runtime<'a> {
         // comes before the failure of an argument.
         self.the_arity_of_a_builtin(builtin, arguments.len(), line, Route::Written)?;
         let mut values = Vec::with_capacity(arguments.len());
+        // The v1 has functions that ask for the name of a variable and not
+        // for its value: `IsSet(x)` asks whether the variable `x` has a
+        // value. Measured on the binary of v1.1.37.02 on 2026-11-02.
+        let wants_the_name = self.dialect.wants_the_name_of_the_argument(builtin.name);
         for argument in arguments {
+            if wants_the_name {
+                if let Node::Var { name, .. } = argument {
+                    values.push(Value::Text(name.clone()));
+                    continue;
+                }
+            }
             values.push(self.evaluate(argument)?);
         }
         self.call_builtin(name, &values, line, Route::Written)
@@ -8042,7 +8095,12 @@ impl<'a> Runtime<'a> {
                 // class with the properties it writes. The names of the
                 // properties do not know their case, and a name that the
                 // script builds is the name of the property.
-                let object = crate::classes::object("Object");
+                //
+                // The v1 has no classes, and the object of it has no class
+                // either: measured on the binary of v1.1.37.02 on
+                // 2026-11-02, the `__Class` of the object of the v1 is
+                // empty.
+                let object = crate::classes::object(self.dialect.class_of_an_object());
                 if let Value::Object(cell) = &object {
                     for (name, value) in properties {
                         let name = self.the_name_of_the_member(name, *line)?;

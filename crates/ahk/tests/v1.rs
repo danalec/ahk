@@ -30,7 +30,14 @@ impl Sound for Fake {}
 impl Machine for Fake {}
 impl Dialogs for Fake {}
 impl Clipboard for Fake {}
-impl Files for Fake {}
+impl Files for Fake {
+    fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
+        // The cases that read a file write one that is there.
+        let text = std::fs::read_to_string(path)
+            .map_err(|reason| format!("{reason}"))?;
+        Ok(text.lines().map(|line| line.to_string()).collect())
+    }
+}
 impl Hotkeys for Fake {}
 impl Native for Fake {}
 impl Timers for Fake {}
@@ -332,4 +339,122 @@ fn the_directive_of_the_v1_is_answered_with_the_reason_of_the_thing_it_asks_for(
     let report = run("#MaxMem\nFileAppend, ok, *");
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("the memory limits are not carried by this runtime."));
+}
+
+/// The `IsSet` of the v1 asks for the name of the variable and not for its
+/// value.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `IsSet(y)` asks
+/// whether the variable `y` has a value, and not whether the value of `y`
+/// is the name of a variable, and a built-in variable has a value.
+#[test]
+fn the_is_set_of_the_v1_asks_for_the_name_of_the_variable() {
+    let report = run("x := 5\nn := IsSet(x)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(1)));
+
+    let report = run("n := IsSet(NoSuchVariable)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(0)));
+
+    let report = run("n := IsSet(A_AutoTrim)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(1)));
+
+    // The name of the variable and not its value.
+    let report = run("y := \"nosuchname\"\nn := IsSet(y)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(1)));
+}
+
+/// The `IsFunc` of the v1 asks for the value, and answers 1 for a function
+/// of the script, 2 for a built-in and 0 for anything else.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02.
+#[test]
+fn the_is_func_of_the_v1_answers_with_the_kind_of_the_name() {
+    let report = run("f() {\n    return 1\n}\nn := IsFunc(\"f\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(1)));
+
+    let report = run("n := IsFunc(\"StrLen\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(2)));
+
+    let report = run("x := 5\nn := IsFunc(\"x\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(0)));
+}
+
+/// The object of the v1 has no class.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `__Class` of the
+/// object of the v1 is empty, and the literal `{}` is the same object.
+#[test]
+fn the_object_of_the_v1_has_no_class() {
+    let report = run("o := Object()\nx := o.__Class");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
+
+    let report = run("o := {}\nx := o.__Class");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
+
+    // A property that is written on it is a property of it.
+    let report = run("o := Object()\no.x := 5\ny := o.x");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(5)));
+}
+
+/// The `Func` of the v1 hands the function of the script over as a value.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the value carries
+/// the name of the function and the number of its parameters, and the call
+/// of it is the call of the function.
+#[test]
+fn the_func_of_the_v1_hands_the_function_over_as_a_value() {
+    let report = run("f(a, b) {\n    return a + b\n}\nfn := Func(\"f\")\nn := fn.Name\nlo := fn.MinParams\nhi := fn.MaxParams");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Text("f".into())));
+    assert_eq!(report.variables.get("lo"), Some(&Value::Int(2)));
+    assert_eq!(report.variables.get("hi"), Some(&Value::Int(2)));
+
+    let report = run("f(a) {\n    return a * 2\n}\nfn := Func(\"f\")\nr := fn.Call(3)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("r"), Some(&Value::Int(6)));
+}
+
+/// The `FileReadLine` of the v1 reads the n-th line of a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command wants
+/// three parameters, and the answer is the line itself.
+#[test]
+fn the_file_read_line_of_the_v1_reads_the_line_of_the_file() {
+    let path = std::env::temp_dir().join("ahk-v1-file-read-line.txt");
+    std::fs::write(&path, "one\ntwo\n").unwrap();
+
+    let script = format!(
+        "FileReadLine, text, {}, 1\nx := text",
+        path.to_string_lossy()
+    );
+    let report = run(&script);
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("one".into())));
+
+    let script = format!(
+        "FileReadLine, text, {}, 2\nx := text",
+        path.to_string_lossy()
+    );
+    let report = run(&script);
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("two".into())));
+
+    // A line that the file does not have is empty.
+    let script = format!(
+        "FileReadLine, text, {}, 9\nx := text",
+        path.to_string_lossy()
+    );
+    let report = run(&script);
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
 }

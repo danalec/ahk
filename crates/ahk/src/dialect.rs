@@ -46,6 +46,37 @@ pub trait Dialect: Sync {
     /// `None` means the dialect answers the name.
     fn refusal_of_variable(&self, name: &str) -> Option<&'static str>;
 
+    /// Whether the function of this name asks for the name of a variable.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `IsSet` of
+    /// the v1 asks for the name of the variable and not for its value --
+    /// `IsSet(x)` asks whether the variable `x` has a value -- and the
+    /// `IsFunc` of the same binary asks for the value. The v2 has no
+    /// function that asks for a name.
+    fn wants_the_name_of_the_argument(&self, name: &str) -> bool;
+
+    /// The class of an object of the dialect.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the object of
+    /// the v1 has no class, and its `__Class` is empty. The v2 has the
+    /// base class, and the object of it is of that class.
+    fn class_of_an_object(&self) -> &'static str;
+
+    /// Whether the dialect has the class type of this name.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has no
+    /// class types at all, and the name `Func` of it is a function and not
+    /// a class. The v2 has the class types of the runtime.
+    fn carries_the_class_of_the_runtime(&self, name: &str) -> bool;
+
+    /// Whether the dialect accepts the backslash outside of a text.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the backslash
+    /// of a command of the v1 is a letter of the text of the parameter --
+    /// `FileRead, text, C:\temp\x.txt` is a command of the v1, and the
+    /// binary accepts it. The v2 refuses the backslash outside of a text.
+    fn accepts_a_bare_backslash(&self) -> bool;
+
     /// The value of the built-in variable of this name, when the name is one.
     ///
     /// `None` means the name is not a built-in variable of the dialect: the
@@ -155,6 +186,22 @@ impl Dialect for V2 {
         crate::variables::refusal_of(name)
     }
 
+    fn wants_the_name_of_the_argument(&self, _name: &str) -> bool {
+        false
+    }
+
+    fn class_of_an_object(&self) -> &'static str {
+        "Object"
+    }
+
+    fn carries_the_class_of_the_runtime(&self, name: &str) -> bool {
+        crate::classes::is_type(name)
+    }
+
+    fn accepts_a_bare_backslash(&self) -> bool {
+        false
+    }
+
     fn lookup_variable(
         &self,
         name: &str,
@@ -229,6 +276,27 @@ impl Dialect for V1 {
             return crate::variables::refusal_of(name);
         }
         crate::v1::refusal_of_variable(name)
+    }
+
+    fn wants_the_name_of_the_argument(&self, name: &str) -> bool {
+        crate::v1::wants_the_name_of_the_argument(name)
+    }
+
+    fn class_of_an_object(&self) -> &'static str {
+        // The v1 has no classes: the object of it has no class, and its
+        // `__Class` is empty.
+        ""
+    }
+
+    fn carries_the_class_of_the_runtime(&self, _name: &str) -> bool {
+        // The v1 has no class types: the name `Func` of it is a function.
+        false
+    }
+
+    fn accepts_a_bare_backslash(&self) -> bool {
+        // The path of a file is the use that every command of the v1 has,
+        // and the path of Windows has backslashes in it.
+        true
     }
 
     fn lookup_variable(

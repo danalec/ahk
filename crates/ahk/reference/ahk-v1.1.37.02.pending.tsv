@@ -33,20 +33,17 @@
 # - The fifteen directives of the v1 that the v2 does not have are carried:
 #   the `#NoEnv` and the `#Persistent` are the case that the runtime already
 #   is, and the other thirteen are refused with the reason.
+# - The seven names of the v1 that the tree answers with a handler of their
+#   own are carried: the `IsSet`, the `IsFunc`, the `IsByRef`, the `Object`,
+#   the `Func`, the `FileReadLine` and the `Input`. Their answers were
+#   measured on the binary of v1.1.37.02 on 2026-11-02.
 kind	class	name	reason
 
 command		AutoTrim	not-yet
-command		FileReadLine	not-yet
 command		IfInString	not-yet
 command		IfMsgBox	not-yet
-command		Input	not-yet
 command		SetBatchLines	not-yet
 command		SetFormat	not-yet
 command		StringCaseSense	not-yet
 command		Transform	not-yet
-function		Func	not-yet
-function		IsByRef	not-yet
-function		IsFunc	not-yet
-function		IsSet	not-yet
-function		Object	not-yet
 function		VarSetCapacity	not-yet

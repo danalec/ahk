@@ -130,7 +130,10 @@ pub fn dir_select(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u
 /// "Invalid option.".
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-29.
-fn the_options_of_the_input_box(options: &str, line: u32) -> Result<InputOptions, RuntimeError> {
+pub(crate) fn the_options_of_the_input_box(
+    options: &str,
+    line: u32,
+) -> Result<InputOptions, RuntimeError> {
     match the_options_of_the_input_box_read(options) {
         Ok(read) => Ok(read),
         Err(_) => Err(invalid_option(line)),

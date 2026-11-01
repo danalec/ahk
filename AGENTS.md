@@ -6068,3 +6068,38 @@ with a value, **108** are refused and **15** are pending. The surface of
 the v2 did not move: **828** entries, **637** values, **191** refusals
 and no pending.
 
+## 144. The v1 has no classes, and the name of a variable is a name
+
+Measured on the binary of v1.1.37.02 on 2026-11-02. This is the second
+block of the phase F5 of the plan of the v1 dialect, and it carries seven
+names that the v1 has and the v2 does not.
+
+- **The `IsSet` of the v1 asks for the name of the variable, and the
+  `IsFunc` asks for the value.** `IsSet(y)` asks whether the variable `y`
+  has a value, and not whether the value of `y` is the name of a variable:
+  with `y := "nosuchname"`, the answer is 1. The `IsFunc` answers 1 for a
+  function of the script, 2 for a built-in and 0 for anything else. The
+  dialect says which of its functions asks for a name, and the runtime
+  hands the name over instead of the value.
+- **The v1 has no class types.** The name `Func` of the v1 is a function
+  and not the class of the v2, and the call of it makes the value of the
+  function of the script: it carries the name of it, the number of its
+  parameters, and the call of it is the call of the function.
+- **The object of the v1 has no class.** The `__Class` of it is empty,
+  and the literal `{}` is the same object. The kind of an object without
+  a class is `Object` in the messages of the tree.
+- **The backslash of a command of the v1 is a letter of the text of the
+  parameter.** `FileRead, text, C:\temp\x.txt` is a command of the v1,
+  and the binary accepts it. The path of a file is the use that every
+  command of the v1 has, and the path of Windows has backslashes in it.
+  The v2 refuses the backslash outside of a text.
+- **The `FileReadLine` of the v1 wants three parameters**, and the answer
+  is the n-th line of the file, without the line ending, and it is empty
+  when the file has no such line.
+- **The `Input` of the v1 asks the user with a dialogue**, and the title
+  is the prompt of it.
+
+The numbers: the surface of the v1 has **384** entries -- **268** answer
+with a value, **108** are refused and **8** are pending. The surface of
+the v2 did not move.
+

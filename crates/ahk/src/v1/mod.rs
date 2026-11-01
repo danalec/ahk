@@ -16,11 +16,17 @@ use alloc::string::{String, ToString};
 use crate::builtins::BuiltinHandler;
 use crate::runtime::{Runtime, RuntimeError, Value};
 
+mod names;
 mod table;
 mod variables;
 
+pub(crate) use names::wants_the_name_of_the_argument;
 pub use table::BUILTINS;
 pub use variables::{carries as carries_variable, refusal_of as refusal_of_variable};
+
+pub(crate) use names::{
+    file_read_line, func, input, is_by_ref, is_func, is_set, object,
+};
 
 /// The built-in variables of the v1 that the v2 does not carry.
 ///
@@ -161,7 +167,7 @@ fn the_answer_goes_into_the_first_output(
 }
 
 /// Write the answer of a command of the v1 into the variable of the caller.
-fn write_the_answer(
+pub(crate) fn write_the_answer(
     rt: &mut Runtime<'_>,
     name: &str,
     values: &[Value],
