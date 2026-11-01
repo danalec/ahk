@@ -72,6 +72,7 @@ pub const KEYWORDS: &[&str] = &[
     "return",
     "exitapp",
     "while",
+    "until",
     "loop",
     "try",
     "catch",

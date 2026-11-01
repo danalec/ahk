@@ -91,7 +91,9 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   with a point: `.5` is the number 0.5, and the point that follows a value is
   the point of a member. A name that begins with a number is refused at the
   load, with the message of v2.
-- `KEYWORDS: &[&str]` -- the words the language gives a meaning to.
+- `KEYWORDS: &[&str]` -- the words the language gives a meaning to. The
+  word `until` is one of them: the binary of v2.0.19 reserves it, and a
+  script may not use it as the name of a variable.
 - The script may begin with the byte order mark, and the mark is not a
   character of it. Only the first one is taken. The mark is also a letter of
   a name, the way it is in the v2, and the name that begins with a number
@@ -1425,6 +1427,17 @@ that asks for another one is refused with the reason.
 - **A case of a switch may name many values.** `case 1, 2:` matches when
   the subject of the switch is one of them, and the comma at the end of the
   list adds nothing. The `Default` is the case with no values.
+
+- **The word that may not be the name of a variable says so.** The word
+  `until` is reserved: "The following reserved word must not be used as a
+  variable name:" and the word. The words that are not operators -- `not`,
+  `and`, `or` and `is` -- are a "Syntax error." when they are the name of a
+  variable, and the words that are reserved for a future of v2 -- `as`,
+  `in` and `contains` -- say "Unexpected reserved word.". The text that is
+  named is the word alone, and the word alone at the start of a statement
+  is a call: the text of it carries the parentheses. The bare `until` wants
+  a condition, and the binary crashes when it has one: the tree refuses it
+  with "Unexpected \"Until\"".
 
 ## Side Effects
 

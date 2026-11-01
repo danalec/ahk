@@ -1659,7 +1659,42 @@ impl Parser {
                 "super" => return self.parse_super_statement(),
                 "return" => return Ok(vec![self.parse_return()?]),
                 "exitapp" => return Ok(vec![self.parse_exitapp()?]),
-                _ => {}
+                "until" => {
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // `until` is a word of the dialect and it is reserved:
+                    // it may not be the name of a variable. The bare word
+                    // wants a condition, and the binary crashes when it has
+                    // one, so the tree refuses it there.
+                    if self.the_word_is_the_name_of_a_variable() {
+                        return Err(self.the_error_of_the_reserved_word_as_a_name(self.position));
+                    }
+                    let token = self.next();
+                    if self.at_end_of_statement() {
+                        return Err(self.error(format!(
+                            "\"Until\" requires at least 1 parameter.\n     Specifically: {}",
+                            the_source_of_the_line(self, token.line)
+                        )));
+                    }
+                    return Err(SyntaxError {
+                        message: "Unexpected \"Until\"".to_string(),
+                        line: token.line,
+                        column: token.column,
+                    });
+                }
+                _ => {
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // words that may not be the name of a variable say so.
+                    if self.the_word_may_not_be_a_name() {
+                        if self.the_word_is_the_name_of_a_variable() {
+                            return Err(self.the_error_of_the_reserved_word_as_a_name(self.position));
+                        }
+                        // The word `not` is the operator of the negation when
+                        // an operand follows it, and the v2 takes the script.
+                        if !(word == "not" && self.an_operand_follows_the_word()) {
+                            return Err(self.the_error_of_the_reserved_word_as_a_call(self.position));
+                        }
+                    }
+                }
             }
         }
         // The label of the line comes before anything else: a line that is
@@ -4469,6 +4504,99 @@ impl Parser {
         the_source_of_a_definition(self, start, self.position)
     }
 
+    /// Whether the word that opens the statement may not be the name of a
+    /// variable.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the words that are
+    /// not operators -- `not`, `and`, `or` and `is` -- and the words that
+    /// are reserved for a future of v2 -- `as`, `in` and `contains` -- may
+    /// not be the name of a variable.
+    fn the_word_may_not_be_a_name(&self) -> bool {
+        let token = self.peek();
+        if token.kind != TokenKind::Keyword {
+            return false;
+        }
+        matches!(
+            token.value.to_lowercase().as_str(),
+            "not" | "and" | "or" | "is" | "as" | "in" | "contains"
+        )
+    }
+
+    /// Whether an operand follows the word that opens the statement.
+    fn an_operand_follows_the_word(&self) -> bool {
+        let Some(next) = self.tokens.get(self.position + 1) else { return false };
+        !matches!(next.kind, TokenKind::Newline | TokenKind::Eof)
+            && !(next.kind == TokenKind::Op && next.value == "}")
+    }
+
+    /// The failure of the reserved word that is the name of a variable.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the word `until` is
+    /// reserved and may not be the name of a variable; the words that are
+    /// not operators -- `not`, `and`, `or` and `is` -- are a "Syntax
+    /// error."; and the words that are reserved for a future of v2 -- `as`,
+    /// `in` and `contains` -- say "Unexpected reserved word.". The text that
+    /// is named is the word alone.
+    fn the_error_of_the_reserved_word_as_a_name(&self, at: usize) -> SyntaxError {
+        let token = &self.tokens[at];
+        let word = token.value.to_lowercase();
+        let message = match word.as_str() {
+            "not" | "and" | "or" | "is" => {
+                format!("Syntax error.\n     Specifically: {}", token.value)
+            }
+            "as" | "in" | "contains" => {
+                format!("Unexpected reserved word.\n     Specifically: {}", token.value)
+            }
+            _ => format!(
+                "The following reserved word must not be used as a variable name:\n{:?}",
+                token.value
+            ),
+        };
+        SyntaxError { message, line: token.line, column: token.column }
+    }
+
+    /// The failure of the reserved word that is the name of a call.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the word alone at
+    /// the start of a statement is a call, and the text that is named is
+    /// the call with its parentheses: "not()".
+    fn the_error_of_the_reserved_word_as_a_call(&self, at: usize) -> SyntaxError {
+        let token = &self.tokens[at];
+        let word = token.value.to_lowercase();
+        let message = match word.as_str() {
+            "not" | "and" | "or" | "is" => "Syntax error.",
+            _ => "Unexpected reserved word.",
+        };
+        SyntaxError {
+            message: format!("{message}\n     Specifically: {}", self.the_call_of_the_word(at)),
+            line: token.line,
+            column: token.column,
+        }
+    }
+
+    /// The call that the word at the head of the statement wanted to make.
+    fn the_call_of_the_word(&self, at: usize) -> String {
+        let name = self.tokens[at].value.clone();
+        let arguments = the_source_of_the_rest_of_the_line(self, at + 1);
+        if arguments.is_empty() {
+            return format!("{name}()");
+        }
+        if arguments.starts_with('(') {
+            return format!("{name}{arguments}");
+        }
+        format!("{name}({arguments})")
+    }
+
+    /// Whether the word that opens the statement is the name of a variable.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the word that may
+    /// not be the name of a variable says so when it is the name of one,
+    /// and the operator of the assignment is what tells the two apart.
+    fn the_word_is_the_name_of_a_variable(&self) -> bool {
+        let Some(next) = self.tokens.get(self.position + 1) else { return false };
+        next.kind == TokenKind::Op && the_assignment_operator(&next.value).is_some()
+    }
+
     /// The error of the reserved word that is not wanted.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the words that may
@@ -6683,6 +6811,42 @@ mod tests {
             error.message,
             "Invalid function declaration.\n     Specifically: f(a) =>"
         );
+    }
+
+    #[test]
+    fn the_reserved_word_that_may_not_be_the_name_of_a_variable_says_so() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the word `until`
+        // is reserved and may not be the name of a variable; the words that
+        // are not operators are a "Syntax error."; and the words that are
+        // reserved for a future of v2 say "Unexpected reserved word.". The
+        // text that is named is the word alone.
+        let error = parse("until := 1").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "The following reserved word must not be used as a variable name:\n\"until\""
+        );
+        let error = parse("not := 1").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: not");
+        let error = parse("as := 1").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Unexpected reserved word.\n     Specifically: as"
+        );
+    }
+
+    #[test]
+    fn the_bare_until_wants_a_condition() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the bare `until`
+        // wants a condition, and it says so in its own words.
+        let error = parse("until").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "\"Until\" requires at least 1 parameter.\n     Specifically: until"
+        );
+        // The binary crashes when the `until` has a condition, and the tree
+        // refuses it there.
+        let error = parse("until (1)").expect_err("does not parse");
+        assert_eq!(error.message, "Unexpected \"Until\"");
     }
 
     #[test]

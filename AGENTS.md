@@ -5615,3 +5615,28 @@ Measured on the binary of v2.0.19 on 2026-11-01: the values of a case.
 
 The probe that measured the rules is in `egm-review/probe_case_values.py`
 (8 cases).
+
+## 132. The word that may not be the name of a variable
+
+Measured on the binary of v2.0.19 on 2026-11-01: the reserved words in the
+places where they are not values.
+
+- **The word `until` is reserved,** and it may not be the name of a
+  variable: "The following reserved word must not be used as a variable
+  name:" and the word. The tree read the word as a variable and failed at
+  the run.
+- **The words that are not operators say "Syntax error."** when they are the
+  name of a variable: `not`, `and`, `or` and `is`. The text that is named is
+  the word alone.
+- **The words that are reserved for a future of v2 say "Unexpected reserved
+  word.":** `as`, `in` and `contains`.
+- **The word alone at the start of a statement is a call,** and the text that
+  is named is the call with its parentheses: "not()".
+- **The bare `until` wants a condition:** "\"Until\" requires at least 1
+  parameter." and the word. The binary of v2.0.19 crashes when the `until`
+  has a condition, and the tree refuses it there with "Unexpected
+  \"Until\"".
+
+The probes that measured the rules are in
+`egm-review/probe_reserved_names.py` (24 cases) and
+`egm-review/probe_until.py` (9 cases).
