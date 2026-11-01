@@ -5791,3 +5791,69 @@ The probes that measured the rules are in `egm-review/probe_block_p.py`
 (11 cases), in `egm-review/probe_block_p2.py` (9 cases, the mode and the
 speed) and in `egm-review/probe_block_p4.py` (8 cases, the border between
 the mode and the speed).
+
+## 137. The construct that carries a parenthesis, and the construct that has no body
+
+Measured on the binary of v2.0.19 on 2026-11-01: the family of the
+constructs whose parenthesis is empty, and the family of the constructs
+whose body is missing.
+
+- **The v2 reads the body of the construct before the condition.** The
+  refusal of a condition that is empty -- `if ()`, `while ()`, `Loop ()`
+  -- comes after the refusal of the body, and the same is true of the
+  `switch`, whose subject is read after the body, and of the `case`,
+  whose values are read after the body of the case.
+- **Every construct says in its own words that it has no body.** The
+  `catch`, the `else` and the `finally` need one: "Unexpected \"Catch\"",
+  "Unexpected \"Else\"" and "Unexpected \"Finally\"". The `else` of a
+  `try` needs a `catch` before it, and it names itself when there is
+  none.
+- **The content of a block may begin on the line of the brace that opens
+  it,** and the construct refuses it when the brace is not at the start
+  of its line: "Unexpected \"If\"", "Unexpected \"While\"",
+  "Unexpected \"Loop\"", "Unexpected \"For\"" and, for the `catch`,
+  "Missing \"}\"". The `try`, the `else` and the `finally` take it
+  there always.
+- **The block that is on the line of the construct says that the brace is
+  missing:** "Missing \"}\"". The block that is empty and that is on
+  one line is not a block at all: the brace that closes it is a
+  statement that holds no action, and the line says so.
+- **The block that is not closed names the construct that opened it** when
+  it is empty -- "Missing \"}\"\n     Specifically: catch Error as e {"
+  -- and it names nothing when it has content.
+- **The parenthesis that is spaced is a part of the text of the name of
+  the label of a `goto`:** `Goto (done)` looks for the label "(done)",
+  and the parenthesis that is not spaced is the parenthesis of the
+  dialect.
+
+Three holes of the family are still open, and they are measured:
+
+- The `for` whose list is refused and whose body is not closed: the v2
+  reads the body and says "Missing \"}\"", and the tree refuses the
+  list. The grammar of the tree for the `for` is not the grammar of the
+  v2, and the two read the head of it in another order.
+- The `catch` whose class is not a name: the v2 reads the class and says
+  "Invalid class." at the load, and the tree says "Missing \")\"".
+- The `goto` whose label is not there: the v2 refuses it at the load and
+  the tree refuses it at the run, with the same words.
+
+The probes that measured the rules are in `egm-review/probe_block_q.py`
+(32 cases, the constructs and their parenthesis), in
+`egm-review/probe_block_q9.py` (12 cases, the constructs that were left
+open), in `egm-review/probe_block_q10.py` (17 cases, the constructs
+without a body), in `egm-review/probe_block_q11.py` (10 cases, the body
+that is one statement), in `egm-review/probe_block_q12.py` (9 cases, the
+body on the line of the construct), in `egm-review/probe_block_q13.py`
+(8 cases, the else of a try), in `egm-review/probe_block_q14.py` (8
+cases, the braces of the catch, of the else and of the finally), in
+`egm-review/probe_block_q15.py` (4 cases, the else of a try that follows
+a catch), in `egm-review/probe_block_q16.py` (5 cases, the content on the
+line of the brace), in `egm-review/probe_block_q17.py` (7 cases, the body
+on one line), in `egm-review/probe_block_q18.py` (7 cases, the goto and
+its parenthesis), in `egm-review/probe_block_q21.py` (8 cases, the
+content on the line of the brace), in `egm-review/probe_block_q22.py` (8
+cases, the brace that opens the body), in `egm-review/probe_block_q25.py`
+(7 cases, the brace on the line of the construct), in
+`egm-review/probe_block_q26.py` (14 cases, the block that is not closed)
+and in `egm-review/probe_block_q27.py` (6 cases, the block that is not
+closed and that has content).

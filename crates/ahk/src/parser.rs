@@ -1279,6 +1279,7 @@ impl Parser {
             // The body is one statement, and the braces are not there.
             return self.the_body_without_braces(kind, line);
         }
+        let open = self.position;
         self.expect_op("{")?;
         // Measured on the binary of v2.0.19 on 2026-11-01: the character that
         // is glued to the brace that opens the body of a block is an illegal
@@ -1286,20 +1287,44 @@ impl Parser {
         if self.at_op(&["#", ";"]) {
             return Err(self.the_error_of_the_illegal_character(self.position, true));
         }
-        if !self.the_body_begins_on_the_next_line() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the content of
+        // the block may begin on the line of the brace that opens it, and
+        // the construct refuses it when the brace is not at the start of
+        // its line. The `try`, the `else` and the `finally` take the body
+        // on the line of the construct, and they take it there.
+        let open_at_the_start_of_its_line = self.the_brace_at_is_at_the_start_of_its_line(open);
+        let content_on_the_line_of_the_brace = !self.the_body_begins_on_the_next_line();
+        if content_on_the_line_of_the_brace
+            && !open_at_the_start_of_its_line
+            && !Self::the_content_may_begin_on_the_line_of_the_brace(kind)
+        {
             return Err(self.error(self.the_message_of_the_opening_brace(kind, line)));
         }
         let mut body = Vec::new();
         self.skip_newlines();
+        // Measured on the binary of v2.0.19 on 2026-11-01: the block that is
+        // empty may have the brace that closes it where it is.
+        let empty = self.at_op(&["}"]);
         // The statement that is being read is the one of the body, and
         // the block gives its place back when it is done.
         let statement_start = self.statement_start;
         loop {
             let token = self.peek();
             if token.kind == TokenKind::Eof {
-                // Measured on the binary of v2.0.19 on 2026-10-31: the
-                // brace that is not closed is named, and nothing else: the
-                // line of the script is not named with it.
+                // Measured on the binary of v2.0.19 on 2026-11-01: the
+                // brace that is not closed is named, and the block that is
+                // empty names the construct that opened it. The block that
+                // has content names nothing.
+                if body.is_empty() {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Missing \"}}\"\n     Specifically: {}",
+                            the_source_of_the_line(self, line)
+                        ),
+                        line: token.line,
+                        column: token.column,
+                    });
+                }
                 return Err(SyntaxError {
                     message: "Missing \"}\"".into(),
                     line: token.line,
@@ -1307,7 +1332,30 @@ impl Parser {
                 });
             }
             if token.kind == TokenKind::Op && token.value == "}" {
-                self.the_closing_brace_is_refused()?;
+                // Measured on the binary of v2.0.19 on 2026-11-01: the brace
+                // that closes the block is at the start of its line. The
+                // block that is on the line of the construct is the one
+                // exception: the v2 says that the brace is missing, and the
+                // block that is empty is not a block at all -- the brace
+                // that closes it is a statement that holds no action.
+                if !self.the_brace_is_at_the_start_of_its_line() {
+                    if !open_at_the_start_of_its_line && content_on_the_line_of_the_brace {
+                        if empty {
+                            return Err(self.error(
+                                "This line does not contain a recognized action.\n     Specifically: }"
+                                    .to_string(),
+                            ));
+                        }
+                        return Err(SyntaxError {
+                            message: "Missing \"}\"".into(),
+                            line: token.line,
+                            column: token.column,
+                        });
+                    }
+                    if !empty {
+                        self.the_closing_brace_is_refused(open)?;
+                    }
+                }
                 self.position += 1;
                 self.statement_start = statement_start;
                 return Ok(body);
@@ -1319,10 +1367,10 @@ impl Parser {
 
     /// The body of a block that has no braces.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-10-31: the body is one
-    /// statement, and the function and the method need the braces. The
-    /// `if`, the `while`, the `loop`, the `for` and the `try` need a
-    /// body, and the `catch`, the `else` and the `finally` do not.
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the body is one
+    /// statement, and the function and the method need the braces. Every
+    /// construct needs a body, and the one that has none says so in its
+    /// own words.
     fn the_body_without_braces(&mut self, kind: &str, line: u32) -> Result<Vec<Node>, SyntaxError> {
         if matches!(kind, "function" | "method") {
             // The function and the method need the braces.
@@ -1336,6 +1384,107 @@ impl Parser {
             return Ok(Vec::new());
         }
         self.parse_statement()
+    }
+
+    /// The end of a list that is written between parentheses.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the text that the v2
+    /// names when the list of a `for` is refused ends at the parenthesis that
+    /// closes it.
+    fn the_end_of_the_parenthesis(&self, from: usize) -> usize {
+        let mut depth = 0usize;
+        let mut at = from;
+        while let Some(token) = self.tokens.get(at) {
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                break;
+            }
+            if token.value == "(" {
+                depth += 1;
+            }
+            if token.value == ")" {
+                if depth == 0 {
+                    break;
+                }
+                depth -= 1;
+            }
+            at += 1;
+        }
+        at
+    }
+
+    /// The parenthesis of the condition of a construct, when it is empty.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the body
+    /// of the construct before it reads the condition, and the refusal of a
+    /// condition that is empty comes after the one of the body.
+    fn the_parenthesis_of_a_condition_is_empty(&self) -> Option<Token> {
+        if !self.at_op(&["("]) {
+            return None;
+        }
+        let closing = self.tokens.get(self.position + 1)?;
+        if closing.value != ")" {
+            return None;
+        }
+        Some(closing.clone())
+    }
+
+    /// The refusal of a condition that is empty.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the text that is
+    /// named is the closing parenthesis of the condition.
+    fn the_refusal_of_an_empty_parenthesis(&self, closing: &Token) -> SyntaxError {
+        SyntaxError {
+            message: "Syntax error.\n     Specifically: )".to_string(),
+            line: closing.line,
+            column: closing.column,
+        }
+    }
+
+    /// The parenthesis that the construct takes and ignores.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the v2 takes the
+    /// parenthesis of a break and of a continue, and it ignores what is
+    /// inside it.
+    fn the_parenthesis_that_is_ignored(&mut self) {
+        if !self.at_op(&["("]) {
+            return;
+        }
+        let mut depth = 0usize;
+        loop {
+            let token = self.peek().clone();
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                return;
+            }
+            if token.value == "(" {
+                depth += 1;
+            }
+            if token.value == ")" {
+                depth -= 1;
+            }
+            self.next();
+            if depth == 0 {
+                return;
+            }
+        }
+    }
+
+    /// The refusal of a construct that takes no parenthesis.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the try, the finally
+    /// and the else take no parenthesis, and the dialect names the statement
+    /// that carries it.
+    fn the_construct_takes_no_parenthesis(&self, line: u32) -> Result<(), SyntaxError> {
+        if !self.at_op(&["("]) {
+            return Ok(());
+        }
+        Err(SyntaxError {
+            message: format!(
+                "Syntax error.\n     Specifically: {}",
+                the_source_of_the_rest_of_the_line(self, self.position - 1)
+            ),
+            line,
+            column: self.tokens.get(self.position - 1).map(|token| token.column).unwrap_or(1),
+        })
     }
 
     /// The message of v2 when the body of a block is not where it belongs.
@@ -1358,13 +1507,27 @@ impl Parser {
         matches!(kind, "If" | "While" | "For" | "Catch") || the_loop_of_the_kind(kind)
     }
 
+    /// Whether the content of a block may begin on the line of the brace
+    /// that opens it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the `try`, the
+    /// `else` and the `finally` take the body on the line of the construct,
+    /// and the content of the block may be there too. Every other
+    /// construct refuses it when the brace is not at the start of its line.
+    fn the_content_may_begin_on_the_line_of_the_brace(kind: &str) -> bool {
+        matches!(kind, "Try" | "Else" | "Finally")
+    }
+
     /// Whether the block needs a body.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-10-31: the `if`, the
-    /// `while`, the `loop`, the `for` and the `try` need one, and the
-    /// `catch`, the `else` and the `finally` do not.
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the `if`, the
+    /// `while`, the `loop`, the `for`, the `try`, the `catch`, the `else`
+    /// and the `finally` need one, and the construct that has none says
+    /// so in its own words: "Unexpected \"Catch\"", "Unexpected \"Else\""
+    /// and "Unexpected \"Finally\"".
     fn the_block_needs_a_body(kind: &str) -> bool {
-        matches!(kind, "If" | "While" | "For" | "Try") || the_loop_of_the_kind(kind)
+        matches!(kind, "If" | "While" | "For" | "Try" | "Catch" | "Else" | "Finally")
+            || the_loop_of_the_kind(kind)
     }
 
     /// Whether the body of a block begins on the next line.
@@ -1483,14 +1646,17 @@ impl Parser {
     }
 
     /// The refusal of a brace that is not at the start of its line.
-    fn the_closing_brace_is_refused(&self) -> Result<(), SyntaxError> {
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the text that is
+    /// named is the line of the brace that closes the block, and it begins
+    /// after the brace that opens it when the two are in the same line.
+    fn the_closing_brace_is_refused(&self, open: usize) -> Result<(), SyntaxError> {
         if self.the_brace_is_at_the_start_of_its_line() {
             return Ok(());
         }
-        let token = self.peek();
         Err(self.error(format!(
             "Unexpected \"}}\"\n     Specifically: {}",
-            the_source_of_the_line(self, token.line)
+            the_text_of_the_line_of_the_closing_brace(self, open, self.position)
         )))
     }
 
@@ -1702,12 +1868,17 @@ impl Parser {
                 "for" => return Ok(vec![self.parse_for()?]),
                 "break" => {
                     self.next();
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the v2
+                    // takes the parenthesis of a break and of a continue, and
+                    // it ignores what is inside it.
+                    self.the_parenthesis_that_is_ignored();
                     self.end_of_statement()?;
                     self.the_loop_of_the_break_or_the_continue(token.line, token.column)?;
                     return Ok(vec![Node::Break { line: token.line }]);
                 }
                 "continue" => {
                     self.next();
+                    self.the_parenthesis_that_is_ignored();
                     self.end_of_statement()?;
                     self.the_loop_of_the_break_or_the_continue(token.line, token.column)?;
                     return Ok(vec![Node::Continue { line: token.line }]);
@@ -2896,9 +3067,23 @@ impl Parser {
                 the_source_of_the_line(self, token.line)
             )));
         }
-        let condition = self.the_expression_of_a_statement()?;
+        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the
+        // body of the construct before it reads the condition, and the
+        // refusal of a condition that is empty comes after the one of the
+        // body.
+        let empty = self.the_parenthesis_of_a_condition_is_empty();
+        let condition = if empty.is_some() {
+            self.next();
+            self.next();
+            None
+        } else {
+            Some(self.the_expression_of_a_statement()?)
+        };
         self.end_of_block()?;
         let body = self.parse_block("If", token.line)?;
+        let Some(condition) = condition else {
+            return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
+        };
         branches.push(Branch { condition, body });
         let mut otherwise = Vec::new();
         loop {
@@ -2909,17 +3094,28 @@ impl Parser {
             // the same `if`.
             if self.at_keyword(&["else"]) {
                 let keyword = self.next();
+                self.the_construct_takes_no_parenthesis(keyword.line)?;
                 self.end_of_block()?;
                 if self.the_if_of_an_else_if_comes_next() {
                     self.skip_newlines();
                     let branch = self.next();
-                    let condition = self.the_expression_of_a_statement()?;
+                    let empty = self.the_parenthesis_of_a_condition_is_empty();
+                    let condition = if empty.is_some() {
+                        self.next();
+                        self.next();
+                        None
+                    } else {
+                        Some(self.the_expression_of_a_statement()?)
+                    };
                     self.end_of_block()?;
                     let body = self.parse_block("If", branch.line)?;
+                    let Some(condition) = condition else {
+                        return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
+                    };
                     branches.push(Branch { condition, body });
                     continue;
                 }
-                otherwise = self.parse_block("else", keyword.line)?;
+                otherwise = self.parse_block("Else", keyword.line)?;
             }
             break;
         }
@@ -2944,7 +3140,27 @@ impl Parser {
 
     fn parse_switch(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
-        let subject = self.the_expression_of_a_statement()?;
+        // Measured on the binary of v2.0.19 on 2026-11-01: the switch needs
+        // a subject, and it names itself when there is none.
+        if self.at_end_of_statement() {
+            return Err(SyntaxError {
+                message: "Unexpected \"Switch\"".to_string(),
+                line: token.line,
+                column: token.column,
+            });
+        }
+        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the
+        // body of the switch before it reads the subject, and the refusal
+        // of a subject that is an empty parenthesis comes after the one of
+        // the body.
+        let empty = self.the_parenthesis_of_a_condition_is_empty();
+        let subject = if empty.is_some() {
+            self.next();
+            self.next();
+            None
+        } else {
+            Some(self.the_expression_of_a_statement()?)
+        };
         self.end_of_block()?;
         self.skip_newlines();
         if !self.at_op(&["{"]) {
@@ -2958,15 +3174,26 @@ impl Parser {
             };
             return Err(SyntaxError { message, line: token.line, column: token.column });
         }
+        let open_at = self.position;
         let open = self.expect_op("{")?;
-        if !self.the_body_begins_on_the_next_line() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the content of
+        // the switch may begin on the line of the brace that opens it, and
+        // the switch refuses it when the brace is not at the start of its
+        // line.
+        if !self.the_body_begins_on_the_next_line()
+            && !self.the_brace_at_is_at_the_start_of_its_line(open_at)
+        {
             return Err(self.error(self.the_message_of_the_opening_brace("Switch", open.line)));
         }
         let mut cases = Vec::new();
+        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the
+        // body of the case before it refuses the values that are empty, and
+        // the refusal waits for the body of the switch.
+        let mut waiting: Option<SyntaxError> = None;
         loop {
             self.skip_newlines();
             if self.at_op(&["}"]) {
-                self.the_closing_brace_is_refused()?;
+                self.the_closing_brace_is_refused(open_at)?;
                 self.position += 1;
                 break;
             }
@@ -2980,16 +3207,30 @@ impl Parser {
                 // of a case may be none, and the colon is what says where
                 // the label of the case ends.
                 if !self.at_op(&[":"]) && !self.at_end_of_statement() {
-                    loop {
-                        values.push(self.the_expression_of_a_statement()?);
-                        if !self.at_op(&[","]) {
-                            break;
-                        }
-                        self.position += 1;
-                        self.skip_newlines();
-                        // The comma at the end of the list adds nothing.
-                        if self.at_op(&[":"]) {
-                            break;
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // values of a case may be none, and the parenthesis that
+                    // is empty is refused with the text that it read -- the
+                    // closing parenthesis and not the rest of the line.
+                    if let Some(closing) = self.the_parenthesis_of_a_condition_is_empty() {
+                        waiting = Some(SyntaxError {
+                            message: "Syntax error.\n     Specifically: )".to_string(),
+                            line: closing.line,
+                            column: closing.column,
+                        });
+                        self.next();
+                        self.next();
+                    } else {
+                        loop {
+                            values.push(self.the_expression_of_a_statement()?);
+                            if !self.at_op(&[","]) {
+                                break;
+                            }
+                            self.position += 1;
+                            self.skip_newlines();
+                            // The comma at the end of the list adds nothing.
+                            if self.at_op(&[":"]) {
+                                break;
+                            }
                         }
                     }
                 }
@@ -3011,15 +3252,34 @@ impl Parser {
             // for the brace that closes the switch before it reads the
             // cases, and a switch that is not closed says so.
             if !self.the_closing_brace_is_there() {
-                let token = self.peek().clone();
+                let at = self.peek().clone();
+                // Measured on the binary of v2.0.19 on 2026-11-01: the
+                // switch that is empty names the statement of it, and the
+                // switch that has cases names nothing.
+                if cases.is_empty() && at.kind == TokenKind::Eof {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Missing \"}}\"\n     Specifically: {}",
+                            the_source_of_the_line(self, token.line)
+                        ),
+                        line: at.line,
+                        column: at.column,
+                    });
+                }
                 return Err(SyntaxError {
                     message: "Missing \"}\"".into(),
-                    line: token.line,
-                    column: token.column,
+                    line: at.line,
+                    column: at.column,
                 });
             }
             // A statement that is not a case is refused in the words of v2.
             return Err(self.error("Expected Case/Default."));
+        }
+        let Some(subject) = subject else {
+            return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
+        };
+        if let Some(error) = waiting {
+            return Err(error);
         }
         Ok(Node::Switch { subject: Box::new(subject), cases, line: token.line })
     }
@@ -3104,6 +3364,16 @@ impl Parser {
 
     fn parse_return(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
+        // Measured on the binary of v2.0.19 on 2026-11-01: a return that
+        // carries a value outside a function is refused at the load, and the
+        // reason comes before the one of the expression that it carries.
+        if !self.at_end_of_statement() && !self.in_function {
+            return Err(SyntaxError {
+                message: "Return's parameter should be blank except inside a function.".to_string(),
+                line: token.line,
+                column: token.column,
+            });
+        }
         let value = if self.at_end_of_statement() {
             None
         } else {
@@ -3127,6 +3397,9 @@ impl Parser {
     /// `try { } catch { } else { } finally { }`.
     fn parse_try(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
+        // Measured on the binary of v2.0.19 on 2026-11-01: the try takes no
+        // parenthesis, and the dialect names the statement that carries it.
+        self.the_construct_takes_no_parenthesis(token.line)?;
         self.end_of_block()?;
         let body = self.parse_block("Try", token.line)?;
         let mut catches = Vec::new();
@@ -3141,15 +3414,27 @@ impl Parser {
         self.skip_newlines();
         if self.at_keyword(&["else"]) {
             let keyword = self.next();
+            self.the_construct_takes_no_parenthesis(keyword.line)?;
+            // Measured on the binary of v2.0.19 on 2026-11-01: the else of a
+            // try needs a catch before it, and it names itself when there is
+            // none. The parenthesis that it carries is refused before that.
+            if catches.is_empty() {
+                return Err(SyntaxError {
+                    message: "Unexpected \"Else\"".to_string(),
+                    line: keyword.line,
+                    column: keyword.column,
+                });
+            }
             self.end_of_block()?;
-            otherwise = self.parse_block("else", keyword.line)?;
+            otherwise = self.parse_block("Else", keyword.line)?;
         }
         let mut finally = Vec::new();
         self.skip_newlines();
         if self.at_keyword(&["finally"]) {
             let keyword = self.next();
+            self.the_construct_takes_no_parenthesis(keyword.line)?;
             self.end_of_block()?;
-            finally = self.parse_block("finally", keyword.line)?;
+            finally = self.parse_block("Finally", keyword.line)?;
         }
         Ok(Node::Try { body, catches, otherwise, finally, line: token.line })
     }
@@ -3358,9 +3643,11 @@ impl Parser {
     fn parse_goto(&mut self) -> Result<Node, SyntaxError> {
         let keyword_at = self.position;
         let token = self.next();
-        // The parenthesis of the dialect: `Goto(name)` is the same as
-        // `Goto name`, and the parameter is the text inside it.
-        let parenthesised = self.at_op(&["("]);
+        // Measured on the binary of v2.0.19 on 2026-11-01: the parenthesis
+        // that is spaced is a part of the text of the name of the label --
+        // `Goto (done)` looks for the label "(done)". The parenthesis that
+        // is not spaced is the parenthesis of the dialect.
+        let parenthesised = self.at_op(&["("]) && !self.peek().spaced;
         let open_at = self.position;
         if parenthesised {
             self.next();
@@ -3385,7 +3672,11 @@ impl Parser {
             }
             end += 1;
         }
-        let name = the_text_of_the_tokens(self, start, end);
+        // Measured on the binary of v2.0.19 on 2026-11-01: the name of the
+        // label is the text of the source, and the space that the script
+        // wrote inside it is not one: `Goto (nonewhere)` looks for the
+        // label "(nonewhere)".
+        let name = the_source_of_the_tokens(self, start, end);
         self.position = end;
         if parenthesised && self.at_op(&[")"]) {
             self.next();
@@ -3574,9 +3865,23 @@ impl Parser {
                 the_source_of_the_line(self, token.line)
             )));
         }
-        let condition = self.the_expression_of_a_statement()?;
+        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the
+        // body of the construct before it reads the condition, and the
+        // refusal of a condition that is empty comes after the one of the
+        // body.
+        let empty = self.the_parenthesis_of_a_condition_is_empty();
+        let condition = if empty.is_some() {
+            self.next();
+            self.next();
+            None
+        } else {
+            Some(self.the_expression_of_a_statement()?)
+        };
         self.end_of_block()?;
         let body = self.the_body_of_a_loop("While", token.line)?;
+        let Some(condition) = condition else {
+            return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
+        };
         Ok(Node::While { condition: Box::new(condition), body, line: token.line })
     }
 
@@ -3714,9 +4019,14 @@ impl Parser {
     /// Measured on the binary of v2.0.19 on 2026-10-31: v2 reads the class
     /// and drops it, and the class that holds it does not own it: the own
     /// properties of the class that holds it are the ones it had before.
-    fn parse_the_class_with_no_name(&mut self, token: Token, name: &str) -> Result<(), SyntaxError> {
+    fn parse_the_class_with_no_name(
+        &mut self,
+        token: Token,
+        name: &str,
+        open: usize,
+    ) -> Result<(), SyntaxError> {
         // The brace of the class is the token that was read as its name.
-        self.parse_the_members_of_a_class(token.line, name)?;
+        self.parse_the_members_of_a_class(token.line, name, open)?;
         Ok(())
     }
 
@@ -3742,8 +4052,9 @@ impl Parser {
                     .unwrap_or(1),
             });
         }
+        let open = self.position;
         self.expect_op("{")?;
-        self.parse_the_members_of_a_class(line, name)
+        self.parse_the_members_of_a_class(line, name, open)
     }
 
     /// The members of a class, after the brace that opens them.
@@ -3751,6 +4062,7 @@ impl Parser {
         &mut self,
         line: u32,
         name: &str,
+        open: usize,
     ) -> Result<TheMembersOfAClass, SyntaxError> {
         if !self.the_body_begins_on_the_next_line() {
             return Err(self.error(self.the_message_of_the_opening_brace("class", line)));
@@ -3796,7 +4108,7 @@ impl Parser {
                 });
             }
             if token.kind == TokenKind::Op && token.value == "}" {
-                self.the_closing_brace_is_refused()?;
+                self.the_closing_brace_is_refused(open)?;
                 self.position += 1;
                 break;
             }
@@ -3811,6 +4123,9 @@ impl Parser {
                 is_static = true;
             }
             let name_token = self.next();
+            // The place of the token that was read: the brace of a class
+            // with no name is the token that was read as its name.
+            let name_at = self.position - 1;
             if name_token.kind == TokenKind::Keyword && name_token.value.eq_ignore_ascii_case("class") {
                 // A class inside a class. Its name is a name of the class
                 // that holds it: it is a property of it, and the duplicate
@@ -3849,7 +4164,7 @@ impl Parser {
                     // class with no name is read and dropped, and the class
                     // that holds it does not own it.
                     _ => {
-                        self.parse_the_class_with_no_name(name_token, name)?;
+                        self.parse_the_class_with_no_name(name_token, name, name_at)?;
                         continue;
                     }
                 }
@@ -4228,6 +4543,10 @@ impl Parser {
         let token = self.next();
         let kind = self.the_kind_of_the_loop();
         let mut arguments = Vec::new();
+        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the
+        // body of the construct before it reads the count of it, and the
+        // refusal of a count that is empty comes after the one of the body.
+        let mut empty = None;
         // The name of the kind, as the script spelled it.
         let mut name = String::new();
         // The end of the first parameter, for the message that names it.
@@ -4302,7 +4621,11 @@ impl Parser {
                         the_source_of_the_line(self, token.line)
                     )));
                 }
-                if !self.at_end_of_statement() && !self.at_op(&["::", "{"]) {
+                empty = self.the_parenthesis_of_a_condition_is_empty();
+                if empty.is_some() {
+                    self.next();
+                    self.next();
+                } else if !self.at_end_of_statement() && !self.at_op(&["::", "{"]) {
                     self.the_expression_begins();
                     arguments.push(self.parse_expression()?);
                     if self.at_op(&[","]) {
@@ -4319,6 +4642,9 @@ impl Parser {
         self.end_of_block()?;
         let body_start = self.position;
         let body = self.the_body_of_a_loop(&the_name_of_the_loop(&name), token.line)?;
+        if let Some(closing) = empty {
+            return Err(self.the_refusal_of_an_empty_parenthesis(&closing));
+        }
         // The command of v2 checks its parameters when the script loads,
         // and the parameter that is not there is named.
         if kind.is_some() && arguments.is_empty() {
@@ -4364,6 +4690,9 @@ impl Parser {
     /// list may also be written between parentheses, the way v2 writes
     /// it when the expression is long.
     fn parse_for(&mut self) -> Result<Node, SyntaxError> {
+        // The place where the statement begins: the message of the v2 names
+        // the text of it.
+        let head = self.position;
         let token = self.next();
         let mut variables = Vec::new();
         // The list may be written between parentheses: `for (x in y)`.
@@ -4379,9 +4708,14 @@ impl Parser {
                 the_source_of_the_line(self, token.line)
             )));
         }
-        self.parse_for_variables(&mut variables)?;
+        self.parse_for_variables(&mut variables, head, parenthesised)?;
         if !self.at_keyword(&["in"]) {
-            return Err(self.error("expected `in` in the For loop"));
+            // Measured on the binary of v2.0.19 on 2026-11-01: the `for` needs
+            // the `in`, and the dialect names the statement as it was written.
+            return Err(self.error(format!(
+                "Syntax error.\n     Specifically: {}",
+                the_source_of_the_line(self, token.line)
+            )));
         }
         self.next();
         if self.at_end_of_statement() {
@@ -4404,7 +4738,12 @@ impl Parser {
     ///
     /// A name may be left out, and the name that is left out is the
     /// empty string: `for , value in map` gives `["", "value"]`.
-    fn parse_for_variables(&mut self, variables: &mut Vec<String>) -> Result<(), SyntaxError> {
+    fn parse_for_variables(
+        &mut self,
+        variables: &mut Vec<String>,
+        head: usize,
+        parenthesised: bool,
+    ) -> Result<(), SyntaxError> {
         // The first name. It is left out when the comma comes first.
         if self.at_op(&[","]) {
             variables.push(String::new());
@@ -4420,8 +4759,17 @@ impl Parser {
             variables.push(token.value);
         } else if !self.at_keyword(&["in"]) {
             let token = self.peek().clone();
+            // Measured on the binary of v2.0.19 on 2026-11-01: the v2 names the
+            // text that it read: the statement of the `for` up to the
+            // parenthesis that closes the list, and the line of it when the
+            // list is not written between parentheses.
+            let text = if parenthesised {
+                the_source_of_the_tokens(self, head, self.the_end_of_the_parenthesis(self.position))
+            } else {
+                the_source_of_the_line(self, token.line)
+            };
             return Err(SyntaxError {
-                message: format!("{:?} is not a variable name", token.value),
+                message: format!("Syntax error.\n     Specifically: {text}"),
                 line: token.line,
                 column: token.column,
             });

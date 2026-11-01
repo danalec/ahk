@@ -1804,11 +1804,11 @@ fn a_class_name_that_is_a_number_is_refused() {
 
 #[test]
 fn a_block_that_is_not_closed_is_refused() {
-    // Measured on the binary of v2.0.19 on 2026-10-31: the brace that is
-    // not closed is named, and nothing else: the line of the script is
-    // not named with it.
+    // Measured on the binary of v2.0.19 on 2026-11-01: the brace that is
+    // not closed is named, and the block that is empty names the
+    // construct that opened it.
     let error = parse("f(a) {\n").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"}\"");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: f(a) {");
 }
 
 #[test]
@@ -1822,9 +1822,14 @@ fn a_class_that_is_not_closed_names_the_class() {
 #[test]
 fn a_switch_that_is_not_closed_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: v2 looks for the
-    // brace that closes the switch before it reads the cases.
+    // brace that closes the switch before it reads the cases. The switch
+    // that has a statement in it names nothing.
     let error = parse("Switch 1 {\n    x := 1\n").expect_err("does not parse");
     assert_eq!(error.message, "Missing \"}\"");
+    // Measured on the binary of v2.0.19 on 2026-11-01: the switch that is
+    // empty names the statement of it.
+    let error = parse("Switch 1 {").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: Switch 1 {");
 }
 
 #[test]
@@ -5538,4 +5543,194 @@ fn the_default_in_the_body_of_a_case_is_a_statement() {
     let (report, desktop) = run("default := \"one\"\nswitch 1 {\ncase 1:\nSend default\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["one"]);
+}
+
+#[test]
+fn a_return_that_carries_a_value_outside_a_function_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: a return that carries
+    // a value outside a function is refused at the load, and the reason
+    // comes before the one of the expression that it carries.
+    let error = parse("return 1").expect_err("does not parse");
+    assert_eq!(error.message, "Return's parameter should be blank except inside a function.");
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn a_return_inside_a_function_carries_the_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: a return inside a
+    // function may carry a value.
+    let (report, _) = run("f() {\n    return 1\n}\nf()");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_break_that_carries_a_parenthesis_is_a_break() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the v2 takes the
+    // parenthesis of a break and of a continue, and it ignores what is
+    // inside it.
+    let (report, _) = run("Loop 2 {\n    break(1)\n}");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_break_with_a_parenthesis_outside_a_loop_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the refusal of a break
+    // that is not inside a loop comes after the parenthesis.
+    let error = parse("break()").expect_err("does not parse");
+    assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn a_try_that_carries_a_parenthesis_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the try takes no
+    // parenthesis, and the dialect names the statement that carries it.
+    let error = parse("try() {\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: try() {");
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn a_finally_that_carries_a_parenthesis_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the finally takes no
+    // parenthesis, and the dialect names the statement that carries it.
+    let error = parse("try {\n}\nfinally()").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: finally()");
+    assert_eq!(error.line, 3);
+}
+
+#[test]
+fn an_else_that_carries_a_parenthesis_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the else takes no
+    // parenthesis, and the dialect names the statement that carries it.
+    let error = parse("if (1) {\n}\nelse()").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: else()");
+    assert_eq!(error.line, 3);
+}
+
+#[test]
+fn a_switch_without_a_subject_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the switch needs a
+    // subject, and it names itself when there is none.
+    let error = parse("switch").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Switch\"");
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn a_condition_that_is_empty_is_refused_after_the_body() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the body
+    // of the construct before it reads the condition, and the refusal of a
+    // condition that is empty comes after the one of the body.
+    let error = parse("if()").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"If\"");
+    let error = parse("if()\n{\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: )");
+}
+
+#[test]
+fn a_for_whose_list_is_empty_names_the_text_that_it_read() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the v2 names the text
+    // that it read, and the text of the for ends at the parenthesis that
+    // closes the list.
+    let error = parse("for() {\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: for(");
+    let error = parse("for(1) {\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: for(1");
+}
+
+#[test]
+fn the_values_of_a_case_that_are_empty_name_the_closing_parenthesis() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the text that is
+    // named is the closing parenthesis and not the rest of the line.
+    let error = parse("switch 1 {\n    case(): x := 1\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: )");
+    assert_eq!(error.line, 2);
+}
+
+#[test]
+fn the_catch_that_has_no_body_names_itself() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the catch needs a
+    // body, and the construct that has none says so in its own words.
+    let error = parse("try {\n}\ncatch").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Catch\"");
+    assert_eq!(error.line, 3);
+}
+
+#[test]
+fn the_finally_that_has_no_body_names_itself() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the finally needs a
+    // body too.
+    let error = parse("try {\n}\nfinally").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Finally\"");
+    assert_eq!(error.line, 3);
+}
+
+#[test]
+fn the_else_that_has_no_body_names_itself() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the else needs a
+    // body as well.
+    let error = parse("if (1) {\n}\nelse").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Else\"");
+    assert_eq!(error.line, 3);
+}
+
+#[test]
+fn the_else_of_a_try_needs_a_catch_before_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the else of a try
+    // needs a catch before it, and it names itself when there is none.
+    let error = parse("try {\n}\nelse {\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Else\"");
+    // The catch before it is what makes the difference.
+    let statements = parse("try {\n}\ncatch {\n}\nelse {\n}").expect("parses");
+    assert_eq!(statements.len(), 1);
+}
+
+#[test]
+fn the_content_of_a_block_may_be_on_the_line_of_the_brace_that_opens_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the content may be
+    // there when the brace is at the start of its line.
+    let statements = parse("if (1)\n{ x := 1\n}").expect("parses");
+    assert_eq!(statements.len(), 1);
+    // And the construct refuses it when the brace is not at the start of
+    // its line.
+    let error = parse("if (1) { x := 1 }").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"If\"");
+}
+
+#[test]
+fn the_body_of_a_try_that_is_on_one_line_says_that_the_brace_is_missing() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the block that is on
+    // the line of the construct says that the brace is missing.
+    let error = parse("try { x := 1 }").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"");
+    // And the block that is empty is not a block at all.
+    let error = parse("try {}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: }"
+    );
+}
+
+#[test]
+fn the_block_that_is_not_closed_names_the_construct_that_opened_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the block that is
+    // empty names the construct that opened it, and the block that has
+    // content names nothing.
+    let error = parse("if (1) {").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: if (1) {");
+    let error = parse("if (1) {\n    x := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"");
+}
+
+#[test]
+fn the_goto_whose_parenthesis_is_spaced_looks_for_the_whole_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the parenthesis
+    // that is spaced is a part of the text of the name of the label.
+    let (report, _) = run("Goto (nowhere)");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Label not found in current scope.\n     Specifically: (nowhere)")
+    );
 }

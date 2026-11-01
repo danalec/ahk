@@ -314,6 +314,30 @@ The body is one statement, and the `if`, the `while`, the `loop`, the `for`
 and the `catch` want it on the next line, while the `try`, the `else` and
 the `finally` take it on the line of the construct as well.
 
+The v2 reads the body of a construct before the condition that it carries,
+and the refusal of a condition that is empty comes after the refusal of
+the body. The subject of a switch and the values of a case are read the
+same way.
+
+Every construct needs a body, and the one that has none says so in its own
+words: "Unexpected \"Catch\"", "Unexpected \"Else\"" and "Unexpected
+\"Finally\"". The `else` of a `try` needs a `catch` before it, and it
+names itself when there is none.
+
+The content of a block may begin on the line of the brace that opens it,
+and the construct refuses it when the brace is not at the start of its
+line. The `try`, the `else` and the `finally` take it there always. The
+block that is on the line of the construct says that the brace is missing,
+and the block that is empty and that is on one line is not a block at all:
+the brace that closes it is a statement that holds no action.
+
+The block that is not closed names the construct that opened it when it is
+empty, and it names nothing when it has content.
+
+The parenthesis of a `goto` that is spaced is a part of the text of the
+name of the label: `Goto (done)` looks for the label "(done)", and the
+parenthesis that is not spaced is the parenthesis of the dialect.
+
 The loop of v2 is one statement with five shapes, and the word that follows
 the `Loop` says which one it is: a name of the kind -- `Files`, `Reg`,
 `Read` or `Parse` -- when the line goes on after it, and the count of the
