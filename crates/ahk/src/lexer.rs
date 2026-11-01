@@ -62,13 +62,18 @@ pub struct Token {
 /// `is` are operators and not synonyms of the symbols. `in` and
 /// `contains` are reserved for a future of v2 and do nothing yet, but
 /// they are reserved: a script cannot use them as names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: three of the words
+/// that the tree knew are not words of the dialect. The `elseif` is a
+/// name -- the branch of an `if` is written with two words, `else if` --
+/// and the `default` and the `extends` are names too: the label of the
+/// default case of a switch and the base of a class are told apart by
+/// what comes with them, and not by the word itself.
 pub const KEYWORDS: &[&str] = &[
     "if",
     "else",
-    "elseif",
     "switch",
     "case",
-    "default",
     "return",
     "exitapp",
     "while",
@@ -92,12 +97,56 @@ pub const KEYWORDS: &[&str] = &[
     "contains",
     "as",
     "class",
-    "extends",
     "static",
     "global",
     "local",
     "super",
 ];
+
+/// The reason of the refusal of a word that the language reserves.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the reason belongs to
+/// the word, and it is the same in every place where the word is refused.
+/// The words that begin a statement say that the word may not be the name
+/// of a variable; the words that are operators, the two that are the
+/// values of the dialect and the `super` are a syntax error; and the words
+/// that are reserved for a future of v2 say that they are reserved.
+///
+/// The `ExitApp` and the `Class` are apart: the first is a function of the
+/// machine and the second is a class of the dialect, and neither of them
+/// may be written to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TheRefusal {
+    /// The word may not be the name of a variable.
+    Variable,
+    /// The word is a syntax error.
+    Syntax,
+    /// The word is reserved for a future of v2.
+    Future,
+    /// The word is the name of a function of the machine.
+    Func,
+    /// The word is the name of a class of the dialect.
+    Class,
+}
+
+/// The reason of the refusal of a word, when the language reserves it.
+///
+/// The word is the one as the script wrote it, and the reason is the one
+/// that the binary of v2 gives. A word that is not in the table is a name,
+/// and the `elseif`, the `default` and the `extends` are names.
+pub fn the_refusal_of_a_word(word: &str) -> Option<TheRefusal> {
+    let word = word.to_lowercase();
+    Some(match word.as_str() {
+        "if" | "else" | "switch" | "case" | "return" | "while" | "until" | "loop" | "try"
+        | "catch" | "finally" | "throw" | "for" | "break" | "continue" | "goto" | "static"
+        | "global" | "local" => TheRefusal::Variable,
+        "not" | "and" | "or" | "is" | "true" | "false" | "super" => TheRefusal::Syntax,
+        "in" | "contains" | "as" => TheRefusal::Future,
+        "exitapp" => TheRefusal::Func,
+        "class" => TheRefusal::Class,
+        _ => return None,
+    })
+}
 
 /// The operators, longest first so that `:=` wins over `:`.
 ///

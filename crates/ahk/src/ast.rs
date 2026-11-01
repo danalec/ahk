@@ -280,9 +280,12 @@ pub enum AssignOp {
 
 /// One branch of an `If`: a condition and what happens when it holds.
 ///
-/// An `If` with `ElseIf` branches is one node with a list of them, because
+/// An `If` with `else if` branches is one node with a list of them, because
 /// the chain is a single decision: the first condition that holds wins, and
-/// the `Else` is the last resort.
+/// the `else` is the last resort.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the branch of an `if` is
+/// written with two words, and the `elseif` is a name like any other.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Branch {
     /// The condition.
@@ -411,7 +414,7 @@ pub enum Node {
     /// the brace that closes it is alone on its line, unless the block is
     /// empty.
     Block { body: Vec<Node>, line: u32 },
-    /// `If cond { } ElseIf cond { } Else { }`.
+    /// `If cond { } else if cond { } else { }`.
     If { branches: Vec<Branch>, otherwise: Vec<Node>, line: u32 },
     /// `Switch value { Case 1 { } Default { } }`.
     Switch { subject: Box<Node>, cases: Vec<Case>, line: u32 },

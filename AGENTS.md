@@ -5640,3 +5640,52 @@ places where they are not values.
 The probes that measured the rules are in
 `egm-review/probe_reserved_names.py` (24 cases) and
 `egm-review/probe_until.py` (9 cases).
+
+## 133. The words of the v2, and the reason of each one
+
+Measured on the binary of v2.0.19 on 2026-11-01: the words that the v2
+reserves, the reason of each one, and the places where a name may be.
+
+- **The reason belongs to the word, and it does not depend on the place.**
+  The words that begin a statement -- `if`, `else`, `switch`, `case`,
+  `return`, `while`, `until`, `loop`, `try`, `catch`, `finally`, `throw`,
+  `for`, `break`, `continue`, `goto`, `static`, `global` and `local` -- say
+  "The following reserved word must not be used as a variable name:" and the
+  word alone. The words that are operators, the two that are the values of
+  the dialect and the `super` say "Syntax error." and the word. The words
+  that are reserved for a future of v2 -- `as`, `in` and `contains` -- say
+  "Unexpected reserved word." and the word.
+- **The name of a parameter says "variable name" and the name of a class says
+  "class name",** and the words that the v2 does not reserve are names in
+  both places: a parameter may be named `exitapp` and `class`, and a class
+  may be named `exitapp`.
+- **The name of a function may not be a word that the language reserves:**
+  "The following reserved word must not be used as a function name:" and the
+  word. The words that the v2 does not reserve are names there too: the
+  `until`, the `catch` and the `ExitApp` may be the name of a function.
+- **Three of the words that the tree knew are not words of the dialect.**
+  The `elseif` is a name -- the branch of an `if` is written with two words,
+  `else if` -- and the `default` and the `extends` are names too: the label
+  of the default case of a switch and the base of a class are told apart by
+  what comes with them, and not by the word itself.
+- **The name of a function of the machine may not be the output variable of
+  an assignment:** "This Func cannot be used as an output variable." and the
+  name, and "This Func cannot be assigned a value." for the compound ones.
+  The name of a class of the dialect says the same with "Class" in the place
+  of "Func". The refusal is the one of the global scope: a local variable
+  may carry the name, and so may one that is declared global.
+- **The values of a case may be none,** and the colon is what says where the
+  label of the case ends. The name of the default case is the name and a
+  colon, and the name alone in the body of the switch is not a label.
+- **The construct whose parenthesis is empty is still open.** The v2 says
+  "Unexpected \"If\"" for the `if`, "Return's parameter should be blank
+  except inside a function." for the `return`, and "Syntax error." and the
+  statement from the word for the `else`, the `try`, the `finally` and the
+  `for`. The tree says "Syntax error." and the rest of the line from the
+  parenthesis in every one of them.
+
+The probes that measured the rules are in `egm-review/probe_block_m6.py`
+(194 cases, the matrix of the words and the places), in
+`egm-review/probe_block_m7.py` (16 cases, the scope of the assignment) and
+in `egm-review/probe_block_m8.py` (24 cases, the empty parenthesis).
+

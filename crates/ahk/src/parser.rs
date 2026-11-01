@@ -39,7 +39,7 @@ use crate::ast::{
     AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, Catch, DeclareKind, Declared, Declarations, DynamicPiece,
     LiteralValue, LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
-use crate::lexer::{SyntaxError, Token, TokenKind};
+use crate::lexer::{SyntaxError, TheRefusal, Token, TokenKind};
 
 /// The shape of a `super`, the way v2 reads it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -834,6 +834,24 @@ impl Parser {
         token.kind == TokenKind::Keyword && words.iter().any(|word| token.value.eq_ignore_ascii_case(word))
     }
 
+    /// Whether the name that comes next is the one that is asked for.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the `default` and
+    /// the `extends` are names in v2 and not words of the dialect, and the
+    /// dialect tells them apart by what comes with them.
+    fn at_the_name(&self, name: &str) -> bool {
+        let token = self.peek();
+        token.kind == TokenKind::Name && token.value.eq_ignore_ascii_case(name)
+    }
+
+    /// Whether a colon comes after the token that the parser is at.
+    fn a_colon_comes_after(&self) -> bool {
+        self.tokens
+            .get(self.position + 1)
+            .map(|token| token.kind == TokenKind::Op && token.value == ":")
+            .unwrap_or(false)
+    }
+
     /// Whether the dot that comes next reaches into a value.
     ///
     /// The space that comes after the dot is what tells a member from a
@@ -1138,17 +1156,36 @@ impl Parser {
     /// assignment. The plain assignment says that the class cannot be an
     /// output variable, and the compound ones say that it cannot be
     /// assigned a value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+    /// function of the machine may not be the output variable of an
+    /// assignment either, and the refusal is the same with "Func" in the
+    /// place of "Class".
     fn check_the_assignments(&self, assignments: Vec<Assignment>) -> Result<(), SyntaxError> {
         for assignment in assignments {
             let key = assignment.name.to_lowercase();
-            let Some(class) = self.the_name_of_the_class(&key) else { continue };
-            let message = match assignment.op {
-                AssignOp::Set => format!(
-                    "This Class cannot be used as an output variable.\n     Specifically: {class}"
-                ),
-                _ => format!("This Class cannot be assigned a value.\n     Specifically: {class}"),
-            };
-            return Err(SyntaxError { message, line: assignment.line, column: assignment.column });
+            if let Some(class) = self.the_name_of_the_class(&key) {
+                let message = match assignment.op {
+                    AssignOp::Set => format!(
+                        "This Class cannot be used as an output variable.\n     Specifically: {class}"
+                    ),
+                    _ => format!("This Class cannot be assigned a value.\n     Specifically: {class}"),
+                };
+                return Err(SyntaxError { message, line: assignment.line, column: assignment.column });
+            }
+            if crate::builtins::find(&key).is_some() {
+                let message = match assignment.op {
+                    AssignOp::Set => format!(
+                        "This Func cannot be used as an output variable.\n     Specifically: {}",
+                        assignment.name
+                    ),
+                    _ => format!(
+                        "This Func cannot be assigned a value.\n     Specifically: {}",
+                        assignment.name
+                    ),
+                };
+                return Err(SyntaxError { message, line: assignment.line, column: assignment.column });
+            }
         }
         Ok(())
     }
@@ -1467,7 +1504,7 @@ impl Parser {
     /// blocks that end with a brace say that it is missing.
     fn the_message_of_the_opening_brace(&self, kind: &str, line: u32) -> String {
         match kind {
-            "function" | "elseif" => "Unexpected \"{\"".to_string(),
+            "function" => "Unexpected \"{\"".to_string(),
             "class" => format!(
                 "Missing \"{{\"\n     Specifically: {}",
                 the_source_of_the_line(self, line)
@@ -1594,6 +1631,69 @@ impl Parser {
         }
         if token.kind == TokenKind::Keyword {
             let word = token.value.to_lowercase();
+            // Measured on the binary of v2.0.19 on 2026-11-01: the word that
+            // is the name of a variable refuses with the reason of the word,
+            // and the reason does not depend on the place where the word is.
+            if self.the_word_is_the_name_of_a_variable() {
+                if let Some(refusal) = crate::lexer::the_refusal_of_a_word(&word) {
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // name of a function of the machine and the name of a
+                    // class of the dialect are refused when they are the
+                    // output variable of an assignment, and the refusal
+                    // waits for the end of the parse: the scope of the
+                    // assignment says whether the name is a global one.
+                    if !matches!(refusal, TheRefusal::Func | TheRefusal::Class) {
+                        return Err(self.the_error_of_the_refusal(refusal, &token));
+                    }
+                }
+            }
+            // Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+            // function may not be a word that the language reserves, and the
+            // refusal names the function. The words that the v2 does not
+            // reserve are names, and the words that begin a construct are
+            // the construct and not a name.
+            if self.the_word_is_the_name_of_a_function() {
+                match crate::lexer::the_refusal_of_a_word(&word) {
+                    Some(TheRefusal::Syntax) | Some(TheRefusal::Future) => {
+                        return Err(SyntaxError {
+                            message: format!(
+                                "The following reserved word must not be used as a function name:\n{:?}",
+                                token.value
+                            ),
+                            line: token.line,
+                            column: token.column,
+                        });
+                    }
+                    Some(TheRefusal::Class) => {
+                        return Err(SyntaxError {
+                            message: "This function declaration conflicts with an existing Class.\n     Specifically: Class".to_string(),
+                            line: token.line,
+                            column: token.column,
+                        });
+                    }
+                    Some(TheRefusal::Variable) if matches!(word.as_str(), "static" | "global" | "local") => {
+                        return Err(SyntaxError {
+                            message: format!(
+                                "The following reserved word must not be used as a function name:\n{:?}",
+                                token.value
+                            ),
+                            line: token.line,
+                            column: token.column,
+                        });
+                    }
+                    // The `until` and the `catch` are not the head of a
+                    // statement in v2, and the `ExitApp` is a function of the
+                    // machine: the three of them may be the name of a
+                    // function of the script.
+                    Some(TheRefusal::Variable) if matches!(word.as_str(), "until" | "catch") => {
+                        return self.parse_name_statement();
+                    }
+                    Some(TheRefusal::Func) => {
+                        return self.parse_name_statement();
+                    }
+                    _ => {}
+                }
+            }
             match word.as_str() {
                 "if" => return Ok(vec![self.parse_if()?]),
                 "switch" => return Ok(vec![self.parse_switch()?]),
@@ -1613,6 +1713,13 @@ impl Parser {
                     return Ok(vec![Node::Continue { line: token.line }]);
                 }
                 "class" => {
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // name of a class of the dialect may be the name of a
+                    // variable, and the refusal of the global one waits for
+                    // the end of the parse.
+                    if self.the_word_is_the_name_of_a_variable() {
+                        return self.parse_name_statement();
+                    }
                     // Measured on the binary of v2.0.19 on 2026-10-31: the
                     // word `class` is the keyword of a class declaration and
                     // the name of a class type of the dialect, and the two
@@ -1658,16 +1765,24 @@ impl Parser {
                 "throw" => return Ok(vec![self.parse_throw()?]),
                 "super" => return self.parse_super_statement(),
                 "return" => return Ok(vec![self.parse_return()?]),
-                "exitapp" => return Ok(vec![self.parse_exitapp()?]),
+                "exitapp" => {
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // `ExitApp` is a function of the machine and not a word
+                    // of the dialect, and its name may be the name of a
+                    // variable. The refusal of the global one waits for the
+                    // end of the parse.
+                    if self.the_word_is_the_name_of_a_variable() {
+                        return self.parse_name_statement();
+                    }
+                    return Ok(vec![self.parse_exitapp()?]);
+                }
                 "until" => {
                     // Measured on the binary of v2.0.19 on 2026-11-01: the
                     // `until` is a word of the dialect and it is reserved:
-                    // it may not be the name of a variable. The bare word
-                    // wants a condition, and the binary crashes when it has
-                    // one, so the tree refuses it there.
-                    if self.the_word_is_the_name_of_a_variable() {
-                        return Err(self.the_error_of_the_reserved_word_as_a_name(self.position));
-                    }
+                    // it may not be the name of a variable, and the name of
+                    // the check is above. The bare word wants a condition,
+                    // and the binary crashes when it has one, so the tree
+                    // refuses it there.
                     let token = self.next();
                     if self.at_end_of_statement() {
                         return Err(self.error(format!(
@@ -2601,7 +2716,18 @@ impl Parser {
                 variadic = true;
                 String::new()
             } else {
-                if name_token.kind != TokenKind::Name {
+                // Measured on the binary of v2.0.19 on 2026-11-01: a parameter
+                // may be named after a function of the machine and after a
+                // class of the dialect -- `f(exitapp)` and `f(class)` are
+                // both of them -- and the word that the language reserves
+                // says that it may not be the name of a variable.
+                let is_a_name = name_token.kind == TokenKind::Name
+                    || (name_token.kind == TokenKind::Keyword
+                        && matches!(
+                            crate::lexer::the_refusal_of_a_word(&name_token.value),
+                            Some(TheRefusal::Func) | Some(TheRefusal::Class)
+                        ));
+                if !is_a_name {
                     // A name that begins with a number is refused by the
                     // lexer, a reserved word is a word that cannot be a
                     // name, and everything else is a name that is missing.
@@ -2652,8 +2778,17 @@ impl Parser {
     /// a definition from a call as well: `Name(a) => a + 1` is a function
     /// and not a call.
     fn a_definition_follows(&self) -> bool {
+        self.a_definition_follows_at(self.position)
+    }
+
+    /// Whether a definition follows the parenthesis that is at `open`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+    /// function may be a word of the dialect, and the parenthesis that comes
+    /// after it and a body are what make it a definition.
+    fn a_definition_follows_at(&self, open: usize) -> bool {
         let mut depth = 0usize;
-        let mut at = self.position;
+        let mut at = open;
         while at < self.tokens.len() {
             let token = &self.tokens[at];
             if token.kind == TokenKind::Op {
@@ -2719,22 +2854,43 @@ impl Parser {
         let mut otherwise = Vec::new();
         loop {
             self.skip_newlines();
-            if self.at_keyword(&["elseif"]) {
-                let keyword = self.next();
-                let condition = self.the_expression_of_a_statement()?;
-                self.end_of_block()?;
-                let body = self.parse_block("elseif", keyword.line)?;
-                branches.push(Branch { condition, body });
-                continue;
-            }
+            // Measured on the binary of v2.0.19 on 2026-11-01: the branch of
+            // an `if` is written with two words -- `else if` -- and the
+            // `elseif` is a name like any other. The branch is a branch of
+            // the same `if`.
             if self.at_keyword(&["else"]) {
                 let keyword = self.next();
                 self.end_of_block()?;
+                if self.the_if_of_an_else_if_comes_next() {
+                    self.skip_newlines();
+                    let branch = self.next();
+                    let condition = self.the_expression_of_a_statement()?;
+                    self.end_of_block()?;
+                    let body = self.parse_block("If", branch.line)?;
+                    branches.push(Branch { condition, body });
+                    continue;
+                }
                 otherwise = self.parse_block("else", keyword.line)?;
             }
             break;
         }
         Ok(Node::If { branches, otherwise, line: token.line })
+    }
+
+    /// Whether the `if` of an `else if` comes next.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the branch of an `if`
+    /// is written with two words, and the `if` may be on the line of the
+    /// `else` or on the one after it.
+    fn the_if_of_an_else_if_comes_next(&self) -> bool {
+        let mut at = self.position;
+        while self.tokens.get(at).map(|token| token.kind == TokenKind::Newline).unwrap_or(false) {
+            at += 1;
+        }
+        self.tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("if"))
+            .unwrap_or(false)
     }
 
     fn parse_switch(&mut self) -> Result<Node, SyntaxError> {
@@ -2771,23 +2927,32 @@ impl Parser {
                 // name many values, and it matches when the subject of the
                 // switch is one of them.
                 let mut values = Vec::new();
-                loop {
-                    values.push(self.the_expression_of_a_statement()?);
-                    if !self.at_op(&[","]) {
-                        break;
-                    }
-                    self.position += 1;
-                    self.skip_newlines();
-                    // The comma at the end of the list adds nothing.
-                    if self.at_op(&[":"]) {
-                        break;
+                // Measured on the binary of v2.0.19 on 2026-11-01: the values
+                // of a case may be none, and the colon is what says where
+                // the label of the case ends.
+                if !self.at_op(&[":"]) && !self.at_end_of_statement() {
+                    loop {
+                        values.push(self.the_expression_of_a_statement()?);
+                        if !self.at_op(&[","]) {
+                            break;
+                        }
+                        self.position += 1;
+                        self.skip_newlines();
+                        // The comma at the end of the list adds nothing.
+                        if self.at_op(&[":"]) {
+                            break;
+                        }
                     }
                 }
                 let body = self.parse_case_body()?;
                 cases.push(Case { values, body });
                 continue;
             }
-            if self.at_keyword(&["default"]) {
+            // Measured on the binary of v2.0.19 on 2026-11-01: the `default`
+            // is a name in v2, and the label of the default case is the name
+            // and a colon. The name alone is not a label, and the body of
+            // the switch says that it wants a case.
+            if self.at_the_name("default") && self.a_colon_comes_after() {
                 self.next();
                 let body = self.parse_case_body()?;
                 cases.push(Case { values: Vec::new(), body });
@@ -2870,8 +3035,15 @@ impl Parser {
             if token.kind == TokenKind::Op && token.value == "}" {
                 break;
             }
-            if token.kind == TokenKind::Keyword
-                && (token.value.eq_ignore_ascii_case("case") || token.value.eq_ignore_ascii_case("default"))
+            // The label of the next case ends the body of this one: the
+            // `case` is a word of the dialect and the `default` is a name,
+            // and the name is the label when a colon comes after it.
+            if token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("case") {
+                break;
+            }
+            if token.kind == TokenKind::Name
+                && token.value.eq_ignore_ascii_case("default")
+                && self.a_colon_comes_after()
             {
                 break;
             }
@@ -3386,7 +3558,16 @@ impl Parser {
                 column: token.column,
             });
         }
-        if name_token.kind != TokenKind::Name {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+        // class may be the name of a function of the machine -- `class
+        // ExitApp { }` is a class -- and the word that the language
+        // reserves may not be the name of a class.
+        let the_name_is_a_function = name_token.kind == TokenKind::Keyword
+            && matches!(
+                crate::lexer::the_refusal_of_a_word(&name_token.value),
+                Some(TheRefusal::Func)
+            );
+        if name_token.kind != TokenKind::Name && !the_name_is_a_function {
             // Measured on the binary of v2.0.19 on 2026-10-31: a name that
             // begins with a number is refused by the lexer, a reserved word
             // is a word that cannot be a name, and the brace is what is
@@ -3396,16 +3577,31 @@ impl Parser {
                     "This class name starts with a number, which is not allowed:\n{:?}",
                     name_token.value
                 ),
-                TokenKind::Keyword => format!(
-                    "The following reserved word must not be used as a class name:\n{:?}",
-                    name_token.value
-                ),
+                TokenKind::Keyword => {
+                    // Measured on the binary of v2.0.19 on 2026-11-01: the
+                    // `Class` is a class of the dialect, and a class of the
+                    // script may not have its name.
+                    if matches!(
+                        crate::lexer::the_refusal_of_a_word(&name_token.value),
+                        Some(TheRefusal::Class)
+                    ) {
+                        "This class declaration conflicts with an existing Class.\n     Specifically: Class".to_string()
+                    } else {
+                        format!(
+                            "The following reserved word must not be used as a class name:\n{:?}",
+                            name_token.value
+                        )
+                    }
+                }
                 _ => "Unexpected \"{\"".to_string(),
             };
             return Err(SyntaxError { message, line: name_token.line, column: name_token.column });
         }
         let mut extends = None;
-        if self.at_keyword(&["extends"]) {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the `extends` is a
+        // name in v2, and the base of a class is the name that comes after
+        // it.
+        if self.at_the_name("extends") {
             self.next();
             let base = self.next();
             if base.kind != TokenKind::Name {
@@ -4510,15 +4706,20 @@ impl Parser {
     /// Measured on the binary of v2.0.19 on 2026-11-01: the words that are
     /// not operators -- `not`, `and`, `or` and `is` -- and the words that
     /// are reserved for a future of v2 -- `as`, `in` and `contains` -- may
-    /// not be the name of a variable.
+    /// not be the name of a variable. The two words that are the values of
+    /// the dialect -- `true` and `false` -- are values and not names.
     fn the_word_may_not_be_a_name(&self) -> bool {
         let token = self.peek();
         if token.kind != TokenKind::Keyword {
             return false;
         }
+        let word = token.value.to_lowercase();
+        if word == "true" || word == "false" {
+            return false;
+        }
         matches!(
-            token.value.to_lowercase().as_str(),
-            "not" | "and" | "or" | "is" | "as" | "in" | "contains"
+            crate::lexer::the_refusal_of_a_word(&word),
+            Some(TheRefusal::Syntax) | Some(TheRefusal::Future)
         )
     }
 
@@ -4529,30 +4730,49 @@ impl Parser {
             && !(next.kind == TokenKind::Op && next.value == "}")
     }
 
-    /// The failure of the reserved word that is the name of a variable.
+    /// The failure of a word that the language reserves.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-11-01: the word `until` is
-    /// reserved and may not be the name of a variable; the words that are
-    /// not operators -- `not`, `and`, `or` and `is` -- are a "Syntax
-    /// error."; and the words that are reserved for a future of v2 -- `as`,
-    /// `in` and `contains` -- say "Unexpected reserved word.". The text that
-    /// is named is the word alone.
-    fn the_error_of_the_reserved_word_as_a_name(&self, at: usize) -> SyntaxError {
-        let token = &self.tokens[at];
-        let word = token.value.to_lowercase();
-        let message = match word.as_str() {
-            "not" | "and" | "or" | "is" => {
-                format!("Syntax error.\n     Specifically: {}", token.value)
-            }
-            "as" | "in" | "contains" => {
-                format!("Unexpected reserved word.\n     Specifically: {}", token.value)
-            }
-            _ => format!(
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the reason belongs
+    /// to the word, and it is the same in every place where the word is
+    /// refused. The words that begin a statement say that the word may not
+    /// be the name of a variable; the words that are operators, the two
+    /// that are the values of the dialect and the `super` are a syntax
+    /// error; and the words that are reserved for a future of v2 say that
+    /// they are reserved. The `ExitApp` is a function of the machine and
+    /// the `Class` is a class of the dialect, and neither of them may be
+    /// written to.
+    ///
+    /// The text that is named is the word alone.
+    fn the_error_of_the_refusal(&self, refusal: TheRefusal, token: &Token) -> SyntaxError {
+        let message = match refusal {
+            TheRefusal::Variable => format!(
                 "The following reserved word must not be used as a variable name:\n{:?}",
                 token.value
             ),
+            TheRefusal::Syntax => format!("Syntax error.\n     Specifically: {}", token.value),
+            TheRefusal::Future => {
+                format!("Unexpected reserved word.\n     Specifically: {}", token.value)
+            }
+            TheRefusal::Func => format!(
+                "This Func cannot be used as an output variable.\n     Specifically: {}",
+                token.value
+            ),
+            TheRefusal::Class => {
+                "This Class cannot be used as an output variable.\n     Specifically: Class".to_string()
+            }
         };
         SyntaxError { message, line: token.line, column: token.column }
+    }
+
+    /// The failure of the reserved word that is the name of a variable.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the reason is the
+    /// one of the word, and the text that is named is the word alone.
+    fn the_error_of_the_reserved_word_as_a_name(&self, at: usize) -> SyntaxError {
+        let token = &self.tokens[at];
+        let word = token.value.to_lowercase();
+        let refusal = crate::lexer::the_refusal_of_a_word(&word).unwrap_or(TheRefusal::Variable);
+        self.the_error_of_the_refusal(refusal, token)
     }
 
     /// The failure of the reserved word that is the name of a call.
@@ -4563,9 +4783,9 @@ impl Parser {
     fn the_error_of_the_reserved_word_as_a_call(&self, at: usize) -> SyntaxError {
         let token = &self.tokens[at];
         let word = token.value.to_lowercase();
-        let message = match word.as_str() {
-            "not" | "and" | "or" | "is" => "Syntax error.",
-            _ => "Unexpected reserved word.",
+        let message = match crate::lexer::the_refusal_of_a_word(&word) {
+            Some(TheRefusal::Future) => "Unexpected reserved word.",
+            _ => "Syntax error.",
         };
         SyntaxError {
             message: format!("{message}\n     Specifically: {}", self.the_call_of_the_word(at)),
@@ -4597,6 +4817,20 @@ impl Parser {
         next.kind == TokenKind::Op && the_assignment_operator(&next.value).is_some()
     }
 
+    /// Whether the word that opens the statement is the name of a function.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+    /// function may be a word of the dialect -- `until() { }` is a function
+    /// -- and the parenthesis that comes after it and a body are what make
+    /// it a definition.
+    fn the_word_is_the_name_of_a_function(&self) -> bool {
+        let Some(open) = self.tokens.get(self.position + 1) else { return false };
+        if open.kind != TokenKind::Op || open.value != "(" || open.spaced {
+            return false;
+        }
+        self.a_definition_follows_at(self.position + 1)
+    }
+
     /// The error of the reserved word that is not wanted.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the words that may
@@ -4607,26 +4841,29 @@ impl Parser {
     /// error.". The text that is named is the rest of the line, from the
     /// word.
     ///
-    /// The words that begin a construct -- `elseif`, `default`, `exitapp`,
-    /// `class` and `extends` -- are refused by v2 with a dialog, and the
-    /// message of the dialog cannot be read.
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the words that the
+    /// v2 does not reserve are names, and the name of a function of the
+    /// machine and the name of a class of the dialect may not be written
+    /// to.
     fn the_error_of_the_reserved_word(&self, at: usize) -> SyntaxError {
         let token = &self.tokens[at];
         let word = token.value.to_lowercase();
-        let message = match word.as_str() {
-            "in" | "contains" => format!(
+        let message = match crate::lexer::the_refusal_of_a_word(&word) {
+            Some(TheRefusal::Future) => format!(
                 "Unexpected reserved word.\n     Specifically: {}",
                 the_source_of_the_rest_of_the_line(self, at)
             ),
-            "not" | "super" => format!(
+            Some(TheRefusal::Syntax) => format!(
                 "Syntax error.\n     Specifically: {}",
                 the_source_of_the_rest_of_the_line(self, at)
             ),
-            "elseif" | "default" | "exitapp" | "class" | "extends" => format!(
-                "Unexpected {:?}\n     Specifically: {}",
-                token.value,
-                the_source_of_the_line(self, token.line)
+            Some(TheRefusal::Func) => format!(
+                "This Func cannot be used as an output variable.\n     Specifically: {}",
+                token.value
             ),
+            Some(TheRefusal::Class) => {
+                "This Class cannot be used as an output variable.\n     Specifically: Class".to_string()
+            }
             _ => format!("The following reserved word must not be used as a variable name:\n{:?}", word),
         };
         SyntaxError { message, line: token.line, column: token.column }
@@ -5016,22 +5253,26 @@ impl Parser {
                         // type of the dialect: a script reads it as the
                         // class.
                         "class" => Node::Var { name: token.value.clone(), line: token.line },
-                        "in" | "contains" => {
-                            return Err(SyntaxError {
-                                message: format!(
-                                    "{:?} is reserved for a future of AutoHotkey and does nothing yet",
-                                    token.value
-                                ),
-                                line: token.line,
-                                column: token.column,
-                            });
-                        }
                         _ => {
-                            return Err(SyntaxError {
-                                message: format!("{:?} is not a value", token.value),
-                                line: token.line,
-                                column: token.column,
-                            });
+                            // Measured on the binary of v2.0.19 on 2026-11-01:
+                            // the `ExitApp` is a function of the machine and
+                            // not a word of the dialect, and a function is a
+                            // value.
+                            if crate::builtins::find(&token.value.to_lowercase()).is_some() {
+                                Node::Var { name: token.value.clone(), line: token.line }
+                            } else if let Some(refusal) =
+                                crate::lexer::the_refusal_of_a_word(&token.value)
+                            {
+                                // The reason is the one of the word, and it
+                                // is the same in every place.
+                                return Err(self.the_error_of_the_refusal(refusal, &token));
+                            } else {
+                                return Err(SyntaxError {
+                                    message: format!("{:?} is not a value", token.value),
+                                    line: token.line,
+                                    column: token.column,
+                                });
+                            }
                         }
                     }
                 }
@@ -5901,10 +6142,21 @@ mod tests {
 
     #[test]
     fn an_else_if_is_a_branch_of_the_same_if() {
-        let statements = parse("If a {\n} ElseIf b {\n} Else {\n}").expect("parses");
+        // Measured on the binary of v2.0.19 on 2026-11-01: the branch of an
+        // `if` is written with two words, and the `elseif` is a name like
+        // any other.
+        let statements = parse("If a {\n} Else If b {\n} Else {\n}").expect("parses");
         let Node::If { branches, otherwise, .. } = &statements[0] else { panic!("an if") };
         assert_eq!(branches.len(), 2);
         assert_eq!(otherwise.len(), 0);
+    }
+
+    #[test]
+    fn an_elseif_is_a_name_and_not_a_branch() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the `elseif` is a
+        // name in v2, and a script may write to it.
+        let statements = parse("ElseIf := 1").expect("parses");
+        assert!(matches!(&statements[0], Node::Assign { name, .. } if name == "ElseIf"));
     }
 
     #[test]

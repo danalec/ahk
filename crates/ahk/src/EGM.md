@@ -93,7 +93,17 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   load, with the message of v2.
 - `KEYWORDS: &[&str]` -- the words the language gives a meaning to. The
   word `until` is one of them: the binary of v2.0.19 reserves it, and a
-  script may not use it as the name of a variable.
+  script may not use it as the name of a variable. The `elseif`, the
+  `default` and the `extends` are not among them: the binary of v2.0.19
+  takes them as names, and the dialect tells the label of the default case
+  of a switch and the base of a class by what comes with them, and not by
+  the word itself.
+- `the_refusal_of_a_word(word: &str) -> Option<TheRefusal>` -- the reason of
+  the refusal of a word. The reason belongs to the word and not to the place
+  where the word is refused: the words that begin a statement are
+  `Variable`, the words that are operators and the two that are the values
+  of the dialect are `Syntax`, the words that are reserved for a future of
+  v2 are `Future`, the `ExitApp` is `Func` and the `Class` is `Class`.
 - The script may begin with the byte order mark, and the mark is not a
   character of it. Only the first one is taken. The mark is also a letter of
   a name, the way it is in the v2, and the name that begins with a number

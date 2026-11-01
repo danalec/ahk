@@ -800,7 +800,7 @@ fn the_statements_of_a_script_keep_their_order() {
 #[test]
 fn an_else_if_is_taken_when_the_first_one_is_false() {
     let (report, desktop) = run(
-        "x := 2\nIf x = 1 {\n  Send \"one\"\n} ElseIf x = 2 {\n  Send \"two\"\n} Else {\n  Send \"other\"\n}",
+        "x := 2\nIf x = 1 {\n  Send \"one\"\n} Else If x = 2 {\n  Send \"two\"\n} Else {\n  Send \"other\"\n}",
     );
     assert!(report.ok);
     assert_eq!(desktop.types(), vec!["two"]);
@@ -809,7 +809,7 @@ fn an_else_if_is_taken_when_the_first_one_is_false() {
 #[test]
 fn an_else_if_chain_takes_only_the_first_branch_that_holds() {
     let (report, desktop) = run(
-        "x := 5\nIf x = 1 {\n  Send \"one\"\n} ElseIf x = 5 {\n  Send \"two\"\n} ElseIf x = 5 {\n  Send \"three\"\n} Else {\n  Send \"other\"\n}",
+        "x := 5\nIf x = 1 {\n  Send \"one\"\n} Else If x = 5 {\n  Send \"two\"\n} Else If x = 5 {\n  Send \"three\"\n} Else {\n  Send \"other\"\n}",
     );
     assert!(report.ok);
     assert_eq!(desktop.types(), vec!["two"]);
@@ -5367,4 +5367,175 @@ fn the_case_of_a_switch_may_name_many_values() {
     let (report, _desktop) = run("x := 2\nswitch (x) {\n    case 1, 2,:\n        FileAppend \"one_or_two=\", \"*\"\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one_or_two="]);
+}
+
+// -- the words of the v2 ---------------------------------------------------------
+
+#[test]
+fn the_reserved_word_refuses_with_the_reason_of_the_word() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the reason belongs
+    // to the word, and it is the same in every place where the word is
+    // refused.
+    let error = parse("if := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a variable name:\n\"if\""
+    );
+    let error = parse("true := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: true");
+    let error = parse("in := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: in");
+}
+
+#[test]
+fn the_value_of_a_reserved_word_refuses_with_the_reason_of_the_word() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the reason is the
+    // one of the word, in the value as well as in the name.
+    let error = parse("x := if").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a variable name:\n\"if\""
+    );
+    let error = parse("x := and").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: and");
+    let error = parse("x := in").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: in");
+}
+
+#[test]
+fn the_name_of_a_function_may_not_be_a_reserved_word() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+    // function may not be a word that the language reserves, and the
+    // refusal names the function.
+    let error = parse("true() {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a function name:\n\"true\""
+    );
+    let error = parse("in() {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a function name:\n\"in\""
+    );
+    // The words that the v2 does not reserve are names.
+    assert!(parse("until() {\n}").is_ok());
+    assert!(parse("catch() {\n}").is_ok());
+    assert!(parse("exitapp() {\n}").is_ok());
+}
+
+#[test]
+fn the_words_that_the_v2_does_not_reserve_are_names() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the `elseif`, the
+    // `default` and the `extends` are names in v2, and the branch of an `if`
+    // is written with two words.
+    assert!(parse("elseif := 1").is_ok());
+    assert!(parse("default := 1").is_ok());
+    assert!(parse("extends := 1").is_ok());
+    assert!(parse("class default {\n}").is_ok());
+    assert!(parse("class elseif {\n}").is_ok());
+    assert!(parse("class extends {\n}").is_ok());
+    assert!(parse("if 0 {\n} else if 1 {\n}").is_ok());
+}
+
+#[test]
+fn the_output_variable_of_an_assignment_may_not_be_a_function() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+    // function of the machine may not be the output variable of an
+    // assignment, and the plain assignment and the compound ones say it in
+    // their own words.
+    let error = parse("MsgBox := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This Func cannot be used as an output variable.\n     Specifically: MsgBox"
+    );
+    let error = parse("MsgBox += 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This Func cannot be assigned a value.\n     Specifically: MsgBox"
+    );
+    let error = parse("exitapp := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This Func cannot be used as an output variable.\n     Specifically: exitapp"
+    );
+}
+
+#[test]
+fn a_local_may_be_named_after_a_function_of_the_machine() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the refusal is the
+    // one of the global scope, and a local one may carry the name.
+    assert!(parse("f() {\nMsgBox := 1\n}").is_ok());
+    assert!(parse("f() {\nclass := 1\n}").is_ok());
+    // The name that is declared global is a global one.
+    let error = parse("f() {\nglobal MsgBox\nMsgBox := 1\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This Func cannot be used as an output variable.\n     Specifically: MsgBox"
+    );
+}
+
+#[test]
+fn a_parameter_may_be_named_after_a_function_or_a_class() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: `f(exitapp)` and
+    // `f(class)` are both of them.
+    assert!(parse("f(exitapp) {\n}").is_ok());
+    assert!(parse("f(class) {\n}").is_ok());
+}
+
+#[test]
+fn the_name_of_a_class_may_be_the_name_of_a_function() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: `class ExitApp { }`
+    // is a class, and the `Class` is a class of the dialect and a class of
+    // the script may not have its name.
+    assert!(parse("class exitapp {\n}").is_ok());
+    let error = parse("class class {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This class declaration conflicts with an existing Class.\n     Specifically: Class"
+    );
+}
+
+#[test]
+fn the_default_of_a_switch_is_a_name_and_a_colon() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the label of the
+    // default case is the name `default` and a colon, and the name alone in
+    // the body of the switch is not a label.
+    let statements = parse("switch 1 {\ndefault:\n}").expect("parses");
+    let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+    assert_eq!(cases.len(), 1);
+    assert!(cases[0].values.is_empty());
+    let error = parse("switch 1 {\ndefault\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Expected Case/Default.");
+}
+
+#[test]
+fn a_case_may_name_no_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the values of a case
+    // may be none, and the colon is what says where the label of the case
+    // ends.
+    let statements = parse("switch 1 {\ncase:\n}").expect("parses");
+    let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+    assert_eq!(cases.len(), 1);
+    assert!(cases[0].values.is_empty());
+    let error = parse("switch 1 {\ncase\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \":\"\n     Specifically: case");
+}
+
+#[test]
+fn the_elseif_is_a_name_and_not_a_branch() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the `elseif` is a
+    // name in v2, and a script may write to it.
+    let (report, desktop) = run("elseif := \"one\"\nSend elseif");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["one"]);
+}
+
+#[test]
+fn the_default_in_the_body_of_a_case_is_a_statement() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the label of the
+    // default case is the name and a colon, and the name alone in the body
+    // of a case is a statement.
+    let (report, desktop) = run("default := \"one\"\nswitch 1 {\ncase 1:\nSend default\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["one"]);
 }
