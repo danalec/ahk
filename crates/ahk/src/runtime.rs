@@ -1924,6 +1924,11 @@ impl<'a> Runtime<'a> {
                 let stored = self.write_a_variable(name, *op, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
             }
+            Node::LegacyCall { name, parameters, line } => {
+                // The legacy command of the v1: `Msg, text`.
+                let value = self.the_legacy_command(name, parameters, *line)?;
+                detail = value.to_text();
+            }
             Node::ClassDef { name, line, .. } => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the class
                 // is initialised when it is first used, and the statement
@@ -5667,7 +5672,7 @@ impl<'a> Runtime<'a> {
     }
 
     /// A property of a value.
-    fn read_property(&mut self, target: &Value, name: &str, line: u32) -> Result<Value, RuntimeFailure> {
+    pub(crate) fn read_property(&mut self, target: &Value, name: &str, line: u32) -> Result<Value, RuntimeFailure> {
         self.read_property_with(target, name, &[], line)
     }
 
@@ -7373,6 +7378,135 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The legacy command of the v1: `Msg, text`.
+    ///
+    /// The parameters of a command of the v1 are texts, and the shape of
+    /// the command says what each one of them is: the value of an
+    /// expression, the name of a variable of the script, or the name of
+    /// the variable that the command writes into.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-01: `StringLen, n,
+    /// hello` is five when `hello` is a variable of the script, and zero
+    /// when it is not: the second parameter of that command is the *name*
+    /// of a variable.
+    pub(crate) fn the_legacy_command(
+        &mut self,
+        name: &str,
+        parameters: &[String],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let Some(builtin) = self.builtin(name) else {
+            // The name is not a command of the dialect: the line holds no
+            // action, and it is named.
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: format!(
+                    "This line does not contain a recognized action.\n     Specifically: {name}"
+                ),
+                line,
+            }));
+        };
+        let mut values = Vec::with_capacity(parameters.len());
+        for (index, text) in parameters.iter().enumerate() {
+            values.push(self.the_parameter_of_a_legacy_command(builtin, index, text, line)?);
+        }
+        self.call_the_row(builtin, &values, line, Route::Written)
+    }
+
+    /// The value of a parameter of a command of the v1.
+    ///
+    /// The shape of the command says what the text of the parameter is.
+    fn the_parameter_of_a_legacy_command(
+        &mut self,
+        builtin: &'static crate::builtins::Builtin,
+        index: usize,
+        text: &str,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let trimmed = text.trim();
+        match builtin.parameters.get(index) {
+            // The name of a variable of the script: the command writes into
+            // it, and the reference is the alias of that variable.
+            Some(crate::builtins::Parameter::Output) => Ok(Value::Reference(Reference {
+                name: trimmed.to_string(),
+                scope: self.the_scope_of(trimmed),
+                alias: true,
+            })),
+            // The name of a variable of the script: the value of it is the
+            // parameter.
+            Some(crate::builtins::Parameter::Variable) => match self.lookup(trimmed) {
+                Some(value) => Ok(value),
+                // Measured on the binary of v1.1.37.02 on 2026-11-01: a
+                // variable that has no value is blank, and it is not a
+                // failure.
+                None if self.dialect.unset_is_blank() => Ok(Value::Text(String::new())),
+                None => Err(self.the_unassigned_failure(trimmed, line)),
+            },
+            // The text of the parameter, with the substitution of the v1.
+            _ => Ok(Value::Text(self.the_substitution_of_the_v1(text, line)?)),
+        }
+    }
+
+    /// The substitution of the parameters of a command of the v1.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-01: `%name%` is the
+    /// value of the variable of the script when it has one, and the value
+    /// of the environment otherwise. A `%` that does not close a name is
+    /// left alone.
+    fn the_substitution_of_the_v1(&mut self, text: &str, line: u32) -> Result<String, RuntimeFailure> {
+        if !text.contains('%') {
+            return Ok(text.to_string());
+        }
+        let mut out = String::with_capacity(text.len());
+        let chars: Vec<char> = text.chars().collect();
+        let mut index = 0usize;
+        while index < chars.len() {
+            if chars[index] == '%' {
+                if let Some(offset) = chars[index + 1..].iter().position(|c| *c == '%') {
+                    let close = index + 1 + offset;
+                    let name: String = chars[index + 1..close].iter().collect();
+                    match self.the_value_of_the_substitution(name.trim(), line)? {
+                        Some(value) => {
+                            out.push_str(&value.to_text());
+                            index = close + 1;
+                            continue;
+                        }
+                        None => {
+                            out.push_str(&chars[index..=close].iter().collect::<String>());
+                            index = close + 1;
+                            continue;
+                        }
+                    }
+                }
+                out.extend(&chars[index..]);
+                break;
+            }
+            out.push(chars[index]);
+            index += 1;
+        }
+        Ok(out)
+    }
+
+    /// The value of the substitution of a parameter of the v1.
+    ///
+    /// The variable of the script comes first, and the environment is what
+    /// is left. The lookup of the environment is the one of the machine.
+    fn the_value_of_the_substitution(
+        &mut self,
+        name: &str,
+        line: u32,
+    ) -> Result<Option<Value>, RuntimeFailure> {
+        if let Some(value) = self.lookup(name) {
+            return Ok(Some(value));
+        }
+        if !self.dialect.percent_looks_at_the_environment() {
+            return Ok(None);
+        }
+        match self.desktop().env_get(name) {
+            Ok(value) => Ok(Some(Value::Text(value))),
+            Err(reason) => Err(RuntimeFailure::Error(RuntimeError { message: reason, line })),
+        }
+    }
+
     /// The functions the language carries.
     fn call_builtin(
         &mut self,
@@ -7387,6 +7521,22 @@ impl<'a> Runtime<'a> {
                 line,
             }));
         };
+        self.call_the_row(builtin, values, line, route)
+    }
+
+    /// The call of the built-in of this row.
+    ///
+    /// The row is the one of the dialect that runs, and its column of the
+    /// shape says what each parameter is: a value, a reference that the
+    /// caller passes, the name of a variable of the script, or the name of
+    /// the variable that the built-in writes into.
+    fn call_the_row(
+        &mut self,
+        builtin: &'static crate::builtins::Builtin,
+        values: &[Value],
+        line: u32,
+        route: Route,
+    ) -> Result<Value, RuntimeFailure> {
         // The arity is in the table, so the check is the same for every
         // built-in and it says what AutoHotkey says.
         if values.len() < builtin.min as usize {
@@ -7408,13 +7558,15 @@ impl<'a> Runtime<'a> {
         // A reference is for the parameters that are written back: the
         // rest want a value, and v2 says which parameter got one and what
         // the built-in wanted there.
-        let written_back = crate::builtins::reference_parameters(builtin.name);
+        //
+        // The column of the shape says which parameters are written back:
+        // the reference of the v2, and the output of the v1.
         // The built-in that says itself which parameters take a reference
         // asks in its own handler.
         let decides = crate::builtins::decides_references(builtin.name);
         for (index, value) in values.iter().enumerate() {
             if !matches!(value, Value::Reference(_))
-                || written_back.contains(&index)
+                || builtin.writes_back(index)
                 || decides
                 || crate::builtins::refuses_itself(builtin.name)
             {
@@ -8305,6 +8457,7 @@ impl<'a> Runtime<'a> {
             }
             Node::Expression { .. }
             | Node::Block { .. }
+            | Node::LegacyCall { .. }
             | Node::If { .. }
             | Node::Switch { .. }
             | Node::While { .. }
@@ -9035,7 +9188,7 @@ fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
 
 
 /// The message of a failure, the way the report carries it.
-fn the_message_of(failure: &RuntimeFailure) -> String {
+pub(crate) fn the_message_of(failure: &RuntimeFailure) -> String {
     match failure {
         RuntimeFailure::Error(error) => error.message.clone(),
         RuntimeFailure::Detailed(error, _) => error.message.clone(),
@@ -9170,6 +9323,8 @@ pub fn op_name_in<'a>(
             Some(builtin) => builtin.name,
             None => "Call",
         },
+        // The legacy command of the v1 is reported under its own name.
+        Node::LegacyCall { name, .. } => name,
         Node::Expression { value, .. } => match the_call_of(value) {
             // The statement reads the member of the answer of a call, and
             // it is still the call that the report names.

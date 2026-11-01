@@ -30,7 +30,7 @@ The files, in the order the data moves through them:
 | `hotkeys.rs` | the hotkeys of the script: the registry and the watcher |
 | `surface.rs` | the state of every name of a dialect: the value it answers, or the reason it does not |
 | `dialect.rs` | the dialects that the runtime speaks: the trait, the v2 and the v1 |
-| `v1.rs` | the table of the v1: the names of the legacy dialect and the shape of their parameters |
+| `v1/` | the table of the v1: the names of the legacy dialect, the shape of their parameters and the handlers of the v1 |
 
 The dependency between them runs one way: `parser.rs` reads `ast.rs` and
 `lexer.rs`, and `runtime.rs` reads `ast.rs`, `builtins.rs`, `classes/`,

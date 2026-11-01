@@ -24,19 +24,19 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::date::{date_add, date_diff, format_time};
-use crate::dialogs::{dir_select, file_select, input_box};
-use crate::files::{
+pub(crate) use crate::date::{date_add, date_diff, format_time};
+pub(crate) use crate::dialogs::{dir_select, file_select, input_box};
+pub(crate) use crate::files::{
     dir_copy, dir_move, download, file_append, file_copy, file_encoding, file_get_attrib,
     file_get_size, file_get_time, file_install, file_move, file_open, file_read, file_set_attrib,
     file_set_time, ini_delete, ini_read, ini_write,
 };
-use crate::pictures::{image_search, load_picture};
-use crate::hotkeys::{
+pub(crate) use crate::pictures::{image_search, load_picture};
+pub(crate) use crate::hotkeys::{
     get_key_state, hotif, hotif_window, hotkey, hotstring, install_hook, key_history,
     list_hotkeys,
 };
-use crate::settings::{
+pub(crate) use crate::settings::{
     coord_mode, get_key_name, get_key_sc, get_key_vk, send_event, send_input, send_level, send_play,
     send_text, set_control_delay, set_default_mouse_speed, set_detect_hidden_text,
     set_detect_hidden_windows, set_key_delay, set_mouse_delay, set_reg_view, set_store_caps_lock_mode,
@@ -109,6 +109,20 @@ pub struct Builtin {
     pub parameters: &'static [Parameter],
     /// What it does.
     pub handler: BuiltinHandler,
+}
+
+impl Builtin {
+    /// Whether the parameter at this place is written back.
+    ///
+    /// The reference of the v2 is written back by the caller that passes
+    /// it, and the output of the v1 is written back by the built-in that
+    /// writes into the variable of the script.
+    pub fn writes_back(&self, index: usize) -> bool {
+        matches!(
+            self.parameters.get(index),
+            Some(Parameter::Reference) | Some(Parameter::Output)
+        )
+    }
 }
 
 /// The built-ins the language carries.

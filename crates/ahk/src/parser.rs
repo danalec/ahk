@@ -2580,6 +2580,11 @@ impl Parser {
         // the rest of the line is the list of the parameters.
         let operator = self.peek().clone();
         if operator.kind == TokenKind::Op && operator.value == "=" {
+            // Measured on the binary of v1.1.37.02 on 2026-11-01: the equal
+            // sign assigns in the v1: `x = 5` leaves `x` at 5.
+            if self.dialect.assign_with_equal() {
+                return self.parse_assignment(name_token);
+            }
             return Err(self.the_equal_sign_is_not_an_assignment(name_token.line));
         }
         if !matches!(
@@ -2603,6 +2608,12 @@ impl Parser {
     /// The arguments are the expressions up to the end of the statement,
     /// in the order the callee expects them.
     fn parse_call_statement(&mut self, name_token: Token) -> Result<Node, SyntaxError> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-01: the name at
+        // the start of a line is a command of the v1, and the parameters of
+        // it are texts.
+        if self.dialect.legacy_commands() {
+            return self.parse_legacy_call_statement(name_token);
+        }
         // Measured on the binary of v2.0.19 on 2026-10-31: a name that is
         // not a built-in is not refused at the load. It is a function of the
         // script, or a variable of it, and the value of the variable is
@@ -2632,6 +2643,108 @@ impl Parser {
         self.the_expression_is_done(self.position, true)?;
         self.end_of_statement()?;
         Ok(Node::Call { name, arguments, line: name_token.line })
+    }
+
+    /// The legacy command of the v1: `Msg, text`.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-01: the parameters
+    /// of a command of the v1 are texts, and not expressions: `FileAppend,
+    /// hello, *` writes `hello`, and `FileAppend, "hello", *` writes
+    /// `"hello"` with the quotes. The name of a command that the dialect
+    /// does not have is a line that holds no action, and it is refused at
+    /// the load with the text of the line.
+    fn parse_legacy_call_statement(&mut self, name_token: Token) -> Result<Node, SyntaxError> {
+        let name = name_token.value.to_lowercase();
+        let carried = self
+            .dialect
+            .builtins()
+            .iter()
+            .any(|builtin| builtin.name.to_lowercase() == name);
+        if !carried {
+            return Err(self.error(format!(
+                "This line does not contain a recognized action.\n     Specifically: {}",
+                the_source_of_the_line(self, name_token.line)
+            )));
+        }
+        let mut parameters = Vec::new();
+        // The comma that comes right after the name is the one that
+        // separates it from the first parameter.
+        if self.at_op(&[","]) {
+            self.next();
+            parameters = self.the_parameters_of_a_legacy_command()?;
+        } else if !self.at_end_of_statement() {
+            parameters = self.the_parameters_of_a_legacy_command()?;
+        }
+        self.end_of_statement()?;
+        Ok(Node::LegacyCall { name, parameters, line: name_token.line })
+    }
+
+    /// The parameters of a command of the v1: the texts that the commas
+    /// separate.
+    ///
+    /// The text of a parameter is the text that the script wrote, and the
+    /// commas that are inside a text or inside a group of parentheses do
+    /// not separate them. A line that ends with a comma continues on the
+    /// next one.
+    fn the_parameters_of_a_legacy_command(&mut self) -> Result<Vec<String>, SyntaxError> {
+        let mut parameters = Vec::new();
+        let mut start = self.position;
+        loop {
+            let end = self.the_end_of_a_parameter(start);
+            let text = the_source_of_the_tokens(self, start, end);
+            parameters.push(text.trim().to_string());
+            // The parser is after the parameter, and the comma that
+            // separates it from the next one comes after that.
+            self.position = end;
+            if end >= self.tokens.len() {
+                break;
+            }
+            let token = &self.tokens[end];
+            if token.kind != TokenKind::Op || token.value != "," {
+                break;
+            }
+            self.position = end + 1;
+            start = self.position;
+        }
+        Ok(parameters)
+    }
+
+    /// The place where the parameter that starts here ends.
+    ///
+    /// The end of the parameter is the comma that separates it from the
+    /// next one, or the end of the statement. The line that ends with a
+    /// comma continues on the next one.
+    fn the_end_of_a_parameter(&self, start: usize) -> usize {
+        let mut index = start;
+        let mut depth = 0usize;
+        while index < self.tokens.len() {
+            let token = &self.tokens[index];
+            match token.kind {
+                TokenKind::Newline => {
+                    // The line continues when the comma that ends it is
+                    // there, and the empty lines between the two are not a
+                    // part of it.
+                    if !self.the_line_continues_at(index) {
+                        break;
+                    }
+                    index += 1;
+                    while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline {
+                        index += 1;
+                    }
+                    continue;
+                }
+                TokenKind::Eof => break,
+                TokenKind::Op => match token.value.as_str() {
+                    "(" | "[" | "{" => depth += 1,
+                    ")" | "]" | "}" => depth = depth.saturating_sub(1),
+                    "," if depth == 0 => break,
+                    _ => {}
+                },
+                _ => {}
+            }
+            index += 1;
+        }
+        index
     }
 
     /// The parameters of a command of v2.
@@ -2726,6 +2839,9 @@ impl Parser {
         let operator = self.peek().clone();
         let op = match operator.value.as_str() {
             ":=" => AssignOp::Set,
+            // Measured on the binary of v1.1.37.02 on 2026-11-01: the equal
+            // sign assigns in the v1.
+            "=" if self.dialect.assign_with_equal() => AssignOp::Set,
             "+=" => AssignOp::Add,
             "-=" => AssignOp::Subtract,
             "*=" => AssignOp::Multiply,

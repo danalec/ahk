@@ -288,7 +288,10 @@ fn state_of(
         }
         Kind::Directive => {
             // A directive is read by the parser, and not by the runtime.
-            if crate::lexer::carries_directive(name) {
+            // The name of the table has the hash that the dialect gives
+            // it, and the lexer knows the name without it.
+            let bare = name.strip_prefix('#').unwrap_or(name);
+            if crate::lexer::carries_directive(bare) {
                 return State::Value;
             }
             State::Pending(reason_of_pending(pending, kind, class, name))

@@ -5932,3 +5932,39 @@ The probes that measured the rules are in
 `egm-review/probe_v1_semantics.py` (24 cases), in
 `egm-review/probe_v1_semantics2.py` (30 cases) and in
 `egm-review/probe_v1_semantics3.py` (21 cases).
+
+## 140. The table of the v1, and the command whose parameters are texts
+
+Measured on the binary of v1.1.37.02 on 2026-11-01. This is the phase F1
+of the plan of the v1 dialect.
+
+- **The table of the v1 is a table of its own.** It has 203 rows: the
+  names of the v1 that the tree answers, with the shape of their
+  parameters and the handler that answers them. A name that the v1 has
+  and the v2 does not is a row of the v1, and a name that the two share
+  points at the handler of the v2. The table is written by
+  `egm-review/patch_v1_table.py`, and the pending table follows it with
+  `egm-review/patch_v1_pending.py`.
+- **The command of the v1 writes into a variable of the script.** The
+  shape of the parameter says what it is: the value of an expression, the
+  name of a variable of the script, or the name of the variable that the
+  command writes into. The `Output` of the v1 is the `Reference` of the
+  v2, and the runtime hands the handler the alias of that variable.
+- **The command whose answer goes into a variable borrows the handler of
+  the v2.** `EnvGet, name, value` is the `EnvGet` of the v2 with the
+  answer written into the first parameter, and so are the other twenty
+  commands of that family. The `InputBox` of the v1 writes the text of
+  the user and not the object of the v2, and the `Run` writes the pid of
+  the program into the last parameter.
+- **The name of a command that the dialect does not have is a line that
+  holds no action.** The v1 refuses it at the load, and it names the
+  line: "This line does not contain a recognized action.\n     Specifically:
+  NoSuchCommand, 1".
+- **The substitution of a parameter of the v1 is the variable of the
+  script, and the environment is what is left.** Measured on the binary
+  of v1.1.37.02 on 2026-11-01: `%TEMP%` is the value of the variable
+  `TEMP` when the script has one, and the value of the environment
+  otherwise.
+- **The surface of the v1 is 384 names: 220 answer with a value, 106 are
+  refused and 58 are pending.** The refusals are the names of Windows,
+  and the pending are the names that the tree does not carry yet.

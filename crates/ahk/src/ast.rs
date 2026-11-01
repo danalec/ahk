@@ -400,6 +400,17 @@ pub enum Node {
     /// A command is a call written without parentheses: `Send "hello"`
     /// is the same built-in with its arguments in the same order.
     Call { name: String, arguments: Vec<Node>, line: u32 },
+    /// The legacy command of the v1: `Msg, text`.
+    ///
+    /// The parameters of a command of the v1 are texts, and the shape of
+    /// the command says what each one of them is: the value of an
+    /// expression, the name of a variable of the script, or the name of
+    /// the variable that the command writes into.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-01: `FileAppend,
+    /// hello, *` writes `hello`, and `FileAppend, "hello", *` writes
+    /// `"hello"` with the quotes.
+    LegacyCall { name: String, parameters: Vec<String>, line: u32 },
     /// A value that is computed and thrown away: `(2)`.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: a line that begins
@@ -610,6 +621,7 @@ impl Node {
             | Node::AssignIndex { line, .. }
             | Node::Index { line, .. }
             | Node::Call { line, .. }
+            | Node::LegacyCall { line, .. }
             | Node::Expression { line, .. }
             | Node::Block { line, .. }
             | Node::If { line, .. }
