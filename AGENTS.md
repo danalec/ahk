@@ -6634,9 +6634,9 @@ The probe that compares the two is `egm-review/probe_both_v1_classes_all.py`:
 28 cases, and every one of them answers the same in the binary and in the
 tree.
 
-What stays out: the v1 refuses at the load a class that declares the same
-name twice -- "Duplicate declaration. Specifically: __Init" and "Duplicate
-class definition. Specifically: C" -- and the tree does not refuse them.
+What stays out: the refusals of the body of a class of the v1 -- the
+duplicate of a name and the class that is declared twice -- are in section
+162.
 
 ## 161. The v1 reads a text as a number in three ways, and the built-in does not check its arguments
 
@@ -6677,4 +6677,40 @@ its UTF-16 and the tree with the character -- and the format of the floats
 that the v1 takes with something after the "e" ("0.6e3"): the v1 accepts it
 and writes the rest of the format at the end of the number, and the tree
 refuses it.
+
+## 162. The body of a class of the v1 has one set of names, and the refusal names the member
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The body of a class of the v1 has one set of names.** A name that is
+  declared twice in the body is refused, and it does not matter what the
+  member is: a method and a variable with the same name are a duplicate,
+  and so are a static member and one that is not. The v2 has a set for each
+  kind of member.
+- **The refusal of the v1 names the member that was written.** "Duplicate
+  declaration.\n     Specifically: x" -- and the v2 names the path of it:
+  "C.Prototype.Foo". The case of the name does not count, and the name is
+  the one that was written: "X".
+- **The `__Init` that has a property before it is refused**, with the name of
+  it: "Duplicate declaration.\n     Specifically: __Init". The property that
+  comes after it is taken.
+- **A class that is declared twice is refused with the words of the v1:**
+  "Duplicate class definition.\n     Specifically: C". A class inside a class
+  is refused the same way, and the case of the name does not count.
+
+The rules are three hooks of the dialect
+(`crates/ahk/src/dialect.rs`) and the parser asks them: the body of a class
+has one set of names, the refusal names the member that was written, and the
+class that is declared twice has the words of the dialect. The probes that
+compare the two are `egm-review/probe_both_v1_class_members.py` and
+`egm-review/probe_both_v1_class_names.py`.
+
+What stays out: the `__Init` that is static, which the v1 refuses with
+"Invalid class variable declaration.\n     Specifically: __Init() {", and
+the property that has a getter, which the v1 refuses with "Not a valid
+property getter/setter.\n     Specifically: get => 1" -- the tree takes both.
+The name of a class and the name of a function may be the same in the v1,
+and the name of a class may be the output of an assignment, and the tree
+refuses the two. And the two refusals of the shape of a class -- the "Missing
+\"{\"" and the "Missing \"}\"" -- name the line of the v1 in other words.
 

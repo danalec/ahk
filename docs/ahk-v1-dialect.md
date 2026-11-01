@@ -1004,10 +1004,9 @@ sign. The probe that compares the two is
 `egm-review/probe_both_v1_classes_all.py` , and every one of its 28 cases
 answers the same in the binary and in the tree.
 
-**What stays out of the classes.** The v1 refuses at the load a class that
-declares the same name twice -- "Duplicate declaration. Specifically: __Init"
-and "Duplicate class definition. Specifically: C" -- and the tree does not
-refuse them.
+**What stays out of the classes.** The refusals of the body of a class of the
+v1 -- the duplicate of a name and the class that is declared twice -- come
+with the block of the refusals.
 
 **The `global` of a built-in variable.** The v1 refuses it at the load, and
 the refusal names the variable: "Built-in variables must not be declared.
@@ -1047,7 +1046,7 @@ does not fit in sixty-four bits is the largest one:
 `x := 100000000000000000000` is 9223372036854775807.
 
 **The block carries.** The tree carries these three rules since the block of
-the block of the coercion (2026-11-02), and the probes that compare the two are
+the coercion (2026-11-02), and the probes that compare the two are
 `egm-review/probe_both_v1_number_coercion.py` (215 of 216) ,
 `egm-review/probe_both_v1_math.py` (174 of 174) and
 `egm-review/probe_both_v1_float_text.py` (120 of 120).
@@ -1058,6 +1057,29 @@ surrogates of its UTF-16 and the tree with the character. And the format of
 the floats that the v1 takes with something after the "e" ("0.6e3"): the v1
 accepts it and writes the rest of the format at the end of the number, and
 the tree refuses it.
+
+**The refusals of the body of a class of the v1.** The body of a class of the
+v1 has one set of names: a name that is declared twice is refused, and it
+does not matter what the member is -- a method and a variable with the same
+name are a duplicate, and so are a static member and one that is not. The
+refusal names the member that was written: "Duplicate declaration.\n
+Specifically: x", and the v2 names the path of it ("C.Prototype.Foo"). The
+`__Init` that has a property before it is refused with the name of it, and a
+class that is declared twice is refused with the words of the v1: "Duplicate
+class definition.\n Specifically: C".
+
+**The block carries.** The tree carries these three rules since the block of
+the refusals (2026-11-02), and the probes that compare the two are
+`egm-review/probe_both_v1_class_members.py` and
+`egm-review/probe_both_v1_class_names.py`.
+
+**What stays out of the refusals.** The `__Init` that is static, which the v1
+refuses with "Invalid class variable declaration.\n Specifically: __Init() {",
+and the property that has a getter, which the v1 refuses with "Not a valid
+property getter/setter.\n Specifically: get => 1" -- the tree takes both. The
+name of a class and the name of a function may be the same in the v1, and
+the name of a class may be the output of an assignment, and the tree refuses
+the two.
 
 ---
 

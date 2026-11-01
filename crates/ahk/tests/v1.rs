@@ -2434,3 +2434,110 @@ fn the_whole_number_of_the_v1_that_does_not_fit_is_the_largest_one() {
     );
 }
 
+/// The body of a class of the v1 has one set of names.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// refuses a name that is declared twice in the body of a class, and it does
+/// not care what the member is: a method and a variable with the same name
+/// are a duplicate, and so are a static member and one that is not. The
+/// refusal names the member that was written.
+#[test]
+fn the_body_of_a_class_of_the_v1_has_one_set_of_names() {
+    // A method and a variable with the same name.
+    let error = ahk::parse_with(
+        "class C\n{\n    x := 5\n    x() {\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the name is declared twice");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: x"
+    );
+
+    // A variable and a method with the same name.
+    let error = ahk::parse_with(
+        "class C\n{\n    x() {\n    }\n    x := 5\n}",
+        dialect::v1(),
+    )
+    .expect_err("the name is declared twice");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: x"
+    );
+
+    // A static member and one that is not.
+    let error = ahk::parse_with(
+        "class C\n{\n    static x := 5\n    x() {\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the name is declared twice");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: x"
+    );
+
+    // The case of the name does not count, and the name is the one that was
+    // written.
+    let error = ahk::parse_with(
+        "class C\n{\n    x := 5\n    X() {\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the name is declared twice");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: X"
+    );
+
+    // The `__Init` that has a property before it is refused, and the one
+    // that has it after it is taken.
+    let error = ahk::parse_with(
+        "class C\n{\n    x := 5\n    __Init() {\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the init has a property");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: __Init"
+    );
+
+    ahk::parse_with(
+        "class C\n{\n    __Init() {\n    }\n    x := 5\n}",
+        dialect::v1(),
+    )
+    .expect("the property that comes after the init is taken");
+}
+
+/// A class of the v1 that is declared twice is refused with its own words.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// refuses it with "Duplicate class definition.\n     Specifically: C", and
+/// the name is the one that was written.
+#[test]
+fn a_class_of_the_v1_that_is_declared_twice_is_refused_with_its_own_words() {
+    let error = ahk::parse_with("class C\n{\n}\nclass C\n{\n}", dialect::v1())
+        .expect_err("the class is declared twice");
+    assert_eq!(
+        error.message,
+        "Duplicate class definition.\n     Specifically: C"
+    );
+
+    // The case of the name does not count.
+    let error = ahk::parse_with("class C\n{\n}\nclass c\n{\n}", dialect::v1())
+        .expect_err("the class is declared twice");
+    assert_eq!(
+        error.message,
+        "Duplicate class definition.\n     Specifically: c"
+    );
+
+    // A class inside a class is refused the same way.
+    let error = ahk::parse_with(
+        "class C\n{\n    class D\n    {\n    }\n    class D\n    {\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the class is declared twice");
+    assert_eq!(
+        error.message,
+        "Duplicate class definition.\n     Specifically: D"
+    );
+}
+

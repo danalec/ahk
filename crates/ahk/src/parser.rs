@@ -1434,6 +1434,17 @@ impl Parser {
         let key = name.to_lowercase();
         let message = if is_a_class {
             if self.classes.contains_key(&key) {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+                // the v1 refuses the class that is declared twice with
+                // "Duplicate class definition.\n     Specifically: C", and the
+                // name is the one that was written.
+                if self.dialect.the_class_that_is_declared_twice_has_its_own_words() {
+                    return Err(SyntaxError {
+                        message: format!("Duplicate class definition.\n     Specifically: {name}"),
+                        line,
+                        column,
+                    });
+                }
                 Some("This class declaration conflicts with an existing Class.")
             } else if self.functions.contains(&key) {
                 Some("This class declaration conflicts with an existing Func.")
@@ -4823,6 +4834,11 @@ impl Parser {
         let mut class_properties: Vec<String> = Vec::new();
         let mut instance_accessors: Vec<String> = Vec::new();
         let mut class_accessors: Vec<String> = Vec::new();
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // body of a class of the v1 has one set of names, and a member that
+        // is written twice is refused whatever it is.
+        let mut the_names: Vec<String> = Vec::new();
+        let one_set = self.dialect.the_names_of_the_body_of_a_class_are_one_set();
         // The body of a class is inside a class, and the `super` of v2 is
         // only valid there.
         let was_in_a_class = self.in_class;
@@ -4906,11 +4922,20 @@ impl Parser {
                 }
                 let key = nested_name.value.to_lowercase();
                 if class_properties.contains(&key) {
-                    return Err(SyntaxError {
-                        message: format!(
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-02: the v1 refuses the class that is declared
+                    // twice with "Duplicate class definition.\n     Specifically:
+                    // D", and the name is the one that was written.
+                    let message = if self.dialect.the_class_that_is_declared_twice_has_its_own_words() {
+                        format!("Duplicate class definition.\n     Specifically: {}", nested_name.value)
+                    } else {
+                        format!(
                             "Duplicate declaration.\n     Specifically: {}",
                             nested_name.value
-                        ),
+                        )
+                    };
+                    return Err(SyntaxError {
+                        message,
                         line: nested_name.line,
                         column: nested_name.column,
                     });
@@ -5018,9 +5043,17 @@ impl Parser {
                     && name_token.value.eq_ignore_ascii_case("__init")
                     && !instance_properties.is_empty()
                 {
+                    // The name of the `__Init` of the v1 is the name that was
+                    // written, and not the path of it.
+                    let owner = if self.dialect.the_duplicate_names_the_member_that_was_written() {
+                        String::new()
+                    } else {
+                        format!("{name}.Prototype.")
+                    };
                     return Err(SyntaxError {
                         message: format!(
-                            "Duplicate declaration.\n     Specifically: {name}.Prototype.__Init"
+                            "Duplicate declaration.\n     Specifically: {owner}{}",
+                            name_token.value
                         ),
                         line: name_token.line,
                         column: name_token.column,
@@ -5037,7 +5070,13 @@ impl Parser {
                 let taken = if is_static { &mut class_methods } else { &mut instance_methods };
                 let key = name_token.value.to_lowercase();
                 if taken.contains(&key) {
-                    let owner = if is_static { format!("{name}.") } else { format!("{name}.Prototype.") };
+                    let owner = if self.dialect.the_duplicate_names_the_member_that_was_written() {
+                        String::new()
+                    } else if is_static {
+                        format!("{name}.")
+                    } else {
+                        format!("{name}.Prototype.")
+                    };
                     return Err(SyntaxError {
                         message: format!(
                             "Duplicate declaration.\n     Specifically: {owner}{}",
@@ -5047,7 +5086,26 @@ impl Parser {
                         column: name_token.column,
                     });
                 }
-                taken.push(key);
+                taken.push(key.clone());
+                // The body of a class of the v1 has one set of names: the
+                // member is a duplicate of any member that has its name.
+                //
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+                // "Duplicate declaration.\n     Specifically: x", and the name
+                // is the one that was written.
+                if one_set {
+                    if the_names.contains(&name_token.value.to_lowercase()) {
+                        return Err(SyntaxError {
+                            message: format!(
+                                "Duplicate declaration.\n     Specifically: {}",
+                                name_token.value
+                            ),
+                            line: name_token.line,
+                            column: name_token.column,
+                        });
+                    }
+                    the_names.push(name_token.value.to_lowercase());
+                }
                 self.next();
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
@@ -5113,7 +5171,22 @@ impl Parser {
                         column: name_token.column,
                     });
                 }
-                taken.push(key);
+                taken.push(key.clone());
+                // The body of a class of the v1 has one set of names: the
+                // property is a duplicate of any member that has its name.
+                if one_set {
+                    if the_names.contains(&key) {
+                        return Err(SyntaxError {
+                            message: format!(
+                                "Duplicate declaration.\n     Specifically: {}",
+                                name_token.value
+                            ),
+                            line: name_token.line,
+                            column: name_token.column,
+                        });
+                    }
+                    the_names.push(key);
+                }
                 accessors.push(self.parse_the_accessor(name_token, is_static)?);
                 continue;
             }
@@ -5160,7 +5233,22 @@ impl Parser {
                     column: name_token.column,
                 });
             }
-            taken.push(key);
+            taken.push(key.clone());
+            // The body of a class of the v1 has one set of names: the
+            // property is a duplicate of any member that has its name.
+            if one_set {
+                if the_names.contains(&key) {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Duplicate declaration.\n     Specifically: {}",
+                            name_token.value
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+                the_names.push(key);
+            }
             let value = self.the_expression_of_a_statement()?;
             properties.push(PropertyDef {
                 name: name_token.value,

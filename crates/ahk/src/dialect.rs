@@ -341,6 +341,37 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the body of a class has one set of names.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// refuses a name that is declared twice in the body of a class, and it
+    /// does not care what the member is: a method and a variable with the
+    /// same name are a duplicate, and so are a static member and one that is
+    /// not. The v2 has a set for each kind of member.
+    fn the_names_of_the_body_of_a_class_are_one_set(&self) -> bool {
+        false
+    }
+
+    /// Whether the refusal of a duplicate names the member that was written.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// names the member: "Duplicate declaration.\n     Specifically: x". The
+    /// v2 names the path of it: "C.Prototype.Foo".
+    fn the_duplicate_names_the_member_that_was_written(&self) -> bool {
+        false
+    }
+
+    /// Whether a class that is declared twice is refused with the words of
+    /// the dialect.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// refuses it with "Duplicate class definition.\n     Specifically: C",
+    /// and the v2 with "This class declaration conflicts with an existing
+    /// Class.".
+    fn the_class_that_is_declared_twice_has_its_own_words(&self) -> bool {
+        false
+    }
+
     /// Whether the `base` of the dialect is the base of the class where the
     /// method was defined.
     ///
@@ -693,6 +724,25 @@ impl Dialect for V1 {
     fn a_whole_number_that_does_not_fit_is_the_largest_one(&self) -> bool {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the whole
         // number that is written and does not fit is the largest one.
+        true
+    }
+
+    fn the_names_of_the_body_of_a_class_are_one_set(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the body of a
+        // class of the v1 has one set of names.
+        true
+    }
+
+    fn the_duplicate_names_the_member_that_was_written(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal
+        // names the member that was written.
+        true
+    }
+
+    fn the_class_that_is_declared_twice_has_its_own_words(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
+        // the class that is declared twice with "Duplicate class
+        // definition.".
         true
     }
 
