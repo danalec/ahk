@@ -281,6 +281,13 @@ is at the start of its line. The word that `parse_block` takes is the
 construct the block belongs to, and it says in its own words that the
 brace is not where it belongs.
 
+The body of a definition may be an expression, and the fat arrow is what
+says so: `f(a) => a + 1` is a function that answers the expression of it.
+The body of the definition is a `Return` of that expression, and the arrow
+may be on the line of the parameters or on the one after it. A definition
+that has no body is refused at the load: "Invalid function declaration." and
+the text of the definition.
+
 The `break` and the `continue` need a loop around them, and the parser
 counts the loops that it is inside: the body of a loop is read with
 `the_body_of_a_loop`, and the body of a function with `the_body_of_a_scope`,
@@ -1406,6 +1413,13 @@ that asks for another one is refused with the reason.
   The question that has no colon says "A \"?\" is missing its \":\"", and
   the colon that is left over after an expression says "A \":\" is missing
   its \"?\"".
+
+- **The body of a definition may be an expression.** The fat arrow is what
+  says so: `f(a) => a + 1` is a function that answers the expression of
+  it, and the body of the definition is a `Return` of it. The parameters
+  are the ones of a function, and the method of a class may be written the
+  same way. The definition that has no body is refused at the load:
+  "Invalid function declaration.".
 
 ## Side Effects
 

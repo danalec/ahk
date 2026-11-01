@@ -5581,3 +5581,22 @@ statements that the tree read the wrong way.
 The probes that measured the rules are in
 `egm-review/probe_break_ternary.py` (23 cases) and
 `egm-review/probe_statement_shapes2.py` (29).
+
+## 130. The definition may be written with the fat arrow
+
+Measured on the binary of v2.0.19 on 2026-11-01: the body of a definition
+may be an expression.
+
+- **The fat arrow is the body of a definition,** and the body is an
+  expression: `f(a) => a + 1` is a function that answers the expression of
+  it. The tree refused the script at the load with "Unexpected \"=>\"".
+- **The parameters are the ones of a function,** and the default of one of
+  them is a default: `f(a, b := 2) => a + b` answers three for `f(1)`.
+- **The method of a class may be written the same way:** `m() => 1` is a
+  method that answers one.
+- **The arrow may be on the line of the parameters or on the one after it.**
+- **The definition that has no body says so:** "Invalid function
+  declaration." and the text of the definition.
+
+The probe that measured the rules is in `egm-review/probe_fat_arrow.py`
+(15 cases).

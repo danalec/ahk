@@ -5328,3 +5328,26 @@ fn the_member_of_a_number_is_read_at_the_run() {
         Some("This value of type \"Integer\" has no property named \"abc\".")
     );
 }
+
+#[test]
+fn the_definition_may_be_written_with_the_fat_arrow() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the body of a
+    // definition may be an expression, and the fat arrow is what says so:
+    // `f(a) => a + 1` is a function that answers the expression of it.
+    let (report, _desktop) = run("f(a) => a + 1\nFileAppend f(1), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    // The parameters are the ones of a function, and the default of one of
+    // them is a default.
+    let (report, _desktop) = run("f(a, b := 2) => a + b\nFileAppend f(1), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+    // The method of a class may be written the same way.
+    let (report, _desktop) = run("class X {\n    m() => 1\n}\nFileAppend X().m(), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    // The arrow may be on the line of the parameters or on the one after it.
+    let (report, _desktop) = run("f(a)\n=> a + 1\nFileAppend f(1), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}

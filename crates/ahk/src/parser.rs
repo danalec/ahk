@@ -1973,7 +1973,15 @@ impl Parser {
                 // A function may not contain a class.
                 let was_in_a_function = self.in_function;
                 self.in_function = true;
-                let body = self.the_body_of_a_scope("function", name_token.line)?;
+                // Measured on the binary of v2.0.19 on 2026-11-01: the body of
+                // a function may be an expression, and the fat arrow is what
+                // says so: `f(a) => a + 1` is a function that answers the
+                // expression of it.
+                let body = if self.the_fat_arrow_comes_next() {
+                    self.the_body_of_a_fat_arrow(name_token.line)?
+                } else {
+                    self.the_body_of_a_scope("function", name_token.line)?
+                };
                 self.in_function = was_in_a_function;
                 self.check_the_labels(&body)?;
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
@@ -2604,6 +2612,10 @@ impl Parser {
     /// A definition is `Name(a, b) { }`, and the brace is what tells it
     /// from a call. The list is scanned to its end, and the token after it
     /// is looked at.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the fat arrow tells
+    /// a definition from a call as well: `Name(a) => a + 1` is a function
+    /// and not a call.
     fn a_definition_follows(&self) -> bool {
         let mut depth = 0usize;
         let mut at = self.position;
@@ -2615,7 +2627,9 @@ impl Parser {
                     ")" | "]" => {
                         depth = depth.saturating_sub(1);
                         if depth == 0 {
-                            // The brace may be on a line of its own.
+                            // The fat arrow is the body of the definition, and
+                            // it may be on the line of the parameters or on
+                            // the one after it.
                             let mut after = at + 1;
                             while self
                                 .tokens
@@ -2625,6 +2639,15 @@ impl Parser {
                             {
                                 after += 1;
                             }
+                            if self
+                                .tokens
+                                .get(after)
+                                .map(|token| token.value == "=>")
+                                .unwrap_or(false)
+                            {
+                                return true;
+                            }
+                            // The brace may be on a line of its own.
                             return self
                                 .tokens
                                 .get(after)
@@ -3193,6 +3216,59 @@ impl Parser {
         body
     }
 
+    /// Whether the fat arrow of a definition comes next.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the arrow may be on
+    /// the line of the parameters or on the one after it.
+    fn the_fat_arrow_comes_next(&mut self) -> bool {
+        let mut at = self.position;
+        while self
+            .tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
+            at += 1;
+        }
+        let arrow = self
+            .tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Op && token.value == "=>")
+            .unwrap_or(false);
+        if arrow {
+            self.position = at;
+        }
+        arrow
+    }
+
+    /// The body of a definition that is written with the fat arrow.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the body of a
+    /// definition may be an expression, and the fat arrow is what says so:
+    /// `f(a) => a + 1` is a function that answers the expression of it. The
+    /// definition that has no body says so, and the text that is named is
+    /// the definition.
+    fn the_body_of_a_fat_arrow(&mut self, line: u32) -> Result<Vec<Node>, SyntaxError> {
+        // The arrow of the definition.
+        self.next();
+        // The arrow may be on the line of the parameters or on the one after
+        // it.
+        self.skip_newlines();
+        if self.peek().kind == TokenKind::Newline || self.peek().kind == TokenKind::Eof {
+            return Err(SyntaxError {
+                message: format!(
+                    "Invalid function declaration.\n     Specifically: {}",
+                    self.the_source_of_the_statement_of_the_line(line)
+                ),
+                line,
+                column: self.peek().column,
+            });
+        }
+        let value = self.the_expression_of_a_statement()?;
+        self.end_of_statement()?;
+        Ok(vec![Node::Return { value: Some(Box::new(value)), line }])
+    }
+
     /// `throw value`, or `throw` alone.
     fn parse_throw(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
@@ -3622,7 +3698,14 @@ impl Parser {
                 // A method may not contain a class either.
                 let was_in_a_function = self.in_function;
                 self.in_function = true;
-                let body = self.the_body_of_a_scope("method", name_token.line)?;
+                // Measured on the binary of v2.0.19 on 2026-11-01: the body of
+                // a method may be an expression too, and the fat arrow is
+                // what says so.
+                let body = if self.the_fat_arrow_comes_next() {
+                    self.the_body_of_a_fat_arrow(name_token.line)?
+                } else {
+                    self.the_body_of_a_scope("method", name_token.line)?
+                };
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name
                 // of a method may not begin with a number, and the name is
                 // named with it.
@@ -6561,6 +6644,18 @@ mod tests {
         // not there.
         let error = parse("x := 1 : 2").expect_err("does not parse");
         assert_eq!(error.message, "A \":\" is missing its \"?\"");
+    }
+
+    #[test]
+    fn the_definition_of_the_fat_arrow_that_has_no_body_is_refused() {
+        // Measured on the binary of v2.0.19 on 2026-11-01: the definition
+        // that has no body says so, and the text that is named is the
+        // definition.
+        let error = parse("f(a) =>").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Invalid function declaration.\n     Specifically: f(a) =>"
+        );
     }
 
     #[test]
