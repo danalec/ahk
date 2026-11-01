@@ -401,6 +401,12 @@ more, in the words of the dialect. A label that is written twice in the
 same scope is refused at the load too: "Duplicate label.\n     Specifically:
 done".
 
+The load refuses the goto whose label is not in the scope, and it names
+the label: "Label not found in current scope.\n     Specifically:
+nowhere". The scope of a label is the scope it is written in, and the name
+of a label does not know its case. The check is at the end of the scope,
+because the goto may name a label that comes after it.
+
 An operator that wants a number may not follow a literal text, and the
 refusal is at the load: "Unexpected operator following literal string.\n
 Specifically: + 0". The text that is named is the operator and the rest of

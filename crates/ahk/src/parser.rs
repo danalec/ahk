@@ -487,6 +487,49 @@ fn collect_the_labels_of_a_scope(body: &[Node], labels: &mut Vec<(String, u32)>)
     }
 }
 
+/// The gotos of a scope, the way the script wrote them.
+///
+/// The gotos of the blocks of the scope are the gotos of the scope, and the
+/// body of a function that is written inside the scope belongs to that
+/// function and not to the scope around it.
+fn the_gotos_of_a_scope(body: &[Node]) -> Vec<(String, u32)> {
+    let mut gotos = Vec::new();
+    collect_the_gotos_of_a_scope(body, &mut gotos);
+    gotos
+}
+
+/// The gotos of the blocks of a scope.
+fn collect_the_gotos_of_a_scope(body: &[Node], gotos: &mut Vec<(String, u32)>) {
+    for statement in body {
+        match statement {
+            Node::Goto { name, line } => gotos.push((name.clone(), *line)),
+            Node::If { branches, otherwise, .. } => {
+                for branch in branches {
+                    collect_the_gotos_of_a_scope(&branch.body, gotos);
+                }
+                collect_the_gotos_of_a_scope(otherwise, gotos);
+            }
+            Node::Switch { cases, .. } => {
+                for case in cases {
+                    collect_the_gotos_of_a_scope(&case.body, gotos);
+                }
+            }
+            Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+                collect_the_gotos_of_a_scope(body, gotos);
+            }
+            Node::Try { body, catches, otherwise, finally, .. } => {
+                collect_the_gotos_of_a_scope(body, gotos);
+                for catch in catches {
+                    collect_the_gotos_of_a_scope(&catch.body, gotos);
+                }
+                collect_the_gotos_of_a_scope(otherwise, gotos);
+                collect_the_gotos_of_a_scope(finally, gotos);
+            }
+            _ => {}
+        }
+    }
+}
+
 /// The name of a label, when the tokens before the colon are one.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the name of a label
@@ -3725,6 +3768,20 @@ impl Parser {
                 });
             }
             seen.push(key);
+        }
+        // Measured on the binary of v2.0.19 on 2026-11-01: the load refuses
+        // the goto whose label is not in the scope, and it names the label.
+        // The name of a label does not know its case, and the scope of a
+        // label is the scope it is written in: the label of a function is
+        // not the label of the script.
+        for (name, line) in the_gotos_of_a_scope(body) {
+            if !seen.contains(&name.to_lowercase()) {
+                return Err(SyntaxError {
+                    message: format!("Label not found in current scope.\n     Specifically: {name}"),
+                    line,
+                    column: 1,
+                });
+            }
         }
         Ok(())
     }
@@ -7424,10 +7481,17 @@ mod tests {
         // Measured on the binary of v2.0.19 on 2026-10-31: the parameter of
         // a `Goto` is not an expression: it is the name of a label, and it
         // is read as the text of it.
-        let statements = parse("Goto \"done\"").expect("parses");
-        assert!(matches!(&statements[0], Node::Goto { name, .. } if name == "\"done\""));
-        let statements = parse("Goto(done)").expect("parses");
-        assert!(matches!(&statements[0], Node::Goto { name, .. } if name == "done"));
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-01: the label that is
+        // not there is refused at the load, and the text of the parameter is
+        // the name that the refusal carries.
+        let error = parse("Goto \"done\"").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Label not found in current scope.\n     Specifically: \"done\""
+        );
+        let error = parse("Goto(done)").expect_err("does not parse");
+        assert_eq!(error.message, "Label not found in current scope.\n     Specifically: done");
     }
 
     #[test]

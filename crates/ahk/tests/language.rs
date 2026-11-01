@@ -3637,15 +3637,11 @@ fn the_name_of_a_label_does_not_know_its_case() {
 
 #[test]
 fn a_goto_to_a_label_that_is_not_there_fails_with_the_reason() {
-    // Measured on the binary of v2.0.19 on 2026-10-31: the label of
-    // another scope is not found in the current one.
-    let (report, _desktop) = run("if (true) {\n    Goto nowhere\n}");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error.as_deref(),
-        Some("Label not found in current scope.\n     Specifically: nowhere")
-    );
-    assert_eq!(report.error_line, Some(2));
+    // Measured on the binary of v2.0.19 on 2026-11-01: the load refuses the
+    // goto whose label is not in the scope, and it names the label.
+    let error = parse("if (true) {\n    Goto nowhere\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Label not found in current scope.\n     Specifically: nowhere");
+    assert_eq!(error.line, 2);
 }
 
 #[test]
@@ -3663,25 +3659,21 @@ fn a_goto_into_a_block_that_does_not_enclose_it_fails_with_the_reason() {
 
 #[test]
 fn the_failure_of_a_goto_is_not_taken_by_a_catch() {
-    // Measured on the binary of v2.0.19 on 2026-10-31: the failure of a
-    // `Goto` that does not find its label ends the script, and a catch
-    // does not take it.
-    let (report, _desktop) = run("try {\n    Goto nowhere\n} catch Any as e {\n    MsgBox \"caught\"\n}");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error.as_deref(),
-        Some("Label not found in current scope.\n     Specifically: nowhere")
-    );
+    // Measured on the binary of v2.0.19 on 2026-11-01: the goto whose label
+    // is not there is refused at the load, and a catch does not take it.
+    let error = parse("try {\n    Goto nowhere\n} catch Any as e {\n    MsgBox \"caught\"\n}")
+        .expect_err("does not parse");
+    assert_eq!(error.message, "Label not found in current scope.\n     Specifically: nowhere");
 }
 
 #[test]
 fn a_label_of_a_function_is_not_a_label_of_the_script() {
-    let (report, _desktop) = run("f() {\n    Goto inner\n}\nf()\ninner:\nMsgBox \"done\"");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error.as_deref(),
-        Some("Label not found in current scope.\n     Specifically: inner")
-    );
+    // Measured on the binary of v2.0.19 on 2026-11-01: the label of a
+    // function is not the label of the script, and the load says so.
+    let error = parse("f() {\n    Goto inner\n}\nf()\ninner:\nMsgBox \"done\"")
+        .expect_err("does not parse");
+    assert_eq!(error.message, "Label not found in current scope.\n     Specifically: inner");
+    assert_eq!(error.line, 2);
 }
 
 #[test]
@@ -5727,10 +5719,6 @@ fn the_block_that_is_not_closed_names_the_construct_that_opened_it() {
 fn the_goto_whose_parenthesis_is_spaced_looks_for_the_whole_text() {
     // Measured on the binary of v2.0.19 on 2026-11-01: the parenthesis
     // that is spaced is a part of the text of the name of the label.
-    let (report, _) = run("Goto (nowhere)");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error.as_deref(),
-        Some("Label not found in current scope.\n     Specifically: (nowhere)")
-    );
+    let error = parse("Goto (nowhere)").expect_err("does not parse");
+    assert_eq!(error.message, "Label not found in current scope.\n     Specifically: (nowhere)");
 }

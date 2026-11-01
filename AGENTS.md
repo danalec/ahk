@@ -5857,3 +5857,32 @@ cases, the brace that opens the body), in `egm-review/probe_block_q25.py`
 `egm-review/probe_block_q26.py` (14 cases, the block that is not closed)
 and in `egm-review/probe_block_q27.py` (6 cases, the block that is not
 closed and that has content).
+
+## 138. The label that the goto names is in the scope, and the load says so
+
+Measured on the binary of v2.0.19 on 2026-11-01: the goto whose label is
+not in the scope.
+
+- **The load refuses the goto whose label is not in the scope,** and it
+  names the label: "Label not found in current scope.\n     Specifically:
+  nowhere". The tree refused it at the run, and the words were the same.
+- **The name of a label does not know its case,** and the scope of a
+  label is the scope it is written in: the label of a function is not the
+  label of the script, and the goto of a function to a label of the
+  script is refused the same way.
+- **The text of the parameter is the name of the label,** with the quotes
+  that it carries: `Goto "done"` looks for the label `"done"`, and the
+  v2 refuses it at the load with that name.
+- **The label of a class body is not a label:** the v2 refuses it with
+  "Not a valid method, class or property definition.\n     Specifically:
+  done:", and the tree refused it the same way already.
+
+One difference of the family is known and accepted: the v2 does not come
+back from a `Goto` whose parameter is written between parentheses --
+`Goto(later)` hangs it -- and the tree jumps and goes on, the way the
+documentation of the dialect says.
+
+The probes that measured the rules are in `egm-review/probe_block_q31.py`
+(9 cases, the scope of the label) and in
+`egm-review/probe_block_q32.py` (6 cases, the label of a class and of a
+method).
