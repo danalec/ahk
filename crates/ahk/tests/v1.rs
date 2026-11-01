@@ -344,24 +344,138 @@ fn the_variables_of_the_v1_that_are_about_the_machine_are_refused_with_the_reaso
     );
 }
 
-/// The built-in variables of the v1 are read-only, and the arguments of the
-/// script are the only one that a script may write.
+/// The write of a built-in variable of the v1 is refused at the load.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the write of
-/// `A_AutoTrim` is refused with "Not allowed as an output variable.", and
-/// the write of `A_Args` is kept.
+/// `A_AhkPath` is refused with "Not allowed as an output variable.", and the
+/// refusal is at the load: the script does not run. The reason is the same
+/// for every operator.
 #[test]
-fn the_built_in_variables_of_the_v1_are_read_only() {
-    let report = run("A_AutoTrim := \"Off\"");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error.as_deref(),
-        Some("Not allowed as an output variable.\n     Specifically: A_AutoTrim")
-    );
+fn the_write_of_a_built_in_variable_of_the_v1_is_refused_at_the_load() {
+    for script in [
+        "A_AhkPath := 5",
+        "A_AhkPath += 5",
+        "A_AhkPath -= 5",
+        "A_AhkPath *= 5",
+        "A_AhkPath /= 5",
+    ] {
+        let error = ahk::parse_with(script, dialect::v1()).expect_err("the write is refused");
+        assert_eq!(
+            error.message,
+            "Not allowed as an output variable.\n     Specifically: A_AhkPath"
+        );
+    }
+}
 
+/// The refusal names the variable as the script spelled it.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the write of
+/// `a_ahkpath` is refused with the name that the script wrote.
+#[test]
+fn the_refusal_of_the_v1_names_the_variable_as_the_script_spelled_it() {
+    let error =
+        ahk::parse_with("a_ahkpath := 5", dialect::v1()).expect_err("the write is refused");
+    assert_eq!(
+        error.message,
+        "Not allowed as an output variable.\n     Specifically: a_ahkpath"
+    );
+}
+
+/// Every built-in variable of the v1 is read-only.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the names that the v2
+/// lets a script write are refused as well -- the `A_Index` and the
+/// `A_ListLines` -- and so are the names that the v1 has and the v2 does not
+/// -- the `A_AutoTrim` -- and the ones that the v1 spells without the prefix
+/// -- the `ComSpec`.
+#[test]
+fn every_built_in_variable_of_the_v1_is_read_only() {
+    for name in [
+        "A_Index",
+        "A_ListLines",
+        "A_WorkingDir",
+        "A_ScriptName",
+        "A_EventInfo",
+        "A_LastError",
+        "A_IconTip",
+        "A_RegView",
+        "A_CoordModePixel",
+        "A_AutoTrim",
+        "A_Gui",
+        "A_OSType",
+        "A_IsUnicode",
+        "A_FormatInteger",
+        "A_ThisLabel",
+        "A_IPAddress1",
+        "ComSpec",
+        "ProgramFiles",
+    ] {
+        let script = format!("{name} := 5");
+        let error = ahk::parse_with(&script, dialect::v1()).expect_err("the write is refused");
+        assert_eq!(
+            error.message,
+            format!("Not allowed as an output variable.\n     Specifically: {name}")
+        );
+    }
+}
+
+/// The clipboard, the last error of the run and the arguments of the script
+/// are the built-in variables that the v1 lets a script write.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the write of the
+/// `ErrorLevel` and the write of the `A_Args` are kept.
+#[test]
+fn the_names_that_the_v1_lets_a_script_write_are_kept() {
     let report = run("A_Args := \"written\"\nx := A_Args");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("written".into())));
+
+    let report = run("ErrorLevel := 5\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
+}
+
+/// The concat on a built-in variable of the v1 is accepted, and the built-in
+/// keeps the value that it had.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the write
+/// `A_AutoTrim .= "y"` is not a failure, and the `A_AutoTrim` is still `On`.
+#[test]
+fn the_concat_on_a_built_in_variable_of_the_v1_is_accepted() {
+    let report = run("A_AutoTrim .= \"y\"\nx := A_AutoTrim");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("On".into())));
+}
+
+/// The concat on a setting of the v1 is accepted, and the setting keeps the
+/// value that it had.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the write
+/// `A_TitleMatchMode .= "y"` is not a failure, and the setting is the mode
+/// that it was.
+#[test]
+fn the_concat_on_a_setting_of_the_v1_is_accepted() {
+    let report = run("x := A_TitleMatchMode\nA_TitleMatchMode .= \"y\"\ny := A_TitleMatchMode");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), report.variables.get("y"));
+}
+
+/// The increment of a built-in variable of the v1 is refused at the load.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the increment of the
+/// `A_AhkPath` is refused with the reason of the write.
+#[test]
+fn the_increment_of_a_built_in_variable_of_the_v1_is_refused_at_the_load() {
+    for script in ["A_AhkPath++", "A_AhkPath--", "A_Index++"] {
+        let error = ahk::parse_with(script, dialect::v1()).expect_err("the increment is refused");
+        assert_eq!(
+            error.message,
+            format!(
+                "Not allowed as an output variable.\n     Specifically: {}",
+                script.trim_end_matches(['+', '-'])
+            )
+        );
+    }
 }
 
 /// The directive of the v1 that the runtime already is is accepted, and the

@@ -130,7 +130,7 @@ const NO_INITIAL_WORKING_DIR: &str = "this runtime does not keep the directory w
 /// Measured on the binary of v2.0.19 on 2026-11-01: the compound operator
 /// says that the variable cannot be assigned a value, and the plain one
 /// says that it cannot be an output variable.
-fn read_only(name: &str, op: AssignOp) -> String {
+pub(crate) fn read_only(name: &str, op: AssignOp) -> String {
     match op {
         AssignOp::Set => {
             format!("This built-in variable cannot be used as an output variable.\n     Specifically: {name}")

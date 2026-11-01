@@ -166,6 +166,17 @@ pub(crate) fn write_variable(
     variables::write(name, op, value, line, rt)
 }
 
+/// Whether the v1 does not let a script write the built-in variable of this
+/// name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the write of
+/// every built-in variable of the v1 is refused at the load, and the only
+/// ones that a script may write are the clipboard, the last error of the run
+/// and the arguments of the script.
+pub(crate) fn is_read_only(name: &str) -> bool {
+    variables::is_read_only(name)
+}
+
 // -- the answer that goes into the variable of the caller ---------------------
 
 /// The hotstring of the v1: `::btw::by the way`.

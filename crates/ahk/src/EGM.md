@@ -1036,6 +1036,12 @@ the table of the kinds: the shape of the cursor is a setting of the run and
 the v2 refuses to write it all the same, and the index of the loop is a name
 that the runtime owns and a script may write it.
 
+The v1 has its own table of the names that a script may write, and its own
+reason: the write of a built-in variable of the v1 is refused with "Not
+allowed as an output variable.\n     Specifically: A_AhkPath", and the
+concat is the one that it accepts -- the built-in keeps the value that it
+had.
+
 The names of the machine are the desktop's: the user, the computer, the
 shell, the folders, the version of the operating system, the language, the
 rights of the script and the idle times are asked of the desktop, and the
@@ -1059,6 +1065,19 @@ are written where they live, the names that v2 lets a script write keep the
 value that was written, and the names that it does not let a script write
 are refused with "This built-in variable cannot be used as an output
 variable.\n     Specifically: A_AhkVersion".
+
+The refusal of the write is a rule of the dialect (`dialect.rs`), and the
+parser asks it: the refusal of the write of a built-in variable, and the
+refusal of the increment of one. The v2 answers with its own two reasons --
+the plain assignment says that the variable cannot be an output variable and
+the compound operator says that it cannot be assigned a value -- and the v1
+answers with one reason for every operator.
+
+The write that goes nowhere is a rule of the dialect too, and the runtime
+asks it before it writes anything: the concat on a built-in variable of the
+v1 is accepted, and the built-in keeps the value that it had. The settings
+of the run are written where they live, and the settings of the v2 are
+built-in variables of the v1.
 
 ### The regular expressions (`regex.rs`)
 

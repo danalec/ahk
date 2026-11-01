@@ -6994,4 +6994,49 @@ The rules are three hooks of the dialect (`crates/ahk/src/dialect.rs`): the
 class that a class holds is a member of the instance of it, and the call of
 a class makes nothing.
 
+## 172. The built-in variables of the v1 are read-only, and the refusal is at the load
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The write of a built-in variable of the v1 is refused at the load.** The
+  reason is "Not allowed as an output variable.\n     Specifically:
+  A_AhkPath", and it is the same for every operator: the `:=`, the `+=`, the
+  `-=`, the `*=`, the `/=` and the increment. The v2 has two reasons -- one
+  for the plain assignment and another one for the compound operators -- and
+  the v1 has only this one.
+- **Every built-in variable of the v1 is read-only, and there are two
+  exceptions.** The clipboard -- the `A_Clipboard` and the `Clipboard` -- and
+  the last error of the run -- the `ErrorLevel` -- are the names that a
+  script may write. The arguments of the script -- the `A_Args` -- are a
+  variable of the script, and not a built-in one. The names that the v2 lets
+  a script write are refused as well: the `A_Index`, the `A_ListLines`, the
+  `A_WorkingDir` and the rest of them. The names that the v1 spells without
+  the prefix are refused too: the `ComSpec` and the `ProgramFiles`.
+- **The concat on a built-in variable of the v1 is accepted, and the built-in
+  keeps the value that it had.** The `A_AhkPath .= "y"` is not a failure, and
+  the `A_AhkPath` is still the path of the executable. The v2 refuses the
+  concat with "This built-in variable cannot be assigned a value.".
+- **The refusal names the variable as the script spelled it.** The
+  `a_ahkpath := 5` names "a_ahkpath".
+- **The refusal is at the load, in every scope.** A local variable may not
+  carry the name either, and the body of a class is the one place where the
+  name is a property and not a variable.
+
+The rule is three hooks of the dialect (`crates/ahk/src/dialect.rs`): the
+refusal of the write of a built-in variable, the refusal of the increment of
+one, and the write that goes nowhere. The parser asks the first two
+(`crates/ahk/src/parser.rs`), and the v1 answers with the reason of the v1.
+The v2 answers with its own two reasons (`crates/ahk/src/variables.rs`), and
+the tree keeps them as they were. The runtime asks the third one
+(`crates/ahk/src/runtime.rs`): the concat on a built-in variable of the v1 is
+accepted and the built-in keeps the value that it had, and the settings of
+the run are written where they live -- the settings of the v2 are built-in
+variables of the v1, and the concat does not change them either.
+
+The names that the v1 lets a script write are in the module of the variables
+of the v1 (`crates/ahk/src/v1/variables.rs`): the table of the names that the
+v2 has and the v1 does not, the table of the names that the v1 has and the v2
+does not, and the rule that a name of the v1 that the v2 does not have as a
+variable -- the directives of the v1 and the `A_TrayMenu` -- is not refused.
+
 

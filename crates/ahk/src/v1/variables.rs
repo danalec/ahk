@@ -118,6 +118,48 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
 /// The reason the name is not written: the v1 refuses it at the load.
 const NOT_AN_OUTPUT: &str = "Not allowed as an output variable.";
 
+/// The built-in variables that the v1 lets a script write.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// clipboard and the last error of the run are the two built-in variables of
+/// the v1 that a script may write, and the arguments of the script are a
+/// variable of the script. Every other one of them is refused, and the ones
+/// that the v2 lets a script write -- the `A_Index`, the `A_ListLines` and
+/// the rest -- are refused as well.
+const THE_WRITABLE: &[&str] = &["a_args", "a_clipboard", "clipboard", "errorlevel"];
+
+/// Whether the v1 does not let a script write the built-in variable of this
+/// name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the write
+/// of every built-in variable of the v1 is refused at the load -- "Not
+/// allowed as an output variable.\n     Specifically: A_AhkPath" -- and the
+/// only ones that a script may write are the clipboard, the last error of the
+/// run and the arguments of the script.
+pub fn is_read_only(name: &str) -> bool {
+    let wanted = name.to_lowercase();
+    if THE_WRITABLE.contains(&wanted.as_str()) {
+        return false;
+    }
+    // The `ComSpec` and the `ProgramFiles` are the built-in variables that the
+    // v1 spells without the prefix, and they are read-only.
+    if wanted == "comspec" || wanted == "programfiles" {
+        return true;
+    }
+    // Every other built-in variable of the v1 has the prefix.
+    let Some(stem) = wanted.strip_prefix("a_") else {
+        return false;
+    };
+    // The names that the v1 does not have as variables are not refused: they
+    // are the directives of the v1 and the `A_TrayMenu`.
+    if NOT_A_VARIABLE_OF_THE_V1.contains(&stem) {
+        return false;
+    }
+    // The built-in variables that the two dialects share, and the ones that
+    // are the v1 alone.
+    crate::variables::carries(stem) || carries(&wanted)
+}
+
 /// The built-in variables of the v1 that the v1 spells without the prefix.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
@@ -242,14 +284,15 @@ pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError
 
 /// The write of the built-in variable of this name.
 ///
-/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: every
-/// one of the names is read-only, and the only ones that a script may write
-/// are the `A_Args` and the `ErrorLevel`. The refusal is the one of the v1,
-/// and it is a load error there.
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// arguments of the script and the last error of the run are the variables of
+/// the script, and every other built-in variable of the v1 is read-only. The
+/// refusal is at the load, and this is the backstop of it: the name that the
+/// script builds is not known at the load.
 ///
-/// The `ErrorLevel` is the global variable of the script, and the runtime
-/// keeps it in the table of the script: the write of it is the write of any
-/// other variable, and the operators of it are the ones of the v1.
+/// The concat is the one that the v1 accepts, and the built-in variable keeps
+/// the value that it had: the rule of it is in the dialect, and the runtime
+/// asks it before it writes anything.
 pub fn write(
     name: &str,
     _op: AssignOp,
@@ -258,24 +301,21 @@ pub fn write(
     _rt: &mut Runtime,
 ) -> Option<Result<Value, RuntimeError>> {
     let wanted = name.to_lowercase();
-    for (carried, _) in THE_VARIABLES {
-        if carried.to_lowercase() != wanted {
-            continue;
-        }
-        // The arguments of the script are the ones the script writes, and
-        // the runtime keeps them in the table of the script.
-        if wanted == "a_args" {
-            return None;
-        }
-        // The last error of the run is the global variable of the script,
-        // and the runtime keeps it in the table of the script.
-        if wanted == "errorlevel" {
-            return None;
-        }
-        // The message of the v1 names the variable that was written, and it
-        // is the same for every write of it.
-        let message = format!("{NOT_AN_OUTPUT}\n     Specifically: {carried}");
-        return Some(Err(RuntimeError { message, line }));
+    // The arguments of the script are the ones the script writes, and the
+    // runtime keeps them in the table of the script.
+    if wanted == "a_args" {
+        return None;
     }
-    None
+    // The last error of the run is the global variable of the script, and the
+    // runtime keeps it in the table of the script.
+    if wanted == "errorlevel" {
+        return None;
+    }
+    if !is_read_only(&wanted) {
+        return None;
+    }
+    // The message of the v1 names the variable that was written, and it is
+    // the same for every write of it.
+    let message = format!("{NOT_AN_OUTPUT}\n     Specifically: {name}");
+    Some(Err(RuntimeError { message, line }))
 }

@@ -7954,6 +7954,14 @@ impl<'a> Runtime<'a> {
         value: Value,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the concat on a
+        // built-in variable of the v1 is accepted, and the built-in keeps the
+        // value that it had: the write goes nowhere. The rule is asked here,
+        // because the settings of the run are written where they live, and
+        // the settings of the v2 are built-in variables of the v1.
+        if self.dialect.the_write_of_a_built_in_variable_goes_nowhere(name, op) {
+            return Ok(value);
+        }
         // A setting of the runtime is written where it lives: the setting
         // changes, and the compound operators read it before they write
         // it. The dialect writes the setting itself, and it is the tree

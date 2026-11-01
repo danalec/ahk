@@ -3570,21 +3570,23 @@ impl Parser {
     /// not be the output variable of an assignment, and the refusal is at
     /// the load. The compound operator has its own reason: it says that
     /// the variable cannot be assigned a value.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the reason of
+    /// the v1 is the same for every operator, and the concat is the one
+    /// that the v1 accepts.
     fn the_output_variable_is_refused(&self, token: &Token, op: AssignOp) -> Option<SyntaxError> {
-        if !crate::variables::is_read_only(&token.value) {
-            return None;
-        }
-        let message = match op {
-            AssignOp::Set => format!(
-                "This built-in variable cannot be used as an output variable.\n     Specifically: {}",
-                token.value
-            ),
-            _ => format!(
-                "This built-in variable cannot be assigned a value.\n     Specifically: {}",
-                token.value
-            ),
-        };
+        let message =
+            self.dialect.the_refusal_of_the_write_of_a_built_in_variable(&token.value, op)?;
         Some(SyntaxError { message, line: token.line, column: token.column })
+    }
+
+    /// The refusal of the dialect to the increment of a value.
+    ///
+    /// The name of the value is the one that the script spelled, and the
+    /// reason is the one of the dialect.
+    fn the_refusal_of_the_increment(&self, node: &Node) -> Option<String> {
+        let Node::Var { name, .. } = node else { return None };
+        self.dialect.the_refusal_of_the_increment_of_a_built_in_variable(name)
     }
 
     /// The list of v1 that may follow the expression of a statement.
@@ -6762,13 +6764,19 @@ impl Parser {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // increment of a value that cannot be written is refused at
                 // the load, and the source of the operator is named with it.
-                if matches!(op, UnaryOp::PreIncrement | UnaryOp::PreDecrement)
-                    && !the_value_can_be_written(&operand)
-                {
-                    return Err(self.error(format!(
-                        "Invalid assignment.\n     Specifically: {}",
-                        the_source_of_the_tokens(self, at_the_operator, self.position)
-                    )));
+                if matches!(op, UnaryOp::PreIncrement | UnaryOp::PreDecrement) {
+                    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                    // increment of a built-in variable of the v1 is refused
+                    // with the reason of the write.
+                    if let Some(message) = self.the_refusal_of_the_increment(&operand) {
+                        return Err(self.error(message));
+                    }
+                    if !the_value_can_be_written(&operand) {
+                        return Err(self.error(format!(
+                            "Invalid assignment.\n     Specifically: {}",
+                            the_source_of_the_tokens(self, at_the_operator, self.position)
+                        )));
+                    }
                 }
                 // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
                 // the sign of the v1 is part of the number that was written:
@@ -6941,6 +6949,12 @@ impl Parser {
                         UnaryOp::PostDecrement
                     };
                     let operand = Node::Var { name, line: token.line };
+                    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                    // increment of a built-in variable of the v1 is refused
+                    // with the reason of the write.
+                    if let Some(message) = self.the_refusal_of_the_increment(&operand) {
+                        return Err(self.error(message));
+                    }
                     return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
                 }
                 Node::Var { name, line: token.line }
@@ -7409,6 +7423,13 @@ impl Parser {
                 let line = node.line();
                 // The increment of a value that cannot be written is refused
                 // at the load, and the source of the operator is named.
+                //
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // increment of a built-in variable of the v1 is refused with
+                // the reason of the write.
+                if let Some(message) = self.the_refusal_of_the_increment(&node) {
+                    return Err(self.error(message));
+                }
                 if !the_value_can_be_written(&node) {
                     return Err(self.error(format!(
                         "Invalid assignment.\n     Specifically: {}",

@@ -593,6 +593,47 @@ pub trait Dialect: Sync {
     fn the_refusal_of_a_global_of_a_built_in_variable(&self, _name: &str) -> Option<String> {
         None
     }
+
+    /// The refusal of the write of a built-in variable.
+    ///
+    /// The refusal is at the load, and it names the variable as the script
+    /// spelled it. `None` means that the dialect lets the script write the
+    /// name.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// refuses the write of every built-in variable of the dialect, and the
+    /// reason is the same for every operator -- "Not allowed as an output
+    /// variable.\n     Specifically: A_AhkPath". The concat is the one that
+    /// the v1 accepts: the built-in keeps the value that it had.
+    fn the_refusal_of_the_write_of_a_built_in_variable(
+        &self,
+        _name: &str,
+        _op: AssignOp,
+    ) -> Option<String> {
+        None
+    }
+
+    /// The refusal of the increment of a built-in variable.
+    ///
+    /// The refusal is at the load, and it names the variable as the script
+    /// spelled it. `None` means that the dialect lets the script increment
+    /// the name.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// increment of a built-in variable of the v1 is refused with the reason
+    /// of the write.
+    fn the_refusal_of_the_increment_of_a_built_in_variable(&self, _name: &str) -> Option<String> {
+        None
+    }
+
+    /// Whether the write of a built-in variable goes nowhere.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// accepts the concat on a built-in variable, and the built-in keeps the
+    /// value that it had. The v2 refuses the write of the name.
+    fn the_write_of_a_built_in_variable_goes_nowhere(&self, _name: &str, _op: AssignOp) -> bool {
+        false
+    }
 }
 
 /// The dialect of the tree: AutoHotkey v2.0.19.
@@ -637,6 +678,16 @@ impl Dialect for V2 {
 
     fn refusal_of_variable(&self, name: &str) -> Option<&'static str> {
         crate::variables::refusal_of(name)
+    }
+
+    fn the_refusal_of_the_write_of_a_built_in_variable(&self, name: &str, op: AssignOp) -> Option<String> {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the dialect refuses
+        // the name when the script writes it, and it names the name as the
+        // script spelled it.
+        if !crate::variables::is_read_only(name) {
+            return None;
+        }
+        Some(crate::variables::read_only(name, op))
     }
 
     fn the_place_of_the_argument_that_wants_the_name(&self, _name: &str) -> Option<usize> {
@@ -790,8 +841,11 @@ impl Dialect for V1 {
         line: u32,
         rt: &mut Runtime,
     ) -> Option<Result<Value, RuntimeError>> {
-        crate::variables::write(name, op, value, line, rt)
-            .or_else(|| crate::v1::write_variable(name, op, value, line, rt))
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
+        // the write of a built-in variable with its own reason, and the rule
+        // of the v1 is the wider one: it comes first.
+        crate::v1::write_variable(name, op, value, line, rt)
+            .or_else(|| crate::variables::write(name, op, value, line, rt))
     }
 
     fn legacy_commands(&self) -> bool {
@@ -901,6 +955,38 @@ impl Dialect for V1 {
             ));
         }
         None
+    }
+
+    fn the_refusal_of_the_write_of_a_built_in_variable(&self, name: &str, op: AssignOp) -> Option<String> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
+        // the write of every built-in variable of the dialect -- the ones that
+        // the v2 lets a script write as well -- and the reason is the same
+        // for every operator. The concat is the one that the v1 accepts: the
+        // built-in keeps the value that it had.
+        if op == AssignOp::Concat {
+            return None;
+        }
+        if !crate::v1::is_read_only(name) {
+            return None;
+        }
+        Some(format!("Not allowed as an output variable.\n     Specifically: {name}"))
+    }
+
+    fn the_refusal_of_the_increment_of_a_built_in_variable(&self, name: &str) -> Option<String> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the increment of
+        // a built-in variable of the v1 is refused at the load, and the reason
+        // is the one of the write.
+        if !crate::v1::is_read_only(name) {
+            return None;
+        }
+        Some(format!("Not allowed as an output variable.\n     Specifically: {name}"))
+    }
+
+    fn the_write_of_a_built_in_variable_goes_nowhere(&self, name: &str, op: AssignOp) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the concat on a
+        // built-in variable of the v1 is accepted, and the built-in keeps the
+        // value that it had: the write goes nowhere.
+        op == AssignOp::Concat && crate::v1::is_read_only(name)
     }
 
     fn the_new_makes_an_instance(&self) -> bool {
