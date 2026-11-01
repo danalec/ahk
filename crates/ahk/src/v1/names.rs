@@ -23,6 +23,32 @@ pub(crate) fn wants_the_name_of_the_argument(name: &str) -> bool {
     matches!(name.to_lowercase().as_str(), "isset" | "isbyref")
 }
 
+/// `AutoTrim, On`: the trim of the text of a legacy assignment.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command turns
+/// the trim on and off, and the value that it does not know is refused with
+/// "Parameter #1 invalid." and the value in the `Extra`.
+pub(crate) fn auto_trim(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let trimmed = text.trim();
+    match trimmed.to_lowercase().as_str() {
+        "on" => rt.set_auto_trim(true),
+        "off" => rt.set_auto_trim(false),
+        _ => {
+            return Err(RuntimeError {
+                message: format!("Parameter #1 invalid.\n     Specifically: {trimmed}"),
+                line,
+            })
+        }
+    }
+    Ok(Value::Text(String::new()))
+}
+
 /// `IsSet(name)`: whether the variable of that name has a value.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the answer is 1 for

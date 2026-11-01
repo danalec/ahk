@@ -391,6 +391,14 @@ pub enum Node {
     },
     /// `x := 1`.
     Assign { name: String, op: AssignOp, value: Box<Node>, line: u32 },
+    /// `x = 5`: the legacy assignment of the v1.
+    ///
+    /// The right side of the legacy assignment is a text and not an
+    /// expression: `x = 5 + 3` leaves `x` at "5 + 3", and `x = "abc"` leaves
+    /// it at `"abc"` with the quotes that were written.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02.
+    LegacyAssign { name: String, text: String, line: u32 },
     /// `list[1]`, `text[2]`: the item at a position.
     ///
     /// The positions count from one, the way AutoHotkey counts them.
@@ -618,6 +626,7 @@ impl Node {
             | Node::DynamicName { line, .. }
             | Node::AssignDynamic { line, .. }
             | Node::Assign { line, .. }
+            | Node::LegacyAssign { line, .. }
             | Node::AssignIndex { line, .. }
             | Node::Index { line, .. }
             | Node::Call { line, .. }

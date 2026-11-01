@@ -249,8 +249,10 @@ concatenation of v2, and it binds like the dot. The parser makes it a
 
 - `parse(source: &str) -> Result<Vec<Node>, SyntaxError>` -- the whole
   script, parsed.
-- `Parser::new(tokens: Vec<Token>) -> Parser` -- a parser over tokens the
-  caller already has.
+- `Parser::new(source: &str, tokens: Vec<Token>) -> Parser` -- a parser over
+  tokens the caller already has, and the source they came from. The source is
+  what keeps the spaces of the script: the text of the legacy dialect is the
+  text of the script.
 - `Parser::parse_script(&mut self) -> Result<Vec<Node>, SyntaxError>` -- the
   statements of the script.
 

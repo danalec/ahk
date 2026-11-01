@@ -815,16 +815,29 @@ does not get worse without being seen.
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
 | **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 21 cases), and the `--surface --json` for the CI. |
 
-**What is left.** Eight names of the pending table of the v1: the
-`AutoTrim`, the `IfInString`, the `IfMsgBox`, the `SetBatchLines`, the
-`SetFormat`, the `StringCaseSense`, the `Transform` and the
-`VarSetCapacity`. The `SetBatchLines` is a decision of the plan (§5, the
-threads of the v1). The other seven are work that is still to do, and the
-pending table is where they are written down.
+**What is left.** Seven names of the pending table of the v1: the
+`IfInString`, the `IfMsgBox`, the `SetBatchLines`, the `SetFormat`, the
+`StringCaseSense`, the `Transform` and the `VarSetCapacity`. The
+`SetBatchLines` is a decision of the plan (§5, the threads of the v1). The
+other six are work that is still to do, and the pending table is where they
+are written down.
 
-The surface of the v1 has **384** entries: **268** answer with a value,
-**108** are refused and **8** are pending. The surface of the v2 did not
+The surface of the v1 has **384** entries: **269** answer with a value,
+**108** are refused and **7** are pending. The surface of the v2 did not
 move: **828** entries, **637** values, **191** refusals and no pending.
+
+**The legacy assignment.** The `=` of the v1 assigns a text and not an
+expression: `x = 5 + 3` leaves `x` at "5 + 3". The tree carries it since the
+block of the `AutoTrim` (2026-11-02), with the text of the script, the trim
+of the `AutoTrim`, the number that a text of base ten is, and the
+substitution that finds the built-in variables.
+
+**The arithmetic with a text.** The v1 does not concatenate when an operand
+is a text: the text that is written on the left of a `+` makes it a
+concatenation, the text that is written on the right of it makes the result
+blank, and the value of a variable is converted to a number when it can be.
+The tree still has the rule of the v2 here, and the block that carries it
+comes next.
 
 ---
 

@@ -306,7 +306,7 @@ impl Dialect for V1 {
     ) -> Option<Result<Value, RuntimeError>> {
         // The v1 carries the variables of the v2, and the ones of its own:
         // the name is the one that the dialect spells.
-        crate::variables::lookup(name, rt).or_else(|| crate::v1::lookup_variable(name))
+        crate::variables::lookup(name, rt).or_else(|| crate::v1::lookup_variable(name, rt))
     }
 
     fn write_variable(

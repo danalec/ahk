@@ -37,9 +37,11 @@
 #   own are carried: the `IsSet`, the `IsFunc`, the `IsByRef`, the `Object`,
 #   the `Func`, the `FileReadLine` and the `Input`. Their answers were
 #   measured on the binary of v1.1.37.02 on 2026-11-02.
+# - The `AutoTrim` is carried: the command turns the trim of the text of a
+#   legacy assignment on and off, and the `A_AutoTrim` says which one is in
+#   force. Measured on the binary of v1.1.37.02 on 2026-11-02.
 kind	class	name	reason
 
-command		AutoTrim	not-yet
 command		IfInString	not-yet
 command		IfMsgBox	not-yet
 command		SetBatchLines	not-yet

@@ -1032,6 +1032,13 @@ pub struct Runtime<'a> {
     /// substitution of a parameter of the v1 is then the variable of the
     /// script alone.
     no_env: bool,
+    /// Whether the text of a legacy assignment is trimmed.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `AutoTrim`
+    /// of the v1 is On when the script begins, and the command turns it off.
+    /// The text of a legacy assignment is trimmed when it is On, and the
+    /// command parameters of the v1 are not trimmed by it.
+    auto_trim: bool,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
     /// The directory where the run started.
@@ -1200,6 +1207,7 @@ impl<'a> Runtime<'a> {
             clock: ClockSource::System(SystemClock::new()),
             dialect: crate::dialect::v2(),
             no_env: false,
+            auto_trim: true,
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1255,6 +1263,7 @@ impl<'a> Runtime<'a> {
             clock: ClockSource::Borrowed(clock),
             dialect: crate::dialect::v2(),
             no_env: false,
+            auto_trim: true,
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1323,6 +1332,19 @@ impl<'a> Runtime<'a> {
     /// The dialect that the run speaks.
     pub fn dialect(&self) -> &'static dyn crate::dialect::Dialect {
         self.dialect
+    }
+
+    /// Whether the text of a legacy assignment is trimmed.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `AutoTrim`
+    /// of the v1 is On when the script begins, and the command turns it off.
+    pub fn auto_trim(&self) -> bool {
+        self.auto_trim
+    }
+
+    /// The trim of the legacy assignments of the v1, on or off.
+    pub fn set_auto_trim(&mut self, on: bool) {
+        self.auto_trim = on;
     }
 
     /// The built-in of this name, in the dialect that runs.
@@ -1965,6 +1987,14 @@ impl<'a> Runtime<'a> {
             Node::Assign { name, op, value, line } => {
                 let value = self.evaluate(value)?;
                 let stored = self.write_a_variable(name, *op, value, *line)?;
+                detail = format!("{name} = {}", stored.to_text());
+            }
+            Node::LegacyAssign { name, text, line } => {
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // legacy assignment of the v1 is a text and not an
+                // expression: `x = 5 + 3` leaves `x` at "5 + 3".
+                let value = self.the_value_of_a_legacy_assignment(text, *line)?;
+                let stored = self.write_a_variable(name, AssignOp::Set, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
             }
             Node::LegacyCall { name, parameters, line } => {
@@ -7613,6 +7643,31 @@ impl<'a> Runtime<'a> {
         Ok(out)
     }
 
+    /// The value of the legacy assignment of the v1.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02:
+    ///
+    /// - The text of the right side is the text of the script, and the
+    ///   `%name%` of it is the value of the variable of that name.
+    /// - The `AutoTrim` trims the text of the assignment: with it On,
+    ///   `x = %z%` leaves `x` at the value of `z` without the spaces that
+    ///   come before it and the spaces that come after it, and with it Off
+    ///   the spaces are there.
+    /// - The text is a whole number when it is one in base ten: `x = 5`
+    ///   leaves `x` at the number 5, and `x = 5.5` leaves it at the text
+    ///   "5.5", and `x = 0x10` leaves it at the text "0x10".
+    fn the_value_of_a_legacy_assignment(
+        &mut self,
+        text: &str,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let text = self.the_substitution_of_the_v1(text, line)?;
+        // The `AutoTrim` of the v1 trims the text of the assignment. The
+        // parameters of a command are not trimmed by it.
+        let text = if self.auto_trim { text.trim().to_string() } else { text };
+        Ok(crate::v1::the_number_of_a_legacy_text(&text).unwrap_or(Value::Text(text)))
+    }
+
     /// The value of the substitution of a parameter of the v1.
     ///
     /// The variable of the script comes first, and the environment is what
@@ -7620,10 +7675,21 @@ impl<'a> Runtime<'a> {
     fn the_value_of_the_substitution(
         &mut self,
         name: &str,
-        _line: u32,
+        line: u32,
     ) -> Result<Option<Value>, RuntimeFailure> {
         if let Some(value) = self.lookup(name) {
             return Ok(Some(value));
+        }
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the built-in
+        // variable of the v1 is a value too: `%A_AutoTrim%` is "On".
+        if let Some(answer) = self.the_built_in_variable(name) {
+            return match answer {
+                Ok(value) => Ok(Some(value)),
+                Err(error) => Err(RuntimeFailure::Error(RuntimeError {
+                    message: error.message,
+                    line: if error.line == 0 { line } else { error.line },
+                })),
+            };
         }
         if !self.dialect.percent_looks_at_the_environment() {
             return Ok(None);
@@ -8621,6 +8687,7 @@ impl<'a> Runtime<'a> {
             Node::Expression { .. }
             | Node::Block { .. }
             | Node::LegacyCall { .. }
+            | Node::LegacyAssign { .. }
             | Node::If { .. }
             | Node::Switch { .. }
             | Node::While { .. }
@@ -9533,6 +9600,7 @@ pub fn op_name_in<'a>(
         Node::Group { .. } => "Group",
         Node::Empty { .. } => "Empty",
         Node::Legacy { .. } => "Legacy",
+        Node::LegacyAssign { .. } => "LegacyAssign",
     }
 }
 

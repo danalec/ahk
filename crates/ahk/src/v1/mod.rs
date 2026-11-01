@@ -25,7 +25,7 @@ pub use table::BUILTINS;
 pub use variables::{carries as carries_variable, refusal_of as refusal_of_variable};
 
 pub(crate) use names::{
-    file_read_line, func, input, is_by_ref, is_func, is_set, object,
+    auto_trim, file_read_line, func, input, is_by_ref, is_func, is_set, object,
 };
 
 /// The built-in variables of the v1 that the v2 does not carry.
@@ -98,8 +98,30 @@ pub fn carries_directive(name: &str) -> bool {
 ///
 /// `None` means the name is not a built-in variable of the v1: the name is a
 /// variable of the script.
-pub(crate) fn lookup_variable(name: &str) -> Option<Result<Value, RuntimeError>> {
-    variables::lookup(name)
+pub(crate) fn lookup_variable(
+    name: &str,
+    rt: &mut Runtime,
+) -> Option<Result<Value, RuntimeError>> {
+    variables::lookup(name, rt)
+}
+
+/// The number of the text of a legacy assignment of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the text of the
+/// legacy assignment is a whole number when it is one in base ten. "5" and
+/// "007" and "+5" and "-5" are numbers, and "5.5" and "0x10" and "1e3" and
+/// "5 5" are texts.
+pub(crate) fn the_number_of_a_legacy_text(text: &str) -> Option<Value> {
+    let mut body = text;
+    if let Some(rest) = body.strip_prefix('+') {
+        body = rest;
+    } else if let Some(rest) = body.strip_prefix('-') {
+        body = rest;
+    }
+    if body.is_empty() || !body.chars().all(|character| character.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<i64>().ok().map(Value::Int)
 }
 
 /// The write of the built-in variable of this name, when the name is one.

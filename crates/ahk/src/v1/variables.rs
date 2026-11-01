@@ -13,7 +13,7 @@ use alloc::format;
 use alloc::string::ToString;
 
 use crate::ast::AssignOp;
-use crate::runtime::{RuntimeError, Value};
+use crate::runtime::{Runtime, RuntimeError, Value};
 
 /// The value of a built-in variable of the v1.
 #[derive(Clone, Copy)]
@@ -22,6 +22,9 @@ enum TheValue {
     Text(&'static str),
     /// A whole number.
     Number(i64),
+    /// The value is the state of the runtime: the `A_AutoTrim` of the v1
+    /// says whether the text of a legacy assignment is trimmed.
+    TheTrim,
     /// The name is carried and the runtime refuses it: the reason is here.
     Refused(&'static str),
 }
@@ -49,8 +52,9 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     // The arguments of the script: the runner reads the script on its
     // standard input, and a script that writes the name has its own.
     ("A_Args", TheValue::Text("")),
-    // Measured: "On".
-    ("A_AutoTrim", TheValue::Text("On")),
+    // Measured: "On". The command `AutoTrim` turns the trim off, and the
+    // value of the name follows it.
+    ("A_AutoTrim", TheValue::TheTrim),
     // Measured: "10ms".
     ("A_BatchLines", TheValue::Text("10ms")),
     // The caret of the control that has the focus: the tree has none.
@@ -128,7 +132,7 @@ pub fn refusal_of(name: &str) -> Option<&'static str> {
 ///
 /// `None` means the name is not one of them: the name is a variable of the
 /// script.
-pub fn lookup(name: &str) -> Option<Result<Value, RuntimeError>> {
+pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError>> {
     let wanted = name.to_lowercase();
     for (carried, value) in THE_VARIABLES {
         if carried.to_lowercase() != wanted {
@@ -137,6 +141,11 @@ pub fn lookup(name: &str) -> Option<Result<Value, RuntimeError>> {
         return Some(match value {
             TheValue::Text(text) => Ok(Value::Text((*text).to_string())),
             TheValue::Number(number) => Ok(Value::Int(*number)),
+            // The trim of the legacy assignments is a state of the run, and
+            // the name of it says which one is in force.
+            TheValue::TheTrim => Ok(Value::Text(
+                if rt.auto_trim() { "On" } else { "Off" }.to_string(),
+            )),
             TheValue::Refused(reason) => {
                 Err(RuntimeError { message: (*reason).to_string(), line: 0 })
             }

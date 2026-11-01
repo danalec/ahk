@@ -14,6 +14,7 @@ use crate::builtins::*;
 /// The built-ins that the v1 carries.
 pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "Asc", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: ord },
+    Builtin { name: "AutoTrim", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: super::auto_trim },
     Builtin { name: "BlockInput", kind: BuiltinKind::Command, min: 1, max: 255, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
     Builtin { name: "Chr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: chr },
     Builtin { name: "Click", kind: BuiltinKind::Command, min: 0, max: 255, variant: 0, parameters: &[Parameter::Value], handler: click },

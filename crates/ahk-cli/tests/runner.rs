@@ -266,20 +266,29 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(report["dialect"], "v1");
     assert_eq!(report["total"], 384);
     // The names that the v1 has and the v2 does not are carried, and the
-    // eight that are still to do are pending.
-    assert_eq!(report["pending"], 8);
+    // seven that are still to do are pending.
+    assert_eq!(report["values"], 269);
+    assert_eq!(report["pending"], 7);
     let entries = report["entries"].as_array().expect("the entries are a list");
     let is_set = entries
         .iter()
         .find(|entry| entry["name"] == "IsSet")
         .expect("the name is in the report");
     assert_eq!(is_set["state"], "value");
+    // The `AutoTrim` is carried: the command turns the trim of the text of a
+    // legacy assignment on and off.
     let auto_trim = entries
         .iter()
         .find(|entry| entry["name"] == "AutoTrim")
         .expect("the name is in the report");
-    assert_eq!(auto_trim["state"], "pending");
-    assert!(auto_trim["reason"].is_string());
+    assert_eq!(auto_trim["state"], "value");
+    // A name that is still to do is pending, and it carries the reason.
+    let set_format = entries
+        .iter()
+        .find(|entry| entry["name"] == "SetFormat")
+        .expect("the name is in the report");
+    assert_eq!(set_format["state"], "pending");
+    assert!(set_format["reason"].is_string());
 }
 
 /// The names of the surface: the rows of the table, without the comments

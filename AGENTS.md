@@ -6141,3 +6141,40 @@ Two things came out of the run:
   `IsSet`.
 
 
+## 147. The legacy assignment of the v1 is a text, and the `AutoTrim` trims it
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The right side of the legacy assignment is a text and not an
+  expression.** `x = 5 + 3` leaves `x` at "5 + 3", `x = "abc"` leaves it at
+  `"abc"` with the quotes that were written, `x = (5+3)` leaves it at
+  "(5+3)", and `x = ` leaves it at nothing. The tree had it as an
+  expression, and it answered 8 for `x = 5 + 3`.
+- **The text is a whole number when it is one in base ten.** `x = 5` leaves
+  `x` at the number 5, and `x = 5.5` leaves it at the text "5.5", and `x =
+  0x10` leaves it at the text "0x10". The `SetFormat, Integer, H` says
+  which one it is: the text of `x = 255` is "0xFF", and the text of `x =
+  5.5` is "5.5" and not "5.50".
+- **The text is trimmed, and the `AutoTrim` trims the text that comes from a
+  substitution.** `x =    hello` leaves `x` at "hello" even with the
+  `AutoTrim` off, and `x = %z%` leaves `x` at the value of `z` without the
+  spaces that come before it and the spaces that come after it when the
+  `AutoTrim` is on. The parameters of a command are not trimmed by it.
+- **The `AutoTrim` is a command, and the `A_AutoTrim` says which one is in
+  force.** The command is "On" when the script begins, and the value that it
+  does not know is refused with "Parameter #1 invalid.".
+- **The text of the script is the text.** `FileAppend, [  pad  ], *` writes
+  `[  pad  ]`, and the tokens alone would keep one space. The parser keeps
+  the lines of the source for this.
+- **The substitution finds the built-in variables.** `%A_AutoTrim%` is "On".
+- **The equal sign does not write a member.** `o.a = 5` is refused at the
+  load with "This line does not contain a recognized action.".
+
+One thing is measured and not carried yet: the arithmetic of the v1 with a
+text. The tree concatenates when an operand is a text, and the v1 does not:
+the text that is written on the left of a `+` makes it a concatenation, the
+text that is written on the right of it makes the result blank, and the
+value of a variable is converted to a number when it can be. The block that
+carries it comes next.
+
+

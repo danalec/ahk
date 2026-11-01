@@ -730,7 +730,7 @@ pub mod precedence {
 /// The script is a script of the v2, the dialect of the tree.
 pub fn parse(source: &str) -> Result<Vec<Node>, SyntaxError> {
     let tokens = crate::lexer::tokenize(source)?;
-    Parser::new(tokens).parse_script()
+    Parser::new(source, tokens).parse_script()
 }
 
 /// Parse a script into statements, in the dialect of this name.
@@ -742,7 +742,7 @@ pub fn parse_with(
     dialect: &'static dyn crate::dialect::Dialect,
 ) -> Result<Vec<Node>, SyntaxError> {
     let tokens = crate::lexer::tokenize_with(source, dialect)?;
-    Parser::with_dialect(tokens, dialect).parse_script()
+    Parser::with_dialect(source, tokens, dialect).parse_script()
 }
 
 /// The members of a class: the methods, the properties, the properties
@@ -829,6 +829,12 @@ pub struct Parser {
     /// the legacy command, the equal sign that assigns, and the body of a
     /// single statement.
     dialect: &'static dyn crate::dialect::Dialect,
+    /// The lines of the source, the way the script wrote them.
+    ///
+    /// The text of the legacy dialect is the text of the script, and the
+    /// tokens know whether a space came before them and not how many spaces
+    /// there were: the lines are what keep the spaces of the script.
+    lines: Vec<String>,
 }
 
 /// An assignment of the script, and the place it was written.
@@ -860,15 +866,29 @@ struct PendingLiteral {
 
 impl Parser {
     /// A parser over the tokens, in the dialect of the tree.
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Self::with_dialect(tokens, crate::dialect::v2())
+    ///
+    /// The source is the text that the tokens came from: the text of the
+    /// legacy dialect is the text of the script, and the tokens know whether
+    /// a space came before them and not how many spaces there were.
+    pub fn new(source: &str, tokens: Vec<Token>) -> Self {
+        Self::with_dialect(source, tokens, crate::dialect::v2())
     }
 
     /// A parser over the tokens, in the dialect of this name.
+    ///
+    /// The source is the text that the tokens came from: the text of the
+    /// legacy dialect is the text of the script, and the tokens know whether
+    /// a space came before them and not how many spaces there were.
     pub fn with_dialect(
+        source: &str,
         tokens: Vec<Token>,
         dialect: &'static dyn crate::dialect::Dialect,
     ) -> Self {
+        // Measured on the binary of v2.0.19 on 2026-10-31: the script may
+        // begin with the byte order mark, and the mark is not a character of
+        // it. The lexer takes the mark away, and the lines of the source are
+        // the ones that the lexer counted.
+        let source = source.strip_prefix('\u{feff}').unwrap_or(source);
         Self {
             tokens,
             position: 0,
@@ -885,6 +905,7 @@ impl Parser {
             bases: Vec::new(),
             derefs: 0,
             loops: 0,
+            lines: source.split('\n').map(|line| line.to_string()).collect(),
             dialect,
         }
     }
@@ -2488,6 +2509,15 @@ impl Parser {
             self.the_expression_is_done(self.position, false)?;
             let operator = self.peek().clone();
             if operator.kind == TokenKind::Op && operator.value == "=" {
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // equal sign of the v1 does not write a member: the line
+                // holds no action, and it is named.
+                if self.dialect.assign_with_equal() {
+                    return Err(self.error(format!(
+                        "This line does not contain a recognized action.\n     Specifically: {}",
+                        the_source_of_the_line(self, name_token.line)
+                    )));
+                }
                 return Err(self.the_equal_sign_is_not_an_assignment(name_token.line));
             }
             let is_assignment = operator.kind == TokenKind::Op
@@ -2604,7 +2634,7 @@ impl Parser {
             // Measured on the binary of v1.1.37.02 on 2026-11-01: the equal
             // sign assigns in the v1: `x = 5` leaves `x` at 5.
             if self.dialect.assign_with_equal() {
-                return self.parse_assignment(name_token);
+                return self.parse_legacy_assignment(name_token);
             }
             return Err(self.the_equal_sign_is_not_an_assignment(name_token.line));
         }
@@ -2712,7 +2742,7 @@ impl Parser {
         let mut start = self.position;
         loop {
             let end = self.the_end_of_a_parameter(start);
-            let text = the_source_of_the_tokens(self, start, end);
+            let text = self.the_verbatim_source(start, end);
             parameters.push(text.trim().to_string());
             // The parser is after the parameter, and the comma that
             // separates it from the next one comes after that.
@@ -2728,6 +2758,76 @@ impl Parser {
             start = self.position;
         }
         Ok(parameters)
+    }
+
+    /// The legacy assignment of the v1: `x = 5`.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the right side
+    /// of the legacy assignment is a text and not an expression. `x = 5 + 3`
+    /// leaves `x` at "5 + 3", `x = "abc"` leaves it at `"abc"` with the
+    /// quotes that were written, and `x = (5+3)` leaves it at "(5+3)".
+    ///
+    /// The text is the text of the script, and the spaces that come before
+    /// it and the spaces that come after it are not a part of it.
+    fn parse_legacy_assignment(&mut self, name_token: Token) -> Result<Vec<Node>, SyntaxError> {
+        // The equal sign is the one that assigns.
+        self.next();
+        let start = self.position;
+        // The text of the legacy assignment is the rest of the line: the
+        // comma that comes before the end of it is a part of the text, and
+        // the line that comes after is a statement of its own.
+        let mut end = start;
+        while end < self.tokens.len() && self.tokens[end].kind != TokenKind::Newline {
+            end += 1;
+        }
+        let text = self.the_verbatim_source(start, end);
+        self.position = end;
+        self.end_of_statement()?;
+        self.the_assignment_is_recorded(
+            &name_token.value,
+            AssignOp::Set,
+            name_token.line,
+            name_token.column,
+        );
+        Ok(vec![Node::LegacyAssign {
+            name: name_token.value,
+            text: text.trim().to_string(),
+            line: name_token.line,
+        }])
+    }
+
+    /// The source of a range of tokens, the way the script wrote it.
+    ///
+    /// The spaces that the script wrote are in it: `FileAppend, [  pad  ]`
+    /// keeps the two spaces of the text, and the tokens alone would keep
+    /// one.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text of the
+    /// legacy dialect is the text of the script.
+    fn the_verbatim_source(&self, start: usize, end: usize) -> String {
+        let Some(first) = self.tokens.get(start) else { return String::new() };
+        let Some(last) = self.tokens.get(end.saturating_sub(1)) else { return String::new() };
+        // A text that goes from one line to the next is the text of the
+        // tokens: the source of the script has a newline in the middle.
+        if first.line != last.line {
+            return the_source_of_the_tokens(self, start, end);
+        }
+        let Some(line) = self.lines.get(first.line as usize - 1) else {
+            return the_source_of_the_tokens(self, start, end);
+        };
+        let chars: Vec<char> = line.chars().collect();
+        let from = first.column.saturating_sub(1) as usize;
+        // The end of the last token is the place of the token that comes
+        // after it: the spaces between the two are not a part of it.
+        let to = match self.tokens.get(end) {
+            Some(next) if next.line == first.line => next.column.saturating_sub(1) as usize,
+            _ => chars.len(),
+        };
+        if from >= to || to > chars.len() {
+            return the_source_of_the_tokens(self, start, end);
+        }
+        let text: String = chars[from..to].iter().collect();
+        text.trim_end().to_string()
     }
 
     /// Whether the line of a command of the v1 continues on the next one.

@@ -463,3 +463,139 @@ fn the_file_read_line_of_the_v1_reads_the_line_of_the_file() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
 }
+
+/// The right side of the legacy assignment of the v1 is a text.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `x = 5 + 3` leaves
+/// `x` at "5 + 3", `x = "abc"` leaves it at `"abc"` with the quotes that
+/// were written, and `x = (5+3)` leaves it at "(5+3)".
+#[test]
+fn the_right_side_of_the_legacy_assignment_of_the_v1_is_a_text() {
+    let report = run("x = 5 + 3");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5 + 3".into())));
+
+    let report = run("x = \"abc\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("\"abc\"".into())));
+
+    let report = run("x = (5+3)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("(5+3)".into())));
+}
+
+/// The text of the legacy assignment of the v1 is a whole number when it is
+/// one in base ten.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `x = 5` leaves `x`
+/// at the number 5, and `x = 5.5` leaves it at the text "5.5", and `x =
+/// 0x10` leaves it at the text "0x10".
+#[test]
+fn the_text_of_the_legacy_assignment_of_the_v1_is_a_whole_number() {
+    let report = run("x = 5");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+
+    let report = run("x = 5.5");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5.5".into())));
+
+    let report = run("x = 0x10");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0x10".into())));
+}
+
+/// The text of the legacy assignment of the v1 is trimmed, and the `AutoTrim`
+/// trims the text that comes from a substitution.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `x =    hello`
+/// leaves `x` at "hello", and `x = %z%` leaves `x` at the value of `z`
+/// without the spaces that come before it and the spaces that come after it
+/// when the `AutoTrim` is On.
+#[test]
+fn the_text_of_the_legacy_assignment_of_the_v1_is_trimmed() {
+    let report = run("x =    hello");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("hello".into())));
+
+    let report = run("z := \"  pad  \"\nx = %z%");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("pad".into())));
+
+    // The `AutoTrim` off leaves the spaces of the value that comes from the
+    // substitution.
+    let report = run("AutoTrim, Off\nz := \"  pad  \"\nx = %z%");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("  pad  ".into())));
+}
+
+/// The `AutoTrim` of the v1 turns the trim of the legacy assignments on and
+/// off, and the `A_AutoTrim` says which one is in force.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `A_AutoTrim` is
+/// "On" when the script begins, and it is "Off" after the command.
+#[test]
+fn the_auto_trim_of_the_v1_turns_the_trim_on_and_off() {
+    let report = run("x := A_AutoTrim");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("On".into())));
+
+    let report = run("AutoTrim, Off\nx := A_AutoTrim");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Off".into())));
+
+    // The value that the command does not know is refused.
+    let report = run("AutoTrim, Maybe");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #1 invalid.\n     Specifically: Maybe")
+    );
+}
+
+/// The parameters of a command of the v1 are not trimmed by the `AutoTrim`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the value that comes
+/// from a substitution keeps its spaces in the parameter of a command.
+#[test]
+fn the_parameters_of_a_command_of_the_v1_are_not_trimmed_by_the_auto_trim() {
+    let report = run("z := \"  pad  \"\nFileAppend, [%z%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[  pad  ]".to_string()]);
+}
+
+/// The text of a command of the v1 keeps the spaces of the script.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `FileAppend, [  pad
+/// ], *` writes `[  pad  ]`.
+#[test]
+fn the_text_of_a_command_of_the_v1_keeps_the_spaces_of_the_script() {
+    let report = run("FileAppend, [  pad  ], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[  pad  ]".to_string()]);
+}
+
+/// The substitution of a parameter of the v1 finds the built-in variables.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `%A_AutoTrim%` is
+/// "On".
+#[test]
+fn the_substitution_of_a_parameter_of_the_v1_finds_the_built_in_variables() {
+    let report = run("FileAppend, %A_AutoTrim%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["On".to_string()]);
+}
+
+/// The equal sign of the v1 does not write a member of an object.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the line holds no
+/// action, and it is refused at the load.
+#[test]
+fn the_equal_sign_of_the_v1_does_not_write_a_member_of_an_object() {
+    let error = ahk::parse_with("o := Object()\no.a = 5", dialect::v1())
+        .expect_err("the line holds no action");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: o.a = 5"
+    );
+}
