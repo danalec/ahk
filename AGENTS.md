@@ -6550,10 +6550,9 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   refuses with "Parameter #1 of StrLen requires a String, but received an
   Object.".
 
-The classes of the script of the v1 are not carried yet: the tree parses the
-`class` and the `this`, but the `new` of the v1 is not the operator of it,
-and the instance of a class is a blank text. It comes with the block of the
-classes of the script.
+The classes of the script of the v1 are carried since the block of the
+classes (§160): the `new` of the v1 is the operator of it, and the instance
+of a class is an object of the class.
 
 The built-in that wants a number refuses an object with the words of the v2,
 and the v1 answers a blank text there: `Abs(Object())` is a blank text in the
@@ -6591,4 +6590,44 @@ not a variable of the script.
 The test that walks the surface of the v1 asks the tree about every variable
 of it, so a name that the v1 refuses and the tree does not is a failure of
 the test and not of the reader.
+
+## 160. The classes of the script of the v1: the `new`, the `this` and the `__Init`
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `new` of the v1 makes an instance.** `new C` and `new C(5)` are the
+  two forms of it, and the word is not reserved: `new := 5` is a variable of
+  the script, and so is a `new` that no name follows.
+- **The arguments of the `new` are the ones of the `__New`.** The `__Init`
+  takes none, and it runs before the `__New`. The instance variables of the
+  class are assigned when the instance is made, and the `__Init` of the
+  script replaces them: the variables of the base are not assigned when the
+  derived class has an `__Init` of its own.
+- **The `this` of a method is the object the method was called on.** It is
+  the instance, and it is the class object when the method is called on the
+  class: `C.Say()` runs, and the v2 refuses it with "This value of type
+  \"Class\" has no method named \"Say\".".
+- **The `__Class` of the v1 is a property of an object.** A value that is
+  not an object has none, and the answer is the empty text; a class of the
+  script is named after itself.
+- **The call of a method of the v1 does not check the number of the
+  arguments.** The method runs only when the call gives a value to every
+  parameter that has no default, and the answer of a call that does not run
+  is the empty text. The arguments that the method does not want are
+  ignored.
+- **The `base` of the v1 is the base of the class where the method was
+  defined.** `base.Say()` calls the method of the base, and the word is only
+  that word inside a class and when a dot or a bracket follows it.
+- **The default value of a parameter of the v1 may be written with the
+  equal sign.** `f(a = 5)` and `f(a := 5)` are the same.
+- **The new of a class that is not there is the empty text**, and the v1
+  does not fail.
+
+The probe that compares the two is `egm-review/probe_both_v1_classes_all.py`:
+28 cases, and every one of them answers the same in the binary and in the
+tree.
+
+What stays out: the v1 refuses at the load a class that declares the same
+name twice -- "Duplicate declaration. Specifically: __Init" and "Duplicate
+class definition. Specifically: C" -- and the tree does not refuse them.
 

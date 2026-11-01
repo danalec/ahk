@@ -2184,6 +2184,10 @@ impl<'a> Runtime<'a> {
                 let value = self.call(name, arguments, *line)?;
                 detail = value.to_text();
             }
+            Node::New { name, arguments, line } => {
+                let value = self.new_instance(name, arguments, *line)?;
+                detail = value.to_text();
+            }
             Node::Block { body, .. } => {
                 self.run_block(body)?;
             }
@@ -3665,6 +3669,12 @@ impl<'a> Runtime<'a> {
         // method of an instance is refused with 'This value of type "Class"
         // has no method named "Say".'
         if self.class_name_of(target).is_some() {
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
+            // calls the method of the class object, and the `this` of the
+            // method is the class object.
+            if self.dialect.a_method_of_the_class_object_is_a_method_of_the_class() {
+                return self.find_the_instance_method_in(&class, name);
+            }
             return self.find_the_static_method_in(&class, name);
         }
         // A static method is not a member of an instance, and it is not a
@@ -3700,6 +3710,25 @@ impl<'a> Runtime<'a> {
             });
         }
         Ok(object)
+    }
+
+    /// The instance that the `new` of the v1 makes.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `new` makes
+    /// an instance of a class of the script, the `__Init` of the class runs
+    /// before the `__New`, and the arguments of the `new` are the ones of the
+    /// `__New`. The new of a class that is not there is the empty text, and
+    /// the v1 does not fail.
+    fn new_instance(
+        &mut self,
+        class: &str,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        if !self.classes.contains_key(&class.to_lowercase()) {
+            return Ok(Value::Text(String::new()));
+        }
+        self.construct(class, arguments, line)
     }
 
     /// The object a class makes, with the arguments already read.
@@ -4251,6 +4280,12 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<(), RuntimeFailure> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+        // not check the number of the arguments of a method, and the
+        // parameters that the call does not give a value to are empty.
+        if !self.dialect.the_call_of_a_method_checks_the_arity() {
+            return Ok(());
+        }
         // The rest of the arguments may be any number of them, and a
         // method that has one has no maximum.
         let variadic = method.parameters.iter().any(|parameter| parameter.variadic);
@@ -4314,31 +4349,49 @@ impl<'a> Runtime<'a> {
         // The rest of the arguments may be any number of them, and a
         // method that has one has no maximum.
         let variadic = method.parameters.iter().any(|parameter| parameter.variadic);
-        if !variadic && values.len() > method.parameters.len() {
-            let extra = self.the_name_of_the_method(class, method);
-            return Err(RuntimeFailure::Detailed(
-                RuntimeError {
-                    message: "Too many parameters passed to function.".into(),
-                    line,
-                },
-                Detail { what: String::new(), extra },
-            ));
-        }
-        // A parameter that has no default is required: v2 refuses the
-        // call and says that the parameter is missing.
-        for (index, parameter) in method.parameters.iter().enumerate() {
-            let is_missing = missing.get(index).copied().unwrap_or(false);
-            if (is_missing || values.get(index).is_none())
-                && parameter.default.is_none()
-                && !parameter.variadic
-            {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+        // not check the number of the arguments of a method.
+        if self.dialect.the_call_of_a_method_checks_the_arity() {
+            if !variadic && values.len() > method.parameters.len() {
+                let extra = self.the_name_of_the_method(class, method);
                 return Err(RuntimeFailure::Detailed(
                     RuntimeError {
-                        message: "Missing a required parameter.".into(),
+                        message: "Too many parameters passed to function.".into(),
                         line,
                     },
-                    Detail { what: String::new(), extra: parameter.name.clone() },
+                    Detail { what: String::new(), extra },
                 ));
+            }
+            // A parameter that has no default is required: v2 refuses the
+            // call and says that the parameter is missing.
+            for (index, parameter) in method.parameters.iter().enumerate() {
+                let is_missing = missing.get(index).copied().unwrap_or(false);
+                if (is_missing || values.get(index).is_none())
+                    && parameter.default.is_none()
+                    && !parameter.variadic
+                {
+                    return Err(RuntimeFailure::Detailed(
+                        RuntimeError {
+                            message: "Missing a required parameter.".into(),
+                            line,
+                        },
+                        Detail { what: String::new(), extra: parameter.name.clone() },
+                    ));
+                }
+            }
+        } else {
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
+            // calls the method only when the call gives a value to every
+            // parameter that has no default. Otherwise the method does not
+            // run, and the answer of the call is the empty text.
+            for (index, parameter) in method.parameters.iter().enumerate() {
+                let is_missing = missing.get(index).copied().unwrap_or(false);
+                if (is_missing || values.get(index).is_none())
+                    && parameter.default.is_none()
+                    && !parameter.variadic
+                {
+                    return Ok(Value::Text(String::new()));
+                }
             }
         }
         let mut scope: BTreeMap<String, Value> = BTreeMap::new();
@@ -5578,6 +5631,13 @@ impl<'a> Runtime<'a> {
     /// "Class" for a class itself. The prototype of a class is of the
     /// class it is the prototype of.
     fn the_class_of_the_value(&self, value: &Value) -> String {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the `__Class`
+        // of the v1 is a property of an object: a value that is not an
+        // object has none, and the answer is the empty text. A class of the
+        // script is named after itself.
+        if !self.dialect.every_value_carries_its_class() {
+            return self.class_of(value).unwrap_or_default();
+        }
         // A class is a value of its own kind, and v2 names it "Class".
         if self.class_name_of(value).is_some() {
             return "Class".to_string();
@@ -9000,6 +9060,7 @@ impl<'a> Runtime<'a> {
                 })
             }
             Node::Call { name, arguments, line } => self.call(name, arguments, *line),
+            Node::New { name, arguments, line } => self.new_instance(name, arguments, *line),
             Node::MethodCall { target, name, arguments, line } => {
                 // `super.m()`: the method of the base.
                 if let Node::Super { .. } = &**target {
@@ -10234,6 +10295,8 @@ pub fn op_name_in<'a>(
         },
         // The legacy command of the v1 is reported under its own name.
         Node::LegacyCall { name, .. } => name,
+        // The `new` of the v1 is reported under its own name.
+        Node::New { .. } => "New",
         // The command of the v1 that has a body is reported under its own
         // name as well.
         Node::LegacyIf { name, .. } => name,

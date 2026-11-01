@@ -2001,6 +2001,135 @@ fn the_global_of_a_built_in_variable_is_refused_by_the_v1() {
     assert!(report.ok);
 }
 
+/// The `new` of the v1 makes an instance of a class of the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `new` makes an instance, the `__Init` of the class runs before the
+/// `__New`, and the arguments of the `new` are the ones of the `__New`.
+#[test]
+fn the_new_of_the_v1_makes_an_instance() {
+    // The `__Init` of the script runs, and the `this` of it is the instance.
+    let report = run("class C {\n    __Init() {\n        this.x := 1\n    }\n}\no := new C\nx := o.x");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The `__New` of the script runs too.
+    let report = run("class C {\n    __New() {\n        this.x := 2\n    }\n}\no := new C\nx := o.x");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(2)));
+
+    // The arguments of the `new` are the ones of the `__New`.
+    let report = run("class C {\n    __New(a) {\n        this.x := a\n    }\n}\no := new C(5)\nx := o.x");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+
+    // The `__Init` takes no arguments: the `new` gives its arguments to the
+    // `__New` and to nothing else.
+    let report = run("class C {\n    __Init(a) {\n        this.x := a\n    }\n}\no := new C(5)\nx := o.x");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+
+    // The instance variables of the class are assigned when the instance is
+    // made.
+    let report = run("class C {\n    x := 5\n}\no := new C\nx := o.x");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+
+    // The new of a class that is not there is the empty text, and the v1
+    // does not fail.
+    let report = run("o := new Nothing\nx := o");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+
+    // The word `new` is not reserved: it is a variable of the script when no
+    // name follows it.
+    let report = run("new := 5\nx := new");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+}
+
+/// The class of an instance of the v1 is the name of the class.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `__Class` of the v1 is a property of an object, and a value that is not
+/// an object has none.
+#[test]
+fn the_class_of_the_instance_of_the_v1_is_the_name_of_the_class() {
+    let report = run("class C {\n}\no := new C\nx := o.__Class");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("C".into())));
+
+    // The class of a class that extends another is the name of it.
+    let report = run("class C {\n}\nclass D extends C {\n}\no := new D\nx := o.__Class");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("D".into())));
+
+    // The class of the class is the name of it too.
+    let report = run("class C {\n}\nx := C.__Class");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("C".into())));
+
+    // A value that is not an object has no class: the answer is the empty
+    // text.
+    let report = run("x := 5\ny := x.__Class");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+}
+
+/// The method of the class object of the v1 runs, and the `this` of it is
+/// the class object.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02. The v2
+/// refuses it: "This value of type \"Class\" has no method named \"Say\".".
+#[test]
+fn the_method_of_the_class_object_of_the_v1_runs() {
+    let report = run("class C {\n    Say() {\n        return \"hi\"\n    }\n}\nx := C.Say()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("hi".into())));
+
+    // The `this` of the method is the class object.
+    let report = run("class C {\n    Say() {\n        return this.__Class\n    }\n}\nx := C.Say()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("C".into())));
+}
+
+/// The call of a method of the v1 does not check the number of the
+/// arguments.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// method runs only when the call gives a value to every parameter that has
+/// no default, and the answer of a call that does not run is the empty text.
+#[test]
+fn the_call_of_a_method_of_the_v1_does_not_check_the_arity() {
+    // The method does not run when a parameter has no value.
+    let report = run("class C {\n    Say(a) {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+
+    // A parameter that has a default is fine.
+    let report = run("class C {\n    Say(a = 5) {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("hi".into())));
+
+    // The arguments that the method does not want are ignored.
+    let report = run("class C {\n    Say() {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say(1, 2)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("hi".into())));
+}
+
+/// The `base` of the v1 is the base of the class where the method was
+/// defined.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02.
+#[test]
+fn the_base_of_the_v1_is_the_base_of_the_class() {
+    let report = run(
+        "class C {\n    Say() {\n        return \"hi\"\n    }\n}\nclass D extends C {\n    Say() {\n        return base.Say()\n    }\n}\no := new D\nx := o.Say()",
+    );
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("hi".into())));
+}
+
 /// Every variable of the surface of the v1 is a variable that a script may
 /// not declare as global.
 ///

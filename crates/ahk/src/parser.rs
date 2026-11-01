@@ -3678,7 +3678,15 @@ impl Parser {
                 variadic = true;
             }
             let mut default = None;
-            if self.at_op(&[":="]) {
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
+            // writes the default value of a parameter with the equal sign as
+            // well: `f(a = 5)` and `f(a := 5)` are the same.
+            if self.at_op(&[":="])
+                || (self
+                    .dialect
+                    .the_default_of_a_parameter_may_be_written_with_the_equal_sign()
+                    && self.at_op(&["="]))
+            {
                 self.position += 1;
                 default = Some(Box::new(self.parse_expression()?));
             }
@@ -6451,6 +6459,17 @@ impl Parser {
                 }
             }
             TokenKind::Name => {
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // `new` of the v1 makes an instance of a class of the
+                // script, and the name of the class follows it. The word is
+                // not reserved: `new := 5` is a variable of the script, and
+                // so is a `new` that no name follows.
+                if self.dialect.the_new_makes_an_instance()
+                    && token.value.eq_ignore_ascii_case("new")
+                    && self.peek().kind == TokenKind::Name
+                {
+                    return self.parse_new(token.line);
+                }
                 // The parenthesis that is spaced is not a call: the
                 // concatenation of v2 takes the name and the value that
                 // follows it, and the space is what tells them apart.
@@ -6462,6 +6481,17 @@ impl Parser {
                     return self.parse_suffixes(call, true, false);
                 }
                 let name = token.value;
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // `base` of the v1 is the base of the class where the method
+                // was defined, and the word is only that word inside a
+                // class and when a dot or a bracket follows it.
+                if self.dialect.the_base_is_the_base_of_the_class()
+                    && self.in_class
+                    && name.eq_ignore_ascii_case("base")
+                    && (self.at_op(&["."]) || self.at_op(&["["]))
+                {
+                    return self.parse_suffixes(Node::Super { line: token.line }, true, false);
+                }
                 // The name of a variable that the script builds: `MyArray%i%`
                 // is the variable whose name is the text and the value of
                 // `i`, and the space is what tells it apart from the
@@ -7150,6 +7180,23 @@ impl Parser {
             self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at, end);
         }
         Ok(Node::Call { name, arguments, line })
+    }
+
+    /// The `new` of the v1: `new C` and `new C(5)`.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the name that
+    /// follows the word is the class, and the parenthesis that may follow
+    /// the name of the class carries the arguments of the constructor.
+    fn parse_new(&mut self, line: u32) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        let name = token.value.to_lowercase();
+        let mut arguments = Vec::new();
+        if self.at_op(&["("]) && !self.peek().spaced {
+            self.expect_op("(")?;
+            arguments = self.parse_arguments()?;
+            self.expect_op(")")?;
+        }
+        Ok(Node::New { name, arguments, line })
     }
 
     /// The call of the v1 is recorded, and it is checked at the end of the

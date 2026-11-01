@@ -987,12 +987,27 @@ concatenation of an object and of "a" is "a", and a built-in that wants a
 text takes it: `StrLen(Object())` is zero. The tree carries it since the
 block of the objects (2026-11-02).
 
-**What stays out of the objects.** The classes of the script of the v1 are
-not carried: the tree parses the `class` and the `this`, but the `new` of the
-v1 is not the operator of it, and the instance of a class is a blank text. It
-comes with the block of the classes of the script. And the built-in that
-wants a number refuses an object with the words of the v2, where the v1
-answers a blank text: `Abs(Object())` is a blank text in the v1.
+**What stays out of the objects.** The built-in that wants a number refuses
+an object with the words of the v2, where the v1 answers a blank text:
+`Abs(Object())` is a blank text in the v1.
+
+**The classes of the script of the v1.** The tree carries them since the
+block of the classes (2026-11-02): the `new` makes an instance -- `new C` and
+`new C(5)` , and the word is not reserved -- the arguments of the `new` are
+the ones of the `__New` , the `__Init` takes none and runs before it, the
+`this` of a method is the object the method was called on, the method of the
+class object runs (`C.Say()`) and the v2 refuses it, the `__Class` of the v1
+is a property of an object, the call of a method does not check the number of
+the arguments, the `base` is the base of the class where the method was
+defined, and the default value of a parameter may be written with the equal
+sign. The probe that compares the two is
+`egm-review/probe_both_v1_classes_all.py` , and every one of its 28 cases
+answers the same in the binary and in the tree.
+
+**What stays out of the classes.** The v1 refuses at the load a class that
+declares the same name twice -- "Duplicate declaration. Specifically: __Init"
+and "Duplicate class definition. Specifically: C" -- and the tree does not
+refuse them.
 
 **The `global` of a built-in variable.** The v1 refuses it at the load, and
 the refusal names the variable: "Built-in variables must not be declared.

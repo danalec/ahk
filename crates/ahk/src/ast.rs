@@ -408,6 +408,14 @@ pub enum Node {
     /// A command is a call written without parentheses: `Send "hello"`
     /// is the same built-in with its arguments in the same order.
     Call { name: String, arguments: Vec<Node>, line: u32 },
+    /// The `new` of the v1: `new C` and `new C(5)`.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `new` of
+    /// the v1 makes an instance of a class of the script, and the
+    /// parenthesis that may follow the name of the class carries the
+    /// arguments of the constructor. The v2 has no `new`: the class is
+    /// called.
+    New { name: String, arguments: Vec<Node>, line: u32 },
     /// The legacy command of the v1: `Msg, text`.
     ///
     /// The parameters of a command of the v1 are texts, and the shape of
@@ -647,6 +655,7 @@ impl Node {
             | Node::AssignIndex { line, .. }
             | Node::Index { line, .. }
             | Node::Call { line, .. }
+            | Node::New { line, .. }
             | Node::LegacyCall { line, .. }
             | Node::LegacyIf { line, .. }
             | Node::Expression { line, .. }

@@ -282,6 +282,67 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the `new` of the dialect makes an instance of a class.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has the
+    /// `new`, and the word is not reserved -- `new := 5` is a variable of
+    /// the script. The v2 does not have it: the class is called there.
+    fn the_new_makes_an_instance(&self) -> bool {
+        false
+    }
+
+    /// Whether the method of the class object is a method of the class.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 calls
+    /// `C.Say()`, and the `this` of the method is the class object. The v2
+    /// refuses it: "This value of type \"Class\" has no method named
+    /// \"Say\".".
+    fn a_method_of_the_class_object_is_a_method_of_the_class(&self) -> bool {
+        false
+    }
+
+    /// Whether the call of a method checks the number of the arguments.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+    /// check it -- a method that is called with too few arguments takes the
+    /// missing ones empty, and the `__Init` and the `__New` of a class are
+    /// called the same way. The v2 refuses the call.
+    fn the_call_of_a_method_checks_the_arity(&self) -> bool {
+        true
+    }
+
+    /// Whether every value carries the class of it.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `__Class` of
+    /// the v1 is a property of an object: a value that is not an object has
+    /// none, and the answer is the empty text. A class of the script is
+    /// named after itself. The v2 gives every value a class: "Integer",
+    /// "String", "Class" and the name of the class of the script.
+    fn every_value_carries_its_class(&self) -> bool {
+        true
+    }
+
+    /// Whether the `base` of the dialect is the base of the class where the
+    /// method was defined.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has the
+    /// `base`, and `base.Method()` calls the method of the base of the class
+    /// where the method was defined. The v2 has the `super`, and the base
+    /// of an object is the prototype of its class.
+    fn the_base_is_the_base_of_the_class(&self) -> bool {
+        false
+    }
+
+    /// Whether the default value of a parameter may be written with the
+    /// equal sign.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 writes it
+    /// with the equal sign as well -- `f(a = 5)` and `f(a := 5)` are the
+    /// same -- and the v2 knows only the two points.
+    fn the_default_of_a_parameter_may_be_written_with_the_equal_sign(&self) -> bool {
+        false
+    }
+
     /// The refusal of a `global` that names a built-in variable.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
@@ -578,5 +639,41 @@ impl Dialect for V1 {
             ));
         }
         None
+    }
+
+    fn the_new_makes_an_instance(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has
+        // the `new`.
+        true
+    }
+
+    fn a_method_of_the_class_object_is_a_method_of_the_class(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 calls
+        // the method of the class object.
+        true
+    }
+
+    fn the_call_of_a_method_checks_the_arity(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+        // not check the number of the arguments of a method.
+        false
+    }
+
+    fn every_value_carries_its_class(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the `__Class`
+        // of the v1 is a property of an object.
+        false
+    }
+
+    fn the_base_is_the_base_of_the_class(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has
+        // the `base`.
+        true
+    }
+
+    fn the_default_of_a_parameter_may_be_written_with_the_equal_sign(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 writes
+        // the default value of a parameter with the equal sign as well.
+        true
     }
 }
