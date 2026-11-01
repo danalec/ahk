@@ -254,6 +254,8 @@ pub(crate) fn put_the_state_back() {
     STATE.coord_caret.store(CLIENT, Ordering::Relaxed);
     STATE.coord_menu.store(CLIENT, Ordering::Relaxed);
     STATE.coord_tooltip.store(CLIENT, Ordering::Relaxed);
+    STATE.menu_mask_vk.store(MASK_VK, Ordering::Relaxed);
+    STATE.menu_mask_sc.store(MASK_SC, Ordering::Relaxed);
 }
 
 /// The state of the settings, with the defaults of v2.
@@ -443,14 +445,48 @@ fn the_encoding(value: &Value) -> Result<Value, String> {
 ///
 /// The dialect takes the virtual key of the key and leaves the scan code
 /// at zero: "vk58sc000" is the letter X.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the dialect takes the
+/// text of the virtual key and of the scan code as it is: "vk41sc01D" is
+/// the key and the scan code, and "sc01D" is the scan code alone.
 fn the_menu_mask_key(value: &Value) -> Result<Value, String> {
     let text = value.to_text();
+    if let Some((vk, sc)) = the_virtual_key_and_the_scan_code(&text) {
+        STATE.menu_mask_vk.store(vk as u8, Ordering::Relaxed);
+        STATE.menu_mask_sc.store(sc as u8, Ordering::Relaxed);
+        return Ok(Value::Text(menu_mask_text()));
+    }
     let Some(key) = find_key(&text) else {
         return Err(INVALID_VALUE.to_string());
     };
     STATE.menu_mask_vk.store(key.code as u8, Ordering::Relaxed);
     STATE.menu_mask_sc.store(0, Ordering::Relaxed);
     Ok(Value::Text(menu_mask_text()))
+}
+
+/// The virtual key and the scan code of a text, when the text names them.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the text is "vk41sc01D"
+/// -- the key and the scan code -- or "sc01D" -- the scan code alone, and
+/// the key of it is then zero. The numbers are the ones of the hexadecimal.
+fn the_virtual_key_and_the_scan_code(text: &str) -> Option<(u32, u32)> {
+    let lowered = text.to_lowercase();
+    let (vk, sc) = match lowered.strip_prefix("vk") {
+        Some(rest) => {
+            let (key, scan) = rest.split_once("sc")?;
+            (the_number_of_a_key(key)?, the_number_of_a_key(scan)?)
+        }
+        None => (0, the_number_of_a_key(lowered.strip_prefix("sc")?)?),
+    };
+    Some((vk, sc))
+}
+
+/// The number of a key in a text, read as the hexadecimal that it is.
+fn the_number_of_a_key(text: &str) -> Option<u32> {
+    if text.is_empty() || text.len() > 4 {
+        return None;
+    }
+    u32::from_str_radix(text, 16).ok()
 }
 
 /// The key that closes a menu, the way `A_MenuMaskKey` spells it.
@@ -486,27 +522,24 @@ fn the_reg_view(value: &Value) -> Result<Value, String> {
 
 /// The write of the mode of the matching of the titles.
 fn the_title_match_mode(value: &Value) -> Result<Value, String> {
-    let mode = match value {
-        Value::Int(number) => match *number {
-            1 => MODE_STARTS,
-            2 => MODE_CONTAINS,
-            3 => MODE_EXACT,
-            _ => return Err(INVALID_VALUE.to_string()),
-        },
-        other => match other.to_text().to_lowercase().as_str() {
-            "1" => MODE_STARTS,
-            "2" => MODE_CONTAINS,
-            "3" => MODE_EXACT,
-            "regex" => MODE_PATTERN,
-            _ => return Err(INVALID_VALUE.to_string()),
-        },
+    let Some(mode) = the_mode_of_the_matching(value) else {
+        return Err(INVALID_VALUE.to_string());
     };
     STATE.title_match_mode.store(mode, Ordering::Relaxed);
     Ok(mode_value(mode))
 }
 
 /// The write of the speed of the matching of the titles.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the dialect sends the
+/// value to the mode of the matching when the mode takes it, and to the
+/// speed when the speed takes it. A number is the mode, and a name is the
+/// speed.
 fn the_title_match_speed(value: &Value) -> Result<Value, String> {
+    if let Some(mode) = the_mode_of_the_matching(value) {
+        STATE.title_match_mode.store(mode, Ordering::Relaxed);
+        return Ok(mode_value(mode));
+    }
     let speed = match value.to_text().to_lowercase().as_str() {
         "fast" => FAST,
         "slow" => SLOW,
@@ -514,6 +547,28 @@ fn the_title_match_speed(value: &Value) -> Result<Value, String> {
     };
     STATE.title_match_speed.store(speed, Ordering::Relaxed);
     Ok(Value::Text(SPEEDS[speed as usize].to_string()))
+}
+
+/// The mode of the matching of the titles that a value names, when it names
+/// one.
+///
+/// The mode is the number from one to three, and the word "RegEx".
+fn the_mode_of_the_matching(value: &Value) -> Option<u8> {
+    match value {
+        Value::Int(number) => match *number {
+            1 => Some(MODE_STARTS),
+            2 => Some(MODE_CONTAINS),
+            3 => Some(MODE_EXACT),
+            _ => None,
+        },
+        other => match other.to_text().to_lowercase().as_str() {
+            "1" => Some(MODE_STARTS),
+            "2" => Some(MODE_CONTAINS),
+            "3" => Some(MODE_EXACT),
+            "regex" => Some(MODE_PATTERN),
+            _ => None,
+        },
+    }
 }
 
 /// The write of the level of the send.
@@ -1678,6 +1733,58 @@ impl Dialogs for Fake {}
                 "Parameter #1 of SetTitleMatchMode is invalid."
             );
         });
+    }
+
+    #[test]
+    fn the_mask_of_the_menu_takes_the_virtual_key_and_the_scan_code() {
+        let _turn = Turn::take();
+        reset();
+        // Measured on the binary of v2.0.19 on 2026-11-01: the dialect
+        // takes the text of the virtual key and of the scan code as it is,
+        // and the scan code alone is a mask whose key is zero.
+        assert_eq!(value("menumaskkey"), Value::Text("vk11sc01D".into()));
+        assert_eq!(
+            write_of("menumaskkey", &text("vk41sc01D")).unwrap().unwrap(),
+            Value::Text("vk41sc01D".into())
+        );
+        assert_eq!(value("menumaskkey"), Value::Text("vk41sc01D".into()));
+        assert_eq!(
+            write_of("menumaskkey", &text("sc01D")).unwrap().unwrap(),
+            Value::Text("vk00sc01D".into())
+        );
+        assert_eq!(value("menumaskkey"), Value::Text("vk00sc01D".into()));
+        // The name of a key is a mask too, and the scan code of it is zero.
+        assert_eq!(
+            write_of("menumaskkey", &text("Esc")).unwrap().unwrap(),
+            Value::Text("vk1Bsc000".into())
+        );
+    }
+
+    #[test]
+    fn the_speed_of_the_matching_sends_a_number_to_the_mode() {
+        let _turn = Turn::take();
+        reset();
+        // Measured on the binary of v2.0.19 on 2026-11-01: the dialect sends
+        // the value to the mode of the matching when the mode takes it, and
+        // to the speed when the speed takes it.
+        assert_eq!(value("titlematchmode"), Value::Int(2));
+        assert_eq!(value("titlematchmodespeed"), Value::Text("Fast".into()));
+        assert_eq!(write_of("titlematchmodespeed", &Value::Int(3)).unwrap().unwrap(), Value::Int(3));
+        assert_eq!(value("titlematchmode"), Value::Int(3));
+        // The speed is the one that was there.
+        assert_eq!(value("titlematchmodespeed"), Value::Text("Fast".into()));
+        // A name is the speed.
+        assert_eq!(
+            write_of("titlematchmodespeed", &text("Slow")).unwrap().unwrap(),
+            Value::Text("Slow".into())
+        );
+        assert_eq!(value("titlematchmodespeed"), Value::Text("Slow".into()));
+        assert_eq!(value("titlematchmode"), Value::Int(3));
+        // A value that neither of them takes is refused.
+        assert_eq!(
+            write_of("titlematchmodespeed", &text("Bogus")).unwrap().unwrap_err(),
+            "Invalid value."
+        );
     }
 
     #[test]

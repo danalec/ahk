@@ -5769,3 +5769,25 @@ The probes that measured the rules are in `egm-review/probe_block_o3.py`
 `egm-review/probe_block_o5.py` (6 cases, the names of the loop outside a
 loop) and in `egm-review/probe_block_o6.py` (10 cases, the loops that are
 inside one another).
+
+## 136. The mask of the menu takes the scan code, and the speed of the matching takes a number as the mode
+
+Measured on the binary of v2.0.19 on 2026-11-01: the two settings of the
+run that the tree refused with "Invalid value." and that the v2 takes.
+
+- **The mask of the menu takes the text of the virtual key and of the scan
+  code as it is:** "vk41sc01D" is the key and the scan code, and "sc01D"
+  is the scan code alone, and the key of it is then zero. The name of a key
+  is a mask too, and the scan code of it is zero.
+- **The speed of the matching sends the value to the mode of the matching
+  when the mode takes it, and to the speed when the speed takes it.** A
+  number is the mode -- `A_TitleMatchModeSpeed := 2` leaves the speed at
+  "Fast" and puts the mode at 2 -- and a name is the speed. The word
+  "RegEx" is the mode as well.
+- **A value that neither of them takes is refused** with "Invalid value.",
+  and the v2 refuses it with the dialogue of the machine.
+
+The probes that measured the rules are in `egm-review/probe_block_p.py`
+(11 cases), in `egm-review/probe_block_p2.py` (9 cases, the mode and the
+speed) and in `egm-review/probe_block_p4.py` (8 cases, the border between
+the mode and the speed).

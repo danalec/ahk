@@ -1146,6 +1146,13 @@ that asks for another one is refused with the reason.
   was there before. A setting that changes nothing here is kept all the
   same: the tree has no controls of a window and no registry. The one
   setting the tree does not keep refuses with the reason of its own name.
+- **The mask of the menu takes the scan code, and the speed of the matching
+  takes a number as the mode.** The mask is the text of the virtual key and
+  of the scan code as it is -- "vk41sc01D" -- or the scan code alone, and
+  the name of a key is a mask whose scan code is zero. The speed of the
+  matching sends the value to the mode of the matching when the mode takes
+  it, and to the speed when the speed takes it: a number is the mode, and a
+  name is the speed.
 - **The mode of the matching of the titles is handed to the desktop.** The
   rule of the mode is the dialect's, and it lives in the crate of the
   language: the desktop gives the titles of the machine, and `TitleMatch`
