@@ -8129,12 +8129,19 @@ impl<'a> Runtime<'a> {
         // the reference of the v2, and the output of the v1.
         // The built-in that says itself which parameters take a reference
         // asks in its own handler.
+        //
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+        // not check the kind of the arguments -- the built-in of the v1
+        // takes the text that holds a number, and it does not fail -- so the
+        // two checks below are the ones of the v2.
+        let checks_the_kind = self.dialect.the_built_in_checks_the_kind_of_its_arguments();
         let decides = crate::builtins::decides_references(builtin.name);
         for (index, value) in values.iter().enumerate() {
             if !matches!(value, Value::Reference(_))
                 || builtin.writes_back(index)
                 || decides
                 || crate::builtins::refuses_itself(builtin.name)
+                || !checks_the_kind
             {
                 continue;
             }
@@ -8174,7 +8181,7 @@ impl<'a> Runtime<'a> {
         for (index, value) in values.iter().enumerate() {
             // A reference is the business of the guard above: the
             // parameters that are written back take one.
-            if matches!(value, Value::Reference(_)) {
+            if matches!(value, Value::Reference(_)) || !checks_the_kind {
                 continue;
             }
             let message = match crate::builtins::wants(builtin.name, index) {
@@ -9908,10 +9915,19 @@ impl FloatFormat {
     /// The number is rounded to the decimals of the format, and the text is
     /// padded to the width of it.
     pub fn the_text_of(&self, number: f64) -> String {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the infinity
+        // of the v1 is the text of the C library: "1.#INF00" and "-1.#INF00".
+        if number.is_infinite() {
+            return if number < 0.0 {
+                "-1.#INF00".to_string()
+            } else {
+                "1.#INF00".to_string()
+            };
+        }
         let decimals = self.decimals as usize;
         let text = if self.scientific {
             let formatted = format!("{:.*e}", decimals, number);
-            // The exponent of the v1 has a sign and two digits: `1.0e+03`.
+            // The exponent of the v1 has a sign and three digits: `1.0e+003`.
             let (mantissa, exponent) = match formatted.split_once('e') {
                 Some((mantissa, exponent)) => (mantissa.to_string(), exponent.to_string()),
                 None => (formatted.clone(), String::new()),
@@ -9922,7 +9938,7 @@ impl FloatFormat {
             };
             format!("{mantissa}e{exponent}")
         } else {
-            format!("{:.*}", decimals, number)
+            the_text_of_the_number(number, decimals)
         };
         let width = self.width as usize;
         if text.chars().count() >= width {
@@ -10068,16 +10084,112 @@ pub(crate) fn the_order_of_the_texts(
     }
 }
 
-/// The digits of the exponent of the scientific notation: two at least.
+/// The digits of the exponent of the scientific notation: three at least.
 fn the_digits_of_the_exponent(digits: &str) -> String {
     let digits = digits.trim_start_matches('0');
     if digits.is_empty() {
-        "00".to_string()
-    } else if digits.len() < 2 {
-        format!("0{digits}")
+        "000".to_string()
+    } else if digits.len() < 3 {
+        format!("0{digits:0>2}")
     } else {
         digits.to_string()
     }
+}
+
+/// The text of a number, with the decimals of the format.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// writes the number with seventeen digits, and it rounds that number to
+/// the decimals of the format -- a half goes away from the zero. The text of
+/// the C library writes the digits that the double holds, and the two tell
+/// each other apart in the numbers that are big: `Exp(65)` is
+/// "16948892444103338000000000000.000000" and not
+/// "16948892444103337803358666752.000000".
+fn the_text_of_the_number(number: f64, decimals: usize) -> String {
+    let negative = number < 0.0;
+    // The seventeen digits of the double, and the place of the point.
+    let exact = format!("{:.16e}", number.abs());
+    let (mantissa, exponent) = match exact.split_once('e') {
+        Some((mantissa, exponent)) => (mantissa, exponent),
+        None => (exact.as_str(), "0"),
+    };
+    let digits: String = mantissa
+        .chars()
+        .filter(|character| character.is_ascii_digit())
+        .collect();
+    let exponent: i32 = exponent.parse().unwrap_or(0);
+    // The number is the digits with the point after `exponent + 1` of them.
+    let point = exponent + 1;
+    let mut whole = String::new();
+    let mut fraction = String::new();
+    if point <= 0 {
+        whole.push('0');
+        for _ in 0..-point {
+            fraction.push('0');
+        }
+        fraction.push_str(&digits);
+    } else {
+        let point = point as usize;
+        if point >= digits.len() {
+            whole.push_str(&digits);
+            for _ in 0..point - digits.len() {
+                whole.push('0');
+            }
+        } else {
+            whole.push_str(&digits[..point]);
+            fraction.push_str(&digits[point..]);
+        }
+    }
+    // The rounding: a half goes away from the zero.
+    if fraction.len() > decimals {
+        if fraction.as_bytes()[decimals] >= b'5' {
+            let mut index = decimals;
+            let mut carries = true;
+            while carries && index > 0 {
+                index -= 1;
+                let digit = fraction.as_bytes()[index] - b'0';
+                if digit == 9 {
+                    fraction.replace_range(index..index + 1, "0");
+                } else {
+                    fraction.replace_range(index..index + 1, &format!("{}", digit + 1));
+                    carries = false;
+                }
+            }
+            if carries {
+                // The rounding passed the point, and the whole number grows.
+                let mut index = whole.len();
+                let mut carries = true;
+                while carries && index > 0 {
+                    index -= 1;
+                    let digit = whole.as_bytes()[index] - b'0';
+                    if digit == 9 {
+                        whole.replace_range(index..index + 1, "0");
+                    } else {
+                        whole.replace_range(index..index + 1, &format!("{}", digit + 1));
+                        carries = false;
+                    }
+                }
+                if carries {
+                    whole.insert(0, '1');
+                }
+            }
+        }
+        fraction.truncate(decimals);
+    } else {
+        for _ in fraction.len()..decimals {
+            fraction.push('0');
+        }
+    }
+    let mut text = String::new();
+    if negative {
+        text.push('-');
+    }
+    text.push_str(&whole);
+    if decimals > 0 {
+        text.push('.');
+        text.push_str(&fraction);
+    }
+    text
 }
 
 /// The failure of the runtime, as the failure of a built-in.

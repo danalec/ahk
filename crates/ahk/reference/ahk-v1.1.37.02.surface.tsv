@@ -40,10 +40,20 @@
 # is a command of the v1, and the page of the documentation carries the
 # `Run` and the `RunWait` together, so the list of the names took one of
 # them and left the other out. The two have the same shape.
+# The math functions of the v1 were measured on the binary of v1.1.37.02
+# on 2026-11-02: the page of the documentation of the v1 that carries them
+# has the name of a command that the v1 does not have, and the first
+# measure of the surface took the names from the pages, so the functions of
+# the page were not measured.
 kind	class	name	min	max	shape
+function		Abs	1	1	Value
+function		ACos	1	1	Value
 function		Asc	1	1	Value
+function		ASin	1	1	Value
+function		ATan	1	1	Value
 command		AutoTrim	1	255	Value
 command		BlockInput	1	255	Value
+function		Ceil	1	1	Value
 function		Chr	1	1	Value
 command		Click	0	255	Value
 command		ClipWait	0	255	Value,Value
@@ -68,6 +78,7 @@ command		ControlMove	0	255	Value,Value,Value,Value,Value,Value,Value,Value,Value
 command		ControlSend	2	255	Value,Value,Value,Value,Value,Value
 command		ControlSetText	0	255	Value,Value,Value,Value,Value,Value
 command		CoordMode	1	255	Value,Value
+function		Cos	1	1	Value
 command		Critical	0	255	Value
 command		DetectHiddenText	1	255	Value
 command		DetectHiddenWindows	1	255	Value
@@ -87,6 +98,7 @@ command		EnvUpdate	0	255
 variable		ErrorLevel			
 command		Exit	0	255	Value
 command		ExitApp	0	255	Value
+function		Exp	1	1	Value
 command		FileAppend	0	255	Value,Value,Value
 command		FileCopy	2	255	Value,Value,Value
 command		FileCopyDir	2	255	Value,Value,Value
@@ -113,6 +125,7 @@ command		FileSelectFile	1	255	Output,Value,Value,Value,Value
 command		FileSelectFolder	1	255	Output,Value,Value,Value
 command		FileSetAttrib	1	255	Value,Value,Value,Value
 command		FileSetTime	0	255	Value,Value,Value,Value,Value
+function		Floor	1	1	Value
 function		Format	1	255	Value,Value
 command		FormatTime	1	255	Output,Value,Value
 function		Func	1	1	Value
@@ -148,10 +161,15 @@ command		KeyWait	1	255	Value,Value
 command		ListHotkeys	0	255	
 command		ListLines	0	255	Value
 command		ListVars	0	255	
+function		Ln	1	1	Value
 function		LoadPicture	1	3	Value,Value,Output
+function		Log	1	1	Value
+function		Max	1	255	Value
 command		Menu	2	255	Value,Value,Value,Value,Value,Value
 function		MenuGetHandle	1	1	Value
 function		MenuGetName	1	1	Value
+function		Min	1	255	Value
+function		Mod	2	2	Value
 command		MouseClick	0	255	Value,Value,Value,Value,Value,Value,Value
 command		MouseClickDrag	1	255	Value,Value,Value,Value,Value,Value,Value
 command		MouseGetPos	0	255	Output,Output,Output,Output,Value
@@ -180,6 +198,7 @@ command		RegRead	1	255	Output,Value,Value,Value
 command		RegWrite	0	255	Value,Value,Value,Value,Value
 function		RegisterCallback	1	4	Value,Value,Value,Value
 command		Reload	0	255	
+function		Round	1	2	Value
 command		Run	1	255	Value,Value,Value,Output
 command		RunAs	0	255	Value,Value,Value
 command		RunWait	1	255	Value,Value,Value,Output
@@ -200,6 +219,7 @@ command		SetTitleMatchMode	1	255	Value
 command		SetWinDelay	1	255	Value
 command		SetWorkingDir	1	255	Value
 command		Shutdown	1	255	Value
+function		Sin	1	1	Value
 command		Sleep	1	255	Value
 command		Sort	1	255	Variable,Value
 command		SoundBeep	0	255	Value,Value
@@ -210,6 +230,7 @@ command		SoundSet	1	255	Value,Value,Value,Value
 command		SoundSetWaveVolume	1	255	Value,Value
 command		SplashTextOn	0	255	Value,Value,Value,Value
 command		SplitPath	1	255	Variable,Output,Output,Output,Output,Output
+function		Sqrt	1	1	Value
 command		StatusBarGetText	1	255	Output,Value,Value,Value,Value,Value
 command		StatusBarWait	0	255	Value,Value,Value,Value,Value,Value,Value,Value
 function		StrGet	1	3	Value,Value,Value
@@ -229,6 +250,7 @@ command		StringTrimLeft	3	255	Output,Variable,Value
 function		SubStr	2	3	Value,Value,Value
 command		Suspend	0	255	Value
 command		SysGet	2	255	Output,Value,Value
+function		Tan	1	1	Value
 command		Thread	1	255	Value,Value,Value
 command		ToolTip	0	255	Value,Value,Value,Value
 command		Transform	2	255	Output,Value,Value,Value

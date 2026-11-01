@@ -2130,6 +2130,109 @@ fn the_base_of_the_v1_is_the_base_of_the_class() {
     assert_eq!(report.variables.get("x"), Some(&Value::Text("hi".into())));
 }
 
+/// The math functions of the v1 take the text that holds a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: a text
+/// that does not hold a number is the number zero for most of the functions
+/// -- and the empty text for the `Abs`, the `Max`, the `Min` and the `Mod`.
+/// The answer keeps the kind of the number, and the number that is outside
+/// of the domain of the function is the empty text.
+#[test]
+fn the_math_functions_of_the_v1_take_the_text_that_holds_a_number() {
+    // The answer keeps the kind of the number.
+    let report = run("y := Abs(5)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(5)));
+
+    let report = run("y := Abs(-2.5)\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Float(2.5)));
+    assert_eq!(report.output, vec!["2.500000".to_string()]);
+
+    // A text that does not hold a number is the empty text for the `Abs`.
+    let report = run("y := Abs(\"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    // It is the number zero for the others.
+    let report = run("y := Ceil(\"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(0)));
+
+    let report = run("y := Exp(\"abc\")\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1.000000".to_string()]);
+
+    // The whole numbers go up and down.
+    let report = run("y := Ceil(2.5)");
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(3)));
+
+    let report = run("y := Floor(2.5)");
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(2)));
+
+    // A half is rounded away from the zero.
+    let report = run("y := Round(5.5)");
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The digits of the second argument are the decimals of the answer.
+    let report = run("y := Round(1.234, 2)");
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("1.23".into())));
+
+    // The number that is outside of the domain is the empty text.
+    let report = run("y := Ln(-2.5)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    let report = run("y := Sqrt(-2.5)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    let report = run("y := ASin(5)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    // The logarithm of the zero is the infinity of the C library.
+    let report = run("y := Ln(0)\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["-1.#INF00".to_string()]);
+
+    // The remainder of the division keeps the kind of the numbers.
+    let report = run("y := Mod(5, 2)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(1)));
+
+    let report = run("y := Mod(5.5, 2)\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1.500000".to_string()]);
+
+    // The divisor of zero is the empty text.
+    let report = run("y := Mod(5, 0)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    // The biggest and the smallest take any number of them.
+    let report = run("y := Max(1, 9, 4)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(9)));
+
+    let report = run("y := Min(1, 9, 4)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(1)));
+
+    // A text that does not hold a number is the empty text for them too.
+    let report = run("y := Max(5, \"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    // The number of the arguments is checked at the load.
+    let error = ahk::parse_with("y := Abs()", dialect::v1())
+        .expect_err("the function wants a number");
+    assert_eq!(
+        error.message,
+        "Too few parameters passed to function.\n     Specifically: Abs()"
+    );
+}
+
 /// Every variable of the surface of the v1 is a variable that a script may
 /// not declare as global.
 ///
@@ -2167,3 +2270,167 @@ fn every_variable_of_the_surface_of_the_v1_may_not_be_declared_global() {
     // one that is not refused.
     assert_eq!(count, 137);
 }
+
+/// The math functions of the v1 read the number that the text starts with.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the `Ceil`,
+/// the `Floor`, the `Round`, the `Exp`, the `Ln`, the `Log`, the `Sqrt`, the
+/// `Sin`, the `Cos`, the `Tan`, the `ASin`, the `ACos` and the `ATan` want
+/// the number that the text of the argument starts with -- "65abc" is 65 --
+/// and the exponent does not need the point of the number: "1e3" is 1000.
+#[test]
+fn the_math_functions_of_the_v1_read_the_number_that_the_text_starts_with() {
+    // The number that the text starts with is the number.
+    let report = run("y := Ceil(\"65abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(65)));
+
+    let report = run("y := Floor(\"007abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(7)));
+
+    // The exponent of the number is part of it.
+    let report = run("y := Ceil(\"1e3\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(1000)));
+
+    let report = run("y := Log(\"1.5e2\")\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["2.176091".to_string()]);
+
+    // The text that does not start with a number is the number zero.
+    let report = run("y := Log(\"abc65\")\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["-1.#INF00".to_string()]);
+
+    // The hex of the v1 is a number.
+    let report = run("y := Ceil(\"0x41\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(65)));
+}
+
+/// The `Abs`, the `Max`, the `Min` and the `Mod` of the v1 want a text that
+/// is a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the text
+/// of the argument has to be the number, and "65abc" is not a number at
+/// all. The exponent needs the point of the number: "1.5e2" is 150 and
+/// "1e2" is not a number.
+#[test]
+fn the_abs_and_the_max_of_the_v1_want_a_text_that_is_a_number() {
+    // A text that is not a number is the empty text.
+    let report = run("y := Abs(\"65abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    let report = run("y := Max(\"65abc\", 1)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    let report = run("y := Mod(\"65abc\", 2)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    // The exponent needs the point.
+    let report = run("y := Abs(\"1.5e2\")\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["150.000000".to_string()]);
+
+    let report = run("y := Abs(\"1e2\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+}
+
+/// The `Chr` of the v1 takes the whole number that the text starts with.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the code is
+/// the whole number that the text of the argument starts with, and it stops
+/// at the point: "1e3" is one. A code that is zero, that is negative or
+/// that is not a character is the empty text.
+#[test]
+fn the_chr_of_the_v1_takes_the_whole_number_that_the_text_starts_with() {
+    // The text that holds a number is the number.
+    let report = run("y := Chr(65)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("A".into())));
+
+    let report = run("y := Chr(\"65\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("A".into())));
+
+    // The number that the text starts with is the number.
+    let report = run("y := Chr(\"65abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("A".into())));
+
+    // The whole number stops at the point.
+    let report = run("y := Chr(\"1e3\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("\u{1}".into())));
+
+    // The hex of the v1 is a number.
+    let report = run("y := Chr(\"0x41\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("A".into())));
+
+    // A text that does not start with a number is the empty text.
+    let report = run("y := Chr(\"abc\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    // The zero and the number that is negative are the empty text too.
+    let report = run("y := Chr(0)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    let report = run("y := Chr(-1)");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+}
+
+/// The text of a float of the v1 has seventeen digits.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// writes the number with seventeen digits and rounds that number to the
+/// decimals of the format, and a half goes away from the zero.
+#[test]
+fn the_text_of_a_float_of_the_v1_has_seventeen_digits() {
+    // The number of the v1 is a number of seventeen digits, and not the
+    // number that the double holds.
+    let report = run("y := Exp(65)\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(
+        report.output,
+        vec!["16948892444103338000000000000.000000".to_string()]
+    );
+
+    // A half goes away from the zero, and not to the even number.
+    let report = run("y := 0.125+0\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0.125000".to_string()]);
+
+    let report = run("SetFormat, Float, 0.2\ny := 0.125+0\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0.13".to_string()]);
+
+    // The exponent of the scientific notation has three digits.
+    let report = run("SetFormat, Float, 0.6e\ny := Exp(30)\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1.068647e+013".to_string()]);
+}
+
+/// The whole number of the v1 that does not fit is the largest one.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// keeps the whole numbers in sixty-four bits, and the number that is
+/// written and does not fit is the largest of them.
+#[test]
+fn the_whole_number_of_the_v1_that_does_not_fit_is_the_largest_one() {
+    let report = run("y := 100000000000000000000");
+    assert!(report.ok);
+    assert_eq!(
+        report.variables.get("y"),
+        Some(&Value::Int(i64::MAX))
+    );
+}
+

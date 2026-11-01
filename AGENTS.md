@@ -6191,6 +6191,13 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   "0.333333" and not "0.3333333333333333", and `SetFormat, Float, 0.2` makes
   it "0.33". The whole number follows the base of the format: with the "H"
   it is "0xFF", and with the "h" it is "0xff".
+- **The number of the v1 has seventeen digits.** `Exp(65)` is
+  "16948892444103338000000000000.000000" and not
+  "16948892444103337803358666752.000000", and the format rounds that number
+  to its decimals -- a half goes away from the zero. The exponent of the
+  scientific notation has a sign and three digits: "1.068647e+013".
+- **The whole number of the v1 that does not fit is the largest one.**
+  `x := 100000000000000000000` is 9223372036854775807, and not a float.
 - **The float that is written keeps the text that was written.** `x := 1.5` is
   "1.5", and the format of the floats does not change it: the format rounds
   the floats that are computed, and not the ones that are written.
@@ -6201,7 +6208,7 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   refuses the script at the load, because a name cannot begin with a number.
 
 The `SetFormat` leaves the pending table of the v1: the surface of the v1
-has 270 values, 108 refusals and 6 pending names.
+has 296 values, 108 refusals and 1 pending name.
 
 
 ## 149. The arithmetic of the v1 converts a value and does not concatenate
@@ -6630,4 +6637,44 @@ tree.
 What stays out: the v1 refuses at the load a class that declares the same
 name twice -- "Duplicate declaration. Specifically: __Init" and "Duplicate
 class definition. Specifically: C" -- and the tree does not refuse them.
+
+## 161. The v1 reads a text as a number in three ways, and the built-in does not check its arguments
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The built-in of the v1 does not check the kind of its arguments.** The
+  `Abs("65")` is 65 and the `Abs("abc")` is the empty text, and the v2
+  refuses the text with "Parameter #1 of Abs requires a Number, but received
+  a String.".
+- **The v1 reads a text as a number in three ways.** The `Abs`, the `Max`,
+  the `Min` and the `Mod` want a text that *is* a number -- "5.5" is 5.5,
+  "0x10" is 16, " 5 " is 5, and "5abc" is not a number at all. The other
+  thirteen functions of the math want the number that the text *starts* with
+  -- "65abc" is 65 and "1e3" is 1000. The `Chr` wants the whole number that
+  the text starts with -- "1e3" is 1.
+- **The exponent of the v1 needs the point of the number.** "1.5e2" is 150
+  and "1e2" is not a number. The documentation of the v1 says the same:
+  "scientific notation must include a decimal point".
+- **A text that does not start with a number is the number zero** for the
+  functions that compute with it, and the empty text for the four that want
+  a number. The number that is outside of the domain of the function is the
+  empty text as well.
+- **The `Chr` of the v1 is a function of its own.** It takes the whole
+  number that the text of the argument starts with, and the code that is
+  zero, that is negative or that is not a character is the empty text.
+
+The rules live in the module of the numbers of the v1
+(`crates/ahk/src/v1/numbers.rs`) and in the module of the math
+(`crates/ahk/src/v1/math.rs`), and the character has its own
+(`crates/ahk/src/v1/chars.rs`). The probes that compare the two are
+`egm-review/probe_both_v1_number_coercion.py` (215 of 216),
+`egm-review/probe_both_v1_math.py` (174 of 174) and
+`egm-review/probe_both_v1_float_text.py` (120 of 120).
+
+What stays out: the `Chr` of a code that is outside of the plane of the
+basic multilingual plane -- the v1 answers with the pair of surrogates of
+its UTF-16 and the tree with the character -- and the format of the floats
+that the v1 takes with something after the "e" ("0.6e3"): the v1 accepts it
+and writes the rest of the format at the end of the number, and the tree
+refuses it.
 

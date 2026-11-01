@@ -6408,7 +6408,7 @@ impl Parser {
         let token = self.next();
         let node = match token.kind {
             TokenKind::Number => {
-                let value = the_number_of(&token.value);
+                let value = the_number_of(&token.value, self.dialect);
                 Node::Literal { value, line: token.line }
             }
             TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
@@ -6773,7 +6773,7 @@ impl Parser {
                 // refused.
                 if name.kind != TokenKind::Name
                     && name.kind != TokenKind::Keyword
-                    && !the_number_is_a_whole_one(&name)
+                    && !the_number_is_a_whole_one(&name, self.dialect)
                 {
                     // Measured on the binary of v2.0.19 on 2026-11-01: the
                     // comma that opens the list is the name that is not
@@ -7270,8 +7270,8 @@ fn the_operator_wants_a_number(op: BinaryOp) -> bool {
 ///
 /// The numbers of v2 that carry a point are not names: the point of them
 /// is the point of a member.
-fn the_number_is_a_whole_one(token: &Token) -> bool {
-    token.kind == TokenKind::Number && matches!(the_number_of(&token.value), LiteralValue::Integer(_))
+fn the_number_is_a_whole_one(token: &Token, dialect: &'static dyn crate::dialect::Dialect) -> bool {
+    token.kind == TokenKind::Number && matches!(the_number_of(&token.value, dialect), LiteralValue::Integer(_))
 }
 
 /// The number of a token, as v2 reads it.
@@ -7282,7 +7282,11 @@ fn the_number_is_a_whole_one(token: &Token) -> bool {
 /// whole number.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-30.
-fn the_number_of(text: &str) -> LiteralValue {
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 keeps the
+/// whole numbers in sixty-four bits, and the one that is written and does
+/// not fit is the largest of them.
+fn the_number_of(text: &str, dialect: &'static dyn crate::dialect::Dialect) -> LiteralValue {
     if let Some(digits) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
         return match u64::from_str_radix(digits, 16) {
             Ok(number) => LiteralValue::Integer(number as i64),
@@ -7295,7 +7299,10 @@ fn the_number_of(text: &str) -> LiteralValue {
     match text.parse::<i64>() {
         Ok(number) => LiteralValue::Integer(number),
         // A whole number that does not fit in the machine is a float.
-        Err(_) => LiteralValue::Float(text.parse::<f64>().unwrap_or(0.0)),
+        Err(_) if !dialect.a_whole_number_that_does_not_fit_is_the_largest_one() => {
+            LiteralValue::Float(text.parse::<f64>().unwrap_or(0.0))
+        }
+        Err(_) => LiteralValue::Integer(i64::MAX),
     }
 }
 

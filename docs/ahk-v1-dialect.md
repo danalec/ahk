@@ -1026,6 +1026,39 @@ the `A_TrayMenu` is a variable of the v2. The tree carries it since the
 block of the `global` (2026-11-02), and the test that walks the surface of
 the v1 asks the tree about every variable of it.
 
+**The coercion of the built-ins of the v1.** The built-in of the v1 does not
+check the kind of its arguments -- the `Abs("65")` is 65 and the
+`Abs("abc")` is the empty text -- and the v1 reads a text as a number in
+three ways. The `Abs` , the `Max` , the `Min` and the `Mod` want a text that
+*is* a number, the other thirteen functions of the math want the number that
+the text *starts* with ("65abc" is 65, and "1e3" is 1000), and the `Chr`
+wants the whole number that the text starts with ("1e3" is 1). The exponent
+of the v1 needs the point of the number: "1.5e2" is 150 and "1e2" is not a
+number -- the documentation of the v1 says the same. The `Chr` is a function
+of the v1 and not a row of the v2: the code that is zero, that is negative
+or that is not a character is the empty text.
+
+**The text of a float of the v1.** The number of the v1 has seventeen digits,
+and the format rounds that number to its decimals -- a half goes away from
+the zero. `Exp(65)` is "16948892444103338000000000000.000000" and not
+"16948892444103337803358666752.000000", and the exponent of the scientific
+notation has three digits: "1.068647e+013". The whole number of the v1 that
+does not fit in sixty-four bits is the largest one:
+`x := 100000000000000000000` is 9223372036854775807.
+
+**The block carries.** The tree carries these three rules since the block of
+the block of the coercion (2026-11-02), and the probes that compare the two are
+`egm-review/probe_both_v1_number_coercion.py` (215 of 216) ,
+`egm-review/probe_both_v1_math.py` (174 of 174) and
+`egm-review/probe_both_v1_float_text.py` (120 of 120).
+
+**What stays out of the coercion.** The `Chr` of a code that is outside of the
+plane of the basic multilingual plane: the v1 answers with the pair of
+surrogates of its UTF-16 and the tree with the character. And the format of
+the floats that the v1 takes with something after the "e" ("0.6e3"): the v1
+accepts it and writes the rest of the format at the end of the number, and
+the tree refuses it.
+
 ---
 
 ## 5. The risks

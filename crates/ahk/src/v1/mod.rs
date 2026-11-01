@@ -17,7 +17,10 @@ use alloc::vec::Vec;
 use crate::builtins::BuiltinHandler;
 use crate::runtime::{Runtime, RuntimeError, Value};
 
+mod chars;
+mod math;
 mod names;
+mod numbers;
 mod table;
 mod variables;
 
@@ -28,6 +31,17 @@ pub(crate) use names::the_command_is_the_else;
 pub(crate) use names::{else_of_the_v1, if_in_string, if_msg_box, if_not_in_string};
 pub use table::BUILTINS;
 pub use variables::{carries as carries_variable, may_not_be_declared, refusal_of as refusal_of_variable};
+
+pub(crate) use chars::chr;
+
+pub(crate) use math::{
+    abs, acos, asin, atan, ceil, cos, exp, floor, ln, log, max, min, modulo, round, sin, sqrt, tan,
+};
+
+pub(crate) use numbers::{
+    the_number_at_the_start_of_a_text, the_number_of_a_text,
+    the_whole_number_at_the_start_of_a_text,
+};
 
 pub(crate) use names::{
     auto_trim, file_read_line, func, input, is_by_ref, is_func, is_set, object, set_format,
@@ -128,47 +142,6 @@ pub(crate) fn the_number_of_a_legacy_text(text: &str) -> Option<Value> {
         return None;
     }
     text.parse::<i64>().ok().map(Value::Int)
-}
-
-/// The number of a text in the v1, when the text is one.
-///
-/// Measured on the binary of v1.1.37.02 on 2026-11-02: "5" is 5, and "5.5"
-/// is 5.5, and " 5 " is 5, and "0x10" is 16. A text that is not a number
-/// ("abc", "5abc", "1e3" and the empty text) is not a number at all, and the
-/// operation that wants one is blank.
-pub(crate) fn the_number_of_a_text(text: &str) -> Option<Value> {
-    let text = text.trim();
-    if text.is_empty() {
-        return None;
-    }
-    // The hex of the v1: 0x10 is 16.
-    if let Some(hex) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
-        return i64::from_str_radix(hex, 16).ok().map(Value::Int);
-    }
-    let body = text.strip_prefix('+').or_else(|| text.strip_prefix('-')).unwrap_or(text);
-    if body.is_empty() {
-        return None;
-    }
-    // A number of base ten: the sign, the digits and the point.
-    let mut whole = true;
-    let mut digits = 0usize;
-    for character in body.chars() {
-        match character {
-            '0'..='9' => digits += 1,
-            '.' if whole => whole = false,
-            _ => return None,
-        }
-    }
-    if digits == 0 {
-        return None;
-    }
-    if whole {
-        // The whole number: the sign is a part of it.
-        return text.parse::<i64>().ok().map(Value::Int);
-    }
-    // The number with a point: the sign is a part of it.
-    let number: f64 = text.parse().ok()?;
-    Some(Value::Float(number))
 }
 
 /// The write of the built-in variable of this name, when the name is one.

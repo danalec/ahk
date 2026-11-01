@@ -322,6 +322,25 @@ pub trait Dialect: Sync {
         true
     }
 
+    /// Whether the built-in checks the kind of its arguments.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+    /// check it -- the built-in of the v1 takes the text that holds a number
+    /// and does not fail -- and the v2 refuses the value of another kind.
+    fn the_built_in_checks_the_kind_of_its_arguments(&self) -> bool {
+        true
+    }
+
+    /// Whether a whole number that does not fit is the largest one.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 keeps the
+    /// whole numbers in sixty-four bits, and the number that is written and
+    /// does not fit is the largest of them: `x := 100000000000000000000` is
+    /// 9223372036854775807.
+    fn a_whole_number_that_does_not_fit_is_the_largest_one(&self) -> bool {
+        false
+    }
+
     /// Whether the `base` of the dialect is the base of the class where the
     /// method was defined.
     ///
@@ -663,6 +682,18 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the `__Class`
         // of the v1 is a property of an object.
         false
+    }
+
+    fn the_built_in_checks_the_kind_of_its_arguments(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
+        // not check the kind of the arguments.
+        false
+    }
+
+    fn a_whole_number_that_does_not_fit_is_the_largest_one(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the whole
+        // number that is written and does not fit is the largest one.
+        true
     }
 
     fn the_base_is_the_base_of_the_class(&self) -> bool {
