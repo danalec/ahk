@@ -35,6 +35,9 @@ enum TheValue {
     /// The value is the state of the runtime: the `A_StringCaseSense` of the
     /// v1 says the sense of the case of the comparisons.
     TheCaseSense,
+    /// The value is the state of the runtime: the `A_NumBatchLines` of the v1
+    /// says the number of the lines that the script runs at once.
+    TheBatchLines,
     /// The name is carried and the runtime refuses it: the reason is here.
     Refused(&'static str),
 }
@@ -98,7 +101,7 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     // Measured: "1".
     ("A_IsUnicode", TheValue::Number(1)),
     // Measured: "10ms".
-    ("A_NumBatchLines", TheValue::Text("10ms")),
+    ("A_NumBatchLines", TheValue::TheBatchLines),
     // The type of the operating system: it is a type of Windows.
     ("A_OSType", TheValue::Refused(NOT_A_WINDOWS)),
     // Measured: "Off". The command `StringCaseSense` turns the sense of
@@ -274,6 +277,9 @@ pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError
             )),
             // The sense of the case is a state of the run as well.
             TheValue::TheCaseSense => Ok(Value::Text(rt.case_sense().name().to_string())),
+            // The number of the lines that the script runs at once is a state
+            // of the run too.
+            TheValue::TheBatchLines => Ok(Value::Text(rt.batch_lines().to_string())),
             TheValue::Refused(reason) => {
                 Err(RuntimeError { message: (*reason).to_string(), line: 0 })
             }

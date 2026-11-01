@@ -171,6 +171,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "Send", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: send },
     Builtin { name: "SendLevel", kind: BuiltinKind::Command, min: 1, max: 255, variant: 5, parameters: &[Parameter::Value], handler: send_level },
     Builtin { name: "SendMode", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: send_mode },
+    Builtin { name: "SetBatchLines", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: super::set_batch_lines },
     Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: set_control_delay },
     Builtin { name: "SetDefaultMouseSpeed", kind: BuiltinKind::Command, min: 1, max: 255, variant: 5, parameters: &[Parameter::Value], handler: set_default_mouse_speed },
     Builtin { name: "SetEnv", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Output, Parameter::Value], handler: env_set },

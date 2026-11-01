@@ -7071,4 +7071,37 @@ variable changes nothing. The parser asks the first one
 (`crates/ahk/src/runtime.rs`): the value is the empty text, and nothing is
 written. The v2 keeps its own rule, and the tree does not change it.
 
+## 174. The `SetBatchLines` of the v1 is the last name of the surface of the v1
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The command turns the number of the lines that the script runs at once,
+  and the `A_NumBatchLines` says the number that is in force.** The number is
+  "10ms" when the script begins, and the command turns it into the number
+  that was written.
+- **The parameter is a whole number.** The hex is a whole number as well --
+  the "0x10" is sixteen -- and the number that is written is the one that the
+  name says: the "007" is seven, and the "+20" is twenty. The zero is the
+  default of the dialect, and it is ten. The value that is not a whole number
+  is refused with "Parameter #1 invalid.\n     Specifically: off".
+- **The command takes one parameter, and the text that is left of the line
+  goes into it, with a comma and a space between.** The "AutoTrim, On, extra"
+  is the "On, extra", and it is refused because it is not "On". The commands
+  of the v1 that take more than one parameter ignore the text that is left:
+  the "Transform, out, 1+1, extra" is the "1+1", and the "SetFormat, Integer,
+  H, extra" is the "Integer" and the "H".
+
+The surface of the v1 is complete: the pending table of the v1
+(`crates/ahk/reference/ahk-v1.1.37.02.pending.tsv`) is empty, and the tree
+carries every name of it -- the four hundred and five.
+
+**The refusal of the value that is not a whole number is at the run in the
+tree, and at the load in the v1.** The tree validates the parameter of a
+command of the v1 when the command runs, and the v1 validates it when the
+script loads. The same is true of the commands that the tree shares with the
+v2: the `SetTitleMatchMode, abc` is refused by the v1 with "Parameter #1
+invalid.\n     Specifically: abc", and the tree refuses it with the message
+of the v2. The family of the commands whose parameter the v1 validates
+differently is still to do.
+
 

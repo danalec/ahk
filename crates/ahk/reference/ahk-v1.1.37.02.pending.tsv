@@ -58,6 +58,9 @@
 #   with the shape of the v1: the place of the text, the first occurrence that
 #   is replaced, and the variable that receives the number of the
 #   replacements. Measured on the binary of v1.1.37.02 on 2026-11-02.
+# - The `SetBatchLines` is carried: the command turns the number of the lines
+#   that the script runs at once, and the `A_NumBatchLines` says the number
+#   that is in force. Measured on the binary of v1.1.37.02 on 2026-11-02.
+#
+# The table is empty: the tree carries every name of the surface of the v1.
 kind	class	name	reason
-
-command		SetBatchLines	not-yet

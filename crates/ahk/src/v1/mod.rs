@@ -51,8 +51,8 @@ pub(crate) use numbers::{
 pub(crate) use strings::{in_str, sub_str};
 
 pub(crate) use names::{
-    auto_trim, file_read_line, func, input, is_by_ref, is_func, is_set, object, set_format,
-    string_case_sense, transform, var_set_capacity,
+    auto_trim, file_read_line, func, input, is_by_ref, is_func, is_set, object, set_batch_lines,
+    set_format, string_case_sense, transform, var_set_capacity,
 };
 
 /// The built-in variables of the v1 that the v2 does not carry.

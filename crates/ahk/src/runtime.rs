@@ -1049,6 +1049,12 @@ pub struct Runtime<'a> {
     /// when the script begins, and the `StringCaseSense` turns it into On or
     /// into Locale.
     case_sense: CaseSense,
+    /// The number of the lines that the script runs at once.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the number is
+    /// "10ms" when the script begins, and the `SetBatchLines` turns it into
+    /// the number that was written.
+    batch_lines: alloc::string::String,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
     /// The directory where the run started.
@@ -1221,6 +1227,7 @@ impl<'a> Runtime<'a> {
             integer_format: IntegerFormat::Decimal,
             float_format: FloatFormat::DEFAULT,
             case_sense: CaseSense::Off,
+            batch_lines: "10ms".to_string(),
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1280,6 +1287,7 @@ impl<'a> Runtime<'a> {
             integer_format: IntegerFormat::Decimal,
             float_format: FloatFormat::DEFAULT,
             case_sense: CaseSense::Off,
+            batch_lines: "10ms".to_string(),
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1361,6 +1369,20 @@ impl<'a> Runtime<'a> {
     /// The trim of the legacy assignments of the v1, on or off.
     pub fn set_auto_trim(&mut self, on: bool) {
         self.auto_trim = on;
+    }
+
+    /// The number of the lines that the script runs at once.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the number is
+    /// "10ms" when the script begins, and the `SetBatchLines` turns it into
+    /// the number that was written.
+    pub fn batch_lines(&self) -> &str {
+        &self.batch_lines
+    }
+
+    /// The number of the lines that the script runs at once.
+    pub fn set_batch_lines(&mut self, text: &str) {
+        self.batch_lines = text.to_string();
     }
 
     /// The format of the integers, the way the dialect formats them.

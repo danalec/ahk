@@ -158,7 +158,7 @@ pub(crate) fn auto_trim(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let text = the_one_parameter_of_a_command(values);
     let trimmed = text.trim();
     match trimmed.to_lowercase().as_str() {
         "on" => rt.set_auto_trim(true),
@@ -173,6 +173,58 @@ pub(crate) fn auto_trim(
     Ok(Value::Text(String::new()))
 }
 
+/// `SetBatchLines, 20`: the number of the lines that the script runs at once.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter is a
+/// whole number, and the value that is not one is refused with "Parameter #1
+/// invalid." and the value in the message. The hex is a whole number as well
+/// -- the "0x10" is sixteen -- and the number that is written is the one that
+/// the name of the variable says: the "007" is seven. The zero is the default
+/// of the dialect, and it is ten.
+pub(crate) fn set_batch_lines(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = the_one_parameter_of_a_command(values);
+    let trimmed = text.trim();
+    let number = match trimmed.parse::<i64>() {
+        Ok(number) => number,
+        // The hex of the v1 is a whole number as well.
+        Err(_) if super::numbers::the_text_is_a_hex(trimmed) => {
+            super::numbers::the_whole_number_of_a_hex(trimmed)
+        }
+        Err(_) => {
+            return Err(RuntimeError {
+                message: format!("Parameter #1 invalid.\n     Specifically: {trimmed}"),
+                line,
+            })
+        }
+    };
+    // The zero is the default of the dialect, and it is ten.
+    let number = if number == 0 { 10 } else { number };
+    rt.set_batch_lines(&number.to_string());
+    Ok(Value::Text(String::new()))
+}
+
+/// The text of the parameter of a command of the v1 that takes one.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the command takes the
+/// parameter that it wants, and the text that is left of the line goes into it,
+/// with a comma and a space between: the "AutoTrim, On, extra" is the
+/// "On, extra", and it is refused because it is not "On".
+pub(crate) fn the_one_parameter_of_a_command(values: &[Value]) -> String {
+    let mut text = String::new();
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            text.push_str(", ");
+        }
+        text.push_str(&value.to_text());
+    }
+    text
+}
+
 /// `StringCaseSense, On`: the sense of the case of the comparisons.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the command takes
@@ -185,7 +237,7 @@ pub(crate) fn string_case_sense(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let text = the_one_parameter_of_a_command(values);
     let trimmed = text.trim();
     let sense = match trimmed.to_lowercase().as_str() {
         "on" | "1" => CaseSense::On,

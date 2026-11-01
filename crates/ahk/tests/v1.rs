@@ -528,6 +528,74 @@ fn the_increment_of_a_built_in_variable_of_the_v1_is_refused_only_alone() {
     assert_eq!(report.variables.get("x"), Some(&Value::Text("On".into())));
 }
 
+/// The `SetBatchLines` of the v1 turns the number of the lines that the script
+/// runs at once.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the number is "10ms"
+/// when the script begins, and the command turns it into the number that was
+/// written -- the "007" is seven, and the hex is a whole number as well.
+#[test]
+fn the_set_batch_lines_of_the_v1_turns_the_number_of_the_lines() {
+    let report = run("x := A_NumBatchLines");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("10ms".into())));
+
+    let report = run("SetBatchLines, 20\nx := A_NumBatchLines");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("20".into())));
+
+    let report = run("SetBatchLines, 007\nx := A_NumBatchLines");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("7".into())));
+
+    let report = run("SetBatchLines, 0x10\nx := A_NumBatchLines");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("16".into())));
+}
+
+/// The zero of the batch lines of the v1 is the default, and it is ten.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `SetBatchLines, 0`
+/// leaves the number at ten.
+#[test]
+fn the_zero_of_the_batch_lines_of_the_v1_is_ten() {
+    let report = run("SetBatchLines, 0\nx := A_NumBatchLines");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("10".into())));
+}
+
+/// The value of the batch lines of the v1 that is not a whole number is
+/// refused.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is
+/// "Parameter #1 invalid." and the value that failed is in the message.
+#[test]
+fn the_value_of_the_batch_lines_that_is_not_a_number_is_refused() {
+    for value in ["off", "abc", "1+1", "20.5"] {
+        let report = run(&format!("SetBatchLines, {value}"));
+        assert!(!report.ok);
+        assert_eq!(
+            report.error.as_deref(),
+            Some(format!("Parameter #1 invalid.\n     Specifically: {value}").as_str())
+        );
+    }
+}
+
+/// The command of the v1 that takes one parameter takes the text that is left
+/// of the line with it.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `AutoTrim, On,
+/// extra` is the "On, extra", and it is refused because it is not "On".
+#[test]
+fn the_extra_text_of_the_line_goes_into_the_parameter_of_the_v1() {
+    let report = run("AutoTrim, On, extra");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #1 invalid.\n     Specifically: On, extra")
+    );
+}
+
 /// The directive of the v1 that the runtime already is is accepted, and the
 /// one that asks for a thing the runtime does not have is refused with the
 /// reason.
