@@ -6714,3 +6714,27 @@ and the name of a class may be the output of an assignment, and the tree
 refuses the two. And the two refusals of the shape of a class -- the "Missing
 \"{\"" and the "Missing \"}\"" -- name the line of the v1 in other words.
 
+## 163. The parameter of the v1 that wants a number takes the number that the text starts with
+
+Measured on the binary of v1.1.37.02 on 2026-11-02, and on the CHM of the v1.
+
+- **The parameter of the v1 that wants a number takes the number that the text of it starts with.** The `SubStr("abcdef", "2abc")` is "bcdef", and the hex of the v1 is a number: the `SubStr("abcdef", "0x2")` is "bcdef" as well.
+- **The `SubStr` of the v1 counts the places the way the v1 counts them.** The place that is zero is the last character of the text -- the `SubStr("abcdef", 0)` is "f" -- and a place that is negative counts from the end of it and takes one character more than the v2 takes: the `SubStr("abcdef", -1)` is "ef" and the `SubStr("abcdef", -2)` is "def". The v2 gives "f" and "ef".
+- **The sense of the case of the `InStr` of the v1 is the number that the text holds.** The `InStr("ABCdef", "cd", "1")` is 0 -- the case that is sensitive -- and the `InStr("ABCdef", "cd", "Off")` is 3. The v2 refuses the text of it: "Parameter #3 of InStr is invalid.".
+- **The needle that is empty is at the first character of the haystack.** The `InStr("abcdef", "")` is 1, and the v2 refuses it.
+- **The parameter of a command of the v1 is an expression.** The documentation of the v1 says so: "Numeric parameters accept a literal number or an expression". The `Sleep, 100+50` waits for a hundred and fifty milliseconds, and the `Random, x, n, n` reads the variable `n`.
+
+The rule lives in the module of the kinds of the v1
+(`crates/ahk/src/v1/kinds.rs`): the table says which parameter of which
+built-in wants a number, and the runtime converts the argument before the body
+of the built-in runs. The `SubStr` and the `InStr` of the v1 have handlers of
+their own (`crates/ahk/src/v1/strings.rs`), because the places and the sense of
+the case are theirs.
+
+What stays out: the parameter of a command of the v1, which the tree reads as
+the text that it is -- the `Exit, "3"` is zero in the tree and three in the v1
+-- and the grammar of the expression of the v1, which is the old one: the
+`x := 1e2` is empty in the v1 and a hundred in the tree, and the number that
+comes from a literal in hexadecimal keeps the format of it -- the `x := 0x10`
+is sixteen and the text of it is "0x10".
+

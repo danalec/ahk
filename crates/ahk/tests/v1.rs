@@ -2541,3 +2541,82 @@ fn a_class_of_the_v1_that_is_declared_twice_is_refused_with_its_own_words() {
     );
 }
 
+/// The parameter of the v1 that wants a number takes the number that the
+/// text of it starts with.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// does not check the kind of the arguments -- the built-in of the v1 takes
+/// the text that holds a number, and it does not fail -- and the number is
+/// the one that the text starts with: `SubStr("abcdef", "2abc")` is "bcdef".
+#[test]
+fn the_parameter_of_the_v1_takes_the_number_that_the_text_starts_with() {
+    let report = run("x := SubStr(\"abcdef\", \"2abc\")\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["bcdef".to_string()]);
+}
+
+/// The hex of the v1 is a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+/// `SubStr("abcdef", "0x2")` is "bcdef".
+#[test]
+fn the_hex_of_the_v1_is_a_number() {
+    let report = run("x := SubStr(\"abcdef\", \"0x2\")\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["bcdef".to_string()]);
+}
+
+/// The place that is zero is the last character of the text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+/// `SubStr("abcdef", 0)` is "f".
+#[test]
+fn the_place_that_is_zero_is_the_last_character_of_the_text() {
+    let report = run("x := SubStr(\"abcdef\", 0)\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["f".to_string()]);
+}
+
+/// A place that is negative counts from the end of the text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+/// `SubStr("abcdef", -1)` is "ef" and `SubStr("abcdef", -2)` is "def": the v1
+/// takes one character more than the v2 takes.
+#[test]
+fn a_place_that_is_negative_counts_from_the_end_of_the_text() {
+    let report = run("x := SubStr(\"abcdef\", -1)\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["ef".to_string()]);
+
+    let report = run("x := SubStr(\"abcdef\", -2)\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["def".to_string()]);
+}
+
+/// The sense of the case of the v1 is the number that the text holds.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// reads the sense of the case as a number: "1" is the case that is sensitive
+/// and "Off" is not, and the v2 refuses the text of it.
+#[test]
+fn the_sense_of_the_case_of_the_v1_is_the_number_that_the_text_holds() {
+    let report = run("x := InStr(\"ABCdef\", \"cd\", \"1\")\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0".to_string()]);
+
+    let report = run("x := InStr(\"ABCdef\", \"cd\", \"Off\")\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["3".to_string()]);
+}
+
+/// The needle that is empty is at the first character of the haystack.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+/// `InStr("abcdef", "")` is 1, and the v2 refuses it.
+#[test]
+fn the_needle_that_is_empty_is_at_the_first_character_of_the_haystack() {
+    let report = run("x := InStr(\"abcdef\", \"\")\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+

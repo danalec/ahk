@@ -1081,6 +1081,36 @@ name of a class and the name of a function may be the same in the v1, and
 the name of a class may be the output of an assignment, and the tree refuses
 the two.
 
+
+**The number of a parameter of the v1.** The built-in of the v1 does not check
+the kind of its arguments, and the parameter that wants a number takes the
+number that the text of it starts with: the `SubStr("abcdef", "2abc")` is
+"bcdef", and the hex of the v1 is a number -- the `SubStr("abcdef", "0x2")` is
+"bcdef" as well. The `SubStr` of the v1 counts the places the way the v1
+counts them: the place that is zero is the last character of the text, and a
+place that is negative counts from the end of it and takes one character more
+than the v2 takes -- the `SubStr("abcdef", -1)` is "ef". The sense of the case
+of the `InStr` of the v1 is the number that the text holds -- the
+`InStr("ABCdef", "cd", "1")` is 0 and the `InStr("ABCdef", "cd", "Off")` is 3
+-- and the needle that is empty is at the first character of the haystack.
+
+**The block carries.** The tree carries these rules since the block of the
+number of a parameter (2026-11-02), with the table of the parameters that want
+a number (`crates/ahk/src/v1/kinds.rs`), the handlers of the `SubStr` and of
+the `InStr` of the v1 (`crates/ahk/src/v1/strings.rs`), and the conversion of
+the argument in the runtime, before the body of the built-in runs. The probes
+that compare the two are `egm-review/probe_v1_number_coercion.py` and
+`egm-review/probe_v1_exit_code.py`.
+
+**What stays out of the number of a parameter.** The parameter of a *command*
+of the v1 is an expression -- the documentation of the v1 says so, and the
+`Sleep, 100+50` waits for a hundred and fifty milliseconds -- and the tree
+reads it as the text that it is: the `Exit, "3"` is zero in the tree and three
+in the v1. And the grammar of the expression of the v1 is the old one: the
+`x := 1e2` is empty in the v1 and a hundred in the tree, and the number that
+comes from a literal in hexadecimal keeps the format of it -- the `x := 0x10`
+is sixteen and the text of it is "0x10".
+
 ---
 
 ## 5. The risks

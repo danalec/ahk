@@ -18,9 +18,11 @@ use crate::builtins::BuiltinHandler;
 use crate::runtime::{Runtime, RuntimeError, Value};
 
 mod chars;
+mod kinds;
 mod math;
 mod names;
 mod numbers;
+mod strings;
 mod table;
 mod variables;
 
@@ -34,6 +36,8 @@ pub use variables::{carries as carries_variable, may_not_be_declared, refusal_of
 
 pub(crate) use chars::chr;
 
+pub(crate) use kinds::wants_a_number;
+
 pub(crate) use math::{
     abs, acos, asin, atan, ceil, cos, exp, floor, ln, log, max, min, modulo, round, sin, sqrt, tan,
 };
@@ -42,6 +46,8 @@ pub(crate) use numbers::{
     the_number_at_the_start_of_a_text, the_number_of_a_text,
     the_whole_number_at_the_start_of_a_text,
 };
+
+pub(crate) use strings::{in_str, sub_str};
 
 pub(crate) use names::{
     auto_trim, file_read_line, func, input, is_by_ref, is_func, is_set, object, set_format,

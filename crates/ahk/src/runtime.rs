@@ -8135,6 +8135,18 @@ impl<'a> Runtime<'a> {
         // takes the text that holds a number, and it does not fail -- so the
         // two checks below are the ones of the v2.
         let checks_the_kind = self.dialect.the_built_in_checks_the_kind_of_its_arguments();
+        // The v1 does not check the kind of the arguments, and the parameter
+        // that wants a number takes the number that the text of it starts
+        // with: the dialect converts the arguments before the body of the
+        // built-in runs.
+        //
+        // Measured on the binary of v1.1.37.02 on 2026-11-02.
+        let converted = if checks_the_kind {
+            None
+        } else {
+            self.the_numbers_that_the_arguments_hold(builtin.name, values)
+        };
+        let values = converted.as_deref().unwrap_or(values);
         let decides = crate::builtins::decides_references(builtin.name);
         for (index, value) in values.iter().enumerate() {
             if !matches!(value, Value::Reference(_))
@@ -8256,6 +8268,37 @@ impl<'a> Runtime<'a> {
                 Detail { what: builtin.name.to_string(), extra },
             )
         })
+    }
+
+    /// The numbers that the arguments of the built-in hold.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+    /// check the kind of the arguments, and the parameter that wants a number
+    /// takes the number that the text of it starts with -- "65abc" is 65 --
+    /// and the hex of the v1 is a number: "0x10" is 16.
+    ///
+    /// The answer is nothing when every argument that wants a number already
+    /// holds one.
+    fn the_numbers_that_the_arguments_hold(
+        &self,
+        name: &str,
+        values: &[Value],
+    ) -> Option<Vec<Value>> {
+        let mut numbers: Option<Vec<Value>> = None;
+        for (index, value) in values.iter().enumerate() {
+            if !self.dialect.the_parameter_wants_a_number(name, index) {
+                continue;
+            }
+            // A number is the number that it is.
+            if matches!(value, Value::Int(_) | Value::Float(_)) {
+                continue;
+            }
+            let number = crate::v1::the_number_at_the_start_of_a_text(&self.the_text_of(value))
+                .unwrap_or(Value::Int(0));
+            let numbers = numbers.get_or_insert_with(|| values.to_vec());
+            numbers[index] = number;
+        }
+        numbers
     }
 
     /// The desktop the script drives.

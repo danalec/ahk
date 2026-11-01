@@ -331,6 +331,17 @@ pub trait Dialect: Sync {
         true
     }
 
+    /// Whether the parameter at this place of this built-in wants a number.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter of
+    /// the v1 that wants a number takes the number that the text of it starts
+    /// with -- "65abc" is 65 -- and the hex of the v1 is a number: "0x10" is
+    /// 16. The v2 refuses the value of another kind, and it does not read the
+    /// number of a text: it wants the number itself.
+    fn the_parameter_wants_a_number(&self, _name: &str, _index: usize) -> bool {
+        false
+    }
+
     /// Whether a whole number that does not fit is the largest one.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 keeps the
@@ -719,6 +730,13 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
         // not check the kind of the arguments.
         false
+    }
+
+    fn the_parameter_wants_a_number(&self, name: &str, index: usize) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter
+        // of the v1 that wants a number takes the number that the text of it
+        // starts with.
+        crate::v1::wants_a_number(name, index)
     }
 
     fn a_whole_number_that_does_not_fit_is_the_largest_one(&self) -> bool {
