@@ -991,6 +991,12 @@ pub struct Runtime<'a> {
     /// `--dialect=v1` of the runner, and it has a table of its own names
     /// and rules of its own.
     dialect: &'static dyn crate::dialect::Dialect,
+    /// Whether the environment is looked up.
+    ///
+    /// The directive `#NoEnv` of the v1 turns the lookup off, and the
+    /// substitution of a parameter of the v1 is then the variable of the
+    /// script alone.
+    no_env: bool,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
     /// The directory where the run started.
@@ -1158,6 +1164,7 @@ impl<'a> Runtime<'a> {
             desktop,
             clock: ClockSource::System(SystemClock::new()),
             dialect: crate::dialect::v2(),
+            no_env: false,
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -1212,6 +1219,7 @@ impl<'a> Runtime<'a> {
             desktop,
             clock: ClockSource::Borrowed(clock),
             dialect: crate::dialect::v2(),
+            no_env: false,
             timeout,
             variables: BTreeMap::new(),
             statics: BTreeMap::new(),
@@ -6336,6 +6344,23 @@ impl<'a> Runtime<'a> {
             // There is no tray icon to hide, and the runner is one
             // process: both are already what the directive asks for.
             "notrayicon" => Ok("there is no tray icon to hide".into()),
+            // Measured on the binary of v1.1.37.02 on 2026-11-01: the
+            // directive `#NoEnv` turns the lookup of the environment off,
+            // and the substitution of a parameter of the v1 is the variable
+            // of the script alone.
+            "noenv" => {
+                self.no_env = true;
+                Ok("the environment is not looked up".into())
+            }
+            // Measured on the binary of v1.1.37.02 on 2026-11-01: the
+            // script of the v1 stays alive on its own, and the runner is one
+            // process that stays alive on its own.
+            "persistent" => Ok("the runner is one process".into()),
+            "commentflag" | "escapechar" => Err(reason("comment flags")),
+            "maxmem" => Err(reason("memory limits")),
+            "if" | "iftimeout" | "ifwinactive" | "installkeybdhook" | "installmousehook"
+            | "keyhistory" | "maxhotkeysperinterval" | "hotkeyinterval" | "hotkeymodifiertimeout"
+            | "menumaskkey" => Err(reason("hotkeys")),
             "singleinstance" => Ok("the runner is one process".into()),
             // The errors are always in the report, and the report is
             // always on the standard output.
@@ -7471,7 +7496,10 @@ impl<'a> Runtime<'a> {
                             continue;
                         }
                         None => {
-                            out.push_str(&chars[index..=close].iter().collect::<String>());
+                            // Measured on the binary of v1.1.37.02 on
+                            // 2026-11-01: a name that has no value is
+                            // substituted by nothing, and not by the text
+                            // of the name.
                             index = close + 1;
                             continue;
                         }
@@ -7493,7 +7521,7 @@ impl<'a> Runtime<'a> {
     fn the_value_of_the_substitution(
         &mut self,
         name: &str,
-        line: u32,
+        _line: u32,
     ) -> Result<Option<Value>, RuntimeFailure> {
         if let Some(value) = self.lookup(name) {
             return Ok(Some(value));
@@ -7501,9 +7529,16 @@ impl<'a> Runtime<'a> {
         if !self.dialect.percent_looks_at_the_environment() {
             return Ok(None);
         }
+        // The directive `#NoEnv` of the v1 turns the lookup of the
+        // environment off.
+        if self.no_env {
+            return Ok(None);
+        }
         match self.desktop().env_get(name) {
             Ok(value) => Ok(Some(Value::Text(value))),
-            Err(reason) => Err(RuntimeFailure::Error(RuntimeError { message: reason, line })),
+            // Measured on the binary of v1.1.37.02 on 2026-11-01: a name
+            // that the environment does not have is substituted by nothing.
+            Err(_) => Ok(None),
         }
     }
 
@@ -8085,15 +8120,23 @@ impl<'a> Runtime<'a> {
                     })),
                     None => match self.the_value_of_a_variable_of_the_runtime(name) {
                         Some(value) => Ok(value),
-                        None => Err(match self.alias_of(name) {
-                            // A parameter that is an alias says that it is
-                            // the parameter that has no value.
-                            Some(_) => RuntimeFailure::Error(RuntimeError {
-                                message: unassigned_parameter(),
-                                line: *line,
-                            }),
-                            None => self.the_unassigned_failure(name, *line),
-                        }),
+                        None => {
+                            // Measured on the binary of v1.1.37.02 on
+                            // 2026-11-01: a variable of the v1 that has no
+                            // value is blank, and it is not a failure.
+                            if self.dialect.unset_is_blank() {
+                                return Ok(Value::Text(String::new()));
+                            }
+                            Err(match self.alias_of(name) {
+                                // A parameter that is an alias says that it is
+                                // the parameter that has no value.
+                                Some(_) => RuntimeFailure::Error(RuntimeError {
+                                    message: unassigned_parameter(),
+                                    line: *line,
+                                }),
+                                None => self.the_unassigned_failure(name, *line),
+                            })
+                        }
                     },
                 },
             },
@@ -8235,11 +8278,21 @@ impl<'a> Runtime<'a> {
                         Value::Int((a >= b) as i64)
                     }
                     BinaryOp::Add => {
-                        let a = self.number(&left_value, line)?;
-                        let b = self.number(&right_value, line)?;
-                        match (&left_value, &right_value) {
-                            (Value::Int(a), Value::Int(b)) => Value::Int(a + b),
-                            _ => Value::Float(a + b),
+                        // Measured on the binary of v1.1.37.02 on 2026-11-01:
+                        // the sum of the v1 joins a text and a number: `"5" +
+                        // 1` is `51`, and the sum of two numbers is a number.
+                        if self.dialect.add_concatenates()
+                            && (matches!(left_value, Value::Text(_))
+                                || matches!(right_value, Value::Text(_)))
+                        {
+                            Value::Text(format!("{}{}", left_value.to_text(), right_value.to_text()))
+                        } else {
+                            let a = self.number(&left_value, line)?;
+                            let b = self.number(&right_value, line)?;
+                            match (&left_value, &right_value) {
+                                (Value::Int(a), Value::Int(b)) => Value::Int(a + b),
+                                _ => Value::Float(a + b),
+                            }
                         }
                     }
                     BinaryOp::Subtract => {
@@ -8262,6 +8315,12 @@ impl<'a> Runtime<'a> {
                         let a = self.number(&left_value, line)?;
                         let b = self.number(&right_value, line)?;
                         if b == 0.0 {
+                            // Measured on the binary of v1.1.37.02 on 2026-11-01:
+                            // the division by zero of the v1 is a blank result
+                            // and not a failure.
+                            if self.dialect.division_by_zero_is_blank() {
+                                return Ok(Value::Text(String::new()));
+                            }
                             return Err(RuntimeFailure::Error(RuntimeError {
                                 message: "Divide by zero.".into(),
                                 line,

@@ -5174,6 +5174,11 @@ impl Parser {
                 && !closed
                 && the_literal_is_a_text(&left)
                 && the_operator_wants_a_number(op)
+                // Measured on the binary of v1.1.37.02 on 2026-11-01: the
+                // sum of the v1 joins a text and a number, and the operator
+                // that wants a number may follow a literal text when it is
+                // the sum.
+                && !(self.dialect.add_concatenates() && op == BinaryOp::Add)
             {
                 self.pending_literal = Some(self.the_pending_literal(self.position - 1));
             }

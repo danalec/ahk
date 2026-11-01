@@ -5994,3 +5994,26 @@ of the plan of the v1 dialect.
   directives that the v2 does not know, and the name of a directive that
   the dialect does not know is a line that holds no action, and it is
   refused at the load.
+
+## 142. The semantics of the v1: the blank that is not a failure
+
+Measured on the binary of v1.1.37.02 on 2026-11-01. This is the phase F3
+of the plan of the v1 dialect.
+
+- **A value that is not there is blank, and it is not a failure.** The
+  variable of the script that has no value, the division by zero and the
+  name that the environment does not have are all blank in the v1. The v2
+  refuses them, and the tree keeps that for the v2.
+- **The sum of a text and a number is a concatenation.** `"5" + 1` is
+  `51` in the v1, and the sum of two numbers is a number. The v2 refuses
+  the operator that wants a number after a literal text, and the tree
+  keeps that for the v2 too: in the v1 the sum is the one operator that
+  may follow a literal text.
+- **The substitution of a parameter of the v1 is the variable of the
+  script, and the environment is what is left.** A name that has no value
+  at all is substituted by nothing, and not by the text of the name: the
+  `%TEMP%` of a script that has no variable of that name and no
+  environment of that name is empty.
+- **The directive `#NoEnv` turns the lookup of the environment off.** The
+  variable of the script is still there, and the `%TEMP%` of a script
+  that has no variable of that name is empty.

@@ -12,7 +12,7 @@
 
 use ahk::desktop::{
     Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-    Processes, Screen, Sound, Timers, TitleMatch, Windows,
+    Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::dialect;
 use ahk::runtime::{Report, Runtime, Value};
@@ -157,4 +157,92 @@ fn the_name_of_a_command_that_the_dialect_does_not_have_is_refused_at_the_load()
         error.message,
         "This line does not contain a recognized action.\n     Specifically: NoSuchCommand, 1"
     );
+}
+
+/// The division by zero of the v1 is a blank result.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-01: `1/0` is blank,
+/// and it is not a failure.
+#[test]
+fn the_division_by_zero_of_the_v1_is_a_blank_result() {
+    let report = run("x := 1/0");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+/// The sum of a text and a number is a concatenation.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-01: `"5" + 1` is
+/// `51`, and the sum of two numbers is a number.
+#[test]
+fn the_sum_of_a_text_and_a_number_is_a_concatenation() {
+    let report = run("x := \"5\" + 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("51".into())));
+
+    let report = run("x := 5 + 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(6)));
+}
+
+/// A variable of the v1 that has no value is blank.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-01: the variable is
+/// blank, and it is not a failure.
+#[test]
+fn a_variable_of_the_v1_that_has_no_value_is_blank() {
+    let report = run("x := nosuchvariable");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+/// The substitution of a parameter is the variable of the script, and the
+/// environment is what is left.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-01: the variable of
+/// the script comes first, and the directive `#NoEnv` turns the lookup of
+/// the environment off.
+#[test]
+fn the_substitution_of_a_parameter_is_the_variable_of_the_script_and_then_the_environment() {
+    let report = run("x := 5\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["5".to_string()]);
+
+    // The environment is what is left when the script has no variable of
+    // that name.
+    let report = run("FileAppend, %AHK_A_VARIABLE_THAT_IS_NOT_THERE%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec![String::new()]);
+
+    // The directive turns the lookup of the environment off, and the
+    // variable of the script is still there.
+    let report = run("#NoEnv\nx := 5\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["5".to_string()]);
+}
+
+/// The count of the loop of the v1 comes after a comma.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-01: `Loop, 3` is a
+/// loop of three turns.
+#[test]
+fn the_count_of_the_loop_of_the_v1_comes_after_a_comma() {
+    let report = run("Loop, 3\n    FileAppend, [turn], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[turn]".to_string(), "[turn]".to_string(), "[turn]".to_string()]);
+}
+
+/// The body of a construct of the v1 is one statement.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-01: the `if` takes the
+/// statement that comes after it, and not a block.
+#[test]
+fn the_body_of_a_construct_of_the_v1_is_one_statement() {
+    let report = run("if (1)\n    FileAppend, yes, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["yes".to_string()]);
+
+    let report = run("if (0)\n    FileAppend, no, *\nelse\n    FileAppend, else, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["else".to_string()]);
 }
