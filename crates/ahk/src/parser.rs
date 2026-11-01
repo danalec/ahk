@@ -2502,6 +2502,14 @@ impl Parser {
                 });
             }
         };
+        // Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+        // built-in variable that the dialect does not let a script write may
+        // not be the output variable of an assignment, and the refusal is at
+        // the load: it is the one of every scope, and a local variable may
+        // not carry the name either.
+        if let Some(error) = self.the_output_variable_is_refused(&name_token, op) {
+            return Err(error);
+        }
         self.next();
         let value = self.the_expression_of_a_statement()?;
         // Measured on the binary of v2.0.19 on 2026-10-31: the expression
@@ -2517,6 +2525,30 @@ impl Parser {
         }];
         statements.extend(legacy);
         Ok(statements)
+    }
+
+    /// The refusal of a name that the dialect does not let a script write.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the name of a
+    /// built-in variable that the dialect does not let a script write may
+    /// not be the output variable of an assignment, and the refusal is at
+    /// the load. The compound operator has its own reason: it says that
+    /// the variable cannot be assigned a value.
+    fn the_output_variable_is_refused(&self, token: &Token, op: AssignOp) -> Option<SyntaxError> {
+        if !crate::variables::is_read_only(&token.value) {
+            return None;
+        }
+        let message = match op {
+            AssignOp::Set => format!(
+                "This built-in variable cannot be used as an output variable.\n     Specifically: {}",
+                token.value
+            ),
+            _ => format!(
+                "This built-in variable cannot be assigned a value.\n     Specifically: {}",
+                token.value
+            ),
+        };
+        Some(SyntaxError { message, line: token.line, column: token.column })
     }
 
     /// The list of v1 that may follow the expression of a statement.
@@ -2712,6 +2744,10 @@ impl Parser {
             // the arguments may be a parameter without a name: `f(*)` is a
             // function of v2, and the arguments that it takes go nowhere.
             let mut variadic = false;
+            // The line and the column of the name: the refusal of it names
+            // the place where the name is.
+            let line = name_token.line;
+            let column = name_token.column;
             let name = if name_token.kind == TokenKind::Op && name_token.value == "*" {
                 variadic = true;
                 String::new()
@@ -2749,6 +2785,19 @@ impl Parser {
                 }
                 name_token.value
             };
+            // Measured on the binary of v2.0.19 on 2026-11-01: a parameter
+            // may not carry the name of a built-in variable, and the
+            // declaration says that it conflicts with it. The name is
+            // named as the script spelled it.
+            if crate::variables::is_built_in(&name) {
+                return Err(SyntaxError {
+                    message: format!(
+                        "This parameter declaration conflicts with an existing built-in variable.\n     Specifically: {name}"
+                    ),
+                    line,
+                    column,
+                });
+            }
             if !variadic && self.at_op(&["*"]) {
                 self.position += 1;
                 variadic = true;
@@ -3174,6 +3223,18 @@ impl Parser {
             {
                 return Err(self.error(format!(
                     "This {} variable declaration conflicts with an existing parameter.\n     Specifically: {}",
+                    kind.word(),
+                    name.value
+                )));
+            }
+            // Measured on the binary of v2.0.19 on 2026-11-01: a static
+            // declaration may not carry the name of a built-in variable,
+            // and the declaration says that it conflicts with it. The
+            // global may carry it: it names the built-in variable of the
+            // dialect and not a variable of the script.
+            if kind != DeclareKind::Global && crate::variables::is_built_in(&name.value) {
+                return Err(self.error(format!(
+                    "This {} variable declaration conflicts with an existing built-in variable.\n     Specifically: {}",
                     kind.word(),
                     name.value
                 )));
@@ -4348,7 +4409,15 @@ impl Parser {
         if self.at_op(&[","]) {
             variables.push(String::new());
         } else if self.peek().kind == TokenKind::Name {
-            variables.push(self.next().value);
+            // Measured on the binary of v2.0.19 on 2026-11-01: the variable
+            // of a for is an output variable, and the name of a built-in
+            // variable that the dialect does not let a script write is
+            // refused.
+            let token = self.next();
+            if let Some(error) = self.the_output_variable_is_refused(&token, AssignOp::Set) {
+                return Err(error);
+            }
+            variables.push(token.value);
         } else if !self.at_keyword(&["in"]) {
             let token = self.peek().clone();
             return Err(SyntaxError {
@@ -4361,7 +4430,11 @@ impl Parser {
         if self.at_op(&[","]) {
             self.next();
             if self.peek().kind == TokenKind::Name {
-                variables.push(self.next().value);
+                let token = self.next();
+                if let Some(error) = self.the_output_variable_is_refused(&token, AssignOp::Set) {
+                    return Err(error);
+                }
+                variables.push(token.value);
             } else {
                 variables.push(String::new());
             }

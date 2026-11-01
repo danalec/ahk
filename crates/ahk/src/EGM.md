@@ -975,6 +975,10 @@ I/O, and belongs to the desktop.
   variable of that name.
 - `refusal_of(name) -> Option<&'static str>` -- the reason the name
   refuses with, when the tree refuses it.
+- `WRITABLE` -- the built-in variables that the dialect lets a script
+  write: thirty-seven of the hundred and thirty-one of the surface.
+- `is_read_only(name) -> bool` -- whether the dialect does not let a script
+  write the name.
 
 The name of a built-in variable has two spellings, and the two meet here.
 The dialect gives every one of them the prefix `A_`, and the script writes
@@ -987,6 +991,13 @@ the table.
 The variables the runtime knows -- the version, the size of a pointer,
 the clock -- are answered by the module. The ones it cannot answer fail
 the statement with the reason.
+
+A name that the dialect does not let a script write is refused at the load,
+and the refusal is the one of every scope. The table of the names that a
+script may write is the measurement of the binary of v2.0.19, and it is not
+the table of the kinds: the shape of the cursor is a setting of the run and
+the v2 refuses to write it all the same, and the index of the loop is a name
+that the runtime owns and a script may write it.
 
 The names of the machine are the desktop's: the user, the computer, the
 shell, the folders, the version of the operating system, the language, the

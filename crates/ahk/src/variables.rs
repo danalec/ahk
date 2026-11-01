@@ -126,8 +126,58 @@ const NO_INITIAL_WORKING_DIR: &str = "this runtime does not keep the directory w
 /// the name when the script writes it, and it names the name as the script
 /// spelled it: "This built-in variable cannot be used as an output
 /// variable.\n     Specifically: A_AhkVersion".
-fn read_only(name: &str) -> String {
-    format!("This built-in variable cannot be used as an output variable.\n     Specifically: {name}")
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the compound operator
+/// says that the variable cannot be assigned a value, and the plain one
+/// says that it cannot be an output variable.
+fn read_only(name: &str, op: AssignOp) -> String {
+    match op {
+        AssignOp::Set => {
+            format!("This built-in variable cannot be used as an output variable.\n     Specifically: {name}")
+        }
+        _ => format!("This built-in variable cannot be assigned a value.\n     Specifically: {name}"),
+    }
+}
+
+/// The built-in variables that the dialect lets a script write.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the surface of v2
+/// carries a hundred and thirty-one built-in variables, and the v2 refuses
+/// ninety-four of them when a script writes them. These are the thirty-
+/// seven that it lets a script write. The names are the ones of the table
+/// of the surface, without the prefix `A_` that the dialect gives them.
+const WRITABLE: &[&str] = &[
+    // The two names that live outside the script: the clipboard and the
+    // directory where the run is.
+    "clipboard", "workingdir",
+    // The names of the table of the writes: the name of the script, the
+    // tip of the icon, the information of an event, the last error of the
+    // operating system, and the three of the hotkeys.
+    "eventinfo", "hotkeyinterval", "hotkeymodifiertimeout", "iconhidden", "icontip",
+    "lasterror", "maxhotkeysperinterval", "scriptname",
+    // The settings of the run: the mode of the coordinates, the delays,
+    // the mode of the matching of the titles. The shape of the cursor is
+    // not one of them: the v2 refuses to write it as well.
+    "allowmainwindow", "controldelay", "coordmodecaret", "coordmodemenu", "coordmodemouse",
+    "coordmodepixel", "coordmodetooltip", "defaultmousespeed", "detecthiddentext",
+    "detecthiddenwindows", "fileencoding", "keydelay", "keydelayplay", "keyduration",
+    "keydurationplay", "listlines", "menumaskkey", "mousedelay", "mousedelayplay", "regview",
+    "sendlevel", "sendmode", "storecapslockmode", "titlematchmode", "titlematchmodespeed",
+    "windelay",
+    // The index of the loop is a name that a script may write.
+    "index",
+];
+
+/// Whether the name is a built-in variable that the dialect does not let a
+/// script write.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-01: the refusal is the one
+/// of the load, and it is the one of every scope -- a local variable may
+/// not carry the name either. The body of a class is the one place where
+/// the name is a property and not a variable.
+pub(crate) fn is_read_only(name: &str) -> bool {
+    let Some(spelled) = spelled(name) else { return false };
+    is_built_in(name) && !WRITABLE.contains(&spelled.as_str())
 }
 
 /// The reason a name of the machine is not answered.
@@ -212,22 +262,14 @@ pub(crate) fn write(
     line: u32,
     rt: &mut Runtime,
 ) -> Option<Result<Value, RuntimeError>> {
+    if is_read_only(name) {
+        return Some(Err(reason(&read_only(name, op))));
+    }
     match spelled(name).as_deref() {
         Some("clipboard") => Some(write_to_the_clipboard(op, value, line, rt)),
         // The working directory of the run is the one of the desktop, and
         // the script changes it by writing the name.
         Some("workingdir") => Some(write_the_working_directory(op, value, line, rt)),
-        // The names that the dialect lets a script write, and that the
-        // tree does not keep: the value they hold is the one that was
-        // written, and the read finds it before the machine.
-        Some(
-            "scriptname" | "eventinfo" | "iconhidden" | "icontip" | "lasterror" | "hotkeyinterval"
-            | "hotkeymodifiertimeout" | "maxhotkeysperinterval",
-        ) => None,
-        // A built-in variable that the dialect does not let a script
-        // write: the name of the version, the name of the screen, the name
-        // of the machine.
-        Some(spelled) if kind_of(spelled).is_some() => Some(Err(reason(&read_only(name)))),
         // A name that is not a built-in variable of the dialect is a
         // variable of the script.
         _ => None,

@@ -5689,3 +5689,50 @@ The probes that measured the rules are in `egm-review/probe_block_m6.py`
 `egm-review/probe_block_m7.py` (16 cases, the scope of the assignment) and
 in `egm-review/probe_block_m8.py` (24 cases, the empty parenthesis).
 
+## 134. The name of a built-in variable is not a name that the script owns
+
+Measured on the binary of v2.0.19 on 2026-11-01: the hundred and thirty-one
+built-in variables of v2, the thirty-seven of them that a script may write,
+and the four places where the dialect refuses a name of one of them.
+
+- **A built-in variable that the dialect does not let a script write may not
+  be the output variable of an assignment,** and the refusal is at the load:
+  "This built-in variable cannot be used as an output variable." and the
+  name, and "This built-in variable cannot be assigned a value." for the
+  compound ones. The refusal is the one of every scope -- a local variable
+  may not carry the name either -- and the variable of a `for` is an output
+  variable as well.
+- **The table of the names that a script may write is the measurement, and it
+  is not the table of the kinds.** The v2 refuses ninety-four of the hundred
+  and thirty-one names: the version, the screen, the machine, the date and
+  the time, the shape of the cursor -- a setting of the run all the same --
+  the names of the loop and of the line, and the hotkeys of the moment. It
+  lets a script write thirty-seven: the clipboard, the directory of the run,
+  the names of the table of the writes, the settings of the run, and the
+  index of the loop.
+- **A parameter may not carry the name of a built-in variable,** and the
+  declaration says that it conflicts with it: "This parameter declaration
+  conflicts with an existing built-in variable." and the name, as the script
+  spelled it. It is the one of the hundred and thirty-one names, and not the
+  one of the thirty-seven that a script may write.
+- **A static declaration may not carry the name either,** and the word of the
+  declaration is in the message: "This static variable declaration conflicts
+  with an existing built-in variable." The `local` says "local" in its
+  place, and the `global` may carry the name: it names the built-in
+  variable of the dialect and not a variable of the script.
+- **The body of a class is the one place where the name is a property and not
+  a variable,** and the dialect lets it there.
+
+The probes that measured the rules are in `egm-review/probe_block_n4.py`
+(262 cases, every built-in variable of the surface, written plainly and with
+the compound operator), in `egm-review/probe_block_n7.py` (18 cases, the
+parameter), in `egm-review/probe_block_n8.py` (12 cases, the `for` and the
+`static`) and in `egm-review/probe_block_n9.py` (11 cases, the declarations).
+
+**What is still open.** The values of three names are not the ones of the
+v2: the index of the loop inside a counted `Loop` is zero in the tree and
+the number of the turn in the v2, the timeout of the change of a hotkey has
+no value in the tree and fifty in the v2, and the shape of the cursor is not
+read by this runtime. The tree does not read the definition of a hotkey at
+the load either: `F1:: { }` is a syntax error of the tree and a hotkey of
+the v2.

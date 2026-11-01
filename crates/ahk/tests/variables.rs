@@ -569,14 +569,134 @@ fn the_timeout_of_the_change_of_a_hotkey_that_has_no_value_is_refused() {
 fn a_built_in_variable_that_the_dialect_does_not_let_a_script_write_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the dialect refuses
     // the name when the script writes it, and it names the name as the
-    // script spelled it.
-    let report = run("A_AhkVersion := \"x\"");
-    assert!(!report.ok);
+    // script spelled it. The refusal is at the load: the script does not
+    // run at all.
+    let error = parse("A_AhkVersion := \"x\"").expect_err("does not parse");
     assert_eq!(
-        report.error.as_deref(),
-        Some("This built-in variable cannot be used as an output variable.\n     Specifically: A_AhkVersion")
+        error.message,
+        "This built-in variable cannot be used as an output variable.\n     Specifically: A_AhkVersion"
     );
-    assert_eq!(report.error_line, Some(1));
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn the_compound_operator_says_that_the_variable_cannot_be_assigned_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the compound
+    // operator has its own reason, and it says that the variable cannot
+    // be assigned a value.
+    let error = parse("A_ScriptDir += 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This built-in variable cannot be assigned a value.\n     Specifically: A_ScriptDir"
+    );
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn the_refusal_of_a_built_in_variable_is_the_one_of_every_scope() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the refusal is at
+    // the load, and it is the one of every scope: a local variable may
+    // not carry the name of a built-in variable that the dialect does not
+    // let a script write.
+    let error = parse("f() {\n    A_ScriptDir := 1\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This built-in variable cannot be used as an output variable.\n     Specifically: A_ScriptDir"
+    );
+    assert_eq!(error.line, 2);
+}
+
+#[test]
+fn the_shape_of_the_cursor_may_not_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the shape of the
+    // cursor is a setting of the run, and the v2 refuses to write it all
+    // the same.
+    let error = parse("A_Cursor := \"Arrow\"").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This built-in variable cannot be used as an output variable.\n     Specifically: A_Cursor"
+    );
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn the_names_that_the_runtime_owns_may_not_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the names of the
+    // loop and of the line are names that the v2 refuses to write, and
+    // the refusal is at the load.
+    let error = parse("A_LoopField := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This built-in variable cannot be used as an output variable.\n     Specifically: A_LoopField"
+    );
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn the_index_of_the_loop_may_be_written() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the index of the
+    // loop is the one name that the runtime owns and that a script may
+    // write.
+    let report = run("A_Index := 5\nMsgBox A_Index");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5"]);
+}
+
+#[test]
+fn the_body_of_a_class_may_hold_the_name_of_a_built_in_variable() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the body of a class
+    // is the one place where the name is a property and not a variable,
+    // and the dialect lets it there.
+    let report = run("class C {\n    A_ScriptDir := 1\n}");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_parameter_may_not_carry_the_name_of_a_built_in_variable() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the declaration of
+    // a parameter conflicts with a built-in variable, and the name is
+    // named as the script spelled it.
+    let error = parse("f(A_ScriptDir) {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This parameter declaration conflicts with an existing built-in variable.\n     Specifically: A_ScriptDir"
+    );
+    assert_eq!(error.line, 1);
+}
+
+#[test]
+fn a_static_declaration_may_not_carry_the_name_of_a_built_in_variable() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: a static
+    // declaration may not carry the name of a built-in variable, and the
+    // declaration says that it conflicts with it.
+    let error = parse("f() {\n    static A_ScriptName := 1\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This static variable declaration conflicts with an existing built-in variable.\n     Specifically: A_ScriptName"
+    );
+    assert_eq!(error.line, 2);
+}
+
+#[test]
+fn a_global_declaration_may_carry_the_name_of_a_built_in_variable() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the global names
+    // the built-in variable of the dialect and not a variable of the
+    // script, and the dialect lets it.
+    let report = run("global A_ScriptDir");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn the_variable_of_a_for_may_not_carry_the_name_of_a_read_only_variable() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the variable of a
+    // for is an output variable, and the name of a built-in variable that
+    // the dialect does not let a script write is refused.
+    let error = parse("for A_ScriptDir in [1] {\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This built-in variable cannot be used as an output variable.\n     Specifically: A_ScriptDir"
+    );
+    assert_eq!(error.line, 1);
 }
 
 #[test]
