@@ -14,15 +14,21 @@
 //!
 //! The tables are read when the test is compiled, so a name that moves
 //! between them breaks the build of the test and not a run of it.
+//!
+//! The v1 has a table of its own, and the same question runs for it: the
+//! dialect is the one that is asked, and not the table of the v2.
 
 use ahk::builtins::names;
 use ahk::classes;
+use ahk::dialect::{self, Dialect};
 use ahk::variables;
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 const SURFACE: &str = include_str!("../reference/ahk-v2.0.19.surface.tsv");
 const PENDING: &str = include_str!("../reference/ahk-v2.0.19.pending.tsv");
+const SURFACE_V1: &str = include_str!("../reference/ahk-v1.1.37.02.surface.tsv");
+const PENDING_V1: &str = include_str!("../reference/ahk-v1.1.37.02.pending.tsv");
 
 /// The names the dialect carries that v2.0.19 does not have.
 ///
@@ -37,10 +43,16 @@ const REASONS: &[&str] = &["windows", "hotkey", "class", "variable", "not-yet"];
 /// The kinds a row may carry.
 const KINDS: &[&str] = &["command", "function", "variable", "method", "class"];
 
+/// The kinds a row of the v1 may carry: the v1 has no runtime class.
+const KINDS_V1: &[&str] = &["command", "function", "variable", "directive"];
+
+/// The reasons a pending row of the v1 may carry.
+const REASONS_V1: &[&str] = &["not-yet"];
+
 /// A row of a table: the fields, without the comments.
 ///
-/// The surface table has a line of column names and the pending table
-/// has none, so the column names are skipped where they are.
+/// The surface table has a line of column names and the pending table has
+/// none, so the column names are skipped where they are.
 fn rows(table: &str) -> Vec<Vec<&str>> {
     let mut out: Vec<Vec<&str>> = Vec::new();
     for line in table.lines() {
@@ -98,10 +110,39 @@ fn carries(kind: &str, class: &str, name: &str) -> bool {
     }
 }
 
+/// Whether the dialect carries the name of a row of the surface.
+///
+/// The question is the one that the `--surface` command asks, and the
+/// dialect is the one that answers: the v1 has names of its own, and the
+/// two tables of the built-ins meet in the dialect.
+fn carries_of(dialect: &dyn Dialect, kind: &str, class: &str, name: &str) -> bool {
+    match kind {
+        "command" | "function" => dialect
+            .builtins()
+            .iter()
+            .any(|builtin| builtin.name.eq_ignore_ascii_case(name)),
+        "variable" => dialect.carries_variable(name),
+        "method" => classes::carries(class, name),
+        "class" => classes::is_a_name_of_a_class(name),
+        // The name of the table has the hash that the dialect gives it, and
+        // the dialect knows the name without it.
+        "directive" => dialect.carries_directive(name.trim_start_matches('#')),
+        _ => false,
+    }
+}
+
 /// The counts of the lists, for a message that says what moved.
 fn counts(surface: usize, pending: usize) -> String {
     format!(
         "the surface of v2 has {surface} names, and the pending table lists {pending} \
+         of them"
+    )
+}
+
+/// The counts of the lists of the v1, for a message that says what moved.
+fn counts_v1(surface: usize, pending: usize) -> String {
+    format!(
+        "the surface of v1 has {surface} names, and the pending table lists {pending} \
          of them"
     )
 }
@@ -266,4 +307,105 @@ fn every_name_of_v2_is_carried() {
         "these names of v2 are not carried: {lost:?}; {}",
         counts(surface_names().len(), pending_names().len())
     );
+}
+
+// -- the v1 ---------------------------------------------------------------------
+
+/// Every name of the surface of the v1 is carried or pending.
+///
+/// The v1 is not the whole of the v2: the names that the tree does not
+/// carry yet are in the pending table of the v1, and the question is the
+/// one that the v2 asks.
+#[test]
+fn every_name_of_the_v1_is_carried_or_pending() {
+    let dialect = dialect::v1();
+    let surface = places(SURFACE_V1);
+    let pending = places(PENDING_V1);
+    let lost: Vec<String> = rows(SURFACE_V1)
+        .into_iter()
+        .filter(|row| !carries_of(dialect, row[0], row[1], row[2]))
+        .filter(|row| {
+            !pending.contains(&(
+                row[0].to_string(),
+                row[1].to_string(),
+                row[2].to_string(),
+            ))
+        })
+        .map(|row| format!("{} {} {}", row[0], row[1], row[2]))
+        .collect();
+    assert!(
+        lost.is_empty(),
+        "these names of the v1 are neither carried nor pending: {lost:?}; {}",
+        counts_v1(surface.len(), pending.len())
+    );
+}
+
+/// No name of the v1 is carried and pending at once.
+#[test]
+fn no_name_of_the_v1_is_both_carried_and_pending() {
+    let dialect = dialect::v1();
+    let mut both: Vec<String> = Vec::new();
+    for row in rows(PENDING_V1) {
+        let (kind, class, name) = (row[0], row[1], row[2]);
+        if carries_of(dialect, kind, class, name) {
+            both.push(format!("{kind} {class} {name}"));
+        }
+    }
+    assert!(
+        both.is_empty(),
+        "these names of the v1 are carried and pending at once: {both:?}; {}",
+        counts_v1(rows(SURFACE_V1).len(), rows(PENDING_V1).len())
+    );
+}
+
+/// Every pending row of the v1 has a reason and a kind, and is a row of
+/// the surface of the v1.
+#[test]
+fn every_pending_row_of_the_v1_is_a_row_of_the_surface_with_a_reason() {
+    let surface = places(SURFACE_V1);
+    let mut bad: Vec<String> = Vec::new();
+    for row in rows(PENDING_V1) {
+        let (kind, class, name) = (row[0], row[1], row[2]);
+        if !KINDS_V1.contains(&kind) {
+            bad.push(format!("{name}: the kind {kind} is not one of {KINDS_V1:?}"));
+        }
+        if row[3].is_empty() || !REASONS_V1.contains(&row[3]) {
+            bad.push(format!("{name}: the reason {:?} is not one of {REASONS_V1:?}", row[3]));
+        }
+        if !surface.contains(&(kind.to_string(), class.to_string(), name.to_string())) {
+            bad.push(format!("{name}: the pending table names that the v1 does not have"));
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "{bad:?}; {}",
+        counts_v1(rows(SURFACE_V1).len(), rows(PENDING_V1).len())
+    );
+}
+
+/// Every name of the table of the built-ins of the v1 is a name of the
+/// surface of the v1.
+///
+/// The table of the v1 is the table of the names that the v1 has, and a
+/// name that is in it and not in the surface is a name that the tree
+/// carries and the reference does not.
+#[test]
+fn every_name_of_the_table_of_the_v1_is_a_name_of_the_surface() {
+    let surface = surface_names_of_the_v1();
+    let invented: Vec<String> = dialect::v1()
+        .builtins()
+        .iter()
+        .map(|builtin| builtin.name.to_string())
+        .filter(|name| !surface.contains(name.as_str()))
+        .collect();
+    assert!(
+        invented.is_empty(),
+        "the table of the v1 names that the surface does not have: {invented:?}; {}",
+        counts_v1(surface.len(), rows(PENDING_V1).len())
+    );
+}
+
+/// The names of the surface of the v1.
+fn surface_names_of_the_v1() -> BTreeSet<&'static str> {
+    rows(SURFACE_V1).into_iter().map(|row| row[2]).collect()
 }

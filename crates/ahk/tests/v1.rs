@@ -246,3 +246,90 @@ fn the_body_of_a_construct_of_the_v1_is_one_statement() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["else".to_string()]);
 }
+
+/// The built-in variables of the v1 answer with the value that the binary
+/// answers.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: `A_AutoTrim` is
+/// `On`, `A_FormatFloat` is `0.6`, `A_DefaultGui` is `1` and `A_IsUnicode`
+/// is `1`.
+#[test]
+fn the_built_in_variables_of_the_v1_answer_with_the_value_that_the_binary_answers() {
+    let report = run("x := A_AutoTrim");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("On".into())));
+
+    let report = run("x := A_FormatFloat");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0.6".into())));
+
+    let report = run("x := A_FormatInteger");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("D".into())));
+
+    let report = run("x := A_DefaultGui");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    let report = run("x := A_IsUnicode");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+}
+
+/// The two variables of the v1 that are about the machine are refused with
+/// the reason.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `A_OSType` is
+/// `WIN32_NT`, and the `A_IPAddress1` is the address of the machine, and
+/// this runtime answers neither.
+#[test]
+fn the_variables_of_the_v1_that_are_about_the_machine_are_refused_with_the_reason() {
+    let report = run("x := A_OSType");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("this name is about Windows, and this machine is not."));
+
+    let report = run("x := A_IPAddress1");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this desktop does not know the address of the network of the machine.")
+    );
+}
+
+/// The built-in variables of the v1 are read-only, and the arguments of the
+/// script are the only one that a script may write.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the write of
+/// `A_AutoTrim` is refused with "Not allowed as an output variable.", and
+/// the write of `A_Args` is kept.
+#[test]
+fn the_built_in_variables_of_the_v1_are_read_only() {
+    let report = run("A_AutoTrim := \"Off\"");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Not allowed as an output variable.\n     Specifically: A_AutoTrim")
+    );
+
+    let report = run("A_Args := \"written\"\nx := A_Args");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("written".into())));
+}
+
+/// The directive of the v1 that the runtime already is is accepted, and the
+/// one that asks for a thing the runtime does not have is refused with the
+/// reason.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `#Persistent`
+/// is the case that the runner already is, and the `#MaxMem` asks for a
+/// limit of memory that this runtime does not keep.
+#[test]
+fn the_directive_of_the_v1_is_answered_with_the_reason_of_the_thing_it_asks_for() {
+    let report = run("#Persistent\nFileAppend, ok, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["ok".to_string()]);
+
+    let report = run("#MaxMem\nFileAppend, ok, *");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("the memory limits are not carried by this runtime."));
+}

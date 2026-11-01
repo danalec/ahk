@@ -9,75 +9,44 @@
 # the v1 will do the same.
 #
 # kind      command, function, variable or directive
+# class     the class a method belongs to, empty otherwise: the v1 has no
+#           runtime classes, and the column is empty for every row
 # name      the name, as the v1 spells it
 # reason    why the tree does not carry it yet
 #
 # The reasons:
 #
-# variable  the name is a built-in variable that is not here yet.
 # not-yet   the name is here, and it is still to do.
 #
 # The names come from the table of the surface of the v1
 # (ahk-v1.1.37.02.surface.tsv), which was measured on the binary on
 # 2026-10-29, and the names that the v2 does not have were read out of the
 # table of the v2.
-kind	name	reason
+#
+# What the table held before the 2nd of November of 2026, and what the
+# tree carries now:
+#
+# - The twenty-nine built-in variables of the v1 that the v2 does not have
+#   are carried: twenty-seven of them answer with the value that the binary
+#   answers, and the two of them that are about the machine (`A_OSType` and
+#   `A_IPAddress1`) are refused with the reason.
+# - The fifteen directives of the v1 that the v2 does not have are carried:
+#   the `#NoEnv` and the `#Persistent` are the case that the runtime already
+#   is, and the other thirteen are refused with the reason.
+kind	class	name	reason
 
-command	AutoTrim	not-yet
-command	FileReadLine	not-yet
-command	IfInString	not-yet
-command	IfMsgBox	not-yet
-command	Input	not-yet
-command	SetBatchLines	not-yet
-command	SetFormat	not-yet
-command	StringCaseSense	not-yet
-command	Transform	not-yet
-directive	#CommentFlag	not-yet
-directive	#EscapeChar	not-yet
-directive	#HotkeyInterval	not-yet
-directive	#HotkeyModifierTimeout	not-yet
-directive	#If	not-yet
-directive	#IfTimeout	not-yet
-directive	#IfWinActive	not-yet
-directive	#InstallKeybdHook	not-yet
-directive	#InstallMouseHook	not-yet
-directive	#KeyHistory	not-yet
-directive	#MaxHotkeysPerInterval	not-yet
-directive	#MaxMem	not-yet
-directive	#MenuMaskKey	not-yet
-directive	#NoEnv	not-yet
-directive	#Persistent	not-yet
-function	Func	not-yet
-function	IsByRef	not-yet
-function	IsFunc	not-yet
-function	IsSet	not-yet
-function	Object	not-yet
-function	VarSetCapacity	not-yet
-variable	A_Args	variable
-variable	A_AutoTrim	variable
-variable	A_BatchLines	variable
-variable	A_CaretX	variable
-variable	A_CaretY	variable
-variable	A_DefaultGui	variable
-variable	A_DefaultListView	variable
-variable	A_DefaultTreeView	variable
-variable	A_ExitReason	variable
-variable	A_FormatFloat	variable
-variable	A_FormatInteger	variable
-variable	A_Gui	variable
-variable	A_GuiControl	variable
-variable	A_GuiControlEvent	variable
-variable	A_GuiEvent	variable
-variable	A_GuiHeight	variable
-variable	A_GuiWidth	variable
-variable	A_GuiX	variable
-variable	A_GuiY	variable
-variable	A_IPAddress1	variable
-variable	A_IsUnicode	variable
-variable	A_NumBatchLines	variable
-variable	A_OSType	variable
-variable	A_StringCaseSense	variable
-variable	A_ThisLabel	variable
-variable	A_ThisMenu	variable
-variable	A_ThisMenuItem	variable
-variable	A_ThisMenuItemPos	variable
+command		AutoTrim	not-yet
+command		FileReadLine	not-yet
+command		IfInString	not-yet
+command		IfMsgBox	not-yet
+command		Input	not-yet
+command		SetBatchLines	not-yet
+command		SetFormat	not-yet
+command		StringCaseSense	not-yet
+command		Transform	not-yet
+function		Func	not-yet
+function		IsByRef	not-yet
+function		IsFunc	not-yet
+function		IsSet	not-yet
+function		Object	not-yet
+function		VarSetCapacity	not-yet

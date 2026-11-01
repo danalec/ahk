@@ -257,11 +257,14 @@ fn state_of(
             },
         },
         Kind::Variable => {
-            let bare = the_bare_name(name);
-            if !dialect.carries_variable(bare) {
+            // The name is asked with the spelling of the dialect: the table
+            // of the v2 carries the name with the prefix and the table of
+            // the v1 carries it with it too, and the dialect is the one that
+            // knows the name that its own table holds.
+            if !dialect.carries_variable(name) {
                 return State::Pending(reason_of_pending(pending, kind, class, name));
             }
-            match dialect.refusal_of_variable(bare) {
+            match dialect.refusal_of_variable(name) {
                 None => State::Value,
                 Some(reason) => State::Refusal(reason),
             }
@@ -289,12 +292,17 @@ fn state_of(
         Kind::Directive => {
             // A directive is read by the parser, and not by the runtime.
             // The name of the table has the hash that the dialect gives
-            // it, and the lexer knows the name without it.
+            // it, and the dialect is the one that knows the name without it.
             let bare = name.strip_prefix('#').unwrap_or(name);
-            if crate::lexer::carries_directive(bare) {
-                return State::Value;
+            if !dialect.carries_directive(bare) {
+                return State::Pending(reason_of_pending(pending, kind, class, name));
             }
-            State::Pending(reason_of_pending(pending, kind, class, name))
+            // The directive is answered at the run, and the answer may be
+            // the reason that this runtime cannot do it.
+            match crate::runtime::refusal_of_directive(bare) {
+                None => State::Value,
+                Some(reason) => State::Refusal(reason),
+            }
         }
     }
 }
@@ -312,20 +320,6 @@ fn the_builtin_of(
         .builtins()
         .iter()
         .find(|builtin| builtin.name.to_lowercase() == wanted)
-}
-
-/// The name of a built-in variable without the prefix that the dialect
-/// gives it.
-///
-/// The table of the v2 carries the name without the prefix, and the table
-/// of the v1 carries it as the dialect spells it: `A_Clipboard` and not
-/// `Clipboard`.
-fn the_bare_name(name: &str) -> &str {
-    if name.len() > 2 && name[..2].eq_ignore_ascii_case("a_") {
-        &name[2..]
-    } else {
-        name
-    }
 }
 
 /// Whether this runtime has the class of a row of the surface.

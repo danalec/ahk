@@ -390,6 +390,35 @@ pub fn wants_a_reference(
     )
 }
 
+/// The reason the runtime refuses the directive of this name, when it does.
+///
+/// The directive is answered at the run, and the reason is the one of the
+/// category of the directive: the hotkeys, the memory limits, the comment
+/// flags. A directive that the runtime carries answers with `None`.
+///
+/// The surface asks this question, and the answer is the one that the run
+/// gives: the table of the names and the run are the same truth.
+pub fn refusal_of_directive(name: &str) -> Option<&'static str> {
+    match name {
+        "commentflag" | "escapechar" => Some("the comment flags are not carried by this runtime."),
+        "maxmem" => Some("the memory limits are not carried by this runtime."),
+        "if" | "iftimeout" | "ifwinactive" | "installkeybdhook" | "installmousehook" | "keyhistory"
+        | "maxhotkeysperinterval" | "hotkeyinterval" | "hotkeymodifiertimeout" | "menumaskkey"
+        | "usehook" | "hotif" | "hotiftimeout" | "hotstring" | "maxthreads" | "maxthreadsperhotkey"
+        | "maxthreadsbuffer" => Some("the hotkeys are not carried by this runtime."),
+        "clipboardtimeout" => Some("the clipboard is not carried by this runtime."),
+        "inputlevel" => Some("the input level is not carried by this runtime."),
+        "suspendexempt" => Some("the suspend is not carried by this runtime."),
+        "winactivateforce" => Some("the window activation is not carried by this runtime."),
+        "warn" => Some("the warnings are not carried by this runtime."),
+        "include" | "includeagain" => {
+            Some("the includes are resolved by the runner, not by the language.")
+        }
+        "dllload" => Some("a Windows library is a Windows thing and this box has none."),
+        _ => None,
+    }
+}
+
 /// The name of a file: the part of the path after the last separator.
 ///
 /// The separator is the slash of a Linux path and the backslash of a
@@ -3020,6 +3049,30 @@ impl<'a> Runtime<'a> {
         frame.statics.contains(name)
     }
 
+    /// The value of the built-in variable of this name, when the name is one.
+    ///
+    /// The dialect is asked, and not the table of the v2: the v1 has names
+    /// of its own, and the two tables meet in the dialect.
+    fn the_built_in_variable(&mut self, name: &str) -> Option<Result<Value, RuntimeError>> {
+        let dialect = self.dialect;
+        dialect.lookup_variable(name, self)
+    }
+
+    /// The value that the write of the built-in variable of this name leaves.
+    ///
+    /// The dialect is asked, and not the table of the v2: the v1 has names
+    /// of its own, and the two tables meet in the dialect.
+    fn the_write_of_the_built_in_variable(
+        &mut self,
+        name: &str,
+        op: AssignOp,
+        value: &Value,
+        line: u32,
+    ) -> Option<Result<Value, RuntimeError>> {
+        let dialect = self.dialect;
+        dialect.write_variable(name, op, value, line, self)
+    }
+
 
     /// The static variables of the function that runs.
     ///
@@ -3263,7 +3316,7 @@ impl<'a> Runtime<'a> {
     /// the script, and v2 says which one of them it is.
     fn cannot_be_referenced(&self, name: &str) -> Option<&'static str> {
         let key = name.to_lowercase();
-        if crate::variables::is_built_in(name) {
+        if crate::variables::is_built_in(name) || self.dialect.carries_variable(name) {
             return Some("built-in variable");
         }
         if self.functions.contains_key(&key) || self.builtin(&key).is_some() {
@@ -6336,10 +6389,6 @@ impl<'a> Runtime<'a> {
         argument: &str,
         line: u32,
     ) -> Result<String, RuntimeFailure> {
-        let reason = |what: &str| RuntimeFailure::Error(RuntimeError {
-            message: format!("the {what} are not carried by this runtime."),
-            line,
-        });
         match name {
             // There is no tray icon to hide, and the runner is one
             // process: both are already what the directive asks for.
@@ -6356,11 +6405,6 @@ impl<'a> Runtime<'a> {
             // script of the v1 stays alive on its own, and the runner is one
             // process that stays alive on its own.
             "persistent" => Ok("the runner is one process".into()),
-            "commentflag" | "escapechar" => Err(reason("comment flags")),
-            "maxmem" => Err(reason("memory limits")),
-            "if" | "iftimeout" | "ifwinactive" | "installkeybdhook" | "installmousehook"
-            | "keyhistory" | "maxhotkeysperinterval" | "hotkeyinterval" | "hotkeymodifiertimeout"
-            | "menumaskkey" => Err(reason("hotkeys")),
             "singleinstance" => Ok("the runner is one process".into()),
             // The errors are always in the report, and the report is
             // always on the standard output.
@@ -6377,26 +6421,16 @@ impl<'a> Runtime<'a> {
                     }))
                 }
             }
-            "include" | "includeagain" => Err(RuntimeFailure::Error(RuntimeError {
-                message: "the includes are resolved by the runner, not by the language.".into(),
-                line,
-            })),
-            "us hook" => unreachable!(),
-            "usehook" | "hotif" | "hotiftimeout" | "hotstring" | "maxthreads" | "maxthreadsperhotkey"
-            | "maxthreadsbuffer" => Err(reason("hotkeys")),
-            "clipboardtimeout" => Err(reason("clipboard")),
-            "inputlevel" => Err(reason("input level")),
-            "suspendexempt" => Err(reason("suspend")),
-            "winactivateforce" => Err(reason("window activation")),
-            "warn" => Err(reason("warnings")),
-            "dllload" => Err(RuntimeFailure::Error(RuntimeError {
-                message: "a Windows library is a Windows thing and this box has none.".into(),
-                line,
-            })),
-            other => Err(RuntimeFailure::Error(RuntimeError {
-                message: format!("{other} is not a directive this runtime knows."),
-                line,
-            })),
+            // The rest is what the table of the directives says: the reason
+            // is the one of the category of the directive, and the table and
+            // the run are the same truth.
+            other => match refusal_of_directive(other) {
+                Some(why) => Err(RuntimeFailure::Error(RuntimeError { message: why.into(), line })),
+                None => Err(RuntimeFailure::Error(RuntimeError {
+                    message: format!("{other} is not a directive this runtime knows."),
+                    line,
+                })),
+            },
         }
     }
 
@@ -6872,7 +6906,7 @@ impl<'a> Runtime<'a> {
         let from_the_script = self.lookup_variable(name);
         let value = match from_the_script {
             Some(value) => Some(Ok(value)),
-            None => crate::variables::lookup(name, self),
+            None => self.the_built_in_variable(name),
         };
         // An object that is called is asked through its `Call` method:
         // v2 does not ask the `__Call` of the class when the object
@@ -7206,7 +7240,7 @@ impl<'a> Runtime<'a> {
                     .map_err(|message| RuntimeFailure::Error(RuntimeError { message, line }));
             }
         }
-        match crate::variables::write(name, op, &value, line, self) {
+        match self.the_write_of_the_built_in_variable(name, op, &value, line) {
             Some(written) => {
                 // The reason of a write carries no line: the statement
                 // that asked is the one that carries it.
@@ -7224,7 +7258,7 @@ impl<'a> Runtime<'a> {
                 // name.
                 let current = match self.lookup(name) {
                     Some(value) => Some(value),
-                    None => match crate::variables::lookup(name, self) {
+                    None => match self.the_built_in_variable(name) {
                         Some(Ok(value)) => Some(value),
                         // A name that the runtime owns has a value before the
                         // first loop runs: the index of the turn is zero.
@@ -8112,7 +8146,7 @@ impl<'a> Runtime<'a> {
                 // The name may be one of the built-in variables: the
                 // table of them knows whether it is one, and the runtime
                 // may not be able to answer it.
-                None => match crate::variables::lookup(name, self) {
+                None => match self.the_built_in_variable(name) {
                     Some(Ok(value)) => Ok(value),
                     Some(Err(error)) => Err(RuntimeFailure::Error(RuntimeError {
                         message: error.message,
@@ -8708,7 +8742,7 @@ impl<'a> Runtime<'a> {
             // The name may be one of the built-in variables: the table of
             // them knows whether it is one, and the runtime may not be
             // able to answer it.
-            None => match crate::variables::lookup(name, self) {
+            None => match self.the_built_in_variable(name) {
                 Some(Ok(value)) => value,
                 Some(Err(error)) => {
                     return Err(RuntimeError { message: error.message, line });
@@ -8796,7 +8830,7 @@ impl<'a> Runtime<'a> {
         if let Some(value) = self.lookup(name) {
             return Ok(Some(value));
         }
-        match crate::variables::lookup(name, self) {
+        match self.the_built_in_variable(name) {
             Some(Ok(value)) => Ok(Some(value)),
             Some(Err(error)) => {
                 Err(RuntimeFailure::Error(RuntimeError { message: error.message, line }))

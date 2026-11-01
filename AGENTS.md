@@ -6017,3 +6017,54 @@ of the plan of the v1 dialect.
 - **The directive `#NoEnv` turns the lookup of the environment off.** The
   variable of the script is still there, and the `%TEMP%` of a script
   that has no variable of that name is empty.
+
+## 143. The surface asks the dialect, and the variables of the v1 answer
+
+Measured on the binary of v1.1.37.02 on 2026-11-02. This is the first
+block of the phase F5 of the plan of the v1 dialect, and it fixes two
+things that the surface of the v1 was saying wrong.
+
+- **A directive is a name that the dialect knows, and the runtime
+  answers it.** The surface was asking the lexer, and the lexer carries
+  the directives of the v2: the fifteen directives that the v1 has and
+  the v2 does not were "pending" while the tree was answering them. The
+  table of the directives is now the same one that the run reads
+  (`runtime::refusal_of_directive`), so a directive that the runtime
+  refuses with a reason is a refusal and not a pending: the `#MaxMem` of
+  the v1 is refused with "the memory limits are not carried by this
+  runtime." and the `#Persistent` is the case that the runner already
+  is.
+- **The name of a built-in variable keeps the spelling of its
+  dialect.** The table of the v2 carries the name with the prefix and
+  the table of the v1 carries it with it too, and the surface was
+  taking the prefix away before it asked. The dialect is the one that
+  knows the name that its own table holds.
+- **The twenty-nine built-in variables of the v1 that the v2 does not
+  have are carried.** Measured on the binary on 2026-11-02: the
+  `A_AutoTrim` is `On`, the `A_FormatFloat` is `0.6`, the
+  `A_FormatInteger` is `D`, the `A_DefaultGui` is `1`, the
+  `A_IsUnicode` is `1`, the `A_BatchLines` and the `A_NumBatchLines`
+  are `10ms`, the `A_StringCaseSense` is `Off`, and the names that the
+  tree has no thing for -- the `A_Gui` and the rest, the `A_ThisMenu`
+  and the rest, the `A_CaretX` and the `A_CaretY` -- are empty, the
+  way the v1 answers them when there is none.
+- **The two of them that are about the machine are refused with the
+  reason.** The `A_OSType` is `WIN32_NT` in the v1, and the
+  `A_IPAddress1` is the address of the first adapter of the machine,
+  and this runtime answers neither: the first is refused as a name of
+  Windows, and the second as a desktop that does not know the address.
+- **The built-in variables of the v1 are read-only.** The write of one
+  of them is refused with the message of the v1 -- "Not allowed as an
+  output variable." with the name of the variable -- and the only one
+  that a script may write is the `A_Args`.
+- **The parity test runs for the two dialects.** The question of
+  `tests/surface.rs` is the one that the `--surface` command asks, and
+  it asks the dialect: the names of the v1 that the tree does not carry
+  yet are the fifteen of the pending table of the v1, and a name that
+  moves between the tables breaks the build of the test.
+
+The numbers: the surface of the v1 has **384** entries -- **261** answer
+with a value, **108** are refused and **15** are pending. The surface of
+the v2 did not move: **828** entries, **637** values, **191** refusals
+and no pending.
+

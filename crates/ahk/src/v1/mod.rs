@@ -11,19 +11,24 @@
 //! share is a row of the v2, and the table of the v1 points at it.
 
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 
 use crate::builtins::BuiltinHandler;
 use crate::runtime::{Runtime, RuntimeError, Value};
 
 mod table;
+mod variables;
 
 pub use table::BUILTINS;
+pub use variables::{carries as carries_variable, refusal_of as refusal_of_variable};
 
 /// The built-in variables of the v1 that the v2 does not carry.
 ///
 /// The name of a variable of the v1 has the prefix that the dialect gives
 /// it: `A_Clipboard` and not `Clipboard`.
+///
+/// The value of each one of them, and the reason the two of them that the
+/// machine knows are refused, are in the module of the variables.
 pub const VARIABLES: &[&str] = &[
     "A_Args",
     "A_AutoTrim",
@@ -83,18 +88,25 @@ pub fn carries_directive(name: &str) -> bool {
     DIRECTIVES.iter().any(|carried| *carried == wanted)
 }
 
-/// Whether the v1 carries the built-in variable of this name.
-pub fn carries_variable(name: &str) -> bool {
-    let wanted = name.to_lowercase();
-    VARIABLES.iter().any(|carried| carried.to_lowercase() == wanted)
+/// The value of the built-in variable of this name, when the name is one.
+///
+/// `None` means the name is not a built-in variable of the v1: the name is a
+/// variable of the script.
+pub(crate) fn lookup_variable(name: &str) -> Option<Result<Value, RuntimeError>> {
+    variables::lookup(name)
 }
 
-/// The reason the v1 does not answer the built-in variable of this name.
-pub fn refusal_of_variable(name: &str) -> Option<&'static str> {
-    if carries_variable(name) {
-        return Some(crate::dialect::NOT_CARRIED_YET);
-    }
-    None
+/// The write of the built-in variable of this name, when the name is one.
+///
+/// `None` means the name is not a built-in variable of the v1, or that the
+/// v1 lets a script write it: the runtime keeps the value in the table of
+/// the script.
+pub(crate) fn write_variable(
+    name: &str,
+    op: crate::ast::AssignOp,
+    line: u32,
+) -> Option<Result<Value, RuntimeError>> {
+    variables::write(name, op, line)
 }
 
 // -- the answer that goes into the variable of the caller ---------------------

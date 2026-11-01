@@ -12,7 +12,9 @@
 //! of the runner: without it the tree speaks the v2, and with it the tree
 //! speaks the v1.
 
+use crate::ast::AssignOp;
 use crate::builtins::Builtin;
+use crate::runtime::{Runtime, RuntimeError, Value};
 
 /// The dialect that the runtime speaks.
 ///
@@ -34,10 +36,39 @@ pub trait Dialect: Sync {
     fn tables(&self) -> (&'static str, &'static str);
 
     /// Whether the dialect carries the built-in variable of this name.
+    ///
+    /// The name is the one that the dialect spells: `A_Clipboard` and not
+    /// `Clipboard`.
     fn carries_variable(&self, name: &str) -> bool;
 
     /// The reason the dialect does not answer the built-in variable.
+    ///
+    /// `None` means the dialect answers the name.
     fn refusal_of_variable(&self, name: &str) -> Option<&'static str>;
+
+    /// The value of the built-in variable of this name, when the name is one.
+    ///
+    /// `None` means the name is not a built-in variable of the dialect: the
+    /// runtime keeps it in the table of the script.
+    fn lookup_variable(
+        &self,
+        name: &str,
+        rt: &mut Runtime,
+    ) -> Option<Result<Value, RuntimeError>>;
+
+    /// The value that the write of the built-in variable of this name leaves.
+    ///
+    /// `None` means the name is not a built-in variable of the dialect, or
+    /// that the dialect lets a script write it and the runtime keeps the
+    /// value in the table of the script.
+    fn write_variable(
+        &self,
+        name: &str,
+        op: AssignOp,
+        value: &Value,
+        line: u32,
+        rt: &mut Runtime,
+    ) -> Option<Result<Value, RuntimeError>>;
 
     /// The legacy command: a name at the start of a line, a comma, and the
     /// parameters of the command. Measured on the binary of v1.1.37.02 on
@@ -124,6 +155,25 @@ impl Dialect for V2 {
         crate::variables::refusal_of(name)
     }
 
+    fn lookup_variable(
+        &self,
+        name: &str,
+        rt: &mut Runtime,
+    ) -> Option<Result<Value, RuntimeError>> {
+        crate::variables::lookup(name, rt)
+    }
+
+    fn write_variable(
+        &self,
+        name: &str,
+        op: AssignOp,
+        value: &Value,
+        line: u32,
+        rt: &mut Runtime,
+    ) -> Option<Result<Value, RuntimeError>> {
+        crate::variables::write(name, op, value, line, rt)
+    }
+
     fn legacy_commands(&self) -> bool {
         false
     }
@@ -179,6 +229,28 @@ impl Dialect for V1 {
             return crate::variables::refusal_of(name);
         }
         crate::v1::refusal_of_variable(name)
+    }
+
+    fn lookup_variable(
+        &self,
+        name: &str,
+        rt: &mut Runtime,
+    ) -> Option<Result<Value, RuntimeError>> {
+        // The v1 carries the variables of the v2, and the ones of its own:
+        // the name is the one that the dialect spells.
+        crate::variables::lookup(name, rt).or_else(|| crate::v1::lookup_variable(name))
+    }
+
+    fn write_variable(
+        &self,
+        name: &str,
+        op: AssignOp,
+        value: &Value,
+        line: u32,
+        rt: &mut Runtime,
+    ) -> Option<Result<Value, RuntimeError>> {
+        crate::variables::write(name, op, value, line, rt)
+            .or_else(|| crate::v1::write_variable(name, op, line))
     }
 
     fn legacy_commands(&self) -> bool {
