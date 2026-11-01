@@ -2965,3 +2965,65 @@ fn the_function_of_the_v1_does_not_share_the_scopes_around_the_call() {
     assert_eq!(report.output, vec!["[]".to_string()]);
 }
 
+/// The name of the v1 may begin with a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// reads a name that begins with a number: the "1C" is a name, the "class 1C"
+/// is a class, the "1F()" is a function and the "f(1a)" is a function with a
+/// parameter that is named "1a". The v2 refuses the script at the load.
+#[test]
+fn the_name_of_the_v1_may_begin_with_a_number() {
+    // The class whose name begins with a number.
+    let report = run(
+        "class 1C\n{\n    Say() {\n        return \"said\"\n    }\n}\no := new 1C\nx := o.Say()\n\
+         FileAppend, %x%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["said".to_string()]);
+
+    // The function whose name begins with a number.
+    let report = run("1F() {\n    return 1\n}\nx := 1F()\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+
+    // The variable whose name begins with a number.
+    let report = run("1C := 5\nFileAppend, %1C%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["5".to_string()]);
+
+    // The name that is not assigned is the empty text.
+    let report = run("x := 1C\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The parameter whose name begins with a number.
+    let report = run("f(1a) {\n    return 1\n}\nx := f(1)\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
+/// The exponent of the v1 needs a decimal point.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// scientific notation of the v1 needs a decimal point: the "1.0e4" is the
+/// number 10000, and the "1e2" is a name. The v2 reads the "1e2" as the
+/// number 100.
+#[test]
+fn the_exponent_of_the_v1_needs_a_point() {
+    // The exponent without a point is a name, and the name that is not
+    // assigned is the empty text.
+    let report = run("x := 1e2\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The name that carries the exponent may be assigned.
+    let report = run("1e2 := 5\nx := 1e2\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[5]".to_string()]);
+
+    // The exponent with a point is a number.
+    let report = run("x := 1.5e2\ny := x + 0\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["150.000000".to_string()]);
+}
+

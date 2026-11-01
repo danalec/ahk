@@ -232,6 +232,16 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the exponent of a number needs a decimal point.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// scientific notation of the v1 needs a decimal point: the "1.0e4" is
+    /// the number 10000, and the "1e2" is a name. The v2 reads the "1e2" as
+    /// the number 100.
+    fn the_exponent_needs_a_point(&self) -> bool {
+        false
+    }
+
     /// Whether a value that is not a number makes the operation blank.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the value of a
@@ -800,6 +810,15 @@ impl Dialect for V1 {
     }
 
     fn the_number_may_be_followed_by_a_name(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 reads
+        // a name that begins with a number, and the parameter of a command
+        // of the v1 is a text.
+        true
+    }
+
+    fn the_exponent_needs_a_point(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+        // scientific notation of the v1 needs a decimal point.
         true
     }
 

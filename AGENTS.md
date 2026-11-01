@@ -6876,3 +6876,27 @@ v1 may also begin with a number -- the `1C` is a name, and the `1e2` is a
 name too, because the scientific notation needs a decimal point -- and the
 tree refuses the name that begins with a number.
 
+## 169. The name of the v1 may begin with a number
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The name of the v1 may begin with a number.** The v1 reads a name that
+  begins with a number: the `1C` is a name, the `class 1C` is a class, the
+  `1F()` is a function, the `f(1a)` is a function with a parameter that is
+  named "1a", and the `1C := 5` is an assignment. The v2 refuses the script
+  at the load.
+- **The exponent of the v1 needs a decimal point.** The `1.0e4` is the
+  number 10000, and the `1e2` is a name -- and the name may be assigned. The
+  v2 reads the `1e2` as the number 100.
+
+The rules are two hooks of the dialect (`crates/ahk/src/dialect.rs`): a
+number may be followed by a name, and the exponent needs a point. The lexer
+asks them (`crates/ahk/src/lexer.rs`).
+
+What stays out: the numbers of the v1 keep the text that was written -- the
+`x := 0x1C` is "0x1C" and the `x := 1.5e2` is "1.5e2" -- and the tree says
+"16" and "150.0". The name of a class of the v1 may also be a hex -- the
+`class 0x1C` is a class -- and the tree refuses it. The v1 reads the "$" as
+a part of a name -- the `x := 1$a` is a name -- and the tree refuses the
+character.
+

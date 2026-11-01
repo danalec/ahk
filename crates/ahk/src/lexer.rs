@@ -890,7 +890,7 @@ pub fn tokenize_with(
         if current.is_ascii_digit() || (current == '.' && the_point_begins_a_number(&chars, index, &tokens)) {
             let (start_line, start_column) = (line, column);
             let start = index;
-            index = the_end_of_the_number(&chars, index);
+            index = the_end_of_the_number(&chars, index, dialect.the_exponent_needs_a_point());
             column += (index - start) as u32;
             // A name that begins with a number is not a number: v2 refuses
             // the script at the load, and it says which name it is.
@@ -920,15 +920,20 @@ pub fn tokenize_with(
                 // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // parameter of a command of the v1 is a text, and "2px" is a
                 // text there: the number and the name are two tokens.
+                //
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
+                // reads a name that begins with a number: the "1C" is a
+                // name, the "class 1C" is a class, and the "1e2" is a name
+                // too, because the scientific notation needs a decimal point.
                 if dialect.the_number_may_be_followed_by_a_name() {
-                    index = number_end;
+                    column += (index - number_end) as u32;
                     tokens.push(Token {
-                        kind: TokenKind::Number,
-                        value: chars[start..number_end].iter().collect(),
-                        quote: None,
+                        kind: TokenKind::Name,
+                        value: name,
                         line: start_line,
                         column: start_column,
                         spaced: before,
+                        quote: None,
                     });
                     continue;
                 }
@@ -1159,7 +1164,7 @@ fn the_token_ends_a_value(token: &Token) -> bool {
 /// point of `1.5.2` is the member operator of the float.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-30.
-fn the_end_of_the_number(chars: &[char], start: usize) -> usize {
+fn the_end_of_the_number(chars: &[char], start: usize, the_exponent_needs_a_point: bool) -> usize {
     // The hex of v2.
     if chars.get(start) == Some(&'0')
         && matches!(chars.get(start + 1), Some(&'x') | Some(&'X'))
@@ -1175,12 +1180,14 @@ fn the_end_of_the_number(chars: &[char], start: usize) -> usize {
     while index < chars.len() && chars[index].is_ascii_digit() {
         index += 1;
     }
+    let mut the_number_has_a_point = false;
     if chars.get(index) == Some(&'.') {
         // Measured on the binary of v2.0.19 on 2026-11-01: the point is in
         // the number when a name does not come after it: `1.ToString` is the
         // number 1 and the member that follows it, and `1.` is the number
         // 1.0.
         if !chars.get(index + 1).is_some_and(|character| the_character_is_a_letter(*character)) {
+            the_number_has_a_point = true;
             index += 1;
             while index < chars.len() && chars[index].is_ascii_digit() {
                 index += 1;
@@ -1190,7 +1197,14 @@ fn the_end_of_the_number(chars: &[char], start: usize) -> usize {
     // The exponent of v2: the `e`, the sign and the digits. An `e` that
     // has no digits after it is not an exponent, and the name that
     // begins with the number is refused by the caller.
-    if matches!(chars.get(index), Some(&'e') | Some(&'E')) {
+    //
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    // scientific notation of the v1 needs a decimal point: the "1.0e4" is
+    // the number 10000, and the "1e2" is a name. The v2 reads the "1e2" as
+    // the number 100.
+    if (!the_exponent_needs_a_point || the_number_has_a_point)
+        && matches!(chars.get(index), Some(&'e') | Some(&'E'))
+    {
         let mut after = index + 1;
         if matches!(chars.get(after), Some(&'+') | Some(&'-')) {
             after += 1;
