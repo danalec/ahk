@@ -6821,6 +6821,17 @@ impl<'a> Runtime<'a> {
         value: Value,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+        // operators that write a variable of the v1 read the value that is
+        // there as a number when it can be one -- the "5" is 5, and the
+        // "0x10" is 16 -- and the text that is not a number is the number
+        // zero: the `x += 1` of the "abc" is 1.
+        if self.dialect.a_value_that_is_not_a_number_is_blank()
+            && !matches!(op, AssignOp::Set | AssignOp::Concat)
+        {
+            let current = self.assigned(name, current, line)?;
+            return self.the_value_of_the_write_of_the_v1(op, &current, &value, line);
+        }
         Ok(match op {
             AssignOp::Set => value,
             AssignOp::Add => {
@@ -6962,6 +6973,118 @@ impl<'a> Runtime<'a> {
                 Value::Int((left >> written) as i64)
             }
         })
+    }
+
+    /// The value that an operator that writes a variable writes, the way
+    /// the v1 does it.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the values are
+    /// numbers when they can be one -- the "5" is 5, and the "0x10" is 16
+    /// -- and the text that is not a number is the number zero: the
+    /// `x += 1` of the "abc" is 1. The whole numbers stay whole numbers,
+    /// and the division of two whole numbers is a whole number: the
+    /// `x /= 2` of the 5 is 2.
+    fn the_value_of_the_write_of_the_v1(
+        &self,
+        op: AssignOp,
+        current: &Value,
+        value: &Value,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let a = self.the_number_of_a_value_of_the_v1(current);
+        let b = self.the_number_of_a_value_of_the_v1(value);
+        let one = a.to_number().unwrap_or(0.0);
+        let other = b.to_number().unwrap_or(0.0);
+        let whole = |one: &Value, other: &Value| match (one, other) {
+            (Value::Int(one), Value::Int(other)) => Some((*one, *other)),
+            _ => None,
+        };
+        Ok(match op {
+            AssignOp::Add => match whole(&a, &b) {
+                Some((one, other)) => Value::Int(one.wrapping_add(other)),
+                None => Value::Float(one + other),
+            },
+            AssignOp::Subtract => match whole(&a, &b) {
+                Some((one, other)) => Value::Int(one.wrapping_sub(other)),
+                None => Value::Float(one - other),
+            },
+            AssignOp::Multiply => match whole(&a, &b) {
+                Some((one, other)) => Value::Int(one.wrapping_mul(other)),
+                None => Value::Float(one * other),
+            },
+            AssignOp::Divide => {
+                if other == 0.0 {
+                    // The division by zero of the v1 is a blank result and
+                    // not a failure.
+                    return Ok(Value::Text(String::new()));
+                }
+                match whole(&a, &b) {
+                    Some((one, other)) => Value::Int(one.wrapping_div(other)),
+                    None => Value::Float(one / other),
+                }
+            }
+            AssignOp::IntegerDivide => {
+                let other = self.the_whole_number_of_a_value_of_the_v1(&b);
+                if other == 0 {
+                    return Err(RuntimeFailure::Error(RuntimeError {
+                        message: "Divide by zero.".into(),
+                        line,
+                    }));
+                }
+                Value::Int(self.the_whole_number_of_a_value_of_the_v1(&a).wrapping_div(other))
+            }
+            AssignOp::BitwiseAnd => {
+                Value::Int(self.the_whole_number_of_a_value_of_the_v1(&a) & self.the_whole_number_of_a_value_of_the_v1(&b))
+            }
+            AssignOp::BitwiseOr => {
+                Value::Int(self.the_whole_number_of_a_value_of_the_v1(&a) | self.the_whole_number_of_a_value_of_the_v1(&b))
+            }
+            AssignOp::BitwiseXor => {
+                Value::Int(self.the_whole_number_of_a_value_of_the_v1(&a) ^ self.the_whole_number_of_a_value_of_the_v1(&b))
+            }
+            AssignOp::ShiftLeft => Value::Int(
+                self.the_whole_number_of_a_value_of_the_v1(&a)
+                    .wrapping_shl(self.the_whole_number_of_a_value_of_the_v1(&b) as u32),
+            ),
+            AssignOp::ShiftRight => Value::Int(
+                self.the_whole_number_of_a_value_of_the_v1(&a)
+                    .wrapping_shr(self.the_whole_number_of_a_value_of_the_v1(&b) as u32),
+            ),
+            AssignOp::ShiftRightUnsigned => Value::Int(
+                (self.the_whole_number_of_a_value_of_the_v1(&a) as u64
+                    >> (self.the_whole_number_of_a_value_of_the_v1(&b) as u32 & 63)) as i64,
+            ),
+            AssignOp::Set | AssignOp::Concat => Value::Text(String::new()),
+        })
+    }
+
+    /// The number of a value in the v1, for the operators that write.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the value of the
+    /// v1 is a number when it can be one -- the "5" is 5, and the "0x10" is
+    /// 16 -- and the text that is not a number is the number zero.
+    fn the_number_of_a_value_of_the_v1(&self, value: &Value) -> Value {
+        match value {
+            Value::Int(number) => Value::Int(*number),
+            Value::Float(number) => Value::Float(*number),
+            other => match crate::v1::the_number_of_a_text(&other.to_text()) {
+                Some(number) => number,
+                None => Value::Int(0),
+            },
+        }
+    }
+
+    /// The whole number of a value in the v1, for the operators that write.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the value of the
+    /// v1 is a number when it can be one -- the "5" is 5, and the "0x10" is
+    /// 16 -- and the text that is not a number is the number zero.
+    fn the_whole_number_of_a_value_of_the_v1(&self, value: &Value) -> i64 {
+        match value {
+            Value::Int(number) => *number,
+            Value::Float(number) => *number as i64,
+            other => crate::v1::the_whole_number_at_the_start_of_a_text(&other.to_text()).unwrap_or(0),
+        }
     }
 
     /// The value of a variable of the runtime, when it has none yet.
@@ -7331,8 +7454,19 @@ impl<'a> Runtime<'a> {
         step: i64,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the value of
+        // the v1 is a number when it can be one -- the "5" is 5 -- and the
+        // whole number stays a whole number: the `x++` of the "5" is 6.
+        // The value that is not a number makes the operation blank.
+        if self.dialect.a_value_that_is_not_a_number_is_blank() {
+            return Ok(match crate::v1::the_number_of_a_text(&current.to_text()) {
+                Some(Value::Int(number)) => Value::Int(number.wrapping_add(step)),
+                Some(Value::Float(number)) => Value::Float(number + step as f64),
+                _ => Value::Text(String::new()),
+            });
+        }
         Ok(match current {
-            Value::Int(number) => Value::Int(number + step),
+            Value::Int(number) => Value::Int(number.wrapping_add(step)),
             other => Value::Float(self.number(other, line)? + step as f64),
         })
     }
@@ -8695,16 +8829,27 @@ impl<'a> Runtime<'a> {
                 // whole number of v2 is a whole number, and a number with
                 // a point or with an exponent is a float.
                 LiteralValue::Integer(number) => Value::Int(*number),
-                LiteralValue::Float(number) => {
-                    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
-                    // float that is written in the v1 keeps the text that was
-                    // written: `x := 1.5` is "1.5", and the format of the
-                    // floats does not change it.
-                    if self.dialect.the_float_that_is_written_is_a_text() {
-                        Value::Text(Value::Float(*number).to_text())
-                    } else {
-                        Value::Float(*number)
+                LiteralValue::Float(number) => Value::Float(*number),
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // number of the v1 is a "pure number": it keeps the text
+                // that was written, and that text is the value of it. The
+                // whole number that does not fit in the machine is the
+                // one that fits, and the number that is a number and not
+                // a pure number follows the format of the dialect.
+                LiteralValue::Number(text) => {
+                    let text = crate::v1::the_text_of_the_number_that_fits(text);
+                    if crate::v1::the_number_is_a_number(&text) {
+                        return Ok(match crate::v1::the_number_of_a_text(&text) {
+                            Some(Value::Int(number)) => {
+                                Value::Text(self.integer_format.the_text_of(number))
+                            }
+                            Some(Value::Float(number)) => {
+                                Value::Text(self.float_format.the_text_of(number))
+                            }
+                            _ => Value::Text(text),
+                        });
                     }
+                    Value::Text(text)
                 }
                 // A string is read where it is written: the names it
                 // holds are the names of the scope that writes it.
@@ -8869,14 +9014,33 @@ impl<'a> Runtime<'a> {
                 // integer -3, the way AutoHotkey v2 has it.
                 UnaryOp::Negate => {
                     let value = self.evaluate(operand)?;
+                    // Measured on the binary of v1.1.37.02 on 2026-11-02:
+                    // the value of the v1 is a number when it can be one --
+                    // the "5" is 5, and the "0x10" is 16 -- and the whole
+                    // number stays a whole number: the `-x` of the "5" is
+                    // "-5". The value that is not a number makes the
+                    // operation blank.
+                    if self.dialect.a_value_that_is_not_a_number_is_blank() {
+                        return Ok(match self.the_number_of_the_v1(operand, &value) {
+                            Some(Value::Int(number)) => Value::Int(number.wrapping_neg()),
+                            Some(Value::Float(number)) => Value::Float(-number),
+                            _ => Value::Text(String::new()),
+                        });
+                    }
                     Ok(match value {
-                        Value::Int(number) => Value::Int(-number),
+                        Value::Int(number) => Value::Int(number.wrapping_neg()),
                         other => Value::Float(-self.number(&other, *line)?),
                     })
                 }
                 // The unary plus turns a numeric string into a number.
                 UnaryOp::Plus => {
                     let value = self.evaluate(operand)?;
+                    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                    // plus of the v1 changes nothing: the `+x` of the
+                    // "0x10" is "0x10", and the `+x` of the "abc" is "abc".
+                    if self.dialect.a_value_that_is_not_a_number_is_blank() {
+                        return Ok(value);
+                    }
                     Ok(match value {
                         Value::Int(number) => Value::Int(number),
                         other => Value::Float(self.number(&other, *line)?),
@@ -8992,7 +9156,18 @@ impl<'a> Runtime<'a> {
                             BinaryOp::Equal => self.case_sense.the_method_of_the_equal_sign(),
                             _ => self.case_sense.the_method(),
                         };
-                        let same = values_equal_with(&left_value, &right_value, method);
+                        // Measured on the binary of v1.1.37.02 on 2026-11-02:
+                        // the comparison is a number when both sides are
+                        // numbers, and a text otherwise: the "0x10" is the
+                        // number 16, and the "0x10" that is written between
+                        // quotes is a text that is not a number.
+                        let same = match (
+                            self.the_number_of_the_v1(left, &left_value),
+                            self.the_number_of_the_v1(right, &right_value),
+                        ) {
+                            (Some(one), Some(other)) => the_same_number(&one, &other),
+                            _ => the_same_text(&left_value.to_text(), &right_value.to_text(), method),
+                        };
                         let answer = match op {
                             BinaryOp::Equal => same,
                             _ => !same,
@@ -9062,6 +9237,13 @@ impl<'a> Runtime<'a> {
                         // Measured on the binary of v1.1.37.02 on 2026-11-01:
                         // the sum of the v1 joins a text and a number: `"5" +
                         // 1` is `51`, and the sum of two numbers is a number.
+                        //
+                        // Measured on the binary of v1.1.37.02 on 2026-11-02:
+                        // the whole number that does not fit in the machine
+                        // wraps the way the machine does: the sum of the
+                        // 9223372036854775807 and the one is
+                        // -9223372036854775808, and the product of it and the
+                        // two is -2.
                         if self.dialect.add_concatenates()
                             && (matches!(left_value, Value::Text(_))
                                 || matches!(right_value, Value::Text(_)))
@@ -9071,7 +9253,7 @@ impl<'a> Runtime<'a> {
                             let a = self.number(&left_value, line)?;
                             let b = self.number(&right_value, line)?;
                             match (&left_value, &right_value) {
-                                (Value::Int(a), Value::Int(b)) => Value::Int(a + b),
+                                (Value::Int(a), Value::Int(b)) => Value::Int(a.wrapping_add(*b)),
                                 _ => Value::Float(a + b),
                             }
                         }
@@ -9080,7 +9262,7 @@ impl<'a> Runtime<'a> {
                         let a = self.number(&left_value, line)?;
                         let b = self.number(&right_value, line)?;
                         match (&left_value, &right_value) {
-                            (Value::Int(a), Value::Int(b)) => Value::Int(a - b),
+                            (Value::Int(a), Value::Int(b)) => Value::Int(a.wrapping_sub(*b)),
                             _ => Value::Float(a - b),
                         }
                     }
@@ -9088,7 +9270,7 @@ impl<'a> Runtime<'a> {
                         let a = self.number(&left_value, line)?;
                         let b = self.number(&right_value, line)?;
                         match (&left_value, &right_value) {
-                            (Value::Int(a), Value::Int(b)) => Value::Int(a * b),
+                            (Value::Int(a), Value::Int(b)) => Value::Int(a.wrapping_mul(*b)),
                             _ => Value::Float(a * b),
                         }
                     }
@@ -9118,7 +9300,7 @@ impl<'a> Runtime<'a> {
                                 line,
                             }));
                         }
-                        Value::Int(a / b)
+                        Value::Int(a.wrapping_div(b))
                     }
                     BinaryOp::Power => {
                         let a = self.number(&left_value, line)?;
@@ -10010,12 +10192,30 @@ impl IntegerFormat {
     }
 
     /// The text of a whole number in this format.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the sign is in
+    /// front of the prefix: the -255 is "-0xFF".
     pub fn the_text_of(&self, number: i64) -> String {
         match self {
             IntegerFormat::Decimal => number.to_string(),
-            IntegerFormat::Hexadecimal => format!("0x{:X}", number),
-            IntegerFormat::HexadecimalLower => format!("0x{:x}", number),
+            IntegerFormat::Hexadecimal => the_hexadecimal_text_of(number, true),
+            IntegerFormat::HexadecimalLower => the_hexadecimal_text_of(number, false),
         }
+    }
+}
+
+/// The text of a whole number in the base of sixteen.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the sign is in
+/// front of the prefix, and not in front of the digits: the -255 is
+/// "-0xFF".
+fn the_hexadecimal_text_of(number: i64, upper: bool) -> String {
+    let sign = if number < 0 { "-" } else { "" };
+    let digits = number.unsigned_abs();
+    if upper {
+        format!("{sign}0x{digits:X}")
+    } else {
+        format!("{sign}0x{digits:x}")
     }
 }
 
@@ -10205,6 +10405,18 @@ pub(crate) fn the_same_text(left: &str, right: &str, method: CaseMethod) -> bool
         CaseMethod::Ascii => left.eq_ignore_ascii_case(right),
         CaseMethod::Exact => left == right,
         CaseMethod::Locale => left.to_lowercase() == right.to_lowercase(),
+    }
+}
+
+/// Whether two numbers are the same number.
+///
+/// The whole numbers are compared as whole numbers: the machine cannot
+/// hold every one of them exactly as a float, and the numbers that it
+/// rounds are not the same number.
+pub(crate) fn the_same_number(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Int(one), Value::Int(other)) => one == other,
+        _ => left.to_number() == right.to_number(),
     }
 }
 

@@ -6871,10 +6871,10 @@ of a function is its own. The runtime asks it
 in the scope that a name lives in.
 
 What stays out: the numbers of the v1 keep the text that was written -- the
-`x := 0x1C` is "0x1C" and not "28" -- and the tree says "28". The name of the
+`x := 0x1C` is "0x1C" and not "28" -- and that is section 170. The name of the
 v1 may also begin with a number -- the `1C` is a name, and the `1e2` is a
-name too, because the scientific notation needs a decimal point -- and the
-tree refuses the name that begins with a number.
+name too, because the scientific notation needs a decimal point -- and that
+is section 169.
 
 ## 169. The name of the v1 may begin with a number
 
@@ -6894,9 +6894,67 @@ number may be followed by a name, and the exponent needs a point. The lexer
 asks them (`crates/ahk/src/lexer.rs`).
 
 What stays out: the numbers of the v1 keep the text that was written -- the
-`x := 0x1C` is "0x1C" and the `x := 1.5e2` is "1.5e2" -- and the tree says
-"16" and "150.0". The name of a class of the v1 may also be a hex -- the
+`x := 0x1C` is "0x1C" and the `x := 1.5e2` is "1.5e2" -- and that is section
+170. The name of a class of the v1 may also be a hex -- the
 `class 0x1C` is a class -- and the tree refuses it. The v1 reads the "$" as
 a part of a name -- the `x := 1$a` is a name -- and the tree refuses the
 character.
+
+## 170. The number of the v1 keeps the text that was written
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The number of the v1 is a "pure number": it keeps the text that was
+  written.** The `x := 0x10` is "0x10", and the `x := 00123` is "00123", and
+  the `x := 1.50` is "1.50", and the `x := 1.5e2` is "1.5e2". That text is
+  what the value answers when it is read as a text: the `StrLen(x)` of the
+  "0x10" is four, and the `x . "a"` is "0x10a", and the `Format("{}", x)`
+  is "0x10". The value of it is the number that the text holds, and the
+  operations that want a number ask the text for it: the `x + 1` of the
+  "0x10" is seventeen.
+- **The comparison is a number when both sides are numbers, and a text
+  otherwise.** The `x = 16` of the "0x10" is one, and the `x = "16"` is
+  zero: the text that is written between quotes is not a number.
+- **The number of the v1 that does not fit is the one that fits.** The whole
+  number of base ten that does not fit is the largest one that fits -- the
+  "100000000000000000000" is "9223372036854775807", and the
+  "-100000000000000000000" is "-9223372036854775808". The hex and the float
+  keep the text that was written, and the value of the hex that does not fit
+  is the largest whole number that fits: the "0xFFFFFFFFFFFFFFFF" is
+  "0xFFFFFFFFFFFFFFFF", and it is the 9223372036854775807.
+- **The sign of the v1 is part of the number.** The `+0x10` is "0x10", and
+  the `-00123` is "-123", and the `-0x10` is "-16", and the `-1.50` is
+  "-1.50". The sign of a number that is in a group is an operation of its
+  own: the `-(1.50)` is "-1.500000", and the `+x` of the "0x10" is "0x10".
+- **The whole number of the v1 wraps the way the machine does.** The
+  `9223372036854775807 + 1` is -9223372036854775808, and the product of it
+  and the two is -2.
+- **The operators that write a variable of the v1 read the number.** The
+  `x += 1` of the "5" is six, and the `x += 1` of the "abc" is one -- the
+  text that is not a number is the number zero -- and the `x /= 2` of the 5
+  is two: the division of two whole numbers is a whole number.
+- **The format of the v1 writes the number and not the pure number.** The
+  `SetFormat, Integer, H` and the `x := 255` is "0xFF", and the `x := -255`
+  is "-0xFF"; the pure numbers keep the text that was written: the
+  `x := 00123` is "00123", and the `x := 0x10` is "0x10", and the
+  `x := 1.50` is "1.50".
+
+The v2 is the other way: the number of the v2 is a number, and it does not
+keep the text that was written.
+
+The rule is one hook of the dialect (`crates/ahk/src/dialect.rs`): the number
+keeps the text that was written. The parser asks it
+(`crates/ahk/src/parser.rs`): the literal of a number of the v1 is the text
+that was written, and the sign of it is folded into the literal. The runtime
+asks it too (`crates/ahk/src/runtime.rs`): the literal is a text, the number
+that does not fit is the one that fits, the whole numbers wrap, and the
+operators that write a variable read the number. The numbers of the v1
+(`crates/ahk/src/v1/numbers.rs`) know the three ways of reading a text as a
+number, and the whole number that does not fit.
+
+What stays out: the `SetFormat` of the v1 does not carry the `FloatFast` and
+the `FloatSlow` -- the tree refuses them with "Parameter #1 invalid.", and
+the v1 takes them. The mode that is slow is a rule of its own: the numbers
+are converted to texts when they are written into a variable.
+
 

@@ -449,7 +449,7 @@ fn the_object_of_the_v1_has_no_class() {
     // A property that is written on it is a property of it.
     let report = run("o := Object()\no.x := 5\ny := o.x");
     assert!(report.ok);
-    assert_eq!(report.variables.get("y"), Some(&Value::Int(5)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("5".into())));
 }
 
 /// The `Func` of the v1 hands the function of the script over as a value.
@@ -650,7 +650,7 @@ fn the_format_of_the_numbers_of_the_v1_is_the_one_of_the_set_format() {
     // The whole number in base sixteen, with the prefix.
     let report = run("SetFormat, Integer, H\nx := 255");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(255)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0xFF".into())));
     let report = run("SetFormat, Integer, H\nx := 255\nFileAppend, %x%, *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["0xFF".to_string()]);
@@ -1573,7 +1573,7 @@ fn the_error_level_of_the_v1_is_the_global_variable_of_the_script() {
     // A script may write it.
     let report = run("ErrorLevel := 5\nx := ErrorLevel");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
 
     // The operators of it are the ones of the v1.
     let report = run("ErrorLevel := 5\nErrorLevel += 3\nx := ErrorLevel");
@@ -1595,7 +1595,7 @@ fn the_error_level_of_the_v1_is_the_global_variable_of_the_script() {
         "f() {\n    ErrorLevel := 5\n    return ErrorLevel\n}\nx := f()\ny := ErrorLevel",
     );
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
     assert_eq!(report.variables.get("y"), Some(&Value::Int(0)));
 
     // The `StringGetPos` writes it.
@@ -1831,7 +1831,7 @@ fn the_run_of_the_v1_writes_the_error_level() {
     // Without the option the `ErrorLevel` is not touched.
     let report = run("ErrorLevel := 5\nRun, program.exe\nx := ErrorLevel");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
 
     // The program does not start: the `ErrorLevel` is the word that says it,
     // and the tree fails the script where the v1 goes on.
@@ -1893,7 +1893,7 @@ fn a_member_that_is_not_there_is_a_blank_text_of_the_v1() {
     // The property that is there is still there.
     let report = run("o := {a: 1}\ny := o.a");
     assert!(report.ok);
-    assert_eq!(report.variables.get("y"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("1".into())));
 }
 
 /// The text of an object of the v1 is the empty text.
@@ -1993,7 +1993,7 @@ fn the_global_of_a_built_in_variable_is_refused_by_the_v1() {
     // The global of a variable of the script is fine.
     let report = run("global x\nx := 1");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("1".into())));
 
     // The global of a built-in function is fine too: the name is not a
     // variable.
@@ -2011,17 +2011,17 @@ fn the_new_of_the_v1_makes_an_instance() {
     // The `__Init` of the script runs, and the `this` of it is the instance.
     let report = run("class C {\n    __Init() {\n        this.x := 1\n    }\n}\no := new C\nx := o.x");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("1".into())));
 
     // The `__New` of the script runs too.
     let report = run("class C {\n    __New() {\n        this.x := 2\n    }\n}\no := new C\nx := o.x");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(2)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("2".into())));
 
     // The arguments of the `new` are the ones of the `__New`.
     let report = run("class C {\n    __New(a) {\n        this.x := a\n    }\n}\no := new C(5)\nx := o.x");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
 
     // The `__Init` takes no arguments: the `new` gives its arguments to the
     // `__New` and to nothing else.
@@ -2033,7 +2033,7 @@ fn the_new_of_the_v1_makes_an_instance() {
     // made.
     let report = run("class C {\n    x := 5\n}\no := new C\nx := o.x");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
 
     // The new of a class that is not there is the empty text, and the v1
     // does not fail.
@@ -2045,7 +2045,7 @@ fn the_new_of_the_v1_makes_an_instance() {
     // name follows it.
     let report = run("new := 5\nx := new");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(5)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
 }
 
 /// The class of an instance of the v1 is the name of the class.
@@ -2430,7 +2430,7 @@ fn the_whole_number_of_the_v1_that_does_not_fit_is_the_largest_one() {
     assert!(report.ok);
     assert_eq!(
         report.variables.get("y"),
-        Some(&Value::Int(i64::MAX))
+        Some(&Value::Text("9223372036854775807".into()))
     );
 }
 
@@ -3025,5 +3025,226 @@ fn the_exponent_of_the_v1_needs_a_point() {
     let report = run("x := 1.5e2\ny := x + 0\nFileAppend, %y%, *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["150.000000".to_string()]);
+}
+
+/// The number of the v1 keeps the text that was written.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// number of the v1 is a "pure number": it keeps the text that was
+/// written -- the "0x10" is "0x10", and the "00123" is "00123", and the
+/// "1.50" is "1.50" -- and that text is what the value answers when it is
+/// read as a text. The value of it is the number that the text holds, and
+/// the operations that want a number ask the text for it.
+#[test]
+fn the_number_of_the_v1_keeps_the_text_that_was_written() {
+    // The hex keeps the text.
+    let report = run("x := 0x10");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0x10".into())));
+
+    // The zeros in front of the number keep the text.
+    let report = run("x := 00123");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("00123".into())));
+
+    // The float keeps the text, and so does the exponent.
+    let report = run("x := 1.50");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("1.50".into())));
+    let report = run("x := 1.5e2");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("1.5e2".into())));
+
+    // The text of it is the text that was written: the length of the "0x10"
+    // is four, and the concatenation of it is the text.
+    let report = run("x := 0x10\ny := StrLen(x)\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["4".to_string()]);
+    let report = run("x := 0x10\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[0x10]".to_string()]);
+
+    // The arithmetic asks the text for the number: the "0x10" is the
+    // number 16.
+    let report = run("x := 0x10\ny := x + 1\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["17".to_string()]);
+
+    // The comparison is a number when both sides are numbers, and a text
+    // otherwise: the "0x10" is the number 16, and the "0x10" that is
+    // written between quotes is a text that is not a number.
+    let report = run("x := 0x10\ny := (x = 16)\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+    let report = run("x := 0x10\ny := (x = \"16\")\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0".to_string()]);
+
+    // The number of the v1 that is passed to a function keeps the text.
+    let report = run("y := StrLen(0x10)\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["4".to_string()]);
+}
+
+/// The number of the v1 that does not fit is the one that fits.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// whole number of base ten that does not fit in the machine is the
+/// largest one that fits -- the "100000000000000000000" is
+/// "9223372036854775807", and the "-100000000000000000000" is
+/// "-9223372036854775808". The hex and the float keep the text that was
+/// written, and the value of the hex that does not fit is the largest
+/// whole number that fits.
+#[test]
+fn the_number_of_the_v1_that_does_not_fit_is_the_one_that_fits() {
+    let report = run("x := 100000000000000000000");
+    assert!(report.ok);
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("9223372036854775807".into()))
+    );
+    let report = run("x := -100000000000000000000");
+    assert!(report.ok);
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("-9223372036854775808".into()))
+    );
+
+    // The hex keeps the text, and its value is the largest one that fits.
+    let report = run("x := 0xFFFFFFFFFFFFFFFF");
+    assert!(report.ok);
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("0xFFFFFFFFFFFFFFFF".into()))
+    );
+    let report = run("x := 0xFFFFFFFFFFFFFFFF\ny := x + 0\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["9223372036854775807".to_string()]);
+
+    // The float that is too big keeps the text, and its value is the
+    // infinity of the machine.
+    let report = run("x := 1.5e400");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("1.5e400".into())));
+}
+
+/// The sign of the number of the v1 is part of the number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// plus of the v1 changes nothing -- the "+0x10" is "0x10" -- and the
+/// minus gives the text of the number that it negates -- the "-00123" is
+/// "-123", and the "-0x10" is "-16" -- while the float keeps the text that
+/// was written, with the sign in front of it: the "-1.50" is "-1.50". The
+/// sign of a number that is in a group is an operation of its own: the
+/// "-(1.50)" is the number that the group holds, negated.
+#[test]
+fn the_sign_of_the_number_of_the_v1_is_part_of_the_number() {
+    let report = run("x := +0x10");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0x10".into())));
+    let report = run("x := +00123");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("00123".into())));
+    let report = run("x := -00123");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("-123".into())));
+    let report = run("x := -0x10");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("-16".into())));
+    let report = run("x := -1.50");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("-1.50".into())));
+
+    // The group keeps the sign out of the number.
+    let report = run("x := -(1.50)\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["-1.500000".to_string()]);
+
+    // The plus of a variable changes nothing either.
+    let report = run("x := 00123\ny := +x\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["00123".to_string()]);
+}
+
+/// The whole number of the v1 wraps the way the machine does.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the sum
+/// of the 9223372036854775807 and the one is -9223372036854775808, and
+/// the product of it and the two is -2.
+#[test]
+fn the_whole_number_of_the_v1_wraps_the_way_the_machine_does() {
+    let report = run("x := 9223372036854775807\ny := x + 1\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["-9223372036854775808".to_string()]);
+    let report = run("x := 9223372036854775807\ny := x * 2\nFileAppend, %y%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["-2".to_string()]);
+    let report = run("x := 9223372036854775807\nx++\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["-9223372036854775808".to_string()]);
+}
+
+/// The operators that write a variable of the v1 read the number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// values are numbers when they can be one -- the "5" is 5, and the
+/// "0x10" is 16 -- and the text that is not a number is the number zero:
+/// the `x += 1` of the "abc" is 1. The whole numbers stay whole numbers,
+/// and the division of two whole numbers is a whole number: the `x /= 2`
+/// of the 5 is 2.
+#[test]
+fn the_operators_that_write_a_variable_of_the_v1_read_the_number() {
+    let report = run("x := 5\nx += 1\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["6".to_string()]);
+    let report = run("x := 0x10\nx += 1\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["17".to_string()]);
+    let report = run("x := \"abc\"\nx += 1\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+    let report = run("x := 5\nx /= 2\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["2".to_string()]);
+    let report = run("x := 5.0\nx /= 2\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["2.500000".to_string()]);
+}
+
+/// The format of the v1 writes the number and not the pure number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// whole number that is written without the zeros in front of it is a
+/// number -- the `255` is the number 255, and the format of the integers
+/// writes it -- and the number with the zeros in front of it, the hex and
+/// the float are pure numbers: they keep the text that was written. The
+/// sign of the minus is a number of its own: the v1 computes it, and the
+/// format writes it.
+#[test]
+fn the_format_of_the_v1_writes_the_number_and_not_the_pure_number() {
+    let report = run("SetFormat, Integer, H\nx := 255\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0xFF".to_string()]);
+
+    // The sign of the minus is in front of the prefix.
+    let report = run("SetFormat, Integer, H\nx := -255\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["-0xFF".to_string()]);
+
+    // The pure numbers keep the text that was written.
+    let report = run("SetFormat, Integer, H\nx := 00123\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["00123".to_string()]);
+    let report = run("SetFormat, Integer, D\nx := 0x10\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0x10".to_string()]);
+    let report = run("SetFormat, Float, 0.3\nx := 1.50\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1.50".to_string()]);
+
+    // The number that is computed follows the format.
+    let report = run("SetFormat, Float, 0.3\nx := 1.50 + 0\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1.500".to_string()]);
 }
 

@@ -17,6 +17,15 @@ pub enum LiteralValue {
     Integer(i64),
     /// A number with a point or with an exponent: `3.5`, `1e3`.
     Float(f64),
+    /// The number of the v1: the text that was written.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// number of the v1 is a "pure number": it keeps the text that was
+    /// written -- `0x10` is "0x10", and `00123` is "00123", and `1.50` is
+    /// "1.50" -- and that text is what the value answers when it is read
+    /// as a text. The value of it is the number that the text holds, and
+    /// the operations that want a number ask the text for it.
+    Number(String),
     /// A string: `"hello"`.
     Text(String),
     /// A boolean: `true`, `false`.

@@ -43,8 +43,9 @@ pub(crate) use math::{
 };
 
 pub(crate) use numbers::{
-    the_number_at_the_start_of_a_text, the_number_of_a_text,
-    the_whole_number_at_the_start_of_a_text,
+    the_number_at_the_start_of_a_text, the_number_is_a_number, the_number_of_a_text,
+    the_text_is_a_float, the_text_is_a_hex, the_text_of_the_number_that_fits,
+    the_whole_number_at_the_start_of_a_text, the_whole_number_of_a_hex,
 };
 
 pub(crate) use strings::{in_str, sub_str};

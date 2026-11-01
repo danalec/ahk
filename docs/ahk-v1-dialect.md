@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 117 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 123 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -840,7 +840,18 @@ machine commands (2026-11-02), and the objects by the block of the objects
 (2026-11-02), and the grammar of a class by the block of the grammar of a
 class (2026-11-02), and the scope of a function by the block of the scope of
 a function (2026-11-02), and the name that begins with a number by the block
-of the name that begins with a number (2026-11-02).
+of the name that begins with a number (2026-11-02), and the number that
+keeps the text that was written by the block of the number (2026-11-02).
+
+**The number of the v1.** The number of the v1 is a "pure number": it keeps
+the text that was written -- the `x := 0x10` is "0x10", and the
+`x := 00123` is "00123", and the `x := 1.50` is "1.50" -- and the value of
+it is the number that the text holds. The sign of it is part of the number,
+the number that does not fit is the one that fits, the whole numbers wrap
+the way the machine does, and the operators that write a variable read the
+number. The block of the number (2026-11-02) carried it, with the literal
+of a number (`crates/ahk/src/ast.rs`), the coercion of a text
+(`crates/ahk/src/v1/numbers.rs`) and the format of the integers.
 
 The surface of the v1 has **405** entries: **296** answer with a value,
 **108** are refused and **1** is pending. The surface of the v2 did not
@@ -856,7 +867,10 @@ substitution that finds the built-in variables.
 that are computed to the decimals of the format, and the whole numbers are
 in the base of the format. The tree carries it since the block of the
 formats (2026-11-02), with the `A_FormatFloat` and the `A_FormatInteger`
-that say which one is in force.
+that say which one is in force. The block of the number (2026-11-02) added
+the number that is written: the whole number that is written without the
+zeros in front of it is a number and the format writes it, and the pure
+numbers keep the text that was written.
 
 **The arithmetic with a text.** The v1 does not concatenate when an operand
 is a text: the text that is written between quotes is a string, and the

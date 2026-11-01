@@ -17,8 +17,83 @@
 
 use alloc::format;
 use alloc::string::String;
+use alloc::string::ToString;
 
 use crate::runtime::Value;
+
+/// Whether the number of the v1 is a number and not a pure number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// whole number of base ten that is written without the zeros in front of
+/// it is a number -- the `255` is the number 255, and the format of the
+/// integers writes it -- and the number with the zeros in front of it,
+/// the hex and the float are pure numbers: they keep the text that was
+/// written.
+///
+/// The sign of the minus is a number of its own: the v1 computes it, and
+/// the format writes it -- the `-00123` is the number -123.
+pub(crate) fn the_number_is_a_number(text: &str) -> bool {
+    let negative = text.starts_with('-');
+    let body = text.strip_prefix('-').unwrap_or(text);
+    // The float is a pure number: it keeps the text that was written.
+    if the_text_is_a_float(body) {
+        return false;
+    }
+    // The sign of the minus makes the number a number.
+    if negative {
+        return true;
+    }
+    // The zeros in front of the number make it a pure number: they are a
+    // part of the text that was written.
+    !(body.len() > 1 && body.starts_with('0'))
+}
+
+/// The text of the number of the v1, when the number does not fit.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// whole number of base ten that does not fit in the machine is the one
+/// that fits -- the "100000000000000000000" is "9223372036854775807", and
+/// the "-100000000000000000000" is "-9223372036854775808". The hex and the
+/// float keep the text that was written: the "0xFFFFFFFFFFFFFFFF" is
+/// "0xFFFFFFFFFFFFFFFF", and the "1.5e400" is "1.5e400".
+pub(crate) fn the_text_of_the_number_that_fits(text: &str) -> String {
+    if the_text_is_a_hex(text) || the_text_is_a_float(text) {
+        return text.to_string();
+    }
+    match text.parse::<i64>() {
+        Ok(_) => text.to_string(),
+        Err(_) => {
+            // The number does not fit in the machine, and the v1 keeps the
+            // one that fits: the largest, or the smallest when the sign is
+            // the minus.
+            let number = if text.starts_with('-') { i64::MIN } else { i64::MAX };
+            number.to_string()
+        }
+    }
+}
+
+/// Whether the text is the hex of a number.
+pub(crate) fn the_text_is_a_hex(text: &str) -> bool {
+    text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")).is_some()
+}
+
+/// Whether the text is a number with a point or with an exponent.
+pub(crate) fn the_text_is_a_float(text: &str) -> bool {
+    !the_text_is_a_hex(text) && (text.contains('.') || text.contains('e') || text.contains('E'))
+}
+
+/// The whole number that the hex holds.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the hex
+/// that does not fit in the machine is the largest whole number that
+/// fits: the `0xFFFFFFFFFFFFFFFF` is 9223372036854775807, and not -1.
+pub(crate) fn the_whole_number_of_a_hex(text: &str) -> i64 {
+    let digits = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")).unwrap_or(text);
+    match u64::from_str_radix(digits, 16) {
+        Ok(number) if number <= i64::MAX as u64 => number as i64,
+        _ => i64::MAX,
+    }
+}
 
 /// The number of a text in the v1, when the text is one.
 ///
@@ -59,16 +134,16 @@ pub(crate) fn the_whole_number_at_the_start_of_a_text(text: &str) -> Option<i64>
         if digits.is_empty() {
             return None;
         }
-        let number = i64::from_str_radix(&digits, 16).ok()?;
-        return Some(if negative { -number } else { number });
+        let number = the_whole_number_of_a_hex(&digits);
+        return Some(if negative { number.wrapping_neg() } else { number });
     }
     // The whole number of base ten: the digits, and nothing else.
     let digits: String = body.chars().take_while(|character| character.is_ascii_digit()).collect();
     if digits.is_empty() {
         return None;
     }
-    let number: i64 = digits.parse().ok()?;
-    Some(if negative { -number } else { number })
+    let number: i64 = digits.parse().unwrap_or(i64::MAX);
+    Some(if negative { number.wrapping_neg() } else { number })
 }
 
 /// The number that the text holds.
@@ -87,8 +162,8 @@ fn the_number_that_the_text_holds(text: &str, whole: bool) -> Option<Value> {
         if digits.is_empty() || (whole && digits.len() != hex.len()) {
             return None;
         }
-        let number = i64::from_str_radix(&digits, 16).ok()?;
-        return Some(Value::Int(if negative { -number } else { number }));
+        let number = the_whole_number_of_a_hex(&digits);
+        return Some(Value::Int(if negative { number.wrapping_neg() } else { number }));
     }
     // A number of base ten: the digits, the point and the exponent.
     let mut number = String::new();
@@ -138,7 +213,16 @@ fn the_number_that_the_text_holds(text: &str, whole: bool) -> Option<Value> {
         // The number with a point or with an exponent is a float.
         return text.parse::<f64>().ok().map(Value::Float);
     }
-    text.parse::<i64>().ok().map(Value::Int)
+    // The whole number that does not fit in the machine is the one that
+    // fits: the largest, or the smallest when the sign is the minus.
+    //
+    // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+    // "100000000000000000000" is 9223372036854775807, and the
+    // "-100000000000000000000" is -9223372036854775808.
+    match text.parse::<i64>() {
+        Ok(number) => Some(Value::Int(number)),
+        Err(_) => Some(Value::Int(if negative { i64::MIN } else { i64::MAX })),
+    }
 }
 
 /// The sign of the text, and the text without it.

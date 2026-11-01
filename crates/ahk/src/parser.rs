@@ -6754,6 +6754,7 @@ impl Parser {
                 // operators: `-2 ** 2` is `-(2 ** 2)`, the way v2 reads
                 // it. The increment and the decrement bind tighter than
                 // the power, so they take only the value.
+                let at_the_operand = self.position;
                 let operand = match op {
                     UnaryOp::PreIncrement | UnaryOp::PreDecrement => self.parse_unary()?,
                     _ => self.parse_binary(precedence::POWER)?,
@@ -6769,6 +6770,25 @@ impl Parser {
                         the_source_of_the_tokens(self, at_the_operator, self.position)
                     )));
                 }
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02:
+                // the sign of the v1 is part of the number that was written:
+                // the `+0x10` is "0x10", and the `-00123` is "-123", and the
+                // `-1.50` is "-1.50". The sign of a number that is not a
+                // literal is an operation of its own, and so is the sign of
+                // a number that is in a group: the `-(1.50)` is the number
+                // that the group holds, negated.
+                if self.dialect.the_number_keeps_the_text_that_was_written()
+                    && matches!(op, UnaryOp::Negate | UnaryOp::Plus)
+                    && !self.the_operand_is_a_group(at_the_operand)
+                {
+                    if let Node::Literal { value: LiteralValue::Number(text), line } = operand {
+                        let text = match op {
+                            UnaryOp::Negate => the_text_of_the_negated_number(&text),
+                            _ => text,
+                        };
+                        return Ok(Node::Literal { value: LiteralValue::Number(text), line });
+                    }
+                }
                 return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
             }
         }
@@ -6778,6 +6798,26 @@ impl Parser {
             return Ok(Node::Unary { op: UnaryOp::NotWord, operand: Box::new(operand), line: token.line });
         }
         self.parse_primary()
+    }
+
+    /// Whether the operand that begins at the place is a group.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// sign of the v1 is part of the number that was written, and a group
+    /// keeps the sign out of it: the `-(1.50)` is the number that the
+    /// group holds, negated, and not the number that was written.
+    fn the_operand_is_a_group(&self, at: usize) -> bool {
+        let mut index = at;
+        while self
+            .tokens
+            .get(index)
+            .is_some_and(|token| token.kind == TokenKind::Newline)
+        {
+            index += 1;
+        }
+        self.tokens
+            .get(index)
+            .is_some_and(|token| token.kind == TokenKind::Op && token.value == "(")
     }
 
     fn parse_primary(&mut self) -> Result<Node, SyntaxError> {
@@ -6790,7 +6830,7 @@ impl Parser {
         let token = self.next();
         let node = match token.kind {
             TokenKind::Number => {
-                let value = the_number_of(&token.value, self.dialect);
+                let value = the_literal_of_a_number(&token.value, self.dialect);
                 Node::Literal { value, line: token.line }
             }
             TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
@@ -7654,6 +7694,48 @@ fn the_operator_wants_a_number(op: BinaryOp) -> bool {
 /// is the point of a member.
 fn the_number_is_a_whole_one(token: &Token, dialect: &'static dyn crate::dialect::Dialect) -> bool {
     token.kind == TokenKind::Number && matches!(the_number_of(&token.value, dialect), LiteralValue::Integer(_))
+}
+
+/// The literal of a number, as the dialect writes it.
+///
+/// The v2 reads the number as a number: the hex is a whole number of the
+/// base of sixteen, and a number with a point or with an exponent is a
+/// float.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the number of the
+/// v1 is a "pure number": it keeps the text that was written, and the
+/// literal of it is that text.
+fn the_literal_of_a_number(text: &str, dialect: &'static dyn crate::dialect::Dialect) -> LiteralValue {
+    if dialect.the_number_keeps_the_text_that_was_written() {
+        return LiteralValue::Number(text.to_string());
+    }
+    the_number_of(text, dialect)
+}
+
+/// The text of the number of the v1 that a sign negates.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// whole number gives the text of the number that the sign negates -- the
+/// `-00123` is "-123", and the `-0x10` is "-16" -- and the float keeps the
+/// text that was written, with the sign in front of it: the `-1.50` is
+/// "-1.50".
+fn the_text_of_the_negated_number(text: &str) -> String {
+    if crate::v1::the_text_is_a_hex(text) {
+        // The hex is a whole number, and the one that does not fit is the
+        // largest that fits.
+        let number = crate::v1::the_whole_number_of_a_hex(text);
+        return number.wrapping_neg().to_string();
+    }
+    if crate::v1::the_text_is_a_float(text) {
+        return format!("-{text}");
+    }
+    // The whole number of base ten: the sign is part of the value, and the
+    // value that does not fit is the one that fits.
+    let signed = format!("-{text}");
+    match signed.parse::<i64>() {
+        Ok(number) => number.to_string(),
+        Err(_) => i64::MIN.to_string(),
+    }
 }
 
 /// The number of a token, as v2 reads it.

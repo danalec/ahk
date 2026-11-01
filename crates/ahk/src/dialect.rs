@@ -214,15 +214,6 @@ pub trait Dialect: Sync {
         false
     }
 
-    /// Whether the float that is written is a text.
-    ///
-    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the float that
-    /// is written in the v1 keeps the text that was written: `x := 1.5` is
-    /// "1.5", and the format of the floats does not change it.
-    fn the_float_that_is_written_is_a_text(&self) -> bool {
-        false
-    }
-
     /// Whether a number may be followed by a name.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter of
@@ -239,6 +230,18 @@ pub trait Dialect: Sync {
     /// the number 10000, and the "1e2" is a name. The v2 reads the "1e2" as
     /// the number 100.
     fn the_exponent_needs_a_point(&self) -> bool {
+        false
+    }
+
+    /// Whether a number keeps the text that was written.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// number of the v1 is a "pure number": it keeps the text that was
+    /// written, and that text is what the value answers when it is read as a
+    /// text -- the `x := 0x10` is "0x10", and the `StrLen(x)` is four. The
+    /// whole number that does not fit in the machine is the largest one, and
+    /// its text is the text of that number.
+    fn the_number_keeps_the_text_that_was_written(&self) -> bool {
         false
     }
 
@@ -805,10 +808,6 @@ impl Dialect for V1 {
         true
     }
 
-    fn the_float_that_is_written_is_a_text(&self) -> bool {
-        true
-    }
-
     fn the_number_may_be_followed_by_a_name(&self) -> bool {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 reads
         // a name that begins with a number, and the parameter of a command
@@ -819,6 +818,12 @@ impl Dialect for V1 {
     fn the_exponent_needs_a_point(&self) -> bool {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the
         // scientific notation of the v1 needs a decimal point.
+        true
+    }
+
+    fn the_number_keeps_the_text_that_was_written(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the number of
+        // the v1 is a "pure number", and it keeps the text that was written.
         true
     }
 
