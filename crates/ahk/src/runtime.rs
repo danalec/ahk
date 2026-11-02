@@ -2821,7 +2821,23 @@ impl<'a> Runtime<'a> {
             .map(|name| (name.clone(), self.lookup_variable(name)))
             .collect();
         let object = self.evaluate(source)?;
-        let enumerator = self.the_enumerator(&object, variables.len(), line)?;
+        if self.dialect.the_for_is_the_one_of_the_v1() {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the `for` of the v1 walks the items of an array and nothing
+            // else: the `for i in 5` has no turn and it does not fail.
+            if self.the_class_of_the_value(&object) != "Array" {
+                return Ok(());
+            }
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // `for` of the v1 walks the keys of the array, and it asks for them
+        // even when the script gave it one name.
+        let wanted = if self.dialect.the_for_is_the_one_of_the_v1() {
+            2
+        } else {
+            variables.len()
+        };
+        let enumerator = self.the_enumerator(&object, wanted, line)?;
         // The enumerator has to be something that can be called: v2 fails
         // there before the body of the loop runs.
         if let Err(failure) = self.check_the_enumerator(&enumerator, line) {
@@ -2839,7 +2855,7 @@ impl<'a> Runtime<'a> {
         loop {
             // The enumerator hands out the turns one by one, and the body
             // of the loop runs between them.
-            let item = match self.the_next_item(&enumerator, variables, line) {
+            let item = match self.the_next_item(&enumerator, variables, wanted, line) {
                 Ok(Some(item)) => item,
                 Ok(None) => break,
                 Err(failure) => {
@@ -2943,10 +2959,11 @@ impl<'a> Runtime<'a> {
         &mut self,
         enumerator: &Value,
         variables: &[String],
+        wanted: usize,
         line: u32,
     ) -> Result<Option<Value>, RuntimeFailure> {
         if crate::classes::enumerator::is_one(enumerator) {
-            return Ok(crate::classes::enumerator::the_turn(enumerator, variables.len()));
+            return Ok(crate::classes::enumerator::the_turn(enumerator, wanted));
         }
         // The variables of the loop are given to the enumerator by
         // reference: v2 calls it with them.
@@ -3040,6 +3057,30 @@ impl<'a> Runtime<'a> {
         item: &Value,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
+        if self.dialect.the_for_is_the_one_of_the_v1() {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the `for` of the v1 gives the key to the first name that is not
+            // empty: the `for i in [10,20]` gives 1 and 2 to the `i`, and the
+            // `for , v in [10,20]` gives them to the `v`.
+            let pair = match item {
+                Value::List(pair) if pair.len() == 2 => pair,
+                _ => {
+                    return Err(RuntimeFailure::Error(RuntimeError {
+                        message: "the enumeration did not give a key and a value.".into(),
+                        line,
+                    }))
+                }
+            };
+            let names: Vec<&String> =
+                variables.iter().filter(|name| !name.is_empty()).collect();
+            if let Some(name) = names.first() {
+                self.assign(name, pair[0].clone());
+            }
+            if let Some(name) = names.get(1) {
+                self.assign(name, pair[1].clone());
+            }
+            return Ok(());
+        }
         match variables.len() {
             0 => Ok(()),
             1 => {

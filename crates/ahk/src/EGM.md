@@ -1853,6 +1853,13 @@ that asks for another one is refused with the reason.
   The dialect says it (`the_single_quote_is_not_a_text`), the lexer reads the
   symbol, and the parser refuses it where an expression wants an operand.
 
+- **The `for` of the v1 walks the keys of an array.** The `for i in [10,20]`
+  gives 1 and 2 to the `i`, and the key goes to the first name that is not
+  empty: the `for , v in [10,20]` gives it to the `v`. The source that is
+  not an array is no turn, and it does not fail: the `for i in 5`. The `in`
+  of the v1 is the name of a variable, and the parser of the v2 asks for a
+  word. The dialect says it (`the_for_is_the_one_of_the_v1`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

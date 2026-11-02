@@ -8173,3 +8173,27 @@ The dialect says it (`the_single_quote_is_not_a_text`), the lexer reads the
 symbol, and the parser refuses it where an expression wants an operand.
 
 The suite of the v1 has one case more (251).
+
+
+## 209. The `for` of the v1 walks the keys of an array
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `for` of
+the v1 walks the keys of an array -- the `for i in [10,20]` gives 1 and 2 to
+the `i` -- and it walks nothing when the source is not an array: the `for i
+in 5` has no turn and it does not fail.
+
+The name that gets the key is the first one that is not empty: the `for i in
+[10,20]` gives the key to the `i`, and the `for , v in [10,20]` gives it to
+the `v`. With two names the second one gets the value: the `for k, v in
+[10,20]` gives 1 and 10 to the `k` and to the `v`.
+
+The `in` of the v1 is the name of a variable and not a word of the language,
+and the `for` of the v1 asks for it all the same. The v1 names the word that
+is missing: "This \"For\" is missing its \"in\"." The rest of the line after
+the source is dropped.
+
+The dialect says it (`the_for_is_the_one_of_the_v1`), the parser asks for the
+`in` as a word or as a name (`at_the_word`), and the runtime gives the key to
+the first name that is not empty.
+
+The suite of the v1 has two cases more (253).

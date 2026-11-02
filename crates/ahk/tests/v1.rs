@@ -6634,3 +6634,54 @@ fn the_single_quote_is_not_a_text_in_the_v1() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["'abc'".to_string()]);
 }
+
+/// The `for` of the v1 walks the keys of an array.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `for`
+/// of the v1 gives the key to the first name that is not empty -- the `for
+/// i in [10,20]` gives 1 and 2 to the `i` -- and it walks nothing when the
+/// source is not an array: the `for i in 5` has no turn and it does not
+/// fail.
+#[test]
+fn the_for_of_the_v1_walks_the_keys_of_an_array() {
+    // The one name.
+    let report = run("for i in [10,20]\nFileAppend, [%i%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string(), "[2]".to_string()]);
+
+    // The key and the value.
+    let report = run("for k, v in [10,20]\nFileAppend, [%k%=%v%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1=10]".to_string(), "[2=20]".to_string()]);
+
+    // The second name alone gets the key.
+    let report = run("for , v in [10,20]\nFileAppend, [%v%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string(), "[2]".to_string()]);
+
+    // The source that is not an array is no turn, and it does not fail.
+    let report = run("for i in 5\nFileAppend, [%i%], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    // The rest of the line after the source is dropped.
+    let report = run("for i in 1,2,3\nFileAppend, [%i%], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
+/// The `for` of the v1 names the word that is missing.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// says "This \"For\" is missing its \"in\".".
+#[test]
+fn the_for_of_the_v1_names_the_word_that_is_missing() {
+    assert_eq!(
+        the_refusal_of_the_load("for i [1,2]"),
+        "This \"For\" is missing its \"in\".\n     Specifically: for i [1,2]"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("for in [1,2]"),
+        "This \"For\" is missing its \"in\".\n     Specifically: for in [1,2]"
+    );
+}

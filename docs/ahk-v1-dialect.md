@@ -1138,6 +1138,22 @@ character: "'abc'". The statement that holds the symbol alone is a line that
 holds no action, and the name of a command of the v1 is a text: the
 `FileAppend, 'abc', *` runs and writes `'abc'`.
 
+
+**The `for`** (2026-11-04). The `for` of the v1 walks the keys of an array:
+the `for i in [10,20]` gives 1 and 2 to the `i`, and the `for k, v in
+[10,20]` gives the key and the value. The name that gets the key is the
+first one that is not empty, and the rest of the line after the source is
+dropped: the `for i in 1,2,3` walks nothing and it does not fail.
+
+The `in` of the v1 is the name of a variable, and the parser of the v2 asks
+for a word. The v1 names the word that is missing: "This \"For\" is missing
+its \"in\".".
+
+And one corner of the `for`: the list between parentheses is not of the v1.
+The v1 reads the name as the symbol "(i" and refuses it with "The following
+variable name contains an illegal character:", and the tree reads the
+parenthesis and answers the loop.
+
 **What is left of the v1.** One corner of the `if` is measured on the binary
 of v1.1.37.02 and the tree does not do it yet.
 

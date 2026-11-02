@@ -7481,11 +7481,18 @@ impl Parser {
             )));
         }
         self.parse_for_variables(&mut variables, head, parenthesised)?;
-        if !self.at_keyword(&["in"]) {
+        if !self.at_the_word("in") {
             // Measured on the binary of v2.0.19 on 2026-11-01: the `for` needs
             // the `in`, and the dialect names the statement as it was written.
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 names the word that is missing.
+            let message = if self.dialect.the_for_is_the_one_of_the_v1() {
+                "This \"For\" is missing its \"in\"."
+            } else {
+                "Syntax error."
+            };
             return Err(self.error(format!(
-                "Syntax error.\n     Specifically: {}",
+                "{message}\n     Specifically: {}",
                 the_source_of_the_line(self, token.line)
             )));
         }
@@ -7501,11 +7508,30 @@ impl Parser {
             self.expect_op(")")?;
         }
         self.the_expression_is_done(self.position, false)?;
+        if self.dialect.the_for_is_the_one_of_the_v1() {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the rest of the line after the source of the `for` is dropped:
+            // the `for i in 1,2,3` walks nothing and it does not fail.
+            while !self.at_end_of_statement() && !self.at_op(&["{"]) {
+                self.position += 1;
+            }
+        }
         self.end_of_block()?;
         let body = self.the_body_of_a_loop("For", token.line)?;
         Ok(Node::For { variables, source: Box::new(source), body, line: token.line })
     }
 
+
+    /// Whether the token that comes next is this word.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `in` of the v1 is the name of a variable and not a word of the
+    /// language, and the `for` of the v1 asks for it all the same.
+    fn at_the_word(&self, word: &str) -> bool {
+        let token = self.peek();
+        (token.kind == TokenKind::Keyword || token.kind == TokenKind::Name)
+            && token.value.eq_ignore_ascii_case(word)
+    }
     /// The names the enumerator gives, before the `in`.
     ///
     /// A name may be left out, and the name that is left out is the
@@ -7529,7 +7555,7 @@ impl Parser {
                 return Err(error);
             }
             variables.push(token.value);
-        } else if !self.at_keyword(&["in"]) {
+        } else if !self.at_the_word("in") {
             let token = self.peek().clone();
             // Measured on the binary of v2.0.19 on 2026-11-01: the v2 names the
             // text that it read: the statement of the `for` up to the

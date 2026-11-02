@@ -291,6 +291,19 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the `for` of the dialect is the one of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `for` of the v1 walks the keys of an array -- the `for i in [10,20]`
+    /// gives 1 and 2 to the `i` -- and it walks nothing when the source is
+    /// not an array: the `for i in 5` has no turn and it does not fail. The
+    /// v2 gives the values to the name and refuses a source that is not an
+    /// object. The v1 also names the word that is missing: "This \"For\" is
+    /// missing its \"in\".".
+    fn the_for_is_the_one_of_the_v1(&self) -> bool {
+        false
+    }
+
     /// Whether the name of a variable may not carry a quote.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -1346,6 +1359,12 @@ impl Dialect for V1 {
     fn the_count_of_the_loop_is_a_number(&self) -> bool {
         // The count of the `Loop` of the v1 is a number and not an
         // expression: the `loop n` is skipped.
+        true
+    }
+
+    fn the_for_is_the_one_of_the_v1(&self) -> bool {
+        // The `for` of the v1 walks the keys of an array and nothing else,
+        // and it names the word that is missing.
         true
     }
 
