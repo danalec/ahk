@@ -3107,8 +3107,16 @@ impl Parser {
         // parameter of a command of the v1 is checked when the script loads,
         // and the complaint of the v1 is its own: "Parameter #N invalid."
         // with the text that the script wrote.
-        if let Some(refusal) = self.dialect.the_refusal_of_an_invalid_parameter(&name, &parameters) {
-            return Err(self.error(refusal));
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the command
+        // that has a body checks the value of its parameter after the text
+        // that is left of the line went into it, and the check is done by
+        // the body of the command.
+        if !self.dialect.the_command_has_a_body(&name) {
+            if let Some(refusal) =
+                self.dialect.the_refusal_of_an_invalid_parameter(&name, &parameters)
+            {
+                return Err(self.error(refusal));
+            }
         }
         // The command of the v1 that has a body: the action is the rest of
         // the line, the block, or the statement of the next line.
@@ -3224,6 +3232,13 @@ impl Parser {
             crate::dialect::TheRefusalOfTheArity::Required { number } => {
                 format!("Parameter #{number} required")
             }
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the two
+            // parameters that the command wants are named together: the
+            // `MouseClickDrag, Left` is refused with "Parameter #4 and 5
+            // required.".
+            crate::dialect::TheRefusalOfTheArity::RequiredTogether { first, second } => {
+                format!("Parameter #{first} and {second} required.")
+            }
         }
     }
 
@@ -3273,6 +3288,16 @@ impl Parser {
             None
         };
         let own_parameters = parameters;
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the value of
+        // the parameter of a command that has a body is checked when the
+        // script loads, and the text that the check sees is the text that is
+        // left of the line: the `IfMsgBox, OK, extra` is refused with
+        // "Parameter #1 invalid." and the text "OK, extra".
+        if let Some(refusal) =
+            self.dialect.the_refusal_of_an_invalid_parameter(&name, &own_parameters)
+        {
+            return Err(self.error(refusal));
+        }
         let body = match action {
             Some(action) => {
                 let action_name = action[0].to_lowercase();

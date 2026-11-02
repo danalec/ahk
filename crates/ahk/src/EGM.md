@@ -1618,6 +1618,11 @@ that asks for another one is refused with the reason.
   the name and not the parameter. The percent sign opens the name of
   another variable, and the one that is not closed is refused.
 
+- **The value of the parameter of a command of the v1 is checked when the
+  script loads.** The rules of the v1 are in `v1/parameters.rs`: the button
+  of the `IfMsgBox`, the letter of the `StringMid`, the mode of a group, the
+  way of the move of a directory, and the command that takes no parameter.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

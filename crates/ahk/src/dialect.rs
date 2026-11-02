@@ -38,6 +38,14 @@ pub enum TheRefusalOfTheArity {
         /// The place of the parameter.
         number: u8,
     },
+    /// The parameters of these places have to be there, the two of them
+    /// together.
+    RequiredTogether {
+        /// The place of the first parameter.
+        first: u8,
+        /// The place of the second parameter.
+        second: u8,
+    },
 }
 
 /// The dialect that the runtime speaks.

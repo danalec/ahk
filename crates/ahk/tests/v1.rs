@@ -4415,3 +4415,130 @@ fn the_name_of_a_variable_of_the_v1_is_checked_when_the_script_loads() {
         );
     }
 }
+
+/// The value of the parameter of a command of the v1 is checked when the
+/// script loads.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the button of the
+/// `IfMsgBox` is one of the names of the buttons, the fifth parameter of the
+/// `StringMid` is the letter "L", the second parameter of the `GroupActivate`
+/// is the letter "R", the third parameter of the `FileMoveDir` is the number
+/// zero, one or two, and the `KeyHistory` takes no parameter at all.
+#[test]
+fn the_value_of_the_parameter_of_a_command_of_the_v1_is_checked_at_the_load() {
+    let cases = [
+        (
+            "IfMsgBox, zzz",
+            "Parameter #1 invalid.\n     Specifically: zzz",
+        ),
+        (
+            "IfMsgBox, 1",
+            "Parameter #1 invalid.\n     Specifically: 1",
+        ),
+        (
+            "IfMsgBox, OK, extra",
+            "Parameter #1 invalid.\n     Specifically: OK, extra",
+        ),
+        (
+            "x := \"abc\"\nStringMid, out, x, 1, 2, A",
+            "Parameter #5 invalid.\n     Specifically: A",
+        ),
+        (
+            "x := \"abc\"\nStringMid, out, x, 1, 2, L, extra",
+            "Parameter #5 invalid.\n     Specifically: L, extra",
+        ),
+        (
+            "GroupActivate, group, S",
+            "Parameter #2 invalid.\n     Specifically: S",
+        ),
+        (
+            "GroupClose, group, S",
+            "Parameter #2 invalid.\n     Specifically: S",
+        ),
+        (
+            "GroupDeactivate, group, S",
+            "Parameter #2 invalid.\n     Specifically: S",
+        ),
+        (
+            "FileMoveDir, a, b, 3",
+            "Parameter #3 invalid.\n     Specifically: 3",
+        ),
+        (
+            "FileMoveDir, a, b, -1",
+            "Parameter #3 invalid.\n     Specifically: -1",
+        ),
+        (
+            "KeyHistory, zzz",
+            "Parameter #1 invalid.\n     Specifically: zzz",
+        ),
+    ];
+    for (script, refusal) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            refusal,
+            "the script is {script}"
+        );
+    }
+
+    // The values that the v1 knows.
+    for script in [
+        "IfMsgBox, OK",
+        "IfMsgBox, ok",
+        "IfMsgBox, Yes",
+        "IfMsgBox, No",
+        "IfMsgBox, Cancel",
+        "IfMsgBox, Abort",
+        "IfMsgBox, Ignore",
+        "IfMsgBox, Retry",
+        "IfMsgBox, Continue",
+        "IfMsgBox, TryAgain",
+        "IfMsgBox, Timeout",
+        "x := \"abc\"\nStringMid, out, x, 1, 2, L",
+        "x := \"abc\"\nStringMid, out, x, 1, 2, l",
+        "GroupActivate, group, R",
+        "GroupActivate, group, r",
+        "GroupActivate, group",
+        "GroupClose, group, R",
+        "GroupDeactivate, group, R",
+        "FileMoveDir, a, b, 0",
+        "FileMoveDir, a, b, 1",
+        "FileMoveDir, a, b, 2",
+        "FileMoveDir, a, b",
+        "KeyHistory",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The `MouseClickDrag` of the v1 wants the place of the end of the drag.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the fourth and the
+/// fifth parameters have to be there, and the complaint of the v1 names the
+/// two of them together: "Parameter #4 and 5 required.".
+#[test]
+fn the_drag_of_the_mouse_of_the_v1_wants_the_place_of_the_end() {
+    for script in ["MouseClickDrag", "MouseClickDrag, Left"] {
+        let refusal = the_refusal_of_the_load(script);
+        assert!(
+            refusal.ends_with("Parameter #4 and 5 required.")
+                || refusal.starts_with("\"MouseClickDrag\" requires at least 1 parameter."),
+            "the refusal is {refusal}"
+        );
+    }
+
+    assert_eq!(
+        the_refusal_of_the_load("MouseClickDrag, Left"),
+        "Parameter #4 and 5 required."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("MouseClickDrag, Left, 0, 0, 10"),
+        "Parameter #4 and 5 required."
+    );
+    assert!(
+        ahk::parse_with("MouseClickDrag, Left, 0, 0, 10, 10", dialect::v1()).is_ok(),
+        "the drag of the mouse wants five parameters"
+    );
+}

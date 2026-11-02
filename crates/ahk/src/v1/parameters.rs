@@ -54,6 +54,12 @@ pub(crate) fn the_refusal_of_the_arity(
             number: rule.required,
         });
     }
+    // The two parameters that the command wants are named together.
+    if let Some((first, second)) = rule.together {
+        if count < second as usize {
+            return Some(TheRefusalOfTheArity::RequiredTogether { first, second });
+        }
+    }
     None
 }
 
@@ -66,6 +72,9 @@ struct Arity {
     /// The parameter that has to be there: the complaint of the v1 is
     /// "Parameter #N required" and it names no text.
     required: u8,
+    /// The two parameters that have to be there together: the complaint of
+    /// the v1 is "Parameter #N and M required." and it names no text.
+    together: Option<(u8, u8)>,
     /// The name that the complaint of the v1 writes: the binary spells the
     /// name of the `SetStoreCapsLockMode` the way it is inside it.
     spelled: Option<&'static str>,
@@ -79,15 +88,27 @@ struct Arity {
 /// and the "GuiControl" want two, and the "WinMenuSelectItem" wants three,
 /// and the complaint of the v1 names the parameter that is missing.
 const RULES_OF_THE_ARITY: &[Arity] = &[
-    Arity { name: "EnvSub", generic: 1, required: 2, spelled: None },
-    Arity { name: "ControlSend", generic: 0, required: 2, spelled: None },
-    Arity { name: "GuiControl", generic: 0, required: 2, spelled: None },
-    Arity { name: "WinMenuSelectItem", generic: 0, required: 3, spelled: None },
+    Arity { name: "EnvSub", generic: 1, required: 2, together: None, spelled: None },
+    Arity { name: "ControlSend", generic: 0, required: 2, together: None, spelled: None },
+    Arity { name: "GuiControl", generic: 0, required: 2, together: None, spelled: None },
+    Arity { name: "WinMenuSelectItem", generic: 0, required: 3, together: None, spelled: None },
     Arity {
         name: "SetStoreCapsLockMode",
         generic: 1,
         required: 0,
+        together: None,
         spelled: Some("SetStoreCapslockMode"),
+    },
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the `MouseClickDrag`
+    // wants the place of the end of the drag -- the fourth and the fifth --
+    // and the complaint of the v1 names the two of them together: "Parameter
+    // #4 and 5 required.".
+    Arity {
+        name: "MouseClickDrag",
+        generic: 1,
+        required: 0,
+        together: Some((4, 5)),
+        spelled: None,
     },
 ];
 
@@ -153,6 +174,13 @@ const RULES: &[Rule] = &[
     Rule { name: "FileSetAttrib", check: the_attributes_of_a_file },
     Rule { name: "EnvAdd", check: the_units_of_the_time },
     Rule { name: "EnvSub", check: the_units_of_the_time },
+    Rule { name: "FileMoveDir", check: the_way_of_the_move_of_a_directory },
+    Rule { name: "GroupActivate", check: the_mode_of_a_group },
+    Rule { name: "GroupClose", check: the_mode_of_a_group },
+    Rule { name: "GroupDeactivate", check: the_mode_of_a_group },
+    Rule { name: "IfMsgBox", check: the_button_of_a_message_box },
+    Rule { name: "KeyHistory", check: the_command_without_a_parameter },
+    Rule { name: "StringMid", check: the_letter_of_the_string_mid },
 ];
 
 /// The commands of the v1 whose complaint is a message of its own.
@@ -240,6 +268,82 @@ fn is_the_name_of_a_variable(text: &str) -> bool {
         && text.chars().all(|character| {
             character.is_ascii_alphanumeric() || matches!(character, '_' | '#' | '$' | '@')
         })
+}
+
+/// The button of a message box of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the button is one of
+/// the "Yes", the "No", the "OK", the "Cancel", the "Abort", the "Ignore",
+/// the "Retry", the "Continue", the "TryAgain" or the "Timeout", and the
+/// case of the word does not matter. The number is not a button.
+fn the_button_of_a_message_box(texts: &[String]) -> Option<usize> {
+    let text = the_text_at(texts, 0).trim();
+    if matches!(
+        text.to_lowercase().as_str(),
+        "yes"
+            | "no"
+            | "ok"
+            | "cancel"
+            | "abort"
+            | "ignore"
+            | "retry"
+            | "continue"
+            | "tryagain"
+            | "timeout"
+    ) {
+        return None;
+    }
+    Some(0)
+}
+
+/// The letter of the `StringMid` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the fifth parameter is
+/// the letter "L", and the case of it does not matter. The letter that is
+/// not the "L" is refused.
+fn the_letter_of_the_string_mid(texts: &[String]) -> Option<usize> {
+    let text = the_text_at(texts, 4).trim();
+    if text.is_empty() || text.eq_ignore_ascii_case("L") {
+        return None;
+    }
+    Some(4)
+}
+
+/// The mode of a group of windows of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the second parameter is
+/// the letter "R", and the case of it does not matter. The mode that is not
+/// there is the oldest window of the group.
+fn the_mode_of_a_group(texts: &[String]) -> Option<usize> {
+    let text = the_text_at(texts, 1).trim();
+    if text.is_empty() || text.eq_ignore_ascii_case("R") {
+        return None;
+    }
+    Some(1)
+}
+
+/// The way of the move of a directory of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the third parameter is
+/// the number zero, one or two, and the number that is not one of them is
+/// refused.
+fn the_way_of_the_move_of_a_directory(texts: &[String]) -> Option<usize> {
+    let text = the_text_at(texts, 2).trim();
+    if text.is_empty() || matches!(text, "0" | "1" | "2") {
+        return None;
+    }
+    Some(2)
+}
+
+/// The command of the v1 that takes no parameter.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the `KeyHistory` takes
+/// no parameter, and the one that is there is refused.
+fn the_command_without_a_parameter(texts: &[String]) -> Option<usize> {
+    if texts.is_empty() {
+        return None;
+    }
+    Some(0)
 }
 
 /// The text of the parameter at this place, or the empty text.

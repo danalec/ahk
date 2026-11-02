@@ -7459,3 +7459,35 @@ The lexer of the tree does not read the "$" and the "@" yet: the
 name.
 
 The suite of the v1 has one case more (157).
+
+## 185. The value of the parameter of a command of the v1 is checked when the script loads
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02.
+
+- **The button of the `IfMsgBox` is one of the names of the buttons**: the
+  "Yes", the "No", the "OK", the "Cancel", the "Abort", the "Ignore", the
+  "Retry", the "Continue", the "TryAgain" or the "Timeout", and the case of
+  the word does not matter. The number is not a button.
+- **The fifth parameter of the `StringMid` is the letter "L"**, and the case
+  of it does not matter.
+- **The second parameter of the `GroupActivate`, of the `GroupClose` and of
+  the `GroupDeactivate` is the letter "R"**, and the case of it does not
+  matter. The mode that is not there is the oldest window of the group.
+- **The third parameter of the `FileMoveDir` is the number zero, one or
+  two.**
+- **The `KeyHistory` takes no parameter**, and the one that is there is
+  refused.
+- **The `MouseClickDrag` wants the fourth and the fifth parameters, and the
+  complaint of the v1 names the two of them together**: "Parameter #4 and 5
+  required." It is the third form of the complaint of the number of the
+  parameters, and the dialect carries it as a form of its own.
+
+The command that has a body checks the value of its parameter after the text
+that is left of the line went into it: the `IfMsgBox, OK, extra` is refused
+with "Parameter #1 invalid." and the text "OK, extra".
+
+The rules are in `crates/ahk/src/v1/parameters.rs`, and the form of the
+complaint of the number of the parameters is in `crates/ahk/src/dialect.rs`
+(`TheRefusalOfTheArity`).
+
+The suite of the v1 has two cases more (159).
