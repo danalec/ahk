@@ -671,6 +671,24 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The refusal of the name of a variable of the script.
+    ///
+    /// The place is the number of the parameter, and the text is the text
+    /// that the script wrote. `None` means that the dialect lets the command
+    /// run with the name that it has.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1 checks the
+    /// name of a variable when the script loads, and the complaint of the v1
+    /// is its own. The v2 has no command that writes into a variable of the
+    /// script, and the parser keeps its own complaint.
+    fn the_refusal_of_the_name_of_a_variable(
+        &self,
+        _place: usize,
+        _text: &str,
+    ) -> Option<String> {
+        None
+    }
+
     /// The refusal of the number of the parameters of a command.
     ///
     /// `None` means that the dialect lets the command run with the number of
@@ -1087,6 +1105,17 @@ impl Dialect for V1 {
         // the parameter of its commands when the script loads, and the
         // complaint of the v1 is its own.
         crate::v1::the_refusal_of_a_parameter(name, parameters)
+    }
+
+    fn the_refusal_of_the_name_of_a_variable(
+        &self,
+        _place: usize,
+        text: &str,
+    ) -> Option<String> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1 checks
+        // the name of a variable of the script when the script loads, and
+        // the complaint of the v1 is its own.
+        crate::v1::the_refusal_of_the_name_of_a_variable(text)
     }
 
     fn the_refusal_of_the_arity_of_a_command(

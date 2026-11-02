@@ -4320,3 +4320,98 @@ fn the_action_of_the_command_that_has_a_body_is_a_command_that_is_named() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[yes]".to_string()]);
 }
+
+/// The name of a variable of the script is checked when the script loads.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a variable
+/// may not carry a character that is not a letter, a digit, the underscore,
+/// the "#", the "$" or the "@", and the complaint of the v1 is "The
+/// following variable name contains an illegal character." with the name
+/// after it. The percent sign opens the name of another variable: the one
+/// that is not closed is refused, and the one that is empty is refused too.
+#[test]
+fn the_name_of_a_variable_of_the_v1_is_checked_when_the_script_loads() {
+    let cases = [
+        (
+            "StringLen, out, a b",
+            "The following variable name contains an illegal character:\n\"a b\"",
+        ),
+        (
+            "StringLen, out, a.b",
+            "The following variable name contains an illegal character:\n\"a.b\"",
+        ),
+        (
+            "StringLen, out, a-b",
+            "The following variable name contains an illegal character:\n\"a-b\"",
+        ),
+        (
+            "StringLen, out, a,b",
+            "The following variable name contains an illegal character:\n\"a,b\"",
+        ),
+        (
+            "StringLen, out, a b, c",
+            "The following variable name contains an illegal character:\n\"a b, c\"",
+        ),
+        (
+            "StringLen, a b, c",
+            "The following variable name contains an illegal character:\n\"a b\"",
+        ),
+        (
+            "StringMid, out, a b, 1",
+            "The following variable name contains an illegal character:\n\"a b\"",
+        ),
+        (
+            "Sort, a b",
+            "The following variable name contains an illegal character:\n\"a b\"",
+        ),
+        (
+            "StringLen, out, a%b",
+            "This parameter contains a variable name missing its ending percent sign.\n     Specifically: a%b",
+        ),
+        (
+            "StringLen, out, %a",
+            "This parameter contains a variable name missing its ending percent sign.\n     Specifically: %a",
+        ),
+        (
+            "StringLen, out, %%",
+            "Empty variable reference (%%).\n     Specifically: %%",
+        ),
+    ];
+    for (script, refusal) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            refusal,
+            "the script is {script}"
+        );
+    }
+
+    // The names that the v1 knows.
+    for script in [
+        "StringLen, out, a",
+        "StringLen, out, a1",
+        "StringLen, out, _a",
+        "StringLen, out, a_b",
+        "StringLen, out, 2a",
+        "StringLen, out, a#b",
+        "StringLen, out, a%b%c",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+
+    // The parameter that is a text is not the name of a variable, and it is
+    // not checked.
+    for script in [
+        "EnvSet, a b, value",
+        "StringReplace, out, a, b c, d",
+        "FileGetSize, out, a b",
+        "Sleep, a b",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}

@@ -1612,6 +1612,12 @@ that asks for another one is refused with the reason.
   of a command, and the last parameter takes the rest of the line when it
   does not.
 
+- **The name of a variable of the script is checked when the script loads.**
+  The name may not carry a character that is not a letter, a digit, the
+  underscore, the "#", the "$" or the "@", and the complaint of the v1 names
+  the name and not the parameter. The percent sign opens the name of
+  another variable, and the one that is not closed is refused.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

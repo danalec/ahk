@@ -3080,6 +3080,29 @@ impl Parser {
                 }
             }
         }
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the name of a
+        // variable of the script is checked when the script loads, and the
+        // complaint of the v1 is its own: the name may not carry a character
+        // that is not a letter, a digit or the underscore.
+        if let Some(builtin) = self.the_builtin_of_the_legacy_command(&name) {
+            for (index, parameter) in parameters.iter().enumerate() {
+                let is_a_name = matches!(
+                    builtin.parameters.get(index),
+                    Some(
+                        crate::builtins::Parameter::Variable
+                            | crate::builtins::Parameter::Output
+                    )
+                );
+                if !is_a_name {
+                    continue;
+                }
+                if let Some(refusal) =
+                    self.dialect.the_refusal_of_the_name_of_a_variable(index + 1, parameter)
+                {
+                    return Err(self.error(refusal));
+                }
+            }
+        }
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the value of a
         // parameter of a command of the v1 is checked when the script loads,
         // and the complaint of the v1 is its own: "Parameter #N invalid."

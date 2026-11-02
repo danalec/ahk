@@ -192,6 +192,56 @@ fn the_division_by_zero(parameters: &[String]) -> Option<String> {
     Some(format!("Divide by zero\n     Specifically: {divisor}"))
 }
 
+/// The refusal of the name of a variable of the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a variable
+/// may not carry a character that is not a letter, a digit or the underscore
+/// -- the "a b" is refused, and the complaint of the v1 is "The following
+/// variable name contains an illegal character." with the name after it. The
+/// percent sign opens the name of another variable: the one that is not
+/// closed is refused with "This parameter contains a variable name missing
+/// its ending percent sign.", and the one that is empty is refused with
+/// "Empty variable reference (%%).". The name that carries a percent sign
+/// is an expression, and the v1 does not check it here.
+pub(crate) fn the_refusal_of_the_name_of_a_variable(text: &str) -> Option<String> {
+    let mut rest = text;
+    while let Some(at) = rest.find('%') {
+        let after = &rest[at + 1..];
+        let Some(end) = after.find('%') else {
+            return Some(format!(
+                "This parameter contains a variable name missing its ending percent sign.\n     Specifically: {text}"
+            ));
+        };
+        if end == 0 {
+            return Some(format!(
+                "Empty variable reference (%%).\n     Specifically: {text}"
+            ));
+        }
+        rest = &after[end + 1..];
+    }
+    if text.contains('%') {
+        return None;
+    }
+    if is_the_name_of_a_variable(text) {
+        return None;
+    }
+    Some(format!(
+        "The following variable name contains an illegal character:\n\"{text}\""
+    ))
+}
+
+/// Whether the text is the name of a variable of the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name
+/// is made of letters, of digits, of the underscore and of the "#", the "$"
+/// and the "@", and the number may begin it.
+fn is_the_name_of_a_variable(text: &str) -> bool {
+    !text.is_empty()
+        && text.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '_' | '#' | '$' | '@')
+        })
+}
+
 /// The text of the parameter at this place, or the empty text.
 fn the_text_at(texts: &[String], place: usize) -> &str {
     texts.get(place).map(String::as_str).unwrap_or("")

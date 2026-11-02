@@ -7427,3 +7427,35 @@ put the parameters together again, and the number of the parameters that a
 command reads is the number of the table of the v1.
 
 The suite of the v1 has five cases more (156).
+
+## 184. The name of a variable of the script is checked when the script loads
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02.
+
+- **The parameter that is the name of a variable of the script is checked
+  when the script loads.** The name may not carry a character that is not a
+  letter, a digit, the underscore, the "#", the "$" or the "@": the
+  `StringLen, out, a b` is refused with "The following variable name
+  contains an illegal character." and the name after it, on a line of its
+  own. The number may begin the name, and the parameter that is a value is
+  not the name of a variable and is not checked.
+- **The percent sign opens the name of another variable.** The one that is
+  not closed is refused with "This parameter contains a variable name missing
+  its ending percent sign." and the text that the script wrote, and the one
+  that is empty is refused with "Empty variable reference (%%).". The name
+  that carries a percent sign is an expression, and the v1 does not check it
+  at the load.
+- **The complaint of this family does not name the parameter**, unlike the
+  "Parameter #N invalid." of the other one: the name is the name, and it is
+  on a line of its own.
+
+The rule is a hook of the dialect (`the_refusal_of_the_name_of_a_variable`),
+and the rules of the v1 are in `crates/ahk/src/v1/parameters.rs`. The
+parameter that is a name is the one whose shape is the `Variable` or the
+`Output` of the table of the v1.
+
+The lexer of the tree does not read the "$" and the "@" yet: the
+`StringLen, out, a$b` is refused by the lexer, and not by the rule of the
+name.
+
+The suite of the v1 has one case more (157).
