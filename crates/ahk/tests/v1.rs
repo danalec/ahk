@@ -6374,6 +6374,40 @@ fn the_assignment_of_the_v1_that_has_no_value_writes_the_empty_text() {
     );
 }
 
+/// The words of the v1 may be the name of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the words
+/// of the v1 are not reserved: the `while := 5` writes the variable "while",
+/// and the `x := while` reads it.
+#[test]
+fn the_words_of_the_v1_may_be_the_name_of_a_variable() {
+    // The word that writes a variable.
+    let report = run("while := 5\nFileAppend, [%while%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[5]".to_string()]);
+
+    // The word that is read.
+    let report = run("while := 5\nx := while\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[5]".to_string()]);
+
+    // The `else` writes a variable too.
+    let report = run("else := 5\nFileAppend, [%else%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[5]".to_string()]);
+
+    // The `is` is a name of the v1 and not an operator.
+    let report = run("is := 5\nx := is\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[5]".to_string()]);
+
+    // The values are not the name of a variable.
+    assert_eq!(
+        the_refusal_of_the_load("true := 5"),
+        "Not allowed as an output variable.\n     Specifically: true"
+    );
+}
+
 /// The values of the v1 may be side by side.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1

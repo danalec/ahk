@@ -1096,6 +1096,14 @@ is the symbol `5"a"`. The number with a point is a number and not the name of
 a variable, and the quote is not allowed there: the `x := 5.5"a"` is a "This
 character is not allowed here. Specifically: "a"".
 
+**The words that are names** (2026-11-04). The words of the v1 are not
+reserved: the `while := 5` writes the variable "while", and the `x := while`
+reads it. The words that keep their meaning in the v1 are the operators
+(`and`, `or` and `not`), the values (`true` and `false`) and the `if`, that
+is a command of the v1. The `true := 5` is refused with "Not allowed as an
+output variable. Specifically: true", and the `is`, the `as`, the `in`, the
+`contains` and the `super` are names of the v1.
+
 **What is left of the v1.** One corner of the `if` is measured on the binary
 of v1.1.37.02 and the tree does not do it yet.
 
@@ -1123,6 +1131,15 @@ line.
 And one more still: the call of a name that is not a function, when the
 bracket that closes it is not there. The v1 says "Call to nonexistent
 function. Specifically: abc(c" and the tree says "Missing \")\"".
+
+And one more: the operator of the v1 without an operand. The v1 answers with
+the empty text: the `x := and` is empty, and the tree refuses the line with
+"Syntax error. Specifically: and". The `x := not` is empty in the v1, and the
+tree refuses it with "Missing operand. Specifically: not".
+
+And the `if` of the v1 with an assignment: the v1 takes the line as the
+command that it is, and the tree refuses the condition with "Syntax error.
+Specifically: := 2".
 
 **The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
 its own, and the two colons that separate the name from the action are what

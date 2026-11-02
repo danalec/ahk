@@ -267,6 +267,20 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the words of the language may be the name of a variable.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// words of the v1 may be the name of a variable: the `while := 5`
+    /// writes the variable "while", and the `x := while` reads it. The v2
+    /// refuses the words that it reserves.
+    ///
+    /// The words that keep their meaning in the v1 are the operators (`and`,
+    /// `or` and `not`), the values (`true` and `false`) and the `if`, that is
+    /// a command.
+    fn the_words_may_be_the_name_of_a_variable(&self) -> bool {
+        false
+    }
+
     /// Whether the name of a variable may not carry a quote.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -1279,6 +1293,12 @@ impl Dialect for V1 {
 
     fn the_quote_escapes_the_quote(&self) -> bool {
         // The quote of the v1 escapes itself: the `"a""b"` is the text `a"b`.
+        true
+    }
+
+    fn the_words_may_be_the_name_of_a_variable(&self) -> bool {
+        // The words of the v1 may be the name of a variable: the `while := 5`
+        // writes the variable "while", and the `x := while` reads it.
         true
     }
 

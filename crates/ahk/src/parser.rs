@@ -2708,17 +2708,32 @@ impl Parser {
             // Measured on the binary of v1.1.37.02 on 2026-11-02: the `else`
             // of the v1 is a command of its own, and the parser of the v2
             // does not take it.
-            if self.dialect.the_command_is_the_else(&word) {
-                // The name of the command is consumed before the parameters
-                // of it are read, and the name of the command is not one of
-                // them.
-                self.next();
-                return Ok(vec![self.parse_call_statement(token)?]);
-            }
-            // Measured on the binary of v2.0.19 on 2026-11-01: the word that
-            // is the name of a variable refuses with the reason of the word,
-            // and the reason does not depend on the place where the word is.
-            if self.the_word_is_the_name_of_a_variable() {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the words of the v1 may be the name of a variable: the
+            // `while := 5` writes the variable "while", and the `else := 2`
+            // writes the variable "else". The `if` is a command of the v1,
+            // and the values are not the name of a variable.
+            if self.dialect.the_words_may_be_the_name_of_a_variable() {
+                if self.the_word_is_the_name_of_a_variable() {
+                    match word.as_str() {
+                        "true" | "false" => {
+                            return Err(SyntaxError {
+                                message: format!(
+                                    "Not allowed as an output variable.\n     Specifically: {}",
+                                    token.value
+                                ),
+                                line: token.line,
+                                column: token.column,
+                            });
+                        }
+                        "if" => {}
+                        _ => return self.parse_name_statement(),
+                    }
+                }
+            } else if self.the_word_is_the_name_of_a_variable() {
+                // Measured on the binary of v2.0.19 on 2026-11-01: the word that
+                // is the name of a variable refuses with the reason of the word,
+                // and the reason does not depend on the place where the word is.
                 if let Some(refusal) = crate::lexer::the_refusal_of_a_word(&word) {
                     // Measured on the binary of v2.0.19 on 2026-11-01: the
                     // name of a function of the machine and the name of a
@@ -2730,6 +2745,13 @@ impl Parser {
                         return Err(self.the_error_of_the_refusal(refusal, &token));
                     }
                 }
+            }
+            if self.dialect.the_command_is_the_else(&word) {
+                // The name of the command is consumed before the parameters
+                // of it are read, and the name of the command is not one of
+                // them.
+                self.next();
+                return Ok(vec![self.parse_call_statement(token)?]);
             }
             // Measured on the binary of v2.0.19 on 2026-11-01: the name of a
             // function may not be a word that the language reserves, and the
@@ -7702,6 +7724,13 @@ impl Parser {
                     return true;
                 }
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the words of the v1 may be the name of a
+                // variable, and a variable is a value: the operators are the
+                // ones that do not begin one.
+                if self.dialect.the_words_may_be_the_name_of_a_variable() {
+                    return !matches!(word.as_str(), "and" | "or" | "not");
+                }
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-04: the `if` and the `while` of the v1 may come
                 // inside the line of the condition of an `if`, and the
                 // condition of them may be written without parentheses: the
@@ -8451,11 +8480,20 @@ impl Parser {
                         // class.
                         "class" => Node::Var { name: token.value.clone(), line: token.line },
                         _ => {
-                            // Measured on the binary of v2.0.19 on 2026-11-01:
-                            // the `ExitApp` is a function of the machine and
-                            // not a word of the dialect, and a function is a
-                            // value.
-                            if crate::builtins::find(&token.value.to_lowercase()).is_some() {
+                            // Measured on the binary of AutoHotkey v1.1.37.02 on
+                            // 2026-11-04: the words of the v1 may be the name
+                            // of a variable: the `x := while` reads the
+                            // variable "while".
+                            let lower = token.value.to_lowercase();
+                            // Measured on the binary of AutoHotkey v1.1.37.02 on
+                            // 2026-11-04: the words of the v1 may be the name
+                            // of a variable: the `x := while` reads the
+                            // variable "while". The operators of the v1 are
+                            // operators and not names.
+                            if (self.dialect.the_words_may_be_the_name_of_a_variable()
+                                && !matches!(lower.as_str(), "and" | "or" | "not"))
+                                || crate::builtins::find(&lower).is_some()
+                            {
                                 Node::Var { name: token.value.clone(), line: token.line }
                             } else if let Some(refusal) =
                                 crate::lexer::the_refusal_of_a_word(&token.value)

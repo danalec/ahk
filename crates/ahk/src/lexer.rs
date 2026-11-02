@@ -1129,7 +1129,15 @@ pub fn tokenize_with(
                 continue;
             }
             let word: String = chars[start..index].iter().collect();
-            let kind = if KEYWORDS.contains(&word.to_lowercase().as_str()) {
+            let lower = word.to_lowercase();
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the words of the v1 may be the name of a variable, and the ones
+            // that are not operators of the v1 are names: the `is` is a name
+            // and not an operator.
+            let kind = if KEYWORDS.contains(&lower.as_str())
+                && !(dialect.the_words_may_be_the_name_of_a_variable()
+                    && matches!(lower.as_str(), "is" | "as" | "in" | "contains" | "super"))
+            {
                 TokenKind::Keyword
             } else {
                 TokenKind::Name

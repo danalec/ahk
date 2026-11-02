@@ -8092,3 +8092,23 @@ name with the symbol that comes with it
 the name is a variable (`the_name_that_carries_a_quote`).
 
 The suite of the v1 has three cases more (247).
+
+## 205. The words of the v1 may be the name of a variable
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the words of
+the v1 are not reserved. The `while := 5` writes the variable "while", and
+the `x := while` reads it. The v2 refuses the words that it reserves, with
+"The following reserved word must not be used as a variable name".
+
+The words that keep their meaning in the v1 are the operators (`and`, `or`
+and `not`), the values (`true` and `false`) and the `if`, that is a command
+of the v1. The `true := 5` is refused with "Not allowed as an output
+variable. Specifically: true", and the `is`, the `as`, the `in`, the
+`contains` and the `super` are names of the v1 and not words that the
+language reserves.
+
+The dialect says it (`the_words_may_be_the_name_of_a_variable`), the lexer
+makes a name of the words that the v1 does not use as operators, and the
+parser reads the word as a variable where the v1 does.
+
+The suite of the v1 has one case more (248).

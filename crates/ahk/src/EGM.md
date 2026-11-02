@@ -1818,6 +1818,14 @@ that asks for another one is refused with the reason.
   parser refuses it where the name is a variable
   (`the_name_that_carries_a_quote`).
 
+- **The words of the v1 may be the name of a variable.** The `while := 5`
+  writes the variable "while", and the `x := while` reads it. The words that
+  keep their meaning in the v1 are the operators (`and`, `or` and `not`), the
+  values (`true` and `false`) and the `if`, that is a command of the v1. The
+  dialect says it (`the_words_may_be_the_name_of_a_variable`), the lexer
+  makes a name of the words that the v1 does not use as operators, and the
+  parser reads the word as a variable where the v1 does.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes
