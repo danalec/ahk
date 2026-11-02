@@ -26,7 +26,7 @@
 //!   reserves it -- so it may only be used inside the text of the
 //!   assembly.
 
-use ahk::dll::{NativeCall, NativeResult, NativeType, NativeValue};
+use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue};
 
 // -- the machine ---------------------------------------------------------------
 
@@ -448,17 +448,21 @@ impl Libraries {
     ///
     /// The two failures are the ones v2.0.19 gives, measured on the
     /// binary on 2026-10-28: the library that does not load, and the
-    /// function that is not in it.
-    pub fn symbol(&mut self, library: &str, function: &str) -> Result<u64, String> {
+    /// function that is not in it. The kind of the failure says which of the
+    /// two it is, and the v1 turns it into the code that it writes in the
+    /// `ErrorLevel`.
+    pub fn symbol(&mut self, library: &str, function: &str) -> Result<u64, NativeFailure> {
         let handle = match self.loaded.iter().find(|(name, _)| name == library) {
             Some((_, handle)) => *handle,
             None => {
-                let handle = loader::load(library).ok_or_else(|| "Failed to load DLL.".to_string())?;
+                let handle = loader::load(library)
+                    .ok_or_else(|| NativeFailure::no_library("Failed to load DLL."))?;
                 self.loaded.push((library.to_string(), handle));
                 handle
             }
         };
-        loader::symbol(handle, function).ok_or_else(|| "Call to nonexistent function.".to_string())
+        loader::symbol(handle, function)
+            .ok_or_else(|| NativeFailure::no_function("Call to nonexistent function."))
     }
 }
 
@@ -468,9 +472,11 @@ impl Libraries {
 ///
 /// The library is loaded, the function is found in it, the arguments go
 /// in the registers the machine wants, and the answer comes back.
-pub fn call(libraries: &mut Libraries, native: &mut NativeCall) -> Result<NativeResult, String> {
+pub fn call(libraries: &mut Libraries, native: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
     if !SUPPORTED {
-        return Err("this desktop cannot make a native call on this machine.".to_string());
+        return Err(NativeFailure::invalid(
+            "this desktop cannot make a native call on this machine.",
+        ));
     }
     let target = libraries.symbol(&native.library, &native.function)?;
     // The blocks have to stay alive during the call: the callee reads
@@ -618,7 +624,7 @@ mod tests {
     //! the shape of the call is right.
 
     use super::{Libraries, NativeType, NativeValue, call};
-    use ahk::dll::{Convention, NativeArg, NativeCall, NativeResult};
+    use ahk::dll::{Convention, NativeArg, NativeCall, NativeFailure, NativeResult};
 
     /// A library that is on the machine, whatever the machine is.
     #[cfg(target_os = "windows")]
@@ -642,7 +648,7 @@ mod tests {
         function: &str,
         returns: NativeType,
         arguments: Vec<NativeArg>,
-    ) -> Result<NativeResult, String> {
+    ) -> Result<NativeResult, NativeFailure> {
         let mut libraries = Libraries::new();
         let mut native = NativeCall {
             library: library.to_string(),
@@ -759,14 +765,16 @@ mod tests {
     #[test]
     fn a_library_that_is_not_there_fails() {
         let error = run("ahk-no-such-library", "anything", NativeType::Int, Vec::new()).expect_err("it fails");
-        assert_eq!(error, "Failed to load DLL.");
+        assert_eq!(error.reason, "Failed to load DLL.");
+        assert_eq!(error.kind, ahk::dll::NativeFailureKind::NoLibrary);
     }
 
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     #[test]
     fn a_function_that_is_not_in_the_library_fails() {
         let error = run(A_LIBRARY, "ahk_no_such_function", NativeType::Int, Vec::new()).expect_err("it fails");
-        assert_eq!(error, "Call to nonexistent function.");
+        assert_eq!(error.reason, "Call to nonexistent function.");
+        assert_eq!(error.kind, ahk::dll::NativeFailureKind::NoFunction);
     }
 
     #[cfg(any(target_os = "windows", target_os = "linux"))]

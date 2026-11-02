@@ -6525,8 +6525,7 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   parameter for the output of every call, and the `Run` of a program was a
   call to a variable that has no name.
 - **The `DllCall` writes the `ErrorLevel` when the call works.** It is zero.
-  The code of the failure is not carried: the machine of this runtime answers
-  with a reason and not with the code of the v1.
+  The code of the failure is the code of the v1 (§178).
 
 The pid of the process goes into the variable of the caller, and the `Run` of
 the v1 does not wait for the program: the machine starts it and answers with
@@ -7237,5 +7236,34 @@ shell of the machine, the way its `run` does, and the working directory of
 the second parameter of the command is the directory of the program. The
 output of a program that the `Run` starts is not read: the program is still
 running when the script ends.
+
+## 178. The `DllCall` of the v1 writes the code of the failure in the `ErrorLevel`
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `ErrorLevel` of the `DllCall` is zero when the call works,** and the
+  code of the failure when it does not.
+- **The code says what failed.** The minus three is the library that is not
+  there, the minus four is the function that is not in the library, and the
+  minus two is the call that is not valid -- the type of an argument that is
+  not a type, and the type of the answer that is not a type. The code of the
+  failure of a function that is not there is the minus four, and not the
+  minus three: the library was there.
+- **The v1 goes on when the call fails,** and the `ErrorLevel` is the only
+  report of it. The tree fails the script with the reason of the machine, the
+  way it does with the file commands (§155).
+
+The failure of a native call carries the kind of it and the reason
+(`crates/ahk/src/dll.rs`): the kind is what failed -- the call itself, the
+library or the function -- and the reason is the one of the machine, in the
+words of the v2 ("Failed to load DLL." and "Call to nonexistent function.").
+The `Desktop` answers with that failure (`crates/ahk/src/desktop.rs`), and the
+v1 turns the kind into the code (`crates/ahk/src/v1/mod.rs`). The v2 does not
+use the code: it keeps the reason.
+
+The box carries the kind (`crates/ahk-box/src/native.rs`): the loader knows
+whether the library was not there or the function was not in it. The raven
+(`crates/ahk-box/src/raven.rs`) asks the guest of Windows, and the guest
+answers with the message of the v2 -- the raven reads the kind out of it.
 
 

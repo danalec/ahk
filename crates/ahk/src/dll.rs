@@ -170,6 +170,51 @@ pub struct NativeResult {
     pub value: NativeValue,
 }
 
+/// The kind of a failure of a native call.
+///
+/// The kind says what failed: the call itself, the library, or the function
+/// in the library. The reason of the failure is the one of the machine, and
+/// the v1 turns the kind into the code that it writes in the `ErrorLevel`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeFailureKind {
+    /// The call itself is not valid: the target, the type of an argument or
+    /// the type of the answer.
+    Invalid,
+    /// The library is not there.
+    NoLibrary,
+    /// The function is not in the library.
+    NoFunction,
+}
+
+/// The failure of a native call.
+///
+/// The reason is the one of the machine, in the words of the v2: "Failed to
+/// load DLL." and "Call to nonexistent function.".
+#[derive(Debug, Clone, PartialEq)]
+pub struct NativeFailure {
+    /// The kind of the failure.
+    pub kind: NativeFailureKind,
+    /// The reason of the failure.
+    pub reason: String,
+}
+
+impl NativeFailure {
+    /// The failure of a call that is not valid.
+    pub fn invalid(reason: &str) -> Self {
+        NativeFailure { kind: NativeFailureKind::Invalid, reason: reason.to_string() }
+    }
+
+    /// The failure of a library that is not there.
+    pub fn no_library(reason: &str) -> Self {
+        NativeFailure { kind: NativeFailureKind::NoLibrary, reason: reason.to_string() }
+    }
+
+    /// The failure of a function that is not in the library.
+    pub fn no_function(reason: &str) -> Self {
+        NativeFailure { kind: NativeFailureKind::NoFunction, reason: reason.to_string() }
+    }
+}
+
 /// The type of an argument, read out of the string the script writes.
 ///
 /// v2 writes the name of the type, with a `U` in front of the whole

@@ -993,18 +993,42 @@ pub(crate) fn clip_wait_of_the_v1(
 /// `DllCall("function", ...)`: the call into a library of the machine.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
-/// the v1 is zero when the call works. The code of the failure is not
-/// carried: the machine of this runtime answers with a reason and not with
-/// the code of the v1.
+/// the v1 is zero when the call works, and the code of the failure when it
+/// does not -- the minus three when the library is not there, the minus four
+/// when the function is not in it, and the minus two when the call itself is
+/// not valid. The v1 goes on when the call fails, and the tree fails the
+/// script with the reason of the machine.
 pub(crate) fn dll_call_of_the_v1(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
-    variant: u8,
+    _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let answer = crate::builtins::dll_call(rt, values, line, variant)?;
-    rt.set_the_error_level(Value::Int(0));
-    Ok(answer)
+    match crate::builtins::dll_call_with_the_kind(rt, values, line) {
+        Ok(answer) => {
+            rt.set_the_error_level(Value::Int(0));
+            Ok(answer)
+        }
+        Err((kind, error)) => {
+            // The code of the failure is the `ErrorLevel` of the v1.
+            rt.set_the_error_level(Value::Int(the_code_of_the_failure(kind)));
+            Err(error)
+        }
+    }
+}
+
+/// The code that the `ErrorLevel` of the v1 carries when a native call fails.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the code is the
+/// minus three when the library is not there, the minus four when the
+/// function is not in it, and the minus two when the call itself is not
+/// valid.
+fn the_code_of_the_failure(kind: crate::dll::NativeFailureKind) -> i64 {
+    match kind {
+        crate::dll::NativeFailureKind::Invalid => -2,
+        crate::dll::NativeFailureKind::NoLibrary => -3,
+        crate::dll::NativeFailureKind::NoFunction => -4,
+    }
 }
 
 /// `StringLeft, name, text, count`: the left of a text.

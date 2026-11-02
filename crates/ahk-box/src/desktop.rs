@@ -46,7 +46,7 @@ use ahk::keys::{MODIFIERS, resolve_name};
 use ahk::desktop::{
     FileAnswer, FileOptions, Folders, Idle, InputAnswer, InputOptions, Processes, WindowAnswer,
 };
-use ahk::dll::{NativeCall, NativeResult};
+use ahk::dll::{NativeCall, NativeFailure, NativeResult};
 
 use crate::keyboard::{ENUMERATION_WAIT, Keyboard, KeyboardError};
 use crate::native::Libraries;
@@ -244,10 +244,12 @@ impl LabDesktop {
     /// starts with the first call and lives until the desktop is
     /// dropped, because a program of its own is not cheap to start.
     #[cfg(target_os = "linux")]
-    fn windows(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+    fn windows(&mut self, call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
         if self.raven.is_none() {
             let paths = crate::raven::Paths::from_environment().ok_or_else(|| {
-                "this box has no raven: the libraries of Windows cannot be called.".to_string()
+                NativeFailure::invalid(
+                    "this box has no raven: the libraries of Windows cannot be called.",
+                )
             })?;
             self.raven = Some(crate::raven::Guests::new(paths));
         }
@@ -449,7 +451,7 @@ impl ahk::desktop::Hotkeys for LabDesktop {
 }
 
 impl ahk::desktop::Native for LabDesktop {
-    fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+    fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
         // A library of this machine is called here, and a library of
         // Windows is called by the raven: the box has no Windows of
         // its own, and the raven is the Windows of the box.

@@ -13,7 +13,7 @@
 //! "this desktop cannot ...". A question the machine cannot answer
 //! fails with the reason, and never answers `false`.
 
-use crate::dll::{NativeCall, NativeResult};
+use crate::dll::{NativeCall, NativeFailure, NativeResult};
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
 
@@ -495,8 +495,8 @@ pub trait Hotkeys {
 /// answer comes back with them.
 pub trait Native {
     /// The call of a function of a library.
-    fn call_native(&mut self, _call: &mut NativeCall) -> Result<NativeResult, String> {
-        Err("this desktop cannot make a native call.".to_string())
+    fn call_native(&mut self, _call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
+        Err(NativeFailure::invalid("this desktop cannot make a native call."))
     }
 }
 

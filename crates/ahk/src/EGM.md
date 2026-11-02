@@ -994,6 +994,11 @@ I/O, and belongs to the desktop.
 - `NativeCall { library, function, convention, returns, arguments }` -- the
   call, ready to be made.
 - `NativeResult { kind, value }` -- the answer.
+- `NativeFailureKind` -- `Invalid`, `NoLibrary` and `NoFunction`: what failed
+  in a call into a library.
+- `NativeFailure { kind, reason }` -- the failure of a call. The reason is
+  the one of the machine, in the words of the v2, and the kind is what the
+  v1 turns into the code that it writes in the `ErrorLevel`.
 - `parse_type(&str) -> Option<(NativeType, bool)>` -- the type out of the
   string the script writes, and whether it is the address of a value.
 - `split_target(&str) -> (String, String)` -- the library and the function
@@ -1112,6 +1117,12 @@ command -- the variable of the caller -- in the `Run` and in the `RunWait`.
 The machine of the runtime has two capabilities for it: `launch`, which does
 not wait, and `run_and_wait`, which does. The box starts the program
 through the shell of the machine, the way its `run` does.
+
+The failure of a native call is a rule of the dialect too. The machine says
+what failed -- the call itself, the library, or the function in the library
+-- and the v1 turns that into the code that it writes in the `ErrorLevel`:
+the minus two, the minus three and the minus four. The v2 does not use the
+code: it keeps the reason of the machine.
 
 ### The regular expressions (`regex.rs`)
 

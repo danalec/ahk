@@ -37,7 +37,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::time::Duration;
 
-use ahk::dll::{NativeArg, NativeCall, NativeResult, NativeType, NativeValue};
+use ahk::dll::{
+    NativeArg, NativeCall, NativeFailure, NativeFailureKind, NativeResult, NativeType, NativeValue,
+};
 
 /// The life of the guest, in milliseconds.
 ///
@@ -84,6 +86,12 @@ impl Paths {
 /// guests: the library of thirty-two bits is not in the folder of the
 /// guest of the sixty-four bits.
 const NOT_THERE: &str = "Failed to load DLL.";
+
+/// The reason of a function that is not in the library.
+///
+/// It is the message of v2.0.19, and the guest says it when the library is
+/// there and the function is not.
+const NO_FUNCTION: &str = "Call to nonexistent function.";
 
 /// The path of a variable of the environment.
 ///
@@ -192,13 +200,13 @@ impl Raven {
     /// address of a value, and that is why the call is given by the
     /// address of the call: the argument is the way back to the
     /// variable of the script.
-    pub fn call(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+    pub fn call(&mut self, call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
         let mut line = request(call);
         // The request is a line: the guest reads it until the end of
         // the line, and a request without it is a request it never
         // answers.
         line.push('\n');
-        let reply = self.transport.ask(&line)?;
+        let reply = self.transport.ask(&line).map_err(the_failure)?;
         answer(call, &reply)
     }
 
@@ -260,22 +268,22 @@ impl Guests {
     /// library. A function that is not in the library is not looked for
     /// in the other guest: the library was there, and the function was
     /// not.
-    pub fn call(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
-        let reason = {
-            let wide = self.wide()?;
+    pub fn call(&mut self, call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
+        let failure = {
+            let wide = self.wide().map_err(the_failure)?;
             match wide.call(call) {
                 Ok(answer) => return Ok(answer),
-                Err(reason) => reason,
+                Err(failure) => failure,
             }
         };
-        if reason != NOT_THERE {
-            return Err(reason);
+        if failure.kind != NativeFailureKind::NoLibrary {
+            return Err(failure);
         }
         // The library is not in the folder of the guest of the sixty-four
         // bits: the guest of the thirty-two bits may have it.
-        match self.narrow()? {
+        match self.narrow().map_err(the_failure)? {
             Some(narrow) => narrow.call(call),
-            None => Err(reason),
+            None => Err(failure),
         }
     }
 
@@ -370,7 +378,7 @@ pub fn request(call: &NativeCall) -> String {
 /// The blocks that come back go into the arguments that are the address
 /// of a value, as `NativeValue::Bytes`, the way the direct path of the
 /// box leaves them.
-pub fn answer(call: &mut NativeCall, line: &str) -> Result<NativeResult, String> {
+pub fn answer(call: &mut NativeCall, line: &str) -> Result<NativeResult, NativeFailure> {
     let mut fields: Vec<&str> = line.split('\t').collect();
     // The helper ends the answer with a tab, and the last field of it
     // is empty.
@@ -382,12 +390,17 @@ pub fn answer(call: &mut NativeCall, line: &str) -> Result<NativeResult, String>
         // The reason is the message of v2.0.19: "Failed to load DLL.",
         // "Call to nonexistent function." and the rest.
         let reason = fields.get(1).copied().unwrap_or("the raven did not say why.");
-        return Err(reason.to_string());
+        return Err(the_failure_of_the_reason(reason));
     }
     if kind != "ok" {
-        return Err(format!("the answer is not one the tree knows: {line}"));
+        return Err(NativeFailure::invalid(&format!(
+            "the answer is not one the tree knows: {line}"
+        )));
     }
-    let digits = fields.get(1).copied().ok_or_else(|| "the answer has no value.".to_string())?;
+    let digits = fields
+        .get(1)
+        .copied()
+        .ok_or_else(|| NativeFailure::invalid("the answer has no value."))?;
     let returns = call.returns;
     // The blocks that come back go into the arguments that are the
     // address of a value, in the order of the arguments.
@@ -396,22 +409,51 @@ pub fn answer(call: &mut NativeCall, line: &str) -> Result<NativeResult, String>
         if !argument.address {
             continue;
         }
-        let block = blocks.next().ok_or_else(|| "the answer has fewer blocks than the call asked for.".to_string())?;
-        argument.value = NativeValue::Bytes(unhex(block)?);
+        let block = blocks
+            .next()
+            .ok_or_else(|| NativeFailure::invalid("the answer has fewer blocks than the call asked for."))?;
+        argument.value = NativeValue::Bytes(unhex(block).map_err(the_failure)?);
     }
     let value = if returns.is_text() {
         // A text answers with the bytes of the text, and the language
         // decodes them.
-        NativeValue::Bytes(unhex(digits)?)
+        NativeValue::Bytes(unhex(digits).map_err(the_failure)?)
     } else if returns.is_float() {
         // The answer of a float is the bits of the float.
-        NativeValue::Float(ahk::dll::decode_number(&number(digits)?.to_le_bytes(), returns))
+        NativeValue::Float(ahk::dll::decode_number(
+            &number(digits).map_err(the_failure)?.to_le_bytes(),
+            returns,
+        ))
     } else {
         // The answer of a whole number is the bits of the number, and
         // the type says how many of them are read.
-        NativeValue::Integer(integer_answer(number(digits)?, returns))
+        NativeValue::Integer(integer_answer(
+            number(digits).map_err(the_failure)?,
+            returns,
+        ))
     };
     Ok(NativeResult { kind: returns, value })
+}
+
+/// The failure of the raven itself.
+///
+/// The raven is not the machine of the call: a failure of it is a failure of
+/// the call that is not valid.
+fn the_failure(reason: String) -> NativeFailure {
+    NativeFailure::invalid(&reason)
+}
+
+/// The failure that the reason of the guest says.
+///
+/// The guest answers with the messages of v2.0.19: "Failed to load DLL."
+/// and "Call to nonexistent function.". The kind is what the v1 turns into
+/// the code that it writes in the `ErrorLevel`.
+fn the_failure_of_the_reason(reason: &str) -> NativeFailure {
+    match reason {
+        NOT_THERE => NativeFailure::no_library(reason),
+        NO_FUNCTION => NativeFailure::no_function(reason),
+        _ => NativeFailure::invalid(reason),
+    }
 }
 
 /// The name of a type, as the helper spells it.
@@ -527,7 +569,9 @@ mod tests {
     //! line that comes back.
 
     use super::{Guests, Paths, Raven, Transport, answer, is_windows, request};
-    use ahk::dll::{Convention, NativeArg, NativeCall, NativeType, NativeValue};
+    use ahk::dll::{
+        Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue,
+    };
     use std::path::{Path, PathBuf};
 
     /// A call, with the library and the function of the cases.
@@ -718,7 +762,8 @@ mod tests {
         let mut guests = guests(&["error\tCall to nonexistent function."], &[]);
         let mut native = call(NativeType::Int, Vec::new());
         let error = guests.call(&mut native).expect_err("it fails");
-        assert_eq!(error, "Call to nonexistent function.");
+        assert_eq!(error.reason, "Call to nonexistent function.");
+        assert_eq!(error.kind, NativeFailureKind::NoFunction);
     }
 
     #[test]
@@ -728,16 +773,23 @@ mod tests {
         guests.narrow = None;
         let mut native = call(NativeType::Int, Vec::new());
         let error = guests.call(&mut native).expect_err("it fails");
-        assert_eq!(error, "Failed to load DLL.");
+        assert_eq!(error.reason, "Failed to load DLL.");
+        assert_eq!(error.kind, NativeFailureKind::NoLibrary);
     }
 
     #[test]
     fn the_answer_of_a_failure_is_the_reason_of_v2() {
         let mut native = call(NativeType::Int, Vec::new());
         let error = answer(&mut native, "error\tFailed to load DLL.").expect_err("it fails");
-        assert_eq!(error, "Failed to load DLL.");
+        assert_eq!(error.reason, "Failed to load DLL.");
+        assert_eq!(error.kind, NativeFailureKind::NoLibrary);
         let error = answer(&mut native, "error\tCall to nonexistent function.").expect_err("it fails");
-        assert_eq!(error, "Call to nonexistent function.");
+        assert_eq!(error.reason, "Call to nonexistent function.");
+        assert_eq!(error.kind, NativeFailureKind::NoFunction);
+        // A reason that the raven does not know is a failure of the call
+        // itself.
+        let error = answer(&mut native, "error\tsomething else.").expect_err("it fails");
+        assert_eq!(error.kind, NativeFailureKind::Invalid);
     }
 
     #[test]

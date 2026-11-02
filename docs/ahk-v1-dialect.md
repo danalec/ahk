@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 145 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 146 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -877,6 +877,15 @@ starts a program and answers the pid of it without waiting for it, and
 code and what the program wrote. The box starts the program through the
 shell of the machine, the way its `run` does. The block of the pid
 (2026-11-02) carried it.
+
+**The `DllCall` of the v1.** The `ErrorLevel` of the `DllCall` of the v1 is
+zero when the call works, and the code of the failure when it does not: the
+minus three when the library is not there, the minus four when the function
+is not in it, and the minus two when the call itself is not valid. The
+failure of a native call carries the kind of it -- the call itself, the
+library or the function -- and the reason of the machine, in the words of the
+v2. The v1 turns the kind into the code; the v2 does not use the code, and
+it keeps the reason. The block of the code (2026-11-02) carried it.
 
 **The path of the class.** The `new` of the v1 takes the path of the class:
 the name that follows the word and the names of the classes that it holds.

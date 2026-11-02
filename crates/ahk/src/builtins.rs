@@ -42,7 +42,7 @@ pub(crate) use crate::settings::{
     set_detect_hidden_windows, set_key_delay, set_mouse_delay, set_reg_view, set_store_caps_lock_mode,
     set_title_match_mode, set_win_delay,
 };
-use crate::dll::{Convention, NativeArg, NativeCall, NativeType, NativeValue};
+use crate::dll::{Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue};
 use crate::runtime::{
     expected_type, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, WindowAnswer,
 };
@@ -654,22 +654,35 @@ pub fn names() -> impl Iterator<Item = &'static str> {
 /// type of the answer alone: the count of the parameters tells the two
 /// apart.
 pub(crate) fn dll_call(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+    dll_call_with_the_kind(rt, values, line).map_err(|(_, error)| error)
+}
+
+/// The call of a library, with the kind of the failure.
+///
+/// The kind says what failed: the call itself, the library, or the function
+/// in the library. The v1 turns it into the code that it writes in the
+/// `ErrorLevel`, and the v2 does not use it: the wrapper above drops it.
+pub(crate) fn dll_call_with_the_kind(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+) -> Result<Value, (NativeFailureKind, RuntimeError)> {
     let Some(first) = values.first() else {
-        return Err(RuntimeError { message: "DllCall wants the library and the function.".into(), line });
+        return Err((NativeFailureKind::Invalid, RuntimeError { message: "DllCall wants the library and the function.".into(), line }));
     };
     let Value::Text(target) = first else {
-        return Err(RuntimeError { message: expected_type(TypeName::String, first.type_name()), line });
+        return Err((NativeFailureKind::Invalid, RuntimeError { message: expected_type(TypeName::String, first.type_name()), line }));
     };
     let (library, function) = crate::dll::split_target(target);
     let rest = &values[1..];
     let (returns, convention, rest) = if rest.len() % 2 == 1 {
         let last = rest.last().expect("there is one");
         let Value::Text(text) = last else {
-            return Err(RuntimeError { message: expected_type(TypeName::String, last.type_name()), line });
+            return Err((NativeFailureKind::Invalid, RuntimeError { message: expected_type(TypeName::String, last.type_name()), line }));
         };
         let (convention, name) = split_convention(text);
         let Some((kind, _)) = crate::dll::parse_type(name) else {
-            return Err(RuntimeError { message: "Invalid return type.".into(), line });
+            return Err((NativeFailureKind::Invalid, RuntimeError { message: "Invalid return type.".into(), line }));
         };
         (kind, convention, &rest[..rest.len() - 1])
     } else {
@@ -680,12 +693,12 @@ pub(crate) fn dll_call(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
     let mut index = 0;
     while index < rest.len() {
         let Value::Text(text) = &rest[index] else {
-            return Err(RuntimeError { message: expected_type(TypeName::String, rest[index].type_name()), line });
+            return Err((NativeFailureKind::Invalid, RuntimeError { message: expected_type(TypeName::String, rest[index].type_name()), line }));
         };
         let Some((kind, address)) = crate::dll::parse_type(text) else {
-            return Err(RuntimeError { message: "Invalid arg type.".into(), line });
+            return Err((NativeFailureKind::Invalid, RuntimeError { message: "Invalid arg type.".into(), line }));
         };
-        let (argument, reference) = marshal(rt, kind, address, &rest[index + 1], line)?;
+        let (argument, reference) = marshal(rt, kind, address, &rest[index + 1], line).map_err(|error| (NativeFailureKind::Invalid, error))?;
         arguments.push(argument);
         references.push(reference);
         index += 2;
@@ -694,7 +707,7 @@ pub(crate) fn dll_call(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
     let answer = rt
         .desktop()
         .call_native(&mut call)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|failure| (failure.kind, RuntimeError { message: failure.reason, line }))?;
     // The arguments that are the address of a variable come back into
     // the variable.
     for (argument, reference) in call.arguments.iter().zip(references) {

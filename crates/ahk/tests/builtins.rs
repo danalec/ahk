@@ -9,7 +9,9 @@ use ahk::desktop::{
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network, PictureOptions,
     Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
-use ahk::dll::{encode_number, NativeCall, NativeResult, NativeType, NativeValue};
+use ahk::dll::{
+    encode_number, NativeCall, NativeFailure, NativeResult, NativeType, NativeValue,
+};
 use ahk::runtime::{Report, Runtime, Value};
 use ahk::parse;
 use std::time::Duration;
@@ -241,7 +243,7 @@ impl Processes for Fake {
 }
 
 impl Native for Fake {
-    fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, String> {
+    fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
         self.native = Some(call.clone());
         // The bytes the callee left in the memory of an address come
         // back into the argument: the argument is the way back.

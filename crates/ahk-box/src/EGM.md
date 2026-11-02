@@ -112,8 +112,8 @@ The numbers of the kernel ABI live in a private `abi` module, and they are the o
 | `Libraries` | struct | The libraries that are loaded. A library is loaded once and kept. |
 | `Libraries::new` | `() -> Self` | A desktop that has not loaded anything yet. |
 | `Libraries::loaded` | `(&self) -> usize` | How many libraries are loaded. |
-| `Libraries::symbol` | `(&mut self, library: &str, function: &str) -> Result<u64, String>` | The address of the function. The two failures are the ones v2.0.19 gives: "Failed to load DLL." and "Call to nonexistent function." |
-| `call` | `(&mut Libraries, &mut NativeCall) -> Result<NativeResult, String>` | The call itself: the library is loaded, the function is found, the arguments go in the registers the machine wants, and the answer comes back. |
+| `Libraries::symbol` | `(&mut self, library: &str, function: &str) -> Result<u64, NativeFailure>` | The address of the function. The two failures are the ones v2.0.19 gives: "Failed to load DLL." and "Call to nonexistent function." |
+| `call` | `(&mut Libraries, &mut NativeCall) -> Result<NativeResult, NativeFailure>` | The call itself: the library is loaded, the function is found, the arguments go in the registers the machine wants, and the answer comes back. |
 | `trampoline` | private fn | The assembly: one for Windows and one for Linux, and a stub for a machine that has neither. |
 | `loader` | private mod | `LoadLibraryW` and `GetProcAddress` on Windows, `dlopen` and `dlsym` on Linux, and a stub elsewhere. |
 
@@ -140,10 +140,10 @@ names it.
 | --- | --- | --- |
 | `Raven` | struct | The raven: the process, and the pipes to it. It is started once and kept. |
 | `Raven::start` | `(&Path, &Path) -> Result<Raven, String>` | Starts the raven with the guest as its program, and hands it the pipes of the host. |
-| `Raven::call` | `(&mut self, &mut NativeCall) -> Result<NativeResult, String>` | One call: the request goes down the pipe, the answer comes up it. |
+| `Raven::call` | `(&mut self, &mut NativeCall) -> Result<NativeResult, NativeFailure>` | One call: the request goes down the pipe, the answer comes up it. |
 | `Guests` | struct | The two guests of the raven: the one of the sixty-four bits and the one of the thirty-two. |
 | `Guests::new` | `(Paths) -> Guests` | The guests of a box, with the paths of the programs. |
-| `Guests::call` | `(&mut self, &mut NativeCall) -> Result<NativeResult, String>` | The call of the sixty-four bits, and the call of the thirty-two bits when the first does not have the library. |
+| `Guests::call` | `(&mut self, &mut NativeCall) -> Result<NativeResult, NativeFailure>` | The call of the sixty-four bits, and the call of the thirty-two bits when the first does not have the library. |
 | `Guests::take_notes` | `(&mut self) -> Vec<String>` | The notes of the guests: the ravens that were started. |
 | `Paths` | struct | The three programs: the raven, the guest of the sixty-four bits and the guest of the thirty-two. |
 | `Paths::from_environment` | `() -> Option<Paths>` | `AHK_RAVEN` is the raven, `AHK_RAVEN_HELPER` is the guest of the sixty-four bits and `AHK_RAVEN_HELPER32` is the guest of the thirty-two. `None` when the box has not the raven and the guest of the sixty-four bits. |
@@ -161,6 +161,13 @@ The reasons are the messages of v2.0.19 — "Failed to load DLL.",
 "Call to nonexistent function.", "Invalid arg type." and "Invalid
 return type." — and the box does not answer with a reason of its own
 where v2 has one.
+
+The failure of a call carries the kind of it as well: the call itself, the
+library, or the function in the library. The loader of the box knows the
+kind by the step that failed, and the raven reads it out of the message of
+the guest — the guest of Windows answers with the message of the v2, and
+the raven is the one that says which kind of failure it is. The v1 turns
+the kind into the code that it writes in the `ErrorLevel`.
 
 ### `network.rs` — the way out to the network
 

@@ -15,6 +15,7 @@ use ahk::desktop::{
     Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::dialect;
+use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeValue};
 use ahk::runtime::{Report, Runtime, Value};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -76,7 +77,21 @@ impl Files for Fake {
     }
 }
 impl Hotkeys for Fake {}
-impl Native for Fake {}
+impl Native for Fake {
+    fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
+        // The names that are not there are the ones that the cases use for
+        // the two failures of the machine: the library that is not there and
+        // the function that is not in it. The call that works answers with
+        // seven.
+        if call.library.contains("nolibrary") {
+            return Err(NativeFailure::no_library("Failed to load DLL."));
+        }
+        if call.function.contains("nofunction") {
+            return Err(NativeFailure::no_function("Call to nonexistent function."));
+        }
+        Ok(NativeResult { kind: call.returns, value: NativeValue::Integer(7) })
+    }
+}
 impl Timers for Fake {}
 impl Windows for Fake {}
 
@@ -2162,6 +2177,42 @@ fn the_run_wait_of_the_v1_writes_the_pid() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(4242)));
     assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(7)));
+}
+
+/// The `DllCall` of the v1 writes the code of the failure in the
+/// `ErrorLevel`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` is
+/// zero when the call works, and the code of the failure when it does not --
+/// the minus two when the call itself is not valid, the minus three when the
+/// library is not there and the minus four when the function is not in it.
+/// The v1 goes on when the call fails, and the tree fails the script with
+/// the reason of the machine.
+#[test]
+fn the_dll_call_of_the_v1_writes_the_code_of_the_failure() {
+    // The call that works leaves the `ErrorLevel` at zero.
+    let report = run("x := DllCall(\"kernel32\\Sleep\", \"Int\", 1)\ny := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(7)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(0)));
+
+    // The library that is not there is the minus three.
+    let report = run("x := DllCall(\"nolibrary\\Sleep\", \"Int\", 1)");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Failed to load DLL."));
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(-3)));
+
+    // The function that is not in the library is the minus four.
+    let report = run("x := DllCall(\"kernel32\\nofunction\", \"Int\", 1)");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Call to nonexistent function."));
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(-4)));
+
+    // The call that is not valid is the minus two.
+    let report = run("x := DllCall(\"kernel32\\Sleep\", \"NoSuchType\", 1)");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Invalid arg type."));
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(-2)));
 }
 
 /// A member that a value does not have is a blank text of the v1.
