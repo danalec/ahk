@@ -164,6 +164,18 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the `if` of the dialect takes the text that follows the
+    /// condition on the line of it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `if` of the v1 parses the text that follows the condition and does
+    /// not run it -- the `if (1) FileDelete, marker.txt` leaves the file
+    /// where it is -- and the body of the `if` is the line that comes next.
+    /// The v2 refuses the text with "Unexpected \"If\"".
+    fn the_if_may_carry_a_tail(&self) -> bool {
+        false
+    }
+
     /// The class of an object of the dialect.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the object of
@@ -1028,6 +1040,10 @@ impl Dialect for V1 {
 
     fn the_command_is_the_else(&self, name: &str) -> bool {
         crate::v1::the_command_is_the_else(name)
+    }
+
+    fn the_if_may_carry_a_tail(&self) -> bool {
+        true
     }
 
     fn class_of_an_object(&self) -> &'static str {

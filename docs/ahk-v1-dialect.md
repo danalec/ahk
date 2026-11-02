@@ -926,20 +926,40 @@ are in `crates/ahk/src/v1/keys.rs`, the rule of the parameter is in
 `crates/ahk/src/v1/parameters.rs`, and the two forms of the name are two rows
 of the table of the v1. The block of the key state (2026-11-03) carried it.
 
-**What is left of the v1.** One family of the grammar is measured on the
-binary of v1.1.37.02 and the tree does not do it yet.
+**The `if` of the v1** (2026-11-04). The `if` of the v1 is an expression,
+and the condition of it is the expression of the line: the `if (1) x = 5`
+compares the text "1" with the number 5 -- the concatenation of the v1 is a
+part of the expression -- and the condition is false. The text that the
+expression does not reach is the tail of the `if`, and the v1 parses it and
+does not run it: the `if (1) FileDelete, marker.txt` leaves the file where it
+is. The body of the `if` is the line that comes next, or the block, and the
+tail that ends with an operator takes the line that comes with it, the way an
+expression of the v1 continues.
 
-The body of the `if` on the line of the construct: the v1 takes it, and the
-body runs -- the `if (1) SetTimer, Foo, 100` sets the timer of it, and the
-timer fires. The body may be a command, an assignment, a `goto`, a `return`,
-a `break`, a `continue`, or another construct. The condition of the v1 ends
-at the parenthesis that closes it, or at the end of the expression when it
-is the legacy form: the `if x = 1 SetTimer, Foo, 100` has the condition
-"x = 1" and the body is the command that comes after it. The tree reads the
-whole line as the condition, and the body of it is the line that comes next:
-the `if (1) goto L` is refused with "Unexpected \"If\"". The change is in the
-parser of the `if` of the v1, and it is not only the check of the body: the
-condition of the v1 has to end where the v1 ends it.
+The `else` of the v1 takes no parameter, and the text that comes right after it
+is the body of it: the `else FileAppend, hello, *` runs the command and not a
+parameter. The `else` that has no `if` before it is refused at the load with
+"ELSE with no matching IF", and the `else` that follows anything that is not
+the body of an `if` is refused the same way. The text that comes after a comma
+is a parameter, and it is named: the `else, something` says "This line does
+not contain a recognized action.".
+
+**What is left of the v1.** Two corners of the `if` are measured on the
+binary of v1.1.37.02 and the tree does not do them yet.
+
+The legacy form of the `if` with the block on the line of it: the `if x = 1 {`
+is refused by the v1 with "Unexpected \"}\"", and the tree takes the block.
+The form that is the legacy one is the one that compares a variable with a
+value -- the `if x = 1`, the `if x != 1` and the `if x < 1` -- and the block
+on the line of the condition is the one that is refused; the block on the
+line that comes is taken by the v1 and by the tree.
+
+The `else` that is the body of an `if` whose tail ends with an operator: the
+`if (1) FileAppend, A, *` with a line and an `else` under it runs the action
+of the `else` in the v1, and the tree refuses it with "ELSE with no matching
+IF". The v1 refuses the `else` that is on the line of the `if` itself, and
+the tree refuses it too; the difference is the `else` that comes after the
+line that the tail took with it.
 
 **The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
 its own, and the two colons that separate the name from the action are what

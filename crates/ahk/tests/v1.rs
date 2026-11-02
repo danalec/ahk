@@ -5400,3 +5400,95 @@ fn the_hotstring_of_the_v1_that_has_no_second_pair_of_colons_is_refused() {
         "Invalid hotkey.\n     Specifically: ::x := 1"
     );
 }
+
+/// The tail of the `if` of the v1 is parsed and is not run.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if`
+/// of the v1 takes the text that the condition does not reach -- the
+/// parameters of the command -- and it does not run it: the `if (1)
+/// FileDelete, marker.txt` leaves the file where it is. The body of the
+/// `if` is the line that comes next.
+#[test]
+fn the_tail_of_the_if_of_the_v1_is_parsed_and_is_not_run() {
+    // The command of the tail did not run, and the body of the `if` ran.
+    let (report, calls) = run_and_the_calls("if (1), FileDelete, nothere\ny = 6");
+    assert!(report.ok);
+    assert!(calls.is_empty());
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The body of the `if` does not run when the condition is false.
+    let (report, calls) = run_and_the_calls("if (0), FileDelete, nothere\ny = 6");
+    assert!(report.ok);
+    assert!(calls.is_empty());
+    assert!(!report.variables.contains_key("y"));
+}
+
+/// The legacy form of the `if` of the v1 takes a tail.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `if 1, FileDelete, nothere` runs nothing, and the body of the `if` is
+/// the line that comes next.
+#[test]
+fn the_legacy_form_of_the_if_of_the_v1_takes_a_tail() {
+    let (report, calls) = run_and_the_calls("if 1, FileDelete, nothere\ny = 6");
+    assert!(report.ok);
+    assert!(calls.is_empty());
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The tail of the `if` of the v1 that ends with an operator takes the line
+/// that comes with it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if
+/// (1), FileAppend, A, *` takes the line that comes with it, the way an
+/// expression of the v1 continues, and the line that comes is not a
+/// statement of its own: the body of the `if` is the line after it.
+#[test]
+fn the_tail_of_the_if_of_the_v1_that_ends_with_an_operator_takes_the_line_that_comes() {
+    // The star of the `FileAppend` is an operator, and the line that comes
+    // is a part of the tail.
+    let report = run("if (1), FileAppend, tail, *\nFileAppend, taken, *\ny = 6");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The tail of the `if` of the v1 does not take the line of the `else`.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `else`
+/// is the other side of the `if` and not a part of the tail, and the `if`
+/// that has no body under it is refused with "ELSE with no matching IF".
+#[test]
+fn the_tail_of_the_if_of_the_v1_does_not_take_the_line_of_the_else() {
+    let error = ahk::parse_with(
+        "if (1) FileAppend, tail, *\nelse FileAppend, other, *",
+        dialect::v1(),
+    )
+    .expect_err("the else has no if");
+    assert_eq!(error.message, "ELSE with no matching IF");
+}
+
+/// The `else` of the v1 takes no parameter.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text
+/// that comes right after the `else` is the body of it -- the `else
+/// FileAppend, hello, *` runs the command and not a parameter -- and the
+/// `else` that has no `if` before it is refused at the load.
+#[test]
+fn the_else_of_the_v1_takes_no_parameter() {
+    let error =
+        ahk::parse_with("else FileAppend, hello, *", dialect::v1()).expect_err("the else has no if");
+    assert_eq!(error.message, "ELSE with no matching IF");
+}
+
+/// The v2 refuses the text that follows the condition of the `if`.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the body of the `if` of
+/// the v2 is on the line that comes, and the text that is on the line of
+/// the condition is refused with "Unexpected \"If\"".
+#[test]
+fn the_v2_refuses_the_text_that_follows_the_condition_of_the_if() {
+    let error = ahk::parse_with("if (1) FileAppend, hello, *", dialect::v2())
+        .expect_err("the v2 refuses the text that follows the condition");
+    assert_eq!(error.message, "Unexpected \"If\"");
+}

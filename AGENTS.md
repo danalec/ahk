@@ -7712,3 +7712,39 @@ hotkey that is written in the body of another one is registered too.
 The names of the hotkeys are in `crates/ahk/src/v1/hotkeys.rs`, the line of the
 hotkey is a node of its own (`Node::HotkeyDefinition`), and the suite of the v1
 has nine cases more (196).
+
+## 192. The `if` of the v1 is an expression, and the text that follows it is not run
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if` of the
+v1 is an expression, and the condition of it is the expression of the line. The
+text that the expression does not reach is the tail of the `if`, and the v1
+parses it and does not run it: the `if (1) FileDelete, marker.txt` leaves the
+file where it is. The body of the `if` is the line that comes next, or the
+block.
+
+The condition ends where the expression ends, and the concatenation of the v1
+is a part of it: the `if (1) x = 5` compares the text "1" with the number 5,
+and the condition is false. The tail is the text that the comma begins: the
+`if (1), FileDelete, marker.txt` has the condition `(1)` and the tail is the
+rest of the line. The legacy form is the same: the `if 1, FileDelete,
+marker.txt` has the condition `1`.
+
+The tail that ends with an operator takes the line that comes with it, the way
+an expression of the v1 continues, and the line that comes is not a statement
+of its own: the `if (1), FileAppend, A, *` takes the line that comes with it,
+and the body of the `if` is the line after that one. The tail does not take
+the line of the `else`: the `else` is the other side of the `if` and not a
+part of the tail.
+
+The `else` of the v1 takes no parameter, and the text that comes right after it
+is the body of it: the `else FileAppend, hello, *` runs the command and not a
+parameter. The `else` that has no `if` before it is refused at the load with
+"ELSE with no matching IF", and the text that comes after a comma is a
+parameter, and it is named: the `else, something` says "This line does not
+contain a recognized action.".
+
+The v2 refuses the tail with "Unexpected \"If\"", and the body of the `if` of
+the v2 is on the line that comes. The tail of the v1 is in
+`crates/ahk/src/parser.rs` (`the_tail_of_the_if_of_the_v1`), the dialect says
+that the `if` may carry one (`the_if_may_carry_a_tail`), and the suite of the
+v1 has six cases more (202).

@@ -1677,6 +1677,18 @@ that asks for another one is refused with the reason.
   `Node::HotkeyDefinition`, and the hotkeys are registered with the desktop
   when the script loads.
 
+- **The `if` of the v1 is an expression, and the text that follows it is not
+  run.** The condition of the `if` is the expression of the line -- the
+  concatenation of the v1 is a part of it -- and the text that the expression
+  does not reach is the tail: the v1 parses it and does not run it. The body
+  of the `if` is the line that comes next, or the block, and the tail that
+  ends with an operator takes the line that comes with it. The `else` of the
+  v1 takes no parameter, and the text that comes right after it is the body
+  of it; the `else` that has no `if` before it is refused at the load:
+  "ELSE with no matching IF". The tail is in `parser.rs`
+  (`the_tail_of_the_if_of_the_v1`), and the dialect says that the `if` may
+  carry one (`the_if_may_carry_a_tail`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

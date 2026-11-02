@@ -3508,7 +3508,8 @@ impl Parser {
         let mut places = Vec::new();
         // The comma that comes right after the name is the one that
         // separates it from the first parameter.
-        if self.at_op(&[","]) {
+        let comma_after_the_name = self.at_op(&[","]);
+        if comma_after_the_name {
             self.next();
             places = self.the_places_of_the_parameters_of_a_legacy_command()?;
         } else if !self.at_end_of_statement() {
@@ -3569,9 +3570,16 @@ impl Parser {
         // the v1 is the action of the other side of the `if` that comes
         // before it, and it is a failure when there is no `if`.
         if self.dialect.the_command_is_the_else(&name) {
-            // The `else` takes no parameter, and the text of the one that is
-            // there is named.
-            if !parameters.is_empty() {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the `else` of the v1 takes no parameter, and the text that
+            // comes right after it is the body of it: the `else FileAppend,
+            // hello, *` runs the command and not a parameter. The `else`
+            // that has no `if` before it is refused at the load with "ELSE
+            // with no matching IF".
+            //
+            // The text that comes after a comma is a parameter, and it is
+            // named.
+            if !parameters.is_empty() && comma_after_the_name {
                 // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // `else` names the rest of the line: the `Else, a, b` names
                 // "a, b".
@@ -4680,6 +4688,127 @@ impl Parser {
         false
     }
 
+    /// The tail of the `if` of the v1: the text that follows the condition
+    /// on the line of it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// parses the text that follows the condition and does not run it -- the
+    /// `if (1) FileDelete, marker.txt` leaves the file where it is -- and the
+    /// body of the `if` is the line that comes next. The text that ends with
+    /// an operator continues on the line that comes, the way an expression of
+    /// the v1 continues, and the line that comes is not a statement of its
+    /// own: the `if (1) FileAppend, A, *` takes the line that comes with it.
+    ///
+    /// The brace that opens the body of the `if` is not a part of the tail:
+    /// the `if (1) {` has no tail at all, and the body of it is the block.
+    fn the_tail_of_the_if_of_the_v1(&mut self) -> Result<(), SyntaxError> {
+        // The first line of the tail is the line of the condition, and the
+        // lines that come after it are the continuation of it.
+        let mut first = true;
+        loop {
+            let start = self.position;
+            let mut depth = 0usize;
+            // The place of the first parameter of the line and the place of
+            // the last one: the commas that are not inside a parenthesis
+            // are the ones that separate them.
+            let mut first_parameter = None;
+            let mut last_parameter = self.position;
+            let mut at_the_first_token = true;
+            while !self.at_end_of_statement() {
+                // The brace that opens the body of the `if` is not a part of
+                // the tail.
+                if first && at_the_first_token && self.at_op(&["{"]) {
+                    break;
+                }
+                at_the_first_token = false;
+                let token = self.next();
+                if token.kind == TokenKind::Op {
+                    match token.value.as_str() {
+                        "(" | "[" | "{" => depth += 1,
+                        ")" | "]" | "}" => depth = depth.saturating_sub(1),
+                        "," if depth == 0 => {
+                            if first_parameter.is_none() {
+                                first_parameter = Some(self.position);
+                            }
+                            last_parameter = self.position;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            let end = self.position;
+            // The expression of the tail is the last parameter of the line,
+            // and the parameter that continues on the line that comes is the
+            // first one of it.
+            let parameter = if first {
+                (last_parameter, end)
+            } else {
+                (start, first_parameter.unwrap_or(end))
+            };
+            first = false;
+            // The expression of the tail ends with an operator: it continues
+            // on the line that comes, and the line that comes is not a
+            // statement of its own.
+            if !self.the_text_ends_with_an_operator(parameter.0, parameter.1) {
+                break;
+            }
+            if self.peek().kind != TokenKind::Newline {
+                break;
+            }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the line of the `else` is not a part of the tail: the `else`
+            // is the other side of the `if`, and the `if (1) FileAppend, A,
+            // *` with an `else` under it is refused with "ELSE with no
+            // matching IF". The parser stays at the end of the line of the
+            // condition, and the body of the `if` is the line that comes.
+            let mut look = self.position;
+            while self
+                .tokens
+                .get(look)
+                .map(|token| token.kind == TokenKind::Newline)
+                .unwrap_or(false)
+            {
+                look += 1;
+            }
+            let the_else_comes_next = self
+                .tokens
+                .get(look)
+                .map(|token| {
+                    token.kind == TokenKind::Keyword
+                        && token.value.eq_ignore_ascii_case("else")
+                })
+                .unwrap_or(false);
+            if the_else_comes_next && self.dialect.the_command_is_the_else("else") {
+                break;
+            }
+            // The line that comes is a part of the tail, and the empty lines
+            // between the two are not.
+            self.skip_newlines();
+            if self.at_end_of_statement() {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether the text that ends at `end` ends with an operator.
+    ///
+    /// The last token of the text is the one that is looked at, and the
+    /// operator is the one that makes the expression of the v1 continue on
+    /// the line that comes.
+    fn the_text_ends_with_an_operator(&self, from: usize, end: usize) -> bool {
+        let mut at = end;
+        while at > from {
+            at -= 1;
+            let token = &self.tokens[at];
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                continue;
+            }
+            return the_token_is_an_operator(token);
+        }
+        false
+    }
+
     fn parse_if(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
         let mut branches = Vec::new();
@@ -4704,6 +4833,13 @@ impl Parser {
             Some(self.the_expression_of_a_statement()?)
         };
         self.end_of_block()?;
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // `if` of the v1 takes the text that follows the condition, parses it
+        // and does not run it, and the body of it is the line that comes
+        // next.
+        if self.dialect.the_if_may_carry_a_tail() {
+            self.the_tail_of_the_if_of_the_v1()?;
+        }
         let body = self.parse_block("If", token.line)?;
         let Some(condition) = condition else {
             return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
