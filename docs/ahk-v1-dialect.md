@@ -1020,6 +1020,21 @@ The truth of the whole is the truth of the text of the line, because the
 the parts of it: the `if (0) if (0)` is false, because the text of it is
 "00", and the `if (0) if (1)` is true, because the text of it is "01".
 
+**The number that opens a statement** (2026-11-04). The names of the v1 may
+begin with a number, and the number that opens a statement is the name of a
+variable: the `0 := 9` writes the variable "0", and the `0 = 9` writes it
+too, and the `0++` is the increment of it, and the `++0` is the increment of
+it as well. The number is a name only where the statement may write: the
+`x := 0 + 3` is the sum of two numbers, and the variable "0" keeps the value
+it had. A statement that is only the name holds no action: the `0` alone is
+refused with "This line does not contain a recognized action." and the line
+is named with it.
+
+The increment of the v1 reads the value that is there as a number, the way
+the operators that write a variable read it: the text that is not a number
+is the number zero, and the `a++` of the "abc" is one, and the `a++` of a
+variable that has no value is one too.
+
 **What is left of the v1.** Three corners of the `if` are measured on the
 binary of v1.1.37.02 and the tree does not do them yet.
 
@@ -1034,6 +1049,12 @@ the v2 says it.
 The brace that comes after the `if` that is inside the line of the
 condition: the v1 refuses it with "Unexpected \"{\"", and the tree refuses
 the line with "Unexpected \"If\"".
+
+And one corner that is not of the `if`: the concatenation of two values that
+are side by side. The v1 does not ask for the space that tells them apart,
+and the tree does: the `x := 5++3` is three in the v1, and the tree refuses
+the line with "Missing space or operator before this.". The `x := a++3` is
+"53" in the v1, and the tree refuses it the same way.
 
 **The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
 its own, and the two colons that separate the name from the action are what

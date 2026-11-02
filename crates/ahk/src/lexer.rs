@@ -1042,7 +1042,12 @@ pub fn tokenize_with(
         for operator in operators.iter().copied() {
             // A `++` or a `--` right after a number is a subtraction: `5--3`
             // is five minus three, and not a decrement of a literal.
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 reads them as the increment: the `0++` is the increment
+            // of the variable "0".
             if matches!(operator, "++" | "--")
+                && !dialect.the_increment_after_a_number_is_an_operator()
                 && tokens.last().map(|token| token.kind == TokenKind::Number).unwrap_or(false)
             {
                 continue;

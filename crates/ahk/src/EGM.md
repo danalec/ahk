@@ -1744,6 +1744,15 @@ that asks for another one is refused with the reason.
   parser reads it in `parse_the_control_of_a_condition`, and the dialect
   says whether the control flow may be a value
   (`the_control_flow_may_be_a_value`).
+- **The number that opens a statement of the v1 is the name of a variable.**
+  The `0 := 9` writes the variable "0", and the `0 = 9` writes it too, and
+  the `0++` is the increment of it, and the `++0` is the increment of it as
+  well. The number is a name only where the statement may write: the `x := 0
+  + 3` is the sum of two numbers. The parser turns the number into the name
+  of a variable (`the_number_becomes_the_name_of_a_variable`), the lexer
+  keeps the `++` that comes after a number as one operator
+  (`the_increment_after_a_number_is_an_operator`), and the increment of a
+  literal is the empty text (`the_increment_of_a_literal_is_blank`).
 
 ## Side Effects
 

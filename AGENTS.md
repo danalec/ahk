@@ -7939,3 +7939,29 @@ value of it is the value of its condition (`Node::LegacyControl` in
 `crates/ahk/src/ast.rs`), the dialect says whether the control flow of it
 may be a value (`the_control_flow_may_be_a_value`), and the suite of the v1
 has two cases more (232).
+
+## 198. The number that opens a statement of the v1 is the name of a variable
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `0 := 9`
+writes the variable "0", and the `0 = 9` writes it too, and the `0++` is the
+increment of it, and the `++0` is the increment of it as well. The number is
+a name only where the statement may write: the `x := 0 + 3` is the sum of
+two numbers, and the variable "0" keeps the value it had.
+
+A statement that is only the name holds no action: the `0` alone is refused
+with "This line does not contain a recognized action." and the line is named
+with it. The `0.0 := 5` is refused too, and the complaint is "The following
+variable name contains an illegal character: \"0.0\"".
+
+The increment of the v1 reads the value that is there as a number, the way
+the operators that write a variable read it: the text that is not a number
+is the number zero, and the `a++` of the "abc" is one, and the `a++` of a
+variable that has no value is one too.
+
+The `++` and the `--` that come after a number are the increment of the v1,
+and not a subtraction: the lexer keeps them as one operator
+(`the_increment_after_a_number_is_an_operator`), and the increment of a
+literal is the empty text (`the_increment_of_a_literal_is_blank`). The
+number that opens a statement becomes the name of a variable
+(`the_number_becomes_the_name_of_a_variable`), and the suite of the v1 has
+four cases more (236).

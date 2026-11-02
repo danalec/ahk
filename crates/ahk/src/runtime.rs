@@ -7849,7 +7849,15 @@ impl<'a> Runtime<'a> {
                 if self.dialect.the_increment_of_a_built_in_variable_changes_nothing(name) {
                     return Ok(Value::Text(String::new()));
                 }
-                let current = self.lookup(name).ok_or_else(|| self.the_unassigned_failure(name, line))?;
+                let current = match self.lookup(name) {
+                    Some(current) => current,
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the increment of a variable of the v1 that
+                    // has no value is the increment of the blank: the `0++`
+                    // writes the variable "0" with the value 1.
+                    None if self.dialect.unset_is_blank() => self.the_value_of_an_unset_variable(name),
+                    None => return Err(self.the_unassigned_failure(name, line)),
+                };
                 let stored = self.the_number_after(&current, step, line)?;
                 self.assign(name, stored.clone());
                 Ok(match op {
@@ -7881,6 +7889,13 @@ impl<'a> Runtime<'a> {
                     _ => current,
                 })
             }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the increment of a literal of the v1 is the empty text: the
+            // `x := 5++` is a script that runs, and the value of the
+            // expression is the empty text.
+            Node::Literal { .. } if self.dialect.the_increment_of_a_literal_is_blank() => {
+                Ok(Value::Text(String::new()))
+            }
             _ => Err(RuntimeFailure::Error(RuntimeError {
                 message: "the operator needs a variable to work on".into(),
                 line,
@@ -7898,12 +7913,17 @@ impl<'a> Runtime<'a> {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the value of
         // the v1 is a number when it can be one -- the "5" is 5 -- and the
         // whole number stays a whole number: the `x++` of the "5" is 6.
-        // The value that is not a number makes the operation blank.
+        //
+        // Measured on the binary of v1.1.37.02 on 2026-11-04: the increment
+        // reads the value that is there as a number, the way the operators
+        // that write a variable read it: the text that is not a number is the
+        // number zero, and the `a++` of the "abc" is one, and the `a++` of a
+        // variable that has no value is one too.
         if self.dialect.a_value_that_is_not_a_number_is_blank() {
-            return Ok(match crate::v1::the_number_of_a_text(&current.to_text()) {
-                Some(Value::Int(number)) => Value::Int(number.wrapping_add(step)),
-                Some(Value::Float(number)) => Value::Float(number + step as f64),
-                _ => Value::Text(String::new()),
+            return Ok(match self.the_number_of_a_value_of_the_v1(current) {
+                Value::Int(number) => Value::Int(number.wrapping_add(step)),
+                Value::Float(number) => Value::Float(number + step as f64),
+                other => other,
             });
         }
         Ok(match current {

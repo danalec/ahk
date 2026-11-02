@@ -173,6 +173,19 @@ fn the_value_can_be_written(node: &Node) -> bool {
     matches!(node, Node::Var { .. } | Node::Property { .. } | Node::Index { .. } | Node::DynamicName { .. })
 }
 
+/// Whether the increment of this value is refused at the load.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not refuse the increment of a literal: the `x := ++5` is a script
+/// that runs, and the value of the expression is the empty text. The v2
+/// refuses it at the load.
+fn the_increment_of_the_value_is_refused(dialect: &dyn crate::dialect::Dialect, node: &Node) -> bool {
+    if dialect.the_increment_of_a_literal_is_blank() && matches!(node, Node::Literal { .. }) {
+        return false;
+    }
+    !the_value_can_be_written(node)
+}
+
 /// The source of the head of a statement, the way v2 writes it.
 ///
 /// The text stops before the body, and the space that was written before
@@ -2826,7 +2839,12 @@ impl Parser {
         if let Some(label) = self.parse_label()? {
             return Ok(vec![label]);
         }
-        if token.kind == TokenKind::Name {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // number that comes first may be the name of a variable of the v1.
+        if token.kind == TokenKind::Name || self.the_number_is_the_name_of_a_variable(&token) {
+            // The number that opens a statement of the v1 is the name of a
+            // variable, and the statement is about it.
+            self.the_number_becomes_the_name_of_a_variable(self.position);
             // Measured on the binary of v2.0.19 on 2026-11-01: the hash and
             // the semicolon that are glued to the name that opens the
             // statement are a part of it, and the statement holds no action:
@@ -2870,6 +2888,11 @@ impl Parser {
         if token.kind == TokenKind::Op && matches!(token.value.as_str(), "++" | "--") {
             // Measured on the binary of v2.0.19 on 2026-10-31: the increment
             // may be a statement of its own.
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the number that is the operand of the increment names a variable
+            // of the v1: the `++0` is the increment of the variable "0".
+            self.the_number_becomes_the_name_of_a_variable(self.position + 1);
             let value = self.parse_expression()?;
             self.end_of_statement()?;
             return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
@@ -3095,6 +3118,35 @@ impl Parser {
         kind == TokenKind::Name
             || (kind == TokenKind::Keyword
                 && self.dialect.the_name_of_a_class_may_be_a_word_of_the_language())
+    }
+
+    /// Whether the number that comes first is the name of a variable.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// names of the v1 may begin with a number, and the number alone is the
+    /// name of a variable: the `0 := 9` writes the variable "0", and the
+    /// `0 = 9` writes it too. The text of the number is the name of it, and a
+    /// point is not a part of a name: the `0.0 := 5` is refused with "The
+    /// following variable name contains an illegal character: \"0.0\"".
+    fn the_number_is_the_name_of_a_variable(&self, token: &Token) -> bool {
+        self.dialect.the_numbers_may_be_names() && token.kind == TokenKind::Number
+    }
+
+    /// The number at this place becomes the name of a variable of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// number that opens a statement of the v1 is the name of a variable: the
+    /// `0 := 9` writes the variable "0", the `0++` is the increment of it, and
+    /// the `0` alone is a line that holds no action. The number is a name
+    /// only where the statement may write: inside an expression the number is
+    /// a number, and the `x := 0 + 3` is the sum of two numbers.
+    fn the_number_becomes_the_name_of_a_variable(&mut self, at: usize) {
+        if !self.dialect.the_numbers_may_be_names() {
+            return;
+        }
+        if self.tokens.get(at).map(|token| token.kind == TokenKind::Number).unwrap_or(false) {
+            self.tokens[at].kind = TokenKind::Name;
+        }
     }
 
     /// A statement that starts with a name: an assignment, a call, or the
@@ -8027,7 +8079,7 @@ impl Parser {
                 // increment of a value that cannot be written is refused at
                 // the load, and the source of the operator is named with it.
                 if matches!(op, UnaryOp::PreIncrement | UnaryOp::PreDecrement)
-                    && !the_value_can_be_written(&operand)
+                    && the_increment_of_the_value_is_refused(self.dialect, &operand)
                 {
                     return Err(self.error(format!(
                         "Invalid assignment.\n     Specifically: {}",
@@ -8094,6 +8146,27 @@ impl Parser {
         let token = self.next();
         let node = match token.kind {
             TokenKind::Number => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the `++` and the `--` that come after a number
+                // are the increment of the v1, and the number is a literal
+                // here: the `x := 5++3` is the increment of a number that
+                // cannot be written, and the value of it is the empty text.
+                if self.dialect.the_increment_after_a_number_is_an_operator()
+                    && self.at_op(&["++", "--"])
+                    && (!self.dialect.the_space_separates_the_increment() || !self.peek().spaced)
+                {
+                    let operator = self.next();
+                    let op = if operator.value == "++" {
+                        UnaryOp::PostIncrement
+                    } else {
+                        UnaryOp::PostDecrement
+                    };
+                    let operand = Node::Literal {
+                        value: the_literal_of_a_number(&token.value, self.dialect),
+                        line: token.line,
+                    };
+                    return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
+                }
                 let value = the_literal_of_a_number(&token.value, self.dialect);
                 Node::Literal { value, line: token.line }
             }

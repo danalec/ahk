@@ -6133,3 +6133,96 @@ fn the_if_that_comes_inside_the_line_of_the_condition_has_no_body_of_its_own() {
     assert!(report.ok);
     assert!(report.output.is_empty());
 }
+
+/// The number that opens a statement of the v1 is the name of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `0 := 9` writes the variable "0", and the `0 = 9` writes it too. The
+/// number is a name only where the statement may write: the `x := 0 + 3` is
+/// the sum of two numbers, and the variable "0" keeps the value it had.
+#[test]
+fn the_number_that_opens_a_statement_of_the_v1_is_the_name_of_a_variable() {
+    // The assignment writes the variable that the number names, and the
+    // value is the pure number: the text that was written.
+    let report = run("0 := 9");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("0"), Some(&Value::Text("9".into())));
+
+    // The equal sign of the v1 writes it too, and it reads the value as a
+    // number.
+    let report = run("0 = 9");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("0"), Some(&Value::Int(9)));
+
+    // Inside an expression the number is a number.
+    let report = run("0 := 4\nx := 0 + 3");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(3)));
+    assert_eq!(report.variables.get("0"), Some(&Value::Text("4".into())));
+}
+
+/// The increment of the v1 moves the variable that the number names.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `0++`
+/// is the increment of the variable "0", and the `++0` is the increment of it
+/// too. The space does not tell the operator apart: the `0 ++` is the
+/// increment as well.
+#[test]
+fn the_increment_of_the_v1_moves_the_variable_that_the_number_names() {
+    // The increment that comes after the name.
+    let report = run("0 := 1\n0++");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("0"), Some(&Value::Int(2)));
+
+    // The decrement that comes after the name.
+    let report = run("0 := 1\n0--");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("0"), Some(&Value::Int(0)));
+
+    // The space does not tell the operator apart.
+    let report = run("0 := 1\n0 ++");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("0"), Some(&Value::Int(2)));
+
+    // The increment that comes before the name.
+    let report = run("0 := 1\n++0");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("0"), Some(&Value::Int(2)));
+
+    // And the decrement that comes before it.
+    let report = run("0 := 1\n--0");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("0"), Some(&Value::Int(0)));
+}
+
+/// The increment of the v1 reads the value that is there as a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `a++`
+/// of a variable that has no value is one, and the `a++` of the "abc" is one
+/// too: the text that is not a number is the number zero, the way the
+/// operators that write a variable read it.
+#[test]
+fn the_increment_of_the_v1_reads_the_value_that_is_there_as_a_number() {
+    // The variable that has no value is the number zero.
+    let report = run("a++");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(1)));
+
+    // And the text that is not a number is the number zero as well.
+    let report = run("a := \"abc\"\na++");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(1)));
+}
+
+/// A statement that is only the name that begins with a number holds no
+/// action.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `0`
+/// alone is a line that holds no action, and the line is named with it.
+#[test]
+fn the_statement_of_a_name_that_begins_with_a_number_holds_no_action() {
+    assert_eq!(
+        the_refusal_of_the_load("0"),
+        "This line does not contain a recognized action.\n     Specifically: 0"
+    );
+}

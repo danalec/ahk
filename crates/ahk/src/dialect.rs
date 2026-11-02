@@ -368,6 +368,38 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether a number of the dialect may be the name of a variable.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// names of the v1 may begin with a number, and the number alone is the
+    /// name of a variable: the `0 := 9` writes the variable "0", and the
+    /// `0 = 9` writes it too. The v2 refuses the number as the name of a
+    /// variable.
+    fn the_numbers_may_be_names(&self) -> bool {
+        false
+    }
+
+    /// Whether the increment that comes after a number is an operator.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `++` and the `--` that come after a number are the increment of the
+    /// v1, and the number that they follow is the name of a variable when the
+    /// statement is about it: the `0++` is the increment of the variable "0".
+    /// The v2 reads them as a subtraction: the `5--3` is five minus three.
+    fn the_increment_after_a_number_is_an_operator(&self) -> bool {
+        false
+    }
+
+    /// Whether the increment of a literal is the empty text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not refuse the increment of a literal: the `x := ++5` is a script
+    /// that runs, and the value of the expression is the empty text. The v2
+    /// refuses it at the load.
+    fn the_increment_of_a_literal_is_blank(&self) -> bool {
+        false
+    }
+
     /// Whether the exponent of a number needs a decimal point.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
@@ -1241,8 +1273,29 @@ impl Dialect for V1 {
         true
     }
 
+    fn the_numbers_may_be_names(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // names of the v1 may begin with a number, and the number alone is
+        // the name of a variable.
+        true
+    }
+
+    fn the_increment_after_a_number_is_an_operator(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // `++` and the `--` that come after a number are the increment of the
+        // v1: the `0++` is the increment of the variable "0".
+        true
+    }
+
+    fn the_increment_of_a_literal_is_blank(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 does not refuse the increment of a literal, and the value of it
+        // is the empty text.
+        true
+    }
+
     fn the_exponent_needs_a_point(&self) -> bool {
-        // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
         // scientific notation of the v1 needs a decimal point.
         true
     }
