@@ -18,6 +18,7 @@ use crate::builtins::BuiltinHandler;
 use crate::runtime::{Runtime, RuntimeError, Value};
 
 mod chars;
+mod files;
 mod kinds;
 mod math;
 mod names;
@@ -741,46 +742,92 @@ pub(crate) fn file_append(
 
 /// `FileCopy, source, destination`: take a copy of a file.
 ///
-/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
-/// the v1 is the number of the files that could not be copied, and the tree
-/// refuses the wildcards, so it is one when the command fails and zero when
-/// it does not.
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the source of the
+/// v1 may be a pattern, and the command takes a copy of every file that
+/// matches it -- into the folder of the destination, with the name of the
+/// file. The `ErrorLevel` is the number of the files that could not be
+/// copied, and the v1 goes on: the `ErrorLevel` is the only report of it.
 pub(crate) fn file_copy(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
-    variant: u8,
+    _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let answer = crate::files::file_copy(rt, values, line, variant);
-    the_error_level_of_a_file_command(rt, answer)
+    let from = crate::files::the_name_of_a_file(values, 0, 1, "FileCopy", line)?;
+    let to = crate::files::the_name_of_a_file(values, 1, 2, "FileCopy", line)?;
+    let overwrite = crate::files::flag_of(values, 2, "FileCopy", line)?;
+    let files = files::the_files_of_the_pattern(rt, &from, line)?;
+    let mut failed = 0;
+    for file in files {
+        let destination = if files::is_a_pattern(&from) {
+            files::the_path_in_the_folder(&to, files::the_name_of_the_file(&file))
+        } else {
+            to.clone()
+        };
+        if let Err(reason) = rt.desktop().copy_file(&file, &destination, overwrite) {
+            failed += 1;
+            rt.note(format!("the file {file} was not copied: {reason}"));
+        }
+    }
+    rt.set_the_error_level(Value::Int(failed));
+    Ok(Value::Text(String::new()))
 }
 
 /// `FileDelete, file`: delete a file.
 ///
-/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
-/// the v1 is the number of the files that failed to be deleted.
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the file of the v1
+/// may be a pattern, and the command deletes every file that matches it. The
+/// `ErrorLevel` is the number of the files that failed to be deleted, and it
+/// is zero when the pattern matches nothing.
 pub(crate) fn file_delete(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
-    variant: u8,
+    _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let answer = crate::builtins::file_delete(rt, values, line, variant);
-    the_error_level_of_a_file_command(rt, answer)
+    let path = crate::files::the_name_of_a_file(values, 0, 1, "FileDelete", line)?;
+    let files = files::the_files_of_the_pattern(rt, &path, line)?;
+    let mut failed = 0;
+    for file in files {
+        if let Err(reason) = rt.desktop().delete_file(&file) {
+            failed += 1;
+            rt.note(format!("the file {file} was not deleted: {reason}"));
+        }
+    }
+    rt.set_the_error_level(Value::Int(failed));
+    Ok(Value::Text(String::new()))
 }
 
 /// `FileMove, source, destination`: move a file.
 ///
-/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
-/// the v1 is the number of the files that could not be moved.
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the source of the v1
+/// may be a pattern, and the command moves every file that matches it -- into
+/// the folder of the destination, with the name of the file. The `ErrorLevel`
+/// is the number of the files that could not be moved, and the v1 goes on.
 pub(crate) fn file_move(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
-    variant: u8,
+    _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let answer = crate::files::file_move(rt, values, line, variant);
-    the_error_level_of_a_file_command(rt, answer)
+    let from = crate::files::the_name_of_a_file(values, 0, 1, "FileMove", line)?;
+    let to = crate::files::the_name_of_a_file(values, 1, 2, "FileMove", line)?;
+    let overwrite = crate::files::flag_of(values, 2, "FileMove", line)?;
+    let files = files::the_files_of_the_pattern(rt, &from, line)?;
+    let mut failed = 0;
+    for file in files {
+        let destination = if files::is_a_pattern(&from) {
+            files::the_path_in_the_folder(&to, files::the_name_of_the_file(&file))
+        } else {
+            to.clone()
+        };
+        if let Err(reason) = rt.desktop().move_file(&file, &destination, overwrite) {
+            failed += 1;
+            rt.note(format!("the file {file} was not moved: {reason}"));
+        }
+    }
+    rt.set_the_error_level(Value::Int(failed));
+    Ok(Value::Text(String::new()))
 }
 
 /// `FileSetTime, file, ...`: change the time of a file.

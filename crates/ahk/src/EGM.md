@@ -1124,6 +1124,14 @@ what failed -- the call itself, the library, or the function in the library
 the minus two, the minus three and the minus four. The v2 does not use the
 code: it keeps the reason of the machine.
 
+The files of the v1 are a rule of the dialect too. The source of the
+`FileCopy`, of the `FileMove` and of the `FileDelete` may be a pattern, and
+the command does the thing to every file that matches it. The `ErrorLevel`
+is the number of the files that failed, and the v1 goes on: the `ErrorLevel`
+is the only report of it. The v2 refuses the wildcards, and its
+`FileExist` answers with the attributes of the first entry that matches the
+pattern.
+
 ### The regular expressions (`regex.rs`)
 
 - `Regex` -- a compiled pattern.

@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 146 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 147 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -844,7 +844,9 @@ of the name that begins with a number (2026-11-02), and the number that
 keeps the text that was written by the block of the number (2026-11-02), and
 the path of the class of the `new` by the block of the path (2026-11-02), and
 the parameter of a command by the block of the parameters (2026-11-02), and
-the pid of the process by the block of the pid (2026-11-02).
+the pid of the process by the block of the pid (2026-11-02), and the code of
+the failure of a native call by the block of the code (2026-11-02), and the
+patterns of the files by the block of the patterns (2026-11-02).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -886,6 +888,15 @@ failure of a native call carries the kind of it -- the call itself, the
 library or the function -- and the reason of the machine, in the words of the
 v2. The v1 turns the kind into the code; the v2 does not use the code, and
 it keeps the reason. The block of the code (2026-11-02) carried it.
+
+**The patterns of the files of the v1.** The source of the `FileCopy`, of the
+`FileMove` and of the `FileDelete` may be a pattern, and the command does
+the thing to every file that matches it -- the copy and the move into the
+folder of the destination, with the name of the file. The `ErrorLevel` is
+the number of the files that failed, and the v1 goes on: the `ErrorLevel` is
+the only report of it. A pattern that matches nothing is not a failure, and
+neither is a file that is not there. The block of the patterns (2026-11-02)
+carried it.
 
 **The path of the class.** The `new` of the v1 takes the path of the class:
 the name that follows the word and the names of the classes that it holds.

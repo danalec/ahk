@@ -6455,8 +6455,8 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
 - **The file commands of the v1 write the `ErrorLevel`.** The `FileAppend` is
   one when there was a problem and zero otherwise, and the `FileCopy`, the
   `FileDelete`, the `FileMove`, the `FileRead` and the `FileSetTime` are the
-  number of the files that failed -- the tree refuses the wildcards, so the
-  number is one when the command fails and zero when it does not.
+  number of the files that failed -- and the file that is not there is not a
+  failure of the v1: the number is zero and the script goes on (§179).
 
 The commands of the machine that write the `ErrorLevel` as well -- the
 `ClipWait`, the `DllCall` and the `Run` -- are carried by the block of the
@@ -7265,5 +7265,37 @@ The box carries the kind (`crates/ahk-box/src/native.rs`): the loader knows
 whether the library was not there or the function was not in it. The raven
 (`crates/ahk-box/src/raven.rs`) asks the guest of Windows, and the guest
 answers with the message of the v2 -- the raven reads the kind out of it.
+
+## 179. The source of the file commands of the v1 may be a pattern
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `FileCopy`, the `FileMove` and the `FileDelete` take a pattern in the
+  source,** and they do the thing to every file that matches it. The pattern
+  is the pattern of the v2 -- the `*` and the `?`, in the last part of the
+  path -- and the folder of the path is not a pattern.
+- **The copy and the move put every file into the folder of the
+  destination,** with the name of the file. The destination of a pattern is
+  a folder, and not the name of a file.
+- **The `ErrorLevel` is the number of the files that failed,** and the v1
+  goes on: the `ErrorLevel` is the only report of it. A pattern that matches
+  nothing is not a failure, and neither is a file that is not there: the
+  number is zero in the two cases. A file that cannot be copied -- the
+  destination is there and the command does not overwrite it -- is one.
+- **The `Overwrite` is a number and not a word.** The third parameter of the
+  `FileCopy` and of the `FileMove` is zero or one, and the word "Overwrite"
+  is not one of them: the copy of every file fails, and the `ErrorLevel` is
+  the number of them.
+
+The v1 has handlers of its own for the three commands
+(`crates/ahk/src/v1/mod.rs`), and the patterns are in the module of the files
+of the v1 (`crates/ahk/src/v1/files.rs`): the machine is asked for the files
+that match the pattern, and the tree joins the folder of the destination with
+the name of each file.
+
+The v2 is not touched: the `FileCopy` and the `FileMove` of the v2 refuse the
+wildcards with the reason of the tree, and the `FileExist` of the v2 answers
+with the attributes of the first entry that matches the pattern (§51) -- the
+same answer that the v1 gives.
 
 

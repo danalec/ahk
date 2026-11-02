@@ -17,6 +17,7 @@ use ahk::desktop::{
 use ahk::dialect;
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeValue};
 use ahk::runtime::{Report, Runtime, Value};
+use std::cell::RefCell;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -32,6 +33,8 @@ static THE_TURN: Mutex<()> = Mutex::new(());
 struct Fake {
     /// What is on the clipboard of the fake.
     clipboard: String,
+    /// What the machine was asked, in the order of the questions.
+    calls: RefCell<Vec<String>>,
 }
 
 impl Desktop for Fake {}
@@ -60,6 +63,7 @@ impl Files for Fake {
     }
 
     fn delete_file(&mut self, path: &str) -> Result<String, String> {
+        self.calls.borrow_mut().push(format!("delete_file {path}"));
         // The name that is not there is the one that the cases use for the
         // command that fails.
         if path.contains("nothere") {
@@ -68,12 +72,41 @@ impl Files for Fake {
         Ok(String::new())
     }
 
-    fn copy_file(&mut self, _from: &str, _to: &str, _overwrite: bool) -> Result<String, String> {
+    fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.calls.borrow_mut().push(format!("copy_file {from} {to} {overwrite}"));
+        if from.contains("nothere") {
+            return Err("the file is not there".into());
+        }
         Ok(String::new())
     }
 
-    fn move_file(&mut self, _from: &str, _to: &str, _overwrite: bool) -> Result<String, String> {
+    fn move_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.calls.borrow_mut().push(format!("move_file {from} {to} {overwrite}"));
+        if from.contains("nothere") {
+            return Err("the file is not there".into());
+        }
         Ok(String::new())
+    }
+
+    fn list_files(&mut self, _folder: &str, pattern: &str, _mode: &str) -> Result<Vec<String>, String> {
+        self.calls.borrow_mut().push(format!("list_files {pattern}"));
+        // The pattern with the wildcard is the one of the cases that want
+        // many files, and the one with the "bin" is the one whose file cannot
+        // be copied. The pattern that is not there matches nothing.
+        if pattern.contains("nothere") {
+            return Ok(Vec::new());
+        }
+        if pattern.contains("*") {
+            if pattern.contains("bin") {
+                return Ok(vec!["C:\\work\\nothere.bin".to_string()]);
+            }
+            return Ok(vec!["C:\\work\\a.txt".to_string(), "C:\\work\\b.txt".to_string()]);
+        }
+        Ok(vec![format!("C:\\work\\{pattern}")])
+    }
+
+    fn working_directory(&mut self) -> Result<String, String> {
+        Ok("C:\\work".to_string())
     }
 }
 impl Hotkeys for Fake {}
@@ -171,10 +204,26 @@ fn run_with_the_clipboard(script: &str, clipboard: &str) -> Report {
     // while it runs, so that no other case writes them under its feet.
     let _turn = THE_TURN.lock().unwrap_or_else(|poison| poison.into_inner());
     let statements = ahk::parse_with(script, dialect::v1()).expect("the script of the v1 parses");
-    let mut desktop = Fake { clipboard: clipboard.to_string() };
+    let mut desktop = Fake { clipboard: clipboard.to_string(), calls: RefCell::new(Vec::new()) };
     Runtime::new(&mut desktop, Duration::from_secs(60))
         .with_dialect(dialect::v1())
         .run(&statements)
+}
+
+/// Run a script of the v1 and answer with the report and with what the
+/// machine was asked.
+///
+/// The cases that want to know what the machine was asked -- the ones of the
+/// patterns of the files -- need the questions of the fake.
+fn run_and_the_calls(script: &str) -> (Report, Vec<String>) {
+    let _turn = THE_TURN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let statements = ahk::parse_with(script, dialect::v1()).expect("the script of the v1 parses");
+    let mut desktop = Fake { clipboard: String::new(), calls: RefCell::new(Vec::new()) };
+    let report = Runtime::new(&mut desktop, Duration::from_secs(60))
+        .with_dialect(dialect::v1())
+        .run(&statements);
+    let calls = desktop.calls.into_inner();
+    (report, calls)
 }
 
 /// The refusal of the load of a script of the v1.
@@ -1910,8 +1959,7 @@ fn the_error_level_of_the_v1_is_the_global_variable_of_the_script() {
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `FileAppend` is
 /// one when there was a problem and zero otherwise, and the `FileCopy`, the
 /// `FileDelete`, the `FileMove`, the `FileRead` and the `FileSetTime` are
-/// the number of the files that failed, and the tree refuses the wildcards,
-/// so the number is one when the command fails and zero when it does not.
+/// the number of the files that failed.
 #[test]
 fn the_file_commands_of_the_v1_write_the_error_level() {
     // The command that works writes zero.
@@ -1931,13 +1979,75 @@ fn the_file_commands_of_the_v1_write_the_error_level() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
 
-    // The command that fails writes one, and the tree fails the script where
-    // the v1 goes on.
+    // The file that is not there is not a failure of the v1: the command
+    // goes on and the `ErrorLevel` is zero.
     let report = run("ErrorLevel := 5\nFileDelete, nothere.txt\nx := ErrorLevel");
-    assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the file is not there"));
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+}
+
+/// The source of the file commands of the v1 may be a pattern.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `FileCopy`, the
+/// `FileMove` and the `FileDelete` take a pattern, and they do the thing to
+/// every file that matches it -- the copy and the move into the folder of
+/// the destination, with the name of the file. The `ErrorLevel` is the
+/// number of the files that failed, and the v1 goes on.
+#[test]
+fn the_file_commands_of_the_v1_take_a_pattern() {
+    // The copy of a pattern puts every file that matches it into the folder
+    // of the destination.
+    let (report, calls) = run_and_the_calls("FileCopy, *.txt, folder");
+    assert!(report.ok);
+    assert_eq!(
+        calls,
+        vec![
+            "list_files *.txt",
+            "copy_file C:\\work\\a.txt folder/a.txt false",
+            "copy_file C:\\work\\b.txt folder/b.txt false",
+        ]
+    );
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(0)));
+
+    // The move of a pattern does the same, and the folder of the
+    // destination may end with the separator already.
+    let (report, calls) = run_and_the_calls("FileMove, *.txt, folder\\");
+    assert!(report.ok);
+    assert_eq!(
+        calls,
+        vec![
+            "list_files *.txt",
+            "move_file C:\\work\\a.txt folder\\a.txt false",
+            "move_file C:\\work\\b.txt folder\\b.txt false",
+        ]
+    );
+
+    // The delete of a pattern takes every file that matches it away.
+    let (report, calls) = run_and_the_calls("FileDelete, *.txt");
+    assert!(report.ok);
+    assert_eq!(
+        calls,
+        vec![
+            "list_files *.txt",
+            "delete_file C:\\work\\a.txt",
+            "delete_file C:\\work\\b.txt",
+        ]
+    );
+
+    // The file that cannot be copied is counted, and the v1 goes on.
+    let (report, calls) = run_and_the_calls("FileCopy, *.bin, folder\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(
+        calls,
+        vec!["list_files *.bin", "copy_file C:\\work\\nothere.bin folder/nothere.bin false"]
+    );
     assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(1)));
-    assert_eq!(report.variables.get("x"), None);
+
+    // The pattern that matches nothing is not a failure.
+    let (report, calls) = run_and_the_calls("FileDelete, nothere*.txt\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(calls, vec!["list_files nothere*.txt"]);
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(0)));
 }
 
 /// The name of a function is not a value of the v1.
