@@ -7506,3 +7506,55 @@ dialect before it reads the name. The section is a thing of the v2, and the
 line that a section joins is read without them.
 
 The suite of the v1 has one case more (160).
+
+## 187. The sub-command of a command of the v1 is checked when the script loads
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the command
+whose parameter names a sub-command refuses the sub-command that the v1
+does not know when the script loads, before any line of it runs: "Parameter
+#N invalid." with the text of the parameter after it, on a line of its own.
+The sub-command that the v1 knows has rules of its own, and the complaint
+of the v1 is one of three:
+
+- **"Parameter #N must be blank in this case."** -- the parameter that the
+  sub-command does not take.
+- **"Parameter #N must not be blank in this case."** -- the parameter that
+  the sub-command needs.
+- **"Parameter #N and beyond should be omitted in this case."** -- the
+  parameter that the sub-command does not take, and the ones after it.
+
+The complaint names the text of the parameter when it is not empty, and the
+`WinSet` does not name it at all. The complaint of the parameter that may
+not be blank never names it.
+
+The commands that carry a sub-command are the `Control`, the `ControlGet`,
+the `Drive`, the `DriveGet`, the `Gui`, the `GuiControl`, the
+`GuiControlGet`, the `Menu`, the `Process`, the `RegRead`, the `RegWrite`,
+the `RegDelete`, the `SoundGet`, the `SoundSet`, the `SysGet`, the `WinGet`
+and the `WinSet`. The sub-command may carry the name of the window before
+it -- the "MyGui:Show" of the `Gui` -- and it may be a list of options that
+begins with a sign -- the "+Resize" of the `Gui`. The name of the window is
+not a sub-command, and the list of options is not one either.
+
+The rules of the v1 are in `crates/ahk/src/v1/sub_commands.rs`, and the
+parser asks the dialect (`the_refusal_of_an_invalid_parameter`) before it
+runs the command. The parameter that may not be blank is a question of the
+dialect too (`the_parameter_may_not_be_blank`): the sub-command of the
+`Control`, of the `ControlGet`, of the `Drive`, of the `Gui`, of the
+`Menu`, of the `Process`, of the `SysGet` and of the `WinSet` has to be
+there, and the complaint of the v1 is the one of the parameter that may not
+be blank: "\"X\" requires that parameter #N be non-blank.".
+
+The other messages of the load are the ones of the `ImageSearch` and of the
+`PixelSearch` -- "Parameters 3 through 7 must not be blank." -- and the ones
+of the `WinWait` and of the `WinActivateBottom` -- "Requires at least one
+of its window parameters.". The `MouseClickDrag` wants the button of the
+mouse -- the "Left", the "Right", the "Middle" and the letter that names
+it -- and the refusal is the family of the "Parameter #N invalid.".
+
+The `KeyHistory` of the table of the v1 has no parameters, and the text
+that is left of the line does not go into it: the `KeyHistory, a, a` is
+refused with the text of the first one of them.
+
+The suite of the v1 has ten cases more (170).
+

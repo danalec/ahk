@@ -1628,6 +1628,15 @@ that asks for another one is refused with the reason.
   (`accepts_a_hash_a_dollar_and_an_at_in_a_name`), and the v2 does not read
   them.
 
+- **The sub-command of a command of the v1 is checked when the script
+  loads.** The sub-command that the v1 does not know is refused with
+  "Parameter #N invalid.", and the one that it knows has rules of its own:
+  the parameter that it does not take has to be blank, the parameter that
+  it needs may not be blank, and the parameter that it does not take and
+  the ones after it have to be left out. The rules are in
+  `v1/sub_commands.rs`, and the parameter that may not be blank is a hook
+  of the dialect (`the_parameter_may_not_be_blank`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

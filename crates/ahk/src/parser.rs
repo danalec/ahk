@@ -3061,6 +3061,9 @@ impl Parser {
             // Measured on the binary of v1.1.37.02 on 2026-11-02: the
             // parameter that wants the name of a variable may not be blank,
             // and the complaint of the v1 is its own.
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+            // sub-command of a command of the v1 may not be blank either,
+            // and the complaint of the v1 is the same one.
             for (index, parameter) in parameters.iter().enumerate() {
                 let wants_a_name = matches!(
                     builtin.parameters.get(index),
@@ -3070,7 +3073,9 @@ impl Parser {
                             | crate::builtins::Parameter::Name
                     )
                 );
-                if wants_a_name && parameter.trim().is_empty() {
+                let wants_a_sub_command =
+                    self.dialect.the_parameter_may_not_be_blank(&name, index + 1);
+                if (wants_a_name || wants_a_sub_command) && parameter.trim().is_empty() {
                     return Err(self.error(format!(
                         "\"{}\" requires that parameter #{} be non-blank.\n     Specifically: {}",
                         builtin.name,

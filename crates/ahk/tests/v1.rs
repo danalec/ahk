@@ -4557,3 +4557,327 @@ fn the_name_of_a_variable_of_the_v1_may_carry_the_marks() {
         assert_eq!(report.variables.get(name), Some(&Value::Text("5".into())));
     }
 }
+
+/// The sub-command that the v1 does not know is refused when the script
+/// loads.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// command whose parameter names a sub-command refuses the sub-command that
+/// the v1 does not know: "Parameter #N invalid." with the text of the
+/// parameter after it, on a line of its own.
+#[test]
+fn the_sub_command_that_the_v1_does_not_know_is_refused() {
+    for (script, place) in [
+        ("Control, zzz", 1),
+        ("ControlGet, out, zzz", 2),
+        ("Drive, zzz", 1),
+        ("DriveGet, out, zzz", 2),
+        ("Gui, zzz", 1),
+        ("GuiControl, zzz, Edit1", 1),
+        ("GuiControlGet, out, zzz", 2),
+        ("Menu, Tray, zzz", 2),
+        ("SysGet, out, zzz", 2),
+        ("WinGet, out, zzz", 2),
+        ("WinSet, zzz", 1),
+    ] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            format!("Parameter #{place} invalid.\n     Specifically: zzz"),
+            "the script is {script}"
+        );
+    }
+    // The name of the window is not a sub-command, and the complaint of the
+    // v1 names the whole text.
+    assert_eq!(
+        the_refusal_of_the_load("Gui, MyGui:zzz"),
+        "Parameter #1 invalid.\n     Specifically: MyGui:zzz"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("GuiControlGet, out, MyGui:zzz"),
+        "Parameter #2 invalid.\n     Specifically: MyGui:zzz"
+    );
+}
+
+/// The sub-command that the v1 knows has rules of its own.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// parameter that the sub-command does not take has to be blank, the
+/// parameter that it needs may not be blank, and the parameter that it does
+/// not take and the ones after it have to be left out.
+#[test]
+fn the_sub_command_that_the_v1_knows_has_rules_of_its_own() {
+    // The parameter that the sub-command does not take has to be blank.
+    assert_eq!(
+        the_refusal_of_the_load("Control, Enable, Edit1"),
+        "Parameter #2 must be blank in this case.\n     Specifically: Edit1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("ControlGet, out, Checked, Edit1"),
+        "Parameter #3 must be blank in this case.\n     Specifically: Edit1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("GuiControlGet, out, Focus, Edit1"),
+        "Parameter #3 must be blank in this case.\n     Specifically: Edit1"
+    );
+    // The `WinSet` does not name the text of the parameter.
+    assert_eq!(
+        the_refusal_of_the_load("WinSet, Bottom, On, Untitled"),
+        "Parameter #2 must be blank in this case."
+    );
+    // The parameter that the sub-command needs may not be blank.
+    assert_eq!(
+        the_refusal_of_the_load("Control, Add, , Edit1"),
+        "Parameter #2 must not be blank in this case."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("ControlGet, out, FindString, , Edit1"),
+        "Parameter #3 must not be blank in this case."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Menu, Tray, Check"),
+        "Parameter #3 must not be blank in this case."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("GuiControl, Move, Edit1"),
+        "Parameter #3 must not be blank in this case."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Drive, Lock"),
+        "Parameter #2 must not be blank in this case."
+    );
+    // The parameter and the ones after it have to be left out.
+    assert_eq!(
+        the_refusal_of_the_load("Menu, Tray, NoDefault, Item1"),
+        "Parameter #3 and beyond should be omitted in this case.\n     Specifically: Item1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Gui, +Resize, Title"),
+        "Parameter #2 and beyond should be omitted in this case.\n     Specifically: Title"
+    );
+}
+
+/// The sub-command that the v1 knows is accepted when the script loads.
+#[test]
+fn the_sub_command_that_the_v1_knows_is_accepted() {
+    for script in [
+        "Control, Enable, , Edit1",
+        "Control, TabLeft, , Edit1",
+        "ControlGet, out, Checked, , Edit1",
+        "ControlGet, out, List, Edit1",
+        "Drive, Eject",
+        "DriveGet, out, List",
+        "Gui, +Resize",
+        "Gui, MyGui:Show",
+        "GuiControl, +g, MyEdit",
+        "GuiControl, MyGui:Show, MyButton",
+        "GuiControlGet, out, Pos, Edit1",
+        "Menu, Tray, Default, Item1",
+        "SysGet, out, MonitorCount",
+        "WinGet, out, ID",
+        "WinSet, AlwaysOnTop, On, Untitled",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The `Process` of the v1 knows the sub-commands of its own.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// sub-command is the "Exist", the "Close", the "Priority", the "Wait" or
+/// the "WaitClose". The v1 checks the number of the parameters before it
+/// names the sub-command that it does not know.
+#[test]
+fn the_process_of_the_v1_knows_its_sub_commands() {
+    assert_eq!(
+        the_refusal_of_the_load("Process, zzz"),
+        "Parameter #2 must not be blank in this case."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Process, zzz, name"),
+        "Parameter #1 invalid.\n     Specifically: zzz"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Process, Close"),
+        "Parameter #2 must not be blank in this case."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Process, Priority"),
+        "Parameter #3 invalid."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Process, Priority, name, zzz"),
+        "Parameter #3 invalid.\n     Specifically: zzz"
+    );
+    for script in [
+        "Process, Exist",
+        "Process, Exist, name",
+        "Process, Close, name",
+        "Process, Priority, name, High",
+        "Process, Priority, name, Normal, extra",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The sound of the v1 knows the component and the control of it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// second parameter is the component of the sound -- the "Master" or the
+/// "Microphone" -- and the third is the control of it -- the "Volume", the
+/// "Mute", the "Bass", the "Treble" or the "Pan".
+#[test]
+fn the_sound_of_the_v1_knows_its_component() {
+    assert_eq!(
+        the_refusal_of_the_load("SoundGet, out, zzz"),
+        "Parameter #2 invalid.\n     Specifically: zzz"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("SoundGet, out, Master, zzz"),
+        "Parameter #3 invalid.\n     Specifically: zzz"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("SoundSet, 50, zzz"),
+        "Parameter #2 invalid.\n     Specifically: zzz"
+    );
+    for script in [
+        "SoundGet, out, Master, Volume",
+        "SoundGet, out, Microphone, Mute",
+        "SoundSet, 50, Master, Volume",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The key of the registry of the v1 begins with a root of the registry.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the key
+/// of the `RegRead`, of the `RegWrite` and of the `RegDelete` has to begin
+/// with one of the roots of the registry, and the case of the letters does
+/// not matter.
+#[test]
+fn the_key_of_the_registry_of_the_v1_begins_with_a_root() {
+    assert_eq!(
+        the_refusal_of_the_load("RegRead, out, a"),
+        "Parameter #2 invalid.\n     Specifically: a"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("RegDelete, a\\Software, value"),
+        "Parameter #1 invalid.\n     Specifically: a\\Software"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("RegWrite, out, HKCU\\Software, value, data"),
+        "Parameter #1 invalid.\n     Specifically: out"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("RegWrite, REG_SZ, a\\Software, value, data"),
+        "Parameter #2 invalid.\n     Specifically: a\\Software"
+    );
+    for script in [
+        "RegRead, out, HKCU\\Software",
+        "RegRead, out, hkcu\\Software",
+        "RegRead, out, HKEY_LOCAL_MACHINE\\Software",
+        "RegDelete, HKCU\\Software, value",
+        "RegWrite, REG_SZ, HKCU\\Software, value, data",
+        "RegWrite, REG_DWORD, HKCU\\Software, value, 5",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The search of the v1 wants the place of the picture.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the third
+/// through the seventh parameters may not be blank, and the complaint of the
+/// v1 names the whole range: "Parameters 3 through 7 must not be blank.".
+#[test]
+fn the_search_of_the_v1_wants_the_place_of_the_picture() {
+    for script in ["ImageSearch, x, y, 0, 0, 100, 100", "PixelSearch, x, y, 0, 0, 100, 100"] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            "Parameters 3 through 7 must not be blank.",
+            "the script is {script}"
+        );
+    }
+    assert!(
+        ahk::parse_with("ImageSearch, x, y, 0, 0, 100, 100, file.png", dialect::v1()).is_ok(),
+        "the search wants the picture"
+    );
+}
+
+/// The command of the v1 that waits for a window wants one of them.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `WinWait` and the `WinActivateBottom` want at least one of their window
+/// parameters, and the complaint of the v1 is "Requires at least one of its
+/// window parameters.".
+#[test]
+fn the_command_of_the_v1_that_waits_for_a_window_wants_one_of_them() {
+    for script in ["WinWait", "WinActivateBottom"] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            "Requires at least one of its window parameters.",
+            "the script is {script}"
+        );
+    }
+    for script in ["WinWait, title", "WinActivateBottom, title"] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The drag of the mouse of the v1 wants the button of it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the first
+/// parameter of the `MouseClickDrag` is the button -- the "Left", the
+/// "Right" or the "Middle" -- and the letter that names it is the one that
+/// the v1 takes.
+#[test]
+fn the_drag_of_the_mouse_of_the_v1_wants_the_button() {
+    assert_eq!(
+        the_refusal_of_the_load("MouseClickDrag, zzz, 0, 0, 10, 10"),
+        "Parameter #1 invalid.\n     Specifically: zzz"
+    );
+    for script in [
+        "MouseClickDrag, Left, 0, 0, 10, 10",
+        "MouseClickDrag, left, 0, 0, 10, 10",
+        "MouseClickDrag, R, 0, 0, 10, 10",
+        "MouseClickDrag, M, 0, 0, 10, 10",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The `KeyHistory` of the v1 takes no parameter.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `KeyHistory` takes no parameter, and the one that is there is refused
+/// with the text of the first one of them.
+#[test]
+fn the_key_history_of_the_v1_takes_no_parameter() {
+    assert_eq!(
+        the_refusal_of_the_load("KeyHistory, a"),
+        "Parameter #1 invalid.\n     Specifically: a"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("KeyHistory, a, a"),
+        "Parameter #1 invalid.\n     Specifically: a"
+    );
+}
+

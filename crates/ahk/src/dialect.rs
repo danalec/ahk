@@ -688,6 +688,20 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the parameter of this place of this command has to be there.
+    ///
+    /// The place is the number of the parameter, and the name is the name
+    /// of the command as the script wrote it. The parser refuses the
+    /// parameter that is blank, and the complaint is the one of the v1:
+    /// "\"X\" requires that parameter #N be non-blank.".
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// sub-command of a command of the v1 has to be there, and the v2 has
+    /// no command that wants a parameter of its own.
+    fn the_parameter_may_not_be_blank(&self, _name: &str, _place: usize) -> bool {
+        false
+    }
+
     /// The refusal of the name of a variable of the script.
     ///
     /// The place is the number of the parameter, and the text is the text
@@ -1128,6 +1142,14 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a
         // variable of the v1 may carry the "#", the "$" and the "@".
         true
+    }
+
+    fn the_parameter_may_not_be_blank(&self, name: &str, place: usize) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+        // sub-command of a command of the v1 has to be there, and the
+        // complaint of the v1 is the one of the parameter that may not be
+        // blank.
+        crate::v1::the_parameter_may_not_be_blank(name, place)
     }
 
     fn the_refusal_of_the_name_of_a_variable(

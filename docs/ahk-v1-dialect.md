@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 160 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 170 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -846,7 +846,7 @@ the path of the class of the `new` by the block of the path (2026-11-02), and
 the parameter of a command by the block of the parameters (2026-11-02), and
 the pid of the process by the block of the pid (2026-11-02), and the code of
 the failure of a native call by the block of the code (2026-11-02), and the
-patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02), and the marks of the name of a variable by the block of the marks (2026-11-02).
+patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02), and the marks of the name of a variable by the block of the marks (2026-11-02), and the sub-command of a command by the block of the sub-command (2026-11-02).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -858,6 +858,22 @@ hook of the dialect (`the_refusal_of_an_invalid_parameter`), the rules are
 in `crates/ahk/src/v1/parameters.rs`, and the commands that the v1 does not
 check have handlers of their own. The name of a key and the name of the
 label of the `SetTimer` are of other families, and they are not carried.
+
+**The sub-command of a command of the v1.** The command whose parameter
+names a sub-command refuses the sub-command that the v1 does not know when
+the script loads: "Parameter #N invalid." with the text of the parameter
+after it. The sub-command that the v1 knows has rules of its own -- the
+parameter that it does not take has to be blank, the parameter that it
+needs may not be blank, and the parameter that it does not take and the
+ones after it have to be left out -- and the complaint of the v1 is one of
+three families. The sub-command may carry the name of the window before it,
+and it may be a list of options that begins with a sign. The rules are in
+`crates/ahk/src/v1/sub_commands.rs`, and the parameter that may not be
+blank is another hook of the dialect
+(`the_parameter_may_not_be_blank`). The block of the sub-command
+(2026-11-02) carried it, and the differential sweep of the v1 went from
+88 divergences of the load to 2: the `GroupAdd`, whose label the parser
+does not know yet.
 
 **The settings of the v1.** The v1 and the v2 do not begin with the same
 values: the mode of the coordinates is the "Window" in the v1, the method of

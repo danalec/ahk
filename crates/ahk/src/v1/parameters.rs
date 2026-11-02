@@ -123,6 +123,12 @@ pub(crate) fn the_refusal_of_a_parameter(name: &str, parameters: &[String]) -> O
     if let Some(rule) = MESSAGES.iter().find(|rule| rule.name.eq_ignore_ascii_case(name)) {
         return (rule.message)(parameters);
     }
+    // The command whose parameter names a sub-command comes next: the
+    // sub-command that the v1 does not know is refused, and the one that it
+    // knows has rules of its own.
+    if let Some(refusal) = crate::v1::the_refusal_of_a_sub_command(name, parameters) {
+        return Some(refusal);
+    }
     let rule = RULES.iter().find(|rule| rule.name.eq_ignore_ascii_case(name))?;
     let texts = rule.the_texts(parameters);
     let place = (rule.check)(&texts)?;
@@ -181,6 +187,7 @@ const RULES: &[Rule] = &[
     Rule { name: "IfMsgBox", check: the_button_of_a_message_box },
     Rule { name: "KeyHistory", check: the_command_without_a_parameter },
     Rule { name: "StringMid", check: the_letter_of_the_string_mid },
+    Rule { name: "MouseClickDrag", check: the_button_of_the_mouse },
 ];
 
 /// The commands of the v1 whose complaint is a message of its own.
@@ -197,7 +204,62 @@ struct Message {
 }
 
 /// The commands of the v1 that refuse with a message of their own.
-const MESSAGES: &[Message] = &[Message { name: "EnvDiv", message: the_division_by_zero }];
+const MESSAGES: &[Message] = &[
+    Message { name: "EnvDiv", message: the_division_by_zero },
+    Message { name: "ImageSearch", message: the_place_of_the_image },
+    Message { name: "PixelSearch", message: the_place_of_the_image },
+    Message { name: "WinWait", message: the_window_of_the_win_wait },
+    Message { name: "WinActivateBottom", message: the_window_of_the_win_activate_bottom },
+];
+
+/// The place of the image of the `ImageSearch` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the third
+/// through the seventh parameters may not be blank -- the third is the
+/// place of the search and the seventh is the picture -- and the complaint
+/// of the v1 names the whole range: "Parameters 3 through 7 must not be
+/// blank.".
+fn the_place_of_the_image(parameters: &[String]) -> Option<String> {
+    for place in 2..7 {
+        if the_text_at(parameters, place).trim().is_empty() {
+            return Some("Parameters 3 through 7 must not be blank.".to_string());
+        }
+    }
+    None
+}
+
+/// The window of the `WinWait` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `WinWait` wants at least one of its window parameters -- the title, the
+/// text, the exclude title and the exclude text -- and the complaint of
+/// the v1 is "Requires at least one of its window parameters.". The
+/// timeout, which is the third parameter, is not one of them.
+fn the_window_of_the_win_wait(parameters: &[String]) -> Option<String> {
+    the_refusal_of_the_window(parameters, &[0, 1, 3, 4])
+}
+
+/// The window of the `WinActivateBottom` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `WinActivateBottom` wants at least one of its window parameters -- the
+/// title, the text, the exclude title and the exclude text -- and the
+/// complaint of the v1 is "Requires at least one of its window
+/// parameters.".
+fn the_window_of_the_win_activate_bottom(parameters: &[String]) -> Option<String> {
+    the_refusal_of_the_window(parameters, &[0, 1, 2, 3])
+}
+
+/// The refusal of a command that wants at least one of its window
+/// parameters.
+fn the_refusal_of_the_window(parameters: &[String], places: &[usize]) -> Option<String> {
+    for place in places {
+        if !the_text_at(parameters, *place).trim().is_empty() {
+            return None;
+        }
+    }
+    Some("Requires at least one of its window parameters.".to_string())
+}
 
 /// The divisor of the `EnvDiv` of the v1 is not a zero.
 ///
@@ -290,6 +352,24 @@ fn the_button_of_a_message_box(texts: &[String]) -> Option<usize> {
             | "continue"
             | "tryagain"
             | "timeout"
+    ) {
+        return None;
+    }
+    Some(0)
+}
+
+/// The button of the mouse of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the first
+/// parameter of the `MouseClickDrag` is the button of the mouse -- the
+/// "Left", the "Right" or the "Middle" -- and the letter that names it is
+/// the one that the v1 takes: the "L", the "R" and the "M". The case of the
+/// word does not matter. The number is not a button.
+fn the_button_of_the_mouse(texts: &[String]) -> Option<usize> {
+    let text = the_text_at(texts, 0).trim();
+    if matches!(
+        text.to_lowercase().as_str(),
+        "l" | "r" | "m" | "left" | "right" | "middle"
     ) {
         return None;
     }

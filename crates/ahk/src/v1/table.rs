@@ -122,7 +122,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "IsLabel", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: is_label },
     Builtin { name: "IsObject", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: is_object },
     Builtin { name: "IsSet", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: super::is_set },
-    Builtin { name: "KeyHistory", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
+    Builtin { name: "KeyHistory", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, parameters: &[], handler: not_carried },
     Builtin { name: "KeyWait", kind: BuiltinKind::Command, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value, Parameter::Value], handler: key_wait },
     Builtin { name: "ListHotkeys", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
     Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 255, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
