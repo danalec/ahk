@@ -37,7 +37,7 @@ use alloc::vec::Vec;
 
 use crate::ast::{
     AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, Catch, DeclareKind, Declared, Declarations, DynamicPiece,
-    LiteralValue, LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
+    LegacyForm, LiteralValue, LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
 use crate::lexer::{SyntaxError, TheRefusal, Token, TokenKind};
 
@@ -4701,10 +4701,12 @@ impl Parser {
     ///
     /// The brace that opens the body of the `if` is not a part of the tail:
     /// the `if (1) {` has no tail at all, and the body of it is the block.
-    fn the_tail_of_the_if_of_the_v1(&mut self) -> Result<(), SyntaxError> {
+    fn the_tail_of_the_if_of_the_v1(&mut self) -> Result<bool, SyntaxError> {
         // The first line of the tail is the line of the condition, and the
         // lines that come after it are the continuation of it.
         let mut first = true;
+        // Whether the tail took the line that comes with it.
+        let mut took_a_line = false;
         loop {
             let start = self.position;
             let mut depth = 0usize;
@@ -4783,12 +4785,13 @@ impl Parser {
             }
             // The line that comes is a part of the tail, and the empty lines
             // between the two are not.
+            took_a_line = true;
             self.skip_newlines();
             if self.at_end_of_statement() {
                 break;
             }
         }
-        Ok(())
+        Ok(took_a_line)
     }
 
     /// The condition of the legacy `if` of the v1: `if x = 1`.
@@ -4819,7 +4822,9 @@ impl Parser {
         let line_of_the_variable = name.line;
         let Some(operator) = self.tokens.get(self.position + 1) else { return Ok(None) };
         if operator.kind != TokenKind::Op {
-            return Ok(None);
+            // The forms of the legacy `if` that are not a comparison:
+            // the `between`, the `in` and the `contains`.
+            return self.the_form_of_a_legacy_if(name_of_the_variable, line_of_the_variable);
         }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // legacy `if` reads the operator from the source, and the `==` of the
@@ -4865,6 +4870,152 @@ impl Parser {
             text,
             line: line_of_the_variable,
         }))
+    }
+
+    /// The form of the legacy `if` of the v1 that is not a comparison: the
+    /// `between`, the `in` and the `contains`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+    ///
+    /// - The form is the legacy one when the name of a variable comes
+    ///   first and the word of the form comes after it: the `if x in a, b`
+    ///   is the legacy form, and the `if x.y in a, b` is not.
+    /// - The `not` may come before the word, and it turns the answer
+    ///   around: the `if x not in a, b` is the same form with the other
+    ///   answer.
+    /// - The words are the words of the dialect and not the case of the
+    ///   script: the `if x IN a, b` is the same form.
+    /// - The texts of the form are the texts of the script and not
+    ///   expressions, and they go through the legacy substitution: the
+    ///   `if x in %y%` asks whether the value of `x` is the value of `y`.
+    /// - The list of the `in` and of the `contains` is cut at the commas,
+    ///   and the spaces around them are a part of the item: the `if x in
+    ///   a, b` asks whether the value of `x` is "a" or " b".
+    /// - Two commas in a row are one comma in the item, and the item goes
+    ///   on: the `if x in a,,b` asks whether the value of `x` is "a,b".
+    fn the_form_of_a_legacy_if(
+        &mut self,
+        name_of_the_variable: String,
+        line_of_the_variable: u32,
+    ) -> Result<Option<Node>, SyntaxError> {
+        // The word of the form, and the `not` that may come before it.
+        let mut at = self.position + 1;
+        let mut negated = false;
+        let Some(token) = self.tokens.get(at) else { return Ok(None) };
+        if token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("not") {
+            negated = true;
+            at += 1;
+        }
+        let Some(token) = self.tokens.get(at) else { return Ok(None) };
+        if !matches!(token.kind, TokenKind::Name | TokenKind::Keyword) {
+            return Ok(None);
+        }
+        let word = token.value.to_ascii_lowercase();
+        let form = match word.as_str() {
+            "between" => LegacyForm::Between,
+            "in" => LegacyForm::In,
+            "contains" => LegacyForm::Contains,
+            _ => return Ok(None),
+        };
+        // The text of the form is the text that comes after the word, and
+        // it is the text of the script and not an expression.
+        let start = at + 1;
+        let mut end = start;
+        while end < self.tokens.len() && self.tokens[end].kind != TokenKind::Newline {
+            end += 1;
+        }
+        let text = if end == start {
+            String::new()
+        } else {
+            self.the_verbatim_source(start, end)
+        };
+        // The texts of the form.
+        let texts = match form {
+            LegacyForm::Between => {
+                // The text is cut at the word "and", and the two bounds
+                // are the texts that come around it.
+                let Some((low, high)) = the_bounds_of_a_between(&text) else {
+                    return Err(self.the_error_of_the_between(line_of_the_variable, at - usize::from(negated), &text));
+                };
+                vec![low, high]
+            }
+            LegacyForm::In | LegacyForm::Contains => {
+                // The list is the text that comes after the word, and it
+                // is not there when it is empty.
+                if text.trim().is_empty() {
+                    let name_of_the_form = if negated {
+                        format!("not {word}")
+                    } else {
+                        word.clone()
+                    };
+                    return Err(self.the_error_of_the_list(line_of_the_variable, at - usize::from(negated), &name_of_the_form));
+                }
+                the_items_of_a_list(text.trim())
+            }
+        };
+        // The newline of the line stays where it is: the body of the legacy
+        // `if` is the line that comes.
+        self.position = end;
+        Ok(Some(Node::LegacyMatch {
+            left: Box::new(Node::Var { name: name_of_the_variable, line: line_of_the_variable }),
+            form,
+            texts,
+            negated,
+            line: line_of_the_variable,
+        }))
+    }
+
+    /// The refusal of the `between` of the legacy `if` when the word `and`
+    /// is not there.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// complaint names the word that is missing, and the line that follows
+    /// is the line of the condition with the word of the form replaced by
+    /// a comma and the bound at the end of it.
+    fn the_error_of_the_between(&self, line: u32, word_at: usize, text: &str) -> SyntaxError {
+        let before = self.the_source_before_the_word(line, word_at);
+        let low = text.trim();
+        let whole = the_source_of_the_line(self, line);
+        let width = whole.chars().count().saturating_sub(before.chars().count() + 1);
+        let named = if low.is_empty() {
+            format!("{before},")
+        } else {
+            format!("{before},{:>width$}", low, width = width)
+        };
+        self.error(format!("BETWEEN requires the word AND.\n     Specifically: {named}"))
+    }
+
+    /// The refusal of the list of the legacy `if` when it is not there.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// complaint names the word of the form, and the line that follows is
+    /// the line of the condition up to the word.
+    fn the_error_of_the_list(&self, line: u32, word_at: usize, word: &str) -> SyntaxError {
+        let before = self.the_source_before_the_word(line, word_at);
+        self.error(format!(
+            "\"{word}\" requires at least 2 parameters.\n     Specifically: {}",
+            before.trim_end()
+        ))
+    }
+
+    /// The source of the line of the condition up to the word of the form.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// text is the text of the script, and the spaces that come before the
+    /// word are a part of it.
+    fn the_source_before_the_word(&self, line: u32, word_at: usize) -> String {
+        let start = self.tokens.iter().position(|token| token.line == line).unwrap_or(0);
+        let Some(first) = self.tokens.get(start) else { return String::new() };
+        let Some(word) = self.tokens.get(word_at) else { return String::new() };
+        let Some(source) = self.lines.get(first.line as usize - 1) else { return String::new() };
+        let chars: Vec<char> = source.chars().collect();
+        let from = first.column.saturating_sub(1) as usize;
+        let to = word.column.saturating_sub(1) as usize;
+        if from >= to || to > chars.len() {
+            return String::new();
+        }
+        // The spaces that come before the word are a part of the text.
+        chars[from..to].iter().collect()
     }
 
     /// Whether the text that ends at `end` ends with an operator.
@@ -4935,15 +5086,38 @@ impl Parser {
         // and does not run it, and the body of it is the line that comes
         // next. The legacy `if` has no tail: the text of the rest of the
         // line is the condition of it.
-        if !the_legacy && self.dialect.the_if_may_carry_a_tail() {
-            self.the_tail_of_the_if_of_the_v1()?;
-        }
-        let body = self.parse_block("If", token.line)?;
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+        // the tail of the `if` of the v1 takes the line that comes with it
+        // when the text of it ends with an operator, and the `else` that
+        // comes after it is the other side of the `if`: the body of the
+        // `else` runs whether the condition is true or false.
+        let the_tail_took_a_line = if !the_legacy && self.dialect.the_if_may_carry_a_tail() {
+            self.the_tail_of_the_if_of_the_v1()?
+        } else {
+            false
+        };
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+        // the tail of the `if` of the v1 takes the line that comes with it
+        // when the text of it ends with an operator, and the `if` has no
+        // body of its own then: the statement that comes after the tail is
+        // a statement of its own, and it runs whether the condition is
+        // true or false.
+        let body = if the_tail_took_a_line {
+            Vec::new()
+        } else {
+            self.parse_block("If", token.line)?
+        };
+        // The `else` that comes right after the tail is the other side of
+        // the `if`, and the body of it runs whether the condition is true
+        // or false.
+        let the_else_is_the_other_side = the_tail_took_a_line;
         let Some(condition) = condition else {
             return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
         };
         branches.push(Branch { condition, body });
         let mut otherwise = Vec::new();
+        // Whether the `else` is a body and not the branch of an `else if`.
+        let mut the_else_is_a_body = false;
         loop {
             self.skip_newlines();
             // Measured on the binary of v2.0.19 on 2026-11-01: the branch of
@@ -4991,8 +5165,18 @@ impl Parser {
                     continue;
                 }
                 otherwise = self.parse_block("Else", keyword.line)?;
+                the_else_is_a_body = true;
             }
             break;
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+        // the body of the `else` runs whether the condition is true or
+        // false, and the tree puts it in the two sides of the `if` so
+        // that it runs in both of them.
+        if the_else_is_the_other_side && the_else_is_a_body {
+            if let Some(branch) = branches.first_mut() {
+                branch.body = otherwise.clone();
+            }
         }
         Ok(Node::If { branches, otherwise, line: token.line })
     }
@@ -10308,3 +10492,66 @@ mod tests {
         let error = parse("x := 1 === 1").expect_err("does not parse");
         assert_eq!(error.message, "Missing operand.\n     Specifically: === 1");
     }
+
+/// The two bounds of the `between` of the legacy `if` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text
+/// is cut at the word `and`, and the word is the word of the dialect and
+/// not the case of the script. The bounds are the texts that come around
+/// it, and the spaces around them are not a part of them.
+fn the_bounds_of_a_between(text: &str) -> Option<(String, String)> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut at = 0;
+    while at < chars.len() {
+        let start = at;
+        while at < chars.len() && (chars[at].is_ascii_alphanumeric() || chars[at] == '_') {
+            at += 1;
+        }
+        if at > start {
+            let word: String = chars[start..at].iter().collect();
+            if word.eq_ignore_ascii_case("and") {
+                let low: String = chars[..start].iter().collect();
+                let high: String = chars[at..].iter().collect();
+                return Some((low.trim().to_string(), high.trim().to_string()));
+            }
+        }
+        if at == start {
+            at += 1;
+        }
+    }
+    None
+}
+
+/// The items of the list of the `in` and of the `contains` of the legacy
+/// `if` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the list
+/// is cut at the commas, and the spaces around them are a part of the item:
+/// the `if x in a, b` asks whether the value of `x` is "a" or " b". Two
+/// commas in a row are one comma in the item, and the item goes on: the
+/// `if x in a,,b` asks whether the value of `x` is "a,b".
+fn the_items_of_a_list(text: &str) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut item = String::new();
+    let chars: Vec<char> = text.chars().collect();
+    let mut at = 0;
+    while at < chars.len() {
+        let character = chars[at];
+        if character == ',' {
+            if chars.get(at + 1) == Some(&',') {
+                // Two commas in a row are one comma in the item, and the
+                // item goes on.
+                item.push(',');
+                at += 2;
+                continue;
+            }
+            items.push(core::mem::take(&mut item));
+            at += 1;
+            continue;
+        }
+        item.push(character);
+        at += 1;
+    }
+    items.push(item);
+    items
+}

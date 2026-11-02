@@ -45,8 +45,8 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use crate::ast::{
-    AccessBody, AccessDef, AssignOp, BinaryOp, DeclareKind, Declarations, DynamicPiece, LiteralValue, LoopKind,
-    MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, DeclareKind, Declarations, DynamicPiece, LegacyForm, LiteralValue,
+    LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
 };
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
@@ -2750,6 +2750,7 @@ impl<'a> Runtime<'a> {
             | Node::Ternary { .. }
             | Node::Group { .. }
             | Node::LegacyComparison { .. }
+            | Node::LegacyMatch { .. }
             | Node::Empty { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
@@ -7683,9 +7684,15 @@ impl<'a> Runtime<'a> {
         let left_number = self.the_number_of_the_v1(left, &left_value);
         let answer = match op {
             BinaryOp::Equal | BinaryOp::NotEqual => {
-                // The equal sign of the v1 ignores the case, and the not
-                // equal sign is its opposite.
-                let method = self.case_sense.the_method_of_the_equal_sign();
+                // The equal sign of the legacy `if` follows the sense of the
+                // case, and the not equal sign is its opposite.
+                //
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the equal sign of the legacy `if` is the
+                // comparison of the sense of the case, and not the one of the
+                // equal sign of an expression: the `if x = abc` is false when
+                // the sense of the case is On and the value of `x` is "ABC".
+                let method = self.case_sense.the_method();
                 let same = match (left_number, right_number) {
                     (Some(one), Some(other)) => the_same_number(&one, &other),
                     _ => the_same_text(&left_value.to_text(), &right_text, method),
@@ -7708,6 +7715,82 @@ impl<'a> Runtime<'a> {
             }
         };
         Ok(Value::Int(answer as i64))
+    }
+
+    /// The forms of the legacy `if` of the v1 that are not a comparison:
+    /// the `between`, the `in` and the `contains`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+    ///
+    /// - The `between` compares the numbers when the value and the two
+    ///   bounds are numbers, and the texts otherwise. The bounds are in
+    ///   the range: the `if x between 1 and 3` holds when the value of
+    ///   `x` is 1.
+    /// - The `in` compares the text of the value with the text of the
+    ///   item, and the comparison is always a comparison of texts: the
+    ///   "11" does not match the item "11.0".
+    /// - The `contains` asks whether the text of the value has the text
+    ///   of the item in it.
+    /// - The texts of the form go through the legacy substitution, and
+    ///   the sense of the case says whether the letters of them are the
+    ///   same.
+    fn the_match_of_a_legacy_if(
+        &mut self,
+        left: &Node,
+        form: LegacyForm,
+        texts: &[String],
+        negated: bool,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let left_value = self.evaluate(left)?;
+        let text_of_the_value = left_value.to_text();
+        // The texts of the form are the texts of the script, and the
+        // `%name%` of them is the value of the variable of that name.
+        let mut items = Vec::new();
+        for text in texts {
+            items.push(self.the_substitution_of_the_v1(text, line)?);
+        }
+        let holds = match form {
+            LegacyForm::Between => {
+                let low = items.first().map(String::as_str).unwrap_or_default();
+                let high = items.get(1).map(String::as_str).unwrap_or_default();
+                // The numbers when the value and the two bounds are
+                // numbers, and the texts otherwise.
+                let numbers = match (
+                    self.the_number_of_the_v1(left, &left_value),
+                    crate::v1::the_number_of_a_text(low),
+                    crate::v1::the_number_of_a_text(high),
+                ) {
+                    (Some(value), Some(low), Some(high)) => Some((
+                        value.to_number().unwrap_or(0.0),
+                        low.to_number().unwrap_or(0.0),
+                        high.to_number().unwrap_or(0.0),
+                    )),
+                    _ => None,
+                };
+                match numbers {
+                    Some((value, low, high)) => value >= low && value <= high,
+                    None => {
+                        // The order of the texts, and the bounds are in
+                        // the range.
+                        let method = self.case_sense.the_method();
+                        let at_the_low = the_order_of_the_texts(&text_of_the_value, low, method);
+                        let at_the_high = the_order_of_the_texts(&text_of_the_value, high, method);
+                        at_the_low != core::cmp::Ordering::Less && at_the_high != core::cmp::Ordering::Greater
+                    }
+                }
+            }
+            LegacyForm::In => {
+                // The comparison of the texts follows the sense of the case.
+                let method = self.case_sense.the_method();
+                items.iter().any(|item| the_same_text(&text_of_the_value, item, method))
+            }
+            LegacyForm::Contains => {
+                let method = self.case_sense.the_method();
+                items.iter().any(|item| the_text_contains(&text_of_the_value, item, method))
+            }
+        };
+        Ok(Value::Int(if negated { !holds } else { holds } as i64))
     }
 
     /// The amount of a shift: a whole number between zero and sixty-three.
@@ -9173,6 +9256,11 @@ impl<'a> Runtime<'a> {
                 // The comparison of the legacy `if` of the v1: the right side
                 // of it is the text of the rest of the line.
                 self.the_comparison_of_a_legacy_if(left, *op, text, *line)
+            }
+            Node::LegacyMatch { left, form, texts, negated, line } => {
+                // The forms of the legacy `if` of the v1 that are not a
+                // comparison: the `between`, the `in` and the `contains`.
+                self.the_match_of_a_legacy_if(left, *form, texts, *negated, *line)
             }
             Node::AssignProperty { target, name, op, value, line } => {
                 let value = self.evaluate(value)?;
@@ -11199,6 +11287,7 @@ pub fn op_name_in<'a>(
         Node::Legacy { .. } => "Legacy",
         Node::LegacyAssign { .. } => "LegacyAssign",
         Node::LegacyComparison { .. } => "LegacyComparison",
+        Node::LegacyMatch { .. } => "LegacyMatch",
     }
 }
 

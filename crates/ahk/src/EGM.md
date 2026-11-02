@@ -1700,6 +1700,23 @@ that asks for another one is refused with the reason.
   the dialect says that the `if` may be the legacy one
   (`the_if_may_be_a_legacy_comparison`).
 
+- **The legacy `if` of the v1 has the forms of the `between`, of the `in` and
+  of the `contains`.** The texts of the forms are the texts of the script and
+  not expressions, and they go through the legacy substitution. The `in`
+  compares as text and never as a number, the list is cut at the commas with
+  the spaces around them inside the item, and two commas in a row are one
+  comma in the item. The `between` takes the bounds inclusively and cuts the
+  text at the first word `and`. The three forms and the `=` of the legacy
+  `if` follow `StringCaseSense`. The match is in `runtime.rs`
+  (`the_match_of_a_legacy_if`), the condition is in `parser.rs`
+  (`the_form_of_a_legacy_if`), and the node is `Node::LegacyMatch`.
+- **The tail of the `if` of the v1 leaves the `if` without a body.** When the
+  tail ends with an operator it takes the line that comes with it, and the
+  statement that comes after the tail is a statement of its own: it runs
+  whether the condition is true or false. The `else` that comes right after
+  the tail is the other side of the `if`, and the body of it runs in the two
+  sides.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

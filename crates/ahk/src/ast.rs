@@ -418,6 +418,23 @@ pub enum Node {    /// A value.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04.
     LegacyComparison { left: Box<Node>, op: BinaryOp, text: String, line: u32 },
+    /// `if x in a, b`: the forms of the legacy `if` of the v1 that are not a
+    /// comparison.
+    ///
+    /// The `if x between low and high`, the `if x in list` and the
+    /// `if x contains list` are the forms of the legacy `if` of the v1, and the
+    /// `not` may come before the word. The texts of the form are the texts of
+    /// the script and not expressions, and they go through the legacy
+    /// substitution.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04.
+    LegacyMatch {
+        left: Box<Node>,
+        form: LegacyForm,
+        texts: Vec<String>,
+        negated: bool,
+        line: u32,
+    },
     /// `list[1]`, `text[2]`: the item at a position.
     ///
     /// The positions count from one, the way AutoHotkey counts them.
@@ -702,6 +719,7 @@ impl Node {
             | Node::Assign { line, .. }
             | Node::LegacyAssign { line, .. }
             | Node::LegacyComparison { line, .. }
+            | Node::LegacyMatch { line, .. }
             | Node::AssignIndex { line, .. }
             | Node::Index { line, .. }
             | Node::Call { line, .. }
@@ -740,6 +758,21 @@ impl Node {
             | Node::HotkeyDefinition { line, .. } => *line,
         }
     }
+}
+
+/// The form of the legacy `if` of the v1 that is not a comparison.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `between` carries the two bounds, and the `in` and the `contains` carry
+/// the items of the list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum LegacyForm {
+    /// `between`: the texts are the low bound and the high bound.
+    Between,
+    /// `in`: the texts are the items of the list.
+    In,
+    /// `contains`: the texts are the items of the list.
+    Contains,
 }
 
 /// The parameter of a command of the v1.

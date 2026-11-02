@@ -5604,3 +5604,292 @@ fn the_v2_refuses_the_text_that_follows_the_condition_of_the_if() {
         .expect_err("the v2 refuses the text that follows the condition");
     assert_eq!(error.message, "Unexpected \"If\"");
 }
+/// The `in` of the legacy `if` of the v1 asks whether the value of the
+/// variable is one of the items of the list.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x
+/// in a, b` asks whether the value of `x` is "a" or " b" -- the spaces around
+/// the commas are a part of the item -- and the comparison is always a
+/// comparison of texts: the number 1 is the text "1", and it is not the item
+/// "11.0".
+#[test]
+fn the_in_of_the_legacy_if_of_the_v1_asks_whether_the_value_is_in_the_list() {
+    let report = run("x = 1\nif x in 1, 2\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The space that comes after the comma is a part of the item, and the
+    // value "2" is not the item " 2".
+    let report = run("x = 2\nif x in 1, 2\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // Without the space, the item is "2".
+    let report = run("x = 2\nif x in 1,2\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The `contains` of the legacy `if` of the v1 asks whether the text of the
+/// value has the text of the item in it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x
+/// contains a, b` asks whether the text of `x` has "a" or " b" in it, and
+/// the text of the value is the text of the number when the value is one.
+#[test]
+fn the_contains_of_the_legacy_if_of_the_v1_asks_whether_the_text_has_the_item() {
+    let report = run("x := \"abc\"\nif x contains b, c\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("x := \"abc\"\nif x contains z\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The text of the number 12345 has the text "234" in it.
+    let report = run("x = 12345\nif x contains 234\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The `between` of the legacy `if` of the v1 asks whether the value of the
+/// variable is between the two bounds.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the bounds
+/// are in the range, and the comparison is a comparison of numbers when the
+/// value and the two bounds are numbers, and a comparison of texts otherwise.
+#[test]
+fn the_between_of_the_legacy_if_of_the_v1_asks_whether_the_value_is_in_the_range() {
+    let report = run("x = 2\nif x between 1 and 3\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The bounds are in the range.
+    let report = run("x = 1\nif x between 1 and 3\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The bounds that are the other way round hold nothing.
+    let report = run("x = 2\nif x between 3 and 1\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The texts are compared as texts.
+    let report = run("x := \"b\"\nif x between a and c\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The `not` of the forms of the legacy `if` of the v1 turns the answer
+/// around.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x
+/// not in a, b` is the `if x in a, b` with the other answer, and the same is
+/// true of the `contains` and of the `between`.
+#[test]
+fn the_not_of_the_forms_of_the_legacy_if_of_the_v1_turns_the_answer_around() {
+    let report = run("x = 1\nif x not in a, b\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("x := \"abc\"\nif x not contains z\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("x = 1\nif x not between 2 and 3\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The list of the legacy `if` of the v1 keeps the commas that are two in a
+/// row.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: two commas
+/// in a row are one comma in the item, and the item goes on: the `if x in
+/// a,,b` asks whether the value of `x` is "a,b". Three commas in a row are
+/// one comma in the item and one that separates the items.
+#[test]
+fn the_list_of_the_legacy_if_of_the_v1_keeps_the_commas_that_are_two_in_a_row() {
+    let report = run("x := \"a,b\"\nif x in a,,b\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("x := \"a,\"\nif x in a,,,b\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("x := \"a,,\"\nif x in a,,,b\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+}
+
+/// The texts of the forms of the legacy `if` of the v1 go through the
+/// substitution.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x
+/// in %y%` asks whether the value of `x` is the value of `y`, and the bound
+/// of the `between` is a text and not the name of a variable.
+#[test]
+fn the_texts_of_the_forms_of_the_legacy_if_of_the_v1_go_through_the_substitution() {
+    let report = run("x = 2\ny = 2\nif x in %y%\nz = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("z"), Some(&Value::Int(6)));
+
+    // The bound is the text "y" and not the value of the variable `y`.
+    let report = run("x = 1\ny = 1\nif x between y and 2\nz = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("z"));
+}
+
+/// The forms of the legacy `if` of the v1 follow the sense of the case.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the sense
+/// of the case says whether the letters of the texts are the same, and the
+/// `in`, the `contains` and the `between` follow it.
+#[test]
+fn the_forms_of_the_legacy_if_of_the_v1_follow_the_sense_of_the_case() {
+    let report = run("x := \"ABC\"\nif x in abc\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("StringCaseSense, On\nx := \"ABC\"\nif x in abc\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+}
+
+/// The equal sign of the legacy `if` of the v1 follows the sense of the case.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the equal
+/// sign of the legacy `if` is the comparison of the sense of the case, and not
+/// the one of the equal sign of an expression: the `if x = abc` is false when
+/// the sense of the case is On and the value of `x` is "ABC".
+#[test]
+fn the_equal_sign_of_the_legacy_if_of_the_v1_follows_the_sense_of_the_case() {
+    let report = run("x := \"ABC\"\nif x = abc\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("StringCaseSense, On\nx := \"ABC\"\nif x = abc\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+}
+
+/// The list of the legacy `if` of the v1 is refused at the load when it is
+/// not there.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x
+/// in` is refused with "\"in\" requires at least 2 parameters.", and the
+/// line that follows names the line of the condition up to the word.
+#[test]
+fn the_list_of_the_legacy_if_of_the_v1_is_refused_at_the_load_when_it_is_not_there() {
+    let error = ahk::parse_with("if x in", dialect::v1())
+        .expect_err("the list of the in is not there");
+    assert_eq!(
+        error.message,
+        "\"in\" requires at least 2 parameters.\n     Specifically: if x"
+    );
+
+    let error = ahk::parse_with("if x contains", dialect::v1())
+        .expect_err("the list of the contains is not there");
+    assert_eq!(
+        error.message,
+        "\"contains\" requires at least 2 parameters.\n     Specifically: if x"
+    );
+
+    let error = ahk::parse_with("if x not in", dialect::v1())
+        .expect_err("the list of the not in is not there");
+    assert_eq!(
+        error.message,
+        "\"not in\" requires at least 2 parameters.\n     Specifically: if x"
+    );
+}
+
+/// The `between` of the legacy `if` of the v1 is refused at the load when
+/// the word `and` is not there.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// complaint is "BETWEEN requires the word AND.", and the line that follows
+/// is the line of the condition with the word of the form replaced by a comma
+/// and the bound at the end of it.
+#[test]
+fn the_between_of_the_legacy_if_of_the_v1_is_refused_at_the_load_without_the_word_and() {
+    let error = ahk::parse_with("if x between 1", dialect::v1())
+        .expect_err("the word and is not there");
+    assert_eq!(
+        error.message,
+        "BETWEEN requires the word AND.\n     Specifically: if x ,       1"
+    );
+
+    let error = ahk::parse_with("if x between", dialect::v1())
+        .expect_err("the word and is not there");
+    assert_eq!(error.message, "BETWEEN requires the word AND.\n     Specifically: if x ,");
+}
+
+/// The tail of the `if` of the v1 that takes the line leaves the `if`
+/// without a body.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the tail
+/// that ends with an operator takes the line that comes with it, and the `if`
+/// has no body then: the statement that comes after the tail is a statement
+/// of its own, and it runs whether the condition is true or false.
+#[test]
+fn the_tail_of_the_if_of_the_v1_that_takes_the_line_leaves_the_if_without_a_body() {
+    // The statement that comes after the tail runs with the condition true.
+    let report = run("if (1) FileAppend, tail, *\nFileAppend, taken, *\nFileAppend, after, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["after".to_string()]);
+
+    // And it runs with the condition false too.
+    let report = run("if (0) FileAppend, tail, *\nFileAppend, taken, *\nFileAppend, after, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["after".to_string()]);
+}
+
+/// The condition of the `if` of the v1 is evaluated when the tail takes
+/// the line that comes with it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// condition is evaluated even when the `if` has no body, and the statement
+/// that comes after the tail sees the effect of it.
+#[test]
+fn the_condition_of_the_if_of_the_v1_is_evaluated_when_the_tail_takes_the_line() {
+    let report = run("x := 0\nif (x := 1) FileAppend, tail, *\nFileAppend, taken, *\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
+/// The `else` that comes right after the tail of the `if` of the v1 is
+/// the other side of the `if`, and its body runs always.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the body
+/// of the `else` runs whether the condition is true or false, and the tree
+/// puts it in the two sides of the `if` so that it runs in both of them.
+#[test]
+fn the_else_after_the_tail_of_the_if_of_the_v1_is_the_other_side_and_runs_always() {
+    // The body of the `else` runs with the condition true.
+    let report = run("if (1) FileAppend, tail, *\nFileAppend, taken, *\nelse FileAppend, other, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["other".to_string()]);
+
+    // And it runs with the condition false too.
+    let report = run("if (0) FileAppend, tail, *\nFileAppend, taken, *\nelse FileAppend, other, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["other".to_string()]);
+}
+
+/// The `else` that comes after the tail of the `if` of the v1 is refused
+/// when a statement comes between them.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `else`
+/// belongs to the `if` that is right above it, and the statement that comes
+/// between the tail and the `else` leaves the `else` with no `if`.
+#[test]
+fn the_else_after_the_tail_of_the_if_of_the_v1_is_refused_when_a_line_comes_between() {
+    let error = ahk::parse_with(
+        "if (1) FileAppend, tail, *\nFileAppend, taken, *\nFileAppend, between, *\nelse FileAppend, other, *",
+        dialect::v1(),
+    )
+    .expect_err("the else has no if");
+    assert_eq!(error.message, "ELSE with no matching IF");
+}
+

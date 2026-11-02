@@ -7790,3 +7790,66 @@ The legacy `if` is in `crates/ahk/src/parser.rs`
 is `Node::LegacyComparison`, the dialect says that the `if` may be the legacy
 one (`the_if_may_be_a_legacy_comparison`), and the suite of the v1 has seven
 cases more (209).
+## 194. The legacy `if` of the v1 has the forms of the `between`, of the `in` and of the `contains`, and the tail leaves the `if` without a body
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the legacy `if`
+has three forms that are not the comparison of a variable with a value -- the
+`if x between low and high`, the `if x in a, b` and the `if x contains a` --
+and the `not` may come before the word of the form: the `if x not in a, b` is
+the same form with the other answer.
+
+The words are the words of the dialect and not the case of the script: the `if
+x IN a, b` is the same form. The form is the legacy one when the name of a
+variable comes first: the `if x.y in a` is not the legacy form, and the `if
+A_ScriptDir in a, b` is.
+
+The texts of the forms are the texts of the script and not expressions, and
+they go through the legacy substitution: the `if x in %y%` asks whether the
+value of `x` is the value of `y`. The quotes that were written are a part of
+the text: the `if x in "1"` does not match the `1`.
+
+The `in` compares as text and never as a number: the `1.0` does not match the
+`1`, and the `11` does not match the `11.0`. The list is cut at the commas,
+and the spaces around them are a part of the item: the `if x in 1, 2` asks
+whether the value of `x` is "1" or " 2". Two commas in a row are one comma in
+the item, and the item goes on: the `if x in a,,b` asks whether the value of
+`x` is "a,b".
+
+The `contains` asks whether the text of the value has the text of the item in
+it, and the number becomes a text: the `12345 contains 234` is true. The empty
+item matches everything.
+
+The `between` takes the bounds inclusively, and it compares as a number when
+the value and the two bounds are numbers, and as text when they are not. The
+text is cut at the first word `and`: the `between 1 and 2 and 3` has the
+bounds "1" and "2 and 3", and the `between and 2` has the low bound empty and
+the high bound "2".
+
+The sense of the case is the sense of the machine: the three forms and the `=`
+of the legacy `if` follow `StringCaseSense`, and the `=` of an expression of
+the v1 does not.
+
+The refusals come at the load. The `between` without the word `and` says
+"BETWEEN requires the word AND.", and the line that follows is the line of
+the condition with the word of the form replaced by a comma and the bound at
+the end of it: the `if x between 1` says "Specifically: if x ,       1". The
+`in` and the `contains` without a list say "\"in\" requires at least 2
+parameters.", and the line that follows is the line of the condition up to the
+word.
+
+The tail of the `if` of the v1, when it ends with an operator, takes the line
+that comes with it, and the `if` has no body then: the statement that comes
+after the tail is a statement of its own, and it runs whether the condition is
+true or false. The condition is evaluated all the same: the `if (x := 1)` with
+a tail that takes the line leaves `x` with the value 1.
+
+The `else` that comes right after the tail is the other side of the `if`, and
+the body of it runs whether the condition is true or false; the tree puts it
+in the two sides of the `if` so that it runs in both of them. The `else` that
+comes with a statement between it and the tail has no `if` that claims it,
+and it is refused with "ELSE with no matching IF".
+
+The forms are in `crates/ahk/src/parser.rs` (`the_form_of_a_legacy_if`), the
+match is in `crates/ahk/src/runtime.rs` (`the_match_of_a_legacy_if`), the node
+of them is `Node::LegacyMatch`, and the suite of the v1 has fourteen cases
+more (223).

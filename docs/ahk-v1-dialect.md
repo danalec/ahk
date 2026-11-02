@@ -959,27 +959,38 @@ is refused with "Unexpected \"}\"". The block that comes on the line that
 comes is the body of it. The v1 knows the `<>`, which is the `!=` of the v2,
 and the v2 does not know it.
 
-**What is left of the v1.** Three corners of the `if` are measured on the
-binary of v1.1.37.02 and the tree does not do them yet.
+**The forms of the legacy `if` and the tail of the `if`** (2026-11-04). The
+legacy `if` has three forms that are not the comparison of a variable with a
+value -- the `if x between low and high`, the `if x in a, b` and the `if x
+contains a` -- and the `not` may come before the word of the form. The texts
+of them are the texts of the script and not expressions, and they go through
+the legacy substitution. The `in` compares as text and never as a number, the
+list is cut at the commas with the spaces around them inside the item, and
+two commas in a row are one comma in the item. The `contains` asks whether
+the text of the value has the text of the item in it. The `between` takes the
+bounds inclusively, compares as a number when the value and the two bounds
+are numbers, and cuts the text at the first word `and`. The three forms and
+the `=` of the legacy `if` follow `StringCaseSense`.
 
-The forms of the legacy `if` that are not the comparison of a variable with a
-value: the `if x between 1 and 2`, the `if x in a, b` and the `if x contains
-a`. The v1 measures them against the value of the variable and against the
-list or the text that comes after them, and the tree measures them with the
-operators of the v2: the `if x in a, b` is true in the tree when the value of
-`x` is 1, and it is false in the v1. The `if x between 1 and 2 {` is refused
-by the v1 with "Unexpected \"}\"", because the form is the legacy one and it
-has no One True Brace, and the tree takes the block.
+The tail of the `if`, when it ends with an operator, takes the line that comes
+with it, and the `if` has no body then: the statement that comes after the
+tail is a statement of its own, and it runs whether the condition is true or
+false. The `else` that comes right after the tail is the other side of the
+`if`, and the body of it runs whether the condition is true or false; the
+`else` that comes with a statement between it and the tail is refused with
+"ELSE with no matching IF".
+
+**What is left of the v1.** Two corners of the `if` are measured on the
+binary of v1.1.37.02 and the tree does not do them yet.
 
 The `if 1 = 1 {` is the legacy form in the v1, and the tree does not know it:
 the left side of the legacy `if` is a name and not a number.
 
-The `else` that is the body of an `if` whose tail ends with an operator: the
-`if (1) FileAppend, A, *` with a line and an `else` under it runs the action
-of the `else` in the v1, and the tree refuses it with "ELSE with no matching
-IF". The v1 refuses the `else` that is on the line of the `if` itself, and
-the tree refuses it too; the difference is the `else` that comes after the
-line that the tail took with it.
+The condition of the `if` that has a parenthesis: the v1 reads the line of it
+as a list of expressions, and the condition is true when any of them is true.
+The `if (0) x := 1` leaves `x` with the value 1 and the condition is true,
+because the assignment is one of the expressions of the line. The tree reads
+the parenthesis alone, and the text that comes after it is the tail.
 
 **The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
 its own, and the two colons that separate the name from the action are what
