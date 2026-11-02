@@ -7853,3 +7853,32 @@ The forms are in `crates/ahk/src/parser.rs` (`the_form_of_a_legacy_if`), the
 match is in `crates/ahk/src/runtime.rs` (`the_match_of_a_legacy_if`), the node
 of them is `Node::LegacyMatch`, and the suite of the v1 has fourteen cases
 more (223).
+## 195. The truth of the v1 is the number of the text, and the text that was written is a string
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text of a
+condition of the v1 is a number when the syntax of the v1 accepts it, and the
+condition is false when that number is zero: the "00" is false, and the "0.0"
+is false. The hex of the v1 is a number, and the "0x0" is false. The exponent
+of the v1 needs the point of the number, so the "0e1" is a text and not a
+number, and it is true.
+
+The v2 is not like this: the text of a condition of the v2 is true when it is
+not empty and when it is not the text "0", and the "00" is true there. The
+tree had the rule of the v2 in both the dialects, and the condition of the v1
+was true when the v1 says it is false.
+
+The `!` and the `&&` and the `||` of the v1 see the text that was written
+between quotes as a string, and a string is true when it is not empty: the
+`!("00")` is zero. The value of a variable is a number when it can be one,
+so the `!x` with `x` holding "00" is one.
+
+The `&&` and the `||` of the v1 answer one and zero, and not the operand: the
+`"a" && "b"` is 1. The v2 answers the operand: the last one that was true, or
+the first one that was not.
+
+The truth of the run is in `crates/ahk/src/runtime.rs` (`the_value_is_true`
+and `the_operand_is_true`), the answer of the `&&` is in the same file
+(`the_answer_of_the_boolean`), the dialect says which of the rules hold
+(`the_text_that_is_a_number_is_false`, `the_text_that_was_written_is_a_string`
+and `the_operators_answer_a_number`), and the suite of the v1 has three cases
+more (226).

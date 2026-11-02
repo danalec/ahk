@@ -1716,6 +1716,16 @@ that asks for another one is refused with the reason.
   whether the condition is true or false. The `else` that comes right after
   the tail is the other side of the `if`, and the body of it runs in the two
   sides.
+- **The truth of the v1 is the number of the text.** The text of a condition
+  of the v1 is a number when the syntax of the v1 accepts it, and the
+  condition is false when that number is zero: the "00" is false. The `!` and
+  the `&&` and the `||` of the v1 see the text that was written between
+  quotes as a string, and a string is true when it is not empty, and they
+  answer one and zero and not the operand. The truth of the run is in
+  `runtime.rs` (`the_value_is_true` and `the_operand_is_true`), and the
+  dialect says which of the rules hold (`the_text_that_is_a_number_is_false`,
+  `the_text_that_was_written_is_a_string` and
+  `the_operators_answer_a_number`).
 
 ## Side Effects
 

@@ -2357,7 +2357,8 @@ impl<'a> Runtime<'a> {
             Node::If { branches, otherwise, .. } => {
                 let mut taken = false;
                 for branch in branches {
-                    if self.evaluate(&branch.condition)?.truthy() {
+                    let value = self.evaluate(&branch.condition)?;
+                    if self.the_value_is_true(&value) {
                         self.run_block(&branch.body)?;
                         taken = true;
                         break;
@@ -2404,7 +2405,11 @@ impl<'a> Runtime<'a> {
                 // loop saves the value of `A_Index` when it starts and
                 // gives it back when it ends.
                 let saved = self.the_index_is_saved();
-                while self.evaluate(condition)?.truthy() {
+                loop {
+                    let value = self.evaluate(condition)?;
+                    if !self.the_value_is_true(&value) {
+                        break;
+                    }
                     iterations += 1;
                     if iterations > Self::MAX_ITERATIONS {
                         return Err(RuntimeFailure::Error(RuntimeError {
@@ -9244,6 +9249,54 @@ impl<'a> Runtime<'a> {
 
     // -- expressions ---------------------------------------------------------------
 
+    /// Whether the value of the operand is true in the dialect of the run.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// text that was written between quotes is a string of the v1, and a
+    /// string is true when it is not empty: the `!("00")` is zero. The value
+    /// of a variable is a number when it can be one, and the `!x` with `x`
+    /// holding "00" is one.
+    fn the_operand_is_true(&self, node: &Node, value: &Value) -> bool {
+        if self.dialect.the_text_that_was_written_is_a_string() && self.the_node_is_a_quoted_text(node) {
+            return match value {
+                Value::Text(text) => !text.is_empty(),
+                other => other.truthy(),
+            };
+        }
+        self.the_value_is_true(value)
+    }
+
+    /// The answer of the `&&` and of the `||`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `&&` and the `||` of the v1 answer one and zero, and not the operand:
+    /// the `"a" && "b"` is 1. The v2 answers the operand.
+    fn the_answer_of_the_boolean(&self, node: &Node, value: &Value) -> Value {
+        if self.dialect.the_operators_answer_a_number() {
+            return Value::Int(self.the_operand_is_true(node, value) as i64);
+        }
+        value.clone()
+    }
+
+    /// Whether the value is true in the dialect of the run.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// text of a condition of the v1 is a number when the syntax of the v1
+    /// accepts it, and the condition is false when that number is zero: the
+    /// "00" is false, and the "0.0" is false. The v2 keeps the text as it
+    /// was written: the "00" is true, and only the text "0" is false.
+    fn the_value_is_true(&self, value: &Value) -> bool {
+        if self.dialect.the_text_that_is_a_number_is_false() {
+            if let Value::Text(text) = value {
+                return match crate::v1::the_number_of_a_text(text) {
+                    Some(number) => number.truthy(),
+                    None => !text.is_empty(),
+                };
+            }
+        }
+        value.truthy()
+    }
+
     fn evaluate(&mut self, node: &Node) -> Result<Value, RuntimeFailure> {
         match node {
             Node::Assign { name, op, value, line } => {
@@ -9457,7 +9510,7 @@ impl<'a> Runtime<'a> {
                 // looser, and the parser keeps them apart for that.
                 UnaryOp::Not | UnaryOp::NotWord => {
                     let value = self.evaluate(operand)?;
-                    Ok(Value::Int(!value.truthy() as i64))
+                    Ok(Value::Int(!self.the_operand_is_true(operand, &value) as i64))
                 }
                 // A whole number stays a whole number: `-3` is the
                 // integer -3, the way AutoHotkey v2 has it.
@@ -9555,17 +9608,24 @@ impl<'a> Runtime<'a> {
                     // `and` and `or` answer the operand and not a truth:
                     // v2 hands back the last one that was true, or the
                     // first one that was not.
+                    //
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the `&&` and the `||` of the v1 answer
+                    // one and zero, and not the operand: the `"a" && "b"`
+                    // is 1.
                     BinaryOp::And => {
-                        if !left_value.truthy() {
-                            return Ok(left_value);
+                        if !self.the_operand_is_true(left, &left_value) {
+                            return Ok(self.the_answer_of_the_boolean(left, &left_value));
                         }
-                        return self.evaluate(right);
+                        let right_value = self.evaluate(right)?;
+                        return Ok(self.the_answer_of_the_boolean(right, &right_value));
                     }
                     BinaryOp::Or => {
-                        if left_value.truthy() {
-                            return Ok(left_value);
+                        if self.the_operand_is_true(left, &left_value) {
+                            return Ok(self.the_answer_of_the_boolean(left, &left_value));
                         }
-                        return self.evaluate(right);
+                        let right_value = self.evaluate(right)?;
+                        return Ok(self.the_answer_of_the_boolean(right, &right_value));
                     }
                     _ => {}
                 }
@@ -9901,7 +9961,8 @@ impl<'a> Runtime<'a> {
                 self.index_a_value(&target, &key, *line)
             }
             Node::Ternary { condition, then, otherwise, .. } => {
-                if self.evaluate(condition)?.truthy() {
+                let value = self.evaluate(condition)?;
+                if self.the_value_is_true(&value) {
                     self.evaluate(then)
                 } else {
                     self.evaluate(otherwise)

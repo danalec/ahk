@@ -5893,3 +5893,104 @@ fn the_else_after_the_tail_of_the_if_of_the_v1_is_refused_when_a_line_comes_betw
     assert_eq!(error.message, "ELSE with no matching IF");
 }
 
+/// The text of a condition of the v1 is a number when the v1 reads it as
+/// one.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text
+/// of a condition is a number when the syntax of the v1 accepts it, and the
+/// condition is false when that number is zero: the "00" is false, and the
+/// "0.0" is false. The exponent of the v1 needs the point of the number,
+/// and the "0e1" is a text and not a number.
+#[test]
+fn the_text_of_a_condition_of_the_v1_is_a_number_when_the_v1_reads_it_as_one() {
+    // The zeros in front of the number are a part of it.
+    let report = run("if (\"00\")\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The point of the number is a part of it.
+    let report = run("if (\"0.0\")\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The hex of the v1 is a number.
+    let report = run("if (\"0x0\")\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The exponent of the v1 needs the point of the number, and the "0e1" is a text.
+    let report = run("if (\"0e1\")\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The text that is not a number is true.
+    let report = run("if (\"a\")\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The empty text is false.
+    let report = run("if (\"\")\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The concatenation of two zeros is the text "00", and it is a number of zero.
+    let report = run("if (0) 0\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+}
+
+/// The `!` of the v1 sees the text that was written as a string and the
+/// value of a variable as a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text
+/// that was written between quotes is a string, and a string is true when
+/// it is not empty: the `!("00")` is zero. The value of a variable is a
+/// number when it can be one, and the `!x` with `x` holding "00" is one.
+#[test]
+fn the_not_of_the_v1_sees_the_text_that_was_written_as_a_string() {
+    // The text that was written is a string, and it is true.
+    let report = run("x := !(\"00\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The empty text is false.
+    let report = run("x := !(\"\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The value of a variable is a number, and the zero is false.
+    let report = run("y := \"00\"\nx := !y");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The value of a variable that is not a number is true.
+    let report = run("y := \"a\"\nx := !y");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+}
+
+/// The `&&` and the `||` of the v1 answer one and zero.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `&&`
+/// and the `||` of the v1 answer one and zero, and not the operand: the
+/// `"a" && "b"` is 1. The v2 answers the operand.
+#[test]
+fn the_and_and_the_or_of_the_v1_answer_one_and_zero() {
+    // The text that was written is a string.
+    let report = run("x := \"a\" && \"b\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    // The value of a variable is a number.
+    let report = run("y := \"00\"\nx := y && y");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+
+    // The `||` of a zero and of a letter.
+    let report = run("x := 0 || \"a\"");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+}

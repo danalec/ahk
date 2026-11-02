@@ -189,6 +189,41 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether a text that is a number of the dialect is false when the
+    /// number is zero.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// text of a condition of the v1 is a number when the syntax of the v1
+    /// accepts it, and the condition is false when that number is zero: the
+    /// "00" is false, and the "0.0" is false. The v2 keeps the text as it
+    /// was written: the "00" is true, and only the text "0" is false.
+    fn the_text_that_is_a_number_is_false(&self) -> bool {
+        false
+    }
+
+    /// Whether the text that was written between quotes is a string of the
+    /// dialect, and not a number.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// text that was written is a string, and a string is true when it is not
+    /// empty: the `!("00")` is zero. The value of a variable is a number when
+    /// it can be one, and the `!x` with `x` holding "00" is one. The v2 has
+    /// no difference between the two.
+    fn the_text_that_was_written_is_a_string(&self) -> bool {
+        false
+    }
+
+    /// Whether the `&&` and the `||` of the dialect answer a number and not
+    /// the operand.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `&&` and the `||` of the v1 answer one and zero, and not the operand:
+    /// the `"a" && "b"` is 1. The v2 answers the operand: the last one that
+    /// was true, or the first one that was not.
+    fn the_operators_answer_a_number(&self) -> bool {
+        false
+    }
+
     /// The class of an object of the dialect.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the object of
@@ -1070,6 +1105,18 @@ impl Dialect for V1 {
     }
 
     fn the_if_may_be_a_legacy_comparison(&self) -> bool {
+        true
+    }
+
+    fn the_text_that_is_a_number_is_false(&self) -> bool {
+        true
+    }
+
+    fn the_text_that_was_written_is_a_string(&self) -> bool {
+        true
+    }
+
+    fn the_operators_answer_a_number(&self) -> bool {
         true
     }
 

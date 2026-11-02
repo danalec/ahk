@@ -980,17 +980,27 @@ false. The `else` that comes right after the tail is the other side of the
 `else` that comes with a statement between it and the tail is refused with
 "ELSE with no matching IF".
 
+**The truth of the v1** (2026-11-04). The text of a condition of the v1 is a
+number when the syntax of the v1 accepts it, and the condition is false when
+that number is zero: the "00" is false, and the "0.0" is false. The v2 keeps
+the text as it was written, and the "00" is true there.
+
+The `!` and the `&&` and the `||` of the v1 see the text that was written
+between quotes as a string, and a string is true when it is not empty: the
+`!("00")` is zero. The value of a variable is a number when it can be one, so
+the `!x` with `x` holding "00" is one. The `&&` and the `||` of the v1 answer
+one and zero, and not the operand: the `"a" && "b"` is 1.
+
 **What is left of the v1.** Two corners of the `if` are measured on the
 binary of v1.1.37.02 and the tree does not do them yet.
 
 The `if 1 = 1 {` is the legacy form in the v1, and the tree does not know it:
 the left side of the legacy `if` is a name and not a number.
 
-The condition of the `if` that has a parenthesis: the v1 reads the line of it
-as a list of expressions, and the condition is true when any of them is true.
-The `if (0) x := 1` leaves `x` with the value 1 and the condition is true,
-because the assignment is one of the expressions of the line. The tree reads
-the parenthesis alone, and the text that comes after it is the tail.
+The `if` that comes after the condition: the v1 accepts the `if (1) if (1) x :=
+1` and the tree refuses it with "The following reserved word must not be used
+as a variable name: \"if\"", because the condition of the tree is an
+expression and the `if` is not one.
 
 **The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
 its own, and the two colons that separate the name from the action are what
