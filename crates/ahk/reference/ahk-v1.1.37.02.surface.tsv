@@ -38,6 +38,12 @@
 # takes two.
 #
 #
+#
+# The `EnvSet` was measured again on 2026-11-02: the name of the variable of
+# the environment may not be blank, and the command is refused when the
+# script loads. The name is not the name of a variable of the script, and
+# the shape of it is the one of a name.
+#
 # The `EnvAdd`, the `EnvSub`, the `EnvMult` and the `EnvDiv` were measured
 # again on 2026-11-02: they are the arithmetic of the v1 on a variable of the
 # script -- the `EnvAdd, x, 3` with `x` at five leaves `x` at eight -- and
@@ -105,7 +111,7 @@ command		EnvAdd	2	255	Output,Value,Value
 command		EnvDiv	2	255	Output,Value
 command		EnvGet	2	255	Output,Value
 command		EnvMult	2	255	Output,Value
-command		EnvSet	1	255	Value,Value
+command		EnvSet	1	255	Name,Value
 command		EnvSub	2	255	Output,Value,Value
 command		EnvUpdate	0	255	
 variable		ErrorLevel			

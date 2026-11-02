@@ -3039,7 +3039,11 @@ impl Parser {
             for (index, parameter) in parameters.iter().enumerate() {
                 let wants_a_name = matches!(
                     builtin.parameters.get(index),
-                    Some(crate::builtins::Parameter::Variable | crate::builtins::Parameter::Output)
+                    Some(
+                        crate::builtins::Parameter::Variable
+                            | crate::builtins::Parameter::Output
+                            | crate::builtins::Parameter::Name
+                    )
                 );
                 if wants_a_name && parameter.trim().is_empty() {
                     return Err(self.error(format!(

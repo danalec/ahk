@@ -154,6 +154,16 @@ impl Processes for Fake {
         Ok((7, String::new(), String::new()))
     }
 
+    fn env_set(&mut self, name: &str, value: &str) -> Result<String, String> {
+        // The machine refuses the name of a variable of the environment that
+        // carries the equal sign, and it refuses it with a panic when the
+        // name is given to it as it is.
+        if name.contains('=') {
+            return Err("the name of a variable of the environment may not carry the equal sign".into());
+        }
+        Ok(value.to_string())
+    }
+
     fn launch(&mut self, command: &str, _working_dir: &str) -> Result<u32, String> {
         // The `Run` of the v1 starts the program and goes on, and the pid of
         // the process is what the fake answers with.
@@ -4093,4 +4103,41 @@ fn the_arithmetic_of_the_v1_is_on_a_variable_of_the_script() {
         report.error,
         Some("the date arithmetic of the v1 is not carried by this tree.".to_string())
     );
+}
+
+/// The environment of the v1 writes the `ErrorLevel`, and the name of the
+/// variable of the environment may not be blank.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `ErrorLevel` of the v1 is one when there was a problem and zero
+/// otherwise, and the v1 goes on: the name of the variable of the
+/// environment may not carry the equal sign, the machine refuses it, and the
+/// reason of it is a note. The name that is blank is refused when the
+/// script loads, and the `EnvUpdate` has nothing to do: the tree shares the
+/// environment of the process with the script.
+#[test]
+fn the_environment_of_the_v1_writes_the_error_level() {
+    // The name that the machine takes.
+    let report = run("EnvSet, MYVARIABLEOFTHETEST, 3\nFileAppend, [%ErrorLevel%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[0]".to_string()]);
+
+    // The name that the machine refuses: the `ErrorLevel` is one, and the
+    // v1 goes on.
+    let report = run("EnvSet, A=B, 1\nFileAppend, [%ErrorLevel%][after], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[1][after]".to_string()]);
+
+    // The name that is blank is refused when the script loads.
+    let error = ahk::parse_with("EnvSet, , 1", dialect::v1())
+        .expect_err("the name is blank");
+    assert_eq!(
+        error.message,
+        "\"EnvSet\" requires that parameter #1 be non-blank.\n     Specifically: EnvSet,"
+    );
+
+    // The `EnvUpdate` has nothing to do.
+    let report = run("EnvUpdate\nFileAppend, [after], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[after]".to_string()]);
 }

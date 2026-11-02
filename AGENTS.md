@@ -7369,3 +7369,30 @@ The shape of the first parameter of the four commands changed in the surface
 of the v1 and in the table of the built-ins: the command writes into the
 variable, and the value of it is not read. The suite of the v1 has one case
 more (150).
+
+## 182. The environment of the v1 writes the `ErrorLevel`, and the name of it may not be blank
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `EnvSet` writes the `ErrorLevel` of the v1**: one when there was a
+  problem and zero otherwise. The v1 goes on: the name of the variable of
+  the environment may not carry the equal sign, the machine refuses it, and
+  the reason of it is a note.
+- **The name that is blank is refused when the script loads**: "EnvSet"
+  requires that parameter #1 be non-blank. The name is not the name of a
+  variable of the script, and the tree has a shape for it: the `Name`, the
+  text of it reaches the command, and it may not be blank.
+- **The `EnvGet` does not write the `ErrorLevel`**: it is zero whether the
+  variable is there or not.
+- **The `EnvUpdate` has nothing to do.** The v1 takes the environment of the
+  process again, and the tree shares the environment of the process with the
+  script: the command is carried, and the surface of the v1 has one more
+  name that answers with a value.
+
+The machine refuses the name that is empty and the name that carries the
+equal sign, and it refuses them with a panic when the name is given to it
+as it is: the box checks the name before it writes it, and it answers with
+the reason.
+
+The suite of the v1 has one case more (151), and the surface of the v1 is
+405 names: 298 answer with a value, 107 are refused and none is pending.

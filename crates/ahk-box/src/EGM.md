@@ -413,6 +413,12 @@ with the `png` crate and looks for them on the screen with a capture of
   taken away.** The pattern of `FileExist` answers with the first of them,
   and the `Loop Files` walks them in the same order.
 
+- **The name of a variable of the environment is checked before the machine
+  sees it.** The name may not be empty, and it may not carry the equal
+  sign: the machine refuses both of them, and it refuses them with a panic
+  when the name is given to it as it is. The box answers with the reason
+  instead of letting the script die.
+
 ## Side Effects
 
 - **Opens `/dev/uinput`** twice over the life of a run, once per device, with `O_NONBLOCK`. The user has to be in the `input` group; no privilege beyond that is asked for.

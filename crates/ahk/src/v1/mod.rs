@@ -266,6 +266,47 @@ pub(crate) fn env_get(
     the_answer_goes_into_the_first_output(rt, "EnvGet", values, line, crate::builtins::env_get, 0)
 }
 
+/// `EnvSet, name, value`: the value of an environment variable.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
+/// the v1 is one when there was a problem and zero otherwise, and the v1
+/// goes on: the name of the variable of the environment may not carry the
+/// equal sign, the machine refuses it, and the reason of it is a note.
+pub(crate) fn env_set(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let value = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    match rt.desktop().env_set(&name, &value) {
+        Ok(answer) => {
+            rt.set_the_error_level(Value::Int(0));
+            Ok(Value::Text(answer))
+        }
+        Err(reason) => {
+            rt.set_the_error_level(Value::Int(1));
+            rt.note(format!("the variable of the environment was not set: {reason}"));
+            Ok(Value::Text(value))
+        }
+    }
+}
+
+/// `EnvUpdate`: the environment of the script again.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 takes the
+/// environment of the process again, and the tree shares the environment of
+/// the process with the script: the command has nothing to do.
+pub(crate) fn env_update(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
 /// `FileGetAttrib, name, file`: the attributes of a file.
 pub(crate) fn file_get_attrib(
     rt: &mut Runtime<'_>,

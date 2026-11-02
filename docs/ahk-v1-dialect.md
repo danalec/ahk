@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 150 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 151 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -846,7 +846,7 @@ the path of the class of the `new` by the block of the path (2026-11-02), and
 the parameter of a command by the block of the parameters (2026-11-02), and
 the pid of the process by the block of the pid (2026-11-02), and the code of
 the failure of a native call by the block of the code (2026-11-02), and the
-patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02).
+patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -939,6 +939,18 @@ of the `EnvSub`, and the unit that is not one of the four is refused at the
 load; the date arithmetic itself is not carried yet, and the command says so
 when it runs. The block of the arithmetic (2026-11-02) carried it.
 
+**The environment of the v1.** The `EnvSet` writes the `ErrorLevel` of the
+v1 -- one when there was a problem and zero otherwise -- and the v1 goes on:
+the name of the variable of the environment may not carry the equal sign, the
+machine refuses it, and the reason of it is a note. The name that is blank is
+refused when the script loads, and the tree has a shape for it that is not
+the one of a variable of the script: the `Name`, the text of it reaches the
+command, and it may not be blank. The `EnvGet` does not write the
+`ErrorLevel`, and the `EnvUpdate` has nothing to do -- the tree shares the
+environment of the process with the script -- and it is carried now: the
+surface of the v1 has one more name that answers with a value. The block of
+the environment (2026-11-02) carried it.
+
 **The path of the class.** The `new` of the v1 takes the path of the class:
 the name that follows the word and the names of the classes that it holds.
 The `new C.D` is an instance of D, and the `new o.D` is an instance of the
@@ -959,8 +971,8 @@ number. The block of the number (2026-11-02) carried it, with the literal
 of a number (`crates/ahk/src/ast.rs`), the coercion of a text
 (`crates/ahk/src/v1/numbers.rs`) and the format of the integers.
 
-The surface of the v1 has **405** entries: **297** answer with a value,
-**108** are refused and none is pending. The surface of the v2 did not
+The surface of the v1 has **405** entries: **298** answer with a value,
+**107** are refused and none is pending. The surface of the v2 did not
 move: **828** entries, **637** values, **191** refusals and no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an

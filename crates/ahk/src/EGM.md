@@ -1599,6 +1599,11 @@ that asks for another one is refused with the reason.
   The two whole numbers give a whole number, and the division of them is
   rounded towards the zero.
 
+- **The environment of the v1 writes the `ErrorLevel`, and the name of the
+  variable may not be blank.** The `EnvSet` answers with one when the
+  machine refused the name and with zero otherwise, and the v1 goes on: the
+  reason of the failure is a note and not the end of the script.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

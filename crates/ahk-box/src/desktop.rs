@@ -855,6 +855,16 @@ impl ahk::desktop::Processes for LabDesktop {
     }
 
     fn env_set(&mut self, name: &str, value: &str) -> Result<String, String> {
+        // The name of a variable of the environment may not be empty, and it
+        // may not carry the equal sign: the machine refuses both of them,
+        // and it refuses them with a panic when the name is given to it as
+        // it is.
+        if name.is_empty() {
+            return Err("the name of a variable of the environment may not be empty".to_string());
+        }
+        if name.contains('=') {
+            return Err("the name of a variable of the environment may not carry the equal sign".to_string());
+        }
         // The environment of the runner is its own: the box has one
         // session and one user, and a script that sets a variable of it
         // changes it for the rest of the run. The script runs on one

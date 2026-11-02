@@ -83,6 +83,11 @@ pub enum Parameter {
     /// handler writes into it. The commands of the v1 write their output
     /// this way.
     Output,
+    /// The parameter is the name of a thing of the machine -- a variable of
+    /// the environment -- and the text of it reaches the handler. The name
+    /// may not be blank, and the commands of the v1 that name a thing of
+    /// the machine are checked at the load.
+    Name,
 }
 
 /// What a built-in does with its arguments.
