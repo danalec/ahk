@@ -1665,6 +1665,17 @@ that asks for another one is refused with the reason.
   the parameters that it does not need -- and the name of the key is checked
   when the script loads: "Parameter #2 invalid." The names of the keys are in
   `v1/keys.rs`, and the two rows of the table are the two forms of the name.
+- **The hotkey of the v1 is a line of its own.** The two colons that separate
+  the name from the action are what says so, and the line of a command is not
+  the line of a hotkey. The name is a set of prefixes, a set of modifiers and
+  the name of a key, and the name that is not a key is refused when the script
+  loads: "Invalid hotkey." The hotkey that is declared twice is refused too:
+  "Duplicate hotkey." The action of the hotkey is the body that comes after
+  the line, or the command that the line carries, and the body is not a
+  block: the `return` of it ends the thread of the hotkey and not the script.
+  The names are in `v1/hotkeys.rs`, the line of the hotkey is the node
+  `Node::HotkeyDefinition`, and the hotkeys are registered with the desktop
+  when the script loads.
 
 ## Side Effects
 

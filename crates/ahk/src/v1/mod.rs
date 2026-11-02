@@ -19,6 +19,7 @@ use crate::runtime::{Runtime, RuntimeError, Value};
 
 mod chars;
 mod files;
+mod hotkeys;
 mod keys;
 mod kinds;
 mod labels;
@@ -45,6 +46,11 @@ pub(crate) use kinds::wants_a_number;
 
 pub(crate) use labels::the_label_of_the_command;
 pub(crate) use labels::the_refusal_of_a_goto;
+
+pub(crate) use hotkeys::is_the_name_of_a_command;
+pub(crate) use hotkeys::the_context_of_the_v1_is_refused_in_a_hotkey;
+pub(crate) use hotkeys::the_name_of_a_hotkey;
+pub(crate) use hotkeys::TheName;
 
 pub(crate) use math::{
     abs, acos, asin, atan, ceil, cos, exp, floor, ln, log, max, min, modulo, round, sin, sqrt, tan,

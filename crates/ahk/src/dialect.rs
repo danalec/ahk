@@ -229,6 +229,24 @@ pub trait Dialect: Sync {
     /// The hotstring is a statement: `::btw::by the way`.
     fn hotstrings_are_statements(&self) -> bool;
 
+    /// Whether the hotkeys of the dialect are written in a line of their own.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1
+    /// writes a hotkey in a line of its own, and the action of it is the
+    /// label that comes after the line, or the command that the line
+    /// carries. The v2 writes the hotkey in a call, and the action of it is
+    /// a function of the script.
+    fn the_hotkeys_are_labels(&self) -> bool;
+
+    /// Whether the section of the script that runs ends at the first hotkey
+    /// or at the first hotstring.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// v1 runs the code that comes before the first hotkey or the first
+    /// hotstring, and the hotkey itself is registered when the section
+    /// reaches it. The v2 has no section of its own.
+    fn the_section_that_runs_ends_at_the_hotkey(&self) -> bool;
+
     /// Whether the dialect knows the directive of this name.
     ///
     /// The name is the one of the directive without the hash, and the
@@ -939,6 +957,14 @@ impl Dialect for V2 {
         false
     }
 
+    fn the_hotkeys_are_labels(&self) -> bool {
+        false
+    }
+
+    fn the_section_that_runs_ends_at_the_hotkey(&self) -> bool {
+        false
+    }
+
     fn carries_directive(&self, name: &str) -> bool {
         crate::lexer::carries_directive(name)
     }
@@ -1061,6 +1087,19 @@ impl Dialect for V1 {
     }
 
     fn hotstrings_are_statements(&self) -> bool {
+        true
+    }
+
+    fn the_hotkeys_are_labels(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+        // v1 writes a hotkey in a line of its own.
+        true
+    }
+
+    fn the_section_that_runs_ends_at_the_hotkey(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+        // code that comes after the first hotkey or the first hotstring of
+        // the v1 does not run.
         true
     }
 

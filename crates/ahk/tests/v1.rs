@@ -35,6 +35,8 @@ struct Fake {
     clipboard: String,
     /// What the machine was asked, in the order of the questions.
     calls: RefCell<Vec<String>>,
+    /// The hotkeys that the fake fires, in the order of the questions.
+    fired: RefCell<Vec<String>>,
 }
 
 impl Desktop for Fake {}
@@ -109,7 +111,21 @@ impl Files for Fake {
         Ok("C:\\work".to_string())
     }
 }
-impl Hotkeys for Fake {}
+impl Hotkeys for Fake {
+    fn register_hotkey(&mut self, name: &str) -> Result<String, String> {
+        // The hotkey of the v1 is registered with the desktop, and the
+        // desktop is told the name of it.
+        self.calls.borrow_mut().push(format!("register {name}"));
+        Ok(format!("the hotkey {name} is registered"))
+    }
+    fn fired_hotkey(&mut self) -> Result<Option<String>, String> {
+        let mut fired = self.fired.borrow_mut();
+        if fired.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(fired.remove(0)))
+    }
+}
 impl Native for Fake {
     fn call_native(&mut self, call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
         // The names that are not there are the ones that the cases use for
@@ -220,7 +236,11 @@ fn run_with_the_clipboard(script: &str, clipboard: &str) -> Report {
     // while it runs, so that no other case writes them under its feet.
     let _turn = THE_TURN.lock().unwrap_or_else(|poison| poison.into_inner());
     let statements = ahk::parse_with(script, dialect::v1()).expect("the script of the v1 parses");
-    let mut desktop = Fake { clipboard: clipboard.to_string(), calls: RefCell::new(Vec::new()) };
+    let mut desktop = Fake {
+        clipboard: clipboard.to_string(),
+        calls: RefCell::new(Vec::new()),
+        fired: RefCell::new(Vec::new()),
+    };
     Runtime::new(&mut desktop, Duration::from_secs(60))
         .with_dialect(dialect::v1())
         .run(&statements)
@@ -234,7 +254,31 @@ fn run_with_the_clipboard(script: &str, clipboard: &str) -> Report {
 fn run_and_the_calls(script: &str) -> (Report, Vec<String>) {
     let _turn = THE_TURN.lock().unwrap_or_else(|poison| poison.into_inner());
     let statements = ahk::parse_with(script, dialect::v1()).expect("the script of the v1 parses");
-    let mut desktop = Fake { clipboard: String::new(), calls: RefCell::new(Vec::new()) };
+    let mut desktop = Fake {
+        clipboard: String::new(),
+        calls: RefCell::new(Vec::new()),
+        fired: RefCell::new(Vec::new()),
+    };
+    let report = Runtime::new(&mut desktop, Duration::from_secs(60))
+        .with_dialect(dialect::v1())
+        .run(&statements);
+    let calls = desktop.calls.into_inner();
+    (report, calls)
+}
+
+/// Run a script of the v1 and answer with the report and with what the
+/// machine was asked, and fire the hotkeys that are given.
+///
+/// The cases of the hotkey of the v1 need the fake to say which hotkey was
+/// pressed: the body of the hotkey runs when the key comes.
+fn run_and_the_calls_with_the_fired(script: &str, fired: &[&str]) -> (Report, Vec<String>) {
+    let _turn = THE_TURN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let statements = ahk::parse_with(script, dialect::v1()).expect("the script of the v1 parses");
+    let mut desktop = Fake {
+        clipboard: String::new(),
+        calls: RefCell::new(Vec::new()),
+        fired: RefCell::new(fired.iter().map(|name| name.to_string()).collect()),
+    };
     let report = Runtime::new(&mut desktop, Duration::from_secs(60))
         .with_dialect(dialect::v1())
         .run(&statements);
@@ -5205,5 +5249,154 @@ fn the_function_of_the_get_key_state_of_the_v1_takes_one_or_two_parameters() {
     assert_eq!(
         the_refusal_of_the_load("x := GetKeyState(\"Shift\", \"P\", \"T\")"),
         "Too many parameters passed to function.\n     Specifically: GetKeyState(\"Shift\", \"P\", \"T\")"
+    );
+}
+
+/// The hotkey of the v1 is a line of its own, and the desktop watches it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1
+/// writes a hotkey in a line of its own, and the hotkey is registered when
+/// the script loads.
+#[test]
+fn the_hotkey_of_the_v1_is_registered_with_the_desktop() {
+    let (report, calls) = run_and_the_calls("^!a::x := 1");
+    assert!(report.ok);
+    assert_eq!(calls, vec!["register ^!a".to_string()]);
+}
+
+/// The name of the hotkey that is not the name of a key is refused.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the name
+/// that is not a key is refused when the script loads, and the refusal
+/// names the line of it.
+#[test]
+fn the_name_of_the_hotkey_that_is_not_a_key_is_refused() {
+    assert_eq!(
+        the_refusal_of_the_load("^!zzz::x := 1"),
+        "Invalid hotkey.\n     Specifically: ^!zzz::x := 1"
+    );
+}
+
+/// The names that the v1 takes are the names of the keys.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the name
+/// is a set of prefixes -- the `$` of the hook, the `~` of the tilde and the
+/// `*` of the wildcard -- a set of modifiers and the name of a key, and the
+/// word "up" may follow the name of the key.
+#[test]
+fn the_names_that_the_v1_takes_are_the_names_of_the_keys() {
+    for name in [
+        "^!a",
+        "a",
+        "5",
+        "$^!a",
+        "~^!a",
+        "*a",
+        "<^!a",
+        "^!a up",
+        "^!LButton",
+        "^!Browser_Back",
+        "RCtrl & RShift",
+    ] {
+        let script = format!("{name}::x := 1");
+        let (report, calls) = run_and_the_calls(&script);
+        assert!(report.ok, "{name}");
+        assert_eq!(calls, vec![format!("register {name}")], "{name}");
+    }
+}
+
+/// The names that the v1 does not take are refused.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the name
+/// that has a space in it is not a name, and the wildcard is only at the
+/// beginning of it.
+#[test]
+fn the_names_that_the_v1_does_not_take_are_refused() {
+    for name in ["^!zzz", "a b", "a*b", "a$", "a~", "^!a b", "a & b & c", "^a & b", "^!Browser Back"] {
+        let script = format!("{name}::x := 1");
+        assert_eq!(
+            the_refusal_of_the_load(&script),
+            format!("Invalid hotkey.\n     Specifically: {name}::x := 1"),
+            "{name}"
+        );
+    }
+}
+
+/// The hotkey that is declared twice is refused.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the `$`
+/// and the `~` do not make the hotkey another one, and the case of the name
+/// does not either. The refusal names the hotkey as the script spelled it.
+#[test]
+fn the_hotkey_that_is_declared_twice_is_refused() {
+    assert_eq!(
+        the_refusal_of_the_load("^!a::x := 1\n^!a::y := 2"),
+        "Duplicate hotkey.\n     Specifically: ^!a"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("^!a::x := 1\n^!A::y := 2"),
+        "Duplicate hotkey.\n     Specifically: ^!A"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("^!a::x := 1\n$^!a::y := 2"),
+        "Duplicate hotkey.\n     Specifically: $^!a"
+    );
+}
+
+/// The constructs of the v1 are refused in the action of a hotkey.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+/// `if`, the `while`, the `loop` and the `for` are refused in the action of
+/// a hotkey that is written in one line, and the refusal names the line.
+#[test]
+fn the_constructs_of_the_v1_are_refused_in_the_action_of_a_hotkey() {
+    assert_eq!(
+        the_refusal_of_the_load("^!a::if (1) x := 1"),
+        "Invalid single-line hotkey/hotstring.\n     Specifically: ^!a::if (1) x := 1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("^!a::while 1 x := 1"),
+        "Invalid single-line hotkey/hotstring.\n     Specifically: ^!a::while 1 x := 1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("^!a::ifwinactive, ahk x := 1"),
+        "Invalid single-line hotkey/hotstring.\n     Specifically: ^!a::ifwinactive, ahk x := 1"
+    );
+}
+
+/// The body of the hotkey runs when the hotkey fires.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the body
+/// of a hotkey runs with the scope of the script, and the `return` of it
+/// ends the thread of the hotkey and not the script.
+#[test]
+fn the_body_of_the_hotkey_of_the_v1_runs_when_the_hotkey_fires() {
+    let (report, _) = run_and_the_calls_with_the_fired("^!a::\nx := 1\nreturn", &["^!a"]);
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("1".into())));
+}
+
+/// The code that comes after the hotkey does not run.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+/// section of the script that runs ends at the first hotkey of the v1.
+#[test]
+fn the_code_that_comes_after_the_hotkey_does_not_run() {
+    let (report, _) = run_and_the_calls("^!a::\nx := 1\nreturn\ny := 2");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("x"));
+    assert!(!report.variables.contains_key("y"));
+}
+
+/// The hotstring of the v1 that has no second pair of colons is refused.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the line
+/// of a hotstring that has no second pair of colons is not a hotstring, and
+/// the v1 refuses it with "Invalid hotkey." and the line of it.
+#[test]
+fn the_hotstring_of_the_v1_that_has_no_second_pair_of_colons_is_refused() {
+    assert_eq!(
+        the_refusal_of_the_load("::x := 1"),
+        "Invalid hotkey.\n     Specifically: ::x := 1"
     );
 }

@@ -631,6 +631,28 @@ pub enum Node {    /// A value.
     /// The name is not an expression: it is the text of the parameter as
     /// the script wrote it, and the quotes of a text are part of it.
     Goto { name: String, line: u32 },
+    /// A hotkey of the v1: the line that defines it, and its action.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1
+    /// writes a hotkey in a line of its own, and the action of it is the
+    /// label that comes after the line, or the command that the line
+    /// carries. The body of the hotkey is the action, and it runs with the
+    /// scope of the script.
+    HotkeyDefinition {
+        /// The name of the hotkey, as the script spelled it.
+        name: String,
+        /// The action of the hotkey: the body that comes after the line, or
+        /// the command that the line carries.
+        body: Vec<Node>,
+        /// Whether the action is the command that the line carries.
+        ///
+        /// The body of a hotkey that is written in one line is the command
+        /// of the line, and the code that comes after it does not belong to
+        /// it. The body of the other one is the code that comes after it.
+        on_the_line: bool,
+        /// The line of the definition.
+        line: u32,
+    },
 }
 
 /// One parameter of a function.
@@ -702,7 +724,8 @@ impl Node {
             | Node::Super { line, .. }
             | Node::For { line, .. }
             | Node::Label { line, .. }
-            | Node::Goto { line, .. } => *line,
+            | Node::Goto { line, .. }
+            | Node::HotkeyDefinition { line, .. } => *line,
         }
     }
 }

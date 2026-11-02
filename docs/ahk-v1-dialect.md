@@ -926,8 +926,8 @@ are in `crates/ahk/src/v1/keys.rs`, the rule of the parameter is in
 `crates/ahk/src/v1/parameters.rs`, and the two forms of the name are two rows
 of the table of the v1. The block of the key state (2026-11-03) carried it.
 
-**What is left of the v1.** Two families of the grammar are measured on the
-binary of v1.1.37.02 and the tree does not do them yet.
+**What is left of the v1.** One family of the grammar is measured on the
+binary of v1.1.37.02 and the tree does not do it yet.
 
 The body of the `if` on the line of the construct: the v1 takes it, and the
 body runs -- the `if (1) SetTimer, Foo, 100` sets the timer of it, and the
@@ -941,16 +941,45 @@ the `if (1) goto L` is refused with "Unexpected \"If\"". The change is in the
 parser of the `if` of the v1, and it is not only the check of the body: the
 condition of the v1 has to end where the v1 ends it.
 
-The definition of the hotkey of the v1: it is a line of its own, and the
-action of it is the label that comes after the line, or the command that the
-line carries. The v1 refuses the name that is not a key with "Invalid
-hotkey." and it names the line, it refuses the context of a single-line
-hotkey with "Invalid single-line hotkey/hotstring.", and it refuses the
-hotkey that is declared twice with "Duplicate hotkey." and the name of it.
-The tree does not have the syntax of it: the line is refused with "This line
-does not contain a recognized action." The names of the keys of the v1 are
-already in `crates/ahk/src/v1/keys.rs`, and the hotkey of the v2 is already
-in `crates/ahk/src/hotkeys.rs`.
+**The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
+its own, and the two colons that separate the name from the action are what
+says so. The name is a set of prefixes -- the `$` of the hook, the `~` of the
+tilde and the `*` of the wildcard -- a set of modifiers -- the `^` of the
+control, the `!` of the alt, the `+` of the shift and the `#` of the win,
+with the `<` and the `>` naming the side of the key -- and the name of a key.
+The word "up" may follow the name of the key, and the hotkey fires when the
+key comes up. The name may not have a space in it: the "Browser Back" is not
+a key, and the "Browser_Back" is. The combination of two keys -- the `RCtrl &
+RShift` -- is a hotkey of its own, and a modifier is not one of its keys.
+
+The name that is not the name of a key is refused when the script loads, and
+the complaint of the v1 is "Invalid hotkey." with the line of it. The hotkey
+that is declared twice is refused too, and the complaint is "Duplicate
+hotkey." with the name of it, as the script spelled it: the `$` and the `~`
+do not make the hotkey another one, and the case of the name does not either;
+the `*` does. The constructs of the v1 and the contexts of it -- the `if`,
+the `while`, the `loop`, the `for`, the `ifwinactive` and the `ifequal` --
+are refused in the action of a hotkey that is written in one line, and the
+complaint is "Invalid single-line hotkey/hotstring." with the line.
+
+The action of the hotkey is the body that comes after the line, or the
+command that the line carries. The body is the code that comes after the
+line, and the `return` of it is what ends it: the body of the hotkey is not
+a block, the variables of it are the variables of the script, and the
+`return` ends the thread of the hotkey and not the script. The section of
+the script that runs ends at the first hotkey or at the first hotstring of
+the v1, and the hotkey is registered when the script loads: the hotkey that
+is written in the body of another one is registered too.
+
+The tree does it now: the line of the hotkey is a node of its own
+(`Node::HotkeyDefinition`), the names of them are in
+`crates/ahk/src/v1/hotkeys.rs`, and the hotkeys of the v1 are registered with
+the desktop when the script loads.
+
+What is not done yet: the script of the v1 that has a hotkey waits for the
+keyboard, and the tree ends the script when the section that runs ends. The
+waiting is a thing of the runtime and not of the dialect, and the v2 has it
+missing as well: the hotkey of the v2 is registered and the script goes on.
 
 **The settings of the v1.** The v1 and the v2 do not begin with the same
 values: the mode of the coordinates is the "Window" in the v1, the method of

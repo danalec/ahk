@@ -1071,6 +1071,12 @@ pub struct Runtime<'a> {
     /// the scope that runs whether it holds the label, and the name of a
     /// label does not know its case.
     label_scopes: Vec<Vec<String>>,
+    /// Whether the runtime is running the body of a hotkey of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// body of a hotkey is the code that comes after it, and the `return` of
+    /// it ends the thread of the hotkey and not the script.
+    in_the_body_of_a_hotkey: bool,
     /// The declarations of the functions that run.
     ///
     /// The frame of a function says where its names live: the ones it
@@ -1235,6 +1241,7 @@ impl<'a> Runtime<'a> {
             initial_working_dir,
             scopes: Vec::new(),
             label_scopes: Vec::new(),
+            in_the_body_of_a_hotkey: false,
             declarations: Vec::new(),
             current_classes: Vec::new(),
             frames: Vec::new(),
@@ -1295,6 +1302,7 @@ impl<'a> Runtime<'a> {
             initial_working_dir,
             scopes: Vec::new(),
             label_scopes: Vec::new(),
+            in_the_body_of_a_hotkey: false,
             declarations: Vec::new(),
             current_classes: Vec::new(),
             frames: Vec::new(),
@@ -1516,6 +1524,34 @@ impl<'a> Runtime<'a> {
         limit.saturating_sub(self.elapsed_ms())
     }
 
+    /// The hotkeys of the v1 are registered when the script loads.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// hotkey that is written in the body of another one is registered too,
+    /// and the registration of it does not wait for the code that comes
+    /// before it.
+    fn register_the_hotkeys_of_the_v1(
+        &mut self,
+        statements: &[Node],
+    ) -> Result<(), RuntimeError> {
+        for statement in statements {
+            if let Node::HotkeyDefinition { name, body, line, .. } = statement {
+                crate::hotkeys::register_the_hotkey_of_the_v1(self, name, body.clone(), *line)
+                    .map_err(|failure| match failure {
+                        RuntimeFailure::Error(error) => error,
+                        RuntimeFailure::Detailed(error, _) => error,
+                        RuntimeFailure::Fatal(error) => error,
+                        _ => RuntimeError {
+                            message: "the hotkey could not be registered.".to_string(),
+                            line: *line,
+                        },
+                    })?;
+                self.register_the_hotkeys_of_the_v1(body)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Run the script and report what happened.
     pub fn run(mut self, statements: &[Node]) -> Report {
         let mut error = None;
@@ -1524,38 +1560,55 @@ impl<'a> Runtime<'a> {
         // The functions are collected before the first statement runs, so a
         // script may call a function it defines further down.
         self.collect_functions(statements);
+        // The hotkeys of the v1 are registered when the script loads, and
+        // the one that is written in the body of another one is registered
+        // too.
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+        // hotkey of the v1 is registered when the script loads, and not when
+        // the code that comes before it runs.
+        let registered = self.register_the_hotkeys_of_the_v1(statements);
         // The labels of the script are the scope of the script.
         self.label_scopes.push(the_labels_of(statements));
-        match self.run_block(statements) {
-            Ok(()) => {}
-            Err(RuntimeFailure::Flow(Flow::Break)) | Err(RuntimeFailure::Flow(Flow::Continue)) => {}
-            Err(RuntimeFailure::Flow(Flow::Return(_))) => {}
-            Err(RuntimeFailure::Flow(Flow::Exit(code))) => exit_code = Some(code),
-            // The jump of a `Goto` that leaves the script: the label is not
-            // in the scope of the script.
-            Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
-                let failure = self.the_label_is_not_there(&name, statements, line);
+        match registered {
+            Ok(()) => match self.run_block(statements) {
+                Ok(()) => {}
+                Err(RuntimeFailure::Flow(Flow::Break)) | Err(RuntimeFailure::Flow(Flow::Continue)) => {}
+                Err(RuntimeFailure::Flow(Flow::Return(_))) => {}
+                Err(RuntimeFailure::Flow(Flow::Exit(code))) => exit_code = Some(code),
+                // The jump of a `Goto` that leaves the script: the label is not
+                // in the scope of the script.
+                Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
+                    let failure = self.the_label_is_not_there(&name, statements, line);
+                    error = Some(failure.message);
+                    error_line = Some(failure.line);
+                }
+                Err(RuntimeFailure::Fatal(failure)) => {
+                    error = Some(failure.message);
+                    error_line = Some(failure.line);
+                }
+                Err(RuntimeFailure::Error(failure)) => {
+                    error = Some(failure.message);
+                    error_line = Some(failure.line);
+                }
+                Err(RuntimeFailure::Detailed(failure, _)) => {
+                    error = Some(failure.message);
+                    error_line = Some(failure.line);
+                }
+                Err(RuntimeFailure::Timeout(timeout)) => {
+                    error = Some(timeout.to_string());
+                }
+                // A value that was thrown and that no catch took.
+                Err(RuntimeFailure::Thrown(value)) => {
+                    error = Some(thrown_message(&value));
+                }
+            },
+            // The desktop cannot watch the keyboard, and the script is told
+            // why: a hotkey that is registered and never fires is a hotkey
+            // that does not work.
+            Err(failure) => {
                 error = Some(failure.message);
                 error_line = Some(failure.line);
-            }
-            Err(RuntimeFailure::Fatal(failure)) => {
-                error = Some(failure.message);
-                error_line = Some(failure.line);
-            }
-            Err(RuntimeFailure::Error(failure)) => {
-                error = Some(failure.message);
-                error_line = Some(failure.line);
-            }
-            Err(RuntimeFailure::Detailed(failure, _)) => {
-                error = Some(failure.message);
-                error_line = Some(failure.line);
-            }
-            Err(RuntimeFailure::Timeout(timeout)) => {
-                error = Some(timeout.to_string());
-            }
-            // A value that was thrown and that no catch took.
-            Err(RuntimeFailure::Thrown(value)) => {
-                error = Some(thrown_message(&value));
             }
         }
         // A failure that the functions of the error hid is not the error of
@@ -1837,13 +1890,35 @@ impl<'a> Runtime<'a> {
             }
             // The timers of the script run between its statements, and
             // only there: a function of the script is not the script.
-            if self.scopes.is_empty() {
+            if self.the_section_that_runs() {
                 self.run_timers()?;
                 // The hotkeys of the script run between its statements,
                 // and only there: a function of the script is not the
                 // script, and a hotkey runs with the scope of the script
                 // and not with the scope of the function.
-                crate::hotkeys::run_fired(self)?;
+                //
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-03: the body of a hotkey of the v1 may jump to a
+                // label of the script, and the jump goes on at the label.
+                match crate::hotkeys::run_fired(self) {
+                    Ok(()) => {}
+                    Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
+                        match the_place_of_the_label(statements, &name) {
+                            Some(place) => index = place,
+                            None => return Err(RuntimeFailure::Flow(Flow::Goto { name, line })),
+                        }
+                    }
+                    Err(failure) => return Err(failure),
+                }
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-03: the section of the script that runs ends at
+                // the first hotkey or at the first hotstring of the v1, and
+                // the hotkey itself is registered when the script loads.
+                if self.dialect.the_section_that_runs_ends_at_the_hotkey()
+                    && self.the_statement_ends_the_section(statement)
+                {
+                    return Ok(());
+                }
             }
             // A script that asked to stop, stops at the end of the
             // statement it asked in.
@@ -1853,6 +1928,48 @@ impl<'a> Runtime<'a> {
             index += 1;
         }
         Ok(())
+    }
+
+    /// The body of a hotkey of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// body of a hotkey runs with the scope of the script, and the `return`
+    /// of it ends the thread of the hotkey and not the script.
+    pub(crate) fn run_the_body_of_a_hotkey(
+        &mut self,
+        body: &[Node],
+    ) -> Result<(), RuntimeFailure> {
+        let was_in_the_body = self.in_the_body_of_a_hotkey;
+        self.in_the_body_of_a_hotkey = true;
+        let answer = self.run_block(body);
+        self.in_the_body_of_a_hotkey = was_in_the_body;
+        match answer {
+            // The `return` ends the hotkey, and the script goes on.
+            Err(RuntimeFailure::Flow(Flow::Return(_))) => Ok(()),
+            other => other,
+        }
+    }
+
+    /// Whether the runtime is running the section of the script that runs.
+    ///
+    /// The body of a hotkey of the v1 runs with the scope of the script, and
+    /// it is not the section: the timers of the script do not run there, and
+    /// the section does not end there.
+    fn the_section_that_runs(&self) -> bool {
+        self.scopes.is_empty() && !self.in_the_body_of_a_hotkey
+    }
+
+    /// Whether the statement ends the section of the script that runs.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// section of the v1 ends at the first hotkey or at the first
+    /// hotstring, and the code that comes after it does not run.
+    fn the_statement_ends_the_section(&self, statement: &Node) -> bool {
+        match statement {
+            Node::HotkeyDefinition { .. } => true,
+            Node::LegacyCall { name, .. } => name == "hotstring",
+            _ => false,
+        }
     }
 
     /// The `try` of the dialect: the block is guarded, the catches take
@@ -2562,6 +2679,20 @@ impl<'a> Runtime<'a> {
             // The jump of a `Goto`: the run goes on at the label.
             Node::Goto { name, line } => {
                 return Err(RuntimeFailure::Flow(Flow::Goto { name: name.clone(), line: *line }));
+            }
+            // The hotkey of the v1: the definition of it is a label, and
+            // the code that comes after it is a part of the thread that is
+            // running. The hotkey itself is registered when the script
+            // loads, and the section of the script that runs ends at the
+            // definition.
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03:
+            // the body of a hotkey runs with the scope of the script, and
+            // the `return` of it ends the thread of the hotkey.
+            Node::HotkeyDefinition { body, .. } => {
+                if self.in_the_body_of_a_hotkey {
+                    self.run_block(body)?;
+                }
             }
             Node::Break { .. } => return Err(RuntimeFailure::Flow(Flow::Break)),
             Node::Continue { .. } => return Err(RuntimeFailure::Flow(Flow::Continue)),
@@ -9644,6 +9775,7 @@ impl<'a> Runtime<'a> {
             | Node::Continue { .. }
             | Node::Label { .. }
             | Node::Goto { .. }
+            | Node::HotkeyDefinition { .. }
             | Node::Return { .. }
             | Node::ExitApp { .. }
             | Node::FunctionDef { .. }
@@ -10863,6 +10995,9 @@ fn collect_the_labels(body: &[Node], labels: &mut Vec<String>) {
     for statement in body {
         match statement {
             Node::Label { name, .. } => labels.push(name.clone()),
+            // The body of a hotkey of the v1 is of the scope that carries
+            // it: the hotkey is not a block, and a jump may leave it.
+            Node::HotkeyDefinition { body, .. } => collect_the_labels(body, labels),
             Node::If { branches, otherwise, .. } => {
                 for branch in branches {
                     collect_the_labels(&branch.body, labels);
@@ -10964,6 +11099,7 @@ pub fn op_name_in<'a>(
         Node::Continue { .. } => "Continue",
         Node::Label { .. } => "Label",
         Node::Goto { .. } => "Goto",
+        Node::HotkeyDefinition { .. } => "HotkeyDefinition",
         Node::Return { .. } => "Return",
         Node::ExitApp { .. } => "ExitApp",
         Node::FunctionDef { .. } => "FunctionDef",

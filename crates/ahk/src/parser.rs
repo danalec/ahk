@@ -482,6 +482,8 @@ fn collect_the_labels_of_a_scope(body: &[Node], labels: &mut Vec<(String, u32)>)
                 collect_the_labels_of_a_scope(otherwise, labels);
                 collect_the_labels_of_a_scope(finally, labels);
             }
+            // The body of a hotkey of the v1 is of the scope that carries it.
+            Node::HotkeyDefinition { body, .. } => collect_the_labels_of_a_scope(body, labels),
             _ => {}
         }
     }
@@ -548,6 +550,9 @@ impl TheNamesOfTheScript {
                     self.collect_in_a_block(finally, chain, false);
                 }
                 Node::Block { body, .. } => self.collect_in_a_block(body, chain, false),
+                // The body of a hotkey of the v1 is of the scope that carries
+                // it: the hotkey is not a block, and a jump may leave it.
+                Node::HotkeyDefinition { body, .. } => self.collect(body, chain),
                 Node::LegacyIf { body, otherwise, .. } => {
                     self.collect_in_a_block(body, chain, false);
                     self.collect_in_a_block(otherwise, chain, false);
@@ -592,6 +597,51 @@ fn the_names_of_the_script(body: &[Node]) -> TheNamesOfTheScript {
     names
 }
 
+/// The bodies of the hotkeys of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the body
+/// of a hotkey is the code that comes after it, and the `return` of it is
+/// what ends it. The body of a hotkey that is written in one line is the
+/// command of the line, and the code that comes after it does not belong to
+/// it.
+///
+/// The body is not a block: a jump of it may leave it, and the labels of it
+/// are the labels of the scope that carries it.
+fn the_bodies_of_the_hotkeys(statements: Vec<Node>) -> Vec<Node> {
+    let mut result: Vec<Node> = Vec::new();
+    let mut rest = statements.into_iter();
+    while let Some(statement) = rest.next() {
+        match statement {
+            Node::HotkeyDefinition { name, line, body, on_the_line } => {
+                if on_the_line {
+                    // The action of the hotkey is the command of the line,
+                    // and the code that comes after it does not belong to
+                    // it.
+                    result.push(Node::HotkeyDefinition {
+                        name,
+                        body,
+                        on_the_line,
+                        line,
+                    });
+                    continue;
+                }
+                // The body of the hotkey is the code that comes after it,
+                // and the code of the next hotkey is part of it.
+                let after: Vec<Node> = rest.by_ref().collect();
+                result.push(Node::HotkeyDefinition {
+                    name,
+                    body: the_bodies_of_the_hotkeys(after),
+                    on_the_line,
+                    line,
+                });
+                break;
+            }
+            other => result.push(other),
+        }
+    }
+    result
+}
+
 /// The gotos of a scope, the way the script wrote them.
 ///
 /// The gotos of the blocks of the scope are the gotos of the scope, and the
@@ -630,6 +680,8 @@ fn collect_the_gotos_of_a_scope(body: &[Node], gotos: &mut Vec<(String, u32)>) {
                 collect_the_gotos_of_a_scope(otherwise, gotos);
                 collect_the_gotos_of_a_scope(finally, gotos);
             }
+            // The body of a hotkey of the v1 is of the scope that carries it.
+            Node::HotkeyDefinition { body, .. } => collect_the_gotos_of_a_scope(body, gotos),
             _ => {}
         }
     }
@@ -894,6 +946,18 @@ struct TheLabelOfTheScript {
     line: u32,
 }
 
+/// A hotkey of the v1, and the place it was written.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the hotkey
+/// that is declared twice is refused when the script loads, and the names of
+/// the hotkeys are known only at the end of the parse.
+struct TheHotkeyOfTheScript {
+    /// The name of the hotkey.
+    name: crate::v1::TheName,
+    /// The line of the definition.
+    line: u32,
+}
+
 /// The recursive descent parser.
 pub struct Parser {    tokens: Vec<Token>,
     position: usize,
@@ -931,6 +995,17 @@ pub struct Parser {    tokens: Vec<Token>,
     /// The label that a command names may be written anywhere in the script,
     /// and the name of a label does not know its case.
     label_names: BTreeSet<String>,
+    /// The hotkeys of the v1, and the place they were written.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// hotkey that is declared twice is refused when the script loads, and
+    /// the names of the hotkeys are known only at the end of the parse.
+    hotkeys: Vec<TheHotkeyOfTheScript>,
+    /// Whether the parser is reading the action of a hotkey of the v1.
+    ///
+    /// The action of a hotkey is a statement of the script, and the line of
+    /// it is not the line of another hotkey.
+    in_the_action_of_a_hotkey: bool,
     /// The assignments of the script, one list for each function.
     ///
     /// The list of the top level is the first one, and the list of a
@@ -1060,6 +1135,8 @@ impl Parser {
             calls: Vec::new(),
             labels: Vec::new(),
             label_names: BTreeSet::new(),
+            hotkeys: Vec::new(),
+            in_the_action_of_a_hotkey: false,
             assignments: vec![Vec::new()],
             parameters: Vec::new(),
             in_class: false,
@@ -1365,6 +1442,7 @@ impl Parser {
         self.calls.clear();
         self.labels.clear();
         self.label_names.clear();
+        self.hotkeys.clear();
         self.assignments.clear();
         self.assignments.push(Vec::new());
         self.skip_newlines();
@@ -1372,6 +1450,9 @@ impl Parser {
             statements.extend(self.parse_statement()?);
             self.skip_newlines();
         }
+        // The body of a hotkey of the v1 is the code that comes after it, and
+        // the code of the next hotkey is part of it.
+        let statements = the_bodies_of_the_hotkeys(statements);
         // The labels of the script are the scope of the script, and a label
         // that is written twice in it is refused.
         self.check_the_labels(&statements)?;
@@ -1527,6 +1608,26 @@ impl Parser {
         // refuses it with the labels of the script.
         if !self.dialect.the_goto_is_refused_with_the_labels() {
             failures.extend(self.the_gotos_of_the_v1_are_checked(body));
+        }
+        // The hotkey of the v1 that is declared twice is refused at the load
+        // too, and the complaint of the v1 names the hotkey.
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+        // `$` and the `~` do not make the hotkey another one, and the hotkey
+        // that is written twice is refused with "Duplicate hotkey." and the
+        // name of it, as the script spelled it.
+        let mut names: BTreeSet<String> = BTreeSet::new();
+        for hotkey in &self.hotkeys {
+            if !names.insert(hotkey.name.identity.clone()) {
+                failures.push(SyntaxError {
+                    message: format!(
+                        "Duplicate hotkey.\n     Specifically: {}",
+                        hotkey.name.spelling
+                    ),
+                    line: hotkey.line,
+                    column: 1,
+                });
+            }
         }
         // The refusal that comes first in the script is the one that the v1
         // says.
@@ -1851,7 +1952,7 @@ impl Parser {
                 }
                 self.position += 1;
                 self.statement_start = statement_start;
-                return Ok(body);
+                return Ok(the_bodies_of_the_hotkeys(body));
             }
             body.extend(self.parse_statement()?);
             self.skip_newlines();
@@ -2287,6 +2388,19 @@ impl Parser {
     fn parse_the_hotstring_of_the_v1(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
         let text = the_source_of_the_line(self, token.line);
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+        // line of a hotstring that has no second pair of colons is not a
+        // hotstring, and the v1 refuses it with "Invalid hotkey." and the
+        // line of it.
+        let second = text
+            .strip_prefix("::")
+            .map(|rest| rest.contains("::"))
+            .unwrap_or(false);
+        if !second {
+            return Err(self.error(format!(
+                "Invalid hotkey.\n     Specifically: {text}"
+            )));
+        }
         // The whole line is the hotstring, and the parser goes to the end
         // of it.
         while self.peek().kind != TokenKind::Newline && self.peek().kind != TokenKind::Eof {
@@ -2298,6 +2412,178 @@ impl Parser {
             parameters: vec![crate::ast::LegacyParameter::Text(text)],
             line: token.line,
         })
+    }
+
+    /// The hotkey of the v1: the line that defines it, and its action.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1
+    /// writes a hotkey in a line of its own, and the action of it is the
+    /// label that comes after the line, or the command that the line
+    /// carries. The name of the hotkey is the text that comes before the
+    /// two colons, and the name that is not the name of a key is refused
+    /// with "Invalid hotkey.".
+    fn parse_the_hotkey_of_the_v1(&mut self) -> Result<Node, SyntaxError> {
+        let line = self.peek().line;
+        let at = self
+            .the_place_of_the_two_colons(self.statement_start)
+            .expect("the line carries a hotkey");
+        let name = the_source_of_the_tokens(self, self.statement_start, at);
+        let source = the_source_of_the_line(self, line);
+        // The name of the hotkey. The name that is not the name of a key is
+        // refused when the script loads.
+        let Some(the_name) = crate::v1::the_name_of_a_hotkey(&name) else {
+            return Err(self.error(format!(
+                "Invalid hotkey.\n     Specifically: {source}"
+            )));
+        };
+        // The two colons are what separates the name from the action.
+        self.position = at + 1;
+        // The action of the hotkey: the command that the line carries, or
+        // the label that comes after the line.
+        let (body, on_the_line) = if self.at_end_of_statement() {
+            // The line of the hotkey ends here, and the body of it is the
+            // code that comes after it.
+            self.end_of_statement()?;
+            (Vec::new(), false)
+        } else {
+            let body = self.the_action_of_the_hotkey_of_the_v1(&source)?;
+            (body, true)
+        };
+        // The name of the hotkey is remembered, and the hotkey that is
+        // declared twice is refused when the script loads.
+        let spelling = the_name.spelling.clone();
+        self.hotkeys.push(TheHotkeyOfTheScript {
+            name: the_name,
+            line,
+        });
+        Ok(Node::HotkeyDefinition {
+            name: spelling,
+            body,
+            on_the_line,
+            line,
+        })
+    }
+
+    /// Whether the line is the line of a hotkey of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// two colons are what says so. The line of a command is not the line
+    /// of a hotkey: the `if (1) :: {` is the `if` of the v1, and the `x :=
+    /// 1 :: y := 2` is the assignment of the v1.
+    fn the_line_carries_a_hotkey(&self) -> bool {
+        self.the_line_at_carries_a_hotkey(self.statement_start)
+    }
+
+    /// Whether the line that begins at this place is the line of a hotkey.
+    fn the_line_at_carries_a_hotkey(&self, at_the_line: usize) -> bool {
+        let Some(at) = self.the_place_of_the_two_colons(at_the_line) else {
+            return false;
+        };
+        // The name of the hotkey is not empty.
+        if at == at_the_line {
+            return false;
+        }
+        // The line of a command is the line of the command.
+        let token = &self.tokens[at_the_line];
+        if token.kind == TokenKind::Name {
+            let name = token.value.to_lowercase();
+            // The name of a command of the v1.
+            if crate::v1::is_the_name_of_a_command(&name) {
+                return false;
+            }
+            // The name that is followed by the assign sign is the name of
+            // a variable, and the line is an assignment.
+            if let Some(next) = self.tokens.get(at_the_line + 1) {
+                if next.value == ":=" || next.value == "=" {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    /// Whether the line that comes next is the line of a hotkey of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// line of a hotkey is the line of the hotkey, and not the continuation
+    /// of the expression that comes before it. The expression of the v1 goes
+    /// on at the next line when the next line begins with an operator.
+    fn the_next_line_carries_a_hotkey(&self) -> bool {
+        if !self.dialect.the_hotkeys_are_labels() {
+            return false;
+        }
+        // The place of the line that comes next.
+        let mut at = self.position;
+        while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline {
+            at += 1;
+        }
+        self.the_line_at_carries_a_hotkey(at)
+    }
+
+    /// The place of the two colons in the line, when the line carries them.
+    ///
+    /// The two colons of a text are part of the text, and the two colons of
+    /// a comment are part of the comment.
+    fn the_place_of_the_two_colons(&self, at_the_line: usize) -> Option<usize> {
+        let mut at = at_the_line;
+        while at < self.tokens.len() {
+            let token = &self.tokens[at];
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                return None;
+            }
+            if token.kind == TokenKind::Op && token.value == "::" {
+                return Some(at);
+            }
+            at += 1;
+        }
+        None
+    }
+
+    /// The action of a hotkey of the v1 that is written in one line.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// action may be a command, an assignment, a jump or a call, and the
+    /// constructs of the v1 are refused with "Invalid single-line
+    /// hotkey/hotstring.".
+    fn the_action_of_the_hotkey_of_the_v1(
+        &mut self,
+        source: &str,
+    ) -> Result<Vec<Node>, SyntaxError> {
+        // The constructs of the v1 are refused before they are read: the
+        // `if (1) x := 1` is not a body that the v1 reads on one line, and
+        // the contexts of the v1 are refused there too.
+        if self.the_action_is_a_construct_of_the_v1() {
+            return Err(self.error(format!(
+                "Invalid single-line hotkey/hotstring.\n     Specifically: {source}"
+            )));
+        }
+        // The action is a statement of the script.
+        self.in_the_action_of_a_hotkey = true;
+        let statements = self.parse_statement();
+        self.in_the_action_of_a_hotkey = false;
+        statements
+    }
+
+    /// Whether the action of a hotkey is a construct of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// `if`, the `while`, the `loop` and the `for` are refused in the action
+    /// of a hotkey that is written in one line, and so are the contexts of
+    /// the v1 -- the `ifwinactive` and the `ifequal`.
+    fn the_action_is_a_construct_of_the_v1(&self) -> bool {
+        let Some(token) = self.tokens.get(self.position) else {
+            return false;
+        };
+        if token.kind == TokenKind::Keyword {
+            return matches!(
+                token.value.to_lowercase().as_str(),
+                "if" | "while" | "loop" | "for"
+            );
+        }
+        if token.kind == TokenKind::Name {
+            return crate::v1::the_context_of_the_v1_is_refused_in_a_hotkey(&token.value);
+        }
+        false
     }
 
     fn parse_statement(&mut self) -> Result<Vec<Node>, SyntaxError> {
@@ -2312,6 +2598,15 @@ impl Parser {
         // the v1 is a statement, and the line is the hotstring.
         if self.dialect.hotstrings_are_statements() && self.at_op(&["::"]) {
             return Ok(vec![self.parse_the_hotstring_of_the_v1()?]);
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+        // hotkey of the v1 is a line of its own, and the two colons that
+        // separate the name of it from the action are what says so.
+        if self.dialect.the_hotkeys_are_labels()
+            && !self.in_the_action_of_a_hotkey
+            && self.the_line_carries_a_hotkey()
+        {
+            return Ok(vec![self.parse_the_hotkey_of_the_v1()?]);
         }
         if token.kind == TokenKind::Keyword {
             let word = token.value.to_lowercase();
@@ -6468,7 +6763,13 @@ impl Parser {
                     // Measured on the binary of v2.0.19 on 2026-10-31: a
                     // line that begins with an operator continues the one
                     // before it.
-                    if self.the_next_line_begins_with_an_operator() {
+                    //
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-03: the line of a hotkey of the v1 is not the
+                    // continuation of the expression that comes before it.
+                    if self.the_next_line_begins_with_an_operator()
+                        && !self.the_next_line_carries_a_hotkey()
+                    {
                         self.skip_newlines();
                         continue;
                     }

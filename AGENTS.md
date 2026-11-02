@@ -7673,3 +7673,42 @@ kind that the call wants (`the_builtin_of_the_kind`).
 
 The suite of the v1 has eight cases more (187).
 
+## 191. The hotkey of the v1 is a line of its own
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1 writes a
+hotkey in a line of its own, and the two colons that separate the name from the
+action are what says so. The line of a command is not the line of a hotkey: the
+`if (1) :: {` is the `if` of the v1, and the `x := 1 :: y := 2` is the assignment
+of the v1.
+
+The name of the hotkey is a set of prefixes -- the `$` of the hook, the `~` of the
+tilde and the `*` of the wildcard -- a set of modifiers -- the `^` of the
+control, the `!` of the alt, the `+` of the shift and the `#` of the win, with
+the `<` and the `>` naming the side of the key -- and the name of a key. The word
+"up" may follow the name of the key, and the hotkey fires when the key comes up.
+The name may not have a space in it: the "Browser Back" is not a key, and the
+"Browser_Back" is. The combination of two keys -- the `RCtrl & RShift` -- is a
+hotkey of its own, and a modifier is not one of its keys.
+
+The name that is not the name of a key is refused when the script loads, and the
+complaint of the v1 is "Invalid hotkey." with the line of it. The hotkey that is
+declared twice is refused too, and the complaint is "Duplicate hotkey." with the
+name of it, as the script spelled it: the `$` and the `~` do not make the hotkey
+another one, and the case of the name does not either; the `*` does.
+
+The action of the hotkey is the body that comes after the line, or the command
+that the line carries. The body is the code that comes after the line, and the
+`return` of it is what ends it: the body of the hotkey is not a block, the
+variables of it are the variables of the script, and the `return` ends the thread
+of the hotkey and not the script. The constructs of the v1 and the contexts of it
+-- the `if`, the `while`, the `loop`, the `for`, the `ifwinactive` and the
+`ifequal` -- are refused in the action of a hotkey that is written in one line,
+and the complaint is "Invalid single-line hotkey/hotstring." with the line.
+
+The section of the script that runs ends at the first hotkey or at the first
+hotstring of the v1, and the hotkey is registered when the script loads: the
+hotkey that is written in the body of another one is registered too.
+
+The names of the hotkeys are in `crates/ahk/src/v1/hotkeys.rs`, the line of the
+hotkey is a node of its own (`Node::HotkeyDefinition`), and the suite of the v1
+has nine cases more (196).

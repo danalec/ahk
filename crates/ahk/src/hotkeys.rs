@@ -17,6 +17,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
+use crate::ast::Node;
 use crate::desktop::WindowAnswer;
 use crate::keys;
 use crate::runtime::{Route, Runtime, RuntimeError, RuntimeFailure, Value};
@@ -69,6 +70,14 @@ pub struct Hotkey {
     /// callback that cannot take it is refused. The tree serves the two:
     /// a callback that takes nothing runs without the name.
     pub takes_name: bool,
+    /// The action of a hotkey of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+    /// v1 writes a hotkey in a line of its own, and the action of it is the
+    /// label that comes after the line, or the command that the line
+    /// carries. The action is the body of the hotkey, and it runs with the
+    /// scope of the script.
+    pub body: Option<Vec<Node>>,
 }
 
 /// The hotkey that is registered: what the script asked for.
@@ -295,11 +304,53 @@ pub(crate) fn run_fired(rt: &mut Runtime<'_>) -> Result<(), RuntimeFailure> {
         shared.prior = shared.current.clone();
         shared.current = Some((entry.name.clone(), rt.now_ms()));
     }
+    // The action of a hotkey of the v1 is the body that comes with it, and
+    // it runs with the scope of the script and not with the scope of a
+    // function of it.
+    if let Some(body) = &entry.body {
+        rt.run_the_body_of_a_hotkey(body)?;
+        return Ok(());
+    }
     if entry.takes_name {
         rt.call_named(&entry.function, &[Value::Text(fired)], entry.line, Route::Written)?;
     } else {
         rt.call_function_by_name(&entry.function, entry.line)?;
     }
+    Ok(())
+}
+
+/// The hotkey of the v1: the line that defines it, and its action.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the hotkey
+/// of the v1 is registered when the section of the script that runs reaches
+/// it, and the action of it is the body that comes with it. The spelling of
+/// the v1 is not the spelling of v2, and the desktop is the one that says
+/// whether it can watch the key.
+pub(crate) fn register_the_hotkey_of_the_v1(
+    rt: &mut Runtime<'_>,
+    name: &str,
+    body: Vec<Node>,
+    line: u32,
+) -> Result<(), RuntimeFailure> {
+    // The desktop watches the keyboard. A desktop that cannot watch says
+    // so, and the script is told why: a hotkey that is registered and
+    // never fires is a hotkey that does not work.
+    rt.desktop()
+        .register_hotkey(name)
+        .map_err(|reason| fail(&reason, line))?;
+    let shared = shared_of(rt);
+    rt.hotkeys().push(Hotkey {
+        name: name.to_string(),
+        function: String::new(),
+        enabled: true,
+        kind: Kind::Hotkey,
+        line,
+        object: None,
+        shared,
+        condition: None,
+        takes_name: false,
+        body: Some(body),
+    });
     Ok(())
 }
 
@@ -429,6 +480,7 @@ pub(crate) fn register(rt: &mut Runtime<'_>, shape: Shape, line: u32) -> Result<
         shared,
         condition,
         takes_name,
+        body: None,
     });
     Ok(())
 }
@@ -452,6 +504,7 @@ fn shared_of(rt: &mut Runtime<'_>) -> Rc<RefCell<Shared>> {
         shared: shared.clone(),
         condition: None,
         takes_name: false,
+        body: None,
     });
     shared
 }
