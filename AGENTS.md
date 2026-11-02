@@ -7491,3 +7491,18 @@ complaint of the number of the parameters is in `crates/ahk/src/dialect.rs`
 (`TheRefusalOfTheArity`).
 
 The suite of the v1 has two cases more (159).
+
+## 186. The name of a variable of the v1 may carry the "#", the "$" and the "@"
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a variable of
+the v1 may carry them -- the `a$b := 5` leaves the variable `a$b` at five --
+and the tree refused the script with "unexpected character". The name of a
+variable of the v2 does not carry them, and the tree keeps the rule of the
+v2 there.
+
+The characters are a question of the dialect
+(`accepts_a_hash_a_dollar_and_an_at_in_a_name`), and the lexer asks the
+dialect before it reads the name. The section is a thing of the v2, and the
+line that a section joins is read without them.
+
+The suite of the v1 has one case more (160).

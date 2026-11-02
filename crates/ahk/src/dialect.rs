@@ -679,6 +679,15 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// Whether the name of a variable of the script may carry the "#", the
+    /// "$" and the "@".
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a
+    /// variable of the v1 may carry them, and the v2 does not read them.
+    fn accepts_a_hash_a_dollar_and_an_at_in_a_name(&self) -> bool {
+        false
+    }
+
     /// The refusal of the name of a variable of the script.
     ///
     /// The place is the number of the parameter, and the text is the text
@@ -1113,6 +1122,12 @@ impl Dialect for V1 {
         // the parameter of its commands when the script loads, and the
         // complaint of the v1 is its own.
         crate::v1::the_refusal_of_a_parameter(name, parameters)
+    }
+
+    fn accepts_a_hash_a_dollar_and_an_at_in_a_name(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a
+        // variable of the v1 may carry the "#", the "$" and the "@".
+        true
     }
 
     fn the_refusal_of_the_name_of_a_variable(

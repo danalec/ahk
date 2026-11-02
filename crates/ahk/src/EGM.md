@@ -1623,6 +1623,11 @@ that asks for another one is refused with the reason.
   of the `IfMsgBox`, the letter of the `StringMid`, the mode of a group, the
   way of the move of a directory, and the command that takes no parameter.
 
+- **The name of a variable of the v1 may carry the "#", the "$" and the
+  "@".** The lexer asks the dialect before it reads the name
+  (`accepts_a_hash_a_dollar_and_an_at_in_a_name`), and the v2 does not read
+  them.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

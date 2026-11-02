@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 159 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 160 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -846,7 +846,7 @@ the path of the class of the `new` by the block of the path (2026-11-02), and
 the parameter of a command by the block of the parameters (2026-11-02), and
 the pid of the process by the block of the pid (2026-11-02), and the code of
 the failure of a native call by the block of the code (2026-11-02), and the
-patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02).
+patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02), and the marks of the name of a variable by the block of the marks (2026-11-02).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the

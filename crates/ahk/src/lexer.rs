@@ -219,16 +219,28 @@ pub fn carries_directive(name: &str) -> bool {
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the byte order mark is
 /// a letter of a name, and a name may begin with it.
-fn the_character_is_a_letter(character: char) -> bool {
-    character.is_alphabetic() || character == '_' || character == '\u{feff}'
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the "#", the "$" and
+/// the "@" are letters of the name of a variable of the v1.
+fn the_character_is_a_letter(character: char, marks: bool) -> bool {
+    character.is_alphabetic()
+        || character == '_'
+        || character == '\u{feff}'
+        || (marks && matches!(character, '#' | '$' | '@'))
 }
 
 /// Whether the character is a part of a name.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the byte order mark is a
 /// part of a name, and the name that begins with it is a name.
-fn the_character_is_of_a_name(character: char) -> bool {
-    character.is_alphanumeric() || character == '_' || character == '\u{feff}'
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the "#", the "$" and
+/// the "@" are parts of the name of a variable of the v1.
+fn the_character_is_of_a_name(character: char, marks: bool) -> bool {
+    character.is_alphanumeric()
+        || character == '_'
+        || character == '\u{feff}'
+        || (marks && matches!(character, '#' | '$' | '@'))
 }
 
 /// The name of a script, the way v2 writes it in a message.
@@ -585,8 +597,10 @@ fn the_code_of_a_line(text: &str) -> &str {
 /// A name is a letter, a digit or an underscore: the text of a string ends
 /// with a quote, and the quote is not a name.
 fn the_last_character_is_a_name(text: &str) -> bool {
+    // The section is a thing of the v2, and the marks of the name are a
+    // thing of the v1: the line that a section joins is read without them.
     match the_code_of_a_line(text).trim_end().chars().last() {
-        Some(last) => the_character_is_of_a_name(last),
+        Some(last) => the_character_is_of_a_name(last, false),
         None => false,
     }
 }
@@ -637,6 +651,10 @@ pub fn tokenize_with(
     // the first one is taken: a second one is a character of the script.
     let source = source.strip_prefix('\u{feff}').unwrap_or(source);
     let chars: Vec<char> = source.chars().collect();
+    // Measured on the binary of v1.1.37.02 on 2026-11-02: the name of a
+    // variable of the v1 may carry the "#", the "$" and the "@", and the v2
+    // does not read them.
+    let marks = dialect.accepts_a_hash_a_dollar_and_an_at_in_a_name();
     let mut tokens: Vec<Token> = Vec::new();
     let mut index = 0usize;
     let mut line = 1u32;
@@ -705,7 +723,9 @@ pub fn tokenize_with(
             index += 1;
             column += 1;
             let mut name = String::new();
-            while index < chars.len() && the_character_is_of_a_name(chars[index]) {
+            while index < chars.len()
+                && the_character_is_of_a_name(chars[index], marks)
+            {
                 name.push(chars[index]);
                 index += 1;
                 column += 1;
@@ -890,14 +910,21 @@ pub fn tokenize_with(
         if current.is_ascii_digit() || (current == '.' && the_point_begins_a_number(&chars, index, &tokens)) {
             let (start_line, start_column) = (line, column);
             let start = index;
-            index = the_end_of_the_number(&chars, index, dialect.the_exponent_needs_a_point());
+            index = the_end_of_the_number(
+                &chars,
+                index,
+                dialect.the_exponent_needs_a_point(),
+                marks,
+            );
             column += (index - start) as u32;
             // A name that begins with a number is not a number: v2 refuses
             // the script at the load, and it says which name it is.
-            if index < chars.len() && the_character_is_a_letter(chars[index]) {
+            if index < chars.len() && the_character_is_a_letter(chars[index], marks) {
                 let number_end = index;
                 let mut name = chars[start..index].iter().collect::<String>();
-                while index < chars.len() && the_character_is_of_a_name(chars[index]) {
+                while index < chars.len()
+                    && the_character_is_of_a_name(chars[index], marks)
+                {
                     name.push(chars[index]);
                     index += 1;
                 }
@@ -953,10 +980,12 @@ pub fn tokenize_with(
             });
             continue;
         }
-        if the_character_is_a_letter(current) {
+        if the_character_is_a_letter(current, marks) {
             let (start_line, start_column) = (line, column);
             let start = index;
-            while index < chars.len() && the_character_is_of_a_name(chars[index]) {
+            while index < chars.len()
+                && the_character_is_of_a_name(chars[index], marks)
+            {
                 index += 1;
                 column += 1;
             }
@@ -1164,7 +1193,12 @@ fn the_token_ends_a_value(token: &Token) -> bool {
 /// point of `1.5.2` is the member operator of the float.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-30.
-fn the_end_of_the_number(chars: &[char], start: usize, the_exponent_needs_a_point: bool) -> usize {
+fn the_end_of_the_number(
+    chars: &[char],
+    start: usize,
+    the_exponent_needs_a_point: bool,
+    marks: bool,
+) -> usize {
     // The hex of v2.
     if chars.get(start) == Some(&'0')
         && matches!(chars.get(start + 1), Some(&'x') | Some(&'X'))
@@ -1186,7 +1220,10 @@ fn the_end_of_the_number(chars: &[char], start: usize, the_exponent_needs_a_poin
         // the number when a name does not come after it: `1.ToString` is the
         // number 1 and the member that follows it, and `1.` is the number
         // 1.0.
-        if !chars.get(index + 1).is_some_and(|character| the_character_is_a_letter(*character)) {
+        if !chars
+            .get(index + 1)
+            .is_some_and(|character| the_character_is_a_letter(*character, marks))
+        {
             the_number_has_a_point = true;
             index += 1;
             while index < chars.len() && chars[index].is_ascii_digit() {

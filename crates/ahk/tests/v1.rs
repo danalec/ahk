@@ -4542,3 +4542,18 @@ fn the_drag_of_the_mouse_of_the_v1_wants_the_place_of_the_end() {
         "the drag of the mouse wants five parameters"
     );
 }
+
+/// The name of a variable of the v1 may carry the "#", the "$" and the "@".
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a variable
+/// of the v1 may carry them, and the lexer of the tree read them as letters
+/// of the name. The v2 does not read them.
+#[test]
+fn the_name_of_a_variable_of_the_v1_may_carry_the_marks() {
+    for name in ["a#b", "a$b", "a@b"] {
+        let report = run(&format!("{name} := 5"));
+        assert!(report.ok, "{:?}", report.error);
+        // The number of the v1 keeps the text that was written.
+        assert_eq!(report.variables.get(name), Some(&Value::Text("5".into())));
+    }
+}
