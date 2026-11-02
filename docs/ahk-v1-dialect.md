@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 147 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 149 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -846,7 +846,7 @@ the path of the class of the `new` by the block of the path (2026-11-02), and
 the parameter of a command by the block of the parameters (2026-11-02), and
 the pid of the process by the block of the pid (2026-11-02), and the code of
 the failure of a native call by the block of the code (2026-11-02), and the
-patterns of the files by the block of the patterns (2026-11-02).
+patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -898,6 +898,33 @@ the only report of it. A pattern that matches nothing is not a failure, and
 neither is a file that is not there. The block of the patterns (2026-11-02)
 carried it.
 
+**The number of the parameters of a command of the v1.** Every command of the
+table was asked, one by one, and the complaint of the binary was read: 105 of
+the 111 commands that want a parameter agree with the table, and six do not.
+The command of the `GetKeyState` wants two parameters -- the key and the
+mode -- and the row of the table had the numbers of the function. The v1 has
+two forms of the complaint: the one that names the command ("\"X\" requires
+at least N parameter(s).") and the one that names the parameter that has to
+be there ("Parameter #N required"), and the `EnvSub`, the `ControlSend`, the
+`GuiControl` and the `WinMenuSelectItem` are the commands of the second form.
+The name of the `SetStoreCapsLockMode` is the one that the binary writes:
+"SetStoreCapslockMode". The rule is a hook of the dialect
+(`the_refusal_of_the_arity_of_a_command`) and the rules of the v1 are in
+`crates/ahk/src/v1/parameters.rs`. A call that is a statement is a call too:
+the `MyFunc()` is refused at the load with "Call to nonexistent function." and
+the text of the call is named. The block of the arity (2026-11-02) carried it.
+
+**The family that the sweep found and that is not carried yet.** The
+differential sweep of the commands of the table against the binary
+(2026-11-02) found one more family: the v1 checks the *value* of a parameter
+of many of its commands when the script loads. The `Control`, the `WinGet`,
+the `Menu`, the `RegRead`, the `SysGet`, the `SoundGet`, the `GroupActivate`,
+the `Drive` and the others refuse with "Parameter #N invalid." at the load,
+and the tree refuses them at the run with the reason of the machine. The
+family is not carried yet: it needs the table of the values of each command
+of the v1, and the text of the complaint needs the rule of the last parameter
+of a command -- the block that comes after this one.
+
 **The path of the class.** The `new` of the v1 takes the path of the class:
 the name that follows the word and the names of the classes that it holds.
 The `new C.D` is an instance of D, and the `new o.D` is an instance of the
@@ -918,8 +945,8 @@ number. The block of the number (2026-11-02) carried it, with the literal
 of a number (`crates/ahk/src/ast.rs`), the coercion of a text
 (`crates/ahk/src/v1/numbers.rs`) and the format of the integers.
 
-The surface of the v1 has **405** entries: **296** answer with a value,
-**108** are refused and **1** is pending. The surface of the v2 did not
+The surface of the v1 has **405** entries: **297** answer with a value,
+**108** are refused and none is pending. The surface of the v2 did not
 move: **828** entries, **637** values, **191** refusals and no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an

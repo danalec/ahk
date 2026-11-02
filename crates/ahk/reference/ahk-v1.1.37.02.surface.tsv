@@ -32,6 +32,11 @@
 # way the table of the v2 carries a name twice when it is two things:
 # SendMode is a command and a variable of the v2.
 #
+# The `GetKeyState` was measured again on 2026-11-02: the command wants
+# two parameters -- the key and the mode -- and the row of the command
+# had the numbers of the function. The function wants one parameter and
+# takes two.
+#
 # The `ErrorLevel` was measured on the binary of v1.1.37.02 on 2026-11-02:
 # it is the one built-in variable of the v1 that has no prefix, and the
 # measurement of 2026-10-29 took the names of the page of the built-in
@@ -129,7 +134,7 @@ function		Floor	1	1	Value
 function		Format	1	255	Value,Value
 command		FormatTime	1	255	Output,Value,Value
 function		Func	1	1	Value
-command		GetKeyState	1	2	Output,Value,Value
+command		GetKeyState	2	2	Output,Value,Value
 function		GetKeyState	1	2	Value,Value
 command		GroupActivate	1	255	Value,Value
 command		GroupAdd	1	255	Value,Value,Value,Value,Value,Value

@@ -7299,3 +7299,40 @@ with the attributes of the first entry that matches the pattern (§51) -- the
 same answer that the v1 gives.
 
 
+
+## 180. The number of the parameters of a command of the v1 is the number of the binary
+
+Measured on the binary of v1.1.37.02 on 2026-11-02. Every command of the
+table of the v1 was asked, one by one, and the complaint of the binary was
+read: 105 of the 111 commands that want a parameter agree with the table, and
+six do not.
+
+- **The command of the `GetKeyState` wants two parameters** -- the key and
+  the mode -- and the row of the table of 2026-10-29 had the numbers of the
+  function. The function wants one parameter and takes two.
+- **The v1 has two forms of the complaint.** The one that names the command
+  is "\"X\" requires at least N parameter(s)." and the text of the command
+  follows it; the other one names the parameter that has to be there and has
+  no text: "Parameter #N required". The `EnvSub`, the `ControlSend`, the
+  `GuiControl` and the `WinMenuSelectItem` are the commands of the second
+  form: the `EnvSub` wants two, the `ControlSend` and the `GuiControl` want
+  two, and the `WinMenuSelectItem` wants three. The `EnvSub` with no
+  parameter at all is the one that names the command, and the number that it
+  names is one.
+- **The name of the `SetStoreCapsLockMode` is the one that the binary
+  writes:** "SetStoreCapslockMode". The name of the surface is the other
+  one.
+- **A call that is a statement is a call.** The `MyFunc()` is refused at
+  the load with "Call to nonexistent function." and the text of the call is
+  named, and so is the `MyFunc(1, 2)`. The call of a built-in is a call too,
+  and the answer of it is thrown away.
+
+The complaint of the number of the parameters is a hook of the dialect
+(`the_refusal_of_the_arity_of_a_command`), and the rules of the v1 are in
+`crates/ahk/src/v1/parameters.rs`: the commands that are not in that table
+answer with the complaint of the parser, and the v2 has no command at all.
+
+The row of the `GetKeyState` is in the surface of the v1
+(`crates/ahk/reference/ahk-v1.1.37.02.surface.tsv`) and the table of the
+built-ins is in `crates/ahk/src/v1/table.rs`. The two were changed by hand:
+the script that writes the table is not run again.

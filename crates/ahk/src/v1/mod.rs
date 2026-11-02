@@ -51,6 +51,7 @@ pub(crate) use numbers::{
 };
 
 pub(crate) use parameters::the_refusal_of_a_parameter;
+pub(crate) use parameters::the_refusal_of_the_arity;
 
 pub(crate) use strings::{in_str, sub_str};
 

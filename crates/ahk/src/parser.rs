@@ -2612,6 +2612,9 @@ impl Parser {
         }
         if self.at_op(&["("]) && !self.peek().spaced {
             self.next();
+            // The name of the call is the token that comes before the
+            // parenthesis, and the text of a refusal names the call.
+            let at_the_name = self.position - 2;
             // `Name(a, b) { }` is a definition; `Name(a, b)` is a call. The
             // brace is what tells the two apart, and the parameters of a
             // definition are not the expressions of a call: a parameter may
@@ -2678,6 +2681,20 @@ impl Parser {
             self.the_expression_begins();
             let arguments = self.parse_arguments()?;
             self.expect_op(")")?;
+            let end = self.position;
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
+            // refuses the call of a name that is not a function at the load,
+            // and a call that is a statement is a call: the `MyFunc()` is
+            // refused with "Call to nonexistent function." and the text of it
+            // is named.
+            if self.dialect.refuses_the_call_of_a_function_at_the_load() {
+                self.the_call_of_the_v1_is_recorded(
+                    &name_token.value.to_lowercase(),
+                    arguments.len(),
+                    at_the_name,
+                    end,
+                );
+            }
             self.the_expression_is_done(self.position, false)?;
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // of a call is a value, and the members of it are read the way
@@ -2998,6 +3015,15 @@ impl Parser {
         // complaint of the v1 is its own.
         if let Some(builtin) = self.the_builtin_of_the_legacy_command(&name) {
             let count = parameters.len();
+            // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has
+            // two forms of the complaint of the number of the parameters, and
+            // the dialect knows the one that is the complaint of the command.
+            if let Some(refusal) =
+                self.dialect
+                    .the_refusal_of_the_arity_of_a_command(&name, count, builtin.min)
+            {
+                return Err(self.error(self.the_message_of_the_arity(refusal, name_at, &places)));
+            }
             if (count as u8) < builtin.min {
                 return Err(self.error(format!(
                     "\"{}\" requires at least {} parameter{}.\n     Specifically: {}",
@@ -3097,6 +3123,31 @@ impl Parser {
             }
         };
         self.the_verbatim_source(name_at, end)
+    }
+
+    /// The complaint of the number of the parameters of a command.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the complaint that
+    /// names the command carries the text of the command, and the complaint
+    /// that names the parameter that has to be there carries nothing else.
+    fn the_message_of_the_arity(
+        &self,
+        refusal: crate::dialect::TheRefusalOfTheArity,
+        name_at: usize,
+        places: &[(usize, usize)],
+    ) -> String {
+        match refusal {
+            crate::dialect::TheRefusalOfTheArity::AtLeast { name, number } => format!(
+                "\"{}\" requires at least {} parameter{}.\n     Specifically: {}",
+                name,
+                number,
+                if number == 1 { "" } else { "s" },
+                self.the_text_of_a_legacy_command(name_at, places),
+            ),
+            crate::dialect::TheRefusalOfTheArity::Required { number } => {
+                format!("Parameter #{number} required")
+            }
+        }
     }
 
     /// The body of a command of the v1 that has a body.

@@ -1583,6 +1583,16 @@ that asks for another one is refused with the reason.
   a condition, and the binary crashes when it has one: the tree refuses it
   with "Unexpected \"Until\"".
 
+- **The number of the parameters of a command of the v1 is the number of the
+  binary.** The complaint of the v1 has two forms: the one that names the
+  command ("\"X\" requires at least N parameter(s).") and the one that names
+  the parameter that has to be there ("Parameter #N required"). The rule is a
+  hook of the dialect, and the commands that are not in the table of the v1
+  answer with the complaint of the parser.
+- **A call that is a statement of the v1 is a call,** and the name that is
+  not a function is refused at the load: "Call to nonexistent function." and
+  the text of the call.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

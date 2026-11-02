@@ -3944,3 +3944,84 @@ fn the_encoding_of_the_files_of_the_v1_is_the_name_of_the_encoding() {
 }
 
 
+
+/// The number of the parameters of a command of the v1 is the number of the
+/// binary.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// command of the `GetKeyState` wants two parameters -- the key and the mode
+/// -- and the complaint of the v1 names them. The `EnvSub` wants two, and the
+/// complaint that names the command comes first. The `ControlSend` and the
+/// `GuiControl` want two, and the `WinMenuSelectItem` wants three, and the
+/// complaint of the v1 names the parameter that is missing: "Parameter #N
+/// required". The name of the `SetStoreCapsLockMode` is the one that the
+/// binary writes, and it is not the name of the surface: "SetStoreCapslockMode".
+#[test]
+fn the_number_of_the_parameters_of_a_command_of_the_v1_is_the_number_of_the_binary() {
+    let cases = [
+        (
+            "GetKeyState",
+            "\"GetKeyState\" requires at least 2 parameters.\n     Specifically: GetKeyState",
+        ),
+        (
+            "GetKeyState, a",
+            "\"GetKeyState\" requires at least 2 parameters.\n     Specifically: GetKeyState, a",
+        ),
+        (
+            "EnvSub",
+            "\"EnvSub\" requires at least 1 parameter.\n     Specifically: EnvSub",
+        ),
+        ("EnvSub, a", "Parameter #2 required"),
+        ("ControlSend", "Parameter #2 required"),
+        ("ControlSend, a", "Parameter #2 required"),
+        ("GuiControl", "Parameter #2 required"),
+        ("GuiControl, a", "Parameter #2 required"),
+        ("WinMenuSelectItem", "Parameter #3 required"),
+        ("WinMenuSelectItem, a", "Parameter #3 required"),
+        ("WinMenuSelectItem, a, b", "Parameter #3 required"),
+        (
+            "SetStoreCapsLockMode",
+            "\"SetStoreCapslockMode\" requires at least 1 parameter.\n     Specifically: SetStoreCapsLockMode",
+        ),
+    ];
+    for (script, refusal) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            refusal,
+            "the script is {script}"
+        );
+    }
+}
+
+/// The call of a name that is not a function is refused at the load, and a
+/// call that is a statement is a call.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `MyFunc()` is a statement, and it is refused at the load with "Call to
+/// nonexistent function." and the text of the call is named. The call of a
+/// built-in is a call too, and the answer of it is thrown away.
+#[test]
+fn the_call_of_a_name_that_is_not_a_function_is_refused_at_the_load() {
+    let cases = [
+        ("MyFunc()", "Call to nonexistent function.\n     Specifically: MyFunc()"),
+        (
+            "MyFunc(1, 2)",
+            "Call to nonexistent function.\n     Specifically: MyFunc(1, 2)",
+        ),
+        (
+            "x := MyFunc()",
+            "Call to nonexistent function.\n     Specifically: MyFunc()",
+        ),
+    ];
+    for (script, refusal) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            refusal,
+            "the script is {script}"
+        );
+    }
+
+    // The call of a built-in is a call, and the answer of it is thrown away.
+    let report = run("StrLen(\"abc\")");
+    assert!(report.ok, "{:?}", report.error);
+}

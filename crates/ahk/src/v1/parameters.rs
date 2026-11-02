@@ -18,7 +18,79 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
+use crate::dialect::TheRefusalOfTheArity;
 use crate::runtime::{CaseSense, FloatFormat, IntegerFormat};
+
+/// The refusal of the number of the parameters of a command of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// has two forms of the complaint, and the command says which one is the one
+/// of it. The one that names the command is "\"X\" requires at least N
+/// parameter(s)." with the text of the command after it; the other one names
+/// the parameter that has to be there and has no text: "Parameter #N
+/// required".
+///
+/// The commands of the v1 that do not have a rule here are the ones whose
+/// complaint the table of the v1 carries: the number of the parameters that
+/// it wants is the number of the table, and the name of the command is the
+/// name of the table.
+pub(crate) fn the_refusal_of_the_arity(
+    name: &str,
+    count: usize,
+) -> Option<TheRefusalOfTheArity> {
+    let rule = RULES_OF_THE_ARITY
+        .iter()
+        .find(|rule| rule.name.eq_ignore_ascii_case(name))?;
+    // The complaint that names the command comes first: the "EnvSub" with no
+    // parameter at all is refused with the number one, and the "EnvSub" with
+    // one parameter is refused with the parameter that is missing.
+    if count < rule.generic as usize {
+        return Some(TheRefusalOfTheArity::AtLeast {
+            name: rule.spelled.unwrap_or(rule.name),
+            number: rule.generic,
+        });
+    }
+    if rule.required != 0 && count < rule.required as usize {
+        return Some(TheRefusalOfTheArity::Required {
+            number: rule.required,
+        });
+    }
+    None
+}
+
+/// The arity of a command of the v1 that the table of the v1 does not carry.
+struct Arity {
+    /// The name of the command, as the table of the v1 spells it.
+    name: &'static str,
+    /// The number of the parameters that the complaint of the v1 names.
+    generic: u8,
+    /// The parameter that has to be there: the complaint of the v1 is
+    /// "Parameter #N required" and it names no text.
+    required: u8,
+    /// The name that the complaint of the v1 writes: the binary spells the
+    /// name of the `SetStoreCapsLockMode` the way it is inside it.
+    spelled: Option<&'static str>,
+}
+
+/// The commands of the v1 whose complaint is not the one of the table.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// "EnvSub" wants two parameters, and the complaint of the v1 names the
+/// number one when the command has no parameter at all; the "ControlSend"
+/// and the "GuiControl" want two, and the "WinMenuSelectItem" wants three,
+/// and the complaint of the v1 names the parameter that is missing.
+const RULES_OF_THE_ARITY: &[Arity] = &[
+    Arity { name: "EnvSub", generic: 1, required: 2, spelled: None },
+    Arity { name: "ControlSend", generic: 0, required: 2, spelled: None },
+    Arity { name: "GuiControl", generic: 0, required: 2, spelled: None },
+    Arity { name: "WinMenuSelectItem", generic: 0, required: 3, spelled: None },
+    Arity {
+        name: "SetStoreCapsLockMode",
+        generic: 1,
+        required: 0,
+        spelled: Some("SetStoreCapslockMode"),
+    },
+];
 
 /// The refusal of a parameter of a command of the v1.
 ///

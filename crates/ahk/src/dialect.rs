@@ -19,6 +19,27 @@ use crate::ast::AssignOp;
 use crate::builtins::Builtin;
 use crate::runtime::{Runtime, RuntimeError, Value};
 
+/// The refusal of the number of the parameters of a command.
+///
+/// The dialect answers with the complaint that it writes, and the parser
+/// writes the text of the command that follows it.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TheRefusalOfTheArity {
+    /// The command does not have the parameters that it wants: the name of
+    /// the command and the number of them are named.
+    AtLeast {
+        /// The name of the command, the way the dialect writes it.
+        name: &'static str,
+        /// The number of the parameters that the command wants.
+        number: u8,
+    },
+    /// The parameter of this place has to be there.
+    Required {
+        /// The place of the parameter.
+        number: u8,
+    },
+}
+
 /// The dialect that the runtime speaks.
 ///
 /// Every rule of the tree that is not the same in the two dialects is a
@@ -650,6 +671,27 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The refusal of the number of the parameters of a command.
+    ///
+    /// `None` means that the dialect lets the command run with the number of
+    /// the parameters that it has, and that the parser answers with its own
+    /// complaint.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// has two forms of the complaint, and the command says which one is the
+    /// one of it. The one that names the command is "\"X\" requires at least
+    /// N parameter(s)." with the text of the command after it; the other one
+    /// names the parameter that has to be there and has no text: "Parameter #N
+    /// required". The v2 has no command, and the parser keeps the first form.
+    fn the_refusal_of_the_arity_of_a_command(
+        &self,
+        _name: &str,
+        _count: usize,
+        _minimum: u8,
+    ) -> Option<TheRefusalOfTheArity> {
+        None
+    }
+
     /// The defaults of the settings of the script.
     ///
     /// The v1 and the v2 do not begin with the same values: the mode of the
@@ -1045,6 +1087,19 @@ impl Dialect for V1 {
         // the parameter of its commands when the script loads, and the
         // complaint of the v1 is its own.
         crate::v1::the_refusal_of_a_parameter(name, parameters)
+    }
+
+    fn the_refusal_of_the_arity_of_a_command(
+        &self,
+        name: &str,
+        count: usize,
+        _minimum: u8,
+    ) -> Option<TheRefusalOfTheArity> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has two
+        // forms of the complaint of the number of the parameters, and the
+        // commands that are not in the table of the v1 answer with the one
+        // that names the command.
+        crate::v1::the_refusal_of_the_arity(name, count)
     }
 
     fn the_defaults_of_the_settings(&self) {
