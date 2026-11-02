@@ -7102,6 +7102,80 @@ script loads. The same is true of the commands that the tree shares with the
 v2: the `SetTitleMatchMode, abc` is refused by the v1 with "Parameter #1
 invalid.\n     Specifically: abc", and the tree refuses it with the message
 of the v2. The family of the commands whose parameter the v1 validates
-differently is still to do.
+differently was carried by the block of the parameters (section 175).
+
+## 175. The parameter of a command of the v1 is checked at the load, and the complaint of the v1 is its own
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The v1 checks the parameter of its commands when the script loads, and
+  the script does not run at all.** The v1 loads the whole script before it
+  runs any line of it: the `Exit, 3` that comes before a command with a bad
+  parameter does not run, and the body of a function that has one is refused
+  the same way. The complaint of the v1 is "Parameter #N invalid.\n
+  Specifically: {the text that the script wrote}", and the text is the text
+  of the parameter and not its value: the `SetTitleMatchMode, 1+1` is the
+  "1+1".
+- **The command that reads one parameter takes the whole rest of the line.**
+  The "AutoTrim, On, extra" is the "On, extra" -- with a comma and a space
+  between -- and it is refused because it is not "On". The command that reads
+  more than one takes the text of each place, and the text that is left of
+  the line is not read: the "SetFormat, Integer, H, extra" is the "Integer"
+  and the "H".
+- **These are the commands that the v1 checks.** The `AutoTrim`, the
+  `DetectHiddenText`, the `DetectHiddenWindows` and the
+  `SetStoreCapsLockMode` want "On", "Off" and the numbers one and zero; the
+  `StringCaseSense` wants them and the "Locale"; the `SetTitleMatchMode`
+  wants the numbers one, two and three, the "RegEx", the "Fast" and the
+  "Slow"; the `SendMode` wants the "Event", the "Input", the "Play" and the
+  "InputThenPlay"; the `SetRegView` wants the numbers thirty-two and
+  sixty-four and the "Default"; the `FileEncoding` wants the "UTF-8", the
+  "UTF-8-RAW", the "UTF-16", the "UTF-16-RAW" and a code page; the
+  `SetBatchLines` wants a whole number, and the hex is one; the `SetFormat`
+  wants the type of the number -- the "Integer", the "IntegerFast", the
+  "Float" or the "FloatFast" -- and the format of it -- the "D", the "H",
+  the "h", or the "<width>.<decimals>" of the floats; the `Transform` wants
+  a sub-command that it knows; the `StringGetPos` wants the occurrence; the
+  `FileGetTime` wants the "M", the "m" or the "a"; the `FileGetSize` wants
+  the "K" or the "M"; and the `FileSetAttrib` wants the letters of the
+  attributes that the v1 knows -- the "R", the "A", the "H", the "S", the
+  "N", the "T" and the "O" -- and the signs that come before them.
+- **The case of the words does not matter, and the text that begins with a
+  word is the same one.** The "on" is the "On", the "IntegerX" is the
+  "Integer", and the "H2" is the "H".
+- **These are the commands that the v1 does not check.** The
+  `SetControlDelay`, the `SetWinDelay`, the `SetMouseDelay`, the
+  `SetKeyDelay` and the `CoordMode` take what they are given: the "abc" is
+  zero, and the mode that is not the "Play" is the mode of the input. The
+  `CoordMode` with a target that the v1 does not know changes nothing, and
+  the mode that it does not know sets every mode of every target to the
+  "Event" -- the mode that the v1 has and does not name.
+
+The rule is one hook of the dialect (`crates/ahk/src/dialect.rs`): the
+refusal of a parameter that is not wanted. The parser asks it
+(`crates/ahk/src/parser.rs`) after the number of the parameters is checked,
+and the v1 answers with the reason of the v1. The rules of the v1 are in
+the module of the parameters (`crates/ahk/src/v1/parameters.rs`), and the
+handlers that the v1 shares with the v2 -- the `SetTitleMatchMode`, the
+`SendMode`, the `DetectHiddenText`, the `DetectHiddenWindows`, the
+`FileEncoding` and the `SetRegView` -- keep the rules of the v2, because
+the load of the script refuses the value that the v1 refuses.
+
+The commands that the v1 does not check have handlers of their own
+(`crates/ahk/src/v1/names.rs`): the `CoordMode`, the `SetControlDelay`, the
+`SetWinDelay`, the `SetMouseDelay`, the `SetKeyDelay` and the
+`FileEncoding`. The `SetControlDelay` of the v1 does not check the range of
+the delay, and the number that does not fit in the machine wraps around it.
+
+**Three differences are left, and they are of other families.** The
+`KeyWait` and the `GetKeyState` want the name of a key, and the v1 checks
+it at the load -- the tree carries the names of the keys of the v2, and the
+"F11" and the "AppsKey" are not there, so the tree answers with the reason
+of the machine ("this runtime does not keep the keys that are down") and
+does not refuse a key that it does not know. The `SetTimer` of the v1 wants
+the name of the label, and the tree uses the shape of the v2 -- the refusal
+of the v1 is "Target label does not exist.". And the `FileEncoding` of a
+code page that the tree does not carry is refused with the reason of the
+tree: it carries one code page, the one of the machine.
 
 

@@ -1086,6 +1086,15 @@ of the `x`. The increment of a built-in variable of the v1 answers the empty
 text and changes nothing, and the refusal of it at the load is the one of the
 line that is the increment alone.
 
+The parameter of a command is a rule of the dialect too. The v1 checks the
+value of the parameter when the script loads -- the parser asks the dialect
+after it has checked the number of the parameters -- and the complaint of
+the v1 is "Parameter #N invalid." with the text that the script wrote. The
+rules are in `v1/parameters.rs`: the command that reads one parameter takes
+the whole rest of the line, and the command that reads more than one takes
+the text of each place. The v2 answers nothing to the hook, and the value of
+the parameter is checked by the handler of the command when it runs.
+
 ### The regular expressions (`regex.rs`)
 
 - `Regex` -- a compiled pattern.

@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 137 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 140 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -842,7 +842,19 @@ class (2026-11-02), and the scope of a function by the block of the scope of
 a function (2026-11-02), and the name that begins with a number by the block
 of the name that begins with a number (2026-11-02), and the number that
 keeps the text that was written by the block of the number (2026-11-02), and
-the path of the class of the `new` by the block of the path (2026-11-02).
+the path of the class of the `new` by the block of the path (2026-11-02), and
+the parameter of a command by the block of the parameters (2026-11-02).
+
+**The parameter of a command of the v1.** The v1 checks the value of the
+parameter when the script loads, and the script does not run at all: the
+`Exit, 3` that comes before a command with a bad parameter does not run. The
+complaint of the v1 is "Parameter #N invalid." with the text that the script
+wrote -- the text of the parameter, and not its value -- and the command
+that reads one parameter takes the whole rest of the line. The rule is one
+hook of the dialect (`the_refusal_of_an_invalid_parameter`), the rules are
+in `crates/ahk/src/v1/parameters.rs`, and the commands that the v1 does not
+check have handlers of their own. The name of a key and the name of the
+label of the `SetTimer` are of other families, and they are not carried.
 
 **The path of the class.** The `new` of the v1 takes the path of the class:
 the name that follows the word and the names of the classes that it holds.

@@ -628,6 +628,28 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The refusal of a parameter of a command that the dialect does not
+    /// want.
+    ///
+    /// The refusal is at the load, and it names the parameter and the text
+    /// that the script wrote. The name is the name of the command as the
+    /// script wrote it, and the parameters are the texts of the parameters,
+    /// as they were written. `None` means that the dialect lets the command
+    /// run with the parameter that it has.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+    /// checks the parameter of some of its commands when the script loads,
+    /// and the complaint of the v1 is "Parameter #N invalid." with the text
+    /// that the script wrote in the second line of it. The v2 checks the
+    /// value of the parameter when the command runs.
+    fn the_refusal_of_an_invalid_parameter(
+        &self,
+        _name: &str,
+        _parameters: &[String],
+    ) -> Option<String> {
+        None
+    }
+
     /// Whether the space separates the increment from the name.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the space is what
@@ -1004,6 +1026,13 @@ impl Dialect for V1 {
             return None;
         }
         Some(format!("Not allowed as an output variable.\n     Specifically: {name}"))
+    }
+
+    fn the_refusal_of_an_invalid_parameter(&self, name: &str, parameters: &[String]) -> Option<String> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 checks
+        // the parameter of its commands when the script loads, and the
+        // complaint of the v1 is its own.
+        crate::v1::the_refusal_of_a_parameter(name, parameters)
     }
 
     fn the_space_separates_the_increment(&self) -> bool {

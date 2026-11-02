@@ -22,6 +22,7 @@ mod kinds;
 mod math;
 mod names;
 mod numbers;
+mod parameters;
 mod strings;
 mod table;
 mod variables;
@@ -48,11 +49,15 @@ pub(crate) use numbers::{
     the_whole_number_at_the_start_of_a_text, the_whole_number_of_a_hex,
 };
 
+pub(crate) use parameters::the_refusal_of_a_parameter;
+
 pub(crate) use strings::{in_str, sub_str};
 
 pub(crate) use names::{
-    auto_trim, file_read_line, func, input, is_by_ref, is_func, is_set, object, set_batch_lines,
-    set_format, string_case_sense, transform, var_set_capacity,
+    auto_trim, coord_mode_of_the_v1, file_encoding_of_the_v1, file_read_line, func,
+    input, is_by_ref, is_func, is_set, object, set_batch_lines, set_control_delay_of_the_v1,
+    set_format, set_key_delay_of_the_v1, set_mouse_delay_of_the_v1, set_win_delay_of_the_v1,
+    string_case_sense, transform, var_set_capacity,
 };
 
 /// The built-in variables of the v1 that the v2 does not carry.
@@ -500,6 +505,12 @@ pub(crate) fn string_get_pos(
 /// not a number is no occurrence at all, and the place is minus one.
 fn the_occurrence_of_the_v1(text: &str, line: u32) -> Result<(bool, usize), RuntimeError> {
     let wanted = text.trim();
+    if !parameters::is_an_occurrence(wanted) {
+        return Err(RuntimeError {
+            message: format!("Parameter #4 invalid.\n     Specifically: {wanted}"),
+            line,
+        });
+    }
     let Some(first) = wanted.chars().next() else {
         // The occurrence that is not there is the first from the left.
         return Ok((false, 1));
@@ -508,13 +519,7 @@ fn the_occurrence_of_the_v1(text: &str, line: u32) -> Result<(bool, usize), Runt
         'L' | 'l' => false,
         'R' | 'r' => true,
         // The number that is alone is the first from the right.
-        '1' => return Ok((true, 1)),
-        _ => {
-            return Err(RuntimeError {
-                message: format!("Parameter #4 invalid.\n     Specifically: {wanted}"),
-                line,
-            })
-        }
+        _ => return Ok((true, 1)),
     };
     let number = wanted[1..].trim().parse::<usize>().unwrap_or(0);
     Ok((from_the_right, number))

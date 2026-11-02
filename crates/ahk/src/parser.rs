@@ -3025,6 +3025,13 @@ impl Parser {
                 }
             }
         }
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the value of a
+        // parameter of a command of the v1 is checked when the script loads,
+        // and the complaint of the v1 is its own: "Parameter #N invalid."
+        // with the text that the script wrote.
+        if let Some(refusal) = self.dialect.the_refusal_of_an_invalid_parameter(&name, &parameters) {
+            return Err(self.error(refusal));
+        }
         // The command of the v1 that has a body: the action is the rest of
         // the line, the block, or the statement of the next line.
         if self.dialect.the_command_has_a_body(&name) {

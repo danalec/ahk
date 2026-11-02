@@ -10,7 +10,7 @@
 use alloc::format;
 use alloc::string::{String, ToString};
 
-use crate::runtime::{CaseSense, FloatFormat, IntegerFormat, Runtime, RuntimeError, Value};
+use crate::runtime::{Runtime, RuntimeError, Value};
 
 /// The place of the argument of this function that asks for the name of a
 /// variable.
@@ -68,13 +68,11 @@ pub(crate) fn set_format(
     };
     let number_type = text(0);
     let format = text(1);
-    match number_type.to_lowercase().as_str() {
-        "integer" | "integerfast" => {
-            let format = match format.as_str() {
-                "D" | "d" => IntegerFormat::Decimal,
-                "H" | "HEX" | "hex" => IntegerFormat::Hexadecimal,
-                "h" => IntegerFormat::HexadecimalLower,
-                _ => {
+    match super::parameters::the_kind_of_a_number(&number_type) {
+        Some(super::parameters::TheKindOfANumber::Integer) => {
+            let format = match super::parameters::the_format_of_the_whole_numbers(&format) {
+                Some(format) => format,
+                None => {
                     return Err(RuntimeError {
                         message: format!("Parameter #2 invalid.\n     Specifically: {format}"),
                         line,
@@ -83,8 +81,8 @@ pub(crate) fn set_format(
             };
             rt.set_integer_format(format);
         }
-        "float" | "floatfast" => {
-            let format = match the_float_format_of_the_v1(&format) {
+        Some(super::parameters::TheKindOfANumber::Float) => {
+            let format = match super::parameters::the_format_of_the_floats(&format) {
                 Some(format) => format,
                 None => {
                     return Err(RuntimeError {
@@ -95,7 +93,7 @@ pub(crate) fn set_format(
             };
             rt.set_float_format(format);
         }
-        _ => {
+        None => {
             return Err(RuntimeError {
                 message: format!("Parameter #1 invalid.\n     Specifically: {number_type}"),
                 line,
@@ -103,48 +101,6 @@ pub(crate) fn set_format(
         }
     }
     Ok(Value::Text(String::new()))
-}
-
-/// The format of the floats of the v1, when the text is one.
-///
-/// Measured on the binary of v1.1.37.02 on 2026-11-02: the format is
-/// "<width>.<decimals>", and the width may be in zero ("06.2") or in minus
-/// ("-6.2") for the padding, and the "e" at the end asks for the scientific
-/// notation.
-fn the_float_format_of_the_v1(text: &str) -> Option<FloatFormat> {
-    let text = text.trim();
-    if text.is_empty() {
-        return None;
-    }
-    let (body, scientific) = match text.strip_suffix('e') {
-        Some(body) => (body, true),
-        None => match text.strip_suffix('E') {
-            Some(body) => (body, true),
-            None => (text, false),
-        },
-    };
-    let (width, decimals) = body.split_once('.')?;
-    let (left, width) = match width.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, width),
-    };
-    // Measured on the binary of v1.1.37.02 on 2026-11-02: the width "0" is
-    // the width zero, and the zeroes that pad the text are a zero in front
-    // of a width that has more digits ("06.2").
-    let (zeroes, width) = match width.strip_prefix('0') {
-        Some(rest) if !rest.is_empty() => (true, rest),
-        _ => (false, width),
-    };
-    let width: u32 = width.parse().ok()?;
-    let decimals: u32 = decimals.parse().ok()?;
-    Some(FloatFormat {
-        width,
-        zeroes,
-        left,
-        decimals,
-        scientific,
-        upper: text.ends_with('E'),
-    })
 }
 
 /// `AutoTrim, On`: the trim of the text of a legacy assignment.
@@ -160,10 +116,9 @@ pub(crate) fn auto_trim(
 ) -> Result<Value, RuntimeError> {
     let text = the_one_parameter_of_a_command(values);
     let trimmed = text.trim();
-    match trimmed.to_lowercase().as_str() {
-        "on" => rt.set_auto_trim(true),
-        "off" => rt.set_auto_trim(false),
-        _ => {
+    match super::parameters::the_switch_of_the_v1(trimmed) {
+        Some(trim) => rt.set_auto_trim(trim),
+        None => {
             return Err(RuntimeError {
                 message: format!("Parameter #1 invalid.\n     Specifically: {trimmed}"),
                 line,
@@ -239,11 +194,9 @@ pub(crate) fn string_case_sense(
 ) -> Result<Value, RuntimeError> {
     let text = the_one_parameter_of_a_command(values);
     let trimmed = text.trim();
-    let sense = match trimmed.to_lowercase().as_str() {
-        "on" | "1" => CaseSense::On,
-        "off" | "0" => CaseSense::Off,
-        "locale" => CaseSense::Locale,
-        _ => {
+    let sense = match super::parameters::the_case_sense_of_the_v1(trimmed) {
+        Some(sense) => sense,
+        None => {
             return Err(RuntimeError {
                 message: format!("Parameter #1 invalid.\n     Specifically: {trimmed}"),
                 line,
@@ -254,14 +207,139 @@ pub(crate) fn string_case_sense(
     Ok(Value::Text(String::new()))
 }
 
+/// `CoordMode, Mouse, Screen`: the way the coordinates are read.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+/// check the target -- the "abc" changes nothing -- and the mode that it
+/// does not know sets every mode to the "Event". The v2 refuses the target
+/// and the mode that it does not know.
+pub(crate) fn coord_mode_of_the_v1(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let relative = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    crate::settings::set_the_coord_mode_of_the_v1(&target, &relative);
+    Ok(Value::Text(String::new()))
+}
+
+/// `SetControlDelay, 20`: the pause after a change of a control.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+/// check the parameter -- the "abc" is zero and the "20abc" is zero -- and
+/// the number that does not fit in the machine wraps around it. The v2
+/// refuses a parameter that is not a number and a delay that is out of the
+/// range of the machine.
+pub(crate) fn set_control_delay_of_the_v1(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let delay = crate::v1::the_number_of_a_text(&text)
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0) as i32;
+    let previous = crate::settings::set_the_control_delay_of_the_v1(delay);
+    Ok(Value::Int(previous as i64))
+}
+
+/// `SetWinDelay, 20`: the pause after a windowing function.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+/// check the parameter -- the "abc" is zero -- and the v2 refuses a
+/// parameter that is not a number.
+pub(crate) fn set_win_delay_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let delay = crate::v1::the_number_of_a_text(&text)
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0);
+    crate::settings::set_win_delay(rt, &[Value::Float(delay)], line, 0)
+}
+
+/// `SetMouseDelay, 20`: the pause after a movement of the mouse.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+/// check the mode -- the "abc" is not the "Play" -- and the v2 refuses it.
+pub(crate) fn set_mouse_delay_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let delay = values.first().and_then(|value| value.to_number()).unwrap_or(0.0);
+    let mode = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let mode = if mode.trim().eq_ignore_ascii_case("play") {
+        "Play"
+    } else {
+        ""
+    };
+    crate::settings::set_mouse_delay(
+        rt,
+        &[Value::Float(delay), Value::Text(mode.to_string())],
+        line,
+        0,
+    )
+}
+
+/// `SetKeyDelay, 20`: the pause between the keys.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+/// check the mode -- the "abc" is not the "Play" -- and the v2 refuses it.
+pub(crate) fn set_key_delay_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let delay = values.first().and_then(|value| value.to_number()).unwrap_or(0.0);
+    let mode = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let mode = if mode.trim().eq_ignore_ascii_case("play") {
+        "Play"
+    } else {
+        ""
+    };
+    crate::settings::set_key_delay(
+        rt,
+        &[Value::Float(delay), Value::Text(mode.to_string())],
+        line,
+        0,
+    )
+}
+
+/// `FileEncoding, UTF-8`: the encoding the files are opened with.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the text that is
+/// empty changes nothing, and the v2 refuses it.
+pub(crate) fn file_encoding_of_the_v1(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
+    if name.trim().is_empty() {
+        return Ok(Value::Text(crate::settings::file_encoding().to_string()));
+    }
+    crate::settings::set_file_encoding(&name)
+        .map(|encoding| Value::Text(encoding.to_string()))
+        .map_err(|message| RuntimeError { message, line })
+}
+
 /// The text of a value of a command, without the quotes that surround it.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the numbers of the
 /// `Transform` are the numbers of the text without its quotes: `Ceil, "1.2"`
 /// is 2, and `Abs, "-5"` is "5". The `Asc` and the `Deref` see the text as
 /// it is.
-fn the_text_without_the_quotes(text: &str) -> &str {
-    let text = text.trim();
+fn the_text_without_the_quotes(text: &str) -> &str {    let text = text.trim();
     if text.len() >= 2 && text.starts_with('"') && text.ends_with('"') {
         return &text[1..text.len() - 1];
     }

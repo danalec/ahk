@@ -132,6 +132,16 @@ fn run_with_the_clipboard(script: &str, clipboard: &str) -> Report {
         .run(&statements)
 }
 
+/// The refusal of the load of a script of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the value of a
+/// parameter of a command of the v1 is checked when the script loads, and
+/// the script does not run at all.
+fn the_refusal_of_the_load(script: &str) -> String {
+    let error = ahk::parse_with(script, dialect::v1()).expect_err("the script of the v1 is refused");
+    error.message
+}
+
 /// The command of the v1 writes the text that it was given.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-01: `FileAppend,
@@ -568,15 +578,14 @@ fn the_zero_of_the_batch_lines_of_the_v1_is_ten() {
 /// refused.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is
-/// "Parameter #1 invalid." and the value that failed is in the message.
+/// "Parameter #1 invalid." and the value that failed is in the message. The
+/// refusal is at the load: the script does not run.
 #[test]
 fn the_value_of_the_batch_lines_that_is_not_a_number_is_refused() {
     for value in ["off", "abc", "1+1", "20.5"] {
-        let report = run(&format!("SetBatchLines, {value}"));
-        assert!(!report.ok);
         assert_eq!(
-            report.error.as_deref(),
-            Some(format!("Parameter #1 invalid.\n     Specifically: {value}").as_str())
+            the_refusal_of_the_load(&format!("SetBatchLines, {value}")),
+            format!("Parameter #1 invalid.\n     Specifically: {value}")
         );
     }
 }
@@ -585,14 +594,13 @@ fn the_value_of_the_batch_lines_that_is_not_a_number_is_refused() {
 /// of the line with it.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `AutoTrim, On,
-/// extra` is the "On, extra", and it is refused because it is not "On".
+/// extra` is the "On, extra", and it is refused because it is not "On". The
+/// refusal is at the load.
 #[test]
 fn the_extra_text_of_the_line_goes_into_the_parameter_of_the_v1() {
-    let report = run("AutoTrim, On, extra");
-    assert!(!report.ok);
     assert_eq!(
-        report.error.as_deref(),
-        Some("Parameter #1 invalid.\n     Specifically: On, extra")
+        the_refusal_of_the_load("AutoTrim, On, extra"),
+        "Parameter #1 invalid.\n     Specifically: On, extra"
     );
 }
 
@@ -817,12 +825,11 @@ fn the_auto_trim_of_the_v1_turns_the_trim_on_and_off() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("Off".into())));
 
-    // The value that the command does not know is refused.
-    let report = run("AutoTrim, Maybe");
-    assert!(!report.ok);
+    // The value that the command does not know is refused, and the refusal
+    // is at the load.
     assert_eq!(
-        report.error.as_deref(),
-        Some("Parameter #1 invalid.\n     Specifically: Maybe")
+        the_refusal_of_the_load("AutoTrim, Maybe"),
+        "Parameter #1 invalid.\n     Specifically: Maybe"
     );
 }
 
@@ -921,14 +928,13 @@ fn the_formats_of_the_v1_say_which_one_is_in_force() {
 /// The format that the `SetFormat` does not know is refused.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the value is refused
-/// with "Parameter #2 invalid." and the value in the `Extra`.
+/// with "Parameter #2 invalid." and the value in the `Extra`. The refusal is
+/// at the load.
 #[test]
 fn the_format_that_the_set_format_does_not_know_is_refused() {
-    let report = run("SetFormat, Integer, X");
-    assert!(!report.ok);
     assert_eq!(
-        report.error.as_deref(),
-        Some("Parameter #2 invalid.\n     Specifically: X")
+        the_refusal_of_the_load("SetFormat, Integer, X"),
+        "Parameter #2 invalid.\n     Specifically: X"
     );
 }
 
@@ -1056,14 +1062,13 @@ fn the_sense_of_the_case_of_the_v1_is_off_when_the_script_begins() {
 /// The value that the `StringCaseSense` does not know is refused.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is
-/// "Parameter #1 invalid." and the value is in the `Extra`.
+/// "Parameter #1 invalid." and the value is in the `Extra`. The refusal is
+/// at the load.
 #[test]
 fn the_value_that_the_string_case_sense_does_not_know_is_refused() {
-    let report = run("StringCaseSense, Maybe");
-    assert!(!report.ok);
     assert_eq!(
-        report.error.as_deref(),
-        Some("Parameter #1 invalid.\n     Specifically: Maybe")
+        the_refusal_of_the_load("StringCaseSense, Maybe"),
+        "Parameter #1 invalid.\n     Specifically: Maybe"
     );
 }
 
@@ -1211,14 +1216,13 @@ fn the_absolute_value_of_the_transform_of_the_v1_is_the_text_of_the_number() {
 /// The sub-command that the `Transform` of the v1 does not know is refused.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is
-/// "Parameter #2 invalid." and the sub-command is in the `Extra`.
+/// "Parameter #2 invalid." and the sub-command is in the `Extra`. The refusal
+/// is at the load.
 #[test]
 fn the_sub_command_that_the_transform_of_the_v1_does_not_know_is_refused() {
-    let report = run("Transform, out, Hex, 255");
-    assert!(!report.ok);
     assert_eq!(
-        report.error.as_deref(),
-        Some("Parameter #2 invalid.\n     Specifically: Hex")
+        the_refusal_of_the_load("Transform, out, Hex, 255"),
+        "Parameter #2 invalid.\n     Specifically: Hex"
     );
 }
 
@@ -1483,14 +1487,13 @@ fn the_place_of_the_string_get_pos_of_the_v1_counts_from_zero() {
 /// The occurrence of the `StringGetPos` of the v1 that is not one is refused.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the refusal is the
-/// one of the v1, and it names the occurrence that was written.
+/// one of the v1, and it names the occurrence that was written. The refusal is
+/// at the load.
 #[test]
 fn the_occurrence_of_the_string_get_pos_of_the_v1_that_is_not_one_is_refused() {
-    let report = run("text := \"banana\"\nStringGetPos, pos, text, a, 0");
-    assert!(!report.ok);
     assert_eq!(
-        report.error,
-        Some("Parameter #4 invalid.\n     Specifically: 0".to_string())
+        the_refusal_of_the_load("text := \"banana\"\nStringGetPos, pos, text, a, 0"),
+        "Parameter #4 invalid.\n     Specifically: 0"
     );
 }
 
@@ -3559,4 +3562,104 @@ fn the_format_of_the_v1_writes_the_number_and_not_the_pure_number() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["1.500".to_string()]);
 }
+
+/// The parameter that the v1 does not want is refused at the load.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// checks the parameter of its commands when the script loads, and the
+/// complaint of the v1 is "Parameter #N invalid." with the text that the
+/// script wrote. The text is the text of the parameter, and not its value.
+#[test]
+fn the_parameter_that_the_v1_does_not_want_is_refused_at_the_load() {
+    let cases = [
+        ("SetTitleMatchMode, abc", 1, "abc"),
+        ("SetTitleMatchMode, 1+1", 1, "1+1"),
+        ("SetStoreCapsLockMode, abc", 1, "abc"),
+        ("SendMode, abc", 1, "abc"),
+        ("DetectHiddenText, abc", 1, "abc"),
+        ("DetectHiddenWindows, abc", 1, "abc"),
+        ("FileEncoding, abc", 1, "abc"),
+        ("SetRegView, abc", 1, "abc"),
+        ("AutoTrim, abc", 1, "abc"),
+        ("StringCaseSense, abc", 1, "abc"),
+        ("SetBatchLines, abc", 1, "abc"),
+        ("SetFormat, abc, H", 1, "abc"),
+        ("SetFormat, Integer, abc", 2, "abc"),
+        ("Transform, out, Hex, 255", 2, "Hex"),
+        ("StringGetPos, pos, text, a, 0", 4, "0"),
+        ("FileGetTime, out, file, D", 3, "D"),
+        ("FileGetSize, out, file, G", 3, "G"),
+        ("FileSetAttrib, abc, file", 1, "abc"),
+    ];
+    for (script, number, text) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            format!("Parameter #{number} invalid.\n     Specifically: {text}"),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The command that the v1 does not check takes what it is given.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `SetControlDelay`, the `SetWinDelay`, the `SetMouseDelay`, the
+/// `SetKeyDelay` and the `CoordMode` do not refuse the value that they do
+/// not know: the "abc" is zero, and the mode that is not the "Play" is the
+/// mode of the input.
+#[test]
+fn the_command_that_the_v1_does_not_check_takes_what_it_is_given() {
+    for script in [
+        "SetControlDelay, abc",
+        "SetControlDelay, -5",
+        "SetControlDelay, 20abc",
+        "SetWinDelay, abc",
+        "SetKeyDelay, 10, abc",
+        "SetKeyDelay, 10, Play",
+        "CoordMode, abc",
+        "CoordMode, Mouse, abc",
+        "CoordMode, Mouse, Screen",
+        "FileEncoding, ",
+    ] {
+        let report = run(script);
+        assert!(report.ok, "the script is {script}: {:?}", report.error);
+    }
+
+    // The delay and the speed of the pointer are the machine's: the fake
+    // has no pointer, and the refusal is the one of the machine and not the
+    // one of the parameter.
+    for script in ["SetMouseDelay, 10, abc", "SetDefaultMouseSpeed, abc"] {
+        let report = run(script);
+        assert!(!report.ok, "the script is {script}");
+        assert!(
+            report
+                .error
+                .as_deref()
+                .unwrap_or("")
+                .starts_with("this desktop cannot change"),
+            "the script is {script}: {:?}",
+            report.error
+        );
+    }
+}
+
+/// The `CoordMode` of the v1 with a mode that it does not know sets every
+/// mode to the "Event".
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the mode
+/// that the v1 does not know is the "Event", and it is the mode of every
+/// target: the mouse, the pixel, the caret, the menu and the tooltip. The
+/// target that the v1 does not know changes nothing.
+#[test]
+fn the_coord_mode_of_the_v1_that_is_not_one_sets_every_mode_to_the_event() {
+    let report = run("CoordMode, Mouse, abc\nx := A_CoordModePixel\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["Event".to_string()]);
+
+    // The target that the v1 does not know changes nothing.
+    let report = run("CoordMode, Mouse, Screen\nCoordMode, abc\nx := A_CoordModeMouse\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["Screen".to_string()]);
+}
+
 

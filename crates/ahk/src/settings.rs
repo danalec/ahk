@@ -45,7 +45,13 @@ use crate::runtime::{self, Runtime, RuntimeError, TypeName, Value};
 const CLIENT: u8 = 0;
 const SCREEN: u8 = 1;
 const WINDOW: u8 = 2;
-const MODES: [&str; 3] = ["Client", "Screen", "Window"];
+/// The mode that the v1 has when the mode is not one that it knows.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `CoordMode` with
+/// a mode that the v1 does not know sets every mode of every target to the
+/// "Event", and the v1 does not name that mode anywhere else.
+const COORD_EVENT: u8 = 3;
+const MODES: [&str; 4] = ["Client", "Screen", "Window", "Event"];
 
 /// The targets of `CoordMode`, the way v2 names them.
 const MOUSE: u8 = 0;
@@ -689,6 +695,46 @@ pub fn coord_mode(
     }
 }
 
+/// `CoordMode, Mouse, Screen`: the way the coordinates are read, the way the
+/// v1 reads them.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the target that the
+/// v1 does not know changes nothing, and the mode that it does not know
+/// sets every mode of every target to the "Event" -- the mode that the v1
+/// has and does not name. The mode that is not said is the "Screen".
+pub fn set_the_coord_mode_of_the_v1(target: &str, relative: &str) {
+    let mode = match relative.trim().to_lowercase().as_str() {
+        "" | "screen" => SCREEN,
+        "window" => WINDOW,
+        "client" => CLIENT,
+        _ => COORD_EVENT,
+    };
+    // The target that the v1 does not know changes nothing.
+    let wanted = match target.trim().to_lowercase().as_str() {
+        "mouse" => &STATE.coord_mouse,
+        "pixel" => &STATE.coord_pixel,
+        "caret" => &STATE.coord_caret,
+        "menu" => &STATE.coord_menu,
+        "tooltip" => &STATE.coord_tooltip,
+        _ => return,
+    };
+    // The mode that the v1 does not know sets every mode, and not only the
+    // one of the target.
+    if mode == COORD_EVENT {
+        for other in [
+            &STATE.coord_mouse,
+            &STATE.coord_pixel,
+            &STATE.coord_caret,
+            &STATE.coord_menu,
+            &STATE.coord_tooltip,
+        ] {
+            other.store(COORD_EVENT, Ordering::Relaxed);
+        }
+        return;
+    }
+    wanted.store(mode, Ordering::Relaxed);
+}
+
 /// `SetTitleMatchMode`: the mode of the matching of the titles, or its
 /// speed.
 ///
@@ -856,6 +902,15 @@ pub fn set_control_delay(
     }
     let previous = STATE.control_delay.swap(delay as i32, Ordering::Relaxed);
     Ok(Value::Int(previous as i64))
+}
+
+/// The delay of the controls of the v1, and the one that was there before.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not
+/// check the delay, and the number that does not fit in the machine wraps
+/// around it.
+pub fn set_the_control_delay_of_the_v1(delay: i32) -> i32 {
+    STATE.control_delay.swap(delay, Ordering::Relaxed)
 }
 
 /// `SetRegView`: the view of the registry.
