@@ -1756,6 +1756,12 @@ that asks for another one is refused with the reason.
   keeps the `++` that comes after a number as one operator
   (`the_increment_after_a_number_is_an_operator`), and the increment of a
   literal is the empty text (`the_increment_of_a_literal_is_blank`).
+- **The construct of the v1 may have no body.** The `if (1)` that is the last
+  line of the script is a script that loads, and the `while (0)` that is the
+  last line of it is a script that loads too, and the `else` that has no body
+  is a script that loads as well. The dialect says it
+  (`the_body_may_be_missing`) and the parser asks it when the body is not
+  there (`the_block_needs_a_body`).
 - **The message of the bracket of the v1 is the name of it alone.** The `x :=
   (1` is a "Missing ")" and the line of the script is not under it, and the
   bracket that closes nothing is an "Unexpected ")" with nothing under it

@@ -1061,14 +1061,11 @@ the name of the bracket. The bracket that closes nothing is an "Unexpected
 "Missing close-quote" that names the text that was read -- the `"abc` -- and
 not the line of the script.
 
-**What is left of the v1.** Four corners of the `if` are measured on the
+**What is left of the v1.** Three corners of the `if` are measured on the
 binary of v1.1.37.02 and the tree does not do them yet.
 
 The brace that comes after the `if` that is inside the line of the
 condition: the v1 refuses it with "Unexpected \"{\"", and the tree refuses
-the line with "Unexpected \"If\"".
-
-The `if` of the v1 that has no body: the v1 accepts it, and the tree refuses
 the line with "Unexpected \"If\"".
 
 The assignment of the v1 that has no value: the `y :=` writes the empty
@@ -1081,8 +1078,13 @@ no action, and the tree takes it as a part of the tail. The `if (0) x := 1,
 FileAppend, A, *` with a `B` under it is refused by the v1 with "This line
 does not contain a recognized action. Specifically: B".
 
-And one corner that is not of the `if`: the concatenation of two values that
-are side by side. The v1 does not ask for the space that tells them apart,
+And one corner that is not of the `if`: the `loop` of the v1. It is a
+command, and the tree reads it as the construct of the v2. The `loop 3` is
+three turns in the two of them, but the `loop n` is three turns in the tree
+and none in the v1: the count of the v1 is a number and not an expression.
+
+And one corner that is not of the `if` either: the concatenation of two
+values that are side by side. The v1 does not ask for the space that tells them apart,
 and the tree does: the `x := 5++3` is three in the v1, and the tree refuses
 the line with "Missing space or operator before this.". The `x := a++3` is
 "53" in the v1, and the tree refuses it the same way.

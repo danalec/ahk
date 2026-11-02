@@ -6326,3 +6326,29 @@ fn the_message_of_the_text_that_is_not_closed_is_the_text_that_was_read() {
         "Missing close-quote\n     Specifically: \"abc"
     );
 }
+
+/// The construct of the v1 may have no body.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if
+/// (1)` that is the last line of the script is a script that loads, and the
+/// `while (0)` that is the last line of it is a script that loads too.
+#[test]
+fn the_construct_of_the_v1_may_have_no_body() {
+    // The `if` that has no body.
+    let report = run("if (1)");
+    assert!(report.ok);
+
+    // The `while` that has no body.
+    let report = run("while (0)");
+    assert!(report.ok);
+
+    // The `else` that has no body.
+    let report = run("if (0)\nFileAppend, [body], *\nelse");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    // And the `else` that has no body, when the condition is true.
+    let report = run("if (1)\nFileAppend, [body], *\nelse");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[body]".to_string()]);
+}

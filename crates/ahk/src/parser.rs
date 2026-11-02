@@ -2056,7 +2056,7 @@ impl Parser {
         }
         if self.at_end_of_statement() {
             // The body is not there.
-            if Self::the_block_needs_a_body(kind) {
+            if self.the_block_needs_a_body(kind) {
                 return Err(self.error(self.the_message_of_the_body(kind)));
             }
             return Ok(Vec::new());
@@ -2203,7 +2203,16 @@ impl Parser {
     /// and the `finally` need one, and the construct that has none says
     /// so in its own words: "Unexpected \"Catch\"", "Unexpected \"Else\""
     /// and "Unexpected \"Finally\"".
-    fn the_block_needs_a_body(kind: &str) -> bool {
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// takes none of them: the `if (1)` that is the last line of the script
+    /// is a script that loads, and the `while (0)` that is the last line of
+    /// it is a script that loads too. The dialect says it
+    /// (`the_body_may_be_missing`).
+    fn the_block_needs_a_body(&self, kind: &str) -> bool {
+        if self.dialect.the_body_may_be_missing() {
+            return false;
+        }
         matches!(kind, "If" | "While" | "For" | "Try" | "Catch" | "Else" | "Finally")
             || the_loop_of_the_kind(kind)
     }

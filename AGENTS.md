@@ -7966,6 +7966,7 @@ number that opens a statement becomes the name of a variable
 (`the_number_becomes_the_name_of_a_variable`), and the suite of the v1 has
 four cases more (236).
 
+
 ## 199. The items that come after the comma of the condition of the `if` of the v1 are evaluated
 
 Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if (0)
@@ -8008,3 +8009,21 @@ which is which (`the_bracket_is_named_alone` and
 names the bracket (`the_message_of_a_bracket` and
 `the_message_of_an_unexpected_token`), and the lexer asks it when the quote
 is not closed. The suite of the v1 has two cases more (241).
+
+## 201. The construct of the v1 may have no body
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if
+(1)` that is the last line of the script is a script that loads, and the
+`while (0)` that is the last line of it is a script that loads too, and the
+`else` that has no body is a script that loads as well. The v2 refuses the
+construct that has no body, and it says so in its own words: "Unexpected
+\"If\"".
+
+The dialect says it (`the_body_may_be_missing`), and the parser asks it when
+the body is not there (`the_block_needs_a_body`). The suite of the v1 has
+one case more (242).
+
+One thing is left of it: the `loop` of the v1 is a command, and the tree
+reads it as the construct of the v2. The `loop 3` is three turns in the two
+of them, but the `loop n` is three turns in the tree and none in the v1: the
+count of the v1 is a number and not an expression.

@@ -211,6 +211,17 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the body of a construct may be missing.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// takes none of them: the `if (1)` that is the last line of the script
+    /// is a script that loads, and the `else` that has no body is a script
+    /// that loads too. The v2 refuses the construct that has no body, and it
+    /// says so in its own words: "Unexpected "If"".
+    fn the_body_may_be_missing(&self) -> bool {
+        false
+    }
+
     /// Whether the text that is not closed is named alone, with the words of
     /// the dialect.
     ///
@@ -1180,6 +1191,12 @@ impl Dialect for V1 {
     fn the_bracket_is_named_alone(&self) -> bool {
         // The v1 names the bracket and nothing else: the `x := (1` is a
         // "Missing ")" and the line of the script is not under it.
+        true
+    }
+
+    fn the_body_may_be_missing(&self) -> bool {
+        // The v1 takes none of them: the `if (1)` that is the last line of
+        // the script is a script that loads.
         true
     }
 
