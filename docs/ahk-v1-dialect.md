@@ -1154,6 +1154,43 @@ The v1 reads the name as the symbol "(i" and refuses it with "The following
 variable name contains an illegal character:", and the tree reads the
 parenthesis and answers the loop.
 
+**The escape of the v1** (2026-11-04). The escape of the v1 is the backtick,
+and the character that follows it is what it stands for: the `a`b` is the text
+"a<backspace>". The set of the escapes is the one of the v1 and not the one of
+the v2: the `a is a bell and the `s is the letter itself, because the v1 has
+no `s.
+
+The escape is expanded in the text of the v1, and in the parameter of a
+command: the `FileAppend, a`b, *` writes "a<backspace>". The escape that
+carries a comma is a literal, and it does not separate the parameters: the
+`FileAppend, a`,b, *` writes "a,b". The escape that carries an operator is
+the operator: the `x := 1`+2` is the sum of the two. The escape that carries
+nothing is dropped: the `x := a` is the name "a".
+
+The name of the v1 may carry the escape, and the escape is expanded before
+the name is looked at: the `a`c` is the name "ac", and the `x := a`b` is the
+name "a<backspace>", which is not a legal name of a variable. The refusal is
+the one of the name, and it names the name that the escape made. The number
+may be the name of a variable, and it may carry the escape too: the `x :=
+5`b` is the name "5<backspace>".
+
+The backtick that the escape carries is a backtick, and it is an illegal
+character in an expression: the `x := a``b` is refused with "The leftmost
+character above is illegal in an expression. Specifically: `b", and the symbol
+begins at the backtick that the escape carries. The target of an assignment is
+a name and not an expression: the `a``b := 5` is refused with "The following
+variable name contains an illegal character: "a`b"".
+
+The escape of the v1 does not protect the quote of a text: the `x := "a`"b"`
+is the text "a" and the name `b"`, which is not a legal name of a variable.
+
+The percent sign that the escape carries is a literal, and it does not open
+the name of a variable: the `FileAppend, a`%b, *` writes "a%b", and the
+`FileAppend, a`%b%, *` is refused when the script loads with "This parameter
+contains a variable name missing its ending percent sign. Specifically:
+a%b%". The v1 checks the percent sign of every parameter of its commands,
+and not only the ones that want the name of a variable.
+
 **What is left of the v1.** One corner of the `if` is measured on the binary
 of v1.1.37.02 and the tree does not do it yet.
 
@@ -1172,10 +1209,10 @@ refusal of the name comes before the refusal of the sense: the `return a"b"`
 is the name in the v1, and the tree says "Return's parameter should be blank
 except inside a function.".
 
-And one more that is not of the `if`: the name that carries a backtick. The
-v1 refuses the name with "The following variable name contains an illegal
-character:" and the part of it that comes before the backtick -- the
-``x := a`b`` names the `a` -- and the tree says "unexpected character '`'".
+And one more that is not of the `if`: the text of a command of the v1 that is
+not closed. The v1 takes the parameter as it was written: the `FileAppend,
+"abc, *` writes `"abc`, and the tree refuses the line with "Missing
+close-quote".
 
 And the member that is written: the v1 has no objects, and the `a.b := 5`
 writes the variable whose name is "a.b". The tree reads the member as a

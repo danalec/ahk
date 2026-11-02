@@ -64,7 +64,9 @@ pub(crate) use numbers::{
 
 pub(crate) use parameters::the_refusal_of_a_parameter;
 pub(crate) use parameters::is_the_name_of_a_variable;
+pub(crate) use parameters::is_the_name_of_a_variable_that_may_carry_a_point;
 pub(crate) use parameters::the_refusal_of_the_name_of_a_variable;
+pub(crate) use parameters::the_refusal_of_the_percent_sign_of_a_parameter;
 pub(crate) use parameters::the_refusal_of_the_arity;
 pub(crate) use sub_commands::the_refusal_of_a_sub_command;
 pub(crate) use sub_commands::the_parameter_may_not_be_blank;

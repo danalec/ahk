@@ -283,6 +283,35 @@ fn the_division_by_zero(parameters: &[String]) -> Option<String> {
     Some(format!("Divide by zero\n     Specifically: {divisor}"))
 }
 
+/// The refusal of the percent sign of a parameter of a command.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the escape
+/// of the v1 makes the character that follows it a literal: the percent sign
+/// that the escape carries does not open the name of a variable, and the
+/// complaint of the v1 names the text that the escape made.
+///
+/// The v1 checks the percent sign of every parameter of its commands: the
+/// `FileAppend, a%b, *` is refused when the script loads.
+pub(crate) fn the_refusal_of_the_percent_sign_of_a_parameter(text: &str) -> Option<String> {
+    let expanded = the_escapes_of_the_v1(text);
+    let mut rest = text;
+    while let Some(at) = the_percent_sign_that_opens(rest) {
+        let after = &rest[at + 1..];
+        let Some(end) = the_percent_sign_that_opens(after) else {
+            return Some(format!(
+                "This parameter contains a variable name missing its ending percent sign.\n     Specifically: {expanded}"
+            ));
+        };
+        if end == 0 {
+            return Some(format!(
+                "Empty variable reference (%%).\n     Specifically: {expanded}"
+            ));
+        }
+        rest = &after[end + 1..];
+    }
+    None
+}
+
 /// The refusal of the name of a variable of the script.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a variable
@@ -295,30 +324,65 @@ fn the_division_by_zero(parameters: &[String]) -> Option<String> {
 /// "Empty variable reference (%%).". The name that carries a percent sign
 /// is an expression, and the v1 does not check it here.
 pub(crate) fn the_refusal_of_the_name_of_a_variable(text: &str) -> Option<String> {
-    let mut rest = text;
-    while let Some(at) = rest.find('%') {
-        let after = &rest[at + 1..];
-        let Some(end) = after.find('%') else {
-            return Some(format!(
-                "This parameter contains a variable name missing its ending percent sign.\n     Specifically: {text}"
-            ));
-        };
-        if end == 0 {
-            return Some(format!(
-                "Empty variable reference (%%).\n     Specifically: {text}"
-            ));
-        }
-        rest = &after[end + 1..];
+    if let Some(refusal) = the_refusal_of_the_percent_sign_of_a_parameter(text) {
+        return Some(refusal);
     }
     if text.contains('%') {
         return None;
     }
-    if is_the_name_of_a_variable(text) {
+    let expanded = the_escapes_of_the_v1(text);
+    if is_the_name_of_a_variable(&expanded) {
         return None;
     }
     Some(format!(
-        "The following variable name contains an illegal character:\n\"{text}\""
+        "The following variable name contains an illegal character:\n\"{expanded}\""
     ))
+}
+
+/// The place of the percent sign that opens the name of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the escape
+/// of the v1 makes the character that follows it a literal, and the percent
+/// sign that it carries does not open the name of a variable.
+fn the_percent_sign_that_opens(text: &str) -> Option<usize> {
+    let mut index = 0;
+    while index < text.len() {
+        let character = text[index..].chars().next()?;
+        if character == '`' {
+            index += 1;
+            if let Some(next) = text[index..].chars().next() {
+                index += next.len_utf8();
+            }
+            continue;
+        }
+        if character == '%' {
+            return Some(index);
+        }
+        index += character.len_utf8();
+    }
+    None
+}
+
+/// The text that the escape of the v1 makes.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the escape
+/// of the v1 is the backtick, and the character that follows it is what it
+/// stands for: the `a`b` is the text "a<backspace>".
+pub(crate) fn the_escapes_of_the_v1(text: &str) -> String {
+    let dialect = crate::dialect::v1();
+    let mut result = String::with_capacity(text.len());
+    let mut characters = text.chars();
+    while let Some(character) = characters.next() {
+        if character == '`' {
+            match characters.next() {
+                Some(next) => result.push(dialect.the_escape_of_the_dialect(next)),
+                None => result.push('`'),
+            }
+            continue;
+        }
+        result.push(character);
+    }
+    result
 }
 
 /// Whether the text is the name of a variable of the script.
@@ -330,6 +394,20 @@ pub(crate) fn is_the_name_of_a_variable(text: &str) -> bool {
     !text.is_empty()
         && text.chars().all(|character| {
             character.is_ascii_alphanumeric() || matches!(character, '_' | '#' | '$' | '@')
+        })
+}
+
+/// Whether the text is the name of a variable that the script writes.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name of
+/// a variable may carry a point: the `0.0 := 5` writes the variable "0.0",
+/// and the v1 does not refuse it. The name of a substitution may not: the
+/// `%0.0%` is refused with "The following variable name contains an illegal
+/// character: \"0.0\"".
+pub(crate) fn is_the_name_of_a_variable_that_may_carry_a_point(text: &str) -> bool {
+    !text.is_empty()
+        && text.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '_' | '#' | '$' | '@' | '.')
         })
 }
 

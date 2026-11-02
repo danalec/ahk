@@ -8749,17 +8749,35 @@ impl<'a> Runtime<'a> {
     /// value of the variable of the script when it has one, and the value
     /// of the environment otherwise. A `%` that does not close a name is
     /// left alone.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-04: the escape of the
+    /// v1 is expanded here, and the character that it carries is a literal:
+    /// the percent sign that it carries does not open the name of a variable,
+    /// and the percent sign that closes a name is not the one that the
+    /// escape carries.
     pub(crate) fn the_substitution_of_the_v1(&mut self, text: &str, line: u32) -> Result<String, RuntimeFailure> {
-        if !text.contains('%') {
+        if !text.contains('%') && !text.contains('`') {
             return Ok(text.to_string());
         }
         let mut out = String::with_capacity(text.len());
         let chars: Vec<char> = text.chars().collect();
         let mut index = 0usize;
         while index < chars.len() {
+            if chars[index] == '`' {
+                match chars.get(index + 1) {
+                    Some(next) => {
+                        out.push(self.dialect.the_escape_of_the_dialect(*next));
+                        index += 2;
+                    }
+                    None => {
+                        out.push('`');
+                        index += 1;
+                    }
+                }
+                continue;
+            }
             if chars[index] == '%' {
-                if let Some(offset) = chars[index + 1..].iter().position(|c| *c == '%') {
-                    let close = index + 1 + offset;
+                if let Some(close) = self.the_closing_percent(&chars, index + 1) {
                     let name: String = chars[index + 1..close].iter().collect();
                     match self.the_value_of_the_substitution(name.trim(), line)? {
                         Some(value) => {
@@ -8787,6 +8805,23 @@ impl<'a> Runtime<'a> {
             index += 1;
         }
         Ok(out)
+    }
+
+    /// The place of the percent sign that closes the name of a variable.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-04: the escape of the
+    /// v1 makes the character that follows it a literal, and the percent sign
+    /// that it carries does not close the name of a variable.
+    fn the_closing_percent(&self, chars: &[char], from: usize) -> Option<usize> {
+        let mut index = from;
+        while index < chars.len() {
+            match chars[index] {
+                '`' => index += 2,
+                '%' => return Some(index),
+                _ => index += 1,
+            }
+        }
+        None
     }
 
     /// The value of the legacy assignment of the v1.

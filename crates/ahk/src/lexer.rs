@@ -320,6 +320,78 @@ fn the_character_is_of_a_name(character: char, marks: bool) -> bool {
         || (marks && matches!(character, '#' | '$' | '@'))
 }
 
+/// The name that the script wrote, with the escape expanded.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name of
+/// the v1 may carry the escape, and the escape is expanded before the name is
+/// looked at: the `a`c` is the name "ac", and the `a`b` is the name
+/// "a<backspace>", which is not a legal name of a variable.
+///
+/// The escape that carries a space ends the name, the escape that carries an
+/// operator is the operator that comes after the name, and the escape that
+/// carries nothing is dropped: the `x := a` is the name "a".
+struct TheNameWithTheEscape {
+    /// The name, with the escape expanded.
+    name: String,
+    /// The place where the name ends.
+    end: usize,
+    /// The operator that the escape carries, when there is one.
+    operator: Option<String>,
+    /// Whether the name carries an escape.
+    has_an_escape: bool,
+}
+
+/// The name that begins at the place, with the escape expanded.
+fn the_name_with_the_escape(
+    chars: &[char],
+    start: usize,
+    marks: bool,
+    dialect: &'static dyn crate::dialect::Dialect,
+) -> TheNameWithTheEscape {
+    let mut name = String::new();
+    let mut index = start;
+    let mut operator = None;
+    let mut has_an_escape = false;
+    while index < chars.len() {
+        let character = chars[index];
+        if the_character_is_of_a_name(character, marks) {
+            name.push(character);
+            index += 1;
+            continue;
+        }
+        if character != '`' || !dialect.the_escape_may_be_in_a_name() {
+            break;
+        }
+        has_an_escape = true;
+        let Some(next) = chars.get(index + 1).copied() else {
+            // The escape that carries nothing is dropped.
+            index += 1;
+            break;
+        };
+        index += 2;
+        let expanded = dialect.the_escape_of_the_dialect(next);
+        if expanded.is_whitespace() {
+            // The escape that carries a space ends the name.
+            break;
+        }
+        if expanded == ',' {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the escape that carries a comma is a literal: the name ends
+            // there, and the comma does not separate the parameters of a
+            // command: the `FileAppend, a`,b, *` is the text "a,b".
+            break;
+        }
+        if OPERATORS.contains(&expanded.to_string().as_str()) {
+            // The escape that carries an operator is the operator that comes
+            // after the name: the `x := 1`+2` is the sum of the two.
+            operator = Some(expanded.to_string());
+            break;
+        }
+        name.push(expanded);
+    }
+    TheNameWithTheEscape { name, end: index, operator, has_an_escape }
+}
+
 /// The name of a script, the way v2 writes it in a message.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the character that
@@ -356,25 +428,6 @@ fn the_source_of_the_chars(chars: &[char], start: usize, end: usize) -> String {
     text
 }
 
-
-/// The escape of the dialect: the backtick and the character that follows.
-///
-/// Measured on the binary of v2.0.19 on 2026-10-31: `n is a linefeed, `r a
-/// carriage return, `t a tab, `s a space, and the character that is not an
-/// escape of the dialect is the character itself.
-fn the_escape_of_the_dialect(next: char) -> char {
-    match next {
-        'n' => '\n',
-        'r' => '\r',
-        't' => '\t',
-        'b' => '\u{8}',
-        'f' => '\u{c}',
-        'v' => '\u{b}',
-        '0' => '\0',
-        's' => ' ',
-        other => other,
-    }
-}
 
 /// The options of a continuation section.
 ///
@@ -430,7 +483,12 @@ struct TheSection {
 /// parenthesis at the start of a line. The line is an expression and not a
 /// section when it carries a parenthesis of its own after the opening one --
 /// the string of the option `Join` is the only one that may carry one.
-fn the_section_at(chars: &[char], start: usize, line: u32) -> Result<Option<TheSection>, SyntaxError> {
+fn the_section_at(
+    chars: &[char],
+    start: usize,
+    line: u32,
+    dialect: &'static dyn crate::dialect::Dialect,
+) -> Result<Option<TheSection>, SyntaxError> {
     let mut index = start;
     while matches!(chars.get(index), Some(' ') | Some('\t')) {
         index += 1;
@@ -509,7 +567,7 @@ fn the_section_at(chars: &[char], start: usize, line: u32) -> Result<Option<TheS
         ));
     }
     if the_join_is_there {
-        options.join = Some(the_escapes_of_a_text(&the_join, options.accent));
+        options.join = Some(the_escapes_of_a_text(&the_join, options.accent, dialect));
     }
     // The lines of the section, until the line that closes it.
     let mut lines: Vec<String> = Vec::new();
@@ -612,7 +670,11 @@ fn the_content_of_the_section(section: &TheSection) -> String {
 /// Measured on the binary of v2.0.19 on 2026-10-31: the backtick and the
 /// character that follows are one escape, and the accent of a section turns
 /// the backtick into a literal.
-fn the_escapes_of_a_text(text: &str, accent: bool) -> String {
+fn the_escapes_of_a_text(
+    text: &str,
+    accent: bool,
+    dialect: &'static dyn crate::dialect::Dialect,
+) -> String {
     if accent {
         return text.to_string();
     }
@@ -621,7 +683,7 @@ fn the_escapes_of_a_text(text: &str, accent: bool) -> String {
     while let Some(character) = characters.next() {
         if character == '`' {
             match characters.next() {
-                Some(next) => result.push(the_escape_of_the_dialect(next)),
+                Some(next) => result.push(dialect.the_escape_of_the_dialect(next)),
                 None => result.push('`'),
             }
             continue;
@@ -755,7 +817,7 @@ pub fn tokenize_with(
             // The line that comes may open a continuation section: the
             // section continues the line above, and the newline is not a
             // separator of statements.
-            if let Some(section) = the_section_at(&chars, index + 1, line + 1)? {
+            if let Some(section) = the_section_at(&chars, index + 1, line + 1, dialect)? {
                 // The lines of the section are lines of the script too.
                 let mut cursor = index + 1;
                 while cursor < section.end {
@@ -940,7 +1002,19 @@ pub fn tokenize_with(
                     // backslash: the path of a file is written with it, and
                     // v2 does not read it as an escape.
                     if chars[index] == '`' && index + 1 < chars.len() {
-                        buffer.push(the_escape_of_the_dialect(chars[index + 1]));
+                        let next = chars[index + 1];
+                        if next == quote && !dialect.the_escape_protects_the_quote_of_a_text() {
+                            // Measured on the binary of AutoHotkey v1.1.37.02
+                            // on 2026-11-04: the escape of the v1 does not
+                            // protect the quote of the text: the `x := "a`"b"`
+                            // is the text "a" and the name `b"`. The backtick
+                            // is not a part of the text, and the quote is the
+                            // one that closes it.
+                            index += 1;
+                            column += 1;
+                            break;
+                        }
+                        buffer.push(dialect.the_escape_of_the_dialect(next));
                         index += 2;
                         column += 2;
                         continue;
@@ -954,7 +1028,7 @@ pub fn tokenize_with(
                 }
                 // The line that comes may open a continuation section: the
                 // section is inside the text, and its lines are text.
-                let Some(section) = the_section_at(&chars, index + 1, line + 1)? else {
+                let Some(section) = the_section_at(&chars, index + 1, line + 1, dialect)? else {
                     break;
                 };
                 if !section.closed {
@@ -974,7 +1048,7 @@ pub fn tokenize_with(
                 // literal and the newlines are kept.
                 let content = the_content_of_the_section(&section);
                 the_text_of_the_section = content.clone();
-                buffer.push_str(&the_escapes_of_a_text(&content, section.options.accent));
+                buffer.push_str(&the_escapes_of_a_text(&content, section.options.accent, dialect));
                 // The text that follows the closing parenthesis is the text
                 // that is being read: the quote that closes it is there.
                 index = section.rest_at;
@@ -1053,9 +1127,46 @@ pub fn tokenize_with(
             column += (index - start) as u32;
             // A name that begins with a number is not a number: v2 refuses
             // the script at the load, and it says which name it is.
-            if index < chars.len() && the_character_is_a_letter(chars[index], marks) {
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the number of the v1 may carry the escape: the `5`b` is the
+            // name "5<backspace>", which is not a legal name of a variable.
+            if index < chars.len()
+                && (the_character_is_a_letter(chars[index], marks)
+                    || (chars[index] == '`' && dialect.the_escape_may_be_in_a_name()))
+            {
                 let number_end = index;
                 let mut name = chars[start..index].iter().collect::<String>();
+                if chars[index] == '`' {
+                    let escape = the_name_with_the_escape(&chars, index, marks, dialect);
+                    if let Some(operator) = escape.operator {
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-04: the escape that carries an operator
+                        // after a number is the operator: the `x := 1`+2` is
+                        // the sum of the two.
+                        column += (escape.end - number_end) as u32;
+                        index = escape.end;
+                        tokens.push(Token {
+                            kind: TokenKind::Number,
+                            value: chars[start..number_end].iter().collect(),
+                            quote: None,
+                            line: start_line,
+                            column: start_column,
+                            spaced: before,
+                        });
+                        tokens.push(Token {
+                            kind: TokenKind::Op,
+                            value: operator,
+                            quote: None,
+                            line: start_line,
+                            column: start_column + (number_end - start) as u32,
+                            spaced: false,
+                        });
+                        continue;
+                    }
+                    name.push_str(&escape.name);
+                    index = escape.end;
+                }
                 while index < chars.len()
                     && the_character_is_of_a_name(chars[index], marks)
                 {
@@ -1108,7 +1219,7 @@ pub fn tokenize_with(
             // the number of the v1 may be the name of a variable, and the
             // name may not carry a quote: the `5"a"` is a name with an
             // illegal character.
-            if dialect.the_name_may_not_carry_a_quote() && chars.get(index) == Some(&'"') {
+            if dialect.the_name_may_not_carry_an_illegal_character() && chars.get(index) == Some(&'"') {
                 let text: String = chars[start..index].iter().collect();
                 // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
                 // the number with a point is a number and not the name of a
@@ -1141,15 +1252,14 @@ pub fn tokenize_with(
             });
             continue;
         }
-        if the_character_is_a_letter(current, marks) {
+        if the_character_is_a_letter(current, marks)
+            || (current == '`' && dialect.the_escape_may_be_in_a_name())
+        {
             let (start_line, start_column) = (line, column);
             let start = index;
-            while index < chars.len()
-                && the_character_is_of_a_name(chars[index], marks)
-            {
-                index += 1;
-                column += 1;
-            }
+            let name = the_name_with_the_escape(&chars, index, marks, dialect);
+            index = name.end;
+            column += (index - start) as u32;
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
             // the name of the v1 may not carry a quote: the `a"b"` is a name
             // with an illegal character. The name is the symbol that comes
@@ -1159,7 +1269,14 @@ pub fn tokenize_with(
             // The lexer does not refuse it: the name of a command of the v1
             // is a text, and the refusal belongs to the place where the name
             // is a variable.
-            if dialect.the_name_may_not_carry_a_quote() && chars.get(index) == Some(&'"') {
+            //
+            // The name that carries an escape is the name that the escape
+            // made: the `a`"b` is the name `a"b`, and the symbol of the
+            // source is not it.
+            if !name.has_an_escape
+                && dialect.the_name_may_not_carry_an_illegal_character()
+                && chars.get(index) == Some(&'"')
+            {
                 let end = the_end_of_a_symbol_that_carries_a_quote(&chars, index);
                 let word: String = chars[start..end].iter().collect();
                 column += (end - index) as u32;
@@ -1167,7 +1284,7 @@ pub fn tokenize_with(
                 tokens.push(Token { kind: TokenKind::Name, value: word, line: start_line, column: start_column, spaced: before, quote: None });
                 continue;
             }
-            let word: String = chars[start..index].iter().collect();
+            let word = name.name;
             let lower = word.to_lowercase();
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
             // the words of the v1 may be the name of a variable, and the ones
@@ -1182,6 +1299,19 @@ pub fn tokenize_with(
                 TokenKind::Name
             };
             tokens.push(Token { kind, value: word, line: start_line, column: start_column, spaced: before, quote: None });
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the escape that carries an operator is the operator that comes
+            // after the name: the `x := a`.b` is the member "b" of the "a".
+            if let Some(operator) = name.operator {
+                tokens.push(Token {
+                    kind: TokenKind::Op,
+                    value: operator,
+                    quote: None,
+                    line: start_line,
+                    column: start_column,
+                    spaced: false,
+                });
+            }
             continue;
         }
         // The backslash of a command of the v1 is a letter of the text of

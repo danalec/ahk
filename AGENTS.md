@@ -8197,3 +8197,44 @@ The dialect says it (`the_for_is_the_one_of_the_v1`), the parser asks for the
 the first name that is not empty.
 
 The suite of the v1 has two cases more (253).
+
+
+## 210. The escape of the v1 is the backtick, and the name may carry it
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the escape of
+the v1 is the backtick, and the character that follows it is what it stands
+for: the `a`b` is the text "a<backspace>". The set of the escapes is the one
+of the v1 and not the one of the v2: the `a is a bell, and the `s is the
+letter itself, because the v1 has no `s.
+
+The escape is expanded in the text and in the parameter of a command. The
+escape that carries a comma is a literal, and it does not separate the
+parameters: the `FileAppend, a`,b, *` writes "a,b". The escape that carries
+an operator is the operator: the `x := 1`+2` is the sum of the two. The
+escape that carries nothing is dropped: the `x := a` is the name "a".
+
+The name of the v1 may carry the escape, and the escape is expanded before
+the name is looked at: the `a`c` is the name "ac", and the `x := a`b` is the
+name "a<backspace>", which is not a legal name of a variable. The refusal is
+the one of the name, and it names the name that the escape made. The number
+may be the name of a variable, and it may carry the escape too.
+
+The backtick that the escape carries is a backtick, and it is an illegal
+character in an expression: the `x := a``b` is refused with "The leftmost
+character above is illegal in an expression. Specifically: `b", and the symbol
+begins at the backtick that the escape carries. The target of an assignment is
+a name and not an expression: the `a``b := 5` is refused with "The following
+variable name contains an illegal character: "a`b"".
+
+The escape of the v1 does not protect the quote of a text: the `x := "a`"b"`
+is the text "a" and the name `b"`. And the percent sign that the escape
+carries is a literal: it does not open the name of a variable, and the v1
+checks the percent sign of every parameter of its commands -- the
+`FileAppend, a%b, *` is refused when the script loads.
+
+The dialect says it (`the_escape_of_the_dialect`, `the_escape_may_be_in_a_name`
+and `the_escape_protects_the_quote_of_a_text`), the lexer reads the name with
+the escape expanded (`the_name_with_the_escape`), and the parser refuses the
+name that is not the name of a variable (`the_refusal_of_the_name`).
+
+The suite of the v1 has four cases more (257).

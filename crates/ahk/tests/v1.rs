@@ -6685,3 +6685,142 @@ fn the_for_of_the_v1_names_the_word_that_is_missing() {
         "This \"For\" is missing its \"in\".\n     Specifically: for in [1,2]"
     );
 }
+
+/// The escape of the v1 is the backtick, and the character that follows it is
+/// what it stands for.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `a of
+/// the v1 is a bell, and the `s is the letter itself: the v1 has no `s. The
+/// escape of a text is expanded, and the escape of the parameter of a command
+/// is expanded too.
+#[test]
+fn the_escape_of_the_v1_is_expanded() {
+    // The `a of the v1 is a bell.
+    let report = run("x := \"a`ab\"\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[a\u{7}b]".to_string()]);
+
+    // The `s of the v1 is the letter itself.
+    let report = run("x := \"a`sb\"\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[asb]".to_string()]);
+
+    // The parameter of a command is a text, and the escape is expanded there
+    // too.
+    let report = run("FileAppend, a`sb, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["asb".to_string()]);
+
+    // The escape that carries a comma is a literal: the parameter is one.
+    let report = run("FileAppend, a`,b, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["a,b".to_string()]);
+
+    // The escape that carries an operator is the operator that comes after
+    // the name.
+    let report = run("x := 1`+2\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[3]".to_string()]);
+}
+
+/// The name of the v1 may carry the escape, and the escape is expanded before
+/// the name is looked at.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `a`c`
+/// is the name "ac", and the `x := a`b` is the name "a<backspace>", which is
+/// not a legal name of a variable.
+#[test]
+fn the_name_of_the_v1_may_carry_the_escape() {
+    // The name that the escape made.
+    let report = run("a`c := 5\nx := a`c\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[5]".to_string()]);
+
+    // The name that carries an illegal character is refused where the name
+    // is a variable.
+    assert_eq!(
+        the_refusal_of_the_load("x := a`b"),
+        "The following variable name contains an illegal character:\n\"a\u{8}\""
+    );
+
+    // The target of an assignment is a variable.
+    assert_eq!(
+        the_refusal_of_the_load("a`b := 5"),
+        "The following variable name contains an illegal character:\n\"a\u{8}\""
+    );
+
+    // The number of the v1 may be the name of a variable, and it may carry
+    // the escape.
+    assert_eq!(
+        the_refusal_of_the_load("x := 5`b"),
+        "The following variable name contains an illegal character:\n\"5\u{8}\""
+    );
+
+    // The escape that carries nothing is dropped: the name is the name that
+    // comes before it.
+    let report = run("x := a`");
+    assert!(report.ok);
+
+    // The name that begins with the escape is the name that the escape made.
+    assert_eq!(
+        the_refusal_of_the_load("x := `b"),
+        "The following variable name contains an illegal character:\n\"\u{8}\""
+    );
+}
+
+/// The backtick that the escape carries is an illegal character in an
+/// expression.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `x :=
+/// a``b` is refused with the symbol that begins at the backtick that the
+/// escape carries, and the target of an assignment is a name: the `a``b := 5`
+/// is refused with the name that the escape made.
+#[test]
+fn the_backtick_that_the_escape_carries_is_illegal_in_an_expression() {
+    // The symbol that begins at the backtick that the escape carries.
+    assert_eq!(
+        the_refusal_of_the_load("x := a``b"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: `b"
+    );
+
+    // The member of the name is a part of the symbol.
+    assert_eq!(
+        the_refusal_of_the_load("x := a``b.c"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: `b.c"
+    );
+
+    // The target of an assignment is a name, and the complaint of the v1
+    // names it.
+    assert_eq!(
+        the_refusal_of_the_load("a``b := 5"),
+        "The following variable name contains an illegal character:\n\"a`b\""
+    );
+
+    // The statement that holds the name alone is a line that holds no
+    // action, and the source of it is the text that the script wrote.
+    assert_eq!(
+        the_refusal_of_the_load("a``b"),
+        "This line does not contain a recognized action.\n     Specifically: a``b"
+    );
+}
+
+/// The escape of the v1 does not protect the quote of a text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `x :=
+/// "a`"b"` is the text "a" and the name `b"`, which is not a legal name of a
+/// variable.
+#[test]
+fn the_escape_of_the_v1_does_not_protect_the_quote_of_a_text() {
+    // The text ends at the quote that the escape carries, and the backtick
+    // is not a part of it.
+    let report = run("x := \"a`\"\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[a]".to_string()]);
+
+    // The name that comes after the text carries the quote, and the v1
+    // refuses it.
+    assert_eq!(
+        the_refusal_of_the_load("x := \"a`\"b\""),
+        "The following variable name contains an illegal character:\n\"b\"\""
+    );
+}

@@ -1860,6 +1860,17 @@ that asks for another one is refused with the reason.
   of the v1 is the name of a variable, and the parser of the v2 asks for a
   word. The dialect says it (`the_for_is_the_one_of_the_v1`).
 
+- **The escape of the v1 is the backtick, and the name may carry it.** The
+  escape is expanded before the name is looked at: the `a`c` is the name
+  "ac", and the `x := a`b` is the name "a<backspace>", which is not a legal
+  name of a variable. The set of the escapes is the one of the v1: the `a is
+  a bell, and the `s is the letter itself. The escape does not protect the
+  quote of a text, and the percent sign that it carries is a literal: it does
+  not open the name of a variable. The backtick that the escape carries is an
+  illegal character in an expression, and the symbol that the complaint names
+  begins at it. The dialect says it (`the_escape_of_the_dialect`,
+  `the_escape_may_be_in_a_name` and `the_escape_protects_the_quote_of_a_text`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

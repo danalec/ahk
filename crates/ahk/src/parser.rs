@@ -142,7 +142,7 @@ fn the_source_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String
         if !text.is_empty() && token.spaced {
             text.push(' ');
         }
-        text.push_str(&the_source_of_a_token(token));
+        text.push_str(&the_source_of_a_token(parser, token));
     }
     text
 }
@@ -152,7 +152,14 @@ fn the_source_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String
 /// Measured on the binary of v2.0.19 on 2026-10-31: the text of a token
 /// keeps the quote that was written, and the name of a token that is
 /// refused is the text of it.
-fn the_source_of_a_token(token: &Token) -> String {
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name
+/// that carries an escape is the name that the escape made, and the source
+/// of it is the text that the script wrote: the `a``b` is the source "a``b".
+fn the_source_of_a_token(parser: &Parser, token: &Token) -> String {
+    if token.kind == TokenKind::Name && token.value.contains('`') {
+        return the_source_of_the_name_that_carries_an_escape(parser, token);
+    }
     if token.kind != TokenKind::String {
         return token.value.clone();
     }
@@ -162,6 +169,22 @@ fn the_source_of_a_token(token: &Token) -> String {
     text.push_str(&token.value);
     text.push(quote);
     text
+}
+
+/// The source of the name that carries an escape.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the source
+/// of the name is the text of the script, and not the name that the escape
+/// made: the `a``b` is the source "a``b".
+fn the_source_of_the_name_that_carries_an_escape(parser: &Parser, token: &Token) -> String {
+    let Some(line) = parser.lines.get(token.line as usize - 1) else { return token.value.clone() };
+    let characters: Vec<char> = line.chars().collect();
+    let start = (token.column as usize).saturating_sub(1);
+    let mut end = start;
+    while end < characters.len() && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end]) {
+        end += 1;
+    }
+    characters[start..end].iter().collect()
 }
 
 /// Whether the value may be written to.
@@ -310,7 +333,7 @@ fn the_source_with_the_newlines_as_spaces(parser: &Parser, start: usize, end: us
             text.push(' ');
         }
         after_a_newline = false;
-        text.push_str(&the_source_of_a_token(token));
+        text.push_str(&the_source_of_a_token(parser, token));
     }
     text
 }
@@ -392,6 +415,41 @@ fn the_symbol_that_begins_at(parser: &Parser, at: usize) -> String {
         end += 1;
     }
     characters[start..end].iter().collect()
+}
+
+/// The symbol that begins at the backtick that the escape carries.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// backtick that the escape carries is an illegal character in an
+/// expression, and the symbol that the complaint of the v1 names begins at
+/// it: the `x := a``b` is the symbol "`b", and the `x := a``b.c` is the
+/// symbol "`b.c".
+fn the_symbol_of_the_escaped_backtick(parser: &Parser, at: usize) -> String {
+    let Some(token) = parser.tokens.get(at) else { return String::new() };
+    let Some(line) = parser.lines.get(token.line as usize - 1) else { return token.value.clone() };
+    let characters: Vec<char> = line.chars().collect();
+    let start = (token.column as usize).saturating_sub(1);
+    // The first backtick of the word opens the escape, and the second one is
+    // the character that the escape carries.
+    let mut backticks = 0;
+    let mut at_the_backtick = start;
+    while at_the_backtick < characters.len() {
+        if characters[at_the_backtick] == '`' {
+            backticks += 1;
+            if backticks == 2 {
+                break;
+            }
+        }
+        at_the_backtick += 1;
+    }
+    if backticks < 2 {
+        return token.value.clone();
+    }
+    let mut end = at_the_backtick;
+    while end < characters.len() && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end]) {
+        end += 1;
+    }
+    characters[at_the_backtick..end].iter().collect()
 }
 
 /// Whether the symbol begins with the quote that the dialect does not read.
@@ -3474,13 +3532,11 @@ impl Parser {
         // value and not a name.
         if self.at_member_dot() || self.at_member_bracket() {
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
-            // the name of the v1 may not carry a quote, and the value that
-            // holds the member is a variable: the `a"b".Prop := 5` is
-            // refused.
-            if self.dialect.the_name_may_not_carry_a_quote()
-                && (name_token.value.contains('"') || the_symbol_begins_with_the_illegal_quote(&name_token))
-            {
-                return Err(self.the_name_that_carries_a_quote(&name_token.value, name_token.line, name_token.column));
+            // the name of the v1 may not carry an illegal character, and the
+            // value that holds the member is a variable: the `a"b".Prop := 5`
+            // is refused.
+            if let Some(refusal) = self.the_refusal_of_the_name(&name_token) {
+                return Err(refusal);
             }
             let target = Node::Var { name: name_token.value.clone(), line: name_token.line };
             self.the_expression_begins();
@@ -3854,11 +3910,22 @@ impl Parser {
                             | crate::builtins::Parameter::Output
                     )
                 );
-                if !is_a_name {
+                if is_a_name {
+                    if let Some(refusal) =
+                        self.dialect.the_refusal_of_the_name_of_a_variable(index + 1, parameter)
+                    {
+                        return Err(self.error(refusal));
+                    }
+                    continue;
+                }
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+                // the percent sign of a parameter that is a text is checked
+                // when the script loads: the `FileAppend, a%b, *` is refused.
+                if self.dialect.the_parameter_wants_a_number(&name, index) {
                     continue;
                 }
                 if let Some(refusal) =
-                    self.dialect.the_refusal_of_the_name_of_a_variable(index + 1, parameter)
+                    self.dialect.the_refusal_of_the_percent_sign_of_a_parameter(index + 1, parameter)
                 {
                     return Err(self.error(refusal));
                 }
@@ -4279,6 +4346,26 @@ impl Parser {
         }])
     }
 
+    /// The refusal of the name of the v1 that is not the name of a variable.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// name of the v1 may not carry a quote, and the escape that the name
+    /// carries is expanded before the name is looked at: the `x := a"b` and
+    /// the `x := a`b` are refused the same way, and the complaint of the v1
+    /// names the name that the escape made.
+    ///
+    /// The name of a variable of the v1 may carry a point: the `0.0 := 5`
+    /// writes the variable "0.0", and the v1 does not refuse it.
+    fn the_refusal_of_the_name(&self, token: &Token) -> Option<SyntaxError> {
+        if !self.dialect.the_name_may_not_carry_an_illegal_character() {
+            return None;
+        }
+        if crate::v1::is_the_name_of_a_variable_that_may_carry_a_point(&token.value) {
+            return None;
+        }
+        Some(self.the_name_that_carries_a_quote(&token.value, token.line, token.column))
+    }
+
     /// The refusal of the name of the v1 that carries a quote.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -4477,12 +4564,10 @@ impl Parser {
 
     fn parse_assignment(&mut self, name_token: Token) -> Result<Vec<Node>, SyntaxError> {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
-        // name of the v1 may not carry a quote, and the target of an
-        // assignment is a variable: the `a"b" := 5` is refused.
-        if self.dialect.the_name_may_not_carry_a_quote()
-            && (name_token.value.contains('"') || the_symbol_begins_with_the_illegal_quote(&name_token))
-        {
-            return Err(self.the_name_that_carries_a_quote(&name_token.value, name_token.line, name_token.column));
+        // name of the v1 may not carry an illegal character, and the target
+        // of an assignment is a variable: the `a"b" := 5` is refused.
+        if let Some(refusal) = self.the_refusal_of_the_name(&name_token) {
+            return Err(refusal);
         }
         let operator = self.peek().clone();
         let op = match operator.value.as_str() {
@@ -6488,7 +6573,7 @@ impl Parser {
                 return Err(SyntaxError {
                     message: format!(
                         "Unknown class.\n     Specifically: {}",
-                        the_source_of_a_token(&base)
+                        the_source_of_a_token(self, &base)
                     ),
                     line: base.line,
                     column: base.column,
@@ -8150,6 +8235,23 @@ impl Parser {
         SyntaxError { message, line: token.line, column: token.column }
     }
 
+    /// The error of the name that carries the backtick that the escape
+    /// carries.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// backtick that the escape carries is an illegal character in an
+    /// expression, and the complaint of the v1 names the symbol that begins
+    /// at it.
+    fn the_error_of_the_escaped_backtick(&self, at: usize) -> SyntaxError {
+        let token = &self.tokens[at];
+        let text = the_symbol_of_the_escaped_backtick(self, at);
+        SyntaxError {
+            message: format!("The leftmost character above is illegal in an expression.\n     Specifically: {text}"),
+            line: token.line,
+            column: token.column,
+        }
+    }
+
     /// The error of the double deref that does not close.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the text that is
@@ -8632,6 +8734,13 @@ impl Parser {
                 {
                     return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
                 }
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the backtick that the escape carries is an
+                // illegal character in an expression: the `x := a``b` is
+                // refused with the symbol that begins at it.
+                if self.dialect.the_escape_may_be_in_a_name() && token.value.contains('`') {
+                    return Err(self.the_error_of_the_escaped_backtick(self.position - 1));
+                }
                 // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // `new` of the v1 makes an instance of a class of the
                 // script, and the name of the class follows it. The word is
@@ -8653,15 +8762,15 @@ impl Parser {
                     let call = self.parse_call(token.value.to_lowercase(), token.line)?;
                     return self.parse_suffixes(call, true, false);
                 }
-                let name = token.value;
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
-                // 2026-11-04: the name of the v1 may not carry a quote: the
-                // `x := a"b"` is a name with an illegal character. The
-                // refusal is here and not above: the name of a function is
-                // not a variable, and the v1 does not refuse it.
-                if self.dialect.the_name_may_not_carry_a_quote() && name.contains('"') {
-                    return Err(self.the_name_that_carries_a_quote(&name, token.line, token.column));
+                // 2026-11-04: the name of the v1 may not carry an illegal
+                // character: the `x := a"b"` is a name with an illegal
+                // character. The refusal is here and not above: the name of a
+                // function is not a variable, and the v1 does not refuse it.
+                if let Some(refusal) = self.the_refusal_of_the_name(&token) {
+                    return Err(refusal);
                 }
+                let name = token.value;
                 // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
                 // `base` of the v1 is the base of the class where the method
                 // was defined, and the word is only that word inside a

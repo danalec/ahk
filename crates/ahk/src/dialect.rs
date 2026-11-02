@@ -267,6 +267,45 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// The escape of the dialect: the backtick and the character that follows.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: `n is a linefeed, `r
+    /// a carriage return, `t a tab, `s a space, and the character that is not
+    /// an escape of the dialect is the character itself.
+    fn the_escape_of_the_dialect(&self, next: char) -> char {
+        match next {
+            'n' => '\n',
+            'r' => '\r',
+            't' => '\t',
+            'b' => '\u{8}',
+            'f' => '\u{c}',
+            'v' => '\u{b}',
+            '0' => '\0',
+            's' => ' ',
+            other => other,
+        }
+    }
+
+    /// Whether the escape of the dialect may be in a name.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-04: the name of the v1
+    /// may carry the escape, and the escape is expanded before the name is
+    /// looked at: the `x := a`c` is the name "ac", and the `x := a`b` is the
+    /// name "a<backspace>", which is not a legal name of a variable. The v2
+    /// refuses the backtick outside of a text.
+    fn the_escape_may_be_in_a_name(&self) -> bool {
+        false
+    }
+
+    /// Whether the escape of the dialect protects the quote of a text.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-04: the escape of the
+    /// v1 does not protect the quote of a text: the `x := "a`"b"` is the text
+    /// "a" and the name `b"`, which is not a legal name of a variable.
+    fn the_escape_protects_the_quote_of_a_text(&self) -> bool {
+        true
+    }
+
     /// Whether the words of the language may be the name of a variable.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -304,17 +343,20 @@ pub trait Dialect: Sync {
         false
     }
 
-    /// Whether the name of a variable may not carry a quote.
+    /// Whether the name of a variable may not carry an illegal character.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
     /// name of the v1 may not carry a quote: the `x := a"b"` is refused with
     /// "The following variable name contains an illegal character: \"a\"b\"\"".
+    /// The escape that the name carries is expanded before the name is looked
+    /// at: the `x := a`b` is the name "a<backspace>", and it is refused the
+    /// same way.
     ///
     /// The refusal is where the name is a variable. The name of a command of
     /// the v1 is a text, and the name of a function is not a variable: the
     /// `MsgBox, a"b"` is a command that runs, and the `a"b"(1)` is a call to
     /// a function that is not there.
-    fn the_name_may_not_carry_a_quote(&self) -> bool {
+    fn the_name_may_not_carry_an_illegal_character(&self) -> bool {
         false
     }
 
@@ -1062,6 +1104,23 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The refusal of the percent sign of a parameter of a command.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// checks the percent sign of every parameter of its commands when the
+    /// script loads: the `FileAppend, a%b, *` is refused with "This parameter
+    /// contains a variable name missing its ending percent sign.".
+    ///
+    /// The v2 has no command that takes a text, and the parser keeps its own
+    /// complaint.
+    fn the_refusal_of_the_percent_sign_of_a_parameter(
+        &self,
+        _place: usize,
+        _text: &str,
+    ) -> Option<String> {
+        None
+    }
+
     /// The refusal of the number of the parameters of a command.
     ///
     /// `None` means that the dialect lets the command run with the number of
@@ -1350,6 +1409,34 @@ impl Dialect for V1 {
         true
     }
 
+    fn the_escape_of_the_dialect(&self, next: char) -> char {
+        // Measured on the binary of v1.1.37.02 on 2026-11-04: the `a of the
+        // v1 is a bell, and the `s is the letter itself: the v1 has no `s.
+        match next {
+            'n' => '\n',
+            'r' => '\r',
+            't' => '\t',
+            'b' => '\u{8}',
+            'f' => '\u{c}',
+            'v' => '\u{b}',
+            '0' => '\0',
+            'a' => '\u{7}',
+            other => other,
+        }
+    }
+
+    fn the_escape_may_be_in_a_name(&self) -> bool {
+        // The name of the v1 may carry the escape: the `x := a`c` is the name
+        // "ac".
+        true
+    }
+
+    fn the_escape_protects_the_quote_of_a_text(&self) -> bool {
+        // The escape of the v1 does not protect the quote of a text: the
+        // `x := "a`"b"` is the text "a" and the name `b"`.
+        false
+    }
+
     fn the_words_may_be_the_name_of_a_variable(&self) -> bool {
         // The words of the v1 may be the name of a variable: the `while := 5`
         // writes the variable "while", and the `x := while` reads it.
@@ -1368,10 +1455,11 @@ impl Dialect for V1 {
         true
     }
 
-    fn the_name_may_not_carry_a_quote(&self) -> bool {
-        // The name of the v1 may not carry a quote: the `x := a"b"` is a name
-        // with an illegal character. The refusal is where the name is a
-        // variable, and not where it is the name of a command.
+    fn the_name_may_not_carry_an_illegal_character(&self) -> bool {
+        // The name of the v1 may not carry a quote, and the escape that it
+        // carries is expanded before the name is looked at. The refusal is
+        // where the name is a variable, and not where it is the name of a
+        // command.
         true
     }
 
@@ -1675,6 +1763,17 @@ impl Dialect for V1 {
         // the name of a variable of the script when the script loads, and
         // the complaint of the v1 is its own.
         crate::v1::the_refusal_of_the_name_of_a_variable(text)
+    }
+
+    fn the_refusal_of_the_percent_sign_of_a_parameter(
+        &self,
+        _place: usize,
+        text: &str,
+    ) -> Option<String> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // checks the percent sign of every parameter of its commands when the
+        // script loads.
+        crate::v1::the_refusal_of_the_percent_sign_of_a_parameter(text)
     }
 
     fn the_refusal_of_the_arity_of_a_command(
