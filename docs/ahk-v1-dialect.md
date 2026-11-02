@@ -926,6 +926,32 @@ are in `crates/ahk/src/v1/keys.rs`, the rule of the parameter is in
 `crates/ahk/src/v1/parameters.rs`, and the two forms of the name are two rows
 of the table of the v1. The block of the key state (2026-11-03) carried it.
 
+**What is left of the v1.** Two families of the grammar are measured on the
+binary of v1.1.37.02 and the tree does not do them yet.
+
+The body of the `if` on the line of the construct: the v1 takes it, and the
+body runs -- the `if (1) SetTimer, Foo, 100` sets the timer of it, and the
+timer fires. The body may be a command, an assignment, a `goto`, a `return`,
+a `break`, a `continue`, or another construct. The condition of the v1 ends
+at the parenthesis that closes it, or at the end of the expression when it
+is the legacy form: the `if x = 1 SetTimer, Foo, 100` has the condition
+"x = 1" and the body is the command that comes after it. The tree reads the
+whole line as the condition, and the body of it is the line that comes next:
+the `if (1) goto L` is refused with "Unexpected \"If\"". The change is in the
+parser of the `if` of the v1, and it is not only the check of the body: the
+condition of the v1 has to end where the v1 ends it.
+
+The definition of the hotkey of the v1: it is a line of its own, and the
+action of it is the label that comes after the line, or the command that the
+line carries. The v1 refuses the name that is not a key with "Invalid
+hotkey." and it names the line, it refuses the context of a single-line
+hotkey with "Invalid single-line hotkey/hotstring.", and it refuses the
+hotkey that is declared twice with "Duplicate hotkey." and the name of it.
+The tree does not have the syntax of it: the line is refused with "This line
+does not contain a recognized action." The names of the keys of the v1 are
+already in `crates/ahk/src/v1/keys.rs`, and the hotkey of the v2 is already
+in `crates/ahk/src/hotkeys.rs`.
+
 **The settings of the v1.** The v1 and the v2 do not begin with the same
 values: the mode of the coordinates is the "Window" in the v1, the method of
 the sending is the "Event" and the mode of the matching of the titles is the
