@@ -20,6 +20,7 @@ use crate::runtime::{Runtime, RuntimeError, Value};
 mod chars;
 mod files;
 mod kinds;
+mod labels;
 mod math;
 mod names;
 mod numbers;
@@ -40,6 +41,8 @@ pub use variables::{carries as carries_variable, may_not_be_declared, refusal_of
 pub(crate) use chars::chr;
 
 pub(crate) use kinds::wants_a_number;
+
+pub(crate) use labels::the_label_of_the_command;
 
 pub(crate) use math::{
     abs, acos, asin, atan, ceil, cos, exp, floor, ln, log, max, min, modulo, round, sin, sqrt, tan,

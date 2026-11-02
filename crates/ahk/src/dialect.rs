@@ -48,6 +48,22 @@ pub enum TheRefusalOfTheArity {
     },
 }
 
+/// The label that a parameter of a command names.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the `GroupAdd` names
+/// a label of the script in its fourth parameter, the `Hotkey` in its second
+/// and the `SetTimer` in its first, and the label that is not there is
+/// refused when the script loads. The action of a hotkey and the body of a
+/// timer may be a function of the script, and the name of the function is
+/// accepted there.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TheLabelOfACommand {
+    /// The parameter names a label of the script.
+    Label(usize),
+    /// The parameter names a label of the script or a function of it.
+    LabelOrFunction(usize),
+}
+
 /// The dialect that the runtime speaks.
 ///
 /// Every rule of the tree that is not the same in the two dialects is a
@@ -702,6 +718,20 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// The label that a parameter of this command names.
+    ///
+    /// The number is the place of the parameter, counted from zero, and
+    /// `None` means that the command does not name a label.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-03: the `GroupAdd`
+    /// names a label of the script in its fourth parameter, the `Hotkey` in
+    /// its second and the `SetTimer` in its first, and the label that is not
+    /// there is refused when the script loads. The v2 has no command that
+    /// names a label.
+    fn the_label_of_the_command(&self, _name: &str) -> Option<TheLabelOfACommand> {
+        None
+    }
+
     /// The refusal of the name of a variable of the script.
     ///
     /// The place is the number of the parameter, and the text is the text
@@ -1150,6 +1180,12 @@ impl Dialect for V1 {
         // complaint of the v1 is the one of the parameter that may not be
         // blank.
         crate::v1::the_parameter_may_not_be_blank(name, place)
+    }
+
+    fn the_label_of_the_command(&self, name: &str) -> Option<TheLabelOfACommand> {
+        // Measured on the binary of v1.1.37.02 on 2026-11-03: the label that
+        // a command of the v1 names is checked when the script loads.
+        crate::v1::the_label_of_the_command(name)
     }
 
     fn the_refusal_of_the_name_of_a_variable(

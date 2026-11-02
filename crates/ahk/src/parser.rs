@@ -772,6 +772,23 @@ struct TheCallOfTheScript {
     column: u32,
 }
 
+/// The label that a command of the script names.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the label that a
+/// command names is checked when the script loads, and the names of the
+/// labels of the script are known only at the end of the parse.
+struct TheLabelOfTheScript {
+    /// The text of the parameter that names the label.
+    text: String,
+    /// Whether the name of a function of the script is accepted there.
+    ///
+    /// The action of a hotkey and the body of a timer may be a function, and
+    /// the `GroupAdd` names a label and nothing else.
+    function: bool,
+    /// The line of the command that names the label.
+    line: u32,
+}
+
 /// The recursive descent parser.
 pub struct Parser {    tokens: Vec<Token>,
     position: usize,
@@ -798,6 +815,17 @@ pub struct Parser {    tokens: Vec<Token>,
     /// The name of a function of the script may be defined after the call, so
     /// the calls wait for the end of the parse.
     calls: Vec<TheCallOfTheScript>,
+    /// The labels that the commands of the script name.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-03: the label that a
+    /// command names is checked when the script loads, and the names of the
+    /// labels of the script are known only at the end of the parse.
+    labels: Vec<TheLabelOfTheScript>,
+    /// The names of the labels of the script, in lower case.
+    ///
+    /// The label that a command names may be written anywhere in the script,
+    /// and the name of a label does not know its case.
+    label_names: BTreeSet<String>,
     /// The assignments of the script, one list for each function.
     ///
     /// The list of the top level is the first one, and the list of a
@@ -925,6 +953,8 @@ impl Parser {
             functions: BTreeSet::new(),
             arities: BTreeMap::new(),
             calls: Vec::new(),
+            labels: Vec::new(),
+            label_names: BTreeSet::new(),
             assignments: vec![Vec::new()],
             parameters: Vec::new(),
             in_class: false,
@@ -1228,6 +1258,8 @@ impl Parser {
         self.functions.clear();
         self.arities.clear();
         self.calls.clear();
+        self.labels.clear();
+        self.label_names.clear();
         self.assignments.clear();
         self.assignments.push(Vec::new());
         self.skip_newlines();
@@ -1248,6 +1280,9 @@ impl Parser {
         // The v1 refuses the call of a function at the load, and the arity of
         // a function of the script is known only now.
         self.the_calls_of_the_v1_are_checked()?;
+        // The label that a command of the v1 names is refused at the load too,
+        // and the names of the labels of the script are known only now.
+        self.the_labels_of_the_commands_are_checked()?;
         Ok(statements)
     }
 
@@ -1335,6 +1370,46 @@ impl Parser {
             line: call.line,
             column: call.column,
         }
+    }
+
+    /// The labels that the commands of the script name are checked at the end
+    /// of the parse.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-03: the label that a
+    /// command names and that is not there is refused when the script loads,
+    /// and the complaint of the v1 is "Target label does not exist." -- it
+    /// names no text. The refusal comes after the others: the label that is
+    /// written twice and the call of a name that is not a function are
+    /// refused before it.
+    ///
+    /// The text that is empty names no label, and the percent sign is the
+    /// substitution of the v1: the label that comes out of it is not checked
+    /// at the load. The name of the label does not know its case, and the
+    /// label may be written anywhere in the script.
+    fn the_labels_of_the_commands_are_checked(&self) -> Result<(), SyntaxError> {
+        for label in &self.labels {
+            let text = label.text.trim();
+            if text.is_empty() || text.contains('%') {
+                continue;
+            }
+            let name = text.to_lowercase();
+            if self.label_names.contains(&name) {
+                continue;
+            }
+            // The action of a hotkey and the body of a timer may be a
+            // function of the script, and the name of the function is
+            // accepted there. The function with arguments is not: the
+            // `Hotkey, ^!a, MyFunc(1)` is refused.
+            if label.function && !text.contains('(') && self.functions.contains(&name) {
+                continue;
+            }
+            return Err(SyntaxError {
+                message: "Target label does not exist.".to_string(),
+                line: label.line,
+                column: 1,
+            });
+        }
+        Ok(())
     }
 
     /// The refusal of the classes whose base is not there.
@@ -3015,6 +3090,23 @@ impl Parser {
                 places.truncate(count);
                 parameters[count - 1] = text;
                 places[count - 1] = (start, end);
+            }
+        }
+        // Measured on the binary of v1.1.37.02 on 2026-11-03: the label that
+        // a command names is checked when the script loads, and the names of
+        // the labels of the script are known only at the end of the parse:
+        // the command is recorded here and the check waits.
+        if let Some(label) = self.dialect.the_label_of_the_command(&name) {
+            let (place, function) = match label {
+                crate::dialect::TheLabelOfACommand::Label(place) => (place, false),
+                crate::dialect::TheLabelOfACommand::LabelOrFunction(place) => (place, true),
+            };
+            if let Some(text) = parameters.get(place) {
+                self.labels.push(TheLabelOfTheScript {
+                    text: text.clone(),
+                    function,
+                    line: name_token.line,
+                });
             }
         }
         self.end_of_statement()?;
@@ -4702,6 +4794,10 @@ impl Parser {
                     return Err(self.the_line_holds_no_action(token.line));
                 }
                 self.position = end;
+                // Measured on the binary of v1.1.37.02 on 2026-11-03: the
+                // label that a command names may be written anywhere in the
+                // script, and the name of a label does not know its case.
+                self.label_names.insert(name.to_lowercase());
                 Ok(Some(Node::Label { name, line: token.line }))
             }
             None => {

@@ -1637,6 +1637,15 @@ that asks for another one is refused with the reason.
   `v1/sub_commands.rs`, and the parameter that may not be blank is a hook
   of the dialect (`the_parameter_may_not_be_blank`).
 
+- **The label that a command of the v1 names is checked when the script
+  loads.** The label that is not there is refused with "Target label does
+  not exist.", and it names no text. The `GroupAdd` names it in its fourth
+  parameter, the `Hotkey` in its second and the `SetTimer` in its first,
+  and the label may be written anywhere in the script. The rules are in
+  `v1/labels.rs`, the label of a command is a hook of the dialect
+  (`the_label_of_the_command`), and the check is at the end of the parse,
+  because the names of the labels of the script are known only then.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

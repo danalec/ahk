@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 170 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 175 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -846,7 +846,7 @@ the path of the class of the `new` by the block of the path (2026-11-02), and
 the parameter of a command by the block of the parameters (2026-11-02), and
 the pid of the process by the block of the pid (2026-11-02), and the code of
 the failure of a native call by the block of the code (2026-11-02), and the
-patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02), and the marks of the name of a variable by the block of the marks (2026-11-02), and the sub-command of a command by the block of the sub-command (2026-11-02).
+patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02), and the marks of the name of a variable by the block of the marks (2026-11-02), and the sub-command of a command by the block of the sub-command (2026-11-02), and the label that a command names by the block of the label (2026-11-03).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -874,6 +874,29 @@ blank is another hook of the dialect
 (2026-11-02) carried it, and the differential sweep of the v1 went from
 88 divergences of the load to 2: the `GroupAdd`, whose label the parser
 does not know yet.
+
+**The label that a command of the v1 names.** The command whose parameter
+names a label refuses the label that is not there when the script loads:
+"Target label does not exist.", and it names no text. The `GroupAdd` names
+it in its fourth parameter -- the label of the subroutine that the group runs
+when it has no window -- the `Hotkey` in its second -- the action of the key
+-- and the `SetTimer` in its first -- the body of the timer. The label may be
+written anywhere in the script, and the name of it does not know its case;
+the text that is empty names no label, and the percent sign is the
+substitution of the v1, and the label that comes out of it is not checked at
+the load. The action of a hotkey and the body of a timer may be a function of
+the script, and the name of the function is accepted there -- the function
+with arguments is not -- and the `GroupAdd` names a label and nothing else.
+The refusal comes after the other refusals of the load: the label that is
+written twice and the call of a name that is not a function are refused
+before it. The rules are in `crates/ahk/src/v1/labels.rs`, the hook of the
+dialect is `the_label_of_the_command`, and the check is at the end of the
+parse, because the names of the labels of the script are known only then. The
+block of the label (2026-11-03) carried it, and the differential sweep of the
+v1 has no divergence of the load any more. The `goto` of the v1 names a
+label too, and the complaint of it is the same one with the label after it,
+and it has the rules of the scope of the jump that the tree does not carry
+yet.
 
 **The settings of the v1.** The v1 and the v2 do not begin with the same
 values: the mode of the coordinates is the "Window" in the v1, the method of

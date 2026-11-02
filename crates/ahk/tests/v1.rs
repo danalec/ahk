@@ -4881,3 +4881,116 @@ fn the_key_history_of_the_v1_takes_no_parameter() {
     );
 }
 
+/// The label that a command of the v1 names is refused when the script
+/// loads.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+/// `GroupAdd` names a label in its fourth parameter -- the label of the
+/// subroutine that the group runs when it has no window -- the `Hotkey` in
+/// its second -- the action of the key -- and the `SetTimer` in its first --
+/// the body of the timer. The label that is not there is refused with
+/// "Target label does not exist.", and it names no text.
+#[test]
+fn the_label_that_a_command_of_the_v1_names_is_refused_at_the_load() {
+    for script in [
+        "GroupAdd, g, t, x, NoSuchLabel",
+        "Hotkey, ^!a, NoSuchLabel",
+        "SetTimer, NoSuchLabel, 1000",
+    ] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            "Target label does not exist.",
+            "the script is {script}"
+        );
+    }
+}
+
+/// The label that a command of the v1 names may be written anywhere.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the name
+/// of a label does not know its case, and the label may be written before
+/// the command or after it, and inside a function as well: the label of a
+/// function is the label of the script.
+#[test]
+fn the_label_that_a_command_of_the_v1_names_may_be_written_anywhere() {
+    for script in [
+        "GroupAdd, g, t, x, MyLabel\nMyLabel:",
+        "GroupAdd, g, t, x, mylabel\nMyLabel:",
+        "GroupAdd, g, t, x, MYLABEL\nMyLabel:",
+        "MyLabel:\nGroupAdd, g, t, x, MyLabel",
+        "GroupAdd, g, t, x, MyLabel\nf() {\nMyLabel:\n}",
+        "f() {\nGroupAdd, g, t, x, MyLabel\n}\nMyLabel:",
+        "GroupAdd, g, t, x, MyLabel\nif 1 {\nMyLabel:\n}",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The text that names no label is not refused.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the text
+/// that is empty names no label, and the percent sign is the substitution of
+/// the v1: the label that comes out of it is not checked at the load.
+#[test]
+fn the_text_that_names_no_label_is_not_refused() {
+    for script in ["GroupAdd, g, t, x", "GroupAdd, g, t, x,", "GroupAdd, g, t, x, %v%"] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The name of a function of the script is the action of a hotkey and the
+/// body of a timer.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
+/// `Hotkey` and the `SetTimer` accept the name of a function of the script,
+/// and the `GroupAdd` refuses it: it names a label and nothing else. The
+/// function with arguments is not accepted, and the name of a built-in is
+/// not either.
+#[test]
+fn the_name_of_a_function_of_the_script_is_the_action_of_a_hotkey() {
+    for script in [
+        "Hotkey, ^!a, MyFunc\nMyFunc() {\nreturn 1\n}",
+        "SetTimer, MyFunc, 1000\nMyFunc() {\nreturn 1\n}",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+    assert_eq!(
+        the_refusal_of_the_load("GroupAdd, g, t, x, MyFunc\nMyFunc() {\nreturn 1\n}"),
+        "Target label does not exist."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Hotkey, ^!a, MyFunc(1)\nMyFunc(x) {\nreturn x\n}"),
+        "Target label does not exist."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Hotkey, ^!a, MsgBox"),
+        "Target label does not exist."
+    );
+}
+
+/// The refusal of the label comes after the other refusals of the load.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the label
+/// that is written twice and the call of a name that is not a function are
+/// refused before the label that is not there.
+#[test]
+fn the_refusal_of_the_label_comes_after_the_other_refusals_of_the_load() {
+    assert_eq!(
+        the_refusal_of_the_load("GroupAdd, g, t, x, NoSuchLabel\nNoSuchFunction()"),
+        "Call to nonexistent function.\n     Specifically: NoSuchFunction()"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("GroupAdd, g, t, x, NoSuchLabel\na:\na:"),
+        "Duplicate label.\n     Specifically: a"
+    );
+}
+

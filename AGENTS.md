@@ -7558,3 +7558,46 @@ refused with the text of the first one of them.
 
 The suite of the v1 has ten cases more (170).
 
+## 188. The label that a command of the v1 names is checked when the script loads
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the command
+that names a label refuses the label that is not there when the script loads,
+before any line of it runs: "Target label does not exist." on a line of its
+own, and it names no text.
+
+The commands that name a label are the `GroupAdd` -- in its fourth parameter,
+the label of the subroutine that the group runs when it has no window -- the
+`Hotkey` -- in its second, the action of the key -- and the `SetTimer` -- in
+its first, the body of the timer.
+
+The label that the command names may be written anywhere in the script: before
+the command or after it, inside a block or inside a function, and the name of
+a label does not know its case. The text that is empty names no label, and the
+percent sign is the substitution of the v1: the label that comes out of it is
+not checked at the load.
+
+The action of a hotkey and the body of a timer may be a function of the
+script, and the name of the function is accepted there: the `Hotkey, ^!a,
+MyFunc` is accepted when the script has such a function. The function with
+arguments is not: the `Hotkey, ^!a, MyFunc(1)` is refused. The name of a
+built-in is not either. The `GroupAdd` names a label and nothing else: the
+`GroupAdd, g, t, x, MyFunc` is refused when the script has such a function
+and no such a label.
+
+The refusal comes after the other refusals of the load: the label that is
+written twice and the call of a name that is not a function are refused
+before it.
+
+The rules of the v1 are in `crates/ahk/src/v1/labels.rs`, and the parser asks
+the dialect (`the_label_of_the_command`) before it records the label of the
+command. The check is at the end of the parse, because the names of the
+labels of the script are known only then.
+
+The `goto` of the v1 names a label too, and the complaint of it is the same
+one with the label after it -- "Target label does not exist." with the label
+in the second line -- and it has the rules of the scope of the jump that the
+tree does not carry yet: the tree refuses the `goto` whose label is not in
+the scope with the complaint of the v2.
+
+The suite of the v1 has five cases more (175).
+
