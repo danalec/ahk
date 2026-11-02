@@ -6824,3 +6824,105 @@ fn the_escape_of_the_v1_does_not_protect_the_quote_of_a_text() {
         "The following variable name contains an illegal character:\n\"b\"\""
     );
 }
+
+/// The `if` of the v1 has no name of its own.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if`
+/// alone is refused with '"" requires at least 1 parameter. Specifically: if',
+/// and the name of it is empty. The other words that want a parameter name
+/// themselves: the `until` alone is refused with '"Until" requires at least 1
+/// parameter. Specifically: until'.
+#[test]
+fn the_if_of_the_v1_has_no_name_of_its_own() {
+    assert_eq!(
+        the_refusal_of_the_load("if"),
+        "\"\" requires at least 1 parameter.\n     Specifically: if"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("until"),
+        "\"Until\" requires at least 1 parameter.\n     Specifically: until"
+    );
+}
+
+/// The `until` of the v1 is the condition of the loop.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `until`
+/// is the statement that comes right after the body of a loop, and it is the
+/// condition that ends it: the body runs, and the condition is read after
+/// every turn of it.
+#[test]
+fn the_until_of_the_v1_is_the_condition_of_the_loop() {
+    // The condition is read after every turn, and the loop ends when it is
+    // true.
+    let report = run("i := 0\nLoop 3\ni := i + 1\nUntil i == 2\nFileAppend, [%i%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+
+    // The condition that is never true lets the loop run to the end.
+    let report = run("i := 0\nLoop 3\ni := i + 1\nUntil 0\nFileAppend, [%i%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[3]".to_string()]);
+
+    // The loop without a count goes on until the condition is true.
+    let report = run("i := 0\nLoop\ni := i + 1\nUntil i == 2\nFileAppend, [%i%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+
+    // The body that is a block is followed by the condition too.
+    let report = run("i := 0\nLoop 3 {\ni := i + 1\n}\nUntil i == 2\nFileAppend, [%i%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+}
+
+/// The `until` of the v1 that no loop takes is refused at the load.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `until`
+/// that no loop takes is refused with "UNTIL with no matching LOOP", and the
+/// refusal is made when the load is over: the error of a line that comes
+/// later is the one that is reported.
+#[test]
+fn the_until_of_the_v1_that_no_loop_takes_is_refused() {
+    // The `until` that is not after the body of a loop.
+    assert_eq!(
+        the_refusal_of_the_load("Until 1"),
+        "UNTIL with no matching LOOP"
+    );
+
+    // The `until` that is the body of the loop is not after it.
+    assert_eq!(
+        the_refusal_of_the_load("Loop 3\nUntil 1"),
+        "UNTIL with no matching LOOP"
+    );
+
+    // The `until` that is inside a block is not after the body either.
+    assert_eq!(
+        the_refusal_of_the_load("Loop 3 {\nUntil 1\n}"),
+        "UNTIL with no matching LOOP"
+    );
+
+    // The `until` that comes after another statement is not the condition of
+    // the loop.
+    assert_eq!(
+        the_refusal_of_the_load("Loop 3\ni := 1\nx := 2\nUntil 1"),
+        "UNTIL with no matching LOOP"
+    );
+
+    // The refusal waits for the end of the load: the error of the line that
+    // comes later is the one that is reported.
+    assert_eq!(
+        the_refusal_of_the_load("Until 1\nthis is not valid"),
+        "This line does not contain a recognized action.\n     Specifically: this is not valid"
+    );
+}
+
+/// The `until` of the v1 may be the name of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `until := 2` writes the variable "until", and it is not the condition of
+/// the loop that comes before it.
+#[test]
+fn the_until_of_the_v1_may_be_the_name_of_a_variable() {
+    let report = run("i := 0\nLoop 3\ni := i + 1\nuntil := 2\nFileAppend, [%i%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[3]".to_string()]);
+}

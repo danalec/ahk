@@ -1871,6 +1871,19 @@ that asks for another one is refused with the reason.
   begins at it. The dialect says it (`the_escape_of_the_dialect`,
   `the_escape_may_be_in_a_name` and `the_escape_protects_the_quote_of_a_text`).
 
+- **The `Until` of the v1 is the condition of the loop, and the `if` of the
+  v1 has no name of its own.** The `Until` is the statement that comes right
+  after the body of a loop, and it ends the loop when it is true: the
+  condition is read after every turn of the body. The `Until` that no loop
+  takes is refused when the script loads, and the refusal waits for the end
+  of the load. The `Until` that is the name of a variable is not the
+  condition. The words that want a parameter name themselves in the
+  complaint that they make, and the `if` of the v1 is a command that has no
+  name of its own: the `if` alone is refused with '"" requires at least 1
+  parameter. Specifically: if'. The dialect says it
+  (`the_name_of_the_word_that_wants_a_parameter` and
+  `the_refusal_of_the_until_that_has_no_loop`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

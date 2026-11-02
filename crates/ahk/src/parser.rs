@@ -1100,6 +1100,14 @@ pub struct Parser {    tokens: Vec<Token>,
     /// The name of a function of the script may be defined after the call, so
     /// the calls wait for the end of the parse.
     calls: Vec<TheCallOfTheScript>,
+    /// The `until` of the v1 that no loop takes.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `until` of the v1 is the condition of the loop whose body is the
+    /// statement before it, and the one that no loop takes is refused when
+    /// the load is over: the error of a line that comes later is the one
+    /// that is reported.
+    untils_without_a_loop: Vec<(String, u32, u32)>,
     /// The labels that the commands of the script name.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-03: the label that a
@@ -1282,6 +1290,7 @@ impl Parser {
             functions: BTreeSet::new(),
             arities: BTreeMap::new(),
             calls: Vec::new(),
+            untils_without_a_loop: Vec::new(),
             labels: Vec::new(),
             label_names: BTreeSet::new(),
             hotkeys: Vec::new(),
@@ -1620,6 +1629,7 @@ impl Parser {
         self.functions.clear();
         self.arities.clear();
         self.calls.clear();
+        self.untils_without_a_loop.clear();
         self.labels.clear();
         self.label_names.clear();
         self.hotkeys.clear();
@@ -1649,7 +1659,31 @@ impl Parser {
         // The label that a command of the v1 names is refused at the load too,
         // and the names of the labels of the script are known only now.
         self.the_labels_of_the_script_are_checked(&statements)?;
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // `until` of the v1 that no loop takes is refused at the load, and the
+        // error of a line that comes later is the one that is reported: the
+        // refusal waits for the end of the parse.
+        self.the_untils_without_a_loop_are_checked()?;
         Ok(statements)
+    }
+
+    /// The `until` of the v1 that no loop takes is refused at the load.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `until` of the v1 is the condition of the loop whose body is the
+    /// statement before it, and the one that no loop takes is refused with
+    /// "UNTIL with no matching LOOP". The refusal is made when the load is
+    /// over: the error of a line that comes later is the one that is
+    /// reported.
+    fn the_untils_without_a_loop_are_checked(&self) -> Result<(), SyntaxError> {
+        let Some((message, line, column)) = self.untils_without_a_loop.first() else {
+            return Ok(());
+        };
+        Err(SyntaxError {
+            message: message.clone(),
+            line: *line,
+            column: *column,
+        })
     }
 
     /// The calls of the v1 are checked at the end of the parse.
@@ -2999,9 +3033,31 @@ impl Parser {
                     let token = self.next();
                     if self.at_end_of_statement() {
                         return Err(self.error(format!(
-                            "\"Until\" requires at least 1 parameter.\n     Specifically: {}",
+                            "\"{}\" requires at least 1 parameter.\n     Specifically: {}",
+                            self.dialect.the_name_of_the_word_that_wants_a_parameter("until"),
                             the_source_of_the_line(self, token.line)
                         )));
+                    }
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the `until` of the v1 is the condition of
+                    // the loop whose body is the statement before it, and the
+                    // one that no loop takes is refused when the load is
+                    // over.
+                    if let Some(refusal) =
+                        self.dialect.the_refusal_of_the_until_that_has_no_loop()
+                    {
+                        let condition = self.the_expression_of_a_statement()?;
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-04: the parameter of the `until` is the rest
+                        // of the line, and the brace that comes after it is
+                        // refused at the parse: the error of the line wins
+                        // over the refusal of the load.
+                        self.end_of_statement()?;
+                        self.untils_without_a_loop.push((refusal, token.line, token.column));
+                        return Ok(vec![Node::Expression {
+                            value: Box::new(condition),
+                            line: token.line,
+                        }]);
                     }
                     return Err(SyntaxError {
                         message: "Unexpected \"Until\"".to_string(),
@@ -5536,8 +5592,12 @@ impl Parser {
         if self.at_end_of_statement() {
             // Measured on the binary of v2.0.19 on 2026-10-31: the `if` needs
             // a condition, and it says so in its own words.
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the `if` of the v1 has no name of its own, and the complaint of
+            // it is '"" requires at least 1 parameter. Specifically: if'.
             return Err(self.error(format!(
-                "\"If\" requires at least 1 parameter.\n     Specifically: {}",
+                "\"{}\" requires at least 1 parameter.\n     Specifically: {}",
+                self.dialect.the_name_of_the_word_that_wants_a_parameter("if"),
                 the_source_of_the_line(self, token.line)
             )));
         }
@@ -6261,7 +6321,8 @@ impl Parser {
                 the_source_of_the_line(self, token.line)
             };
             return Err(self.error(format!(
-                "\"Goto\" requires at least 1 parameter.\n     Specifically: {text}"
+                "\"{}\" requires at least 1 parameter.\n     Specifically: {text}",
+                self.dialect.the_name_of_the_word_that_wants_a_parameter("goto")
             )));
         }
         // The `Goto` takes one.
@@ -6449,7 +6510,8 @@ impl Parser {
             // Measured on the binary of v2.0.19 on 2026-10-31: the `while`
             // needs a condition, and it says so in its own words.
             return Err(self.error(format!(
-                "\"While\" requires at least 1 parameter.\n     Specifically: {}",
+                "\"{}\" requires at least 1 parameter.\n     Specifically: {}",
+                self.dialect.the_name_of_the_word_that_wants_a_parameter("while"),
                 the_source_of_the_line(self, token.line)
             )));
         }
@@ -7470,6 +7532,10 @@ impl Parser {
         self.end_of_block()?;
         let body_start = self.position;
         let body = self.the_body_of_a_loop(&the_name_of_the_loop(&name), token.line)?;
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // `until` of the v1 is the statement that comes right after the body
+        // of the loop, and it is the condition that ends it.
+        let until = self.the_until_of_the_loop()?;
         if let Some(closing) = empty {
             return Err(self.the_refusal_of_an_empty_parenthesis(&closing));
         }
@@ -7481,7 +7547,58 @@ impl Parser {
                 the_source_of_the_head(self, head, body_start)
             )));
         }
-        Ok(Node::Loop { mode: kind.unwrap_or(LoopKind::Count), arguments, body, line: token.line })
+        Ok(Node::Loop {
+            mode: kind.unwrap_or(LoopKind::Count),
+            arguments,
+            body,
+            until,
+            line: token.line,
+        })
+    }
+
+    /// The `until` that is the condition of the loop.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `until` of the v1 is the statement that comes right after the body of
+    /// a loop, and it is the condition that ends it: the body runs, and the
+    /// condition is read after every turn of it. The `until` that is the name
+    /// of a variable is not the condition, and the one that is not right
+    /// after a body is not one either: the v1 refuses it with "UNTIL with no
+    /// matching LOOP" when the load is over.
+    ///
+    /// The v2 has no such statement, and the loop has no condition.
+    fn the_until_of_the_loop(&mut self) -> Result<Option<Box<Node>>, SyntaxError> {
+        if self.dialect.the_refusal_of_the_until_that_has_no_loop().is_none() {
+            return Ok(None);
+        }
+        // The word that comes next, past the newlines.
+        let mut at = self.position;
+        while self
+            .tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
+            at += 1;
+        }
+        let Some(token) = self.tokens.get(at) else { return Ok(None) };
+        if token.kind != TokenKind::Keyword || !token.value.eq_ignore_ascii_case("until") {
+            return Ok(None);
+        }
+        // The word that is the name of a variable is not the condition: the
+        // `until := 2` writes the variable "until".
+        let is_a_name = self
+            .tokens
+            .get(at + 1)
+            .map(|next| next.kind == TokenKind::Op && the_assignment_operator(&next.value).is_some())
+            .unwrap_or(false);
+        if is_a_name {
+            return Ok(None);
+        }
+        self.position = at;
+        self.next();
+        let condition = self.the_expression_of_a_statement()?;
+        Ok(Some(Box::new(condition)))
     }
 
     /// The count of the loop.

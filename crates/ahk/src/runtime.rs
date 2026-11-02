@@ -2486,7 +2486,7 @@ impl<'a> Runtime<'a> {
                 self.name_the_thrower(&value);
                 return Err(RuntimeFailure::Thrown(value));
             }
-            Node::Loop { mode, arguments, body, line } => {
+            Node::Loop { mode, arguments, body, until, line } => {
                 // Measured on the binary of v2.0.19 on 2026-11-01: every loop
                 // saves the value of `A_Index` when it starts and gives it
                 // back when it ends.
@@ -2510,6 +2510,13 @@ impl<'a> Runtime<'a> {
                                         Err(other) => return Err(other),
                                     };
                                     if broken {
+                                        break;
+                                    }
+                                    // Measured on the binary of AutoHotkey
+                                    // v1.1.37.02 on 2026-11-04: the `until` of
+                                    // the v1 is the condition of the loop, and it
+                                    // is read after every turn of the body.
+                                    if self.the_until_ends_the_loop(until)? {
                                         break;
                                     }
                                     turn = self.the_index_of_the_turn() + 1;
@@ -2543,6 +2550,13 @@ impl<'a> Runtime<'a> {
                                         Err(RuntimeFailure::Flow(Flow::Break)) => break,
                                         Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
                                         Err(other) => return Err(other),
+                                    }
+                                    // Measured on the binary of AutoHotkey
+                                    // v1.1.37.02 on 2026-11-04: the `until` of
+                                    // the v1 is the condition of the loop, and it
+                                    // is read after every turn of the body.
+                                    if self.the_until_ends_the_loop(until)? {
+                                        break;
                                     }
                                 }
                             }
@@ -8741,6 +8755,22 @@ impl<'a> Runtime<'a> {
             }
         }
         Ok(self.evaluate(node)?.to_number().unwrap_or(0.0) as i64)
+    }
+
+    /// The `until` of the v1 ends the loop.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `until` of the v1 is the statement that comes right after the body of
+    /// a loop, and it is the condition that ends it: the body runs, and the
+    /// condition is read after every turn of it. The condition is an
+    /// expression, and the `=` of the v1 is an assignment: the `until i = 2`
+    /// writes the variable "i" and the condition is true.
+    ///
+    /// The v2 has no such statement, and the loop has no condition.
+    fn the_until_ends_the_loop(&mut self, until: &Option<Box<Node>>) -> Result<bool, RuntimeFailure> {
+        let Some(condition) = until else { return Ok(false) };
+        let value = self.evaluate(condition)?;
+        Ok(self.the_value_is_true(&value))
     }
 
     /// The substitution of the parameters of a command of the v1.

@@ -13,11 +13,29 @@
 //! speaks the v1.
 
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 
 use crate::ast::AssignOp;
 use crate::builtins::Builtin;
 use crate::runtime::{Runtime, RuntimeError, Value};
+
+/// The name of a word of the dialect, with the first letter in upper case.
+///
+/// The words that want a parameter name themselves in the complaint that
+/// they make: the name of the v2 is the word with the first letter in
+/// upper case, and it is "If", "Until", "While" and "Goto".
+fn the_name_of_the_word(word: &str) -> String {
+    let mut characters = word.chars();
+    match characters.next() {
+        Some(first) => {
+            let mut name = String::new();
+            name.push_str(&first.to_uppercase().to_string());
+            name.push_str(characters.as_str());
+            name
+        }
+        None => String::new(),
+    }
+}
 
 /// The refusal of the number of the parameters of a command.
 ///
@@ -1104,6 +1122,31 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The name that the dialect writes when the word that wants a parameter
+    /// has none.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `if` of the v1 has no name of its own, and the complaint of the v1 is
+    /// '"" requires at least 1 parameter. Specifically: if'. The other words
+    /// name themselves: the `until` alone is refused with '"Until" requires
+    /// at least 1 parameter. Specifically: until'.
+    fn the_name_of_the_word_that_wants_a_parameter(&self, word: &str) -> String {
+        the_name_of_the_word(word)
+    }
+
+    /// The refusal of the `until` that has no loop.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `until` of the v1 that is not the condition of a loop is refused with
+    /// "UNTIL with no matching LOOP", and it names nothing else. The v2
+    /// crashes when the `until` has a condition, and the tree refuses it
+    /// with 'Unexpected "Until"'.
+    ///
+    /// `None` means that the dialect has no such refusal.
+    fn the_refusal_of_the_until_that_has_no_loop(&self) -> Option<String> {
+        None
+    }
+
     /// The refusal of the percent sign of a parameter of a command.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -1774,6 +1817,24 @@ impl Dialect for V1 {
         // checks the percent sign of every parameter of its commands when the
         // script loads.
         crate::v1::the_refusal_of_the_percent_sign_of_a_parameter(text)
+    }
+
+    fn the_name_of_the_word_that_wants_a_parameter(&self, word: &str) -> String {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // `if` of the v1 is a command that has no name of its own, and the
+        // complaint of it is '"" requires at least 1 parameter. Specifically:
+        // if'. The other words name themselves.
+        if word == "if" {
+            return String::new();
+        }
+        the_name_of_the_word(word)
+    }
+
+    fn the_refusal_of_the_until_that_has_no_loop(&self) -> Option<String> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // `until` of the v1 that no loop takes is refused with "UNTIL with no
+        // matching LOOP", and it names nothing else.
+        Some("UNTIL with no matching LOOP".to_string())
     }
 
     fn the_refusal_of_the_arity_of_a_command(

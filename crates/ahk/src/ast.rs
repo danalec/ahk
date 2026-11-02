@@ -527,7 +527,17 @@ pub enum Node {    /// A value.
     /// `While cond { }`.
     While { condition: Box<Node>, body: Vec<Node>, line: u32 },
     /// `Loop 3 { }`, `Loop Files "*.txt" { }`, `Loop Parse "a,b" { }`.
-    Loop { mode: LoopKind, arguments: Vec<Node>, body: Vec<Node>, line: u32 },
+    ///
+    /// The `until` is the condition of the v1: it is the statement that
+    /// comes right after the body of the loop, and the loop ends when it
+    /// is true. The v2 has no such statement, and the field is empty.
+    Loop {
+        mode: LoopKind,
+        arguments: Vec<Node>,
+        body: Vec<Node>,
+        until: Option<Box<Node>>,
+        line: u32,
+    },
     /// `#Requires AutoHotkey v2.0.19`: a directive.
     ///
     /// The name is the name of the directive and the argument is the

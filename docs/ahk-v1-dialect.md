@@ -1191,17 +1191,36 @@ contains a variable name missing its ending percent sign. Specifically:
 a%b%". The v1 checks the percent sign of every parameter of its commands,
 and not only the ones that want the name of a variable.
 
+**The `Until` of the v1** (2026-11-04). The `Until` of the v1 is the
+statement that comes right after the body of a loop, and it is the condition
+that ends it: the body runs, and the condition is read after every turn of
+it. The `Loop 3` / `i := i + 1` / `Until i == 2` leaves 2 in `i`, and the
+`Loop` without a count goes on until the condition is true. The body that is
+a block is followed by the condition too.
+
+The `Until` that no loop takes is refused when the script loads, with "UNTIL
+with no matching LOOP", and the refusal waits for the end of the load: the
+error of a line that comes later is the one that is reported. The `Until`
+that is the body of the loop is not after it, and the one that comes after
+another statement is not either.
+
+The `Until` of the v1 may be the name of a variable: the `until := 2` writes
+the variable "until", and it is not the condition of the loop that comes
+before it. The `Until` alone is refused with '"Until" requires at least 1
+parameter. Specifically: until', and the parameter of it is the rest of the
+line: the `until x := 5 {` is refused with "Unexpected \"{\"".
+
+And the `if` of the v1 has no name of its own: the `if` alone is refused
+with '"" requires at least 1 parameter. Specifically: if'. The other words
+that want a parameter name themselves: the `until` above, the `while` and
+the `goto`.
+
 **What is left of the v1.** One corner of the `if` is measured on the binary
 of v1.1.37.02 and the tree does not do it yet.
 
 The brace that comes after the `if` that is inside the line of the
 condition: the v1 refuses it with "Unexpected \"{\"", and the tree refuses
 the line with "Unexpected \"If\"".
-
-And one corner that is not of the `if`: the `loop` of the v1. It is a
-command, and the tree reads it as the construct of the v2. The `loop 3` is
-three turns in the two of them, but the `loop n` is three turns in the tree
-and none in the v1: the count of the v1 is a number and not an expression.
 
 And one corner that is not of the `if`: the order of the refusals. The v1
 reads the line before it says that the line does not make sense, and the

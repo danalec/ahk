@@ -8238,3 +8238,33 @@ the escape expanded (`the_name_with_the_escape`), and the parser refuses the
 name that is not the name of a variable (`the_refusal_of_the_name`).
 
 The suite of the v1 has four cases more (257).
+
+## 211. The `Until` of the v1 is the condition of the loop, and the `if` has no name of its own
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `Until` of
+the v1 is the statement that comes right after the body of a loop, and it is
+the condition that ends it: the body runs, and the condition is read after
+every turn of it. The `Loop 3` / `i := i + 1` / `Until i == 2` leaves 2 in
+`i`, and the `Until` that no loop takes is refused when the script loads with
+"UNTIL with no matching LOOP". The refusal waits for the end of the load: the
+error of a line that comes later is the one that is reported.
+
+The `Until` that is the name of a variable is not the condition: the
+`until := 2` writes the variable "until", and the loop goes on to the end.
+The `Until` of the v2 is not a statement of its own, and the tree refuses it
+with 'Unexpected "Until"'.
+
+The words that want a parameter name themselves in the complaint that they
+make, and the `if` of the v1 is a command that has no name of its own: the
+`if` alone is refused with '"" requires at least 1 parameter. Specifically:
+if'. The other words name themselves: the `until` alone is refused with
+'"Until" requires at least 1 parameter. Specifically: until'.
+
+The dialect says it (`the_name_of_the_word_that_wants_a_parameter` and
+`the_refusal_of_the_until_that_has_no_loop`), the parser reads the `until`
+that follows the body of a loop (`the_until_of_the_loop`) and refuses the one
+that no loop takes when the load is over
+(`the_untils_without_a_loop_are_checked`), and the runtime ends the loop when
+the condition is true (`the_until_ends_the_loop`).
+
+The suite of the v1 has four cases more (261).
