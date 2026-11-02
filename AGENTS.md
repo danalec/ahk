@@ -8027,3 +8027,27 @@ One thing is left of it: the `loop` of the v1 is a command, and the tree
 reads it as the construct of the v2. The `loop 3` is three turns in the two
 of them, but the `loop n` is three turns in the tree and none in the v1: the
 count of the v1 is a number and not an expression.
+
+## 202. The assignment of the v1 that has no value writes the empty text
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `y :=`
+writes the empty text, and the line that comes is a statement of its own: the
+`y :=` with a `3 + 4` under it is a line that holds no action.
+
+The v2 continues the assignment on the line that comes, and the `y :=` with
+a `3 + 4` under it writes the variable "y" with the value 7. The dialect
+says it (`the_assignment_may_have_no_value`), and the parser asks it when
+the value is not there (`the_empty_value_of_an_assignment`).
+
+The `:=` at the end of the tail of the `if` is an operator of the v1, and
+the tail takes the line that comes with it: the `if (0) x := 1, y :=` with
+a `FileAppend, A, done` under it does not run the body of the `if`. The
+dialect says it too (`the_assignment_continues_the_tail`).
+
+And the line that comes with the tail is an action: the `if (0) x := 1,
+FileAppend, A, *` with a `B` under it is a "This line does not contain a
+recognized action. Specifically: B". The parser reads the line as a
+statement to know it, and puts the state of the parser back where it was
+(`the_line_of_the_tail_is_an_action`).
+
+The suite of the v1 has two cases more (244).

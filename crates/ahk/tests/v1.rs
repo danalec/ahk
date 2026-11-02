@@ -6352,3 +6352,50 @@ fn the_construct_of_the_v1_may_have_no_body() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["[body]".to_string()]);
 }
+
+/// The assignment of the v1 that has no value writes the empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `y :=`
+/// writes the empty text, and the line that comes is a statement of its own:
+/// the `y :=` with a `3 + 4` under it is a line that holds no action.
+#[test]
+fn the_assignment_of_the_v1_that_has_no_value_writes_the_empty_text() {
+    // The assignment that has no value, and the line that comes is a
+    // statement of its own.
+    let report = run("y :=\nFileAppend, [body], *\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[body]".to_string(), "[]".to_string()]);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("".into())));
+
+    // The line that comes holds no action, and the v1 refuses it.
+    assert_eq!(
+        the_refusal_of_the_load("y :=\n3 + 4"),
+        "This line does not contain a recognized action.\n     Specifically: 3 + 4"
+    );
+}
+
+/// The line that comes with the tail of the `if` of the v1 is an action.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if
+/// (0) x := 1, FileAppend, A, *` with a `B` under it is a "This line does
+/// not contain a recognized action. Specifically: B".
+#[test]
+fn the_line_that_comes_with_the_tail_of_the_if_of_the_v1_is_an_action() {
+    // The line that holds no action.
+    assert_eq!(
+        the_refusal_of_the_load("if (0) x := 1, FileAppend, A, *\nB"),
+        "This line does not contain a recognized action.\n     Specifically: B"
+    );
+
+    // The line that holds an expression.
+    assert_eq!(
+        the_refusal_of_the_load("if (0) x := 1, FileAppend, A, *\n3 + 4"),
+        "This line does not contain a recognized action.\n     Specifically: 3 + 4"
+    );
+
+    // And the line that holds an action is a part of the tail: the body of
+    // the `if` does not run.
+    let report = run("if (0) x := 1, FileAppend, A, *\nFileAppend, [body], *\nFileAppend, [mark], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[mark]".to_string()]);
+}

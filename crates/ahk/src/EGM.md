@@ -1756,6 +1756,18 @@ that asks for another one is refused with the reason.
   keeps the `++` that comes after a number as one operator
   (`the_increment_after_a_number_is_an_operator`), and the increment of a
   literal is the empty text (`the_increment_of_a_literal_is_blank`).
+- **The assignment of the v1 that has no value writes the empty text.** The
+  `y :=` writes the empty text, and the line that comes is a statement of its
+  own: the `y :=` with a `3 + 4` under it is a line that holds no action. The
+  dialect says it (`the_assignment_may_have_no_value`) and the parser asks it
+  when the value is not there (`the_empty_value_of_an_assignment`). The `:=`
+  at the end of the tail is an operator of the v1
+  (`the_assignment_continues_the_tail`).
+- **The line that comes with the tail of the `if` of the v1 is an action.**
+  The `if (0) x := 1, FileAppend, A, *` with a `B` under it is a "This line
+  does not contain a recognized action. Specifically: B". The parser reads the
+  line as a statement to know it, and puts the state of the parser back where
+  it was (`the_line_of_the_tail_is_an_action`).
 - **The construct of the v1 may have no body.** The `if (1)` that is the last
   line of the script is a script that loads, and the `while (0)` that is the
   last line of it is a script that loads too, and the `else` that has no body

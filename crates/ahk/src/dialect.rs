@@ -222,6 +222,26 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the assignment may have no value.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `y :=` writes the empty text, and the line that comes is a statement
+    /// of its own: the `y :=` with a `3 + 4` under it is a line that holds
+    /// no action. The v2 continues the assignment on the line that comes.
+    fn the_assignment_may_have_no_value(&self) -> bool {
+        false
+    }
+
+    /// Whether the assignment continues the tail of the `if`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `:=` at the end of the tail is an operator, and the tail takes the
+    /// line that comes with it: the `if (0) x := 1, y :=` with a
+    /// `FileAppend, A, done` under it does not run the body of the `if`.
+    fn the_assignment_continues_the_tail(&self) -> bool {
+        false
+    }
+
     /// Whether the text that is not closed is named alone, with the words of
     /// the dialect.
     ///
@@ -1197,6 +1217,18 @@ impl Dialect for V1 {
     fn the_body_may_be_missing(&self) -> bool {
         // The v1 takes none of them: the `if (1)` that is the last line of
         // the script is a script that loads.
+        true
+    }
+
+    fn the_assignment_may_have_no_value(&self) -> bool {
+        // The `y :=` writes the empty text, and the line that comes is a
+        // statement of its own.
+        true
+    }
+
+    fn the_assignment_continues_the_tail(&self) -> bool {
+        // The `:=` at the end of the tail is an operator, and the tail takes
+        // the line that comes with it.
         true
     }
 

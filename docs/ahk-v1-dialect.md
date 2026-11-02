@@ -1061,22 +1061,24 @@ the name of the bracket. The bracket that closes nothing is an "Unexpected
 "Missing close-quote" that names the text that was read -- the `"abc` -- and
 not the line of the script.
 
-**What is left of the v1.** Three corners of the `if` are measured on the
-binary of v1.1.37.02 and the tree does not do them yet.
+**The assignment that has no value** (2026-11-04). The `y :=` of the v1
+writes the empty text, and the line that comes is a statement of its own:
+the `y :=` with a `3 + 4` under it is a line that holds no action. The v2
+continues the assignment on the line that comes, and it writes the variable
+"y" with the value 7.
+
+The `:=` at the end of the tail of the `if` is an operator of the v1, and
+the tail takes the line that comes with it. And the line that comes with
+the tail is an action: the `if (0) x := 1, FileAppend, A, *` with a `B`
+under it is a "This line does not contain a recognized action. Specifically:
+B".
+
+**What is left of the v1.** One corner of the `if` is measured on the binary
+of v1.1.37.02 and the tree does not do it yet.
 
 The brace that comes after the `if` that is inside the line of the
 condition: the v1 refuses it with "Unexpected \"{\"", and the tree refuses
 the line with "Unexpected \"If\"".
-
-The assignment of the v1 that has no value: the `y :=` writes the empty
-text, and the line that comes is a statement of its own. The tree continues
-the assignment on the line that comes: the `y :=` with a `3 + 4` under it
-writes the variable "y" with the value 7.
-
-The line that the tail of the `if` takes: the v1 refuses a line that holds
-no action, and the tree takes it as a part of the tail. The `if (0) x := 1,
-FileAppend, A, *` with a `B` under it is refused by the v1 with "This line
-does not contain a recognized action. Specifically: B".
 
 And one corner that is not of the `if`: the `loop` of the v1. It is a
 command, and the tree reads it as the construct of the v2. The `loop 3` is

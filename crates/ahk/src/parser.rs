@@ -1139,6 +1139,8 @@ struct PendingLiteral {
 struct TheStateOfTheParser {
     /// The place of the token that is being read.
     position: usize,
+    /// The place of the statement that is being read.
+    statement_start: usize,
     /// The number of the expressions that may hold the operator that may not
     /// follow a literal text.
     expressions: usize,
@@ -4420,7 +4422,10 @@ impl Parser {
             return Err(error);
         }
         self.next();
-        let value = self.the_expression_of_a_statement()?;
+        let value = match self.the_empty_value_of_an_assignment() {
+            Some(value) => value,
+            None => self.the_expression_of_a_statement()?,
+        };
         // Measured on the binary of v2.0.19 on 2026-10-31: the expression
         // ends at the comma, and the rest of the line is the list of v1.
         let legacy = self.the_legacy_list()?;
@@ -4927,6 +4932,10 @@ impl Parser {
             // between the two are not.
             took_a_line = true;
             self.skip_newlines();
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the line that comes with the tail is an action, and the line
+            // that holds no action is refused.
+            self.the_line_of_the_tail_is_an_action()?;
             if self.at_end_of_statement() {
                 break;
             }
@@ -4940,6 +4949,24 @@ impl Parser {
             self.position = end_of_the_tail;
         }
         Ok((took_a_line, items))
+    }
+
+    /// The line that comes with the tail of the `if` of the v1 is an action.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// line that holds no action is refused: the `if (0) x := 1, FileAppend,
+    /// A, *` with a `B` under it is a "This line does not contain a
+    /// recognized action. Specifically: B". The line is read as a statement
+    /// to know it, and the state of the parser is put back where it was: the
+    /// line is a part of the tail, and not a statement of its own.
+    fn the_line_of_the_tail_is_an_action(&mut self) -> Result<(), SyntaxError> {
+        if self.at_end_of_statement() {
+            return Ok(());
+        }
+        let state = self.the_state_is_kept();
+        let read = self.parse_statement();
+        self.the_state_is_restored(state);
+        read.map(|_| ())
     }
 
     /// The items of the tail of the `if` of the v1: the texts that come
@@ -5004,6 +5031,7 @@ impl Parser {
     fn the_state_is_kept(&self) -> TheStateOfTheParser {
         TheStateOfTheParser {
             position: self.position,
+            statement_start: self.statement_start,
             expressions: self.expressions.len(),
             pending_literal: self
                 .pending_literal
@@ -5018,6 +5046,7 @@ impl Parser {
     /// The state of the parser is put back where it was.
     fn the_state_is_restored(&mut self, state: TheStateOfTheParser) {
         self.position = state.position;
+        self.statement_start = state.statement_start;
         self.expressions.truncate(state.expressions);
         self.pending_literal = state
             .pending_literal
@@ -5276,6 +5305,15 @@ impl Parser {
             let token = &self.tokens[at];
             if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
                 continue;
+            }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the assignment of the v1 is an operator for the tail: the `if
+            // (0) x := 1, y :=` takes the line that comes with it.
+            if self.dialect.the_assignment_continues_the_tail()
+                && token.kind == TokenKind::Op
+                && token.value == ":="
+            {
+                return true;
             }
             return the_token_is_an_operator(token);
         }
@@ -9008,6 +9046,23 @@ impl Parser {
         list.push(Assignment { name: name.to_string(), op, line, column });
     }
 
+    /// The value of an assignment that is not there.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `y :=` writes the empty text, and the line that comes is a statement
+    /// of its own: the `y :=` with a `3 + 4` under it is a line that holds
+    /// no action. The v2 continues the assignment on the line that comes.
+    fn the_empty_value_of_an_assignment(&mut self) -> Option<Node> {
+        if !self.dialect.the_assignment_may_have_no_value() {
+            return None;
+        }
+        if !matches!(self.peek().kind, TokenKind::Newline | TokenKind::Eof) {
+            return None;
+        }
+        let line = self.peek().line;
+        Some(Node::Literal { value: LiteralValue::Text(String::new()), line })
+    }
+
     /// Whether the token is the operator of an assignment.
     fn at_an_assignment_operator(&self) -> bool {
         let token = self.peek();
@@ -9028,7 +9083,10 @@ impl Parser {
             });
         };
         let start = self.position;
-        let value = self.parse_expression()?;
+        let value = match self.the_empty_value_of_an_assignment() {
+            Some(value) => value,
+            None => self.parse_expression()?,
+        };
         let end = self.position;
         let line = target.line();
         Ok(match target {
