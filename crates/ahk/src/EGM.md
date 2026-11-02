@@ -1688,6 +1688,17 @@ that asks for another one is refused with the reason.
   "ELSE with no matching IF". The tail is in `parser.rs`
   (`the_tail_of_the_if_of_the_v1`), and the dialect says that the `if` may
   carry one (`the_if_may_carry_a_tail`).
+- **The legacy `if` of the v1 compares a variable with the text of the rest
+  of the line.** The text is not an expression -- the `if x = 1 + 1` is false
+  -- and it goes through the legacy substitution. The `=` and the `!=` of it
+  ignore the case, the `==` of the v2 is not an operator of it, and it has no
+  One True Brace: the brace of the line of the condition is a part of the
+  text, and the brace that closes the block is refused with "Unexpected
+  \"}\"". The comparison is in `runtime.rs`
+  (`the_comparison_of_a_legacy_if`), the condition is in `parser.rs`
+  (`the_condition_of_a_legacy_if`), the node is `Node::LegacyComparison`, and
+  the dialect says that the `if` may be the legacy one
+  (`the_if_may_be_a_legacy_comparison`).
 
 ## Side Effects
 

@@ -944,15 +944,35 @@ the body of an `if` is refused the same way. The text that comes after a comma
 is a parameter, and it is named: the `else, something` says "This line does
 not contain a recognized action.".
 
-**What is left of the v1.** Two corners of the `if` are measured on the
+**The legacy `if` of the v1** (2026-11-04). The legacy `if` is the one that
+compares a variable with a value -- the `if x = 1`, the `if x != 1` and the
+`if x < 1` -- and the right side of it is the text of the rest of the line,
+and not an expression: the `if x = 1 + 1` compares the value of `x` with the
+text "1 + 1", and the condition is false. The text goes through the legacy
+substitution, and the `=` and the `!=` of it ignore the case. The `==` of the
+v2 is not an operator of the legacy `if`: the `=` is the operator and the
+second equal sign is a part of the text.
+
+The legacy `if` has no One True Brace: the brace of the line of the condition
+is a part of the text, the block is not opened, and the brace that closes it
+is refused with "Unexpected \"}\"". The block that comes on the line that
+comes is the body of it. The v1 knows the `<>`, which is the `!=` of the v2,
+and the v2 does not know it.
+
+**What is left of the v1.** Three corners of the `if` are measured on the
 binary of v1.1.37.02 and the tree does not do them yet.
 
-The legacy form of the `if` with the block on the line of it: the `if x = 1 {`
-is refused by the v1 with "Unexpected \"}\"", and the tree takes the block.
-The form that is the legacy one is the one that compares a variable with a
-value -- the `if x = 1`, the `if x != 1` and the `if x < 1` -- and the block
-on the line of the condition is the one that is refused; the block on the
-line that comes is taken by the v1 and by the tree.
+The forms of the legacy `if` that are not the comparison of a variable with a
+value: the `if x between 1 and 2`, the `if x in a, b` and the `if x contains
+a`. The v1 measures them against the value of the variable and against the
+list or the text that comes after them, and the tree measures them with the
+operators of the v2: the `if x in a, b` is true in the tree when the value of
+`x` is 1, and it is false in the v1. The `if x between 1 and 2 {` is refused
+by the v1 with "Unexpected \"}\"", because the form is the legacy one and it
+has no One True Brace, and the tree takes the block.
+
+The `if 1 = 1 {` is the legacy form in the v1, and the tree does not know it:
+the left side of the legacy `if` is a name and not a number.
 
 The `else` that is the body of an `if` whose tail ends with an operator: the
 `if (1) FileAppend, A, *` with a line and an `else` under it runs the action

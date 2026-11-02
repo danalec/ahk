@@ -407,6 +407,17 @@ pub enum Node {    /// A value.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02.
     LegacyAssign { name: String, text: String, line: u32 },
+    /// `if x = 1`: the comparison of the legacy `if` of the v1.
+    ///
+    /// The right side of the comparison is the text of the rest of the line
+    /// and not an expression: the `if x = 1 + 1` compares the value of `x`
+    /// with the text "1 + 1", and the condition is false. The text goes
+    /// through the legacy substitution, and the brace that comes after it on
+    /// the line is a part of it: the legacy `if` has no One True Brace, and
+    /// the brace that closes the block is unexpected.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04.
+    LegacyComparison { left: Box<Node>, op: BinaryOp, text: String, line: u32 },
     /// `list[1]`, `text[2]`: the item at a position.
     ///
     /// The positions count from one, the way AutoHotkey counts them.
@@ -690,6 +701,7 @@ impl Node {
             | Node::AssignDynamic { line, .. }
             | Node::Assign { line, .. }
             | Node::LegacyAssign { line, .. }
+            | Node::LegacyComparison { line, .. }
             | Node::AssignIndex { line, .. }
             | Node::Index { line, .. }
             | Node::Call { line, .. }

@@ -4791,6 +4791,82 @@ impl Parser {
         Ok(())
     }
 
+    /// The condition of the legacy `if` of the v1: `if x = 1`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+    ///
+    /// - The legacy `if` compares the value of a variable with the text that
+    ///   comes after the operator, and the text is not an expression: the
+    ///   `if x = 1 + 1` compares the value of `x` with the text "1 + 1",
+    ///   and the condition is false.
+    /// - The text is the text of the script, and the spaces that come before
+    ///   it and the spaces that come after it are not a part of it.
+    /// - The form is the legacy one when a name comes first and a comparison
+    ///   of the v1 comes after it: the `if x = 1` is the legacy form, and the
+    ///   `if x.y = 1` is not.
+    /// - The legacy `if` has no One True Brace: the brace that comes after
+    ///   the condition on its line is a part of the text, and the block is
+    ///   not opened. The brace that closes the block is unexpected.
+    fn the_condition_of_a_legacy_if(&mut self) -> Result<Option<Node>, SyntaxError> {
+        // The name of the variable and the comparison that comes after it.
+        let Some(name) = self.tokens.get(self.position) else { return Ok(None) };
+        if name.kind != TokenKind::Name {
+            return Ok(None);
+        }
+        // The name is taken before the parser writes, because the tokens are
+        // borrowed while it is read.
+        let name_of_the_variable = name.value.clone();
+        let line_of_the_variable = name.line;
+        let Some(operator) = self.tokens.get(self.position + 1) else { return Ok(None) };
+        if operator.kind != TokenKind::Op {
+            return Ok(None);
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // legacy `if` reads the operator from the source, and the `==` of the
+        // v2 is not one of the operators of it: the `=` is the operator, and
+        // the second equal sign is a part of the text.
+        let (op, the_text_begins_with_an_equal_sign) = match operator.value.as_str() {
+            "=" => (BinaryOp::Equal, false),
+            "==" => (BinaryOp::Equal, true),
+            "!=" => (BinaryOp::NotEqual, false),
+            "!==" => (BinaryOp::NotEqual, true),
+            "<>" => (BinaryOp::NotEqual, false),
+            "<" => (BinaryOp::Less, false),
+            ">" => (BinaryOp::Greater, false),
+            "<=" => (BinaryOp::LessEqual, false),
+            ">=" => (BinaryOp::GreaterEqual, false),
+            _ => return Ok(None),
+        };
+        // The name and the comparison are read, and the text of the right side
+        // is the rest of the line.
+        self.next();
+        self.next();
+        let start = self.position;
+        let mut end = start;
+        while end < self.tokens.len() && self.tokens[end].kind != TokenKind::Newline {
+            end += 1;
+        }
+        let mut text = if end == start {
+            String::new()
+        } else {
+            self.the_verbatim_source(start, end)
+        };
+        if the_text_begins_with_an_equal_sign {
+            // The second equal sign is a part of the text.
+            text = format!("={text}");
+        }
+        let text = text.trim().to_string();
+        // The newline of the line stays where it is: the body of the legacy
+        // `if` is the line that comes.
+        self.position = end;
+        Ok(Some(Node::LegacyComparison {
+            left: Box::new(Node::Var { name: name_of_the_variable, line: line_of_the_variable }),
+            op,
+            text,
+            line: line_of_the_variable,
+        }))
+    }
+
     /// Whether the text that ends at `end` ends with an operator.
     ///
     /// The last token of the text is the one that is looked at, and the
@@ -4820,24 +4896,46 @@ impl Parser {
                 the_source_of_the_line(self, token.line)
             )));
         }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // legacy `if` of the v1 compares a variable with the text that comes
+        // after the operator, and the text of the rest of the line is the
+        // condition of it.
+        let legacy = if self.dialect.the_if_may_be_a_legacy_comparison() {
+            self.the_condition_of_a_legacy_if()?
+        } else {
+            None
+        };
         // Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the
         // body of the construct before it reads the condition, and the
         // refusal of a condition that is empty comes after the one of the
         // body.
-        let empty = self.the_parenthesis_of_a_condition_is_empty();
-        let condition = if empty.is_some() {
-            self.next();
-            self.next();
+        let empty = if legacy.is_some() {
             None
         } else {
-            Some(self.the_expression_of_a_statement()?)
+            self.the_parenthesis_of_a_condition_is_empty()
+        };
+        // The legacy condition is not moved here: the tail of the `if` is
+        // read after it, and the tail of the legacy `if` is not read.
+        let the_legacy = legacy.is_some();
+        let condition = match legacy {
+            Some(condition) => Some(condition),
+            None => {
+                if empty.is_some() {
+                    self.next();
+                    self.next();
+                    None
+                } else {
+                    Some(self.the_expression_of_a_statement()?)
+                }
+            }
         };
         self.end_of_block()?;
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // `if` of the v1 takes the text that follows the condition, parses it
         // and does not run it, and the body of it is the line that comes
-        // next.
-        if self.dialect.the_if_may_carry_a_tail() {
+        // next. The legacy `if` has no tail: the text of the rest of the
+        // line is the condition of it.
+        if !the_legacy && self.dialect.the_if_may_carry_a_tail() {
             self.the_tail_of_the_if_of_the_v1()?;
         }
         let body = self.parse_block("If", token.line)?;
@@ -4859,13 +4957,30 @@ impl Parser {
                 if self.the_if_of_an_else_if_comes_next() {
                     self.skip_newlines();
                     let branch = self.next();
-                    let empty = self.the_parenthesis_of_a_condition_is_empty();
-                    let condition = if empty.is_some() {
-                        self.next();
-                        self.next();
+                    // The legacy `if` of the v1 is the legacy one here too:
+                    // the condition of it is the text of the rest of the
+                    // line.
+                    let legacy = if self.dialect.the_if_may_be_a_legacy_comparison() {
+                        self.the_condition_of_a_legacy_if()?
+                    } else {
+                        None
+                    };
+                    let empty = if legacy.is_some() {
                         None
                     } else {
-                        Some(self.the_expression_of_a_statement()?)
+                        self.the_parenthesis_of_a_condition_is_empty()
+                    };
+                    let condition = match legacy {
+                        Some(condition) => Some(condition),
+                        None => {
+                            if empty.is_some() {
+                                self.next();
+                                self.next();
+                                None
+                            } else {
+                                Some(self.the_expression_of_a_statement()?)
+                            }
+                        }
                     };
                     self.end_of_block()?;
                     let body = self.parse_block("If", branch.line)?;
@@ -7012,6 +7127,11 @@ impl Parser {
                 "=" => (BinaryOp::Equal, precedence::EQUAL, false),
                 "==" => (BinaryOp::StrictEqual, precedence::EQUAL, false),
                 "!=" => (BinaryOp::NotEqual, precedence::EQUAL, false),
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+                // the `<>` is the `!=` of the v1, and the v2 does not know it.
+                "<>" if self.dialect.the_lexer_knows_the_legacy_operators() => {
+                    (BinaryOp::NotEqual, precedence::EQUAL, false)
+                }
                 "!==" => (BinaryOp::StrictNotEqual, precedence::EQUAL, false),
                 "&&" => (BinaryOp::And, precedence::AND, false),
                 "||" => (BinaryOp::Or, precedence::OR, false),

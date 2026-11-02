@@ -176,6 +176,19 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the `if` of the dialect may be the legacy one, that compares
+    /// a variable with the text that comes after it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// legacy `if` of the v1 compares the value of a variable with the text
+    /// that comes after the operator, and the text is not an expression: the
+    /// `if x = 1 + 1` compares the value of `x` with the text "1 + 1". The
+    /// v2 has no legacy `if`: the `x = 1` is a comparison of the value of `x`
+    /// with the number 1.
+    fn the_if_may_be_a_legacy_comparison(&self) -> bool {
+        false
+    }
+
     /// The class of an object of the dialect.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the object of
@@ -197,6 +210,16 @@ pub trait Dialect: Sync {
     /// `FileRead, text, C:\temp\x.txt` is a command of the v1, and the
     /// binary accepts it. The v2 refuses the backslash outside of a text.
     fn accepts_a_bare_backslash(&self) -> bool;
+
+    /// Whether the dialect knows the operators that the v1 has and the v2
+    /// does not.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// knows the `<>`, which is the `!=` of the v2, and the v2 does not know
+    /// it: the `x <> 1` of the v2 is refused with a missing operand.
+    fn the_lexer_knows_the_legacy_operators(&self) -> bool {
+        false
+    }
 
     /// The value of the built-in variable of this name, when the name is one.
     ///
@@ -1046,6 +1069,10 @@ impl Dialect for V1 {
         true
     }
 
+    fn the_if_may_be_a_legacy_comparison(&self) -> bool {
+        true
+    }
+
     fn class_of_an_object(&self) -> &'static str {
         // The v1 has no classes: the object of it has no class, and its
         // `__Class` is empty.
@@ -1060,6 +1087,11 @@ impl Dialect for V1 {
     fn accepts_a_bare_backslash(&self) -> bool {
         // The path of a file is the use that every command of the v1 has,
         // and the path of Windows has backslashes in it.
+        true
+    }
+
+    fn the_lexer_knows_the_legacy_operators(&self) -> bool {
+        // The v1 knows the `<>`, which is the `!=` of the v2.
         true
     }
 

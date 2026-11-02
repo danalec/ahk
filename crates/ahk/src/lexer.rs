@@ -164,6 +164,24 @@ const OPERATORS: &[&str] = &[
     "+", "-", "*", "%", "/", ".", "(", ")", ",", "{", "}", "[", "]", "!", ":", "?", "&", "|", "^", "~",
 ];
 
+/// The operators of the dialect, the longest first so that the longest match
+/// wins.
+///
+/// The v1 knows the `<>`, which is the `!=` of the v2, and the v2 does not
+/// know it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04.
+fn the_operators_of(dialect: &'static dyn crate::dialect::Dialect) -> Vec<&'static str> {
+    if !dialect.the_lexer_knows_the_legacy_operators() {
+        return OPERATORS.to_vec();
+    }
+    let mut operators = OPERATORS.to_vec();
+    // The `<>` comes before the `<`, because the longest match wins.
+    let at = operators.iter().position(|operator| *operator == "<").unwrap_or(0);
+    operators.insert(at, "<>");
+    operators
+}
+
 /// The script does not parse.
 #[derive(Debug, thiserror::Error)]
 #[error("{message} (line {line}, column {column})")]
@@ -655,6 +673,9 @@ pub fn tokenize_with(
     // variable of the v1 may carry the "#", the "$" and the "@", and the v2
     // does not read them.
     let marks = dialect.accepts_a_hash_a_dollar_and_an_at_in_a_name();
+    // The operators of the dialect: the v1 knows the `<>`, and the v2 does
+    // not.
+    let operators = the_operators_of(dialect);
     let mut tokens: Vec<Token> = Vec::new();
     let mut index = 0usize;
     let mut line = 1u32;
@@ -1018,10 +1039,10 @@ pub fn tokenize_with(
             continue;
         }
         let mut matched = false;
-        for operator in OPERATORS {
+        for operator in operators.iter().copied() {
             // A `++` or a `--` right after a number is a subtraction: `5--3`
             // is five minus three, and not a decrement of a literal.
-            if matches!(*operator, "++" | "--")
+            if matches!(operator, "++" | "--")
                 && tokens.last().map(|token| token.kind == TokenKind::Number).unwrap_or(false)
             {
                 continue;

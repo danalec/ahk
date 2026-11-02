@@ -2749,6 +2749,7 @@ impl<'a> Runtime<'a> {
             | Node::Binary { .. }
             | Node::Ternary { .. }
             | Node::Group { .. }
+            | Node::LegacyComparison { .. }
             | Node::Empty { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
@@ -7609,6 +7610,23 @@ impl<'a> Runtime<'a> {
             )),
             _ => None,
         };
+        self.the_order_of_the_v1(numbers, &left.to_text(), &right.to_text(), op)
+    }
+
+    /// The order of the v1: the numbers when both sides are numbers, and the
+    /// texts otherwise.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+    /// comparison is a number when both sides are numbers, and a text
+    /// otherwise: "abc" > 1 is true, and "abc" < 1 is false. The sense of the
+    /// case says whether the letters of the texts are the same.
+    fn the_order_of_the_v1(
+        &self,
+        numbers: Option<(f64, f64)>,
+        left: &str,
+        right: &str,
+        op: &BinaryOp,
+    ) -> bool {
         match numbers {
             Some((left, right)) => match op {
                 BinaryOp::Less => left < right,
@@ -7617,14 +7635,10 @@ impl<'a> Runtime<'a> {
                 BinaryOp::GreaterEqual => left >= right,
                 _ => false,
             },
-            // The texts are compared, and the sense of the case says
-            // whether the letters of them are the same.
+            // The texts are compared, and the sense of the case says whether
+            // the letters of them are the same.
             None => {
-                let order = the_order_of_the_texts(
-                    &left.to_text(),
-                    &right.to_text(),
-                    self.case_sense.the_method(),
-                );
+                let order = the_order_of_the_texts(left, right, self.case_sense.the_method());
                 match op {
                     BinaryOp::Less => order == core::cmp::Ordering::Less,
                     BinaryOp::Greater => order == core::cmp::Ordering::Greater,
@@ -7634,6 +7648,66 @@ impl<'a> Runtime<'a> {
                 }
             }
         }
+    }
+
+    /// The comparison of the legacy `if` of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+    ///
+    /// - The right side of the comparison is the text of the rest of the
+    ///   line, and the text goes through the legacy substitution: the
+    ///   `if x = %y%` compares the value of `x` with the value of `y`.
+    /// - The `=` and the `!=` ignore the case, and they are a number when
+    ///   both sides are numbers: the `if x = 1` is true when the value of
+    ///   `x` is the number 1, and the `if x = 01` is true as well.
+    /// - The order compares the numbers when both sides are numbers, and the
+    ///   texts otherwise.
+    ///
+    /// The legacy `if` has no strict comparison: the `==` of the v2 is the
+    /// `=` of the legacy `if`, and the second equal sign is a part of the
+    /// text.
+    fn the_comparison_of_a_legacy_if(
+        &mut self,
+        left: &Node,
+        op: BinaryOp,
+        text: &str,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let left_value = self.evaluate(left)?;
+        // The text of the right side is the text of the script, and the
+        // `%name%` of it is the value of the variable of that name.
+        let right_text = self.the_substitution_of_the_v1(text, line)?;
+        // The number of the right side: the text is a number when it can be
+        // one, the way the value of a variable is.
+        let right_number = crate::v1::the_number_of_a_text(&right_text);
+        let left_number = self.the_number_of_the_v1(left, &left_value);
+        let answer = match op {
+            BinaryOp::Equal | BinaryOp::NotEqual => {
+                // The equal sign of the v1 ignores the case, and the not
+                // equal sign is its opposite.
+                let method = self.case_sense.the_method_of_the_equal_sign();
+                let same = match (left_number, right_number) {
+                    (Some(one), Some(other)) => the_same_number(&one, &other),
+                    _ => the_same_text(&left_value.to_text(), &right_text, method),
+                };
+                match op {
+                    BinaryOp::Equal => same,
+                    _ => !same,
+                }
+            }
+            _ => {
+                // The order of the v1.
+                let numbers = match (left_number, right_number) {
+                    (Some(one), Some(other)) => Some((
+                        one.to_number().unwrap_or(0.0),
+                        other.to_number().unwrap_or(0.0),
+                    )),
+                    _ => None,
+                };
+                self.the_order_of_the_v1(numbers, &left_value.to_text(), &right_text, &op)
+            }
+        };
+        Ok(Value::Int(answer as i64))
     }
 
     /// The amount of a shift: a whole number between zero and sixty-three.
@@ -9094,6 +9168,11 @@ impl<'a> Runtime<'a> {
                 // it is the value that was written.
                 let value = self.evaluate(value)?;
                 self.write_a_variable(name, *op, value, *line)
+            }
+            Node::LegacyComparison { left, op, text, line } => {
+                // The comparison of the legacy `if` of the v1: the right side
+                // of it is the text of the rest of the line.
+                self.the_comparison_of_a_legacy_if(left, *op, text, *line)
             }
             Node::AssignProperty { target, name, op, value, line } => {
                 let value = self.evaluate(value)?;
@@ -11119,6 +11198,7 @@ pub fn op_name_in<'a>(
         Node::Empty { .. } => "Empty",
         Node::Legacy { .. } => "Legacy",
         Node::LegacyAssign { .. } => "LegacyAssign",
+        Node::LegacyComparison { .. } => "LegacyComparison",
     }
 }
 

@@ -7748,3 +7748,45 @@ the v2 is on the line that comes. The tail of the v1 is in
 `crates/ahk/src/parser.rs` (`the_tail_of_the_if_of_the_v1`), the dialect says
 that the `if` may carry one (`the_if_may_carry_a_tail`), and the suite of the
 v1 has six cases more (202).
+## 193. The legacy `if` of the v1 compares a variable with the text of the line
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the legacy
+`if` is the one that compares a variable with a value -- the `if x = 1`, the
+`if x != 1` and the `if x < 1` -- and the right side of it is the text of the
+rest of the line, and not an expression. The `if x = 1 + 1` compares the
+value of `x` with the text "1 + 1", and the condition is false; the `if x =
+"1"` compares it with the text "\"1\"", with the quotes that were written;
+and the `if x = abc` compares it with the text "abc".
+
+The text goes through the legacy substitution: the `if x = %y%` compares the
+value of `x` with the value of `y`. The spaces that come before the text and
+the spaces that come after it are not a part of it.
+
+The `=` and the `!=` of the legacy `if` ignore the case, the way the `=` of
+the v1 does: the `if x = abc` is true when the value of `x` is "ABC", and the
+`if x != abc` is false. The `==` of the v2 is not an operator of the legacy
+`if`: the legacy `if` reads the operator from the source, and the `=` is the
+operator and the second equal sign is a part of the text. The `if x == 1`
+compares the value of `x` with the text "= 1", and the condition is false.
+
+The legacy `if` has no One True Brace: the brace that comes after the
+condition on its line is a part of the text of the condition, the block is not
+opened, and the brace that closes it is refused with "Unexpected \"}\"". The
+block that comes on the line that comes is the body of the legacy `if`, and it
+runs when the comparison holds.
+
+The form is the legacy one when a name comes first and a comparison of the v1
+comes after it: the `if x = 1` is the legacy form, and the `if x.y = 1` is
+not. The `if 1 {` and the `if x {` are not the legacy form either, and they
+take the block of the line of them.
+
+The v1 knows the `<>`, which is the `!=` of the v2, and the v2 does not know
+it: the `x <> 1` of the v2 is refused with a missing operand. The lexer of
+the dialect carries it (`the_lexer_knows_the_legacy_operators`).
+
+The legacy `if` is in `crates/ahk/src/parser.rs`
+(`the_condition_of_a_legacy_if`), the comparison of it is in
+`crates/ahk/src/runtime.rs` (`the_comparison_of_a_legacy_if`), the node of it
+is `Node::LegacyComparison`, the dialect says that the `if` may be the legacy
+one (`the_if_may_be_a_legacy_comparison`), and the suite of the v1 has seven
+cases more (209).

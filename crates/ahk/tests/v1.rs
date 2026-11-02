@@ -5481,6 +5481,118 @@ fn the_else_of_the_v1_takes_no_parameter() {
     assert_eq!(error.message, "ELSE with no matching IF");
 }
 
+/// The legacy `if` of the v1 compares a variable with the text of the rest
+/// of the line.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x
+/// = 1 + 1` compares the value of `x` with the text "1 + 1", and the
+/// condition is false. The text of the right side is not an expression.
+#[test]
+fn the_legacy_if_of_the_v1_compares_a_variable_with_the_text_of_the_line() {
+    // The number and the number are the same value.
+    let report = run("x = 1\nif x = 1\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The text of the right side is not an expression: the "1 + 1" is a text
+    // and not the number two.
+    let report = run("x = 1\nif x = 1 + 1\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The quotes of the text are a part of it.
+    let report = run("x = 1\nif x = \"1\"\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The text of the legacy assignment is a text, and the comparison of it
+    // is a comparison of texts.
+    let report = run("x = abc\nif x = abc\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The legacy `if` of the v1 has no brace on the line of the condition.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// legacy `if` has no One True Brace: the brace that comes after the
+/// condition on its line is a part of the text of the condition, the block is
+/// not opened, and the brace that closes it is unexpected.
+#[test]
+fn the_legacy_if_of_the_v1_has_no_brace_on_the_line_of_the_condition() {
+    assert_eq!(the_refusal_of_the_load("if x = 1 {\ny = 6\n}"), "Unexpected \"}\"");
+}
+
+/// The legacy `if` of the v1 takes the block on the line that comes.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the block
+/// that comes on the line that comes is the body of the legacy `if`, and the
+/// body runs when the comparison holds.
+#[test]
+fn the_legacy_if_of_the_v1_takes_the_block_on_the_line_that_comes() {
+    let report = run("x = 1\nif x = 1\n{\ny = 6\n}");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The equal sign of the legacy `if` of the v1 ignores the case.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x
+/// = abc` is true when the value of `x` is "ABC", and the `if x != abc` is
+/// false.
+#[test]
+fn the_equal_sign_of_the_legacy_if_of_the_v1_ignores_the_case() {
+    let report = run("x := \"ABC\"\nif x = abc\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("x := \"ABC\"\nif x != abc\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+}
+
+/// The double equal of the legacy `if` of the v1 is the equal sign and the
+/// text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the legacy
+/// `if` reads the operator from the source, and the `==` is not one of the
+/// operators of it: the `=` is the operator, and the second equal sign is a
+/// part of the text. The `if x == 1` compares the value of `x` with the
+/// text "= 1", and the condition is false.
+#[test]
+fn the_double_equal_of_the_legacy_if_of_the_v1_is_the_equal_sign_and_the_text() {
+    let report = run("x = 1\nif x == 1\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+}
+
+/// The different operator of the v1 is the not equal of the v2.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// knows the `<>`, which is the `!=` of the v2, and the v2 does not know it:
+/// the `x <> 1` of the v2 is refused with a missing operand.
+#[test]
+fn the_different_operator_of_the_v1_is_the_not_equal_of_the_v2() {
+    let report = run("x = 1\nif x <> 2\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let error = ahk::parse_with("y := x <> 1", dialect::v2())
+        .expect_err("the v2 does not know the different operator");
+    assert_eq!(error.message, "Missing operand.\n     Specifically: <> 1");
+}
+
+/// The text of the legacy `if` of the v1 goes through the substitution.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x
+/// = %y%` compares the value of `x` with the value of `y`.
+#[test]
+fn the_text_of_the_legacy_if_of_the_v1_goes_through_the_substitution() {
+    let report = run("y = 1\nx = 1\nif x = %y%\nz = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("z"), Some(&Value::Int(6)));
+}
+
 /// The v2 refuses the text that follows the condition of the `if`.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the body of the `if` of
