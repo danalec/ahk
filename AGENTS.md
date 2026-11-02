@@ -7992,3 +7992,19 @@ expression is the parameter of a command: the `if (0) x := 1, *` is a script
 that loads. The runtime runs the items in the `If` (`Node::If`), and the
 branch keeps them (`Branch { condition, tail, body }` in
 `crates/ahk/src/ast.rs`). The suite of the v1 has three cases more (239).
+
+## 200. The message of the bracket of the v1 is the name of it alone
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 says
+"Missing \")\"" and the line of the script is not under it, and the bracket
+that closes nothing is an "Unexpected \")\"" with nothing under it either.
+The text that is not closed is a "Missing close-quote" that names the text
+that was read -- the `"abc` -- and not the line of the script.
+
+The v2 names the line of the script under the name of the bracket, and it
+says "Missing \"\"" for the text that is not closed. The dialect says
+which is which (`the_bracket_is_named_alone` and
+`the_text_that_is_not_closed_is_named_alone`), the parser asks it when it
+names the bracket (`the_message_of_a_bracket` and
+`the_message_of_an_unexpected_token`), and the lexer asks it when the quote
+is not closed. The suite of the v1 has two cases more (241).

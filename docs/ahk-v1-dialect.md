@@ -1053,12 +1053,16 @@ The item takes the line that comes with it when the expression continues
 there: the `if (0) x := 1, y := 3` with a `+ 4` under it writes the variable
 "y" with the value 7.
 
-**What is left of the v1.** Five corners of the `if` are measured on the
-binary of v1.1.37.02 and the tree does not do them yet.
+**The messages of the load** (2026-11-04). The v1 names the bracket that is
+not closed and nothing else: the `x := (1` is a "Missing \")\"" and the line
+of the script is not under it. The v2 names the line of the script under
+the name of the bracket. The bracket that closes nothing is an "Unexpected
+\")\"" with nothing under it either, and the text that is not closed is a
+"Missing close-quote" that names the text that was read -- the `"abc` -- and
+not the line of the script.
 
-The messages of the load: the v1 says "Missing \")\"" and "Missing \"}\"",
-and the tree says the same with the line of the script under them, the way
-the v2 says it.
+**What is left of the v1.** Four corners of the `if` are measured on the
+binary of v1.1.37.02 and the tree does not do them yet.
 
 The brace that comes after the `if` that is inside the line of the
 condition: the v1 refuses it with "Unexpected \"{\"", and the tree refuses

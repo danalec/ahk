@@ -905,6 +905,21 @@ pub fn tokenize_with(
                     text = the_source_of_the_chars(&chars, start, end_of_the_line);
                     text.push_str(&the_text_of_the_section);
                 }
+                if dialect.the_text_that_is_not_closed_is_named_alone() {
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the v1 says "Missing close-quote" and names
+                    // the text that was read: the `"abc`.
+                    let mut end = index;
+                    while end < chars.len() && chars[end] != '\n' {
+                        end += 1;
+                    }
+                    let text = the_source_of_the_chars(&chars, quote_index, end);
+                    return Err(SyntaxError::new(
+                        format!("Missing close-quote\n     Specifically: {text}"),
+                        start_line,
+                        start_column,
+                    ));
+                }
                 return Err(SyntaxError::new(
                     format!("Missing \"{quote}\"\n     Specifically: {text}"),
                     start_line,

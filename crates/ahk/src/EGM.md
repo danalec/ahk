@@ -1756,6 +1756,15 @@ that asks for another one is refused with the reason.
   keeps the `++` that comes after a number as one operator
   (`the_increment_after_a_number_is_an_operator`), and the increment of a
   literal is the empty text (`the_increment_of_a_literal_is_blank`).
+- **The message of the bracket of the v1 is the name of it alone.** The `x :=
+  (1` is a "Missing ")" and the line of the script is not under it, and the
+  bracket that closes nothing is an "Unexpected ")" with nothing under it
+  either. The text that is not closed is a "Missing close-quote" that names
+  the text that was read -- the `"abc` -- and not the line of the script.
+  The dialect says which is which (`the_bracket_is_named_alone` and
+  `the_text_that_is_not_closed_is_named_alone`), the parser names the
+  bracket (`the_message_of_a_bracket` and
+  `the_message_of_an_unexpected_token`), and the lexer names the text.
 - **The items that come after the comma of the line of the condition of the
   `if` of the v1 are evaluated.** The `if (0) x := 1, y := 3` writes the
   variable "y", and it writes it whether the condition is true or false. The

@@ -414,6 +414,15 @@ fn the_end_of_the_expression_of_the_illegal_character(parser: &Parser, at: usize
     the_end_of_the_line_of(parser, at)
 }
 
+/// Whether the token is a bracket.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// names the bracket that is not wanted and nothing else: the `x := )` is an
+/// "Unexpected ")" and the line of the script is not under it.
+fn the_token_is_a_bracket(token: &Token) -> bool {
+    token.kind == TokenKind::Op && matches!(token.value.as_str(), "(" | ")" | "[" | "]" | "{" | "}")
+}
+
 /// Whether the token is the operator of two values.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: a line that begins
@@ -1303,9 +1312,9 @@ impl Parser {
                 format!("Missing {operator:?}")
             };
             return Err(SyntaxError {
-                message: format!(
-                    "{named}\n     Specifically: {}",
-                    self.the_source_of_the_statement_of_the_line(token.line)
+                message: self.the_message_of_a_bracket(
+                    &named,
+                    &self.the_source_of_the_statement_of_the_line(token.line),
                 ),
                 line: token.line,
                 column: token.column,
@@ -1336,21 +1345,51 @@ impl Parser {
             return error;
         };
         SyntaxError {
-            message: format!(
-                "{message}\n     Specifically: {}",
-                self.the_source_of_the_statement_of_the_line(line)
+            message: self.the_message_of_a_bracket(
+                &message,
+                &self.the_source_of_the_statement_of_the_line(line),
             ),
             line,
             column: error.column,
         }
     }
 
+    /// The message of the bracket that is not there or that closes nothing.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// names the bracket and nothing else: the `x := (1` is a "Missing ")" and
+    /// the line of the script is not under it. The v2 names the line of the
+    /// script under it.
+    fn the_message_of_a_bracket(&self, message: &str, text: &str) -> String {
+        if self.dialect.the_bracket_is_named_alone() {
+            return message.to_string();
+        }
+        format!("{message}\n     Specifically: {text}")
+    }
+
+    /// The message of the token that is not wanted.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// names the bracket and nothing else: the `x := )` is an "Unexpected ")""
+    /// and the line of the script is not under it. The v2 names the line of
+    /// the script under it.
+    fn the_message_of_an_unexpected_token(&self, token: &Token) -> String {
+        let message = format!("Unexpected {:?}", token.value);
+        if self.dialect.the_bracket_is_named_alone() && the_token_is_a_bracket(token) {
+            return message;
+        }
+        format!(
+            "{message}\n     Specifically: {}",
+            the_source_of_the_line(self, token.line)
+        )
+    }
+
     /// The failure of the bracket that is not closed, at a place of its own.
     fn the_error_of_a_missing_bracket(&self, closing: &str, line: u32, column: u32) -> SyntaxError {
         SyntaxError {
-            message: format!(
-                "Missing {closing:?}\n     Specifically: {}",
-                self.the_source_of_the_statement_of_the_line(line)
+            message: self.the_message_of_a_bracket(
+                &format!("Missing {closing:?}"),
+                &self.the_source_of_the_statement_of_the_line(line),
             ),
             line,
             column,
@@ -3047,11 +3086,7 @@ impl Parser {
             // the text that is named begins at it.
             return Err(self.the_error_of_the_illegal_character(self.position, false));
         } else {
-            format!(
-                "Unexpected {:?}\n     Specifically: {}",
-                token.value,
-                the_source_of_the_line(self, token.line)
-            )
+            self.the_message_of_an_unexpected_token(&token)
         };
         Err(self.error(message))
     }
@@ -3116,11 +3151,7 @@ impl Parser {
         // Measured on the binary of v2.0.19 on 2026-10-31: the token that
         // is not wanted is named, and the line of the script says where it
         // was.
-        Err(self.error(format!(
-            "Unexpected {:?}\n     Specifically: {}",
-            token.value,
-            the_source_of_the_line(self, token.line)
-        )))
+        Err(self.error(self.the_message_of_an_unexpected_token(&token)))
     }
 
     /// The `::` that may introduce a block. AutoHotkey writes `If (x) {` and
@@ -8041,11 +8072,12 @@ impl Parser {
             // closes a block is not an operand that is missing: it is a
             // token that cannot be there, and the statement it is in is
             // named with it.
-            TokenKind::Op if matches!(token.value.as_str(), ")" | "}" | "]") => format!(
-                "Unexpected {:?}\n     Specifically: {}",
-                token.value,
-                self.the_statement_so_far()
-            ),
+            TokenKind::Op if matches!(token.value.as_str(), ")" | "}" | "]") => {
+                self.the_message_of_a_bracket(
+                    &format!("Unexpected {:?}", token.value),
+                    &self.the_statement_so_far(),
+                )
+            }
             // The colon of the ternary is a part of the question that is
             // not there.
             TokenKind::Op if token.value == ":" => "A \":\" is missing its \"?\"".to_string(),

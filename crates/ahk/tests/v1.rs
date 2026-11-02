@@ -6292,3 +6292,37 @@ fn the_item_of_the_tail_of_the_if_of_the_v1_takes_the_line_that_comes() {
     assert!(report.ok);
     assert_eq!(report.variables.get("y"), Some(&Value::Int(7)));
 }
+
+/// The message of the bracket of the v1 is the name of it alone.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// says "Missing \")\"" and the line of the script is not under it, and the
+/// bracket that closes nothing is an "Unexpected \")\"" with nothing under it
+/// either.
+#[test]
+fn the_message_of_the_bracket_of_the_v1_is_the_name_of_it_alone() {
+    // The parenthesis that is not closed.
+    assert_eq!(the_refusal_of_the_load("x := (1"), "Missing \")\"");
+
+    // The parenthesis of the condition that is not closed.
+    assert_eq!(the_refusal_of_the_load("if (1"), "Missing \")\"");
+
+    // The bracket that closes nothing.
+    assert_eq!(the_refusal_of_the_load("x := )"), "Unexpected \")\"");
+
+    // And the brace.
+    assert_eq!(the_refusal_of_the_load("x := }"), "Unexpected \"}\"");
+}
+
+/// The message of the text that is not closed is the text that was read.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// says "Missing close-quote" and names the text that was read -- the
+/// `"abc` -- and not the line of the script.
+#[test]
+fn the_message_of_the_text_that_is_not_closed_is_the_text_that_was_read() {
+    assert_eq!(
+        the_refusal_of_the_load("x := \"abc"),
+        "Missing close-quote\n     Specifically: \"abc"
+    );
+}

@@ -201,6 +201,27 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the bracket that a message names is named alone.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// names the bracket and nothing else: the `x := (1` is a "Missing ")" and
+    /// the line of the script is not under it. The v2 names the line of the
+    /// script under it.
+    fn the_bracket_is_named_alone(&self) -> bool {
+        false
+    }
+
+    /// Whether the text that is not closed is named alone, with the words of
+    /// the dialect.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// says "Missing close-quote" and names the text that was read -- the
+    /// `"abc` -- and the v2 says "Missing "\"" and names the line of the
+    /// script.
+    fn the_text_that_is_not_closed_is_named_alone(&self) -> bool {
+        false
+    }
+
     /// Whether a text that is a number of the dialect is false when the
     /// number is zero.
     ///
@@ -1153,6 +1174,17 @@ impl Dialect for V1 {
     }
 
     fn the_control_flow_may_be_a_value(&self) -> bool {
+        true
+    }
+
+    fn the_bracket_is_named_alone(&self) -> bool {
+        // The v1 names the bracket and nothing else: the `x := (1` is a
+        // "Missing ")" and the line of the script is not under it.
+        true
+    }
+
+    fn the_text_that_is_not_closed_is_named_alone(&self) -> bool {
+        // The v1 says "Missing close-quote" and names the text that was read.
         true
     }
 
