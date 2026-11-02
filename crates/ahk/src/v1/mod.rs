@@ -1097,65 +1097,142 @@ pub(crate) fn string_left(
 
 // -- the environment of the machine ---------------------------------------------
 
-/// The arithmetic of the environment of the machine.
+/// The arithmetic of the v1 on a variable of the script.
 ///
-/// The v1 adds to the number of an environment variable, and the number is
-/// a whole one: the v1 rounds it.
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `EnvAdd`, the
+/// `EnvSub`, the `EnvMult` and the `EnvDiv` of the v1 are the arithmetic of
+/// the v1 on a variable of the script -- the `EnvAdd, x, 3` with `x` at five
+/// leaves `x` at eight -- and not the arithmetic of a variable of the
+/// environment. The number that is not there is a zero, and the command
+/// writes the result into the variable.
+///
+/// The two whole numbers give a whole number, and the division of them is
+/// rounded towards the zero: the `EnvDiv, x, 3` with `x` at five leaves `x`
+/// at one, and the `EnvDiv, x, 2` with `x` at five and a half leaves `x` at
+/// two and three quarters.
 fn env_arithmetic(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
-    operation: fn(i64, i64) -> i64,
+    name: &str,
+    operation: TheArithmetic,
 ) -> Result<Value, RuntimeError> {
-    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
-    let current = rt.desktop().env_get(&name).map_err(|reason| RuntimeError { message: reason, line })?;
-    let current = current.trim().parse::<i64>().unwrap_or(0);
+    let Some(variable) = values.first() else {
+        return Ok(Value::Text(String::new()));
+    };
+    let Value::Reference(reference) = variable else {
+        return Err(RuntimeError {
+            message: crate::runtime::wants_a_reference(1, name, "a VarRef", variable),
+            line,
+        });
+    };
+    // The units of the time are the third parameter of the `EnvAdd` and of
+    // the `EnvSub`, and the date arithmetic of the v1 is not carried yet.
+    if let Some(units) = values.get(2) {
+        if !units.to_text().trim().is_empty() {
+            return Err(RuntimeError {
+                message: "the date arithmetic of the v1 is not carried by this tree.".to_string(),
+                line,
+            });
+        }
+    }
+    let current = rt.read_reference(reference).map(|value| value.to_text()).unwrap_or_default();
+    let current = crate::v1::the_number_at_the_start_of_a_text(&current);
     let other = values.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let other = other.trim().parse::<i64>().unwrap_or(0);
-    let answer = operation(current, other);
-    let text = format!("{answer}");
-    rt.desktop().env_set(&name, &text).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Text(text))
+    let other = crate::v1::the_number_at_the_start_of_a_text(&other);
+    let left = the_number_of_the_v1(&current);
+    let right = the_number_of_the_v1(&other);
+    // The two whole numbers give a whole number, and the division of them is
+    // rounded towards the zero. The number that is not there is a whole one.
+    let whole = !matches!(current, Some(Value::Float(_))) && !matches!(other, Some(Value::Float(_)));
+    let answer = match operation {
+        TheArithmetic::Add => left + right,
+        TheArithmetic::Subtract => left - right,
+        TheArithmetic::Multiply => left * right,
+        TheArithmetic::Divide => {
+            if right == 0.0 {
+                // The division by zero is refused when the script loads; the
+                // variable is blank when it is not.
+                rt.write_reference(variable, Value::Text(String::new()));
+                return Ok(Value::Text(String::new()));
+            }
+            if whole {
+                ((left as i64) / (right as i64)) as f64
+            } else {
+                left / right
+            }
+        }
+    };
+    let value = if whole {
+        Value::Int(answer as i64)
+    } else {
+        Value::Float(answer)
+    };
+    rt.write_reference(variable, value.clone());
+    Ok(value)
 }
 
-/// `EnvAdd, name, value`: add to the number of an environment variable.
+/// The arithmetic that a command of the v1 does.
+#[derive(Clone, Copy)]
+enum TheArithmetic {
+    /// The sum.
+    Add,
+    /// The difference.
+    Subtract,
+    /// The product.
+    Multiply,
+    /// The quotient.
+    Divide,
+}
+
+/// The number that the v1 reads in a value.
+///
+/// The number that is not there is a zero, and so is the text that does not
+/// start with a number.
+fn the_number_of_the_v1(value: &Option<Value>) -> f64 {
+    match value {
+        Some(Value::Int(number)) => *number as f64,
+        Some(Value::Float(number)) => *number,
+        _ => 0.0,
+    }
+}
+
+/// `EnvAdd, variable, value`: add to the number of a variable of the script.
 pub(crate) fn env_add(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    env_arithmetic(rt, values, line, |left, right| left + right)
+    env_arithmetic(rt, values, line, "EnvAdd", TheArithmetic::Add)
 }
 
-/// `EnvSub, name, value`: take from the number of an environment variable.
+/// `EnvSub, variable, value`: take from the number of a variable of the script.
 pub(crate) fn env_sub(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    env_arithmetic(rt, values, line, |left, right| left - right)
+    env_arithmetic(rt, values, line, "EnvSub", TheArithmetic::Subtract)
 }
 
-/// `EnvMult, name, value`: multiply the number of an environment variable.
+/// `EnvMult, variable, value`: multiply the number of a variable of the script.
 pub(crate) fn env_mult(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    env_arithmetic(rt, values, line, |left, right| left * right)
+    env_arithmetic(rt, values, line, "EnvMult", TheArithmetic::Multiply)
 }
 
-/// `EnvDiv, name, value`: divide the number of an environment variable.
+/// `EnvDiv, variable, value`: divide the number of a variable of the script.
 pub(crate) fn env_div(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    env_arithmetic(rt, values, line, |left, right| {
-        if right == 0 { 0 } else { left / right }
-    })
+    env_arithmetic(rt, values, line, "EnvDiv", TheArithmetic::Divide)
 }

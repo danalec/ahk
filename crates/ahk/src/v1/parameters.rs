@@ -19,7 +19,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::dialect::TheRefusalOfTheArity;
-use crate::runtime::{CaseSense, FloatFormat, IntegerFormat};
+use crate::runtime::{CaseSense, FloatFormat, IntegerFormat, Value};
 
 /// The refusal of the number of the parameters of a command of the v1.
 ///
@@ -99,6 +99,10 @@ const RULES_OF_THE_ARITY: &[Arity] = &[
 /// command is not one that the v1 checks, or that the parameters are the
 /// ones that it wants.
 pub(crate) fn the_refusal_of_a_parameter(name: &str, parameters: &[String]) -> Option<String> {
+    // The command whose complaint is a message of its own comes first.
+    if let Some(rule) = MESSAGES.iter().find(|rule| rule.name.eq_ignore_ascii_case(name)) {
+        return (rule.message)(parameters);
+    }
     let rule = RULES.iter().find(|rule| rule.name.eq_ignore_ascii_case(name))?;
     let texts = rule.the_texts(parameters);
     let place = (rule.check)(&texts)?;
@@ -159,7 +163,46 @@ const RULES: &[Rule] = &[
     Rule { name: "FileGetTime", reads: 3, check: the_time_of_a_file },
     Rule { name: "FileGetSize", reads: 3, check: the_size_of_a_file },
     Rule { name: "FileSetAttrib", reads: 2, check: the_attributes_of_a_file },
+    Rule { name: "EnvAdd", reads: 3, check: the_units_of_the_time },
+    Rule { name: "EnvSub", reads: 3, check: the_units_of_the_time },
 ];
+
+/// The commands of the v1 whose complaint is a message of its own.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the division by zero
+/// of the `EnvDiv` is refused when the script loads, and the complaint of
+/// the v1 is "Divide by zero" with the text of the divisor.
+struct Message {
+    /// The name of the command, as the table of the v1 spells it.
+    name: &'static str,
+    /// The complaint of the command: the answer is the message, and `None`
+    /// means that the command lets the script run.
+    message: fn(&[String]) -> Option<String>,
+}
+
+/// The commands of the v1 that refuse with a message of their own.
+const MESSAGES: &[Message] = &[Message { name: "EnvDiv", message: the_division_by_zero }];
+
+/// The divisor of the `EnvDiv` of the v1 is not a zero.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the division by zero
+/// is refused when the script loads: "Divide by zero" and the text of the
+/// divisor. The divisor that does not start with a number is not a zero at
+/// the load -- the v1 does not know the value of it yet -- and the variable
+/// is blank when the script runs.
+fn the_division_by_zero(parameters: &[String]) -> Option<String> {
+    let divisor = parameters.get(1)?;
+    let number = crate::v1::the_number_at_the_start_of_a_text(divisor);
+    let zero = match number {
+        Some(Value::Int(number)) => number == 0,
+        Some(Value::Float(number)) => number == 0.0,
+        _ => false,
+    };
+    if !zero {
+        return None;
+    }
+    Some(format!("Divide by zero\n     Specifically: {divisor}"))
+}
 
 /// The text of the parameter at this place, or the empty text.
 fn the_text_at(texts: &[String], place: usize) -> &str {
@@ -498,6 +541,30 @@ fn the_size_of_a_file(texts: &[String]) -> Option<usize> {
 /// the "N" of the normal, the "T" of the temporary and the "O" of the
 /// offline -- and the signs that come before them. The sparse and the
 /// encrypted are not attributes that the v1 knows.
+fn the_units_of_the_time(texts: &[String]) -> Option<usize> {
+    let text = the_text_at(texts, 2);
+    if text.trim().is_empty() {
+        return None;
+    }
+    if is_a_unit_of_the_time(text) {
+        return None;
+    }
+    Some(2)
+}
+
+/// Whether the text is a unit of the time of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the unit
+/// is one of the "Seconds", the "Minutes", the "Hours" or the "Days", and
+/// the first letter of it is the same one. The unit that is not one of them
+/// is refused: the "Furlongs" is not a unit of the v1.
+fn is_a_unit_of_the_time(text: &str) -> bool {
+    matches!(
+        text.trim().to_lowercase().as_str(),
+        "seconds" | "minutes" | "hours" | "days" | "s" | "m" | "h" | "d"
+    )
+}
+
 fn the_attributes_of_a_file(texts: &[String]) -> Option<usize> {
     let text = the_text_at(texts, 0).trim();
     let wanted = text.chars().all(|character| {

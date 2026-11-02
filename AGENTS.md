@@ -7336,3 +7336,36 @@ The row of the `GetKeyState` is in the surface of the v1
 (`crates/ahk/reference/ahk-v1.1.37.02.surface.tsv`) and the table of the
 built-ins is in `crates/ahk/src/v1/table.rs`. The two were changed by hand:
 the script that writes the table is not run again.
+
+## 181. The arithmetic of the v1 is on a variable of the script
+
+Measured on the binary of v1.1.37.02 on 2026-11-02. The `EnvAdd`, the
+`EnvSub`, the `EnvMult` and the `EnvDiv` of the v1 are the arithmetic of the
+v1 on a variable of the script, and not the arithmetic of a variable of the
+environment: the `EnvAdd, x, 3` with `x` at five leaves `x` at eight. The
+name of the variable is the first parameter, and the command writes into it.
+
+- **The number that is not there is a zero**, and so is the text that does
+  not start with a number: the `EnvAdd, x, abc` with `x` at five leaves `x`
+  at five.
+- **The two whole numbers give a whole number**, and the division of them is
+  rounded towards the zero: the `EnvDiv, x, 3` with `x` at five leaves `x` at
+  one, and the `EnvDiv, x, 2` with `x` at five and a half leaves `x` at two
+  and three quarters.
+- **The value is an expression**, like every parameter of the v1 that wants
+  a number: the `EnvAdd, x, 1+2` with `x` at five leaves `x` at eight.
+- **The division by zero is refused when the script loads**: "Divide by
+  zero" and the text of the divisor. The divisor that does not start with a
+  number is not a zero at the load -- the v1 does not know the value of it
+  yet -- and the variable is blank when the script runs.
+- **The units of the time are the third parameter of the `EnvAdd` and of the
+  `EnvSub`**, and they are one of the "Seconds", the "Minutes", the "Hours"
+  or the "Days" (or the first letter of one of them). The unit that is not
+  one of them is refused at the load: "Parameter #3 invalid.". The date
+  arithmetic of the v1 is not carried yet, and the command says so when it
+  runs.
+
+The shape of the first parameter of the four commands changed in the surface
+of the v1 and in the table of the built-ins: the command writes into the
+variable, and the value of it is not read. The suite of the v1 has one case
+more (150).

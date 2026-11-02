@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 149 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 150 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -846,7 +846,7 @@ the path of the class of the `new` by the block of the path (2026-11-02), and
 the parameter of a command by the block of the parameters (2026-11-02), and
 the pid of the process by the block of the pid (2026-11-02), and the code of
 the failure of a native call by the block of the code (2026-11-02), and the
-patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02).
+patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -924,6 +924,20 @@ and the tree refuses them at the run with the reason of the machine. The
 family is not carried yet: it needs the table of the values of each command
 of the v1, and the text of the complaint needs the rule of the last parameter
 of a command -- the block that comes after this one.
+
+**The arithmetic of the v1 is on a variable of the script.** The `EnvAdd`, the
+`EnvSub`, the `EnvMult` and the `EnvDiv` of the v1 are the arithmetic of the
+v1 on a variable of the script -- the `EnvAdd, x, 3` with `x` at five leaves
+`x` at eight -- and not the arithmetic of a variable of the environment: the
+tree was writing a variable of the environment, and it was reading the value
+of the variable of the script. The number that is not there is a zero, the
+two whole numbers give a whole number, and the division of them is rounded
+towards the zero. The division by zero is refused when the script loads
+("Divide by zero"), and the divisor that the v1 does not know at the load is
+not a zero. The units of the time are the third parameter of the `EnvAdd` and
+of the `EnvSub`, and the unit that is not one of the four is refused at the
+load; the date arithmetic itself is not carried yet, and the command says so
+when it runs. The block of the arithmetic (2026-11-02) carried it.
 
 **The path of the class.** The `new` of the v1 takes the path of the class:
 the name that follows the word and the names of the classes that it holds.

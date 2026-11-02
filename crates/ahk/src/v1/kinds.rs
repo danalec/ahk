@@ -26,6 +26,11 @@ const THE_NUMBERS: &[(&str, &[u8])] = &[
     // The number of the seconds that the command waits, and the number of
     // what it waits for.
     ("ClipWait", &[0, 1]),
+    // The value of the arithmetic of a variable of the script.
+    ("EnvAdd", &[1]),
+    ("EnvDiv", &[1]),
+    ("EnvMult", &[1]),
+    ("EnvSub", &[1]),
     // The code that the script leaves.
     ("Exit", &[0]),
     ("ExitApp", &[0]),

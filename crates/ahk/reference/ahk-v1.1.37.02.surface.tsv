@@ -37,6 +37,14 @@
 # had the numbers of the function. The function wants one parameter and
 # takes two.
 #
+#
+# The `EnvAdd`, the `EnvSub`, the `EnvMult` and the `EnvDiv` were measured
+# again on 2026-11-02: they are the arithmetic of the v1 on a variable of the
+# script -- the `EnvAdd, x, 3` with `x` at five leaves `x` at eight -- and
+# not the arithmetic of a variable of the environment. The first parameter is
+# the name of the variable that the command writes into, and not a variable
+# that it reads.
+#
 # The `ErrorLevel` was measured on the binary of v1.1.37.02 on 2026-11-02:
 # it is the one built-in variable of the v1 that has no prefix, and the
 # measurement of 2026-10-29 took the names of the page of the built-in
@@ -93,12 +101,12 @@ command		DriveGet	0	255	Output,Value,Value
 command		DriveSpaceFree	2	255	Output,Value
 command		Edit	0	255	
 command		Else	0	255	
-command		EnvAdd	2	255	Variable,Value,Value
-command		EnvDiv	2	255	Variable,Value
+command		EnvAdd	2	255	Output,Value,Value
+command		EnvDiv	2	255	Output,Value
 command		EnvGet	2	255	Output,Value
-command		EnvMult	2	255	Variable,Value
+command		EnvMult	2	255	Output,Value
 command		EnvSet	1	255	Value,Value
-command		EnvSub	2	255	Variable,Value,Value
+command		EnvSub	2	255	Output,Value,Value
 command		EnvUpdate	0	255	
 variable		ErrorLevel			
 command		Exit	0	255	Value

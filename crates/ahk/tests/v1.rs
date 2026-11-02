@@ -4025,3 +4025,72 @@ fn the_call_of_a_name_that_is_not_a_function_is_refused_at_the_load() {
     let report = run("StrLen(\"abc\")");
     assert!(report.ok, "{:?}", report.error);
 }
+
+/// The arithmetic of the v1 is on a variable of the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `EnvAdd`, the `EnvSub`, the `EnvMult` and the `EnvDiv` of the v1 are the
+/// arithmetic of the v1 on a variable of the script -- the `EnvAdd, x, 3`
+/// with `x` at five leaves `x` at eight -- and not the arithmetic of a
+/// variable of the environment. The number that is not there is a zero, and
+/// the command writes the result into the variable.
+///
+/// The two whole numbers give a whole number, and the division of them is
+/// rounded towards the zero: the `EnvDiv, x, 3` with `x` at five leaves `x`
+/// at one, and the `EnvDiv, x, 2` with `x` at five and a half leaves `x` at
+/// two and three quarters.
+#[test]
+fn the_arithmetic_of_the_v1_is_on_a_variable_of_the_script() {
+    let cases = [
+        ("x := 5\nEnvAdd, x, 3", "[8]"),
+        ("x := 5\nEnvSub, x, 3", "[2]"),
+        ("x := 5\nEnvMult, x, 3", "[15]"),
+        ("x := 5\nEnvDiv, x, 3", "[1]"),
+        ("x := 5\nEnvDiv, x, 2", "[2]"),
+        ("x := 5.5\nEnvAdd, x, 1", "[6.500000]"),
+        ("x := 5.5\nEnvMult, x, 2", "[11.000000]"),
+        ("x := 5.5\nEnvDiv, x, 2", "[2.750000]"),
+        ("x := 5\nEnvAdd, x, 0.5", "[5.500000]"),
+        ("x := 5\nEnvAdd, x, 1+2", "[8]"),
+        ("x := 5\ny := 3\nEnvAdd, x, y", "[8]"),
+        ("x := 0x10\nEnvAdd, x, 1", "[17]"),
+        ("x := \"5\"\nEnvAdd, x, 1", "[6]"),
+        ("x := \"abc\"\nEnvAdd, x, 1", "[1]"),
+        ("x := 5\nEnvAdd, x, abc", "[5]"),
+        ("x := 5\nEnvAdd, x, -3", "[2]"),
+    ];
+    for (script, answer) in cases {
+        let report = run(&format!("{script}\nFileAppend, [%x%], *"));
+        assert!(report.ok, "the script is {script}: {:?}", report.error);
+        assert_eq!(report.output, vec![answer.to_string()], "the script is {script}");
+    }
+
+    // The variable that is not there is a zero, and the command writes it.
+    let report = run("EnvAdd, NOTHEREVAR, 3\nFileAppend, [%NOTHEREVAR%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[3]".to_string()]);
+
+    // The division by zero is refused when the script loads.
+    let error = ahk::parse_with("x := 5\nEnvDiv, x, 0", dialect::v1())
+        .expect_err("the divisor is a zero");
+    assert_eq!(error.message, "Divide by zero\n     Specifically: 0");
+
+    // The divisor that the v1 does not know at the load is not a zero, and
+    // the variable is blank when the script runs.
+    let report = run("x := 5\nEnvDiv, x, abc\nFileAppend, [%x%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The unit that the v1 does not know is refused when the script loads.
+    let error = ahk::parse_with("x := 5\nEnvAdd, x, 1, Furlongs", dialect::v1())
+        .expect_err("the unit is not one of the v1");
+    assert_eq!(error.message, "Parameter #3 invalid.\n     Specifically: Furlongs");
+
+    // The date arithmetic of the v1 is not carried, and the command says so.
+    let report = run("x := 5\nEnvAdd, x, 1, Seconds");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error,
+        Some("the date arithmetic of the v1 is not carried by this tree.".to_string())
+    );
+}

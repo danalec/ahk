@@ -1593,6 +1593,12 @@ that asks for another one is refused with the reason.
   not a function is refused at the load: "Call to nonexistent function." and
   the text of the call.
 
+- **The arithmetic of the v1 is on a variable of the script.** The `EnvAdd`,
+  the `EnvSub`, the `EnvMult` and the `EnvDiv` write into the variable that
+  their first parameter names, and the number that is not there is a zero.
+  The two whole numbers give a whole number, and the division of them is
+  rounded towards the zero.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes
