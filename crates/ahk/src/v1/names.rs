@@ -207,6 +207,60 @@ pub(crate) fn string_case_sense(
     Ok(Value::Text(String::new()))
 }
 
+/// `DetectHiddenText, On`: the text of the hidden windows is read.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// takes the word "On" and the word "Off" -- and the numbers one and zero --
+/// and the v2 takes a value that is true when it is not empty.
+pub(crate) fn set_detect_hidden_text_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = super::parameters::the_switch_of_the_v1(
+        &values.first().map(|value| value.to_text()).unwrap_or_default(),
+    )
+    .unwrap_or(false);
+    crate::settings::set_detect_hidden_text(rt, &[Value::Int(on as i64)], line, 0)
+}
+
+/// `DetectHiddenWindows, On`: the windows that are hidden are found.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// takes the word "On" and the word "Off" -- and the numbers one and zero --
+/// and the v2 takes a value that is true when it is not empty.
+pub(crate) fn set_detect_hidden_windows_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = super::parameters::the_switch_of_the_v1(
+        &values.first().map(|value| value.to_text()).unwrap_or_default(),
+    )
+    .unwrap_or(false);
+    crate::settings::set_detect_hidden_windows(rt, &[Value::Int(on as i64)], line, 0)
+}
+
+/// `SetStoreCapsLockMode, On`: whether the state of the caps lock is put back.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
+/// takes the word "On" and the word "Off" -- and the numbers one and zero --
+/// and the v2 takes a value that is true when it is not empty.
+pub(crate) fn set_store_caps_lock_mode_of_the_v1(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = super::parameters::the_switch_of_the_v1(
+        &values.first().map(|value| value.to_text()).unwrap_or_default(),
+    )
+    .unwrap_or(false);
+    crate::settings::set_store_caps_lock_mode(rt, &[Value::Int(on as i64)], line, 0)
+}
+
 /// `CoordMode, Mouse, Screen`: the way the coordinates are read.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does not

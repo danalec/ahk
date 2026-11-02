@@ -1095,6 +1095,15 @@ the whole rest of the line, and the command that reads more than one takes
 the text of each place. The v2 answers nothing to the hook, and the value of
 the parameter is checked by the handler of the command when it runs.
 
+The defaults of the settings are a rule of the dialect too. The state of
+the settings lives in a static, and the runtime writes the defaults of its
+dialect when it is made: the v1 begins with the mode of the coordinates in
+the "Window", with the method of the sending in the "Event" and with the
+mode of the matching of the titles in 1, and the v2 with the "Client", the
+"Input" and the 2. The names that the v1 spells in its own way -- the flags
+that are the "On" and the "Off" -- are answered by the module of the
+variables of the v1, and they come before the ones of the v2.
+
 ### The regular expressions (`regex.rs`)
 
 - `Regex` -- a compiled pattern.

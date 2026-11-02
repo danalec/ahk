@@ -7178,4 +7178,37 @@ of the v1 is "Target label does not exist.". And the `FileEncoding` of a
 code page that the tree does not carry is refused with the reason of the
 tree: it carries one code page, the one of the machine.
 
+## 176. The settings of the v1 begin with the values of the v1
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The v1 and the v2 do not begin with the same settings.** The mode of the
+  coordinates is the "Window" in the v1 and the "Client" in the v2, the
+  method of the sending is the "Event" in the v1 and the "Input" in the v2,
+  and the mode of the matching of the titles is the 1 in the v1 and the 2 in
+  the v2. The rest of the settings are the same: the delay of the keys is
+  the 10, the delay of the pointer is the 10, the delay of the windows is
+  the 100, the delay of the controls is the 20, the speed of the pointer is
+  the 2, the view of the registry is the "Default", and the list of the
+  lines is on.
+- **The state of the settings lives in a static, and the runtime writes the
+  defaults of its dialect when it is made.** The rule is one hook of the
+  dialect (`the_defaults_of_the_settings`), and the runner always asks the
+  dialect for it. The state is one for the whole crate, and the tests that
+  touch it hold the turn: the case that reads a setting would otherwise read
+  the one that the other case wrote.
+- **Three names of the v1 have another shape.** The `A_StoreCapsLockMode`,
+  the `A_DetectHiddenWindows` and the `A_DetectHiddenText` are the "On" and
+  the "Off" in the v1, and the number one and zero in the v2. The
+  `A_FileEncoding` is the empty text in the v1 when the encoding is the code
+  page of the machine -- and the name of the encoding after the command that
+  sets it. The `A_MenuMaskKey` is the empty text in the v1: the v1 has no
+  key that closes a menu, and the v2 answers the numbers of the key that
+  closes it ("vk11sc01D").
+- **The flag of the v1 takes the word and not a value.** The
+  `DetectHiddenText, Off` turns the flag off, and the `SetStoreCapsLockMode,
+  On` turns it on. The v2 takes a value that is true when it is not empty,
+  and the "Off" of the v1 would be true there. The three commands have
+  handlers of their own (`crates/ahk/src/v1/names.rs`).
+
 

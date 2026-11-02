@@ -16,7 +16,14 @@ use ahk::desktop::{
 };
 use ahk::dialect;
 use ahk::runtime::{Report, Runtime, Value};
+use std::sync::Mutex;
 use std::time::Duration;
+
+/// The turn of the tests: the settings of the script live in a static, and
+/// the runtime writes the defaults of its dialect when it is made. Two cases
+/// that run a script cannot run at the same time, or the one that reads a
+/// setting reads the one that the other wrote.
+static THE_TURN: Mutex<()> = Mutex::new(());
 
 /// A desktop that does nothing: the cases of the dialect do not need the
 /// machine, and the methods that a capability does not have answer that
@@ -125,6 +132,9 @@ fn run(script: &str) -> Report {
 /// Run a script of the v1 with something on the clipboard, and answer with
 /// the report.
 fn run_with_the_clipboard(script: &str, clipboard: &str) -> Report {
+    // The settings of the script live in a static: the case holds the turn
+    // while it runs, so that no other case writes them under its feet.
+    let _turn = THE_TURN.lock().unwrap_or_else(|poison| poison.into_inner());
     let statements = ahk::parse_with(script, dialect::v1()).expect("the script of the v1 parses");
     let mut desktop = Fake { clipboard: clipboard.to_string() };
     Runtime::new(&mut desktop, Duration::from_secs(60))
@@ -3660,6 +3670,57 @@ fn the_coord_mode_of_the_v1_that_is_not_one_sets_every_mode_to_the_event() {
     let report = run("CoordMode, Mouse, Screen\nCoordMode, abc\nx := A_CoordModeMouse\nFileAppend, %x%, *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["Screen".to_string()]);
+}
+
+/// The settings of the v1 begin with the values of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the mode
+/// of the coordinates is the "Window", the method of the sending is the
+/// "Event", the mode of the matching of the titles is the 1, the encoding
+/// of the files is the empty text and the key that closes a menu is the
+/// empty text. The flags are the "On" and the "Off", and not the number one
+/// and zero that the v2 answers.
+#[test]
+fn the_settings_of_the_v1_begin_with_the_values_of_the_v1() {
+    let report = run("x := A_CoordModeMouse\ny := A_SendMode\nz := A_TitleMatchMode\nFileAppend, %x% %y% %z%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["Window Event 1".to_string()]);
+
+    let report = run("x := A_FileEncoding\ny := A_MenuMaskKey\nFileAppend, [%x%][%y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[][]".to_string()]);
+
+    let report = run("x := A_StoreCapsLockMode\ny := A_DetectHiddenWindows\nz := A_DetectHiddenText\nFileAppend, %x% %y% %z%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["On Off On".to_string()]);
+}
+
+/// The flag of the v1 follows the command that turns it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the flag
+/// is the "On" and the "Off", and the command that sets it is the one that
+/// the v1 has.
+#[test]
+fn the_flag_of_the_v1_follows_the_command_that_turns_it() {
+    let report = run("SetStoreCapsLockMode, Off\nDetectHiddenWindows, On\nDetectHiddenText, Off\nx := A_StoreCapsLockMode\ny := A_DetectHiddenWindows\nz := A_DetectHiddenText\nFileAppend, %x% %y% %z%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["Off On Off".to_string()]);
+}
+
+/// The encoding of the files of the v1 is the name of the encoding.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the code
+/// page of the machine is the empty text, and the name of the encoding is
+/// the name after the command that sets it.
+#[test]
+fn the_encoding_of_the_files_of_the_v1_is_the_name_of_the_encoding() {
+    let report = run("FileEncoding, UTF-8\nx := A_FileEncoding\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["UTF-8".to_string()]);
+
+    let report = run("FileEncoding, UTF-8\nFileEncoding, CP0\nx := A_FileEncoding\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["".to_string()]);
 }
 
 

@@ -1350,6 +1350,10 @@ impl<'a> Runtime<'a> {
     /// `--dialect=v1` of the runner.
     pub fn with_dialect(mut self, dialect: &'static dyn crate::dialect::Dialect) -> Self {
         self.dialect = dialect;
+        // The settings of the script begin with the defaults of the dialect
+        // that the run speaks: the v1 and the v2 do not begin with the same
+        // values.
+        self.dialect.the_defaults_of_the_settings();
         self
     }
 

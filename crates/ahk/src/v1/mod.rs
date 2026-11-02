@@ -54,10 +54,11 @@ pub(crate) use parameters::the_refusal_of_a_parameter;
 pub(crate) use strings::{in_str, sub_str};
 
 pub(crate) use names::{
-    auto_trim, coord_mode_of_the_v1, file_encoding_of_the_v1, file_read_line, func,
-    input, is_by_ref, is_func, is_set, object, set_batch_lines, set_control_delay_of_the_v1,
-    set_format, set_key_delay_of_the_v1, set_mouse_delay_of_the_v1, set_win_delay_of_the_v1,
-    string_case_sense, transform, var_set_capacity,
+    auto_trim, coord_mode_of_the_v1, file_encoding_of_the_v1, file_read_line, func, input, is_by_ref,
+    is_func, is_set, object, set_batch_lines, set_control_delay_of_the_v1,
+    set_detect_hidden_text_of_the_v1, set_detect_hidden_windows_of_the_v1, set_format,
+    set_key_delay_of_the_v1, set_mouse_delay_of_the_v1, set_store_caps_lock_mode_of_the_v1,
+    set_win_delay_of_the_v1, string_case_sense, transform, var_set_capacity,
 };
 
 /// The built-in variables of the v1 that the v2 does not carry.

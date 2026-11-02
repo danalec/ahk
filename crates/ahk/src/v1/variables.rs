@@ -14,7 +14,7 @@
 //! write it.
 
 use alloc::format;
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 
 use crate::ast::AssignOp;
 use crate::runtime::{Runtime, RuntimeError, Value};
@@ -38,6 +38,12 @@ enum TheValue {
     /// The value is the state of the runtime: the `A_NumBatchLines` of the v1
     /// says the number of the lines that the script runs at once.
     TheBatchLines,
+    /// The value is a flag of the settings: the v1 says the "On" and the
+    /// "Off", and the v2 says the number one and zero.
+    TheFlag(&'static str),
+    /// The value is the encoding of the files: the v1 says the empty text
+    /// for the code page of the machine.
+    TheEncoding,
     /// The name is carried and the runtime refuses it: the reason is here.
     Refused(&'static str),
 }
@@ -78,8 +84,17 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     // The list view and the tree view of the default: the tree has none.
     ("A_DefaultListView", TheValue::Text("")),
     ("A_DefaultTreeView", TheValue::Text("")),
+    // Measured: the "A_DetectHiddenText" is the "On" and the
+    // "A_DetectHiddenWindows" is the "Off". The v2 answers the number one
+    // and zero, and the v1 answers the word.
+    ("A_DetectHiddenText", TheValue::TheFlag("detecthiddentext")),
+    ("A_DetectHiddenWindows", TheValue::TheFlag("detecthiddenwindows")),
     // The reason of the exit: the script has not exited yet.
     ("A_ExitReason", TheValue::Text("")),
+    // Measured: the empty text for the code page of the machine, and the
+    // name of the encoding for the rest -- the "UTF-8" after the command
+    // that sets it.
+    ("A_FileEncoding", TheValue::TheEncoding),
     // Measured: "0.6". The command `SetFormat` turns the format of the
     // floats, and the name of it follows it.
     ("A_FormatFloat", TheValue::TheFormats),
@@ -100,6 +115,9 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     ("A_IPAddress1", TheValue::Refused(NO_ADDRESS)),
     // Measured: "1".
     ("A_IsUnicode", TheValue::Number(1)),
+    // Measured: the empty text. The v1 has no key that closes a menu, and
+    // the v2 answers the numbers of the key that closes it.
+    ("A_MenuMaskKey", TheValue::Text("")),
     // Measured: "10ms".
     ("A_NumBatchLines", TheValue::TheBatchLines),
     // The type of the operating system: it is a type of Windows.
@@ -107,6 +125,9 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     // Measured: "Off". The command `StringCaseSense` turns the sense of
     // the case on and off, and the name of it follows it.
     ("A_StringCaseSense", TheValue::TheCaseSense),
+    // Measured: the "On". The command `SetStoreCapsLockMode` turns it off,
+    // and the name of it follows it.
+    ("A_StoreCapsLockMode", TheValue::TheFlag("storecapslockmode")),
     // The last error of the run: the name has no prefix, and it is the only
     // one of the v1 that has not. Measured: "0", and a script may write it.
     ("ErrorLevel", TheValue::Number(0)),
@@ -280,6 +301,25 @@ pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError
             // The number of the lines that the script runs at once is a state
             // of the run too.
             TheValue::TheBatchLines => Ok(Value::Text(rt.batch_lines().to_string())),
+            // The flag of the v1 is the "On" and the "Off", and the v2 says
+            // the number one and zero.
+            TheValue::TheFlag(name) => {
+                let on = match crate::settings::value_of(name) {
+                    Some(Ok(Value::Int(number))) => number != 0,
+                    _ => false,
+                };
+                Ok(Value::Text(if on { "On" } else { "Off" }.to_string()))
+            }
+            // The encoding of the files: the code page of the machine is the
+            // empty text for the v1.
+            TheValue::TheEncoding => {
+                let encoding = crate::settings::file_encoding();
+                if encoding == "CP0" {
+                    Ok(Value::Text(String::new()))
+                } else {
+                    Ok(Value::Text(encoding.to_string()))
+                }
+            }
             TheValue::Refused(reason) => {
                 Err(RuntimeError { message: (*reason).to_string(), line: 0 })
             }

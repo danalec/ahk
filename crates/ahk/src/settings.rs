@@ -240,8 +240,38 @@ impl Drop for Turn {
 /// not leave the change behind for the test that runs next.
 #[cfg(test)]
 pub(crate) fn put_the_state_back() {
-    STATE.coord_mouse.store(CLIENT, Ordering::Relaxed);
-    STATE.coord_pixel.store(CLIENT, Ordering::Relaxed);
+    the_defaults_of_the_v2();
+}
+
+/// The defaults of the settings of the v1.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 begins with
+/// the mode of the coordinates in the "Window" -- the mode of the v2 is the
+/// "Client" -- with the method of the sending in the "Event" -- the method
+/// of the v2 is the "Input" -- and with the mode of the matching of the
+/// titles in 1 -- the mode of the v2 is 2. The rest of the settings are the
+/// ones of the v2.
+///
+/// The state lives in a static and the tree runs one thread, so the runtime
+/// writes the defaults of its dialect when it is made.
+pub fn the_defaults_of_the_v1() {
+    the_defaults_of_the_v2();
+    the_coord_modes(WINDOW);
+    STATE.send_mode.store(EVENT, Ordering::Relaxed);
+    STATE.title_match_mode.store(MODE_STARTS, Ordering::Relaxed);
+}
+
+/// The defaults of the settings of the v2.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the mode of the
+/// coordinates is the "Client", the method of the sending is the "Input",
+/// the mode of the matching of the titles is the 2, the delay of the keys is
+/// the 10, the delay of the pointer is the 10, the delay of the windows is
+/// the 100, the delay of the controls is the 20, the speed of the pointer is
+/// the 2, the view of the registry is the "Default" and the key that closes
+/// a menu is the key that closes it.
+pub fn the_defaults_of_the_v2() {
+    the_coord_modes(CLIENT);
     STATE.key_delay.store(10, Ordering::Relaxed);
     STATE.key_delay_play.store(-1, Ordering::Relaxed);
     STATE.key_duration.store(-1, Ordering::Relaxed);
@@ -255,13 +285,28 @@ pub(crate) fn put_the_state_back() {
     STATE.encoding.store(0, Ordering::Relaxed);
     STATE.title_match_mode.store(MODE_CONTAINS, Ordering::Relaxed);
     STATE.title_match_speed.store(FAST, Ordering::Relaxed);
+    STATE.detect_hidden_windows.store(0, Ordering::Relaxed);
+    STATE.detect_hidden_text.store(1, Ordering::Relaxed);
+    STATE.win_delay.store(100, Ordering::Relaxed);
     STATE.control_delay.store(CONTROL_DELAY, Ordering::Relaxed);
     STATE.reg_view.store(REG_DEFAULT, Ordering::Relaxed);
-    STATE.coord_caret.store(CLIENT, Ordering::Relaxed);
-    STATE.coord_menu.store(CLIENT, Ordering::Relaxed);
-    STATE.coord_tooltip.store(CLIENT, Ordering::Relaxed);
+    STATE.list_lines.store(1, Ordering::Relaxed);
+    STATE.allow_main_window.store(1, Ordering::Relaxed);
     STATE.menu_mask_vk.store(MASK_VK, Ordering::Relaxed);
     STATE.menu_mask_sc.store(MASK_SC, Ordering::Relaxed);
+}
+
+/// The mode of the coordinates of every target.
+fn the_coord_modes(mode: u8) {
+    for target in [
+        &STATE.coord_mouse,
+        &STATE.coord_pixel,
+        &STATE.coord_caret,
+        &STATE.coord_menu,
+        &STATE.coord_tooltip,
+    ] {
+        target.store(mode, Ordering::Relaxed);
+    }
 }
 
 /// The state of the settings, with the defaults of v2.

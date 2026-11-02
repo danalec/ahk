@@ -650,6 +650,16 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The defaults of the settings of the script.
+    ///
+    /// The v1 and the v2 do not begin with the same values: the mode of the
+    /// coordinates of the v1 is the "Window" and the mode of the v2 is the
+    /// "Client". The runtime asks the dialect when it is made, and the
+    /// dialect writes the defaults of its own.
+    fn the_defaults_of_the_settings(&self) {
+        crate::settings::the_defaults_of_the_v2();
+    }
+
     /// Whether the space separates the increment from the name.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the space is what
@@ -875,8 +885,10 @@ impl Dialect for V1 {
         rt: &mut Runtime,
     ) -> Option<Result<Value, RuntimeError>> {
         // The v1 carries the variables of the v2, and the ones of its own:
-        // the name is the one that the dialect spells.
-        crate::variables::lookup(name, rt).or_else(|| crate::v1::lookup_variable(name, rt))
+        // the name is the one that the dialect spells. The ones that the v1
+        // spells in its own way come first: the flag of the v1 is the "On"
+        // and the "Off", and the number one and zero of the v2.
+        crate::v1::lookup_variable(name, rt).or_else(|| crate::variables::lookup(name, rt))
     }
 
     fn write_variable(
@@ -1033,6 +1045,14 @@ impl Dialect for V1 {
         // the parameter of its commands when the script loads, and the
         // complaint of the v1 is its own.
         crate::v1::the_refusal_of_a_parameter(name, parameters)
+    }
+
+    fn the_defaults_of_the_settings(&self) {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 begins
+        // with the mode of the coordinates in the "Window", with the method
+        // of the sending in the "Event" and with the mode of the matching of
+        // the titles in 1.
+        crate::settings::the_defaults_of_the_v1();
     }
 
     fn the_space_separates_the_increment(&self) -> bool {

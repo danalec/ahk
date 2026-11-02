@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 140 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 143 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -855,6 +855,17 @@ hook of the dialect (`the_refusal_of_an_invalid_parameter`), the rules are
 in `crates/ahk/src/v1/parameters.rs`, and the commands that the v1 does not
 check have handlers of their own. The name of a key and the name of the
 label of the `SetTimer` are of other families, and they are not carried.
+
+**The settings of the v1.** The v1 and the v2 do not begin with the same
+values: the mode of the coordinates is the "Window" in the v1, the method of
+the sending is the "Event" and the mode of the matching of the titles is the
+1. The state of the settings lives in a static, and the runtime writes the
+defaults of its dialect when it is made -- the rule is the hook
+`the_defaults_of_the_settings`. Three names of the v1 have another shape:
+the flags are the "On" and the "Off" and not the number one and zero, the
+encoding of the files is the empty text for the code page of the machine,
+and the key that closes a menu is the empty text. The block of the settings
+(2026-11-02) carried it.
 
 **The path of the class.** The `new` of the v1 takes the path of the class:
 the name that follows the word and the names of the classes that it holds.
