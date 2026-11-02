@@ -6528,12 +6528,11 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   The code of the failure is not carried: the machine of this runtime answers
   with a reason and not with the code of the v1.
 
-The pid of the process is not carried: the machine of this runtime does not
-give it, and the tree refuses the parameter with the reason. The `Run` of the
-v1 does not wait for the program, and the tree waits, because the machine
-runs the program and answers with its code. The launch that failed on a
-machine that runs the program through a shell is the other one: the box
-answers 127 where the v1 writes "ERROR".
+The pid of the process goes into the variable of the caller, and the `Run` of
+the v1 does not wait for the program: the machine starts it and answers with
+the pid of it (§177). The launch that failed on a machine that runs the
+program through a shell is the other one: the box answers 127 where the v1
+writes "ERROR".
 
 The surface of the v1 has one name more: 388 entries, 279 values, 108
 refusals and one pending. The `RunWait` is the name. The AGENTS.md and the
@@ -7210,5 +7209,33 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   On` turns it on. The v2 takes a value that is true when it is not empty,
   and the "Off" of the v1 would be true there. The three commands have
   handlers of their own (`crates/ahk/src/v1/names.rs`).
+
+## 177. The `Run` of the v1 does not wait for the program, and the pid of the process goes into the variable of the caller
+
+Measured on the binary of v1.1.37.02 on 2026-11-02.
+
+- **The `Run` starts the program and goes on.** The script ends while the
+  program runs: the `Run` of a program that takes five seconds leaves the
+  script in less than a second. The `RunWait` waits for the program, and it
+  is the one that answers with the code of it.
+- **The pid of the process goes into the fourth parameter of the command.**
+  The `Run, program, , , pid` leaves the pid in `pid`, and the `RunWait` does
+  the same. The variable is the one of the fourth parameter, and it is made
+  when it is not there yet.
+- **The `ErrorLevel` of the two commands is the one of the v1** (§157): the
+  `Run` does not touch it, unless the options say "useerrorlevel", and the
+  `RunWait` writes the code of the program.
+
+The machine of the runtime gained two capabilities
+(`crates/ahk/src/desktop.rs`): `launch`, which starts a program and answers
+the pid of it without waiting for it, and `run_and_wait`, which starts a
+program, waits for it and answers the pid, the code and what the program
+wrote. The desktop that cannot launch a program says so, and not `false`.
+
+The box (`crates/ahk-box/src/desktop.rs`) starts the program through the
+shell of the machine, the way its `run` does, and the working directory of
+the second parameter of the command is the directory of the program. The
+output of a program that the `Run` starts is not read: the program is still
+running when the script ends.
 
 

@@ -218,6 +218,31 @@ pub trait Processes {
     /// Run a command; return its exit code, stdout and stderr.
     fn run(&mut self, command: &str, window: &str) -> Result<(i32, String, String), String>;
 
+    /// Launch a program without waiting for it; return the pid of it.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `Run` of the
+    /// v1 does not wait for the program, and it writes the pid of it into a
+    /// variable of the script. The desktop that cannot launch a program says
+    /// so, and not `false`.
+    fn launch(&mut self, _command: &str, _working_dir: &str) -> Result<u32, String> {
+        Err("this desktop cannot launch a program".to_string())
+    }
+
+    /// Launch a program and wait for it; return the pid of it, the code and
+    /// what it wrote.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `RunWait` of
+    /// the v1 waits for the program and writes the pid of it into a variable
+    /// of the script. The desktop that cannot launch a program says so, and
+    /// not `false`.
+    fn run_and_wait(
+        &mut self,
+        _command: &str,
+        _working_dir: &str,
+    ) -> Result<(u32, i32, String, String), String> {
+        Err("this desktop cannot launch a program".to_string())
+    }
+
     /// The value of an environment variable.
     fn env_get(&mut self, _name: &str) -> Result<String, String> {
         Err("this desktop cannot read the environment".to_string())

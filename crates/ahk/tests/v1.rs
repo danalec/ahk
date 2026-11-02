@@ -105,6 +105,26 @@ impl Processes for Fake {
         }
         Ok((7, String::new(), String::new()))
     }
+
+    fn launch(&mut self, command: &str, _working_dir: &str) -> Result<u32, String> {
+        // The `Run` of the v1 starts the program and goes on, and the pid of
+        // the process is what the fake answers with.
+        if command.contains("nothere") {
+            return Err("this fake has no processes".into());
+        }
+        Ok(4242)
+    }
+
+    fn run_and_wait(
+        &mut self,
+        command: &str,
+        _working_dir: &str,
+    ) -> Result<(u32, i32, String, String), String> {
+        if command.contains("nothere") {
+            return Err("this fake has no processes".into());
+        }
+        Ok((4242, 7, String::new(), String::new()))
+    }
 }
 
 impl Screen for Fake {
@@ -2103,6 +2123,45 @@ fn the_run_wait_of_the_v1_writes_the_error_level() {
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("this fake has no processes"));
     assert_eq!(report.variables.get("errorlevel"), Some(&Value::Text("ERROR".into())));
+}
+
+/// The `Run` of the v1 does not wait for the program, and the pid of the
+/// process goes into the variable of the caller.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `Run` starts the
+/// program and goes on -- the script ends while the program runs -- and the
+/// pid of the process goes into the fourth parameter of the command. The
+/// program that does not start is the same failure of the `RunWait`.
+#[test]
+fn the_run_of_the_v1_writes_the_pid() {
+    let report = run("Run, program.exe, , , pid\nx := pid");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(4242)));
+
+    // The `ErrorLevel` is not touched: the `Run` does not wait, and it has no
+    // code to write.
+    let report = run("ErrorLevel := 5\nRun, program.exe\nx := ErrorLevel");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
+
+    // The program that does not start fails the script where the v1 goes on.
+    let report = run("Run, nothere.exe, , , pid");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("this fake has no processes"));
+}
+
+/// The `RunWait` of the v1 waits for the program, and the pid of the process
+/// goes into the variable of the caller.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `RunWait` waits
+/// for the program and writes the pid of it into the fourth parameter of the
+/// command.
+#[test]
+fn the_run_wait_of_the_v1_writes_the_pid() {
+    let report = run("RunWait, program.exe, , , pid\nx := pid");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(4242)));
+    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(7)));
 }
 
 /// A member that a value does not have is a blank text of the v1.

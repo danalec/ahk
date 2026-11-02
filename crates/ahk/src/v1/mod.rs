@@ -873,6 +873,10 @@ pub(crate) fn input_box_of_the_v1(
 /// takes the pid of the process. The `ErrorLevel` is not touched, unless the
 /// options say "useerrorlevel": then it is zero when the program starts, and
 /// the word "ERROR" when it does not.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `Run` does not
+/// wait for the program: the script that starts a program that takes four
+/// seconds ends at once, and the `RunWait` waits for it.
 pub(crate) fn run_of_the_v1(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -888,6 +892,10 @@ pub(crate) fn run_of_the_v1(
 /// documentation carries it with the `Run`. Measured on the binary of
 /// v1.1.37.02 on 2026-11-02: the shape is the one of the `Run`, and the
 /// `ErrorLevel` is the code of the program that ran.
+///
+/// The pid of the program that ran is not carried: the desktop that waits
+/// for a program does not give the pid of it, and the parameter is refused
+/// with the reason.
 pub(crate) fn run_wait_of_the_v1(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -901,7 +909,8 @@ pub(crate) fn run_wait_of_the_v1(
 ///
 /// The two commands of the v1 have the same shape, and the `ErrorLevel` of
 /// them is not the same: the `RunWait` writes the code of the program, and
-/// the `Run` writes nothing unless the options say "useerrorlevel".
+/// the `Run` writes nothing unless the options say "useerrorlevel". The pid
+/// of the program goes into the variable of the caller in the two of them.
 fn run_or_wait_of_the_v1(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -911,38 +920,48 @@ fn run_or_wait_of_the_v1(
     let target = values.first().map(|value| value.to_text()).unwrap_or_default();
     let dir = values.get(1).map(|value| value.to_text()).unwrap_or_default();
     let options = values.get(2).map(|value| value.to_text()).unwrap_or_default();
-    // The pid of the process: the machine of this runtime does not give it.
-    if values.len() > 3 {
-        return Err(RuntimeError {
-            message: "the pid of the process is not carried yet.".into(),
-            line,
-        });
-    }
     let says = the_options_say_use_error_level(&options);
-    let (code, stdout, stderr) = match rt.desktop().run(&target, &dir) {
-        Ok(answer) => answer,
+    if waits {
+        // The `RunWait` waits for the program, and the pid of it goes into
+        // the variable of the caller.
+        let (pid, code, stdout, stderr) = match rt.desktop().run_and_wait(&target, &dir) {
+            Ok(answer) => answer,
+            Err(reason) => {
+                // The v1 goes on when the program does not start, and the
+                // `ErrorLevel` is the word that says it.
+                if says {
+                    rt.set_the_error_level(Value::Text("ERROR".into()));
+                }
+                return Err(RuntimeError { message: reason, line });
+            }
+        };
+        if !stdout.trim().is_empty() {
+            rt.push_output(stdout.trim_end().to_string());
+        }
+        if !stderr.trim().is_empty() {
+            rt.push_output(stderr.trim_end().to_string());
+        }
+        // The code of the program is the `ErrorLevel` of the `RunWait`.
+        rt.set_the_error_level(Value::Int(code as i64));
+        write_the_answer(rt, "RunWait", values, 3, Value::Int(pid as i64), line)?;
+        return Ok(Value::Int(code as i64));
+    }
+    // The `Run` does not wait for the program: it starts it and goes on.
+    let pid = match rt.desktop().launch(&target, &dir) {
+        Ok(pid) => pid,
         Err(reason) => {
-            // The v1 goes on when the program does not start, and the
-            // `ErrorLevel` is the word that says it.
             if says {
                 rt.set_the_error_level(Value::Text("ERROR".into()));
             }
             return Err(RuntimeError { message: reason, line });
         }
     };
-    if !stdout.trim().is_empty() {
-        rt.push_output(stdout.trim_end().to_string());
-    }
-    if !stderr.trim().is_empty() {
-        rt.push_output(stderr.trim_end().to_string());
-    }
-    if waits {
-        // The code of the program is the `ErrorLevel` of the `RunWait`.
-        rt.set_the_error_level(Value::Int(code as i64));
-    } else if says {
+    if says {
         rt.set_the_error_level(Value::Int(0));
     }
-    Ok(Value::Int(code as i64))
+    // The pid of the process goes into the variable of the caller.
+    write_the_answer(rt, "Run", values, 3, Value::Int(pid as i64), line)?;
+    Ok(Value::Int(pid as i64))
 }
 
 /// Whether the options of the command say "useerrorlevel".

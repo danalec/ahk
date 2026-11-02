@@ -1104,6 +1104,15 @@ mode of the matching of the titles in 1, and the v2 with the "Client", the
 that are the "On" and the "Off" -- are answered by the module of the
 variables of the v1, and they come before the ones of the v2.
 
+The `Run` of the v1 is not the `Run` of the v2. The v1 starts the program
+and goes on, and the v2 waits for it: the `Run` of the v1 asks the machine
+for a program that is started without being waited for, and the machine
+answers with the pid of it. The pid goes into the fourth parameter of the
+command -- the variable of the caller -- in the `Run` and in the `RunWait`.
+The machine of the runtime has two capabilities for it: `launch`, which does
+not wait, and `run_and_wait`, which does. The box starts the program
+through the shell of the machine, the way its `run` does.
+
 ### The regular expressions (`regex.rs`)
 
 - `Regex` -- a compiled pattern.

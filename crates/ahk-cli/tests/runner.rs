@@ -265,10 +265,10 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(code, 0);
     assert_eq!(report["dialect"], "v1");
     assert_eq!(report["total"], 405);
-    // The names that the v1 has and the v2 does not are carried, and the one
-    // that is still to do is pending.
-    assert_eq!(report["values"], 296);
-    assert_eq!(report["pending"], 1);
+    // The names that the v1 has and the v2 does not are carried, and none of
+    // them is pending: the surface of the v1 is complete.
+    assert_eq!(report["values"], 297);
+    assert_eq!(report["pending"], 0);
     let entries = report["entries"].as_array().expect("the entries are a list");
     let is_set = entries
         .iter()
@@ -337,13 +337,18 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
         .find(|entry| entry["name"] == "Else")
         .expect("the name is in the report");
     assert_eq!(else_of_the_v1["state"], "value");
-    // A name that is still to do is pending, and it carries the reason.
+    // The `SetBatchLines` is carried: it is the command that turns the lines
+    // of the script on and off, and the v1 wants a number and not a flag.
     let set_batch_lines = entries
         .iter()
         .find(|entry| entry["name"] == "SetBatchLines")
         .expect("the name is in the report");
-    assert_eq!(set_batch_lines["state"], "pending");
-    assert!(set_batch_lines["reason"].is_string());
+    assert_eq!(set_batch_lines["state"], "value");
+    // No name of the v1 is pending.
+    assert!(
+        entries.iter().all(|entry| entry["state"] != "pending"),
+        "the surface of the v1 has a name that is pending"
+    );
 }
 
 /// The names of the surface: the rows of the table, without the comments

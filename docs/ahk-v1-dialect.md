@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 143 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 145 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -843,7 +843,8 @@ a function (2026-11-02), and the name that begins with a number by the block
 of the name that begins with a number (2026-11-02), and the number that
 keeps the text that was written by the block of the number (2026-11-02), and
 the path of the class of the `new` by the block of the path (2026-11-02), and
-the parameter of a command by the block of the parameters (2026-11-02).
+the parameter of a command by the block of the parameters (2026-11-02), and
+the pid of the process by the block of the pid (2026-11-02).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -865,6 +866,16 @@ defaults of its dialect when it is made -- the rule is the hook
 the flags are the "On" and the "Off" and not the number one and zero, the
 encoding of the files is the empty text for the code page of the machine,
 and the key that closes a menu is the empty text. The block of the settings
+(2026-11-02) carried it.
+
+**The `Run` of the v1.** The `Run` of the v1 starts the program and goes on,
+and the `RunWait` waits for it. The pid of the process goes into the fourth
+parameter of the command -- the variable of the caller -- in the two of them.
+The machine of the runtime gained two capabilities for it: `launch`, which
+starts a program and answers the pid of it without waiting for it, and
+`run_and_wait`, which starts a program, waits for it and answers the pid, the
+code and what the program wrote. The box starts the program through the
+shell of the machine, the way its `run` does. The block of the pid
 (2026-11-02) carried it.
 
 **The path of the class.** The `new` of the v1 takes the path of the class:

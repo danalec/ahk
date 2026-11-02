@@ -874,6 +874,53 @@ impl ahk::desktop::Processes for LabDesktop {
             String::from_utf8_lossy(&output.stderr).to_string(),
         ))
     }
+
+    fn launch(&mut self, command: &str, working_dir: &str) -> Result<u32, String> {
+        // The `Run` of the v1 does not wait for the program: it starts it and
+        // goes on. The child is left to the machine: dropping the handle does
+        // not kill it, and the script may end before the program does.
+        let child = the_program(command, working_dir)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|error| error.to_string())?;
+        Ok(child.id())
+    }
+
+    fn run_and_wait(
+        &mut self,
+        command: &str,
+        working_dir: &str,
+    ) -> Result<(u32, i32, String, String), String> {
+        let child = the_program(command, working_dir)
+            .spawn()
+            .map_err(|error| error.to_string())?;
+        let pid = child.id();
+        let output = child.wait_with_output().map_err(|error| error.to_string())?;
+        Ok((
+            pid,
+            output.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&output.stdout).to_string(),
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ))
+    }
+}
+
+/// The program that the `Run` of the v1 starts.
+///
+/// The command goes through the shell of the machine, the way the `Run` of
+/// the tree does: the target of the v1 is a program and its arguments, and
+/// the shell is what separates them. The working directory is the one of the
+/// second parameter of the command, and it is the working directory of the
+/// script when the parameter is empty.
+fn the_program(command: &str, working_dir: &str) -> Command {
+    let mut program = Command::new("sh");
+    program.arg("-c").arg(command);
+    if !working_dir.is_empty() {
+        program.current_dir(working_dir);
+    }
+    program
 }
 
 impl ahk::desktop::Machine for LabDesktop {
