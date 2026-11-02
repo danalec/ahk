@@ -6374,6 +6374,43 @@ fn the_assignment_of_the_v1_that_has_no_value_writes_the_empty_text() {
     );
 }
 
+/// The count of the `Loop` of the v1 is a number and not an expression.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the count
+/// of the `Loop` of the v1 is the text that the script wrote, and the loop is
+/// skipped when the text is not a number.
+#[test]
+fn the_count_of_the_loop_of_the_v1_is_a_number() {
+    // The number is the count.
+    let report = run("x := 0\nloop 3 {\nFileAppend, [x], *\nx++\n}\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(
+        report.output,
+        vec!["[x]".to_string(), "[x]".to_string(), "[x]".to_string(), "[3]".to_string()]
+    );
+
+    // The variable is not a number, and the loop is skipped.
+    let report = run("n := 3\nx := 0\nloop n {\nFileAppend, [x], *\nx++\n}\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[0]".to_string()]);
+
+    // The hex is a number.
+    let report = run("x := 0\nloop 0x3 {\nFileAppend, [x], *\nx++\n}\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(
+        report.output,
+        vec!["[x]".to_string(), "[x]".to_string(), "[x]".to_string(), "[3]".to_string()]
+    );
+
+    // The variable of the script is the count.
+    let report = run("n := 3\nx := 0\nloop %n% {\nFileAppend, [x], *\nx++\n}\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(
+        report.output,
+        vec!["[x]".to_string(), "[x]".to_string(), "[x]".to_string(), "[3]".to_string()]
+    );
+}
+
 /// The words of the v1 may be the name of a variable.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the words

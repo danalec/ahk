@@ -7297,7 +7297,7 @@ impl Parser {
                     if self.dialect.legacy_commands() {
                         self.next();
                         self.the_expression_begins();
-                        arguments.push(self.parse_expression()?);
+                        arguments.push(self.the_count_of_the_loop(token.line)?);
                         if self.at_op(&[","]) {
                             // The kinds of the loop of the v1 come after
                             // the count, and the tree does not carry them
@@ -7321,7 +7321,7 @@ impl Parser {
                         self.next();
                     } else if !self.at_end_of_statement() && !self.at_op(&["::", "{"]) {
                         self.the_expression_begins();
-                        arguments.push(self.parse_expression()?);
+                        arguments.push(self.the_count_of_the_loop(token.line)?);
                         if self.at_op(&[","]) {
                             // The count of the loop is not a name of a kind.
                             return Err(self.error(format!(
@@ -7349,6 +7349,35 @@ impl Parser {
             )));
         }
         Ok(Node::Loop { mode: kind.unwrap_or(LoopKind::Count), arguments, body, line: token.line })
+    }
+
+    /// The count of the loop.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// count of the `Loop` of the v1 is a number and not an expression: the
+    /// text of the count is what the script wrote, and the loop is skipped
+    /// when the text is not a number. The `%` and the space force the
+    /// expression: the `loop % Count + 1`.
+    ///
+    /// The v2 reads the count as an expression.
+    fn the_count_of_the_loop(&mut self, line: u32) -> Result<Node, SyntaxError> {
+        if !self.dialect.the_count_of_the_loop_is_a_number() {
+            self.the_expression_begins();
+            return self.parse_expression();
+        }
+        // The `%` and the space force the expression.
+        if self.at_op(&["%"]) && self.tokens.get(self.position + 1).map(|token| token.spaced).unwrap_or(false) {
+            self.next();
+            self.the_expression_begins();
+            return self.parse_expression();
+        }
+        let start = self.position;
+        // The expression is read to know where the count ends, and it is
+        // thrown away: the v1 reads the text of it.
+        let _ = self.parse_expression()?;
+        let end = self.position;
+        let text = self.the_verbatim_source(start, end);
+        Ok(Node::Literal { value: LiteralValue::Text(text), line })
     }
 
     /// The kind of the loop, when the word that follows the `Loop` names

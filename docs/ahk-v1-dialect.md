@@ -1104,6 +1104,13 @@ is a command of the v1. The `true := 5` is refused with "Not allowed as an
 output variable. Specifically: true", and the `is`, the `as`, the `in`, the
 `contains` and the `super` are names of the v1.
 
+**The count of the `Loop`** (2026-11-04). The count of the `Loop` of the v1
+is the text that the script wrote, and the loop is skipped when the text is
+not a number. The `loop n` is skipped, and so are the `loop 1+1` and the
+`loop 2.7`. The hex is a number: the `loop 0x3` is three turns. The `%` and
+a space force the expression: the `loop % Count + 1`. And the `%name%` is the
+value of the variable of the script: the `loop %n%` is the value of `n`.
+
 **What is left of the v1.** One corner of the `if` is measured on the binary
 of v1.1.37.02 and the tree does not do it yet.
 

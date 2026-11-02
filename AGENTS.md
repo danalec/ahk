@@ -8112,3 +8112,22 @@ makes a name of the words that the v1 does not use as operators, and the
 parser reads the word as a variable where the v1 does.
 
 The suite of the v1 has one case more (248).
+
+## 206. The count of the `Loop` of the v1 is a number and not an expression
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the count of
+the `Loop` of the v1 is the text that the script wrote, and the loop is
+skipped when the text is not a number. The `loop n` is skipped, and so are
+the `loop 1+1` and the `loop 2.7`. The hex is a number: the `loop 0x3` is
+three turns. The documentation of the v1 says the same: "Due to the need to
+support file-pattern loops, Count cannot be an expression."
+
+The `%` and a space force the expression: the `loop % Count + 1`. And the
+`%name%` is the value of the variable of the script, with the substitution of
+the v1: the `loop %n%` is the value of `n`.
+
+The dialect says it (`the_count_of_the_loop_is_a_number`), the parser reads
+the text of the count, the runtime substitutes it and asks the number of it
+(`v1::numbers::the_count_of_the_loop`).
+
+The suite of the v1 has one case more (249).

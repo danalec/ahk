@@ -1826,6 +1826,16 @@ that asks for another one is refused with the reason.
   makes a name of the words that the v1 does not use as operators, and the
   parser reads the word as a variable where the v1 does.
 
+- **The count of the `Loop` of the v1 is a number and not an expression.** The
+  count is the text that the script wrote, and the loop is skipped when the
+  text is not a number: the `loop n` is skipped, and so are the `loop 1+1`
+  and the `loop 2.7`. The hex is a number: the `loop 0x3` is three turns.
+  The `%` and a space force the expression, and the `%name%` is the value of
+  the variable of the script. The dialect says it
+  (`the_count_of_the_loop_is_a_number`), the parser reads the text of the
+  count, and the runtime substitutes it and asks the number of it
+  (`v1::numbers::the_count_of_the_loop`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

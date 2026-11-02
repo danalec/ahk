@@ -281,6 +281,16 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the count of the loop is a number and not an expression.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// count of the `Loop` of the v1 is a number and not an expression: the
+    /// `loop n` is skipped, and so are the `loop 1+1` and the `loop 2.7`.
+    /// The v2 reads the count as an expression.
+    fn the_count_of_the_loop_is_a_number(&self) -> bool {
+        false
+    }
+
     /// Whether the name of a variable may not carry a quote.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -1299,6 +1309,12 @@ impl Dialect for V1 {
     fn the_words_may_be_the_name_of_a_variable(&self) -> bool {
         // The words of the v1 may be the name of a variable: the `while := 5`
         // writes the variable "while", and the `x := while` reads it.
+        true
+    }
+
+    fn the_count_of_the_loop_is_a_number(&self) -> bool {
+        // The count of the `Loop` of the v1 is a number and not an
+        // expression: the `loop n` is skipped.
         true
     }
 

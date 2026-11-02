@@ -2495,7 +2495,7 @@ impl<'a> Runtime<'a> {
                     LoopKind::Count => {
                         match arguments.first() {
                             Some(node) => {
-                                let count = self.evaluate(node)?.to_number().unwrap_or(0.0) as i64;
+                                let count = self.the_count_of_the_loop(node, *line)?;
                                 // Measured on the binary of v2.0.19 on 2026-11-01:
                                 // the index of the turn is the value of
                                 // `A_Index`, and the body may write it: the
@@ -8684,6 +8684,22 @@ impl<'a> Runtime<'a> {
                 }
             },
         }
+    }
+
+    /// The count of the loop.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// count of the `Loop` of the v1 is the text that the script wrote, with
+    /// the substitution of the v1, and the loop is skipped when the text is
+    /// not a number: the `loop n` is skipped.
+    fn the_count_of_the_loop(&mut self, node: &Node, line: u32) -> Result<i64, RuntimeFailure> {
+        if self.dialect.the_count_of_the_loop_is_a_number() {
+            if let Node::Literal { value: crate::ast::LiteralValue::Text(text), .. } = node {
+                let text = self.the_substitution_of_the_v1(text, line)?;
+                return Ok(crate::v1::the_count_of_the_loop(&text));
+            }
+        }
+        Ok(self.evaluate(node)?.to_number().unwrap_or(0.0) as i64)
     }
 
     /// The substitution of the parameters of a command of the v1.

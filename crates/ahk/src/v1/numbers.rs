@@ -82,6 +82,27 @@ pub(crate) fn the_text_is_a_float(text: &str) -> bool {
     !the_text_is_a_hex(text) && (text.contains('.') || text.contains('e') || text.contains('E'))
 }
 
+/// The count of the `Loop` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the count
+/// of the `Loop` of the v1 is a number and not an expression, and the loop is
+/// skipped when the text is not a number: the `loop n` is skipped, and so are
+/// the `loop 1+1` and the `loop 2.7`. The hex is a number: the `loop 0x3` is
+/// three turns.
+///
+/// The text is trimmed, and the sign of the plus is a part of it: the `loop
+/// +3` is three turns.
+pub(crate) fn the_count_of_the_loop(text: &str) -> i64 {
+    let text = text.trim();
+    if let Ok(number) = text.parse::<i64>() {
+        return number;
+    }
+    if the_text_is_a_hex(text) {
+        return the_whole_number_of_a_hex(text);
+    }
+    0
+}
+
 /// The whole number that the hex holds.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the hex
