@@ -1736,6 +1736,14 @@ that asks for another one is refused with the reason.
   the rule of the name is in `crates/ahk/src/v1/parameters.rs`
   (`is_the_name_of_a_variable`), and the value of the variable that is named
   "0" is in `runtime.rs` (`the_value_of_an_unset_variable`).
+- **The `if` and the `while` of the v1 may come inside the line of the
+  condition of an `if`.** The construct that comes inside the line has no
+  body of its own: its condition is a part of the condition that holds it,
+  and the line that comes after is the body of the `if` that holds it. The
+  value of it is the value of its condition (`Node::LegacyControl`), the
+  parser reads it in `parse_the_control_of_a_condition`, and the dialect
+  says whether the control flow may be a value
+  (`the_control_flow_may_be_a_value`).
 
 ## Side Effects
 

@@ -2756,6 +2756,7 @@ impl<'a> Runtime<'a> {
             | Node::Group { .. }
             | Node::LegacyComparison { .. }
             | Node::LegacyMatch { .. }
+            | Node::LegacyControl { .. }
             | Node::Empty { .. } => {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "this is an expression, not a statement".into(),
@@ -9456,6 +9457,13 @@ impl<'a> Runtime<'a> {
                 }
                 Ok(value)
             }
+            Node::LegacyControl { condition, .. } => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the construct that comes inside the line of the
+                // condition of an `if` has no body of its own, and the value
+                // of it is the value of its condition.
+                self.evaluate(condition)
+            }
             Node::For { line, .. } => {
                 // A for loop is a statement: the parser never gives one
                 // where an expression is asked for.
@@ -11366,6 +11374,7 @@ pub fn op_name_in<'a>(
         Node::Group { .. } => "Group",
         Node::Empty { .. } => "Empty",
         Node::Legacy { .. } => "Legacy",
+        Node::LegacyControl { .. } => "LegacyControl",
         Node::LegacyAssign { .. } => "LegacyAssign",
         Node::LegacyComparison { .. } => "LegacyComparison",
         Node::LegacyMatch { .. } => "LegacyMatch",

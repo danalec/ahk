@@ -189,6 +189,18 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the `if` and the `while` of the dialect may come inside the
+    /// line of the condition of an `if`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// v1 accepts the `if (0) if (1) x := 1`, and the construct that comes
+    /// inside the line has no body of its own: its condition is a part of
+    /// the condition that holds it. The v2 refuses the `if` that comes
+    /// inside an expression.
+    fn the_control_flow_may_be_a_value(&self) -> bool {
+        false
+    }
+
     /// Whether a text that is a number of the dialect is false when the
     /// number is zero.
     ///
@@ -1105,6 +1117,10 @@ impl Dialect for V1 {
     }
 
     fn the_if_may_be_a_legacy_comparison(&self) -> bool {
+        true
+    }
+
+    fn the_control_flow_may_be_a_value(&self) -> bool {
         true
     }
 

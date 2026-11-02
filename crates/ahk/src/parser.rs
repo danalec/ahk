@@ -1006,6 +1006,12 @@ pub struct Parser {    tokens: Vec<Token>,
     /// The action of a hotkey is a statement of the script, and the line of
     /// it is not the line of another hotkey.
     in_the_action_of_a_hotkey: bool,
+    /// Whether the parser is reading the condition of an `if`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `if` and the `while` may come inside the line of the condition of an
+    /// `if`, and nowhere else.
+    in_the_condition_of_an_if: bool,
     /// The assignments of the script, one list for each function.
     ///
     /// The list of the top level is the first one, and the list of a
@@ -1137,6 +1143,7 @@ impl Parser {
             label_names: BTreeSet::new(),
             hotkeys: Vec::new(),
             in_the_action_of_a_hotkey: false,
+            in_the_condition_of_an_if: false,
             assignments: vec![Vec::new()],
             parameters: Vec::new(),
             in_class: false,
@@ -5047,6 +5054,34 @@ impl Parser {
         false
     }
 
+    /// The condition of an `if`, with the control flow that may come inside
+    /// the line of it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `if` and the `while` may come inside the line of the condition of an
+    /// `if`: the `if (0) if (1) x := 1` is accepted.
+    fn the_condition_of_an_if(&mut self) -> Result<Node, SyntaxError> {
+        let was = self.in_the_condition_of_an_if;
+        self.in_the_condition_of_an_if = true;
+        let condition = self.the_expression_of_a_statement();
+        self.in_the_condition_of_an_if = was;
+        condition
+    }
+
+    /// The `if` or the `while` that comes inside the line of the condition of
+    /// an `if`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// construct has no body of its own: its condition is a part of the
+    /// condition that holds it, and the line that comes after is the body of
+    /// the `if` that holds it. The v1 refuses the brace that comes after it
+    /// with "Unexpected \"{\"", and the tree refuses the line with
+    /// "Unexpected \"If\"".
+    fn parse_the_control_of_a_condition(&mut self, token: Token) -> Result<Node, SyntaxError> {
+        let condition = self.the_expression_of_a_statement()?;
+        Ok(Node::LegacyControl { condition: Box::new(condition), line: token.line })
+    }
+
     fn parse_if(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
         let mut branches = Vec::new();
@@ -5087,7 +5122,7 @@ impl Parser {
                     self.next();
                     None
                 } else {
-                    Some(self.the_expression_of_a_statement()?)
+                    Some(self.the_condition_of_an_if()?)
                 }
             }
         };
@@ -5163,7 +5198,7 @@ impl Parser {
                                 self.next();
                                 None
                             } else {
-                                Some(self.the_expression_of_a_statement()?)
+                                Some(self.the_condition_of_an_if()?)
                             }
                         }
                     };
@@ -7369,6 +7404,17 @@ impl Parser {
                 if word == "true" || word == "false" {
                     return true;
                 }
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the `if` and the `while` of the v1 may come
+                // inside the line of the condition of an `if`, and the
+                // condition of them may be written without parentheses: the
+                // `if (0) if 1 = 1` is accepted.
+                if self.in_the_condition_of_an_if
+                    && self.dialect.the_control_flow_may_be_a_value()
+                    && (word == "if" || word == "while")
+                {
+                    return true;
+                }
                 // A call has parentheses after the name.
                 match self.tokens.get(self.position + 1) {
                     Some(next) => next.kind == TokenKind::Op && next.value == "(",
@@ -8053,9 +8099,20 @@ impl Parser {
             }
             TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
             TokenKind::Keyword => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the `if` and the `while` of the v1 may come
+                // inside the line of the condition of an `if`: the
+                // `if (0) if (1) x := 1` is accepted.
+                if self.in_the_condition_of_an_if
+                    && self.dialect.the_control_flow_may_be_a_value()
+                    && (token.value.eq_ignore_ascii_case("if")
+                        || token.value.eq_ignore_ascii_case("while"))
+                {
+                    return self.parse_the_control_of_a_condition(token);
+                }
                 // The `super` of v2 is the base of the class where the
-                // method was defined. It is the only keyword that is
-                // neither a value nor a call.
+                // method was defined. It is the only keyword of the v2 that
+                // is neither a value nor a call.
                 if token.value.eq_ignore_ascii_case("super") {
                     self.parse_super(token)?
                 } else if self.at_op(&["("]) && !self.peek().spaced {

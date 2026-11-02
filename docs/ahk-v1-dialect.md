@@ -1004,13 +1004,36 @@ the `if 0 = 0` is true because of it, and the `if 0 < 0` is false. The
 writing of it wins: the `0 := 9` turns the `if 0 = 0` into a false
 condition. The `%0%` of a command reads the same variable.
 
-**What is left of the v1.** One corner of the `if` is measured on the
-binary of v1.1.37.02 and the tree does not do it yet.
+**The `if` and the `while` inside the line of the condition** (2026-11-04).
+The v1 accepts the `if (0) if (1) x := 1`, and the construct that comes
+inside the line has no body of its own: its condition is a part of the
+condition that holds it, and the line that comes after is the body of the
+`if` that holds it. The assignment that comes after it is not a body of it:
+the `if (0) if (0) x := 1` writes the variable "x".
 
-The `if` that comes after the condition: the v1 accepts the `if (1) if (1) x :=
-1` and the tree refuses it with "The following reserved word must not be used
-as a variable name: \"if\"", because the condition of the tree is an
-expression and the `if` is not one.
+The condition of the `if` that comes inside the line may be written without
+parentheses: the `if (0) if 1 = 1` is the form of the expression there, and
+the comparison is true. The `while` comes inside the line the same way.
+
+The truth of the whole is the truth of the text of the line, because the
+`if` of the v1 reads the line of the condition as one expression and joins
+the parts of it: the `if (0) if (0)` is false, because the text of it is
+"00", and the `if (0) if (1)` is true, because the text of it is "01".
+
+**What is left of the v1.** Three corners of the `if` are measured on the
+binary of v1.1.37.02 and the tree does not do them yet.
+
+The items that come after the comma of the line of the condition: the v1
+evaluates them, and the tree throws them away. The `if (0) x := 1, y := 3`
+writes the variable "y" in the v1, and the tree leaves it as it was.
+
+The messages of the load: the v1 says "Missing \")\"" and "Missing \"}\"",
+and the tree says the same with the line of the script under them, the way
+the v2 says it.
+
+The brace that comes after the `if` that is inside the line of the
+condition: the v1 refuses it with "Unexpected \"{\"", and the tree refuses
+the line with "Unexpected \"If\"".
 
 **The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
 its own, and the two colons that separate the name from the action are what

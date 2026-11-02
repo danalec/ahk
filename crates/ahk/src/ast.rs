@@ -435,6 +435,15 @@ pub enum Node {    /// A value.
         negated: bool,
         line: u32,
     },
+    /// The `if` or the `while` of the v1 that comes inside the line of the
+    /// condition of an `if`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `if (0) if (1) x := 1` is accepted, and the construct that comes
+    /// inside the line has no body of its own: its condition is a part of
+    /// the condition that holds it, and the line that comes after is the
+    /// body of the `if` that holds it.
+    LegacyControl { condition: Box<Node>, line: u32 },
     /// `list[1]`, `text[2]`: the item at a position.
     ///
     /// The positions count from one, the way AutoHotkey counts them.
@@ -720,6 +729,7 @@ impl Node {
             | Node::LegacyAssign { line, .. }
             | Node::LegacyComparison { line, .. }
             | Node::LegacyMatch { line, .. }
+            | Node::LegacyControl { line, .. }
             | Node::AssignIndex { line, .. }
             | Node::Index { line, .. }
             | Node::Call { line, .. }

@@ -7913,3 +7913,29 @@ The parser takes the number as the name of the variable
 value of the variable that is named "0" is in `crates/ahk/src/runtime.rs`
 (`the_value_of_an_unset_variable`), and the suite of the v1 has four
 cases more (230).
+
+## 197. The `if` and the `while` of the v1 may come inside the line of the condition of an `if`
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+accepts the `if (0) if (1) x := 1`, and the construct that comes inside the
+line has no body of its own: its condition is a part of the condition that
+holds it, and the line that comes after is the body of the `if` that holds
+it. The assignment that comes after it is not a body of it: the
+`if (0) if (0) x := 1` writes the variable "x".
+
+The condition of the `if` that comes inside the line may be written without
+parentheses: the `if (0) if 1 = 1` is the form of the expression there, and
+the comparison is true, and the condition of the `if` that holds it is true
+too. The `while` comes inside the line the same way: the `if (0) while (0)
+x := 1` writes the variable "x".
+
+The truth of the whole is the truth of the text of the line, because the `if`
+of the v1 reads the line of the condition as one expression and joins the
+parts of it: the `if (0) if (0)` is false, because the text of it is "00",
+and the `if (0) if (1)` is true, because the text of it is "01".
+
+The parser reads the construct in `parse_the_control_of_a_condition`, the
+value of it is the value of its condition (`Node::LegacyControl` in
+`crates/ahk/src/ast.rs`), the dialect says whether the control flow of it
+may be a value (`the_control_flow_may_be_a_value`), and the suite of the v1
+has two cases more (232).

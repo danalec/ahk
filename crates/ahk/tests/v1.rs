@@ -6085,3 +6085,51 @@ fn the_and_and_the_or_of_the_v1_answer_one_and_zero() {
     assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
 
 }
+
+/// The `if` and the `while` may come inside the line of the condition of an
+/// `if` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `if (0) if (1) x := 1` is accepted, and the construct that comes inside
+/// the line has no body of its own: its condition is a part of the
+/// condition that holds it, and the line that comes after is the body of the
+/// `if` that holds it.
+#[test]
+fn the_control_flow_may_come_inside_the_condition_of_the_if_of_the_v1() {
+    // The assignment that comes after the `if` is not a body of it: it is
+    // evaluated whether the condition of it is true or false.
+    let report = run("x := 99\nif (0) if (1) x := 1\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+
+    // And it is evaluated when the condition of it is false.
+    let report = run("x := 99\nif (0) if (0) x := 1\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+
+    // The `while` comes inside the line the same way.
+    let report = run("x := 99\nif (0) while (0) x := 1\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The `if` that comes inside the line of the condition of the v1 has no
+/// body of its own.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the line
+/// that comes next is the body of the `if` that holds it, and the condition
+/// of the whole is the truth of the text of the line: the `if (0) if (1)` is
+/// true, and the `if (0) if (0)` is false.
+#[test]
+fn the_if_that_comes_inside_the_line_of_the_condition_has_no_body_of_its_own() {
+    // The condition of the `if` that comes inside the line is true, and the
+    // line that comes next runs.
+    let report = run("if (0) if (1)\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[body]".to_string()]);
+
+    // And it is false, and the line that comes next does not run.
+    let report = run("if (0) if (0)\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
