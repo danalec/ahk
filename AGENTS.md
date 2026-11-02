@@ -7882,3 +7882,34 @@ and `the_operand_is_true`), the answer of the `&&` is in the same file
 (`the_text_that_is_a_number_is_false`, `the_text_that_was_written_is_a_string`
 and `the_operators_answer_a_number`), and the suite of the v1 has three cases
 more (226).
+## 196. The legacy `if` of the v1 takes a number as the name of a variable, and the variable that is named "0" holds the text "0"
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the names
+of the v1 may begin with a number. The `1 := 5` writes the variable "1",
+and the `if 1 = 1` compares the variable "1" with the text "1": the
+variable "1" has no value, and the empty text is not the text "1", and
+the condition is false. The tree read the line as the form of the
+expression, and the `if 1 = 1` was true there.
+
+The number is the name of a variable when the text of it has no point:
+the `if 1.0 = 1.0` is the form of the expression and the comparison is
+true, and the `if 0x0 = 0x0` is the legacy form and the variable "0x0"
+has no value.
+
+The variable that is named "0" is the exception: it holds the text "0"
+when it has no value, and the `if 0 = 0` is true because of it, and the
+`if 0 < 0` is false. The writing of it wins: the `0 := 9` turns the
+`if 0 = 0` into a false condition. The `%0%` of a command reads the same
+variable, and it is "0" before it is written.
+
+The legacy `if` with a number has no brace either: the `if 1 = 1 {`
+opens no block, and the brace that closes it is unexpected. The forms
+of the `between` and of the `in` take the number too: the `if 0 between
+-1 and 1` is true, and the `if 1 in 1` is false.
+
+The parser takes the number as the name of the variable
+(`the_condition_of_a_legacy_if`), the rule of the name is in
+`crates/ahk/src/v1/parameters.rs` (`is_the_name_of_a_variable`), the
+value of the variable that is named "0" is in `crates/ahk/src/runtime.rs`
+(`the_value_of_an_unset_variable`), and the suite of the v1 has four
+cases more (230).

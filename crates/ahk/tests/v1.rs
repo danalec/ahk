@@ -5535,6 +5535,97 @@ fn the_legacy_if_of_the_v1_takes_the_block_on_the_line_that_comes() {
     assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
 }
 
+/// The legacy `if` of the v1 takes a number as the name of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the names
+/// of the v1 may begin with a number, and the number that comes first in the
+/// legacy `if` is the name of a variable: the `if 1 = 1` compares the
+/// variable "1" with the text "1", and the variable "1" has no value, and
+/// the condition is false.
+#[test]
+fn the_legacy_if_of_the_v1_takes_a_number_as_the_name_of_a_variable() {
+    // The variable "1" has no value, and the empty text is not the text "1".
+    let report = run("if 1 = 1\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The empty text is less than the text "0", and the condition is true.
+    let report = run("if 1 < 0\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The variable "00" has no value either.
+    let report = run("if 00 = 00\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The number with the letters of the hex is a name, and the line is the
+    // legacy form: the variable "0x0" has no value.
+    let report = run("if 0x0 = 0x0\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The number with a point is not a name, and the line is the form of the
+    // expression: the comparison is true.
+    let report = run("if 1.0 = 1.0\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    // The legacy form has no brace: the block is not opened, and the brace
+    // that closes it is unexpected.
+    assert_eq!(the_refusal_of_the_load("if 1 = 1 {\ny = 6\n}"), "Unexpected \"}\"");
+}
+
+/// The variable of the v1 that is named "0" holds the text "0".
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// variable that is named "0" holds the text "0" when it has no value, and
+/// the `if 0 = 0` is true because of it. The zero is not less than itself.
+#[test]
+fn the_variable_of_the_v1_that_is_named_zero_holds_the_text_zero() {
+    let report = run("if 0 = 0\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("if 0 < 0\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    // The number of the right side is the number: the "00" is the zero.
+    let report = run("if 0 = 00\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The forms of the legacy `if` of the v1 take a number as the name of a
+/// variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if 0
+/// between -1 and 1` is true, because the variable "0" holds the text "0",
+/// and the `if 1 in 1` is false, because the variable "1" has no value.
+#[test]
+fn the_forms_of_the_legacy_if_of_the_v1_take_a_number_as_the_name() {
+    let report = run("if 0 between -1 and 1\ny = 6");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+
+    let report = run("if 1 in 1\ny = 6");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+}
+
+/// The substitution of the v1 reads the variable that is named "0".
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `%0%`
+/// of a command is the variable "0", and it holds the text "0" when it has
+/// no value.
+#[test]
+fn the_substitution_of_the_v1_reads_the_variable_that_is_named_zero() {
+    let report = run("FileAppend, %0%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0".to_string()]);
+}
+
 /// The equal sign of the legacy `if` of the v1 ignores the case.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if x

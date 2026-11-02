@@ -7656,6 +7656,20 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The value of a variable of the v1 that has no value.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: a
+    /// variable of the v1 that has no value is blank, and the variable
+    /// that is named "0" is the exception: it holds the text "0". The
+    /// `if 0 = 0` is true because of it, and the `0 := 9` turns the
+    /// `if 0 = 0` into a false condition.
+    fn the_value_of_an_unset_variable(&self, name: &str) -> Value {
+        if name == "0" {
+            return Value::Text(String::from("0"));
+        }
+        Value::Text(String::new())
+    }
+
     /// The comparison of the legacy `if` of the v1.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
@@ -8726,6 +8740,12 @@ impl<'a> Runtime<'a> {
         if let Some(value) = self.lookup(name) {
             return Ok(Some(value));
         }
+        // Measured on the binary of v1.1.37.02 on 2026-11-04: the
+        // variable that is named "0" holds the text "0" when it has no
+        // value.
+        if self.dialect.unset_is_blank() && name == "0" {
+            return Ok(Some(self.the_value_of_an_unset_variable(name)));
+        }
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the built-in
         // variable of the v1 is a value too: `%A_AutoTrim%` is "On".
         if let Some(answer) = self.the_built_in_variable(name) {
@@ -9485,7 +9505,7 @@ impl<'a> Runtime<'a> {
                             // 2026-11-01: a variable of the v1 that has no
                             // value is blank, and it is not a failure.
                             if self.dialect.unset_is_blank() {
-                                return Ok(Value::Text(String::new()));
+                                return Ok(self.the_value_of_an_unset_variable(name));
                             }
                             Err(match self.alias_of(name) {
                                 // A parameter that is an alias says that it is

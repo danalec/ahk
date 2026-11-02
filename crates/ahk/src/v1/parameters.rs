@@ -326,7 +326,7 @@ pub(crate) fn the_refusal_of_the_name_of_a_variable(text: &str) -> Option<String
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name
 /// is made of letters, of digits, of the underscore and of the "#", the "$"
 /// and the "@", and the number may begin it.
-fn is_the_name_of_a_variable(text: &str) -> bool {
+pub(crate) fn is_the_name_of_a_variable(text: &str) -> bool {
     !text.is_empty()
         && text.chars().all(|character| {
             character.is_ascii_alphanumeric() || matches!(character, '_' | '#' | '$' | '@')

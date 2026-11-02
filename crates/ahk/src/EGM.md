@@ -1726,6 +1726,16 @@ that asks for another one is refused with the reason.
   dialect says which of the rules hold (`the_text_that_is_a_number_is_false`,
   `the_text_that_was_written_is_a_string` and
   `the_operators_answer_a_number`).
+- **The legacy `if` of the v1 takes a number as the name of a variable.**
+  The names of the v1 may begin with a number, and the `if 1 = 1` compares
+  the variable "1" with the text "1", and the variable "1" has no value.
+  The number is a name when the text of it has no point, and the `if 1.0 =
+  1.0` is the form of the expression. The variable that is named "0" holds
+  the text "0" when it has no value, and the `if 0 = 0` is true because of
+  it. The parser takes the number as the name (`the_condition_of_a_legacy_if`),
+  the rule of the name is in `crates/ahk/src/v1/parameters.rs`
+  (`is_the_name_of_a_variable`), and the value of the variable that is named
+  "0" is in `runtime.rs` (`the_value_of_an_unset_variable`).
 
 ## Side Effects
 

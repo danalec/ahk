@@ -4813,7 +4813,18 @@ impl Parser {
     fn the_condition_of_a_legacy_if(&mut self) -> Result<Option<Node>, SyntaxError> {
         // The name of the variable and the comparison that comes after it.
         let Some(name) = self.tokens.get(self.position) else { return Ok(None) };
-        if name.kind != TokenKind::Name {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+        // the names of the v1 may begin with a number, and the number that
+        // comes first in the legacy `if` is the name of a variable: the
+        // `if 1 = 1` compares the variable "1" with the text "1", and the
+        // variable "1" has no value, and the condition is false. The
+        // number is a name when the text of it has no point: the `if 1.0 =
+        // 1.0` is the form of the expression, and the `if 0x0 = 0x0` is
+        // the legacy one.
+        if name.kind != TokenKind::Name
+            && !(name.kind == TokenKind::Number
+                && crate::v1::is_the_name_of_a_variable(&name.value))
+        {
             return Ok(None);
         }
         // The name is taken before the parser writes, because the tokens are

@@ -991,11 +991,21 @@ between quotes as a string, and a string is true when it is not empty: the
 the `!x` with `x` holding "00" is one. The `&&` and the `||` of the v1 answer
 one and zero, and not the operand: the `"a" && "b"` is 1.
 
-**What is left of the v1.** Two corners of the `if` are measured on the
-binary of v1.1.37.02 and the tree does not do them yet.
+**The number on the left of the legacy `if`** (2026-11-04). The names of the
+v1 may begin with a number, and the number that comes first in the legacy
+`if` is the name of a variable: the `if 1 = 1` compares the variable "1"
+with the text "1", and the variable "1" has no value, and the condition is
+false. The number is a name when the text of it has no point: the `if 1.0 =
+1.0` is the form of the expression, and the `if 0x0 = 0x0` is the legacy
+form.
 
-The `if 1 = 1 {` is the legacy form in the v1, and the tree does not know it:
-the left side of the legacy `if` is a name and not a number.
+The variable that is named "0" holds the text "0" when it has no value, and
+the `if 0 = 0` is true because of it, and the `if 0 < 0` is false. The
+writing of it wins: the `0 := 9` turns the `if 0 = 0` into a false
+condition. The `%0%` of a command reads the same variable.
+
+**What is left of the v1.** One corner of the `if` is measured on the
+binary of v1.1.37.02 and the tree does not do it yet.
 
 The `if` that comes after the condition: the v1 accepts the `if (1) if (1) x :=
 1` and the tree refuses it with "The following reserved word must not be used
