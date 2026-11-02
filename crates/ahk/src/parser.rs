@@ -359,12 +359,48 @@ fn the_token_is_an_illegal_character(token: &Token) -> bool {
 /// of the line. The one that is a line that holds no action ends at the end
 /// of the line.
 fn the_text_of_the_illegal_character(parser: &Parser, at: usize, in_an_expression: bool) -> String {
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    // names the symbol that begins at the character: the `;c` of the
+    // `x := 1;c`, and the `;c.` of the `x := 1;c.`.
+    if in_an_expression && parser.dialect.the_illegal_character_names_the_symbol() {
+        return the_symbol_that_begins_at(parser, at);
+    }
     let end = if in_an_expression {
         the_end_of_the_expression_of_the_illegal_character(parser, at)
     } else {
         the_end_of_the_line_of(parser, at)
     };
     the_source_with_the_newlines_as_spaces(parser, at, end)
+}
+
+/// The symbol that begins at the place.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// symbol of the v1 ends at the space and at the punctuation: the `;c` of
+/// the `x := 1;c` is the symbol, and the `;` of the `x := 1;(c)` is one.
+/// The point, the semicolon and the percent sign are a part of it.
+fn the_symbol_that_begins_at(parser: &Parser, at: usize) -> String {
+    let Some(token) = parser.tokens.get(at) else { return String::new() };
+    let Some(line) = parser.lines.get(token.line as usize - 1) else { return token.value.clone() };
+    let characters: Vec<char> = line.chars().collect();
+    let start = (token.column as usize).saturating_sub(1);
+    if start >= characters.len() {
+        return token.value.clone();
+    }
+    let mut end = start;
+    while end < characters.len() && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end]) {
+        end += 1;
+    }
+    characters[start..end].iter().collect()
+}
+
+/// Whether the symbol begins with the quote that the dialect does not read.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// single quote is not a text in the v1, and the symbol that begins with it
+/// is an illegal character in an expression.
+fn the_symbol_begins_with_the_illegal_quote(token: &Token) -> bool {
+    token.kind == TokenKind::Name && token.value.starts_with('\'')
 }
 
 /// The end of the expression that holds an illegal character.
@@ -3289,6 +3325,14 @@ impl Parser {
             }]);
         }
         if self.at_op(&["("]) && !self.peek().spaced {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the single quote is not a text in the v1, and the symbol that
+            // begins with it is an illegal character in an expression.
+            if self.dialect.the_single_quote_is_not_a_text()
+                && the_symbol_begins_with_the_illegal_quote(&name_token)
+            {
+                return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
+            }
             self.next();
             // The name of the call is the token that comes before the
             // parenthesis, and the text of a refusal names the call.
@@ -3433,7 +3477,9 @@ impl Parser {
             // the name of the v1 may not carry a quote, and the value that
             // holds the member is a variable: the `a"b".Prop := 5` is
             // refused.
-            if self.dialect.the_name_may_not_carry_a_quote() && name_token.value.contains('"') {
+            if self.dialect.the_name_may_not_carry_a_quote()
+                && (name_token.value.contains('"') || the_symbol_begins_with_the_illegal_quote(&name_token))
+            {
                 return Err(self.the_name_that_carries_a_quote(&name_token.value, name_token.line, name_token.column));
             }
             let target = Node::Var { name: name_token.value.clone(), line: name_token.line };
@@ -4433,7 +4479,9 @@ impl Parser {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // name of the v1 may not carry a quote, and the target of an
         // assignment is a variable: the `a"b" := 5` is refused.
-        if self.dialect.the_name_may_not_carry_a_quote() && name_token.value.contains('"') {
+        if self.dialect.the_name_may_not_carry_a_quote()
+            && (name_token.value.contains('"') || the_symbol_begins_with_the_illegal_quote(&name_token))
+        {
             return Err(self.the_name_that_carries_a_quote(&name_token.value, name_token.line, name_token.column));
         }
         let operator = self.peek().clone();
@@ -8062,7 +8110,14 @@ impl Parser {
         let token = &self.tokens[at];
         let text = the_text_of_the_illegal_character(self, at, in_an_expression);
         let message = if in_an_expression {
-            format!("Illegal character in expression.\n     Specifically: {text}")
+            if self.dialect.the_illegal_character_says_the_leftmost() {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 says that the character is the leftmost
+                // one of the line.
+                format!("The leftmost character above is illegal in an expression.\n     Specifically: {text}")
+            } else {
+                format!("Illegal character in expression.\n     Specifically: {text}")
+            }
         } else {
             format!("This line does not contain a recognized action.\n     Specifically: {text}")
         };
@@ -8542,6 +8597,15 @@ impl Parser {
                 }
             }
             TokenKind::Name => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the single quote is not a text in the v1, and
+                // the symbol that begins with it is an illegal character in
+                // an expression.
+                if self.dialect.the_single_quote_is_not_a_text()
+                    && the_symbol_begins_with_the_illegal_quote(&token)
+                {
+                    return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
+                }
                 // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // `new` of the v1 makes an instance of a class of the
                 // script, and the name of the class follows it. The word is
@@ -8995,6 +9059,15 @@ impl Parser {
                     continue;
                 }
                 let name = self.next();
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the single quote is not a text in the v1, and
+                // the symbol that begins with it is an illegal character in
+                // an expression.
+                if self.dialect.the_single_quote_is_not_a_text()
+                    && the_symbol_begins_with_the_illegal_quote(&name)
+                {
+                    return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
+                }
                 // The member of v2 may be a number: the name of the
                 // property is the text of the number, and `1.5.2` asks for
                 // the property "2" of the float.

@@ -8131,3 +8131,45 @@ the text of the count, the runtime substitutes it and asks the number of it
 (`v1::numbers::the_count_of_the_loop`).
 
 The suite of the v1 has one case more (249).
+
+
+## 207. The illegal character of the v1 names the symbol, and says that it is the leftmost one
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 says
+"The leftmost character above is illegal in an expression." and names the
+symbol that begins at the character -- the `;c` of the `x := 1;c`. The v2 says
+"Illegal character in expression." and names the rest of the expression.
+
+The symbol ends at the space and at the punctuation: the `;` of the `x := 1;
+y := 2` is the symbol, and the `;c` of the `x := 1;c,d` is one. The point, the
+semicolon and the percent sign are a part of it: the `;c.` of the `x := 1;c.`
+is the symbol, and the `;"a"` of the `x := 1;"a"` is one.
+
+The dialect says it (`the_illegal_character_names_the_symbol` and
+`the_illegal_character_says_the_leftmost`), and the parser names the symbol
+of the line where the character is (`the_symbol_that_begins_at`).
+
+The suite of the v1 has one case more (250).
+
+## 208. The single quote is not a text in the v1
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the single
+quote is not a delimiter of a text in the v1: it begins a symbol, and the
+symbol that begins with it is refused where an expression wants an operand --
+the `x := 'abc'` is refused with "The leftmost character above is illegal in
+an expression. Specifically: 'abc'".
+
+The symbol ends at the space and at the punctuation, like the symbol of the
+illegal character: the `x := 'a b'` names the `'a`, and the `x := 'a''b'`
+names the `'a''b'`.
+
+Where the symbol is a name, the refusal is the one of the name: the target of
+an assignment -- the `'abc' := 5` -- is refused with "The following variable
+name contains an illegal character: "'abc'". The statement that holds the
+symbol alone is a line that holds no action, and the name of a command of the
+v1 is a text: the `FileAppend, 'abc', *` runs and writes `'abc'`.
+
+The dialect says it (`the_single_quote_is_not_a_text`), the lexer reads the
+symbol, and the parser refuses it where an expression wants an operand.
+
+The suite of the v1 has one case more (251).

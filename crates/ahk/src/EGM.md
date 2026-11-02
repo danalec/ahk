@@ -1836,6 +1836,23 @@ that asks for another one is refused with the reason.
   count, and the runtime substitutes it and asks the number of it
   (`v1::numbers::the_count_of_the_loop`).
 
+- **The illegal character of the v1 names the symbol.** The v1 says "The
+  leftmost character above is illegal in an expression." and names the symbol
+  that begins at the character -- the `;c` of the `x := 1;c`. The v2 says
+  "Illegal character in expression." and names the rest of the expression. The
+  dialect says it (`the_illegal_character_names_the_symbol` and
+  `the_illegal_character_says_the_leftmost`), and the parser names the symbol
+  of the line where the character is (`the_symbol_that_begins_at`).
+
+- **The single quote is not a text in the v1.** The single quote begins a
+  symbol, and the symbol that begins with it is refused where an expression
+  wants an operand -- the `x := 'abc'` is refused with "The leftmost
+  character above is illegal in an expression. Specifically: 'abc'". Where the
+  symbol is a name, the refusal is the one of the name: the `'abc' := 5` is
+  refused with "The following variable name contains an illegal character:".
+  The dialect says it (`the_single_quote_is_not_a_text`), the lexer reads the
+  symbol, and the parser refuses it where an expression wants an operand.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

@@ -6544,3 +6544,93 @@ fn the_line_that_comes_with_the_tail_of_the_if_of_the_v1_is_an_action() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["[mark]".to_string()]);
 }
+
+/// The character that is illegal in an expression of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// says "The leftmost character above is illegal in an expression." and
+/// names the symbol that begins at the character -- the `;c` of the
+/// `x := 1;c`. The v2 says "Illegal character in expression." and names the
+/// rest of the expression.
+#[test]
+fn the_illegal_character_of_the_v1_names_the_symbol() {
+    // The semicolon that is glued to the token that comes before it.
+    assert_eq!(
+        the_refusal_of_the_load("x := 1;c"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: ;c"
+    );
+
+    // The symbol ends at the space.
+    assert_eq!(
+        the_refusal_of_the_load("x := 1; y := 2"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: ;"
+    );
+
+    // And at the punctuation.
+    assert_eq!(
+        the_refusal_of_the_load("x := 1;(c)"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: ;"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := 1;c,d"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: ;c"
+    );
+
+    // The point and the semicolon are a part of the symbol.
+    assert_eq!(
+        the_refusal_of_the_load("x := 1;c."),
+        "The leftmost character above is illegal in an expression.\n     Specifically: ;c."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := 1;c;"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: ;c;"
+    );
+}
+
+/// The single quote is not a text in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// single quote begins a symbol, and the symbol is refused where an
+/// expression wants an operand -- the `x := 'abc'` is refused with "The
+/// leftmost character above is illegal in an expression.". The v2 reads the
+/// text between the single quotes.
+#[test]
+fn the_single_quote_is_not_a_text_in_the_v1() {
+    // The value of an expression.
+    assert_eq!(
+        the_refusal_of_the_load("x := 'abc'"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: 'abc'"
+    );
+
+    // The symbol ends at the space.
+    assert_eq!(
+        the_refusal_of_the_load("x := 'a b'"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: 'a"
+    );
+
+    // The name of a call is not a variable, but the character that begins it
+    // is illegal in an expression.
+    assert_eq!(
+        the_refusal_of_the_load("'abc'(1)"),
+        "The leftmost character above is illegal in an expression.\n     Specifically: 'abc'"
+    );
+
+    // The target of an assignment is a name, and the name carries the quote.
+    assert_eq!(
+        the_refusal_of_the_load("'abc' := 5"),
+        "The following variable name contains an illegal character:\n\"'abc'\""
+    );
+
+    // The statement that holds the symbol alone is a line that holds no
+    // action.
+    assert_eq!(
+        the_refusal_of_the_load("'abc'"),
+        "This line does not contain a recognized action.\n     Specifically: 'abc'"
+    );
+
+    // The name of a command of the v1 is a text, and the v1 does not refuse
+    // it.
+    let report = run("FileAppend, 'abc', *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["'abc'".to_string()]);
+}

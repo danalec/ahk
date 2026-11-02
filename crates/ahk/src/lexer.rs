@@ -157,6 +157,22 @@ fn the_character_ends_a_symbol(character: char) -> bool {
         )
 }
 
+/// Whether the character ends the symbol of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// symbol of the v1 ends at the space and at the punctuation: the `;c` of
+/// the `x := 1;c` is the symbol, and the `;` of the `x := 1;(c)` is one.
+/// The point, the semicolon, the percent sign, the quotes and the marks are
+/// a part of it: the `;c.` of the `x := 1;c.` is the symbol.
+pub fn the_character_ends_the_symbol_of_the_v1(character: char) -> bool {
+    character.is_whitespace()
+        || matches!(
+            character,
+            ',' | ')' | '(' | '}' | '{' | ']' | '[' | ':' | '=' | '!' | '<' | '>' | '&' | '|' | '^'
+                | '+' | '-' | '*' | '/' | '~' | '?'
+        )
+}
+
 /// The source of a text, the way the script wrote it.
 ///
 /// The text of the v1 is between double quotes, and the quote that was
@@ -865,6 +881,29 @@ pub fn tokenize_with(
             tokens.push(Token { kind: TokenKind::Op, value: ";".into(), line, column, spaced: before, quote: None });
             index += 1;
             column += 1;
+            continue;
+        }
+        if current == '\'' && dialect.the_single_quote_is_not_a_text() {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the single quote is not a delimiter of a text in the v1: it
+            // begins a symbol, and the symbol is refused where an expression
+            // wants an operand.
+            let (start_line, start_column) = (line, column);
+            let mut end = index;
+            while end < chars.len() && !the_character_ends_the_symbol_of_the_v1(chars[end]) {
+                end += 1;
+            }
+            let symbol: String = chars[index..end].iter().collect();
+            column += (end - index) as u32;
+            index = end;
+            tokens.push(Token {
+                kind: TokenKind::Name,
+                value: symbol,
+                line: start_line,
+                column: start_column,
+                spaced: before,
+                quote: None,
+            });
             continue;
         }
         if current == '"' || current == '\'' {

@@ -1111,6 +1111,33 @@ not a number. The `loop n` is skipped, and so are the `loop 1+1` and the
 a space force the expression: the `loop % Count + 1`. And the `%name%` is the
 value of the variable of the script: the `loop %n%` is the value of `n`.
 
+
+**The illegal character of an expression** (2026-11-04). The v1 says "The
+leftmost character above is illegal in an expression." and names the symbol
+that begins at the character -- the `;c` of the `x := 1;c`. The v2 says
+"Illegal character in expression." and names the rest of the expression.
+
+The symbol ends at the space and at the punctuation: the `;` of the `x := 1;
+y := 2` is the symbol, and the `;c` of the `x := 1;c,d` is one. The point, the
+semicolon and the percent sign are a part of it: the `;c.` of the `x := 1;c.`
+is the symbol, and the `;"a"` of the `x := 1;"a"` is one.
+
+**The single quote is not a text** (2026-11-04). The single quote is not a
+delimiter of a text in the v1: it begins a symbol, and the symbol that begins
+with it is refused where an expression wants an operand -- the `x := 'abc'` is
+refused with "The leftmost character above is illegal in an expression.
+Specifically: 'abc'".
+
+The symbol ends at the space and at the punctuation, like the symbol of the
+illegal character: the `x := 'a b'` names the `'a`, and the `x := 'a''b'` names
+the `'a''b'`.
+
+Where the symbol is a name, the refusal is the one of the name: the `'abc' :=
+5` is refused with "The following variable name contains an illegal
+character: "'abc'". The statement that holds the symbol alone is a line that
+holds no action, and the name of a command of the v1 is a text: the
+`FileAppend, 'abc', *` runs and writes `'abc'`.
+
 **What is left of the v1.** One corner of the `if` is measured on the binary
 of v1.1.37.02 and the tree does not do it yet.
 
@@ -1129,11 +1156,18 @@ refusal of the name comes before the refusal of the sense: the `return a"b"`
 is the name in the v1, and the tree says "Return's parameter should be blank
 except inside a function.".
 
-And one more that is not of the `if`: the illegal character of an expression.
-The v1 says "The leftmost character above is illegal in an expression.
-Specifically: ;" and names the character alone; the tree says "Illegal
-character in expression. Specifically: ; y := 1" and names the rest of the
-line.
+And one more that is not of the `if`: the name that carries a backtick. The
+v1 refuses the name with "The following variable name contains an illegal
+character:" and the part of it that comes before the backtick -- the
+``x := a`b`` names the `a` -- and the tree says "unexpected character '`'".
+
+And the member that is written: the v1 has no objects, and the `a.b := 5`
+writes the variable whose name is "a.b". The tree reads the member as a
+property, and the `a.b := 5` fails at the run with "This value of type
+"String" has no property named "b".". And the member whose name is a symbol
+-- the `a.'b' := 5` -- is refused by the v1 with "This line does not contain
+a recognized action. Specifically: a.'b' := 5", and the tree refuses it with
+the illegal character of the expression.
 
 And one more still: the call of a name that is not a function, when the
 bracket that closes it is not there. The v1 says "Call to nonexistent

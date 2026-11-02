@@ -305,6 +305,37 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the single quote is not a delimiter of a text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// single quote is not a text in the v1: it begins a symbol, and the
+    /// symbol that begins with it is refused where an expression wants an
+    /// operand -- the `x := 'abc'` is refused with "The leftmost character
+    /// above is illegal in an expression.". The v2 reads the text between
+    /// the single quotes.
+    fn the_single_quote_is_not_a_text(&self) -> bool {
+        false
+    }
+
+    /// Whether the refusal of an illegal character names the symbol.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// v1 names the symbol that begins at the character -- the `;c` of the
+    /// `x := 1;c` -- and the v2 names the rest of the expression.
+    fn the_illegal_character_names_the_symbol(&self) -> bool {
+        false
+    }
+
+    /// Whether the refusal of an illegal character says that the character
+    /// is the leftmost one.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// v1 says "The leftmost character above is illegal in an expression."
+    /// and the v2 says "Illegal character in expression.".
+    fn the_illegal_character_says_the_leftmost(&self) -> bool {
+        false
+    }
+
     /// Whether the text that is not closed is named alone, with the words of
     /// the dialect.
     ///
@@ -1322,6 +1353,24 @@ impl Dialect for V1 {
         // The name of the v1 may not carry a quote: the `x := a"b"` is a name
         // with an illegal character. The refusal is where the name is a
         // variable, and not where it is the name of a command.
+        true
+    }
+
+    fn the_single_quote_is_not_a_text(&self) -> bool {
+        // The single quote is not a text in the v1: it begins a symbol, and
+        // the symbol is refused where an expression wants an operand.
+        true
+    }
+
+    fn the_illegal_character_names_the_symbol(&self) -> bool {
+        // The v1 names the symbol that begins at the character: the `;c` of
+        // the `x := 1;c`.
+        true
+    }
+
+    fn the_illegal_character_says_the_leftmost(&self) -> bool {
+        // The v1 says "The leftmost character above is illegal in an
+        // expression.".
         true
     }
 
