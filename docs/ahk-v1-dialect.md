@@ -1035,12 +1035,26 @@ the operators that write a variable read it: the text that is not a number
 is the number zero, and the `a++` of the "abc" is one, and the `a++` of a
 variable that has no value is one too.
 
-**What is left of the v1.** Three corners of the `if` are measured on the
-binary of v1.1.37.02 and the tree does not do them yet.
+**The items that come after the comma** (2026-11-04). The line of the
+condition of the `if` of the v1 is one expression, and the items that come
+after the comma are evaluated: the `if (0) x := 1, y := 3` writes the
+variable "y". They are evaluated whether the condition is true or false, and
+the value of them does not count for the truth: the `if (0) x := 0, y := 3`
+does not run the body of the `if`.
 
-The items that come after the comma of the line of the condition: the v1
-evaluates them, and the tree throws them away. The `if (0) x := 1, y := 3`
-writes the variable "y" in the v1, and the tree leaves it as it was.
+The items are expressions, and the command of the v1 is not one of them: the
+`if (0) x := 1, FileAppend, A1, done` does not write the file, and the `if
+(0) x := 1, ExitApp 5` does not leave the script. The name of the command is
+a variable when it is read as an expression, and the variable has no value.
+The call of an item runs: the `if (0) x := 1, x := StrLen("abc")` writes the
+variable "x" with the value 3.
+
+The item takes the line that comes with it when the expression continues
+there: the `if (0) x := 1, y := 3` with a `+ 4` under it writes the variable
+"y" with the value 7.
+
+**What is left of the v1.** Five corners of the `if` are measured on the
+binary of v1.1.37.02 and the tree does not do them yet.
 
 The messages of the load: the v1 says "Missing \")\"" and "Missing \"}\"",
 and the tree says the same with the line of the script under them, the way
@@ -1049,6 +1063,19 @@ the v2 says it.
 The brace that comes after the `if` that is inside the line of the
 condition: the v1 refuses it with "Unexpected \"{\"", and the tree refuses
 the line with "Unexpected \"If\"".
+
+The `if` of the v1 that has no body: the v1 accepts it, and the tree refuses
+the line with "Unexpected \"If\"".
+
+The assignment of the v1 that has no value: the `y :=` writes the empty
+text, and the line that comes is a statement of its own. The tree continues
+the assignment on the line that comes: the `y :=` with a `3 + 4` under it
+writes the variable "y" with the value 7.
+
+The line that the tail of the `if` takes: the v1 refuses a line that holds
+no action, and the tree takes it as a part of the tail. The `if (0) x := 1,
+FileAppend, A, *` with a `B` under it is refused by the v1 with "This line
+does not contain a recognized action. Specifically: B".
 
 And one corner that is not of the `if`: the concatenation of two values that
 are side by side. The v1 does not ask for the space that tells them apart,

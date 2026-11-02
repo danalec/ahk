@@ -1751,6 +1751,7 @@ impl<'a> Runtime<'a> {
                 }
                 Node::If { branches, otherwise, .. } => {
                     for branch in branches {
+                        self.collect_functions(&branch.tail);
                         self.collect_functions(&branch.body);
                     }
                     self.collect_functions(otherwise);
@@ -2358,6 +2359,13 @@ impl<'a> Runtime<'a> {
                 let mut taken = false;
                 for branch in branches {
                     let value = self.evaluate(&branch.condition)?;
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the items that come after the comma of the
+                    // line of the condition run after the condition is
+                    // evaluated, and they run whether it is true or false.
+                    for item in &branch.tail {
+                        self.evaluate(item)?;
+                    }
                     if self.the_value_is_true(&value) {
                         self.run_block(&branch.body)?;
                         taken = true;

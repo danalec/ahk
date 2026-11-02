@@ -1119,6 +1119,31 @@ struct PendingLiteral {
     column: u32,
 }
 
+/// The state of the parser, kept while a text that may not be an expression
+/// is read.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the tail of
+/// the `if` of the v1 is a text that the v1 reads as the parameters of a
+/// command when it is not an expression, and the read of it may fail. The
+/// state is kept so that the failure does not leave the parser in a strange
+/// place.
+struct TheStateOfTheParser {
+    /// The place of the token that is being read.
+    position: usize,
+    /// The number of the expressions that may hold the operator that may not
+    /// follow a literal text.
+    expressions: usize,
+    /// The operator that may not follow a literal text: the place of it, the
+    /// line of it and the column of it.
+    pending_literal: Option<(usize, u32, u32)>,
+    /// The number of the names that the script is building and that are open.
+    derefs: usize,
+    /// The number of the assignments of the scope that is being read.
+    assignments: usize,
+    /// The number of the calls of the script.
+    calls: usize,
+}
+
 impl Parser {
     /// A parser over the tokens, in the dialect of the tree.
     ///
@@ -4760,12 +4785,17 @@ impl Parser {
     ///
     /// The brace that opens the body of the `if` is not a part of the tail:
     /// the `if (1) {` has no tail at all, and the body of it is the block.
-    fn the_tail_of_the_if_of_the_v1(&mut self) -> Result<bool, SyntaxError> {
+    fn the_tail_of_the_if_of_the_v1(&mut self) -> Result<(bool, Vec<Node>), SyntaxError> {
         // The first line of the tail is the line of the condition, and the
         // lines that come after it are the continuation of it.
         let mut first = true;
         // Whether the tail took the line that comes with it.
         let mut took_a_line = false;
+        // The places of the commas of the first line: the items of the tail
+        // are the texts that come between them.
+        let mut commas: Vec<usize> = Vec::new();
+        // The end of the first line of the tail.
+        let mut end_of_the_first_line = 0usize;
         loop {
             let start = self.position;
             let mut depth = 0usize;
@@ -4774,6 +4804,8 @@ impl Parser {
             // are the ones that separate them.
             let mut first_parameter = None;
             let mut last_parameter = self.position;
+            // The places of the commas of this line.
+            let mut the_commas: Vec<usize> = Vec::new();
             let mut at_the_first_token = true;
             while !self.at_end_of_statement() {
                 // The brace that opens the body of the `if` is not a part of
@@ -4792,12 +4824,21 @@ impl Parser {
                                 first_parameter = Some(self.position);
                             }
                             last_parameter = self.position;
+                            // The place of the comma itself: the item that
+                            // comes before it ends there.
+                            the_commas.push(self.position - 1);
                         }
                         _ => {}
                     }
                 }
             }
             let end = self.position;
+            if first {
+                // The items of the tail are the texts that come after the
+                // commas of the line of the condition.
+                commas = the_commas;
+                end_of_the_first_line = end;
+            }
             // The expression of the tail is the last parameter of the line,
             // and the parameter that continues on the line that comes is the
             // first one of it.
@@ -4850,7 +4891,102 @@ impl Parser {
                 break;
             }
         }
-        Ok(took_a_line)
+        // The items of the tail are read after it, and the read of them may
+        // take the line that comes: the `if (0) x := 1, y := 3` with a `+ 4`
+        // under it writes the variable "y" with the value 7.
+        let end_of_the_tail = self.position;
+        let items = self.the_items_of_the_tail_of_the_v1(&commas, end_of_the_first_line)?;
+        if self.position < end_of_the_tail {
+            self.position = end_of_the_tail;
+        }
+        Ok((took_a_line, items))
+    }
+
+    /// The items of the tail of the `if` of the v1: the texts that come
+    /// after the commas of the line of the condition.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+    ///
+    /// - The items are expressions, and they are evaluated whether the
+    ///   condition is true or false: the `if (0) x := 1, y := 3` writes the
+    ///   variable "y".
+    /// - The value of them does not count for the truth of the condition: the
+    ///   `if (0) x := 0, y := 3` does not run the body of the `if`.
+    /// - The command of the v1 is not run by them: the `if (0) x := 1,
+    ///   FileAppend, A1, done` does not write the file. The name of the
+    ///   command is a variable when it is read as an expression, and the
+    ///   variable has no value.
+    /// - A text that is not an expression is the parameter of a command, and
+    ///   the v1 does not run it: the `if (0) x := 1, *` is a script that
+    ///   loads.
+    fn the_items_of_the_tail_of_the_v1(
+        &mut self,
+        commas: &[usize],
+        end: usize,
+    ) -> Result<Vec<Node>, SyntaxError> {
+        let mut items = Vec::new();
+        for index in 0..commas.len() {
+            // The item begins after the comma and ends at the next one.
+            let from = commas[index] + 1;
+            let to = if index + 1 < commas.len() { commas[index + 1] } else { end };
+            // The state of the parser is kept, because the text may not be an
+            // expression and the read of it may fail.
+            let state = self.the_state_is_kept();
+            self.position = from;
+            let item = match self.parse_expression() {
+                Ok(item) => item,
+                Err(_) => {
+                    // The text is not an expression: the v1 reads it as the
+                    // parameter of a command, and the command is not run.
+                    self.the_state_is_restored(state);
+                    break;
+                }
+            };
+            // The expression that stops before the end of the item is not the
+            // whole of it: the text after it is the parameter of a command.
+            if self.position < to {
+                self.the_state_is_restored(state);
+                break;
+            }
+            items.push(item);
+        }
+        Ok(items)
+    }
+
+    /// The state of the parser is kept, so that it may be put back where it
+    /// was.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// tail of the `if` of the v1 is a text that the v1 reads as the
+    /// parameters of a command when it is not an expression, and the read of
+    /// it may fail. The state is kept so that the failure does not leave the
+    /// parser in a strange place.
+    fn the_state_is_kept(&self) -> TheStateOfTheParser {
+        TheStateOfTheParser {
+            position: self.position,
+            expressions: self.expressions.len(),
+            pending_literal: self
+                .pending_literal
+                .as_ref()
+                .map(|pending| (pending.at, pending.line, pending.column)),
+            derefs: self.derefs,
+            assignments: self.assignments.last().map(|list| list.len()).unwrap_or(0),
+            calls: self.calls.len(),
+        }
+    }
+
+    /// The state of the parser is put back where it was.
+    fn the_state_is_restored(&mut self, state: TheStateOfTheParser) {
+        self.position = state.position;
+        self.expressions.truncate(state.expressions);
+        self.pending_literal = state
+            .pending_literal
+            .map(|(at, line, column)| PendingLiteral { at, line, column });
+        self.derefs = state.derefs;
+        if let Some(list) = self.assignments.last_mut() {
+            list.truncate(state.assignments);
+        }
+        self.calls.truncate(state.calls);
     }
 
     /// The condition of the legacy `if` of the v1: `if x = 1`.
@@ -5189,11 +5325,12 @@ impl Parser {
         // when the text of it ends with an operator, and the `else` that
         // comes after it is the other side of the `if`: the body of the
         // `else` runs whether the condition is true or false.
-        let the_tail_took_a_line = if !the_legacy && self.dialect.the_if_may_carry_a_tail() {
-            self.the_tail_of_the_if_of_the_v1()?
-        } else {
-            false
-        };
+        let (the_tail_took_a_line, the_items_of_the_tail) =
+            if !the_legacy && self.dialect.the_if_may_carry_a_tail() {
+                self.the_tail_of_the_if_of_the_v1()?
+            } else {
+                (false, Vec::new())
+            };
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
         // the tail of the `if` of the v1 takes the line that comes with it
         // when the text of it ends with an operator, and the `if` has no
@@ -5212,7 +5349,7 @@ impl Parser {
         let Some(condition) = condition else {
             return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
         };
-        branches.push(Branch { condition, body });
+        branches.push(Branch { condition, tail: the_items_of_the_tail, body });
         let mut otherwise = Vec::new();
         // Whether the `else` is a body and not the branch of an `else if`.
         let mut the_else_is_a_body = false;
@@ -5259,7 +5396,7 @@ impl Parser {
                     let Some(condition) = condition else {
                         return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
                     };
-                    branches.push(Branch { condition, body });
+                    branches.push(Branch { condition, tail: Vec::new(), body });
                     continue;
                 }
                 otherwise = self.parse_block("Else", keyword.line)?;

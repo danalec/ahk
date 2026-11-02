@@ -299,6 +299,15 @@ pub enum AssignOp {
 pub struct Branch {
     /// The condition.
     pub condition: Node,
+    /// The items that come after the comma of the line of the condition.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// items are expressions, and they are evaluated whether the condition is
+    /// true or false: the `if (0) x := 1, y := 3` writes the variable "y".
+    /// The value of them does not count for the truth of the condition, and
+    /// the command of the v1 is not run by them: the `if (0) x := 1,
+    /// FileAppend, A1, done` does not write the file.
+    pub tail: Vec<Node>,
     /// What runs when it holds.
     pub body: Vec<Node>,
 }

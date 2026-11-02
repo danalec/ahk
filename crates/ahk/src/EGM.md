@@ -240,7 +240,10 @@ are not a precedence: they are what the lexer reads.
 Two values side by side are one value: that is the implicit
 concatenation of v2, and it binds like the dot. The parser makes it a
 `Concat` as well, so the two ways of writing it are the same node.
-- `Branch { condition: Node, body: Vec<Node> }` -- one branch of an `If`.
+- `Branch { condition: Node, tail: Vec<Node>, body: Vec<Node> }` -- one branch
+  of an `If`. The `tail` holds the items that come after the comma of the
+  line of the condition of the v1, and they are evaluated whether the
+  condition is true or false.
 - `Case { values: Vec<Node>, body: Vec<Node> }` -- one `Case` of a
   `Switch`; an empty list of values is the `Default`. A case may name many
   values, and it matches when the subject of the switch is one of them.
@@ -1753,6 +1756,18 @@ that asks for another one is refused with the reason.
   keeps the `++` that comes after a number as one operator
   (`the_increment_after_a_number_is_an_operator`), and the increment of a
   literal is the empty text (`the_increment_of_a_literal_is_blank`).
+- **The items that come after the comma of the line of the condition of the
+  `if` of the v1 are evaluated.** The `if (0) x := 1, y := 3` writes the
+  variable "y", and it writes it whether the condition is true or false. The
+  value of the items does not count for the truth of the condition: the `if
+  (0) x := 0, y := 3` does not run the body of the `if`. The command of the
+  v1 is not run by them: the `if (0) x := 1, FileAppend, A1, done` does not
+  write the file, because the name of the command is a variable when it is
+  read as an expression, and the variable has no value. The parser reads the
+  items in `the_items_of_the_tail_of_the_v1` and keeps the state of the
+  parser while it reads them, because a text that is not an expression is
+  the parameter of a command. The runtime runs the items in the `If`
+  (`Node::If`).
 
 ## Side Effects
 

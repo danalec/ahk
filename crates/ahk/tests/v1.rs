@@ -6226,3 +6226,69 @@ fn the_statement_of_a_name_that_begins_with_a_number_holds_no_action() {
         "This line does not contain a recognized action.\n     Specifically: 0"
     );
 }
+
+/// The items that come after the comma of the line of the condition of the
+/// `if` of the v1 are evaluated.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `if (0) x := 1, y := 3` writes the variable "y", and it writes it
+/// whether the condition is true or false. The value of the items does not
+/// count for the truth of the condition: the `if (0) x := 0, y := 3` does
+/// not run the body of the `if`.
+#[test]
+fn the_items_that_come_after_the_comma_of_the_condition_of_the_v1_are_evaluated() {
+    // The item is evaluated, and the body of the `if` runs: the truth of the
+    // condition is the truth of the text of the line, "01".
+    let report = run("if (0) x := 1, y := 3\nFileAppend, [body], *\nFileAppend, [%x% %y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[body]".to_string(), "[1 3]".to_string()]);
+
+    // The value of the item does not count for the truth: the text of the
+    // condition is "00", and the body of the `if` does not run.
+    let report = run("if (0) x := 0, y := 3\nFileAppend, [body], *\nFileAppend, [%x% %y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[0 3]".to_string()]);
+
+    // The call of an item runs.
+    let report = run("if (0) x := 1, x := StrLen(\"abc\")\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(3)));
+
+    // And the increment of an item runs too.
+    let report = run("if (0) x := 1, x++\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(2)));
+
+    // Every item runs, in the order of them.
+    let report = run("if (0) x := 1, y := 3, z := 4\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("3".into())));
+    assert_eq!(report.variables.get("z"), Some(&Value::Text("4".into())));
+}
+
+/// The command of the v1 is not run by the items of the tail of the `if`.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if
+/// (0) x := 1, FileDelete, nothere` asks the machine nothing. The name of
+/// the command is a variable when it is read as an expression, and the
+/// variable has no value.
+#[test]
+fn the_command_of_the_v1_is_not_run_by_the_items_of_the_tail_of_the_if() {
+    let (report, calls) = run_and_the_calls("if (0) x := 1, FileDelete, nothere\ny = 6");
+    assert!(report.ok);
+    assert!(calls.is_empty());
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(6)));
+}
+
+/// The item of the tail of the `if` of the v1 takes the line that comes with
+/// it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if
+/// (0) x := 1, y := 3` with a `+ 4` under it writes the variable "y" with
+/// the value 7: the expression of the v1 continues on the line that comes.
+#[test]
+fn the_item_of_the_tail_of_the_if_of_the_v1_takes_the_line_that_comes() {
+    let report = run("if (0) x := 1, y := 3\n+ 4\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("y"), Some(&Value::Int(7)));
+}

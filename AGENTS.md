@@ -7965,3 +7965,30 @@ literal is the empty text (`the_increment_of_a_literal_is_blank`). The
 number that opens a statement becomes the name of a variable
 (`the_number_becomes_the_name_of_a_variable`), and the suite of the v1 has
 four cases more (236).
+
+## 199. The items that come after the comma of the condition of the `if` of the v1 are evaluated
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if (0)
+x := 1, y := 3` writes the variable "y", and it writes it whether the
+condition is true or false. The value of the items does not count for the
+truth of the condition: the `if (0) x := 0, y := 3` does not run the body of
+the `if`, and the `if (0) x := 1, y := 0` does run it.
+
+The items are expressions, and the command of the v1 is not one of them: the
+`if (0) x := 1, FileAppend, A1, done` does not write the file, and the `if
+(0) x := 1, ExitApp 5` does not leave the script. The name of the command is
+a variable when it is read as an expression, and the variable has no value.
+The call of an item runs: the `if (0) x := 1, x := StrLen("abc")` writes the
+variable "x" with the value 3, and the increment of an item runs too: the
+`if (0) x := 1, x++` writes it with the value 2.
+
+The item takes the line that comes with it when the expression continues
+there: the `if (0) x := 1, y := 3` with a `+ 4` under it writes the variable
+"y" with the value 7.
+
+The parser reads the items in `the_items_of_the_tail_of_the_v1` and keeps the
+state of the parser while it reads them, because a text that is not an
+expression is the parameter of a command: the `if (0) x := 1, *` is a script
+that loads. The runtime runs the items in the `If` (`Node::If`), and the
+branch keeps them (`Branch { condition, tail, body }` in
+`crates/ahk/src/ast.rs`). The suite of the v1 has three cases more (239).
