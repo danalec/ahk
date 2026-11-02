@@ -1604,6 +1604,14 @@ that asks for another one is refused with the reason.
   machine refused the name and with zero otherwise, and the v1 goes on: the
   reason of the failure is a note and not the end of the script.
 
+- **The last parameter of a command of the v1 takes the rest of the line.**
+  The text that is left of the line goes into the last parameter that the
+  command reads, and it is the source of the line: the `AutoTrim, On,extra`
+  names "On,extra". The command that has a body is the exception: the text
+  that comes after its parameters is the action when it begins with the name
+  of a command, and the last parameter takes the rest of the line when it
+  does not.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

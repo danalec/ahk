@@ -7396,3 +7396,34 @@ the reason.
 
 The suite of the v1 has one case more (151), and the surface of the v1 is
 405 names: 298 answer with a value, 107 are refused and none is pending.
+
+## 183. The last parameter of a command of the v1 takes the rest of the line
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02.
+
+- **The last parameter that a command reads takes the text that is left of
+  the line.** The `FileGetSize, out, name, K, extra` complains about the
+  third parameter with the text "K, extra", and not with the text "K". The
+  text is the source of the line, from the parameter to the end of it, and
+  not the parameters put together again: the `AutoTrim, On,extra` names
+  "On,extra" and not "On, extra".
+- **The command that has a body is the exception.** The text that comes
+  after the parameters of the `IfInString`, of the `IfNotInString` and of
+  the `IfMsgBox` is the action when it begins with the name of a command,
+  and the last parameter of the command takes the rest of the line when it
+  does not: the `IfInString, x, b, FileAppend, [yes], *` runs the
+  `FileAppend`, and the `IfInString, x, b, 1, FileAppend, [yes], *` looks
+  for the text "b, 1, FileAppend, [yes], *" and runs nothing.
+- **The unit of the time is the first letter of it.** The "Sec", the "SX"
+  and the "S, extra" are all the seconds, and the "Furlongs" and the "4"
+  are not a unit at all.
+- **The unit of the size and the time of a file is optional.** The
+  `FileGetSize, out, name` and the `FileGetTime, out, name` go on, and the
+  time of the creation -- the "C" -- is one that the v1 knows.
+
+The merge of the parameters happens in the parser, and the rules of the v1
+that check a parameter read the texts that it gives them: the rule does not
+put the parameters together again, and the number of the parameters that a
+command reads is the number of the table of the v1.
+
+The suite of the v1 has five cases more (156).

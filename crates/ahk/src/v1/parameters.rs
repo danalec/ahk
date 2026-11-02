@@ -15,7 +15,6 @@
 
 use alloc::format;
 use alloc::string::{String, ToString};
-use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::dialect::TheRefusalOfTheArity;
@@ -114,8 +113,6 @@ pub(crate) fn the_refusal_of_a_parameter(name: &str, parameters: &[String]) -> O
 struct Rule {
     /// The name of the command, as the table of the v1 spells it.
     name: &'static str,
-    /// How many parameters the command reads.
-    reads: usize,
     /// The check of the parameters: the answer is the place of the
     /// parameter that the v1 does not want.
     check: fn(&[String]) -> Option<usize>,
@@ -124,20 +121,11 @@ struct Rule {
 impl Rule {
     /// The texts of the parameters that the command reads.
     ///
-    /// The command that reads one parameter takes the whole rest of the
-    /// line: the text that is left of the line goes into it, with a comma
-    /// and a space between.
+    /// The parser has already given the last parameter of the command the
+    /// text that is left of the line: the `AutoTrim, On,extra` names
+    /// "On,extra" and not "On, extra". The text of each one of them is the
+    /// text that the script wrote, without the spaces that surround it.
     fn the_texts(&self, parameters: &[String]) -> Vec<String> {
-        if self.reads == 1 {
-            let mut text = String::new();
-            for (index, parameter) in parameters.iter().enumerate() {
-                if index > 0 {
-                    text.push_str(", ");
-                }
-                text.push_str(parameter.trim());
-            }
-            return vec![text];
-        }
         parameters
             .iter()
             .map(|parameter| parameter.trim().to_string())
@@ -147,24 +135,24 @@ impl Rule {
 
 /// The commands of the v1 that check a parameter, and the check of each.
 const RULES: &[Rule] = &[
-    Rule { name: "AutoTrim", reads: 1, check: the_switch },
-    Rule { name: "DetectHiddenText", reads: 1, check: the_switch },
-    Rule { name: "DetectHiddenWindows", reads: 1, check: the_switch },
-    Rule { name: "SetStoreCapsLockMode", reads: 1, check: the_switch },
-    Rule { name: "StringCaseSense", reads: 1, check: the_case_sense },
-    Rule { name: "SetTitleMatchMode", reads: 1, check: the_title_match_mode },
-    Rule { name: "SendMode", reads: 1, check: the_send_mode },
-    Rule { name: "SetRegView", reads: 1, check: the_reg_view },
-    Rule { name: "FileEncoding", reads: 1, check: the_encoding },
-    Rule { name: "SetBatchLines", reads: 1, check: the_batch_lines },
-    Rule { name: "SetFormat", reads: 2, check: the_format },
-    Rule { name: "Transform", reads: 4, check: the_transform },
-    Rule { name: "StringGetPos", reads: 5, check: the_occurrence },
-    Rule { name: "FileGetTime", reads: 3, check: the_time_of_a_file },
-    Rule { name: "FileGetSize", reads: 3, check: the_size_of_a_file },
-    Rule { name: "FileSetAttrib", reads: 2, check: the_attributes_of_a_file },
-    Rule { name: "EnvAdd", reads: 3, check: the_units_of_the_time },
-    Rule { name: "EnvSub", reads: 3, check: the_units_of_the_time },
+    Rule { name: "AutoTrim", check: the_switch },
+    Rule { name: "DetectHiddenText", check: the_switch },
+    Rule { name: "DetectHiddenWindows", check: the_switch },
+    Rule { name: "SetStoreCapsLockMode", check: the_switch },
+    Rule { name: "StringCaseSense", check: the_case_sense },
+    Rule { name: "SetTitleMatchMode", check: the_title_match_mode },
+    Rule { name: "SendMode", check: the_send_mode },
+    Rule { name: "SetRegView", check: the_reg_view },
+    Rule { name: "FileEncoding", check: the_encoding },
+    Rule { name: "SetBatchLines", check: the_batch_lines },
+    Rule { name: "SetFormat", check: the_format },
+    Rule { name: "Transform", check: the_transform },
+    Rule { name: "StringGetPos", check: the_occurrence },
+    Rule { name: "FileGetTime", check: the_time_of_a_file },
+    Rule { name: "FileGetSize", check: the_size_of_a_file },
+    Rule { name: "FileSetAttrib", check: the_attributes_of_a_file },
+    Rule { name: "EnvAdd", check: the_units_of_the_time },
+    Rule { name: "EnvSub", check: the_units_of_the_time },
 ];
 
 /// The commands of the v1 whose complaint is a message of its own.
@@ -515,8 +503,15 @@ pub(crate) fn is_an_occurrence(text: &str) -> bool {
 /// the "a". The creation and the last access of the documentation are not
 /// times that this build knows.
 fn the_time_of_a_file(texts: &[String]) -> Option<usize> {
+    // Measured on the binary of v1.1.37.02 on 2026-11-02: the time is
+    // optional, and the command is refused when it is there and it is not
+    // one of the three: the modification, the access and the creation. The
+    // last access of the documentation is not a time that this build knows.
+    if texts.len() < 3 {
+        return None;
+    }
     match the_text_at(texts, 2).trim().to_lowercase().as_str() {
-        "m" | "a" => None,
+        "m" | "a" | "c" => None,
         _ => Some(2),
     }
 }
@@ -527,6 +522,12 @@ fn the_time_of_a_file(texts: &[String]) -> Option<usize> {
 /// of the kilobytes -- the "K" -- or the one of the megabytes -- the "M".
 /// The gigabytes are a unit that the v1 does not have.
 fn the_size_of_a_file(texts: &[String]) -> Option<usize> {
+    // Measured on the binary of v1.1.37.02 on 2026-11-02: the unit is
+    // optional, and the command is refused when it is there and it is not
+    // one of the two.
+    if texts.len() < 3 {
+        return None;
+    }
     match the_text_at(texts, 2).trim().to_lowercase().as_str() {
         "k" | "m" => None,
         _ => Some(2),
@@ -554,15 +555,17 @@ fn the_units_of_the_time(texts: &[String]) -> Option<usize> {
 
 /// Whether the text is a unit of the time of the v1.
 ///
-/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the unit
-/// is one of the "Seconds", the "Minutes", the "Hours" or the "Days", and
-/// the first letter of it is the same one. The unit that is not one of them
-/// is refused: the "Furlongs" is not a unit of the v1.
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: it is the first
+/// letter of the text that tells -- the "Seconds", the "Sec", the "SX" and
+/// the "S, extra" are all the seconds -- and the unit that is not one of
+/// them is refused: the "Furlongs" is not a unit of the v1, and the "4" is
+/// not one either.
 fn is_a_unit_of_the_time(text: &str) -> bool {
-    matches!(
-        text.trim().to_lowercase().as_str(),
-        "seconds" | "minutes" | "hours" | "days" | "s" | "m" | "h" | "d"
-    )
+    let text = text.trim().to_lowercase();
+    match text.chars().next() {
+        Some(letter) => matches!(letter, 's' | 'm' | 'h' | 'd'),
+        None => false,
+    }
 }
 
 fn the_attributes_of_a_file(texts: &[String]) -> Option<usize> {

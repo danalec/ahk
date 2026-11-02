@@ -2996,6 +2996,27 @@ impl Parser {
             parameters.pop();
             places.pop();
         }
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the last
+        // parameter that a command of the v1 reads takes the rest of the
+        // line: the `FileGetSize, out, name, K, extra` complains about the
+        // third parameter with the text "K, extra", and not with the text
+        // "K". The text is the source of the line, from the parameter to the
+        // end of it: the `AutoTrim, On,extra` names "On,extra".
+        //
+        // The command that has a body is the exception: the text that comes
+        // after the parameters of it is the action, and not a parameter.
+        if let Some(builtin) = self.the_builtin_of_the_legacy_command(&name) {
+            let count = builtin.parameters.len();
+            if count > 0 && parameters.len() > count && !self.dialect.the_command_has_a_body(&name) {
+                let (start, _) = places[count - 1];
+                let (_, end) = *places.last().expect("the parameters are there");
+                let text = self.the_verbatim_source(start, end).trim().to_string();
+                parameters.truncate(count);
+                places.truncate(count);
+                parameters[count - 1] = text;
+                places[count - 1] = (start, end);
+            }
+        }
         self.end_of_statement()?;
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the `else` of
         // the v1 is the action of the other side of the `if` that comes
@@ -3003,9 +3024,13 @@ impl Parser {
         if self.dialect.the_command_is_the_else(&name) {
             // The `else` takes no parameter, and the text of the one that is
             // there is named.
-            if let Some(parameter) = parameters.first() {
+            if !parameters.is_empty() {
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // `else` names the rest of the line: the `Else, a, b` names
+                // "a, b".
+                let text = parameters.join(", ");
                 return Err(self.error(format!(
-                    "This line does not contain a recognized action.\n     Specifically: {parameter}"
+                    "This line does not contain a recognized action.\n     Specifically: {text}"
                 )));
             }
             return Err(self.error("ELSE with no matching IF".to_string()));
@@ -3095,6 +3120,31 @@ impl Parser {
             .find(|builtin| builtin.name.to_lowercase() == name)
     }
 
+    /// Whether the text begins with the name of a command of the v1.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text that
+    /// comes after the parameters of a command that has a body is the action
+    /// when it begins with the name of a command, and the last parameter of
+    /// the command takes the rest of the line when it does not: the
+    /// `IfInString, x, b, Nope, [yes], *` looks for the text
+    /// "b, Nope, [yes], *" and runs nothing.
+    fn the_text_begins_with_a_command(&self, text: &str) -> bool {
+        let name = text
+            .trim()
+            .split(|character: char| character == ',' || character.is_whitespace())
+            .next()
+            .unwrap_or("")
+            .to_lowercase();
+        if name.is_empty() {
+            return false;
+        }
+        self.dialect.builtins().iter().any(|builtin| {
+            builtin.name.to_lowercase() == name
+                && (!self.dialect.the_command_has_to_be_a_command()
+                    || builtin.kind == crate::builtins::BuiltinKind::Command)
+        })
+    }
+
     /// The text of a command of the v1 that a refusal names.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text is the
@@ -3163,8 +3213,8 @@ impl Parser {
     fn parse_the_body_of_a_legacy_command(
         &mut self,
         name: String,
-        parameters: Vec<String>,
-        places: Vec<(usize, usize)>,
+        mut parameters: Vec<String>,
+        mut places: Vec<(usize, usize)>,
         line: u32,
     ) -> Result<Node, SyntaxError> {
         // The parameters of the command are the first ones, and the rest of
@@ -3173,12 +3223,33 @@ impl Parser {
             .the_builtin_of_the_legacy_command(&name)
             .map(|builtin| builtin.parameters.len())
             .unwrap_or(parameters.len());
-        let (own_parameters, action) = if parameters.len() > own {
+        // Measured on the binary of v1.1.37.02 on 2026-11-02: the text that
+        // comes after the parameters of a command that has a body is the
+        // action when it begins with the name of a command, and the last
+        // parameter of the command takes the rest of the line when it does
+        // not: the `IfInString, x, b, 1, FileAppend, [yes], *` looks for the
+        // text "b, 1, FileAppend, [yes], *" and runs nothing.
+        let action = if parameters.len() > own
+            && self.the_text_begins_with_a_command(&parameters[own])
+        {
             let action = parameters[own..].to_vec();
-            (parameters[..own].to_vec(), Some(action))
+            parameters.truncate(own);
+            Some(action)
         } else {
-            (parameters, None)
+            if parameters.len() > own && own > 0 {
+                // The last parameter of the command takes the rest of the
+                // line, the way it does for every other command.
+                let (start, _) = places[own - 1];
+                let (_, end) = *places.last().expect("the parameters are there");
+                let text = self.the_verbatim_source(start, end).trim().to_string();
+                parameters.truncate(own);
+                places.truncate(own);
+                parameters[own - 1] = text;
+                places[own - 1] = (start, end);
+            }
+            None
         };
+        let own_parameters = parameters;
         let body = match action {
             Some(action) => {
                 let action_name = action[0].to_lowercase();

@@ -4141,3 +4141,182 @@ fn the_environment_of_the_v1_writes_the_error_level() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[after]".to_string()]);
 }
+
+/// The last parameter of a command of the v1 takes the rest of the line.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
+/// `FileGetSize, out, name, K, extra` complains about the third parameter
+/// with the text "K, extra", and not with the text "K". The `else` names the
+/// rest of the line too: the `Else, a, b` names "a, b".
+#[test]
+fn the_last_parameter_of_a_command_of_the_v1_takes_the_rest_of_the_line() {
+    let cases = [
+        (
+            "FileGetSize, out, name, K, extra",
+            "Parameter #3 invalid.\n     Specifically: K, extra",
+        ),
+        (
+            "FileGetTime, out, name, M, extra",
+            "Parameter #3 invalid.\n     Specifically: M, extra",
+        ),
+        (
+            "EnvAdd, x, 1, a, a",
+            "Parameter #3 invalid.\n     Specifically: a, a",
+        ),
+        (
+            "EnvSub, x, 1, a, a",
+            "Parameter #3 invalid.\n     Specifically: a, a",
+        ),
+    ];
+    for (script, refusal) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            refusal,
+            "the script is {script}"
+        );
+    }
+
+    // The `else` names the rest of the line.
+    let error = ahk::parse_with("Else, a, b", dialect::v1())
+        .expect_err("the else has no if");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: a, b"
+    );
+}
+
+/// The unit of the size and the time of a file of the v1 is optional.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the unit
+/// is not there and the command goes on, and the time of the creation is one
+/// that the v1 knows. The last access of the documentation is not a time
+/// that this build knows.
+#[test]
+fn the_unit_of_the_size_and_the_time_of_a_file_of_the_v1_is_optional() {
+    for script in [
+        "FileGetSize, out, name",
+        "FileGetSize, out, name, K",
+        "FileGetSize, out, name, M",
+        "FileGetTime, out, name",
+        "FileGetTime, out, name, M",
+        "FileGetTime, out, name, A",
+        "FileGetTime, out, name, C",
+        "FileGetTime, out, name, c",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+
+    // The last access is not a time that this build knows.
+    let error = ahk::parse_with("FileGetTime, out, name, T", dialect::v1())
+        .expect_err("the last access is not a time");
+    assert_eq!(error.message, "Parameter #3 invalid.\n     Specifically: T");
+}
+
+/// The text of the last parameter of a command of the v1 is the source of
+/// the line.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the text is the text
+/// that the script wrote, from the parameter to the end of the line, and not
+/// the parameters put together again: the `AutoTrim, On,extra` names
+/// "On,extra" and not "On, extra".
+#[test]
+fn the_text_of_the_last_parameter_of_a_command_of_the_v1_is_the_source_of_the_line() {
+    let cases = [
+        (
+            "AutoTrim, On,extra",
+            "Parameter #1 invalid.\n     Specifically: On,extra",
+        ),
+        (
+            "AutoTrim,  On ,  extra ",
+            "Parameter #1 invalid.\n     Specifically: On ,  extra",
+        ),
+        (
+            "FileGetSize, out, name, K , extra",
+            "Parameter #3 invalid.\n     Specifically: K , extra",
+        ),
+        (
+            "SetFormat, Integer, X,extra",
+            "Parameter #2 invalid.\n     Specifically: X,extra",
+        ),
+    ];
+    for (script, refusal) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            refusal,
+            "the script is {script}"
+        );
+    }
+}
+
+/// The unit of the time of the v1 is the first letter of it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the "Sec", the "SX"
+/// and the "S, extra" are all the seconds, and the "Furlongs" and the "4"
+/// are not a unit at all.
+#[test]
+fn the_unit_of_the_time_of_the_v1_is_the_first_letter_of_it() {
+    for script in [
+        "EnvAdd, x, 3, S",
+        "EnvAdd, x, 3, s",
+        "EnvAdd, x, 3, Sec",
+        "EnvAdd, x, 3, SX",
+        "EnvAdd, x, 3, S, extra",
+        "EnvAdd, x, 3, MS",
+        "EnvMult, x, 3, S",
+        "EnvSub, x, 3, S",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+
+    for (script, refusal) in [
+        (
+            "EnvAdd, x, 3, Furlongs",
+            "Parameter #3 invalid.\n     Specifically: Furlongs",
+        ),
+        (
+            "EnvAdd, x, 3, 4",
+            "Parameter #3 invalid.\n     Specifically: 4",
+        ),
+    ] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            refusal,
+            "the script is {script}"
+        );
+    }
+}
+
+/// The action of the command that has a body is a command that is named.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the text that comes
+/// after the parameters of the command is the action when it begins with the
+/// name of a command, and the last parameter of the command takes the rest
+/// of the line when it does not.
+#[test]
+fn the_action_of_the_command_that_has_a_body_is_a_command_that_is_named() {
+    // The action is the command that is named.
+    let report = run("x := \"ABC\"\nIfInString, x, b, FileAppend, [yes], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[yes]".to_string()]);
+
+    // The text that is not a command is the last parameter of the command,
+    // and the command looks for it and runs nothing.
+    let report = run("x := \"ABC\"\nIfInString, x, b, 1, FileAppend, [yes], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty());
+
+    let report = run("x := \"ABC\"\nIfInString, x, b, Nope, [yes], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty());
+
+    // The other side of it is the same.
+    let report = run("x := \"ABC\"\nIfNotInString, x, z, FileAppend, [yes], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[yes]".to_string()]);
+}
