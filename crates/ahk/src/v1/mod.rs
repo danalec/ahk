@@ -43,6 +43,7 @@ pub(crate) use chars::chr;
 pub(crate) use kinds::wants_a_number;
 
 pub(crate) use labels::the_label_of_the_command;
+pub(crate) use labels::the_refusal_of_a_goto;
 
 pub(crate) use math::{
     abs, acos, asin, atan, ceil, cos, exp, floor, ln, log, max, min, modulo, round, sin, sqrt, tan,

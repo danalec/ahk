@@ -7601,3 +7601,42 @@ the scope with the complaint of the v2.
 
 The suite of the v1 has five cases more (175).
 
+## 189. The `goto` of the v1 is checked when the script loads
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the `goto`
+whose label is not there is refused when the script loads, before any line of
+it runs, and the complaint of the v1 is "Target label does not exist." with
+the label after it -- the second line of the complaint. The name of a label
+does not know its case, and the percent sign is the substitution of the v1:
+the label that comes out of it is not checked at the load.
+
+The jump that may not be made is refused with the complaint of the v1:
+
+- **"A Goto/Gosub must not jump into a block that doesn't enclose it."** --
+  the label is in a block that does not enclose the jump, or in a function
+  that the jump is not in.
+- **"Cannot jump from inside a function to outside."** -- the jump is in a
+  function and the label is at the top level of the script.
+
+The block of a label is the chain of the blocks that enclose it, and the
+chain of the jump is the chain of the blocks that enclose it: the label may
+be the target of the jump when its chain is the beginning of the chain of
+the jump, and the body of a function is a block of its own. The jump of a
+block to a label of the top level is accepted, and the jump of a block to a
+label of the same block too.
+
+The refusal of the goto comes after the other refusals of the load: the call
+of a name that is not a function is refused before it, and the label that a
+command names and that is not there is refused with it -- the refusal that
+comes first in the script is the one that the v1 says.
+
+The rules of the v1 are in `crates/ahk/src/v1/labels.rs`, and the parser asks
+the dialect (`the_goto_is_refused_with_the_labels`) before it refuses the
+jump with the labels of the script: the v2 refuses it there, and the v1 at
+the end of the load. The complaint of the jump that the runtime refuses --
+the label of a block of the scope of the jump -- is the one of the dialect
+too (`the_refusal_of_a_jump_into_a_block`), and the v1 names the `Gosub` in
+it.
+
+The suite of the v1 has four cases more (179).
+

@@ -732,6 +732,27 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// Whether the dialect refuses the goto whose label is not in the scope
+    /// of the jump, with the labels of the script.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the v2 refuses the
+    /// goto of a label that is not in the scope of the jump when the labels
+    /// of the script are checked, and the complaint of it is "Label not
+    /// found in current scope.". The v1 refuses the jump at the end of the
+    /// load, with the complaint of the v1.
+    fn the_goto_is_refused_with_the_labels(&self) -> bool {
+        true
+    }
+
+    /// The complaint of the jump that may not be made.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-01: the v2 says "A Goto
+    /// must not jump into a block that doesn't enclose it.". The v1 says
+    /// "A Goto/Gosub must not jump into a block that doesn't enclose it.".
+    fn the_refusal_of_a_jump_into_a_block(&self) -> &'static str {
+        "A Goto must not jump into a block that doesn't enclose it."
+    }
+
     /// The refusal of the name of a variable of the script.
     ///
     /// The place is the number of the parameter, and the text is the text
@@ -1186,6 +1207,18 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-03: the label that
         // a command of the v1 names is checked when the script loads.
         crate::v1::the_label_of_the_command(name)
+    }
+
+    fn the_goto_is_refused_with_the_labels(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-03: the v1 refuses
+        // the jump at the end of the load, and not with the labels.
+        false
+    }
+
+    fn the_refusal_of_a_jump_into_a_block(&self) -> &'static str {
+        // Measured on the binary of v1.1.37.02 on 2026-11-03: the v1 names
+        // the `Gosub` as well.
+        "A Goto/Gosub must not jump into a block that doesn't enclose it."
     }
 
     fn the_refusal_of_the_name_of_a_variable(

@@ -1759,7 +1759,7 @@ impl<'a> Runtime<'a> {
     fn the_label_is_not_there(&self, name: &str, scope: &[Node], line: u32) -> RuntimeError {
         if the_labels_of(scope).iter().any(|label| label.eq_ignore_ascii_case(name)) {
             return RuntimeError {
-                message: "A Goto must not jump into a block that doesn't enclose it.".into(),
+                message: self.dialect.the_refusal_of_a_jump_into_a_block().to_string(),
                 line,
             };
         }

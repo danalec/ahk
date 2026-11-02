@@ -487,6 +487,111 @@ fn collect_the_labels_of_a_scope(body: &[Node], labels: &mut Vec<(String, u32)>)
     }
 }
 
+/// A block of the script, and the function that it is the body of.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the label of a block
+/// is not the target of a jump that the block does not enclose, and the body
+/// of a function is a block of its own.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TheBlock {
+    /// The id of the block: it tells it from the others.
+    pub(crate) id: u32,
+    /// Whether the block is the body of a function.
+    pub(crate) function: bool,
+}
+
+/// The labels of the script and the gotos of the script, with the chain of
+/// the blocks that enclose each of them.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the chain of the
+/// blocks tells the block of a label, and the jump may not enter a block that
+/// does not enclose it, and the jump of a function may not leave the
+/// function.
+struct TheNamesOfTheScript {
+    /// The labels of the script, with the chain of the blocks of each.
+    labels: Vec<(String, Vec<TheBlock>)>,
+    /// The gotos of the script, with the chain of the blocks of each.
+    gotos: Vec<(String, u32, Vec<TheBlock>)>,
+    /// The id of the next block.
+    next: u32,
+}
+
+impl TheNamesOfTheScript {
+    /// The names of a scope of the script.
+    fn collect(&mut self, body: &[Node], chain: &mut Vec<TheBlock>) {
+        for statement in body {
+            match statement {
+                Node::Label { name, .. } => self.labels.push((name.clone(), chain.clone())),
+                Node::Goto { name, line } => {
+                    self.gotos.push((name.clone(), *line, chain.clone()))
+                }
+                Node::If { branches, otherwise, .. } => {
+                    for branch in branches {
+                        self.collect_in_a_block(&branch.body, chain, false);
+                    }
+                    self.collect_in_a_block(otherwise, chain, false);
+                }
+                Node::Switch { cases, .. } => {
+                    for case in cases {
+                        self.collect_in_a_block(&case.body, chain, false);
+                    }
+                }
+                Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+                    self.collect_in_a_block(body, chain, false);
+                }
+                Node::Try { body, catches, otherwise, finally, .. } => {
+                    self.collect_in_a_block(body, chain, false);
+                    for catch in catches {
+                        self.collect_in_a_block(&catch.body, chain, false);
+                    }
+                    self.collect_in_a_block(otherwise, chain, false);
+                    self.collect_in_a_block(finally, chain, false);
+                }
+                Node::Block { body, .. } => self.collect_in_a_block(body, chain, false),
+                Node::LegacyIf { body, otherwise, .. } => {
+                    self.collect_in_a_block(body, chain, false);
+                    self.collect_in_a_block(otherwise, chain, false);
+                }
+                Node::FunctionDef { body, .. } => self.collect_in_a_block(body, chain, true),
+                Node::ClassDef { methods, .. } => {
+                    for method in methods {
+                        self.collect_in_a_block(&method.body, chain, true);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// The names of a block of the script.
+    fn collect_in_a_block(&mut self, body: &[Node], chain: &mut Vec<TheBlock>, function: bool) {
+        let block = TheBlock {
+            id: self.next,
+            function,
+        };
+        self.next += 1;
+        chain.push(block);
+        self.collect(body, chain);
+        chain.pop();
+    }
+}
+
+/// The names of the script, the way the script wrote them.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the labels and the
+/// gotos of the script are gathered with the chain of the blocks that
+/// enclose each of them.
+fn the_names_of_the_script(body: &[Node]) -> TheNamesOfTheScript {
+    let mut names = TheNamesOfTheScript {
+        labels: Vec::new(),
+        gotos: Vec::new(),
+        next: 0,
+    };
+    let mut chain = Vec::new();
+    names.collect(body, &mut chain);
+    names
+}
+
 /// The gotos of a scope, the way the script wrote them.
 ///
 /// The gotos of the blocks of the scope are the gotos of the scope, and the
@@ -1282,7 +1387,7 @@ impl Parser {
         self.the_calls_of_the_v1_are_checked()?;
         // The label that a command of the v1 names is refused at the load too,
         // and the names of the labels of the script are known only now.
-        self.the_labels_of_the_commands_are_checked()?;
+        self.the_labels_of_the_script_are_checked(&statements)?;
         Ok(statements)
     }
 
@@ -1372,8 +1477,7 @@ impl Parser {
         }
     }
 
-    /// The labels that the commands of the script name are checked at the end
-    /// of the parse.
+    /// The labels that the script names are checked at the end of the parse.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-03: the label that a
     /// command names and that is not there is refused when the script loads,
@@ -1386,7 +1490,13 @@ impl Parser {
     /// substitution of the v1: the label that comes out of it is not checked
     /// at the load. The name of the label does not know its case, and the
     /// label may be written anywhere in the script.
-    fn the_labels_of_the_commands_are_checked(&self) -> Result<(), SyntaxError> {
+    ///
+    /// The goto of the v1 is checked here as well, and the complaint of it is
+    /// the one of the v1: "Target label does not exist." with the label after
+    /// it, and the two complaints of the jump that may not be made. The
+    /// refusal that comes first in the script is the one that the v1 says.
+    fn the_labels_of_the_script_are_checked(&self, body: &[Node]) -> Result<(), SyntaxError> {
+        let mut failures: Vec<SyntaxError> = Vec::new();
         for label in &self.labels {
             let text = label.text.trim();
             if text.is_empty() || text.contains('%') {
@@ -1403,13 +1513,61 @@ impl Parser {
             if label.function && !text.contains('(') && self.functions.contains(&name) {
                 continue;
             }
-            return Err(SyntaxError {
+            failures.push(SyntaxError {
                 message: "Target label does not exist.".to_string(),
                 line: label.line,
                 column: 1,
             });
+            // The first one of the commands is the first one of the script.
+            break;
         }
-        Ok(())
+        // The goto of the v1 is refused at the end of the load, and the v2
+        // refuses it with the labels of the script.
+        if !self.dialect.the_goto_is_refused_with_the_labels() {
+            failures.extend(self.the_gotos_of_the_v1_are_checked(body));
+        }
+        // The refusal that comes first in the script is the one that the v1
+        // says.
+        failures.sort_by_key(|failure| failure.line);
+        match failures.into_iter().next() {
+            Some(failure) => Err(failure),
+            None => Ok(()),
+        }
+    }
+
+    /// The refusals of the gotos of the v1.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-03: the label that
+    /// the goto names and that is not there is refused when the script loads,
+    /// and the complaint of the v1 is "Target label does not exist." with the
+    /// label after it. The jump that may not be made is refused too: the
+    /// label of a block that does not enclose the jump is "A Goto/Gosub must
+    /// not jump into a block that doesn't enclose it.", and the jump that
+    /// leaves a function is "Cannot jump from inside a function to outside.".
+    ///
+    /// The chain of the blocks tells the block of the label and the block of
+    /// the jump: the jump may not enter a block that does not enclose it, and
+    /// the jump of a function may not leave the function.
+    fn the_gotos_of_the_v1_are_checked(&self, body: &[Node]) -> Vec<SyntaxError> {
+        let mut failures = Vec::new();
+        let names = the_names_of_the_script(body);
+        for (name, line, chain) in &names.gotos {
+            // The percent sign is the substitution of the v1, and the label
+            // that comes out of it is not checked at the load.
+            if name.contains('%') {
+                continue;
+            }
+            let Some(refusal) = crate::v1::the_refusal_of_a_goto(name, chain, &names.labels)
+            else {
+                continue;
+            };
+            failures.push(SyntaxError {
+                message: refusal,
+                line: *line,
+                column: 1,
+            });
+        }
+        failures
     }
 
     /// The refusal of the classes whose base is not there.
@@ -4914,6 +5072,12 @@ impl Parser {
         // The name of a label does not know its case, and the scope of a
         // label is the scope it is written in: the label of a function is
         // not the label of the script.
+        //
+        // The v1 refuses the jump at the end of the load, and the complaint
+        // of it is the one of the v1.
+        if !self.dialect.the_goto_is_refused_with_the_labels() {
+            return Ok(());
+        }
         for (name, line) in the_gotos_of_a_scope(body) {
             if !seen.contains(&name.to_lowercase()) {
                 return Err(SyntaxError {

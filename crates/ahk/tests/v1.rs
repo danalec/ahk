@@ -4994,3 +4994,90 @@ fn the_refusal_of_the_label_comes_after_the_other_refusals_of_the_load() {
     );
 }
 
+/// The goto of the v1 names a label, and the label that is not there is
+/// refused when the script loads.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the label
+/// that the goto names and that is not there is refused with "Target label
+/// does not exist.", and the label is named after it. The name of a label
+/// does not know its case, and the percent sign is the substitution of the
+/// v1: the label that comes out of it is not checked at the load.
+#[test]
+fn the_goto_of_the_v1_names_a_label_that_may_not_be_there() {
+    assert_eq!(
+        the_refusal_of_the_load("goto NoSuchLabel"),
+        "Target label does not exist.\n     Specifically: NoSuchLabel"
+    );
+    for script in ["goto MyLabel\nMyLabel:", "goto mylabel\nMyLabel:", "goto %v%"] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The jump of the v1 may not enter a block that does not enclose it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the label
+/// of a block that does not enclose the jump is refused with "A Goto/Gosub
+/// must not jump into a block that doesn't enclose it.", and the label of a
+/// function is refused with the same complaint. The jump of a block to a
+/// label of the top level is accepted, and the jump of a block to a label of
+/// the same block too.
+#[test]
+fn the_jump_of_the_v1_may_not_enter_a_block_that_does_not_enclose_it() {
+    for script in [
+        "goto MyLabel\nif (1) {\nMyLabel:\n}",
+        "goto MyLabel\ng() {\nMyLabel:\n}",
+        "f() {\ngoto MyLabel\n}\nif (1) {\nMyLabel:\n}",
+    ] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            "A Goto/Gosub must not jump into a block that doesn't enclose it.",
+            "the script is {script}"
+        );
+    }
+    for script in [
+        "if (1) {\ngoto MyLabel\n}\nMyLabel:",
+        "if (1) {\ngoto MyLabel\nMyLabel:\n}",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The jump of the v1 may not leave the function that it is in.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the jump
+/// of a function to a label of the top level of the script is refused with
+/// "Cannot jump from inside a function to outside.", and the jump of a
+/// function to a label of the same function is accepted.
+#[test]
+fn the_jump_of_the_v1_may_not_leave_the_function_that_it_is_in() {
+    assert_eq!(
+        the_refusal_of_the_load("f() {\ngoto MyLabel\n}\nMyLabel:"),
+        "Cannot jump from inside a function to outside."
+    );
+    assert!(
+        ahk::parse_with(
+            "f() {\ngoto MyLabel\nMyLabel:\n}",
+            dialect::v1()
+        )
+        .is_ok()
+    );
+}
+
+/// The refusal of the goto comes after the other refusals of the load.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the call
+/// of a name that is not a function is refused before the goto whose label
+/// is not there.
+#[test]
+fn the_refusal_of_the_goto_comes_after_the_other_refusals_of_the_load() {
+    assert_eq!(
+        the_refusal_of_the_load("goto NoSuchLabel\nNoSuchFunction()"),
+        "Call to nonexistent function.\n     Specifically: NoSuchFunction()"
+    );
+}

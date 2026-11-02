@@ -1646,6 +1646,18 @@ that asks for another one is refused with the reason.
   (`the_label_of_the_command`), and the check is at the end of the parse,
   because the names of the labels of the script are known only then.
 
+- **The goto of the v1 is checked when the script loads.** The label that
+  the goto names and that is not there is refused with "Target label does
+  not exist.", and the label is named after it. The jump that may not be
+  made is refused too: the label of a block that does not enclose the jump
+  is "A Goto/Gosub must not jump into a block that doesn't enclose it.",
+  and the jump that leaves a function is "Cannot jump from inside a
+  function to outside.". The block of a label is the chain of the blocks
+  that enclose it. The rules are in `v1/labels.rs`, the goto is a hook of
+  the dialect (`the_goto_is_refused_with_the_labels`), and the complaint of
+  the jump that the runtime refuses is the one of the dialect too
+  (`the_refusal_of_a_jump_into_a_block`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes
