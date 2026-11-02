@@ -7640,3 +7640,36 @@ it.
 
 The suite of the v1 has four cases more (179).
 
+## 190. The `GetKeyState` of the v1 is a command and a function
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the name is
+two things in the v1, and the table of the v1 carries a row for each of them.
+The call of an expression is the function -- it takes one parameter and it
+answers the state of the key -- and the command statement is the command: it
+writes the letter D or U into the variable of the caller, and it wants at
+least two parameters.
+
+The command has no maximum: the v1 ignores the parameters that a command does
+not need, and the `GetKeyState` with five thousand parameters is accepted. The
+table says 255 when a built-in takes any number of them, and the tree honours
+it: the check of the maximum is not made for a row that says 255.
+
+The name of the key is checked when the script loads, and the complaint of the
+v1 is the one of a parameter: "Parameter #2 invalid." with the text that the
+script wrote. The name is one of the keys of the list of the documentation of
+the v1, a single character, or the spelling of a virtual key or of a scan
+code -- and the number of the code is the byte that it ends in, so the "vkFF"
+is a key and the "vk100" is the key of the "vk00", which is not a key at all.
+The text of a substitution is not checked: the name of the key that comes out
+of it is not known at the load.
+
+The function does not fail for a name that it does not know: it answers an
+empty text. The failure of the machine is a failure, and it says why.
+
+The names of the keys are in `crates/ahk/src/v1/keys.rs`, the rule of the
+parameter is in `crates/ahk/src/v1/parameters.rs`, and the two forms of the
+name are two rows of the table of the v1: the runtime asks for the row of the
+kind that the call wants (`the_builtin_of_the_kind`).
+
+The suite of the v1 has eight cases more (187).
+

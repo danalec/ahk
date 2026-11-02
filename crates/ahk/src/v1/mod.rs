@@ -19,6 +19,7 @@ use crate::runtime::{Runtime, RuntimeError, Value};
 
 mod chars;
 mod files;
+mod keys;
 mod kinds;
 mod labels;
 mod math;
@@ -404,21 +405,62 @@ pub(crate) fn format_time(
     )
 }
 
-/// `GetKeyState, name, key, physical`: the state of a key.
+/// `GetKeyState, name, key, mode`: the state of a key.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the v1 has the
+/// command and the function, and they are two things. The command writes
+/// the letter D or U into the variable of the caller, and the function
+/// answers one or zero. The variant of the row says which of the two is
+/// the one that runs: the command is the first row of the table and the
+/// function is the second one.
+///
+/// The name of the key is checked when the script loads, and the function
+/// answers an empty text when the name is not a key: the v1 does not fail
+/// for a name that it does not know.
 pub(crate) fn get_key_state(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
-    _variant: u8,
+    variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(
-        rt,
-        "GetKeyState",
-        values,
-        line,
-        crate::builtins::get_key_state,
-        1,
-    )
+    let is_the_command = variant == 0;
+    // The name of the key is the second parameter of the command and the
+    // first one of the function.
+    let name = if is_the_command { values.get(1) } else { values.first() };
+    let answer = match (is_the_command, the_state_of_a_key(rt, name, line)?) {
+        // The command writes the letter D or U.
+        (true, Some(true)) => Value::Text("D".to_string()),
+        (true, Some(false)) => Value::Text("U".to_string()),
+        // The function answers one or zero.
+        (false, Some(true)) => Value::Int(1),
+        (false, Some(false)) => Value::Int(0),
+        // The state could not be determined: the v1 answers an empty text.
+        (_, None) => Value::Text(String::new()),
+    };
+    if is_the_command {
+        write_the_answer(rt, "GetKeyState", values, 0, answer.clone(), line)?;
+    }
+    Ok(answer)
+}
+
+/// The state of the key of this name.
+///
+/// The answer is `None` when the name is not a key of the v1, and it is
+/// the state of the key when it is one.
+fn the_state_of_a_key(
+    rt: &mut Runtime<'_>,
+    name: Option<&Value>,
+    line: u32,
+) -> Result<Option<bool>, RuntimeError> {
+    let name = name.map(|value| value.to_text()).unwrap_or_default();
+    let name = name.trim();
+    if !keys::is_the_name_of_a_key(name) {
+        return Ok(None);
+    }
+    match rt.desktop().key_is_down(name) {
+        Ok(down) => Ok(Some(down)),
+        Err(reason) => Err(RuntimeError { message: reason, line }),
+    }
 }
 
 /// `IniRead, name, file, section, key, default`: the value of a key of a file.

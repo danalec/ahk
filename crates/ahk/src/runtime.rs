@@ -1482,6 +1482,26 @@ impl<'a> Runtime<'a> {
             .find(|builtin| builtin.name.to_lowercase() == wanted)
     }
 
+    /// The built-in of this name and of this kind, in the dialect that runs.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-03: the `GetKeyState`
+    /// of the v1 is a command and a function, and the call of an expression
+    /// is the function: it takes one parameter and it answers the state of
+    /// the key. The name that the dialect carries once is the row of it,
+    /// whatever the kind is.
+    pub(crate) fn the_builtin_of_the_kind(
+        &self,
+        name: &str,
+        kind: crate::builtins::BuiltinKind,
+    ) -> Option<&'static crate::builtins::Builtin> {
+        let wanted = name.to_lowercase();
+        let builtins = self.dialect.builtins();
+        builtins
+            .iter()
+            .find(|builtin| builtin.name.to_lowercase() == wanted && builtin.kind == kind)
+            .or_else(|| builtins.iter().find(|builtin| builtin.name.to_lowercase() == wanted))
+    }
+
     /// The milliseconds since the run started.
     fn elapsed_ms(&self) -> u64 {
         self.clock.now_ms().saturating_sub(self.started_ms)
@@ -7682,7 +7702,9 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
-        let Some(builtin) = self.builtin(name) else {
+        let Some(builtin) =
+            self.the_builtin_of_the_kind(name, crate::builtins::BuiltinKind::Function)
+        else {
             return Err(self.the_unassigned_failure(name, line));
         };
         // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
@@ -7746,7 +7768,8 @@ impl<'a> Runtime<'a> {
                 line,
             ));
         }
-        if count > builtin.max as usize {
+        // The table says 255 when the built-in takes any number of them.
+        if builtin.max < 255 && count > builtin.max as usize {
             return Err(self.the_arity_failure(
                 "Too many parameters passed to function.",
                 builtin.name,
@@ -8227,7 +8250,9 @@ impl<'a> Runtime<'a> {
         parameters: &[crate::ast::LegacyParameter],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
-        let Some(builtin) = self.builtin(name) else {
+        let Some(builtin) =
+            self.the_builtin_of_the_kind(name, crate::builtins::BuiltinKind::Command)
+        else {
             // The name is not a command of the dialect: the line holds no
             // action, and it is named.
             return Err(RuntimeFailure::Error(RuntimeError {
@@ -8443,7 +8468,9 @@ impl<'a> Runtime<'a> {
         line: u32,
         route: Route,
     ) -> Result<Value, RuntimeFailure> {
-        let Some(builtin) = self.builtin(name) else {
+        let Some(builtin) =
+            self.the_builtin_of_the_kind(name, crate::builtins::BuiltinKind::Function)
+        else {
             return Err(RuntimeFailure::Error(RuntimeError {
                 message: "Call to nonexistent function.".into(),
                 line,
@@ -8475,7 +8502,10 @@ impl<'a> Runtime<'a> {
                 line,
             ));
         }
-        if values.len() > builtin.max as usize {
+        // The table says 255 when the built-in takes any number of them, and
+        // the v1 has no complaint for a command that takes more parameters
+        // than it needs.
+        if builtin.max < 255 && values.len() > builtin.max as usize {
             return Err(self.the_arity_failure(
                 "Too many parameters passed to function.",
                 builtin.name,

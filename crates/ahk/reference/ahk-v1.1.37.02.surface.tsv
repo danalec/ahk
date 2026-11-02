@@ -37,6 +37,12 @@
 # had the numbers of the function. The function wants one parameter and
 # takes two.
 #
+# The `GetKeyState` was measured again on 2026-11-03: the command has no
+# maximum -- the v1 ignores the parameters that it does not need, and it
+# takes five thousand of them -- and the row of the command said two. The
+# function wants one parameter and takes two, and the call of an expression
+# is the function and not the command.
+#
 #
 #
 # The `EnvSet` was measured again on 2026-11-02: the name of the variable of
@@ -148,7 +154,7 @@ function		Floor	1	1	Value
 function		Format	1	255	Value,Value
 command		FormatTime	1	255	Output,Value,Value
 function		Func	1	1	Value
-command		GetKeyState	2	2	Output,Value,Value
+command		GetKeyState	2	255	Output,Value,Value
 function		GetKeyState	1	2	Value,Value
 command		GroupActivate	1	255	Value,Value
 command		GroupAdd	1	255	Value,Value,Value,Value,Value,Value

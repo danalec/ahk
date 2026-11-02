@@ -1425,7 +1425,9 @@ impl Parser {
                         "Too few parameters passed to function.",
                     ));
                 }
-                if call.count > function.max as usize {
+                // The table says 255 when the built-in takes any number of
+                // them.
+                if function.max < 255 && call.count > function.max as usize {
                     return Err(self.the_error_of_the_arity_of_the_call(
                         call,
                         "Too many parameters passed to function.",

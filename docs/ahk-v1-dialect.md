@@ -824,7 +824,7 @@ does not get worse without being seen.
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
 | **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
-| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 179 cases), and the `--surface --json` for the CI. |
+| **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 187 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
@@ -846,7 +846,7 @@ the path of the class of the `new` by the block of the path (2026-11-02), and
 the parameter of a command by the block of the parameters (2026-11-02), and
 the pid of the process by the block of the pid (2026-11-02), and the code of
 the failure of a native call by the block of the code (2026-11-02), and the
-patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02), and the marks of the name of a variable by the block of the marks (2026-11-02), and the sub-command of a command by the block of the sub-command (2026-11-02), and the label that a command names by the block of the label (2026-11-03), and the goto by the block of the goto (2026-11-03).
+patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02), and the marks of the name of a variable by the block of the marks (2026-11-02), and the sub-command of a command by the block of the sub-command (2026-11-02), and the label that a command names by the block of the label (2026-11-03), and the goto by the block of the goto (2026-11-03), and the `GetKeyState` by the block of the key state (2026-11-03).
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -910,6 +910,21 @@ rules are in `crates/ahk/src/v1/labels.rs`, the hook of the dialect is
 the runtime refuses is the one of the dialect too
 (`the_refusal_of_a_jump_into_a_block`). The block of the goto (2026-11-03)
 carried it.
+
+**The `GetKeyState` of the v1.** The name is two things in the v1: the call of
+an expression is the function -- it takes one parameter and it answers the
+state of the key -- and the command statement is the command: it writes the
+letter D or U into the variable of the caller. The command has no maximum,
+because the v1 ignores the parameters that a command does not need, and the
+table says 255 when a built-in takes any number of them. The name of the key
+is checked when the script loads, with the complaint of a parameter:
+"Parameter #2 invalid." The name is one of the keys of the list of the
+documentation of the v1, a single character, or the spelling of a virtual key
+or of a scan code, and the number of the code is the byte that it ends in.
+The function answers an empty text for a name that is not a key. The names
+are in `crates/ahk/src/v1/keys.rs`, the rule of the parameter is in
+`crates/ahk/src/v1/parameters.rs`, and the two forms of the name are two rows
+of the table of the v1. The block of the key state (2026-11-03) carried it.
 
 **The settings of the v1.** The v1 and the v2 do not begin with the same
 values: the mode of the coordinates is the "Window" in the v1, the method of

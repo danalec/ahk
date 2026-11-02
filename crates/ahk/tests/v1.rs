@@ -136,6 +136,12 @@ impl Keyboard for Fake {
     fn press_key(&mut self, _name: &str, _modifiers: &[String]) -> Result<String, String> {
         Err("this fake has no keyboard".into())
     }
+
+    fn key_is_down(&mut self, name: &str) -> Result<bool, String> {
+        self.calls.borrow_mut().push(format!("key_is_down {name}"));
+        // The fake has the `Shift` down, and every other key up.
+        Ok(name.eq_ignore_ascii_case("shift"))
+    }
 }
 
 impl Pointer for Fake {
@@ -5079,5 +5085,125 @@ fn the_refusal_of_the_goto_comes_after_the_other_refusals_of_the_load() {
     assert_eq!(
         the_refusal_of_the_load("goto NoSuchLabel\nNoSuchFunction()"),
         "Call to nonexistent function.\n     Specifically: NoSuchFunction()"
+    );
+}
+
+/// The command of the `GetKeyState` of the v1 writes the letter D or U.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the command stores
+/// the letter D or U in the variable of the caller, and the function
+/// answers one or zero.
+#[test]
+fn the_command_of_the_get_key_state_of_the_v1_writes_the_letter_d_or_u() {
+    let report = run("GetKeyState, a, Shift");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text("D".into())));
+
+    let report = run("GetKeyState, a, a");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text("U".into())));
+}
+
+/// The function of the `GetKeyState` of the v1 answers one or zero.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the function is the
+/// other form of the same name, and it answers the state of the key.
+#[test]
+fn the_function_of_the_get_key_state_of_the_v1_answers_one_or_zero() {
+    let report = run("x := GetKeyState(\"Shift\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+
+    let report = run("x := GetKeyState(\"a\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+}
+
+/// The command of the v1 takes the parameters that it does not need.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the v1 ignores the
+/// parameters that a command does not need, and the `GetKeyState` with
+/// four parameters is accepted.
+#[test]
+fn the_command_of_the_get_key_state_of_the_v1_takes_the_parameters_that_it_does_not_need() {
+    let report = run("GetKeyState, a, Shift, P, extra");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text("D".into())));
+}
+
+/// The name of the key is checked when the script loads.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the name that is
+/// not a key is refused with "Parameter #2 invalid." and it names the text
+/// that the script wrote.
+#[test]
+fn the_name_of_the_key_is_checked_when_the_script_loads() {
+    assert_eq!(
+        the_refusal_of_the_load("GetKeyState, a, zzz"),
+        "Parameter #2 invalid.\n     Specifically: zzz"
+    );
+}
+
+/// The names that are the keys of the v1 are accepted.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the name of a
+/// button of the mouse, the name of a function key, the name of a virtual
+/// key and the name of a button of a controller are keys of the v1, and
+/// the `Win` is not one of them.
+#[test]
+fn the_names_that_are_the_keys_of_the_v1_are_accepted() {
+    for name in ["LButton", "F13", "vkFF", "Joy1", "sc01e", "2Joy1", "a"] {
+        assert!(
+            ahk::parse_with(
+                &format!("GetKeyState, a, {name}"),
+                dialect::v1()
+            )
+            .is_ok(),
+            "the name {name} is not a key"
+        );
+    }
+    assert_eq!(
+        the_refusal_of_the_load("GetKeyState, a, Win"),
+        "Parameter #2 invalid.\n     Specifically: Win"
+    );
+}
+
+/// The name of the key that is a substitution is not checked.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the name of the key
+/// that comes out of the substitution is not known when the script loads.
+#[test]
+fn the_name_of_the_key_that_is_a_substitution_is_not_checked() {
+    let report = run("x := \"Shift\"\nGetKeyState, a, %x%");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text("D".into())));
+}
+
+/// The function of the `GetKeyState` of the v1 answers an empty text when
+/// the name is not a key.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the v1 does not
+/// fail for a name that it does not know, and it answers an empty text.
+#[test]
+fn the_function_of_the_get_key_state_of_the_v1_answers_an_empty_text_for_a_name_that_is_not_a_key() {
+    let report = run("x := GetKeyState(\"zzz\")");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
+}
+
+/// The function of the `GetKeyState` of the v1 takes one or two parameters.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the call of the
+/// function is refused when the script loads, and the refusal names the
+/// call as it was written.
+#[test]
+fn the_function_of_the_get_key_state_of_the_v1_takes_one_or_two_parameters() {
+    assert_eq!(
+        the_refusal_of_the_load("x := GetKeyState()"),
+        "Too few parameters passed to function.\n     Specifically: GetKeyState()"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := GetKeyState(\"Shift\", \"P\", \"T\")"),
+        "Too many parameters passed to function.\n     Specifically: GetKeyState(\"Shift\", \"P\", \"T\")"
     );
 }

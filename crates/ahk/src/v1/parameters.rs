@@ -188,6 +188,7 @@ const RULES: &[Rule] = &[
     Rule { name: "KeyHistory", check: the_command_without_a_parameter },
     Rule { name: "StringMid", check: the_letter_of_the_string_mid },
     Rule { name: "MouseClickDrag", check: the_button_of_the_mouse },
+    Rule { name: "GetKeyState", check: the_name_of_a_key },
 ];
 
 /// The commands of the v1 whose complaint is a message of its own.
@@ -429,6 +430,27 @@ fn the_command_without_a_parameter(texts: &[String]) -> Option<usize> {
 /// The text of the parameter at this place, or the empty text.
 fn the_text_at(texts: &[String], place: usize) -> &str {
     texts.get(place).map(String::as_str).unwrap_or("")
+}
+
+/// The name of the key, in the second parameter of the `GetKeyState`.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-03: the name of the key
+/// is checked when the script loads, and the complaint of the v1 is the one
+/// of a parameter: "Parameter #2 invalid." with the text that the script
+/// wrote. The name is one of the keys of the v1, a single character, or the
+/// spelling of a virtual key or of a scan code.
+///
+/// The text of a substitution is not checked: the name of the key that
+/// comes out of it is not known at the load.
+fn the_name_of_a_key(texts: &[String]) -> Option<usize> {
+    let text = the_text_at(texts, 1);
+    if text.contains('%') {
+        return None;
+    }
+    if super::keys::is_the_name_of_a_key(text) {
+        return None;
+    }
+    Some(1)
 }
 
 /// The switch of the v1: "On", "Off" and the numbers one and zero.

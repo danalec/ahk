@@ -1658,6 +1658,14 @@ that asks for another one is refused with the reason.
   the jump that the runtime refuses is the one of the dialect too
   (`the_refusal_of_a_jump_into_a_block`).
 
+- **The `GetKeyState` of the v1 is a command and a function.** The call of an
+  expression is the function and the command statement is the command: the
+  command writes the letter D or U into the variable of the caller, and the
+  function answers one or zero. The command has no maximum -- the v1 ignores
+  the parameters that it does not need -- and the name of the key is checked
+  when the script loads: "Parameter #2 invalid." The names of the keys are in
+  `v1/keys.rs`, and the two rows of the table are the two forms of the name.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes
