@@ -3407,6 +3407,13 @@ impl Parser {
         // `obj.Prop := value` and `obj[key] := value`: the left side is a
         // value and not a name.
         if self.at_member_dot() || self.at_member_bracket() {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the name of the v1 may not carry a quote, and the value that
+            // holds the member is a variable: the `a"b".Prop := 5` is
+            // refused.
+            if self.dialect.the_name_may_not_carry_a_quote() && name_token.value.contains('"') {
+                return Err(self.the_name_that_carries_a_quote(&name_token.value, name_token.line, name_token.column));
+            }
             let target = Node::Var { name: name_token.value.clone(), line: name_token.line };
             self.the_expression_begins();
             let target = self.parse_suffixes(target, false, true)?;
@@ -4204,6 +4211,20 @@ impl Parser {
         }])
     }
 
+    /// The refusal of the name of the v1 that carries a quote.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// name of the v1 may not carry a quote, and the complaint of the v1
+    /// names the name: "The following variable name contains an illegal
+    /// character:" and the name between quotes.
+    fn the_name_that_carries_a_quote(&self, name: &str, line: u32, column: u32) -> SyntaxError {
+        SyntaxError {
+            message: format!("The following variable name contains an illegal character:\n\"{name}\""),
+            line,
+            column,
+        }
+    }
+
     /// The source of a range of tokens, the way the script wrote it.
     ///
     /// The spaces that the script wrote are in it: `FileAppend, [  pad  ]`
@@ -4387,6 +4408,12 @@ impl Parser {
     }
 
     fn parse_assignment(&mut self, name_token: Token) -> Result<Vec<Node>, SyntaxError> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // name of the v1 may not carry a quote, and the target of an
+        // assignment is a variable: the `a"b" := 5` is refused.
+        if self.dialect.the_name_may_not_carry_a_quote() && name_token.value.contains('"') {
+            return Err(self.the_name_that_carries_a_quote(&name_token.value, name_token.line, name_token.column));
+        }
         let operator = self.peek().clone();
         let op = match operator.value.as_str() {
             ":=" => AssignOp::Set,
@@ -7527,7 +7554,10 @@ impl Parser {
                 // side by side are one value, and the space between them is
                 // what makes it so. Without the space, v2 refuses and names
                 // the value that came too close.
-                if !self.peek().spaced {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 does not ask for the space: the
+                // `x := "a""b"` is the text `a"b`.
+                if self.dialect.the_space_separates_the_values() && !self.peek().spaced {
                     return Err(self.error(format!(
                         "Missing space or operator before this.\n     Specifically: {}",
                         the_source_of_the_rest_of_the_line(self, self.position)
@@ -8467,7 +8497,15 @@ impl Parser {
                     return self.parse_suffixes(call, true, false);
                 }
                 let name = token.value;
-                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the name of the v1 may not carry a quote: the
+                // `x := a"b"` is a name with an illegal character. The
+                // refusal is here and not above: the name of a function is
+                // not a variable, and the v1 does not refuse it.
+                if self.dialect.the_name_may_not_carry_a_quote() && name.contains('"') {
+                    return Err(self.the_name_that_carries_a_quote(&name, token.line, token.column));
+                }
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
                 // `base` of the v1 is the base of the class where the method
                 // was defined, and the word is only that word inside a
                 // class and when a dot or a bracket follows it.

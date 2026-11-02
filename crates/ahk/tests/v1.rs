@@ -6374,6 +6374,80 @@ fn the_assignment_of_the_v1_that_has_no_value_writes_the_empty_text() {
     );
 }
 
+/// The values of the v1 may be side by side.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not ask for the space that tells two values apart: the `x := "a"5`
+/// is the text `a5`, and the `x := 5 3` is the text `53`.
+#[test]
+fn the_values_of_the_v1_may_be_side_by_side() {
+    // The text and the number side by side.
+    let report = run("x := \"a\"5\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[a5]".to_string()]);
+
+    // The two numbers side by side.
+    let report = run("x := 5 3\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[53]".to_string()]);
+}
+
+/// The quote of the v1 escapes itself.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `"a""b"` is the text `a"b`.
+#[test]
+fn the_quote_of_the_v1_escapes_itself() {
+    let report = run("x := \"a\"\"b\"\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[a\"b]".to_string()]);
+}
+
+/// The name of the v1 may not carry a quote.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name
+/// of a variable of the v1 may not carry a quote, and the complaint of the
+/// v1 names the name: "The following variable name contains an illegal
+/// character:". The name is the symbol that comes with the word.
+#[test]
+fn the_name_of_the_v1_may_not_carry_a_quote() {
+    // The name of a variable that is read.
+    assert_eq!(
+        the_refusal_of_the_load("x := a\"b\""),
+        "The following variable name contains an illegal character:\n\"a\"b\"\""
+    );
+
+    // The target of an assignment.
+    assert_eq!(
+        the_refusal_of_the_load("a\"b\" := 5"),
+        "The following variable name contains an illegal character:\n\"a\"b\"\""
+    );
+
+    // The number that is the name of a variable.
+    assert_eq!(
+        the_refusal_of_the_load("x := 5\"a\""),
+        "The following variable name contains an illegal character:\n\"5\"a\"\""
+    );
+
+    // The symbol is the one that comes with the word.
+    assert_eq!(
+        the_refusal_of_the_load("x := a\"b\"x"),
+        "The following variable name contains an illegal character:\n\"a\"b\"x\""
+    );
+
+    // The name of a command of the v1 is a text, and the v1 does not refuse
+    // it.
+    let report = run("FileAppend, a\"b\", *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["a\"b\"".to_string()]);
+
+    // And the name of a function is not a variable.
+    assert_eq!(
+        the_refusal_of_the_load("a\"b\"(1)"),
+        "Call to nonexistent function.\n     Specifically: a\"b\"(1)"
+    );
+}
+
 /// The line that comes with the tail of the `if` of the v1 is an action.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if

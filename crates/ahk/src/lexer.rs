@@ -129,6 +129,49 @@ pub enum TheRefusal {
     Class,
 }
 
+/// The end of the symbol of the v1 that carries a quote.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name
+/// that the v1 refuses is the symbol that comes with the word, and the
+/// symbol ends at the space, at the comma, at the bracket that closes, at
+/// the point of a member, at the colon and at the operators.
+fn the_end_of_a_symbol_that_carries_a_quote(chars: &[char], start: usize) -> usize {
+    let mut end = start;
+    while end < chars.len() && !the_character_ends_a_symbol(chars[end]) {
+        end += 1;
+    }
+    end
+}
+
+/// Whether the character ends the symbol of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a"b", y` is the symbol `a"b"` and the `a"b")` is the symbol `a"b"`,
+/// and the `a"b"x` is the symbol `a"b"x`.
+fn the_character_ends_a_symbol(character: char) -> bool {
+    character.is_whitespace()
+        || matches!(
+            character,
+            ',' | ')' | '}' | '{' | ':' | '.' | ';' | '=' | '!' | '<' | '>' | '&' | '|' | '^' | '+'
+                | '-' | '*' | '/' | '%' | '~' | '?' | '(' | '['
+        )
+}
+
+/// The source of a text, the way the script wrote it.
+///
+/// The text of the v1 is between double quotes, and the quote that was
+/// written is a part of the source of it.
+fn the_source_of_a_text(chars: &[char], start: usize) -> String {
+    let mut end = start + 1;
+    while end < chars.len() && chars[end] != '"' && chars[end] != '\n' {
+        end += 1;
+    }
+    if end < chars.len() && chars[end] == '"' {
+        end += 1;
+    }
+    chars[start..end].iter().collect()
+}
+
 /// The reason of the refusal of a word, when the language reserves it.
 ///
 /// The word is the one as the script wrote it, and the reason is the one
@@ -837,7 +880,23 @@ pub fn tokenize_with(
             // The text of the section that the text holds, if there is one.
             let mut the_text_of_the_section = String::new();
             loop {
-                while index < chars.len() && chars[index] != quote && chars[index] != '\n' {
+                while index < chars.len() && chars[index] != '\n' {
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the quote of the v1 escapes itself: the
+                    // `"a""b"` is the text `a"b`.
+                    if chars[index] == '"'
+                        && dialect.the_quote_escapes_the_quote()
+                        && index + 1 < chars.len()
+                        && chars[index + 1] == '"'
+                    {
+                        buffer.push('"');
+                        index += 2;
+                        column += 2;
+                        continue;
+                    }
+                    if chars[index] == quote {
+                        break;
+                    }
                     // The escape of v2 is the backtick. A backslash is a
                     // backslash: the path of a file is written with it, and
                     // v2 does not read it as an escape.
@@ -980,7 +1039,7 @@ pub fn tokenize_with(
                     });
                     continue;
                 }
-                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
                 // parameter of a command of the v1 is a text, and "2px" is a
                 // text there: the number and the name are two tokens.
                 //
@@ -1006,6 +1065,33 @@ pub fn tokenize_with(
                     start_column,
                 ));
             }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the number of the v1 may be the name of a variable, and the
+            // name may not carry a quote: the `5"a"` is a name with an
+            // illegal character.
+            if dialect.the_name_may_not_carry_a_quote() && chars.get(index) == Some(&'"') {
+                let text: String = chars[start..index].iter().collect();
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+                // the number with a point is a number and not the name of a
+                // variable, and the quote is not allowed there: the `5.5"a"`
+                // is refused with "This character is not allowed here.".
+                if text.contains('.') {
+                    return Err(SyntaxError::new(
+                        format!(
+                            "This character is not allowed here.\n     Specifically: {}",
+                            the_source_of_a_text(&chars, index)
+                        ),
+                        start_line,
+                        start_column,
+                    ));
+                }
+                let end = the_end_of_a_symbol_that_carries_a_quote(&chars, index);
+                let word: String = chars[start..end].iter().collect();
+                column += (end - index) as u32;
+                index = end;
+                tokens.push(Token { kind: TokenKind::Name, value: word, line: start_line, column: start_column, spaced: before, quote: None });
+                continue;
+            }
             tokens.push(Token {
                 kind: TokenKind::Number,
                 value: chars[start..index].iter().collect(),
@@ -1024,6 +1110,23 @@ pub fn tokenize_with(
             {
                 index += 1;
                 column += 1;
+            }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the name of the v1 may not carry a quote: the `a"b"` is a name
+            // with an illegal character. The name is the symbol that comes
+            // with the word: the `a"b"x` is the symbol `a"b"x`, and the
+            // `a"b", y` is the symbol `a"b"`.
+            //
+            // The lexer does not refuse it: the name of a command of the v1
+            // is a text, and the refusal belongs to the place where the name
+            // is a variable.
+            if dialect.the_name_may_not_carry_a_quote() && chars.get(index) == Some(&'"') {
+                let end = the_end_of_a_symbol_that_carries_a_quote(&chars, index);
+                let word: String = chars[start..end].iter().collect();
+                column += (end - index) as u32;
+                index = end;
+                tokens.push(Token { kind: TokenKind::Name, value: word, line: start_line, column: start_column, spaced: before, quote: None });
+                continue;
             }
             let word: String = chars[start..index].iter().collect();
             let kind = if KEYWORDS.contains(&word.to_lowercase().as_str()) {

@@ -242,6 +242,45 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the space between two values is what makes them one value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: two values side by
+    /// side are one value, and the space between them is what makes it so.
+    /// The v2 refuses the pair that has no space, and it names the value that
+    /// came too close.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not ask for the space: the `x := "a""b"` is the text `a"b`.
+    fn the_space_separates_the_values(&self) -> bool {
+        true
+    }
+
+    /// Whether the quote of a text escapes itself.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-31: the escape of the v2
+    /// is the backtick, and the quote of the text is the character that
+    /// closes it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// quote of the v1 escapes itself: the `"a""b"` is the text `a"b`.
+    fn the_quote_escapes_the_quote(&self) -> bool {
+        false
+    }
+
+    /// Whether the name of a variable may not carry a quote.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// name of the v1 may not carry a quote: the `x := a"b"` is refused with
+    /// "The following variable name contains an illegal character: \"a\"b\"\"".
+    ///
+    /// The refusal is where the name is a variable. The name of a command of
+    /// the v1 is a text, and the name of a function is not a variable: the
+    /// `MsgBox, a"b"` is a command that runs, and the `a"b"(1)` is a call to
+    /// a function that is not there.
+    fn the_name_may_not_carry_a_quote(&self) -> bool {
+        false
+    }
+
     /// Whether the text that is not closed is named alone, with the words of
     /// the dialect.
     ///
@@ -1229,6 +1268,24 @@ impl Dialect for V1 {
     fn the_assignment_continues_the_tail(&self) -> bool {
         // The `:=` at the end of the tail is an operator, and the tail takes
         // the line that comes with it.
+        true
+    }
+
+    fn the_space_separates_the_values(&self) -> bool {
+        // The v1 does not ask for the space: the `x := "a""b"` is the text
+        // `a"b`.
+        false
+    }
+
+    fn the_quote_escapes_the_quote(&self) -> bool {
+        // The quote of the v1 escapes itself: the `"a""b"` is the text `a"b`.
+        true
+    }
+
+    fn the_name_may_not_carry_a_quote(&self) -> bool {
+        // The name of the v1 may not carry a quote: the `x := a"b"` is a name
+        // with an illegal character. The refusal is where the name is a
+        // variable, and not where it is the name of a command.
         true
     }
 

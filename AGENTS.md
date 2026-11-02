@@ -8051,3 +8051,44 @@ statement to know it, and puts the state of the parser back where it was
 (`the_line_of_the_tail_is_an_action`).
 
 The suite of the v1 has two cases more (244).
+
+## 203. The values of the v1 may be side by side
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 does
+not ask for the space that tells two values apart. The `x := "a"5` is the
+text `a5`, and the `x := 5 3` is the text `53`. The v2 asks for the space,
+and it refuses the line with "Missing space or operator before this.".
+
+The quote of the v1 escapes itself: the `x := "a""b"` is the text `a"b`.
+The v2 reads the `""` as the end of a text followed by the beginning of
+another one.
+
+The dialect says the two things (`the_space_separates_the_values` and
+`the_quote_escapes_the_quote`), the parser asks the first one when it joins
+two values, and the lexer asks the second one when it reads a text.
+
+## 204. The name of the v1 may not carry a quote
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name of a
+variable of the v1 may not carry a quote. The `x := a"b"` is refused at the
+load with "The following variable name contains an illegal character:" and
+the name of it -- the `"a"b""`. The name is the symbol that comes with the
+word: the `a"b"x` is the symbol `a"b"x`, and the `a"b", y` is the symbol
+`a"b"`.
+
+The refusal is where the name is a variable: the target of an assignment, the
+value that is read, and the member. The name of a command of the v1 is a
+text, and the `FileAppend, a"b", *` runs; and the name of a function is not
+a variable, and the `a"b"(1)` is a "Call to nonexistent function.".
+
+The number that is the name of a variable carries the quote too: the `x :=
+5"a"` is the symbol `5"a"`. The number with a point is a number and not the
+name of a variable, and the quote is not allowed there: the `x := 5.5"a"` is
+a "This character is not allowed here. Specifically: "a"".
+
+The dialect says it (`the_name_may_not_carry_a_quote`), the lexer marks the
+name with the symbol that comes with it
+(`the_end_of_a_symbol_that_carries_a_quote`) and the parser refuses it where
+the name is a variable (`the_name_that_carries_a_quote`).
+
+The suite of the v1 has three cases more (247).

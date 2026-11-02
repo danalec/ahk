@@ -123,6 +123,10 @@ The crate is `#![no_std]` when the `std` feature is off, and it pulls in
   space comes before it. The one that is glued to the token that comes
   before it is a character of the script, and the parser refuses it as an
   illegal character.
+- The name of the v1 may not carry a quote. The lexer does not refuse it: it
+  marks the name with the symbol that comes with the word -- the `a"b"x` is
+  the symbol `a"b"x` -- and the parser refuses it where the name is a
+  variable (`the_name_may_not_carry_a_quote`).
 - The percent sign is an operator, and it builds a name: the name is the
   text that is written and the values of the expressions, joined without a
   space between them. `%x%` is the variable whose name is the value of `x`,
@@ -1795,6 +1799,24 @@ that asks for another one is refused with the reason.
   parser while it reads them, because a text that is not an expression is
   the parameter of a command. The runtime runs the items in the `If`
   (`Node::If`).
+
+- **The values of the v1 may be side by side.** The v1 does not ask for the
+  space that tells two values apart: the `x := "a"5` is the text `a5`, and
+  the `x := 5 3` is the text `53`. The dialect says it
+  (`the_space_separates_the_values`) and the parser asks it when it joins two
+  values. The quote of the v1 escapes itself: the `x := "a""b"` is the text
+  `a"b`. The dialect says that too (`the_quote_escapes_the_quote`) and the
+  lexer asks it when it reads a text.
+- **The name of the v1 may not carry a quote.** The `x := a"b"` is refused at
+  the load with "The following variable name contains an illegal character:"
+  and the name of it. The refusal is where the name is a variable: the target
+  of an assignment, the value that is read and the member. The name of a
+  command of the v1 is a text, and the `FileAppend, a"b", *` runs; the name of
+  a function is not a variable, and the `a"b"(1)` is a "Call to nonexistent
+  function.". The dialect says it (`the_name_may_not_carry_a_quote`), the
+  lexer marks the symbol (`the_end_of_a_symbol_that_carries_a_quote`) and the
+  parser refuses it where the name is a variable
+  (`the_name_that_carries_a_quote`).
 
 ## Side Effects
 

@@ -1073,6 +1073,29 @@ the tail is an action: the `if (0) x := 1, FileAppend, A, *` with a `B`
 under it is a "This line does not contain a recognized action. Specifically:
 B".
 
+**The values that are side by side** (2026-11-04). The v1 does not ask for
+the space that tells two values apart: the `x := "a"5` is the text `a5`, and
+the `x := 5 3` is the text `53`. The v2 asks for the space, and it refuses
+the line with "Missing space or operator before this.".
+
+The quote of the v1 escapes itself: the `x := "a""b"` is the text `a"b`.
+
+**The name that carries a quote** (2026-11-04). The name of a variable of the
+v1 may not carry a quote. The `x := a"b"` is refused at the load with "The
+following variable name contains an illegal character:" and the name of it --
+the `"a"b""`. The name is the symbol that comes with the word: the `a"b"x`
+is the symbol `a"b"x`, and the `a"b", y` is the symbol `a"b"`.
+
+The refusal is where the name is a variable: the target of an assignment, the
+value that is read and the member. The name of a command of the v1 is a text,
+and the `FileAppend, a"b", *` runs; and the name of a function is not a
+variable, and the `a"b"(1)` is a "Call to nonexistent function.".
+
+The number that is the name of a variable carries the quote too: the `x := 5"a"`
+is the symbol `5"a"`. The number with a point is a number and not the name of
+a variable, and the quote is not allowed there: the `x := 5.5"a"` is a "This
+character is not allowed here. Specifically: "a"".
+
 **What is left of the v1.** One corner of the `if` is measured on the binary
 of v1.1.37.02 and the tree does not do it yet.
 
@@ -1085,11 +1108,21 @@ command, and the tree reads it as the construct of the v2. The `loop 3` is
 three turns in the two of them, but the `loop n` is three turns in the tree
 and none in the v1: the count of the v1 is a number and not an expression.
 
-And one corner that is not of the `if` either: the concatenation of two
-values that are side by side. The v1 does not ask for the space that tells them apart,
-and the tree does: the `x := 5++3` is three in the v1, and the tree refuses
-the line with "Missing space or operator before this.". The `x := a++3` is
-"53" in the v1, and the tree refuses it the same way.
+And one corner that is not of the `if`: the order of the refusals. The v1
+reads the line before it says that the line does not make sense, and the
+refusal of the name comes before the refusal of the sense: the `return a"b"`
+is the name in the v1, and the tree says "Return's parameter should be blank
+except inside a function.".
+
+And one more that is not of the `if`: the illegal character of an expression.
+The v1 says "The leftmost character above is illegal in an expression.
+Specifically: ;" and names the character alone; the tree says "Illegal
+character in expression. Specifically: ; y := 1" and names the rest of the
+line.
+
+And one more still: the call of a name that is not a function, when the
+bracket that closes it is not there. The v1 says "Call to nonexistent
+function. Specifically: abc(c" and the tree says "Missing \")\"".
 
 **The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
 its own, and the two colons that separate the name from the action are what
