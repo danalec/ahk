@@ -2312,6 +2312,39 @@ v1 hangs.
 The `FileAppend` that has no name of its own is a hole that is left: the v1
 writes the text nowhere, and the tree refuses it with the refusal of the v2.
 
+**The commands of the files of the v1 go on when the machine cannot do the
+thing** (2026-11-05). The `FileGetSize`, the `FileGetTime`, the
+`FileGetAttrib`, the `FileRead`, the `FileReadLine`, the `FileMoveDir`, the
+`FileCopyDir`, the `FileRemoveDir`, the `FileSetTime` and the `FileAppend` of
+the v1 are not failures of the script when the machine cannot do what they
+ask: the `ErrorLevel` is one, the script goes on, and the variable of the
+caller is empty.
+
+The units of the `FileGetSize` of the v1 are the bytes -- the "B" and the
+nothing --, the kilobytes -- the "K" -- and the megabytes -- the "M", and the
+size is rounded down. The unit that the v1 does not know is refused when the
+script loads.
+
+The name of the file of these commands may be left out, and the file of the
+loop that runs is the one that is used. There is no loop and no name: the
+`ErrorLevel` is one, the script goes on, and the variable of the caller is
+empty.
+
+The `FileDelete` of the v1 is the one that is different: the name that is not
+a pattern is the name of one file, and the file that is not there is a
+failure of the command -- the `ErrorLevel` is one -- and the pattern that
+matches nothing is not a failure.
+
+The tree carries it: the commands of the v1 are in `crates/ahk/src/v1/mod.rs`,
+the dialect says which parameters may be left out, and the runtime knows the
+file of the loop that runs.
+
+The probes of the block are `egm-review/probe_v1_files_errors.py`,
+`egm-review/probe_v1_files_errors_tree.py`, `egm-review/probe_v1_file_name.py`
+and `egm-review/probe_v1_file_name_tree.py`, and they are the cases of the
+binary and of the tree: twenty of the twenty and nine of the nine are the
+same.
+
 ---
 
 ## 5. The risks

@@ -184,9 +184,14 @@ fn groups_of(attributes: &str) -> Option<Vec<String>> {
 pub fn file_get_size(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let path = the_name_of_a_file(values, 0, 1, "FileGetSize", line)?;
     let unit = text_of(values, 1);
-    let kilobytes = match unit.trim() {
-        "" => false,
-        "K" | "k" => true,
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    // units of the v1 are the bytes -- the "B" and the nothing --, the
+    // kilobytes -- the "K" -- and the megabytes -- the "M". The size is
+    // rounded down.
+    let divisor = match unit.trim() {
+        "" | "B" | "b" => 1,
+        "K" | "k" => 1024,
+        "M" | "m" => 1024 * 1024,
         _ => {
             return Err(RuntimeError {
                 message: "Parameter #2 of FileGetSize is invalid.".to_string(),
@@ -210,7 +215,7 @@ pub fn file_get_size(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
     rt.desktop()
         .close_file(handle)
         .map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Int(if kilobytes { size / 1024 } else { size }))
+    Ok(Value::Int(size / divisor))
 }
 
 /// `FileGetTime`: when a file was made, changed or read.

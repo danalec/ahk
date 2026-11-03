@@ -555,6 +555,17 @@ pub trait Dialect: Sync {
     /// parameters of a command of the v1 are texts and not expressions.
     fn legacy_commands(&self) -> bool;
 
+    /// The parameters of a command that may not be left out.
+    ///
+    /// The numbers are the places of the parameters, counted from one.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// name of the file of the `FileSetTime` of the v1 may be left out: the
+    /// file of the loop that runs is the one that is changed.
+    fn the_parameters_that_may_not_be_left_out(&self, name: &str) -> &'static [u8] {
+        crate::builtins::required_parameters(name)
+    }
+
     /// The equal sign assigns and does not compare. Measured on the binary
     /// of v1.1.37.02 on 2026-11-01: `x = 5` leaves `x` at 5.
     fn assign_with_equal(&self) -> bool;
@@ -2141,6 +2152,17 @@ impl Dialect for V1 {
 
     fn legacy_commands(&self) -> bool {
         true
+    }
+
+    fn the_parameters_that_may_not_be_left_out(&self, name: &str) -> &'static [u8] {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // name of the file of the `FileSetTime` of the v1 may be left out: the
+        // file of the loop that runs is the one that is changed, and there is
+        // no such file outside of a loop.
+        if name.eq_ignore_ascii_case("FileSetTime") {
+            return &[];
+        }
+        crate::builtins::required_parameters(name)
     }
 
     fn assign_with_equal(&self) -> bool {

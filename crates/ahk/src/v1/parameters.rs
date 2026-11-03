@@ -931,6 +931,9 @@ fn the_time_of_a_file(texts: &[String]) -> Option<usize> {
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the size is the one
 /// of the kilobytes -- the "K" -- or the one of the megabytes -- the "M".
 /// The gigabytes are a unit that the v1 does not have.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-05: the bytes are a unit
+/// of the v1 too -- the "B" -- and the unit that is not there is the bytes.
 fn the_size_of_a_file(texts: &[String]) -> Option<usize> {
     // Measured on the binary of v1.1.37.02 on 2026-11-02: the unit is
     // optional, and the command is refused when it is there and it is not
@@ -939,7 +942,7 @@ fn the_size_of_a_file(texts: &[String]) -> Option<usize> {
         return None;
     }
     match the_text_at(texts, 2).trim().to_lowercase().as_str() {
-        "k" | "m" => None,
+        "b" | "k" | "m" => None,
         _ => Some(2),
     }
 }

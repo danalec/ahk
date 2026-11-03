@@ -9568,7 +9568,7 @@ impl<'a> Runtime<'a> {
         // the parameter and not the count, and it comes after the kind of
         // the values that are there: the dialect converts the arguments
         // before the body of the function runs.
-        for number in crate::builtins::required_parameters(builtin.name) {
+        for number in self.dialect.the_parameters_that_may_not_be_left_out(builtin.name) {
             if values.len() < *number as usize {
                 return Err(RuntimeFailure::Detailed(
                     RuntimeError {
@@ -9661,6 +9661,17 @@ impl<'a> Runtime<'a> {
         self.loop_output_files
             .last()
             .map(|path| path.as_str())
+            .filter(|path| !path.is_empty())
+    }
+
+    /// The file of the loop of the files that runs.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// name of the file of the commands of the files of the v1 may be left
+    /// out, and the file of the loop that runs is the one that is used.
+    pub(crate) fn the_file_of_the_loop(&self) -> Option<String> {
+        self.lookup("A_LoopFileLongPath")
+            .map(|value| value.to_text())
             .filter(|path| !path.is_empty())
     }
 

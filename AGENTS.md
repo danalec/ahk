@@ -8985,3 +8985,43 @@ The `FileAppend` that has no name of its own is a hole that is left: the v1
 writes the text nowhere, and the tree refuses it with the refusal of the v2.
 
 The suite of the v1 has eight cases more (374).
+
+## 237. The commands of the files of the v1 go on when the machine cannot do the thing
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+`FileGetSize`, the `FileGetTime`, the `FileGetAttrib`, the `FileRead`, the
+`FileReadLine`, the `FileMoveDir`, the `FileCopyDir`, the `FileRemoveDir`, the
+`FileSetTime` and the `FileAppend` of the v1 are not failures of the script
+when the machine cannot do what they ask: the `ErrorLevel` is one, the script
+goes on, and the variable of the caller is empty. The v2 fails with the reason
+of the machine, and the tree keeps that for it.
+
+The units of the `FileGetSize` of the v1 are the bytes -- the "B" and the
+nothing --, the kilobytes -- the "K" -- and the megabytes -- the "M", and the
+size is rounded down. The unit that the v1 does not know is refused when the
+script loads.
+
+The name of the file of these commands may be left out, and the file of the
+loop that runs is the one that is used. There is no loop and no name: the
+`ErrorLevel` is one, the script goes on, and the variable of the caller is
+empty. The `FileSetTime` of the v1 takes the name of the file too, and it may
+be left out as well: the dialect says which parameters of a command may not
+be left out, and the rule of the v2 does not hold for it.
+
+The `FileDelete` of the v1 is the one that is different: the name that is not
+a pattern is the name of one file, and the file that is not there is a
+failure of the command -- the `ErrorLevel` is one -- and the pattern that
+matches nothing is not a failure. The copy and the move of the v1 are the
+patterns alone: the file that is not there leaves the `ErrorLevel` at zero.
+
+The commands of the v1 are in `crates/ahk/src/v1/mod.rs`, the dialect says
+which parameters may be left out, and the runtime knows the file of the loop
+that runs.
+
+The probes of the block are `egm-review/probe_v1_files_errors.py`,
+`egm-review/probe_v1_files_errors_tree.py`, `egm-review/probe_v1_file_name.py`
+and `egm-review/probe_v1_file_name_tree.py`, and they are the cases of the
+binary and of the tree: twenty of the twenty and nine of the nine are the
+same.
+
+The suite of the v1 has three cases more (377).

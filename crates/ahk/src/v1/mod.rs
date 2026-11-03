@@ -12,6 +12,7 @@
 
 use alloc::format;
 use alloc::string::{String, ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::builtins::BuiltinHandler;
@@ -337,13 +338,17 @@ pub(crate) fn env_update(
 }
 
 /// `FileGetAttrib, name, file`: the attributes of a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-05: the file that is not
+/// there is not a failure of the script: the `ErrorLevel` is one, the script
+/// goes on, and the variable of the caller is empty.
 pub(crate) fn file_get_attrib(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(
+    the_answer_of_a_file_of_the_loop(
         rt,
         "FileGetAttrib",
         values,
@@ -354,13 +359,17 @@ pub(crate) fn file_get_attrib(
 }
 
 /// `FileGetSize, name, file, unit`: the size of a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-05: the file that is not
+/// there is not a failure of the script: the `ErrorLevel` is one, the script
+/// goes on, and the variable of the caller is empty.
 pub(crate) fn file_get_size(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(
+    the_answer_of_a_file_of_the_loop(
         rt,
         "FileGetSize",
         values,
@@ -371,13 +380,17 @@ pub(crate) fn file_get_size(
 }
 
 /// `FileGetTime, name, file, unit`: the time of a file.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-05: the file that is not
+/// there is not a failure of the script: the `ErrorLevel` is one, the script
+/// goes on, and the variable of the caller is empty.
 pub(crate) fn file_get_time(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(
+    the_answer_of_a_file_of_the_loop(
         rt,
         "FileGetTime",
         values,
@@ -391,21 +404,17 @@ pub(crate) fn file_get_time(
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
 /// the v1 is zero when the load was successful and one when it was not.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-05: the file that is not
+/// there is not a failure of the script: the `ErrorLevel` is one, the script
+/// goes on, and the variable of the caller is empty.
 pub(crate) fn file_read(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let answer = the_answer_goes_into_the_first_output(
-        rt,
-        "FileRead",
-        values,
-        line,
-        crate::builtins::file_read,
-        0,
-    );
-    the_error_level_of_a_file_command(rt, answer)
+    the_answer_of_a_file_command(rt, "FileRead", values, line, crate::builtins::file_read, 0)
 }
 
 /// `FormatTime, name, format, time`: the time of the machine as a text.
@@ -842,6 +851,10 @@ pub(crate) fn string_lower(
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
 /// the v1 is one when there was a problem and zero otherwise.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-05: the file that cannot
+/// be written is not a failure of the script: the `ErrorLevel` is one and the
+/// script goes on.
 pub(crate) fn file_append(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -849,7 +862,52 @@ pub(crate) fn file_append(
     variant: u8,
 ) -> Result<Value, RuntimeError> {
     let answer = crate::files::file_append(rt, values, line, variant);
-    the_error_level_of_a_file_command(rt, answer)
+    the_error_level_of_a_command_that_goes_on(rt, answer)
+}
+
+/// `FileCopyDir, source, destination`: take a copy of a folder.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the folder
+/// that is not there is not a failure of the script: the `ErrorLevel` is one
+/// and the script goes on.
+pub(crate) fn file_copy_dir(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::files::dir_copy(rt, values, line, variant);
+    the_error_level_of_a_command_that_goes_on(rt, answer)
+}
+
+/// `FileMoveDir, source, destination, way`: move a folder.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the folder
+/// that is not there is not a failure of the script: the `ErrorLevel` is one
+/// and the script goes on.
+pub(crate) fn file_move_dir(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::files::dir_move(rt, values, line, variant);
+    the_error_level_of_a_command_that_goes_on(rt, answer)
+}
+
+/// `FileRemoveDir, folder`: take a folder away.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the folder
+/// that is not there is not a failure of the script: the `ErrorLevel` is one
+/// and the script goes on.
+pub(crate) fn file_remove_dir(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = crate::builtins::dir_delete(rt, values, line, variant);
+    the_error_level_of_a_command_that_goes_on(rt, answer)
 }
 
 /// `FileCopy, source, destination`: take a copy of a file.
@@ -891,6 +949,10 @@ pub(crate) fn file_copy(
 /// may be a pattern, and the command deletes every file that matches it. The
 /// `ErrorLevel` is the number of the files that failed to be deleted, and it
 /// is zero when the pattern matches nothing.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-05: the name that is not
+/// a pattern is the name of one file, and the file that is not there is a
+/// failure of the command: the `ErrorLevel` is one.
 pub(crate) fn file_delete(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -898,7 +960,12 @@ pub(crate) fn file_delete(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let path = crate::files::the_name_of_a_file(values, 0, 1, "FileDelete", line)?;
-    let files = files::the_files_of_the_pattern(rt, &path, line)?;
+    let files = if files::is_a_pattern(&path) {
+        files::the_files_of_the_pattern(rt, &path, line)?
+    } else {
+        // The name that is not a pattern is the name of one file.
+        vec![path.clone()]
+    };
     let mut failed = 0;
     for file in files {
         if let Err(reason) = rt.desktop().delete_file(&file) {
@@ -946,28 +1013,117 @@ pub(crate) fn file_move(
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` of
 /// the v1 is the number of the files that failed to be changed.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the file
+/// that is not there is not a failure of the script: the `ErrorLevel` is one
+/// and the script goes on.
 pub(crate) fn file_set_time(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let answer = crate::files::file_set_time(rt, values, line, variant);
-    the_error_level_of_a_file_command(rt, answer)
+    // The name of the file may be left out, and the file of the loop that
+    // runs is the one that is changed.
+    let Some(values) = the_values_of_the_file_of_the_loop(rt, values) else {
+        rt.set_the_error_level(Value::Int(1));
+        rt.note("the command FileSetTime did not do the thing: there is no file of a loop.");
+        return Ok(Value::Text(String::new()));
+    };
+    let answer = crate::files::file_set_time(rt, &values, line, variant);
+    the_error_level_of_a_command_that_goes_on(rt, answer)
 }
 
-/// The `ErrorLevel` of a file command of the v1.
+/// The `ErrorLevel` of a command of the v1 that the machine could not do.
 ///
-/// Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel` is
-/// the number of the files that the command could not do, and the tree
-/// refuses the wildcards, so the number is one when the command fails and
-/// zero when it does not.
-fn the_error_level_of_a_file_command(
+/// Measured on the binary of v1.1.37.02 on 2026-11-05: the command that
+/// cannot be done is not a failure of the script: the `ErrorLevel` is one and
+/// the script goes on. The `ErrorLevel` is zero when the command did the
+/// thing.
+fn the_error_level_of_a_command_that_goes_on(
     rt: &mut Runtime<'_>,
     answer: Result<Value, RuntimeError>,
 ) -> Result<Value, RuntimeError> {
-    rt.set_the_error_level(Value::Int(if answer.is_ok() { 0 } else { 1 }));
-    answer
+    match answer {
+        Ok(value) => {
+            rt.set_the_error_level(Value::Int(0));
+            Ok(value)
+        }
+        Err(failure) => {
+            rt.set_the_error_level(Value::Int(1));
+            rt.note(format!("the command did not do the thing: {}", failure.message));
+            Ok(Value::Text(String::new()))
+        }
+    }
+}
+
+/// The answer of a command of the files of the v1 that writes into a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// command that cannot be done is not a failure of the script: the
+/// `ErrorLevel` is one and the script goes on, and the variable of the caller
+/// is empty.
+fn the_answer_of_a_file_command(
+    rt: &mut Runtime<'_>,
+    name: &str,
+    values: &[Value],
+    line: u32,
+    handler: BuiltinHandler,
+    flavour: u8,
+) -> Result<Value, RuntimeError> {
+    let answer = handler(rt, values.get(1..).unwrap_or(&[]), line, flavour);
+    let answer = the_error_level_of_a_command_that_goes_on(rt, answer)?;
+    write_the_answer(rt, name, values, 0, answer.clone(), line)?;
+    Ok(answer)
+}
+
+/// The values of a command of the files of the v1 whose name of the file may
+/// be left out.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name of
+/// the file may be left out, and the file of the loop that runs is the one
+/// that is used. The answer is nothing when there is no file at all.
+fn the_values_of_the_file_of_the_loop(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+) -> Option<Vec<Value>> {
+    // The name of the file is the second parameter of the command of the v1.
+    let file = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    if !file.is_empty() {
+        return Some(values.to_vec());
+    }
+    let current = rt.the_file_of_the_loop()?;
+    let mut values = values.to_vec();
+    if values.len() < 2 {
+        values.push(Value::Text(current));
+    } else {
+        values[1] = Value::Text(current);
+    }
+    Some(values)
+}
+
+/// The answer of a command of the files of the v1 whose name of the file may
+/// be left out.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name of
+/// the file may be left out, and the file of the loop that runs is the one
+/// that is used. There is no file at all: the `ErrorLevel` is one, the script
+/// goes on, and the variable of the caller is empty.
+fn the_answer_of_a_file_of_the_loop(
+    rt: &mut Runtime<'_>,
+    name: &str,
+    values: &[Value],
+    line: u32,
+    handler: BuiltinHandler,
+    flavour: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(values) = the_values_of_the_file_of_the_loop(rt, values) else {
+        rt.set_the_error_level(Value::Int(1));
+        rt.note(format!("the command {name} did not do the thing: there is no file of a loop."));
+        write_the_answer(rt, name, values, 0, Value::Text(String::new()), line)?;
+        return Ok(Value::Text(String::new()));
+    };
+    the_answer_of_a_file_command(rt, name, &values, line, handler, flavour)
 }
 
 /// `FileSelectFile, name, ...`: the file that the user chose.

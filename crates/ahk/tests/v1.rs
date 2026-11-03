@@ -95,6 +95,11 @@ impl Files for Fake {
     fn list_files(&mut self, _folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
         self.calls.borrow_mut().push(format!("list_files {pattern}"));
         self.modes.borrow_mut().push(mode.to_string());
+        // The mode that asks for the folders gives none: the fake has none,
+        // and the name of a file is not a folder.
+        if mode.contains('D') {
+            return Ok(Vec::new());
+        }
         // The pattern with the wildcard is the one of the cases that want
         // many files, and the one with the "bin" is the one whose file cannot
         // be copied. The pattern that is not there matches nothing.
@@ -129,7 +134,40 @@ impl Files for Fake {
 
     fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
         self.calls.borrow_mut().push(format!("file_attributes {path}"));
+        // The name that is not there is the one that the cases use for the
+        // command that fails.
+        if path.contains("nothere") {
+            return Err("the file is not there".into());
+        }
         Ok(vec!["A".to_string()])
+    }
+
+    fn open_file(&mut self, path: &str, _mode: &str) -> Result<i64, String> {
+        self.calls.borrow_mut().push(format!("open_file {path}"));
+        // The name that is not there is the one that the cases use for the
+        // command that fails.
+        if path.contains("nothere") {
+            return Err("the file is not there".into());
+        }
+        Ok(1)
+    }
+
+    fn file_size(&mut self, _handle: i64) -> Result<i64, String> {
+        // The files of the fake have five bytes.
+        Ok(5)
+    }
+
+    fn close_file(&mut self, _handle: i64) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn file_times(&mut self, path: &str) -> Result<(i64, i64, i64), String> {
+        self.calls.borrow_mut().push(format!("file_times {path}"));
+        if path.contains("nothere") {
+            return Err("the file is not there".into());
+        }
+        // The first of January of 2020, in the UTC.
+        Ok((0, 1_577_836_800_000, 0))
     }
 }
 impl Hotkeys for Fake {
@@ -2187,11 +2225,80 @@ fn the_file_commands_of_the_v1_write_the_error_level() {
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
 
-    // The file that is not there is not a failure of the v1: the command
-    // goes on and the `ErrorLevel` is zero.
+    // The file that is not there is a failure of the command: the
+    // `ErrorLevel` is one, and the command goes on.
     let report = run("ErrorLevel := 5\nFileDelete, nothere.txt\nx := ErrorLevel");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+}
+
+/// The commands of the files of the v1 go on when the machine cannot do the
+/// thing.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the file
+/// that is not there is not a failure of the script: the `ErrorLevel` is one,
+/// the script goes on, and the variable of the caller is empty.
+#[test]
+fn the_commands_of_the_files_of_the_v1_go_on_when_the_machine_cannot() {
+    for command in ["FileGetSize", "FileGetTime", "FileGetAttrib", "FileRead"] {
+        let script = format!(
+            "out := \"before\"\n{command}, out, nothere.txt\nx := ErrorLevel\ny := out"
+        );
+        let report = run(&script);
+        assert!(report.ok, "{}: {:?}", command, report.error);
+        assert_eq!(report.variables.get("x"), Some(&Value::Int(1)), "{command}");
+        assert_eq!(
+            report.variables.get("y"),
+            Some(&Value::Text(String::new())),
+            "{command}"
+        );
+    }
+}
+
+/// The size of a file of the v1 has the units of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the units
+/// are the bytes -- the "B" and the nothing --, the kilobytes -- the "K" --
+/// and the megabytes -- the "M". The size is rounded down.
+#[test]
+fn the_size_of_a_file_of_the_v1_has_the_units_of_the_v1() {
+    for (unit, size) in [("", 5), ("B", 5), ("K", 0), ("M", 0)] {
+        let script = format!("FileGetSize, out, a.txt, {unit}\nx := out");
+        let report = run(&script);
+        assert!(report.ok, "{}: {:?}", unit, report.error);
+        assert_eq!(report.variables.get("x"), Some(&Value::Int(size)), "{unit}");
+    }
+
+    // The unit that the v1 does not know is refused when the script loads.
+    assert_eq!(
+        the_refusal_of_the_load("FileGetSize, out, a.txt, X\n"),
+        "Parameter #3 invalid.\n     Specifically: X"
+    );
+}
+
+/// The name of the file of the commands of the files of the v1 may be left
+/// out.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the file
+/// of the loop that runs is the one that is used, and there is no file at all
+/// outside of a loop: the `ErrorLevel` is one and the script goes on.
+#[test]
+fn the_name_of_the_file_of_the_commands_of_the_v1_may_be_left_out() {
+    let report = run("FileGetSize, out\nx := ErrorLevel\ny := out");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
+
+    // The file of the loop that runs is the one that is used.
+    let report = run("Loop, *.txt\n{\n  FileGetSize, out\n  x := out\n}\nz := x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("z"), Some(&Value::Int(5)));
+
+    // The `FileSetTime` of the v1 takes the name of the file too, and it may
+    // be left out as well.
+    let report = run("FileSetTime, 20260101000000\nx := ErrorLevel");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
 }
 
 /// The source of the file commands of the v1 may be a pattern.
@@ -9071,8 +9178,10 @@ fn the_loop_of_the_v1_is_a_loop_of_files_when_the_text_is_not_a_number() {
             "list_files *.txt".to_string(),
             "the_size_of_a_file C:\\work\\a.txt".to_string(),
             "file_attributes C:\\work\\a.txt".to_string(),
+            "file_times C:\\work\\a.txt".to_string(),
             "the_size_of_a_file C:\\work\\b.txt".to_string(),
             "file_attributes C:\\work\\b.txt".to_string(),
+            "file_times C:\\work\\b.txt".to_string(),
         ]
     );
 

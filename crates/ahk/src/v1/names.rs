@@ -872,6 +872,10 @@ pub(crate) fn func(
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the command wants
 /// three parameters, and the answer is the line itself, without the line
 /// ending, and it is empty when the file has no such line.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the file
+/// that is not there is not a failure of the script: the `ErrorLevel` is one,
+/// the script goes on, and the variable of the caller is empty.
 pub(crate) fn file_read_line(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -881,10 +885,17 @@ pub(crate) fn file_read_line(
     let path = values.get(1).map(|value| value.to_text()).unwrap_or_default();
     let number = values.get(2).map(|value| value.to_text()).unwrap_or_default();
     let number: usize = number.trim().parse().unwrap_or(0);
-    let lines = rt
-        .desktop()
-        .read_file(&path)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+    let lines = match rt.desktop().read_file(&path) {
+        Ok(lines) => lines,
+        Err(reason) => {
+            rt.set_the_error_level(Value::Int(1));
+            rt.note(format!("the file {path} was not read: {reason}"));
+            let answer = Value::Text(String::new());
+            crate::v1::write_the_answer(rt, "FileReadLine", values, 0, answer.clone(), line)?;
+            return Ok(answer);
+        }
+    };
+    rt.set_the_error_level(Value::Int(0));
     let answer = match number.checked_sub(1).and_then(|at| lines.get(at)) {
         Some(text) => Value::Text(text.clone()),
         None => Value::Text(String::new()),
