@@ -9141,3 +9141,30 @@ and seven of the seven are the same.
 
 The suite of the v1 has one case more (387), and the suite of the v2 is the
 same (511).
+
+The variables that the runtime owns are values in the substitution of the v1:
+the `%A_Index%` is "0" outside a loop, and the tree answered an empty text,
+because the substitution of the v1 did not ask the runtime for them. The
+other variables that the runtime owns are an empty text.
+
+The probes of the block are `egm-review/probe_v1_runtime_variables.py` and
+`egm-review/probe_v2_index_outside.py`, and they are the cases of the binary
+and of the tree: sixteen of the sixteen and four of the four are the same.
+
+The suite of the v1 has two cases more (389), and the suite of the v2 is the
+same (511).
+
+The `A_LineNumber` is the line of the statement that runs, and the
+`A_ThisFunc` is the name of the function that runs. The tree did not write the
+line, and the name was an empty text in the dialect of the v1 and a failure in
+the dialect of the v2. The variables that the runtime owns are not the
+variables of the script, and they are seen in a function: the v1 does not
+share the scope of the script with a function, and the `A_LineNumber` is the
+line of the statement that runs there.
+
+The probes of the block are `egm-review/probe_v1_this_func.py` and
+`egm-review/probe_v2_line_number.py`, and they are the cases of the binary
+and of the tree: eight of the eight and three of the three are the same.
+
+The suite of the v1 has one case more (390), and the suite of the v2 has one
+case more (512).

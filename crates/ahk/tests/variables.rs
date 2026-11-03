@@ -169,6 +169,32 @@ fn run(script: &str) -> Report {
     Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements)
 }
 
+/// The line of the statement and the name of the function that runs.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+/// `A_LineNumber` is the line of the statement that runs, and the
+/// `A_ThisFunc` is the name of the function that runs. The tree refused both
+/// with "This global variable has not been assigned a value.".
+#[test]
+fn the_line_of_the_statement_and_the_name_of_the_function_that_runs() {
+    let report = run("x := 1\nFileAppend A_LineNumber, \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2".to_string()]);
+
+    let report = run("f() {\n  FileAppend A_ThisFunc, \"*\"\n}\nf()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["f".to_string()]);
+
+    let report = run("f() {\n  FileAppend A_LineNumber, \"*\"\n}\nf()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2".to_string()]);
+
+    // Outside a function the name is empty.
+    let report = run("FileAppend A_ThisFunc, \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["".to_string()]);
+}
+
 /// The report of a script that ran, and the clipboard it left behind.
 fn run_with_clipboard(script: &str, clipboard: &str) -> (Report, String) {
     let statements = parse(script).expect("parses");

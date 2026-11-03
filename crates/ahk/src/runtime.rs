@@ -1881,6 +1881,10 @@ impl<'a> Runtime<'a> {
         let mut index = 0;
         while index < statements.len() {
             let statement = &statements[index];
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the `A_LineNumber` is the line of the statement that runs, and
+            // the tree did not write it.
+            self.set_global("A_LineNumber", Value::Int(statement.line() as i64));
             // A failure of the statement is given to the functions that
             // asked to see it, before the stack unwinds: one of them may
             // say that the thread continues.
@@ -3554,8 +3558,17 @@ impl<'a> Runtime<'a> {
         // v1 does not fall back to the scope of the script either: the name
         // of the script is not visible in a function, and only the `global`
         // declaration makes it visible.
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // variables that the runtime owns are not the variables of the script,
+        // and they are seen in a function: the `A_LineNumber` is the line of
+        // the statement that runs, and the `A_ThisFunc` is the name of the
+        // function that runs.
+        let owned = crate::variables::spelled(&name)
+            .map(|rest| crate::variables::THE_RUNTIME_OWNS.contains(&rest.as_str()))
+            .unwrap_or(false);
         if self.dialect.the_scope_of_a_function_is_its_own()
             && !self.scopes.is_empty()
+            && !owned
             && !self.lives_in_the_script(&name)
         {
             return None;
@@ -7619,6 +7632,19 @@ impl<'a> Runtime<'a> {
     /// and the others are empty.
     fn the_value_of_a_variable_of_the_runtime(&self, name: &str) -> Option<Value> {
         let rest = crate::variables::spelled(name)?;
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // name of the function that runs is the name of it, and it is an
+        // empty text when there is no function that runs.
+        if rest == "thisfunc" {
+            let name = self.frames.last().map(|frame| frame.name.clone()).unwrap_or_default();
+            return Some(Value::Text(name));
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // line of the statement that runs is the line of it, and the name has
+        // no value before the first statement runs.
+        if rest == "linenumber" {
+            return Some(Value::Text(String::new()));
+        }
         if !THE_LOOP_VARIABLES.contains(&rest.as_str()) {
             return None;
         }
@@ -9468,6 +9494,13 @@ impl<'a> Runtime<'a> {
         // none: the script that reads the name is told that.
         if let Some(reason) = self.the_reason_of_the_short_names_of_the_files(name) {
             return Err(RuntimeFailure::Error(RuntimeError { message: reason.to_string(), line }));
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // variables that the runtime owns are values too: the `%A_Index%` is
+        // "0" outside a loop, and the tree answered an empty text, because
+        // the substitution of the v1 did not ask the runtime for them.
+        if let Some(value) = self.the_value_of_a_variable_of_the_runtime(name) {
+            return Ok(Some(value));
         }
         if !self.dialect.percent_looks_at_the_environment() {
             return Ok(None);

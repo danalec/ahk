@@ -131,18 +131,29 @@ The holes that the probes of 2026-11-05 found after that one:
 
 | The script | The v1 | The tree |
 |---|---|---|
-| `FileAppend, %A_Index%, *` | `0` | an empty value: the `A_Index` of the v1 is "0" outside a loop, and the tree gives an empty text |
+| `FileAppend, %A_Index%, *` | `0` | `0` (2026-11-05) |
 | `x := a.b%c` | refused at the load: *"Ambiguous or invalid use of \".\"\n     Specifically: .b%c"* | refused with the complaint of the percent sign |
 | `x := a."b"` | refused at the load: *"This character is not allowed here.\n     Specifically: \"b\""* | refused with "Syntax error." |
 
-The first one is a name of the v1 that is a number outside a loop, and the
-other two are the complaints of the v1 for the point and for the quote of a
-member.
+The first one is a name of the v1 that is a number outside a loop, and it was
+closed on 2026-11-05: the substitution of the v1 did not ask the runtime for
+the variables that it owns. The other two are the complaints of the v1 for the
+point and for the quote of a member.
+
+The `A_LineNumber` and the `A_ThisFunc` were closed on the same day: the tree
+did not write the line of the statement that runs, and the name of the
+function that runs was an empty text in the dialect of the v1 and a failure in
+the dialect of the v2.
 
 ### 2.3 The holes of the v2 that are known
 
 **`ObjBindMethod`** — §1.1. The tree has no reference to a method of the
 script.
+
+**The `A_LineNumber` and the `A_ThisFunc` of the v2** — *closed on 2026-11-05*.
+The tree did not write the line of the statement that runs, and it refused the
+two names with *"This global variable has not been assigned a value."*. The
+runtime writes them now, and they are seen in a function.
 
 **The warnings of the v2** — the `#Warn` and the other directives of the
 warnings are refused with *"the warnings are not carried by this runtime."*.
@@ -175,9 +186,9 @@ it with a dialog. The modes of the v2 are the "R" and the "D", and the "D"
 
 ## 3. The order of the work
 
-1. **The quote that a string of the v1 begins with** (§2.2). The lexer of the
-   v1 and the check of the name. Small, and it is the last hole of the v1 that
-   is known.
+1. **The quote that a string of the v1 begins with** (§2.2) — *closed on
+   2026-11-05*. The check of the name was the work: the v1 reads the tail of a
+   list as symbols, and the tree swallowed the complaint.
 2. **The `ObjBindMethod`** (§1.1). Small, and it is the last name of the
    surface that the tree does not carry, in the two dialects.
 3. **The mode of the `Loop Files` of the v2** (§2.3). Small: the tree refuses
