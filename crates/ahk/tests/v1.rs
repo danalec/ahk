@@ -8639,3 +8639,87 @@ fn the_brace_that_closes_nothing_in_the_v1_names_the_brace_alone() {
     assert_eq!(the_refusal_of_the_load("}"), "Unexpected \"}\"");
     assert_eq!(the_refusal_of_the_load("x := 1\n}"), "Unexpected \"}\"");
 }
+
+/// The comma inside a text separates the parameters of a command of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 cuts
+/// the text of a parameter at the commas, and the quotes do not hold the comma
+/// back: the `FileAppend, "a,b", *` has three parameters -- `"a`, `b"` and
+/// `*` -- and the third one is the encoding of the file, and the v1 refuses
+/// it with "Parameter #3 invalid." and the text "*".
+#[test]
+fn the_comma_inside_a_text_of_a_command_of_the_v1_separates_the_parameters() {
+    assert_eq!(
+        the_refusal_of_the_load("FileAppend, \"a,b\", *"),
+        "Parameter #3 invalid.\n     Specifically: *"
+    );
+
+    // The comma of the last text of the command.
+    assert_eq!(
+        the_refusal_of_the_load("FileAppend, x, \"a,b\""),
+        "Parameter #3 invalid.\n     Specifically: b\""
+    );
+}
+
+/// The comma inside a group separates the parameters of a command of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the group
+/// of parentheses does not hold the comma back either: the `FileAppend,
+/// (a, b), *` has three parameters, and the v1 refuses it with "Parameter #3
+/// invalid." and the text "*". The last parameter of the command takes the
+/// rest of the line: the `FileAppend, (a, b), c, *` complains about the
+/// third parameter with the text "c, *".
+#[test]
+fn the_comma_inside_a_group_of_a_command_of_the_v1_separates_the_parameters() {
+    assert_eq!(
+        the_refusal_of_the_load("FileAppend, (a, b), *"),
+        "Parameter #3 invalid.\n     Specifically: *"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("FileAppend, (a, b), c, *"),
+        "Parameter #3 invalid.\n     Specifically: c, *"
+    );
+}
+
+/// The escape holds the comma back in the text of a parameter of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `FileAppend, a`, b, *` is the text "a, b" and not two parameters.
+#[test]
+fn the_escaped_comma_of_a_parameter_of_the_v1_is_not_a_separator() {
+    let report = run("FileAppend, a`, b, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["a, b".to_string()]);
+}
+
+/// The parameter of a command of the v1 that wants a number is an expression,
+/// and the comma that is inside a text does not separate it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `Sleep, 100+50` waits for a hundred and fifty milliseconds, and the
+/// `Sleep, "1,2"` is the text "1,2" and not two parameters.
+#[test]
+fn the_comma_inside_a_text_of_a_parameter_that_wants_a_number_does_not_separate_it() {
+    let report = run("Sleep, 100+50");
+    assert!(report.ok);
+    // The wait is in the steps of the report.
+    assert!(report.steps.iter().any(|step| step.detail == "150"));
+}
+
+/// The third parameter of the `FileAppend` of the v1 is the encoding of the
+/// file.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// encoding is checked when the script loads, and the text that is not one
+/// is refused with "Parameter #3 invalid.".
+#[test]
+fn the_third_parameter_of_the_file_append_of_the_v1_is_the_encoding() {
+    assert_eq!(
+        the_refusal_of_the_load("FileAppend, a, b, extra"),
+        "Parameter #3 invalid.\n     Specifically: extra"
+    );
+    // The encoding that the v1 knows is not refused.
+    let report = run("FileAppend, a, b, UTF-8");
+    assert!(report.ok);
+}
+

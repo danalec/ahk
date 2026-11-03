@@ -171,6 +171,7 @@ const RULES: &[Rule] = &[
     Rule { name: "SendMode", check: the_send_mode },
     Rule { name: "SetRegView", check: the_reg_view },
     Rule { name: "FileEncoding", check: the_encoding },
+    Rule { name: "FileAppend", check: the_encoding_of_the_append },
     Rule { name: "SetBatchLines", check: the_batch_lines },
     Rule { name: "SetFormat", check: the_format },
     Rule { name: "Transform", check: the_transform },
@@ -625,7 +626,16 @@ fn the_reg_view(texts: &[String]) -> Option<usize> {
 /// encoding that is there, and the words "ANSI" and "OEM" are not
 /// encodings of the v1.
 fn the_encoding(texts: &[String]) -> Option<usize> {
-    let text = the_text_at(texts, 0).trim().to_lowercase();
+    the_encoding_at(texts, 0)
+}
+
+/// The encoding of the files of the v1, at this place of the parameters.
+///
+/// The `FileAppend` of the v1 carries the encoding of the file in its third
+/// parameter, and not the options of v2: the `FileAppend, text, *, extra` is
+/// refused with "Parameter #3 invalid." and the text "extra".
+fn the_encoding_at(texts: &[String], place: usize) -> Option<usize> {
+    let text = the_text_at(texts, place).trim().to_lowercase();
     if text.is_empty() {
         return None;
     }
@@ -634,8 +644,21 @@ fn the_encoding(texts: &[String]) -> Option<usize> {
         // The name of a code page is the "CP" and a number, and the case of
         // the letters does not matter.
         _ if crate::settings::is_a_code_page(&text.to_uppercase()) => None,
-        _ => Some(0),
+        _ => Some(place),
     }
+}
+
+/// The encoding of the file that the v1 appends to.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the third
+/// parameter of the `FileAppend` is the encoding of the file, and the
+/// encoding is checked when the script loads: the `FileAppend, text, *,
+/// extra` is refused with "Parameter #3 invalid." and the text "extra".
+fn the_encoding_of_the_append(texts: &[String]) -> Option<usize> {
+    if texts.len() < 3 {
+        return None;
+    }
+    the_encoding_at(texts, 2)
 }
 
 /// The number of the lines of the v1: a whole number, and the hex is one.

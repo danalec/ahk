@@ -8718,3 +8718,34 @@ The rule is a hook of the dialect (`the_closing_brace_names_the_text`), and
 the v1 turns it off.
 
 The suite of the v1 has two cases more (348).
+
+## 229. The text of a parameter of a command of the v1 is cut at the commas
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 cuts
+the text of a parameter of a command at the commas, and the quotes and the
+groups of parentheses do not hold the comma back.
+
+The `FileAppend, "a,b", *` has three parameters -- `"a`, `b"` and `*` -- and
+the v1 refuses it with "Parameter #3 invalid." and the text "*". The group is
+the same: the `FileAppend, (a, b), *` has three parameters, and the
+`FileAppend, (a, b), c, *` complains about the third parameter with the text
+"c, *".
+
+The parameter that wants a number is an expression, and there the comma that
+is inside a text or inside a group does not separate it: the `Sleep, "1,2"` is
+the text "1,2" and not two parameters. The escape holds the comma back in the
+two: the `FileAppend, a`, b, *` is the text "a, b".
+
+The third parameter of the `FileAppend` of the v1 is the encoding of the file,
+and not the options of v2: the `FileAppend, a, b, extra` is refused with
+"Parameter #3 invalid." and the text "extra".
+
+The rule is in the parser: the text of a parameter is cut at the character
+level, and the piece of a text that it cuts is not a range of tokens -- it has
+no expression to read.
+
+The quote that is not closed in the line of a command stays out: the tree lexes
+the line before it reads it, and the "Missing close-quote" of the lexer is
+still there. The document of the dialect says so.
+
+The suite of the v1 has five cases more (353).

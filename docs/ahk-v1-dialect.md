@@ -1973,13 +1973,10 @@ the `f() { loop }` and the `if (1) { loop }` are refused at the load with
 that has no body at the end of the script: the v1 ends the script at it, and
 the tree went on until the guard rail.
 
-**What stays out of the text of a command of the v1.** The parameters of a
-command of the v1 are cut at the commas, and the quote of the v1 does not
-protect the comma: the `FileAppend, "abc, *` writes the text `"abc`, and the
-`StringGetPos, "a, b", pos, 1` is refused with the name `"a`. The tree lexes
-the line before it reads it, and the quote that is not closed is a load
-error: "Missing close-quote". The last parameter of a command of the v1
-takes the rest of the line, and the tree cuts every parameter at its comma.
+**What stays out of the text of a command of the v1.** The tree lexes the line
+before it reads it, and the quote that is not closed is a load error: "Missing
+close-quote". The v1 has no strings in the line of a command, and the
+`FileAppend, "abc, *` writes the text `"abc`.
 
 **The legacy reference of the v1** (2026-11-04). The `%name%` of a command
 parameter of the v1 is the value of the variable of the script, and the tree
@@ -2070,6 +2067,28 @@ nothing under it, and so are the brace that closes the body of a function and
 the brace that closes nothing. The v2 names the line of the script under the
 same refusal. The tree carries it: the hook of the dialect is
 `the_closing_brace_names_the_text`, and the v1 turns it off.
+
+**The text of a parameter of a command of the v1 is cut at the commas**
+(2026-11-04). The quotes and the groups of parentheses do not hold the comma
+back: the `FileAppend, "a,b", *` has three parameters -- `"a`, `b"` and `*` --
+and the v1 refuses it with "Parameter #3 invalid." and the text "*". The group
+is the same: the `FileAppend, (a, b), *` has three parameters, and the
+`FileAppend, (a, b), c, *` complains about the third parameter with the text
+"c, *".
+
+The parameter that wants a number is an expression, and there the comma that
+is inside a text or inside a group does not separate it: the `Sleep, "1,2"` is
+the text "1,2" and not two parameters. The escape holds the comma back in the
+two: the `FileAppend, a`, b, *` is the text "a, b".
+
+The third parameter of the `FileAppend` of the v1 is the encoding of the file,
+and not the options of v2: the `FileAppend, a, b, extra` is refused with
+"Parameter #3 invalid." and the text "extra".
+
+The tree carries it: the parser cuts the text of a parameter at the character
+level, and the piece of a text that it cuts is not a range of tokens. The
+probe of the block is `egm-review/probe_v1_command_cut.py`, and it is eleven
+cases of the binary and the tree, all the same.
 
 ---
 

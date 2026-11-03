@@ -1090,6 +1090,29 @@ struct TheMembersOfAClass {
     nested: Vec<Node>,
 }
 
+/// The place of a parameter of a command of the v1.
+///
+/// The text of the parameter is the text of the script, and the tokens of it
+/// are the tokens that it is made of: the expression of the parameter is
+/// read from them.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the piece
+/// of a text that the v1 cuts in the middle is not a range of tokens, and it
+/// has none.
+#[derive(Clone, Debug)]
+struct ThePlaceOfTheParameter {
+    /// The text of the parameter, the way the script wrote it.
+    text: String,
+    /// The first character of the parameter: the line and the column.
+    from: (u32, u32),
+    /// The end of the parameter: the line and the column, the end being
+    /// outside of it.
+    to: (u32, u32),
+    /// The tokens of the parameter: the first one and the one that comes
+    /// after it.
+    tokens: Option<(usize, usize)>,
+}
+
 /// A call of the script whose arity is checked at the end of the parse.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses the
@@ -4006,17 +4029,18 @@ impl Parser {
         } else if !self.at_end_of_statement() {
             places = self.the_places_of_the_parameters_of_a_legacy_command()?;
         }
-        let mut parameters: Vec<String> = places
-            .iter()
-            .map(|(start, end)| self.the_verbatim_source(*start, *end).trim().to_string())
-            .collect();
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 cuts the text of a parameter at the commas, and the quotes and
+        // the groups do not hold the comma back.
+        let mut cut = self.the_cut_places_of_the_parameters_of_a_legacy_command(&name, &places);
+        let mut parameters: Vec<String> = cut.iter().map(|place| place.text.clone()).collect();
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the comma at
         // the end of the line does not open a parameter: the number of the
         // parameters of a command is the number of the commas that are not
         // the last one.
         if parameters.last().map(|text| text.is_empty()).unwrap_or(false) {
             parameters.pop();
-            places.pop();
+            cut.pop();
         }
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the last
         // parameter that a command of the v1 reads takes the rest of the
@@ -4030,13 +4054,14 @@ impl Parser {
         if let Some(builtin) = self.the_builtin_of_the_legacy_command(&name) {
             let count = builtin.parameters.len();
             if count > 0 && parameters.len() > count && !self.dialect.the_command_has_a_body(&name) {
-                let (start, _) = places[count - 1];
-                let (_, end) = *places.last().expect("the parameters are there");
-                let text = self.the_verbatim_source(start, end).trim().to_string();
+                let from = cut[count - 1].from;
+                let to = cut.last().expect("the parameters are there").to;
+                let text = self.the_source_between(from, to).trim().to_string();
                 parameters.truncate(count);
-                places.truncate(count);
-                parameters[count - 1] = text;
-                places[count - 1] = (start, end);
+                cut.truncate(count);
+                parameters[count - 1] = text.clone();
+                cut[count - 1].text = text;
+                cut[count - 1].to = to;
             }
         }
         // Measured on the binary of v1.1.37.02 on 2026-11-03: the label that
@@ -4093,7 +4118,7 @@ impl Parser {
                 self.dialect
                     .the_refusal_of_the_arity_of_a_command(&name, count, builtin.min)
             {
-                return Err(self.error(self.the_message_of_the_arity(refusal, name_at, &places)));
+                return Err(self.error(self.the_message_of_the_arity(refusal, name_at, &cut)));
             }
             if (count as u8) < builtin.min {
                 return Err(self.error(format!(
@@ -4101,7 +4126,7 @@ impl Parser {
                     builtin.name,
                     builtin.min,
                     if builtin.min == 1 { "" } else { "s" },
-                    self.the_text_of_a_legacy_command(name_at, &places),
+                    self.the_text_of_a_legacy_command(name_at, &cut),
                 )));
             }
             // Measured on the binary of v1.1.37.02 on 2026-11-02: the
@@ -4126,7 +4151,7 @@ impl Parser {
                         "\"{}\" requires that parameter #{} be non-blank.\n     Specifically: {}",
                         builtin.name,
                         index + 1,
-                        self.the_text_of_a_legacy_command(name_at, &places),
+                        self.the_text_of_a_legacy_command(name_at, &cut),
                     )));
                 }
             }
@@ -4183,9 +4208,9 @@ impl Parser {
         // The command of the v1 that has a body: the action is the rest of
         // the line, the block, or the statement of the next line.
         if self.dialect.the_command_has_a_body(&name) {
-            return self.parse_the_body_of_a_legacy_command(name, parameters, places, name_token.line);
+            return self.parse_the_body_of_a_legacy_command(name, parameters, cut, name_token.line);
         }
-        let parameters = self.the_parameters_of_a_legacy_command(&name, &places);
+        let parameters = self.the_parameters_of_a_legacy_command(&name, &cut);
         Ok(Node::LegacyCall { name, parameters, line: name_token.line })
     }
 
@@ -4251,10 +4276,14 @@ impl Parser {
     fn the_text_of_a_legacy_command(
         &self,
         name_at: usize,
-        places: &[(usize, usize)],
+        places: &[ThePlaceOfTheParameter],
     ) -> String {
+        let Some(name) = self.tokens.get(name_at) else {
+            return String::new();
+        };
+        let from = (name.line, name.column);
         let end = match places.first() {
-            Some((_, end)) => *end,
+            Some(place) => place.to,
             None => {
                 // The command has no parameter: the text is the name and the
                 // comma that comes after it.
@@ -4262,14 +4291,14 @@ impl Parser {
                 let has_a_comma = comma
                     .map(|token| token.kind == TokenKind::Op && token.value == ",")
                     .unwrap_or(false);
-                if has_a_comma {
-                    name_at + 2
-                } else {
-                    name_at + 1
+                let after = if has_a_comma { name_at + 2 } else { name_at + 1 };
+                match self.tokens.get(after) {
+                    Some(token) => (token.line, token.column),
+                    None => self.the_end_of_the_tokens(after),
                 }
             }
         };
-        self.the_verbatim_source(name_at, end)
+        self.the_source_between(from, end).trim_end().to_string()
     }
 
     /// The complaint of the number of the parameters of a command.
@@ -4281,7 +4310,7 @@ impl Parser {
         &self,
         refusal: crate::dialect::TheRefusalOfTheArity,
         name_at: usize,
-        places: &[(usize, usize)],
+        places: &[ThePlaceOfTheParameter],
     ) -> String {
         match refusal {
             crate::dialect::TheRefusalOfTheArity::AtLeast { name, number } => format!(
@@ -4314,7 +4343,7 @@ impl Parser {
         &mut self,
         name: String,
         mut parameters: Vec<String>,
-        mut places: Vec<(usize, usize)>,
+        mut places: Vec<ThePlaceOfTheParameter>,
         line: u32,
     ) -> Result<Node, SyntaxError> {
         // The parameters of the command are the first ones, and the rest of
@@ -4339,13 +4368,14 @@ impl Parser {
             if parameters.len() > own && own > 0 {
                 // The last parameter of the command takes the rest of the
                 // line, the way it does for every other command.
-                let (start, _) = places[own - 1];
-                let (_, end) = *places.last().expect("the parameters are there");
-                let text = self.the_verbatim_source(start, end).trim().to_string();
+                let from = places[own - 1].from;
+                let to = places.last().expect("the parameters are there").to;
+                let text = self.the_source_between(from, to).trim().to_string();
                 parameters.truncate(own);
                 places.truncate(own);
-                parameters[own - 1] = text;
-                places[own - 1] = (start, end);
+                parameters[own - 1] = text.clone();
+                places[own - 1].text = text;
+                places[own - 1].to = to;
             }
             None
         };
@@ -4455,14 +4485,13 @@ impl Parser {
     fn the_parameters_of_a_legacy_command(
         &mut self,
         name: &str,
-        places: &[(usize, usize)],
+        places: &[ThePlaceOfTheParameter],
     ) -> Vec<crate::ast::LegacyParameter> {
         let mut parameters = Vec::with_capacity(places.len());
-        for (index, (start, end)) in places.iter().enumerate() {
-            let text = self.the_verbatim_source(*start, *end).trim().to_string();
-            match self.the_expression_of_a_parameter(name, index, *start, *end) {
+        for (index, place) in places.iter().enumerate() {
+            match self.the_expression_of_a_parameter(name, index, place) {
                 Some(node) => parameters.push(crate::ast::LegacyParameter::Expression(node)),
-                None => parameters.push(crate::ast::LegacyParameter::Text(text)),
+                None => parameters.push(crate::ast::LegacyParameter::Text(place.text.clone())),
             }
         }
         parameters
@@ -4483,14 +4512,16 @@ impl Parser {
         &mut self,
         name: &str,
         index: usize,
-        start: usize,
-        end: usize,
+        place: &ThePlaceOfTheParameter,
     ) -> Option<Node> {
         // The parameter that wants a number is an expression, and the others
         // are texts.
         if !self.dialect.the_parameter_wants_a_number(name, index) {
             return None;
         }
+        // The piece of a text that the v1 cuts in the middle is not an
+        // expression: it has no tokens.
+        let (start, end) = place.tokens?;
         // The substitution of the v1 is a text.
         if self.the_verbatim_source(start, end).contains('%') {
             return None;
@@ -4542,6 +4573,182 @@ impl Parser {
             start = self.position;
         }
         Ok(places)
+    }
+
+    /// The places of the parameters of a command of the v1, cut the way the
+    /// v1 cuts them.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// v1 cuts the text of a parameter at the commas, and the quotes and the
+    /// groups of parentheses do not hold the comma back: the `FileAppend,
+    /// "a,b", *` has three parameters -- `"a`, `b"` and `*` -- and the v1
+    /// refuses it with "Parameter #3 invalid.".
+    ///
+    /// The parameter that wants a number is an expression, and there the
+    /// comma that is inside a text or inside a group does not separate.
+    fn the_cut_places_of_the_parameters_of_a_legacy_command(
+        &self,
+        name: &str,
+        places: &[(usize, usize)],
+    ) -> Vec<ThePlaceOfTheParameter> {
+        let mut cut = Vec::with_capacity(places.len());
+        for (index, (start, end)) in places.iter().enumerate() {
+            // The parameter that wants a number is an expression, and the
+            // comma that is inside a text or inside a group does not
+            // separate it.
+            if self.dialect.the_parameter_wants_a_number(name, index) {
+                cut.push(self.the_place_of_the_tokens(*start, *end));
+                continue;
+            }
+            cut.extend(self.the_pieces_of_a_text_parameter(*start, *end));
+        }
+        cut
+    }
+
+    /// The place of a parameter that is a whole range of tokens.
+    fn the_place_of_the_tokens(&self, start: usize, end: usize) -> ThePlaceOfTheParameter {
+        let text = self.the_verbatim_source(start, end);
+        let from = self
+            .tokens
+            .get(start)
+            .map(|token| (token.line, token.column))
+            .unwrap_or((0, 0));
+        ThePlaceOfTheParameter {
+            text: text.trim().to_string(),
+            from,
+            to: self.the_end_of_the_tokens(end),
+            tokens: Some((start, end)),
+        }
+    }
+
+    /// The pieces of a parameter of a command of the v1 that is a text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// v1 cuts the text of a parameter at the commas, and the quotes and the
+    /// groups do not hold the comma back: the `FileAppend, "a,b", *` has
+    /// three parameters -- `"a`, `b"` and `*` -- and the v1 refuses it with
+    /// "Parameter #3 invalid.". The escape holds the comma back: the
+    /// `FileAppend, a`,b, *` is the text "a,b" and not two parameters.
+    ///
+    /// The piece of a text is not a range of tokens, and it has none: the
+    /// expression of a parameter is not read from it.
+    fn the_pieces_of_a_text_parameter(
+        &self,
+        start: usize,
+        end: usize,
+    ) -> Vec<ThePlaceOfTheParameter> {
+        let text = self.the_verbatim_source(start, end);
+        let from = self
+            .tokens
+            .get(start)
+            .map(|token| (token.line, token.column))
+            .unwrap_or((0, 0));
+        let chars: Vec<char> = text.chars().collect();
+        let mut cuts = Vec::new();
+        let mut index = 0usize;
+        while index < chars.len() {
+            if chars[index] == '`' {
+                // The escape holds the comma back, and the character that it
+                // carries is not a part of the text that is read.
+                index += 2;
+                continue;
+            }
+            if chars[index] == ',' {
+                cuts.push(index);
+            }
+            index += 1;
+        }
+        if cuts.is_empty() {
+            return vec![ThePlaceOfTheParameter {
+                text: text.trim().to_string(),
+                from,
+                to: self.the_end_of_the_tokens(end),
+                tokens: Some((start, end)),
+            }];
+        }
+        let mut pieces = Vec::with_capacity(cuts.len() + 1);
+        let mut begin = 0usize;
+        for cut in cuts {
+            let piece: String = chars[begin..cut].iter().collect();
+            pieces.push(ThePlaceOfTheParameter {
+                text: piece.trim().to_string(),
+                from: (from.0, from.1 + begin as u32),
+                to: (from.0, from.1 + cut as u32),
+                tokens: None,
+            });
+            begin = cut + 1;
+        }
+        let piece: String = chars[begin..].iter().collect();
+        pieces.push(ThePlaceOfTheParameter {
+            text: piece.trim().to_string(),
+            from: (from.0, from.1 + begin as u32),
+            to: self.the_end_of_the_tokens(end),
+            tokens: None,
+        });
+        pieces
+    }
+
+    /// The place where a range of tokens ends: the line and the column.
+    fn the_end_of_the_tokens(&self, end: usize) -> (u32, u32) {
+        let Some(last) = self.tokens.get(end.saturating_sub(1)) else {
+            return (0, 0);
+        };
+        let Some(line) = self.lines.get(last.line as usize - 1) else {
+            return (last.line, last.column);
+        };
+        let chars: Vec<char> = line.chars().collect();
+        let to = match self.tokens.get(end) {
+            Some(next) if next.line == last.line => next.column.saturating_sub(1) as usize,
+            _ => chars.len(),
+        };
+        (last.line, to as u32 + 1)
+    }
+
+    /// The source of the script between two places.
+    ///
+    /// The places are the line and the column: the line and the column of
+    /// the first character, and the line and the column of the end of it, the
+    /// end being outside of it.
+    fn the_source_between(&self, from: (u32, u32), to: (u32, u32)) -> String {
+        if from.0 == to.0 {
+            let Some(line) = self.lines.get(from.0 as usize - 1) else {
+                return String::new();
+            };
+            let chars: Vec<char> = line.chars().collect();
+            let start = from.1.saturating_sub(1) as usize;
+            let end = to.1.saturating_sub(1) as usize;
+            if start >= end || end > chars.len() {
+                return String::new();
+            }
+            return chars[start..end].iter().collect();
+        }
+        // The text that goes from one line to the next: the lines of the
+        // script, with the linefeed in the middle.
+        let mut text = String::new();
+        for line in from.0..=to.0 {
+            let Some(source) = self.lines.get(line as usize - 1) else {
+                continue;
+            };
+            let chars: Vec<char> = source.chars().collect();
+            let start = if line == from.0 {
+                from.1.saturating_sub(1) as usize
+            } else {
+                0
+            };
+            let end = if line == to.0 {
+                to.1.saturating_sub(1) as usize
+            } else {
+                chars.len()
+            };
+            if start >= end || end > chars.len() {
+                continue;
+            }
+            if !text.is_empty() {
+                text.push('\n');
+            }
+            text.extend(chars[start..end].iter());
+        }
+        text
     }
 
     /// The legacy assignment of the v1: `x = 5`.
