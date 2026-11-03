@@ -23,6 +23,15 @@ pub enum TokenKind {
     Number,
     /// A string: the text between the quotes.
     String,
+    /// A text whose quote is not closed: the text that was read, and the
+    /// place where the quote was.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// has no texts in the line of a command, and the quote that is not
+    /// closed there is not an error: the `FileAppend, "abc, *` writes the
+    /// text `"abc`. The parser refuses the text when it reads it as an
+    /// expression.
+    UnclosedText,
     /// An operator or a punctuation mark.
     Op,
     /// A directive: a name that begins with a hash.
@@ -1086,11 +1095,26 @@ pub fn tokenize_with(
                         end += 1;
                     }
                     let text = the_source_of_the_chars(&chars, quote_index, end);
-                    return Err(SyntaxError::new(
-                        format!("Missing close-quote\n     Specifically: {text}"),
-                        start_line,
-                        start_column,
-                    ));
+                    if dialect.the_quote_that_is_not_closed_is_an_error() {
+                        return Err(SyntaxError::new(
+                            format!("Missing close-quote\n     Specifically: {text}"),
+                            start_line,
+                            start_column,
+                        ));
+                    }
+                    // The v1 has no texts in the line of a command, and the
+                    // quote that is not closed there is not an error: the
+                    // parser refuses the text when it reads it as an
+                    // expression.
+                    tokens.push(Token {
+                        kind: TokenKind::UnclosedText,
+                        value: text,
+                        line: start_line,
+                        column: start_column,
+                        spaced: before,
+                        quote: Some(quote),
+                    });
+                    continue;
                 }
                 return Err(SyntaxError::new(
                     format!("Missing \"{quote}\"\n     Specifically: {text}"),

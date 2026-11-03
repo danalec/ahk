@@ -8744,8 +8744,32 @@ The rule is in the parser: the text of a parameter is cut at the character
 level, and the piece of a text that it cuts is not a range of tokens -- it has
 no expression to read.
 
-The quote that is not closed in the line of a command stays out: the tree lexes
-the line before it reads it, and the "Missing close-quote" of the lexer is
-still there. The document of the dialect says so.
+The quote that is not closed in the line of a command is carried by the
+section that comes next.
 
 The suite of the v1 has five cases more (353).
+
+## 230. The quote that is not closed in the line of a command of the v1 is not an error
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 has no
+texts in the line of a command, and the quote that is not closed there is not
+an error.
+
+The `FileAppend, "abc, *` writes the text `"abc`, and the right side of the
+legacy assignment is a text too: the `x = "abc` leaves `x` at `"abc` with the
+quote that was written.
+
+The text is refused when it is read as an expression: the `x := "abc` is
+refused with "Missing close-quote" and the text that was read, the `"abc`.
+
+The rule is in the lexer and in the parser. The lexer of the v1 does not fail
+with the quote that is not closed: it gives the text to the parser as a token
+of its own kind, and the parser refuses it when it reads it as an expression.
+The v2 keeps the refusal of the lexer, and the hook of the dialect is
+`the_quote_that_is_not_closed_is_an_error`.
+
+Two things stay out, and the document of the dialect says so: the order of the
+refusals of the `f("abc` -- the v1 refuses the quote before the function that
+does not exist -- and the text that the refusal of the hotkey names.
+
+The suite of the v1 has two cases more (355).

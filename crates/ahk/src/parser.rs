@@ -3416,7 +3416,10 @@ impl Parser {
         // Measured on the binary of v2.0.19 on 2026-10-31: the array at
         // the start of a statement is a line that holds no action, and the
         // text that is named is the line itself.
-        let message = if token.kind == TokenKind::Number || token.kind == TokenKind::String {
+        let message = if token.kind == TokenKind::Number
+            || token.kind == TokenKind::String
+            || token.kind == TokenKind::UnclosedText
+        {
             format!(
                 "This line does not contain a recognized action.\n     Specifically: {}",
                 the_source_of_the_line(self, token.line)
@@ -7067,7 +7070,7 @@ impl Parser {
         }
         let Some(name) = self.tokens.get(self.position + 2) else { return false };
         match name.kind {
-            TokenKind::String => true,
+            TokenKind::String | TokenKind::UnclosedText => true,
             TokenKind::Name => {
                 self.dialect.the_single_quote_is_not_a_text() && name.value.starts_with('\'')
             }
@@ -8067,7 +8070,9 @@ impl Parser {
         let token = self.next();
         // The argument is the text that follows the name, and the lexer
         // put it in the next token.
-        let argument = if self.peek().kind == TokenKind::String {
+        let argument = if self.peek().kind == TokenKind::String
+            || self.peek().kind == TokenKind::UnclosedText
+        {
             self.next().value
         } else {
             String::new()
@@ -8703,7 +8708,7 @@ impl Parser {
     fn starts_expression(&self) -> bool {
         let token = self.peek();
         match token.kind {
-            TokenKind::Number | TokenKind::String | TokenKind::Name => true,
+            TokenKind::Number | TokenKind::String | TokenKind::UnclosedText | TokenKind::Name => true,
             // A parenthesis opens a value: the concatenation of v2 takes it
             // as the value that follows the one before it.
             TokenKind::Op if token.value == "(" => true,
@@ -9478,6 +9483,18 @@ impl Parser {
                 Node::Literal { value, line: token.line }
             }
             TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
+            TokenKind::UnclosedText => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 has no texts in the line of a command,
+                // and the quote that is not closed there is not an error. The
+                // text that is read as an expression is refused: the
+                // `x := "abc` is refused with "Missing close-quote" and the
+                // text that was read.
+                return Err(self.error(format!(
+                    "Missing close-quote\n     Specifically: {}",
+                    token.value
+                )));
+            }
             TokenKind::Keyword => {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-04: the word that is an operator and that begins

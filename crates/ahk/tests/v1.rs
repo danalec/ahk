@@ -8723,3 +8723,36 @@ fn the_third_parameter_of_the_file_append_of_the_v1_is_the_encoding() {
     assert!(report.ok);
 }
 
+/// The quote that is not closed in the line of a command of the v1 is not an
+/// error.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 has
+/// no texts in the line of a command, and the quote that is not closed there
+/// is not an error: the `FileAppend, "abc, *` writes the text `"abc`. The
+/// right side of the legacy assignment is a text too, and the quote that is
+/// not closed there is not an error either.
+#[test]
+fn the_quote_that_is_not_closed_in_the_line_of_a_command_of_the_v1_is_not_an_error() {
+    let report = run("FileAppend, \"abc, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["\"abc".to_string()]);
+
+    let report = run("x = \"abc");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x").map(|value| value.to_text()), Some("\"abc".to_string()));
+}
+
+/// The text whose quote is not closed is refused when it is read as an
+/// expression.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `x := "abc` is refused with "Missing close-quote" and the text that was
+/// read.
+#[test]
+fn the_text_whose_quote_is_not_closed_is_refused_in_an_expression() {
+    assert_eq!(
+        the_refusal_of_the_load("x := \"abc"),
+        "Missing close-quote\n     Specifically: \"abc"
+    );
+}
+

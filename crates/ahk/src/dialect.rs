@@ -430,6 +430,19 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the quote that is not closed is an error of the lexer.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// has no texts in the line of a command, and the quote that is not
+    /// closed there is not an error: the `FileAppend, "abc, *` writes the text
+    /// `"abc`. The v1 refuses the text when it reads it as an expression: the
+    /// `x := "abc` is refused with "Missing close-quote".
+    ///
+    /// The v2 refuses the quote in the lexer, and the script does not load.
+    fn the_quote_that_is_not_closed_is_an_error(&self) -> bool {
+        true
+    }
+
     /// Whether a text that is a number of the dialect is false when the
     /// number is zero.
     ///
@@ -2024,6 +2037,13 @@ impl Dialect for V1 {
     fn the_text_that_is_not_closed_is_named_alone(&self) -> bool {
         // The v1 says "Missing close-quote" and names the text that was read.
         true
+    }
+
+    fn the_quote_that_is_not_closed_is_an_error(&self) -> bool {
+        // The v1 has no texts in the line of a command, and the quote that is
+        // not closed there is not an error: the parser refuses the text when
+        // it reads it as an expression.
+        false
     }
 
     fn the_text_that_is_a_number_is_false(&self) -> bool {

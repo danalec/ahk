@@ -1973,10 +1973,13 @@ the `f() { loop }` and the `if (1) { loop }` are refused at the load with
 that has no body at the end of the script: the v1 ends the script at it, and
 the tree went on until the guard rail.
 
-**What stays out of the text of a command of the v1.** The tree lexes the line
-before it reads it, and the quote that is not closed is a load error: "Missing
-close-quote". The v1 has no strings in the line of a command, and the
-`FileAppend, "abc, *` writes the text `"abc`.
+**What stays out of the text of a command of the v1.** The text of a parameter
+of a command of the v1 is carried, and so is the quote that is not closed in
+the line of a command. Two things stay out. The order of the refusals of the
+`f("abc`: the v1 refuses the quote before it says that the function does not
+exist, and the tree says it the other way round. And the text that the
+refusal of the hotkey names: the v1 names the action -- the `"abc` -- and the
+tree names the line.
 
 **The legacy reference of the v1** (2026-11-04). The `%name%` of a command
 parameter of the v1 is the value of the variable of the script, and the tree
@@ -2089,6 +2092,24 @@ The tree carries it: the parser cuts the text of a parameter at the character
 level, and the piece of a text that it cuts is not a range of tokens. The
 probe of the block is `egm-review/probe_v1_command_cut.py`, and it is eleven
 cases of the binary and the tree, all the same.
+
+**The quote that is not closed in the line of a command of the v1 is not an
+error** (2026-11-04). The v1 has no texts in the line of a command: the
+`FileAppend, "abc, *` writes the text `"abc`, and the right side of the
+legacy assignment is a text too: the `x = "abc` leaves `x` at `"abc` with the
+quote that was written.
+
+The text is refused when it is read as an expression: the `x := "abc` is
+refused with "Missing close-quote" and the text that was read, the `"abc`.
+
+The tree carries it: the lexer of the v1 does not fail with the quote that is
+not closed, and gives the text to the parser, which refuses it when it reads
+it as an expression. The v2 keeps the refusal of the lexer.
+
+The probe of the block is `egm-review/probe_v1_unclosed_quote.py`, and it is
+ten cases of the binary and the tree: five are the same, and the five that
+are not are the ones that the paragraph above names, and the `FileAppend` that
+has no name of file -- the v1 writes it and the tree refuses it.
 
 ---
 
