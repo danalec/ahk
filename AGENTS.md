@@ -8818,3 +8818,41 @@ The probe of the block is `egm-review/probe_v1_while_forms.py`, and it is ten
 cases of the binary and the tree, all the same.
 
 The suite of the v1 has one case more (358).
+
+## 233. The arithmetic of the date of the v1 is the arithmetic of the machine
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `EnvAdd`
+and the `EnvSub` of the v1 have two forms. With two parameters they are the
+arithmetic of a number on a variable of the script, and with three they are
+the arithmetic of the date of the machine. The third parameter is the unit of
+the time -- the "S", the "M", the "H" and the "D" -- and the unit is the
+first letter of the text that is written.
+
+The `EnvAdd` adds the amount to the date of the machine and answers with the
+date -- the text of the `YYYYMMDDHH24MISS` -- and the `EnvSub` takes the date
+of the second parameter and answers with the number of the units that are
+between it and the date of the machine.
+
+The amount that is not a number leaves the variable empty, and the date that
+is not a date leaves it empty too: the text that is empty is zero, and the
+text that is not empty and is not a date is nothing. The date is checked when
+the script loads: the second parameter of the `EnvSub` that is a number and
+is not a date is refused with "Parameter #2 invalid." and the text that was
+written.
+
+The time of the machine is a number of a hundred of nanoseconds since the
+first of January of 1601, and the arithmetic of it goes around the largest
+number of the machine: the amount of the biggest number of the machine leaves
+the date of the machine where it was. The machine reads the years from 1601
+to 30827, and the date that is not one of them leaves the variable empty.
+
+The rule is in the hook of the dialect: `the_parameter_keeps_its_text`, and
+the amount of the `EnvAdd` and of the `EnvSub` keeps its text when it is not
+an expression -- the "5abc" is not a number, and the command leaves the
+variable empty. The date of the v1 is in `crates/ahk/src/v1/dates.rs`.
+
+The probes of the block are `egm-review/probe_v1_env_text.py`,
+`egm-review/probe_v1_env_corners.py` and `egm-review/probe_v1_env_reach.py`,
+and they are the cases of the binary and the tree: all the same.
+
+The suite of the v1 has one case more (359).

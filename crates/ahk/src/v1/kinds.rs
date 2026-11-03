@@ -80,3 +80,26 @@ pub(crate) fn wants_a_number(name: &str, index: usize) -> bool {
         built_in.eq_ignore_ascii_case(name) && places.contains(&(index as u8))
     })
 }
+
+/// The parameters that keep the text of them, by the name of the built-in and
+/// the places of the parameters.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the amount
+/// of the `EnvAdd` and of the `EnvSub` is the text of it when it is not an
+/// expression, and the command reads the text: the "5abc" is not a number,
+/// and the `EnvAdd` leaves the variable empty.
+const THE_TEXTS: &[(&str, &[u8])] = &[
+    // The amount of the arithmetic of a variable of the script.
+    ("EnvAdd", &[1]),
+    ("EnvSub", &[1]),
+];
+
+/// Whether the parameter at this place of this built-in keeps its text.
+///
+/// The name of the built-in may come in any case: the parser writes it in
+/// lower case, and the table of the built-ins writes it as it is spelled.
+pub(crate) fn keeps_its_text(name: &str, index: usize) -> bool {
+    THE_TEXTS.iter().any(|(built_in, places)| {
+        built_in.eq_ignore_ascii_case(name) && places.contains(&(index as u8))
+    })
+}

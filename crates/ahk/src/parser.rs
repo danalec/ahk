@@ -4539,6 +4539,15 @@ impl Parser {
         match parsed {
             // The expression is the whole parameter.
             Ok(node) if after == end => Some(node),
+            // The parameter that keeps its text is not an expression, and the
+            // v1 reads the text of it: the amount of the `EnvAdd` that is
+            // "5abc" is not a number.
+            _ if self.dialect.the_parameter_keeps_its_text(name, index) => {
+                Some(Node::Literal {
+                    value: crate::ast::LiteralValue::Text(String::new()),
+                    line,
+                })
+            }
             // The parameter is not an expression, and the v1 reads it as the
             // number zero.
             _ => Some(Node::Literal {

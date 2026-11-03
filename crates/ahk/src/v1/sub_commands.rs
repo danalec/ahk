@@ -455,6 +455,11 @@ fn the_refusal_of_an_invalid_parameter(place: usize, text: &str) -> String {
 /// requires that parameter #N be non-blank.". The commands whose
 /// sub-command may be left out are the `GuiControl`, the `GuiControlGet`,
 /// the `WinGet`, the `RegRead` and the `SoundGet`.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// amount of the `EnvAdd` of the v1 may not be blank either, and the
+/// complaint of the v1 is the same one. The date of the `EnvSub` may be
+/// blank, and the answer of the command is then zero.
 pub(crate) fn the_parameter_may_not_be_blank(name: &str, place: usize) -> bool {
     let wanted = if name.eq_ignore_ascii_case("Control")
         || name.eq_ignore_ascii_case("Drive")
@@ -466,6 +471,7 @@ pub(crate) fn the_parameter_may_not_be_blank(name: &str, place: usize) -> bool {
     } else if name.eq_ignore_ascii_case("ControlGet")
         || name.eq_ignore_ascii_case("Menu")
         || name.eq_ignore_ascii_case("SysGet")
+        || name.eq_ignore_ascii_case("EnvAdd")
     {
         2
     } else {

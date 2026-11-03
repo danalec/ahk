@@ -989,6 +989,17 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the parameter keeps the text of it when it is not an
+    /// expression.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// amount of the `EnvAdd` and of the `EnvSub` of the v1 is the text of it
+    /// when it is not an expression: the "5abc" is not a number, and the
+    /// `EnvAdd` leaves the variable empty.
+    fn the_parameter_keeps_its_text(&self, _name: &str, _index: usize) -> bool {
+        false
+    }
+
     /// Whether a whole number that does not fit is the largest one.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 keeps the
@@ -2698,6 +2709,13 @@ impl Dialect for V1 {
         // of the v1 that wants a number takes the number that the text of it
         // starts with.
         crate::v1::wants_a_number(name, index)
+    }
+
+    fn the_parameter_keeps_its_text(&self, name: &str, index: usize) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-04: the amount of
+        // the `EnvAdd` and of the `EnvSub` is the text of it when it is not
+        // an expression.
+        crate::v1::keeps_its_text(name, index)
     }
 
     fn a_whole_number_that_does_not_fit_is_the_largest_one(&self) -> bool {

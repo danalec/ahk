@@ -9282,6 +9282,13 @@ impl<'a> Runtime<'a> {
             if !self.dialect.the_parameter_wants_a_number(name, index) {
                 continue;
             }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the parameter that keeps its text is not a number, and the
+            // command reads the text of it: the amount of the `EnvAdd` that
+            // is "5abc" is not a number.
+            if self.dialect.the_parameter_keeps_its_text(name, index) {
+                continue;
+            }
             // A number is the number that it is.
             if matches!(value, Value::Int(_) | Value::Float(_)) {
                 continue;

@@ -180,7 +180,7 @@ const RULES: &[Rule] = &[
     Rule { name: "FileGetSize", check: the_size_of_a_file },
     Rule { name: "FileSetAttrib", check: the_attributes_of_a_file },
     Rule { name: "EnvAdd", check: the_units_of_the_time },
-    Rule { name: "EnvSub", check: the_units_of_the_time },
+    Rule { name: "EnvSub", check: the_unit_and_the_date_of_the_subtraction },
     Rule { name: "FileMoveDir", check: the_way_of_the_move_of_a_directory },
     Rule { name: "GroupActivate", check: the_mode_of_a_group },
     Rule { name: "GroupClose", check: the_mode_of_a_group },
@@ -908,6 +908,43 @@ fn the_units_of_the_time(texts: &[String]) -> Option<usize> {
         return None;
     }
     Some(2)
+}
+
+/// The unit of the time and the date of the subtraction of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the third
+/// parameter of the `EnvSub` is the unit of the time, and the second is the
+/// date that the time comes from. The v1 checks the unit first, and the date
+/// after it.
+fn the_unit_and_the_date_of_the_subtraction(texts: &[String]) -> Option<usize> {
+    if let Some(place) = the_units_of_the_time(texts) {
+        return Some(place);
+    }
+    the_date_of_the_subtraction(texts)
+}
+
+/// The date of the subtraction of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the date of
+/// the `EnvSub` is the second parameter, and the v1 checks it when the script
+/// loads. The text that is a number is a date of the v1, and it is refused
+/// when it is not one: the "3" and the "20201301" are refused with
+/// "Parameter #2 invalid." and the text that was written. The text that is
+/// not a number is not a date, and the v1 lets it through: the "abc" is let
+/// through, and the answer of the command is then zero.
+fn the_date_of_the_subtraction(texts: &[String]) -> Option<usize> {
+    // The command with two parameters is the arithmetic of a number.
+    if texts.len() < 3 {
+        return None;
+    }
+    let text = the_text_at(texts, 1);
+    if crate::v1::the_date_of_the_v1(text).is_some() {
+        return None;
+    }
+    if !crate::v1::the_text_is_a_number_of_days(text) {
+        return None;
+    }
+    Some(1)
 }
 
 /// Whether the text is a unit of the time of the v1.

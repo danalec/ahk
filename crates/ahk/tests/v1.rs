@@ -266,6 +266,20 @@ fn run_and_the_calls(script: &str) -> (Report, Vec<String>) {
     (report, calls)
 }
 
+/// The number that the answer of the command holds.
+///
+/// The cases of the arithmetic of the date write the answer between brackets,
+/// so that the empty one is seen.
+fn the_number_of_the_answer(report: &Report) -> i64 {
+    report
+        .output
+        .first()
+        .expect("the answer of the command")
+        .trim_matches(|letter| letter == '[' || letter == ']')
+        .parse()
+        .expect("a number")
+}
+
 /// Run a script of the v1 and answer with the report and with what the
 /// machine was asked, and fire the hotkeys that are given.
 ///
@@ -4363,14 +4377,97 @@ fn the_arithmetic_of_the_v1_is_on_a_variable_of_the_script() {
     let error = ahk::parse_with("x := 5\nEnvAdd, x, 1, Furlongs", dialect::v1())
         .expect_err("the unit is not one of the v1");
     assert_eq!(error.message, "Parameter #3 invalid.\n     Specifically: Furlongs");
+}
 
-    // The date arithmetic of the v1 is not carried, and the command says so.
-    let report = run("x := 5\nEnvAdd, x, 1, Seconds");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error,
-        Some("the date arithmetic of the v1 is not carried by this tree.".to_string())
+/// The arithmetic of the date of the v1 is the date of the machine.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the third
+/// parameter of the `EnvAdd` and of the `EnvSub` is the unit of the time, and
+/// the command is the arithmetic of the date of the machine. The `EnvAdd`
+/// adds the amount to the date of the machine and answers with the date --
+/// the text of the `YYYYMMDDHH24MISS` -- and the `EnvSub` takes the date of
+/// the second parameter and answers with the number of the units that are
+/// between it and the date of the machine.
+///
+/// The amount that is not a number leaves the variable empty, and the date
+/// that is not a date leaves it empty too: the text that is empty is zero,
+/// and the text that is not empty and is not a date is nothing.
+#[test]
+fn the_arithmetic_of_the_date_of_the_v1_is_the_date_of_the_machine() {
+    // The addition of the seconds is the date of the machine, and it is
+    // written the way the v1 writes a date.
+    let report = run("EnvAdd, out, 0, S\nFileAppend, [%out%], *");
+    assert!(report.ok, "{:?}", report.error);
+    let text = report.output.first().expect("the answer of the command").clone();
+    let date = text.trim_matches(|letter| letter == '[' || letter == ']').to_string();
+    assert_eq!(date.len(), 14, "the date of the v1 has fourteen digits: {date}");
+    assert!(date.chars().all(|letter| letter.is_ascii_digit()), "{date}");
+
+    // The unit of the time is the unit of the amount: the hour of the
+    // addition of the seconds is the addition of the hour. The date that is
+    // in the future is subtracted from the machine, and the answer is
+    // negative.
+    let report = run("EnvAdd, out, 3600, S\nEnvSub, diff, %out%, S\nFileAppend, [%diff%], *");
+    assert!(report.ok, "{:?}", report.error);
+    let difference = the_number_of_the_answer(&report);
+    assert!((-3601..=-3599).contains(&difference), "the difference is {difference}");
+
+    // The subtraction of a date is the number of the units that are between
+    // the date and the machine.
+    let report = run("EnvSub, out, 20200101120000, S\nFileAppend, [%out%], *");
+    assert!(report.ok, "{:?}", report.error);
+    let answer = the_number_of_the_answer(&report);
+    let clock = ahk::date::system_wall_clock().expect("the machine knows the date");
+    let noon = ahk::date::DateTime {
+        year: 2020,
+        month: 1,
+        day: 1,
+        hour: 12,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
+        weekday: ahk::date::day_of_week(2020, 1, 1),
+        yday: ahk::date::day_of_year(2020, 1, 1),
+    };
+    let expected =
+        (ahk::date::to_unix_millis(&clock.local) - ahk::date::to_unix_millis(&noon)) / 1000;
+    assert!(
+        (answer - expected).abs() <= 2,
+        "the answer is {answer} and the machine says {expected}"
     );
+
+    // The amount that is not a number leaves the variable empty.
+    for script in [
+        "EnvAdd, out, abc, S\nFileAppend, [%out%], *",
+        "EnvAdd, out, 5abc, S\nFileAppend, [%out%], *",
+        "EnvAdd, out, \"abc\", S\nFileAppend, [%out%], *",
+    ] {
+        let report = run(script);
+        assert!(report.ok, "the script is {script}: {:?}", report.error);
+        assert_eq!(report.output, vec!["[]".to_string()], "the script is {script}");
+    }
+
+    // The text that is empty is zero, and the text that is not empty and is
+    // not a date is nothing.
+    let report = run("EnvSub, out, nothere, S\nFileAppend, [%out%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[0]".to_string()]);
+
+    let report = run("EnvSub, out, \"abc\", S\nFileAppend, [%out%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The date that the machine does not read leaves the variable empty: the
+    // machine reads the years from 1601 to 30827.
+    let report = run("EnvAdd, out, 1000000000000, S\nFileAppend, [%out%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The date that is a number and is not a date is refused when the script
+    // loads.
+    let error = ahk::parse_with("EnvSub, out, 3, S", dialect::v1())
+        .expect_err("the date is not one");
+    assert_eq!(error.message, "Parameter #2 invalid.\n     Specifically: 3");
 }
 
 /// The environment of the v1 writes the `ErrorLevel`, and the name of the
@@ -4534,7 +4631,7 @@ fn the_unit_of_the_time_of_the_v1_is_the_first_letter_of_it() {
         "EnvAdd, x, 3, S, extra",
         "EnvAdd, x, 3, MS",
         "EnvMult, x, 3, S",
-        "EnvSub, x, 3, S",
+        "EnvSub, x, 20200101120000, S",
     ] {
         assert!(
             ahk::parse_with(script, dialect::v1()).is_ok(),

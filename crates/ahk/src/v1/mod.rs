@@ -18,6 +18,7 @@ use crate::builtins::BuiltinHandler;
 use crate::runtime::{Runtime, RuntimeError, Value};
 
 mod chars;
+mod dates;
 mod files;
 mod hotkeys;
 mod keys;
@@ -42,7 +43,9 @@ pub use variables::{carries as carries_variable, may_not_be_declared, refusal_of
 
 pub(crate) use chars::chr;
 
-pub(crate) use kinds::wants_a_number;
+pub(crate) use dates::{the_date_of_the_v1, the_text_is_a_number_of_days};
+
+pub(crate) use kinds::{keeps_its_text, wants_a_number};
 
 pub(crate) use labels::the_label_of_the_command;
 pub(crate) use labels::the_refusal_of_a_goto;
@@ -1227,13 +1230,10 @@ fn env_arithmetic(
         });
     };
     // The units of the time are the third parameter of the `EnvAdd` and of
-    // the `EnvSub`, and the date arithmetic of the v1 is not carried yet.
+    // the `EnvSub`, and they are the arithmetic of the date of the v1.
     if let Some(units) = values.get(2) {
         if !units.to_text().trim().is_empty() {
-            return Err(RuntimeError {
-                message: "the date arithmetic of the v1 is not carried by this tree.".to_string(),
-                line,
-            });
+            return the_arithmetic_of_the_date(rt, values, line, name, operation, &units.to_text());
         }
     }
     let current = rt.read_reference(reference).map(|value| value.to_text()).unwrap_or_default();
@@ -1270,6 +1270,167 @@ fn env_arithmetic(
     };
     rt.write_reference(variable, value.clone());
     Ok(value)
+}
+
+/// The arithmetic of the date of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the third
+/// parameter of the `EnvAdd` and of the `EnvSub` is the unit of the time, and
+/// the command is the arithmetic of the date of the machine. The `EnvAdd`
+/// adds the amount to the date of the machine and answers with the date --
+/// the `EnvAdd, out, 3, S` answers with the date of the machine three
+/// seconds ahead -- and the `EnvSub` takes the unit from a date and answers
+/// with the number of the units that are between the date and the date of the
+/// machine: the `EnvSub, out, 20200101120000, S` answers with the number of
+/// the seconds since the noon of the first of January of 2020.
+///
+/// The amount that is not a number leaves the variable empty, and the date
+/// that is not a date answers with zero.
+fn the_arithmetic_of_the_date(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+    operation: TheArithmetic,
+    units: &str,
+) -> Result<Value, RuntimeError> {
+    let Some(variable) = values.first() else {
+        return Ok(Value::Text(String::new()));
+    };
+    let Value::Reference(_) = variable else {
+        return Err(RuntimeError {
+            message: crate::runtime::wants_a_reference(1, name, "a VarRef", variable),
+            line,
+        });
+    };
+    let Some(clock) = rt.wall_clock() else {
+        return Err(RuntimeError {
+            message: "the date of the machine is not known.".to_string(),
+            line,
+        });
+    };
+    let unit = the_number_of_the_unit_of_the_time(units);
+    let text = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    match operation {
+        TheArithmetic::Add => {
+            // The amount that is not a number leaves the variable empty: the
+            // "abc" is not a number, and the "5abc" is five.
+            let Some(amount) = crate::v1::the_number_at_the_start_of_a_text(&text) else {
+                return the_variable_is_empty(rt, variable);
+            };
+            let amount = the_number_of_the_v1(&Some(amount)) * unit as f64;
+            // The time of the machine is a number of a hundred of nanoseconds
+            // since the first of January of 1601, and the arithmetic of it
+            // goes around: the amount of the biggest number of the machine
+            // leaves the date of the machine where it was.
+            let file_time = the_file_time_of_the_machine(&clock.local).wrapping_add(
+                the_hundred_of_nanoseconds_of_the_amount(amount),
+            );
+            let millis = (file_time / 10_000) as i64 - THE_MILLIS_BETWEEN_1601_AND_1970;
+            let date = crate::date::from_unix_millis(millis);
+            // The date that the machine does not read leaves the variable
+            // empty: the machine reads the years from 1601 to 30827.
+            if !(THE_FIRST_YEAR..=THE_LAST_YEAR).contains(&date.year) {
+                return the_variable_is_empty(rt, variable);
+            }
+            let answer = crate::date::the_number_text(&date);
+            rt.write_reference(variable, Value::Text(answer.clone()));
+            Ok(Value::Text(answer))
+        }
+        TheArithmetic::Subtract => {
+            // The text that is empty is zero.
+            if text.is_empty() {
+                rt.write_reference(variable, Value::Int(0));
+                return Ok(Value::Int(0));
+            }
+            // The date that is not a date leaves the variable empty: the
+            // "abc" is not a date, and the "5" is not one either.
+            let Some(number) = crate::v1::the_number_at_the_start_of_a_text(&text) else {
+                return the_variable_is_empty(rt, variable);
+            };
+            // The date of the v1 is the whole number of the amount: the
+            // "20200101120000.5" is the noon of the first of January of 2020.
+            let whole = the_number_of_the_v1(&Some(number)) as i64;
+            let Some(date) = crate::v1::the_date_of_the_v1(&whole.to_string()) else {
+                return the_variable_is_empty(rt, variable);
+            };
+            let difference = crate::date::to_unix_millis(&clock.local) - crate::date::to_unix_millis(&date);
+            let answer = difference / 1000 / unit;
+            rt.write_reference(variable, Value::Int(answer));
+            Ok(Value::Int(answer))
+        }
+        // The `EnvMult` and the `EnvDiv` have no arithmetic of the date.
+        _ => Ok(Value::Text(String::new())),
+    }
+}
+
+/// The variable of the script that the command leaves empty.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the amount
+/// of the `EnvAdd` that is not a number leaves the variable empty, and the
+/// answer of the command is the empty text.
+fn the_variable_is_empty(rt: &mut Runtime<'_>, variable: &Value) -> Result<Value, RuntimeError> {
+    rt.write_reference(variable, Value::Text(String::new()));
+    Ok(Value::Text(String::new()))
+}
+
+/// The reach of the time of the machine.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the time of
+/// the machine is a number of a hundred of nanoseconds since the first of
+/// January of 1601, and the arithmetic of it goes around the largest number
+/// of the machine. The machine reads the years from 1601 to 30827, and the
+/// date that is not one of them leaves the variable empty: the `EnvAdd` of
+/// a hundred thousand years is empty, and the `EnvAdd` of a hundred thousand
+/// years before the machine is a date of the year 28793.
+const THE_HUNDRED_OF_NANOSECONDS: u64 = 10_000_000;
+
+/// The number of the milliseconds between the first of January of 1601 and the
+/// first of January of 1970.
+const THE_MILLIS_BETWEEN_1601_AND_1970: i64 = 11_644_473_600_000;
+
+/// The first year that the machine reads.
+const THE_FIRST_YEAR: i64 = 1601;
+
+/// The last year that the machine reads.
+const THE_LAST_YEAR: i64 = 30827;
+
+/// The time of the machine, in the hundred of nanoseconds that it counts.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the time
+/// of the machine is a number of a hundred of nanoseconds since the first of
+/// January of 1601.
+fn the_file_time_of_the_machine(local: &crate::date::DateTime) -> u64 {
+    let millis = crate::date::to_unix_millis(local) + THE_MILLIS_BETWEEN_1601_AND_1970;
+    (millis as u64) * 10_000
+}
+
+/// The amount of the seconds, in the hundred of nanoseconds that the time of
+/// the machine counts.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// multiplication goes around the largest number of the machine, and so does
+/// the amount of the seconds that does not fit in it.
+fn the_hundred_of_nanoseconds_of_the_amount(amount: f64) -> u64 {
+    let whole = amount as i64;
+    let fraction = amount - whole as f64;
+    (whole as u64)
+        .wrapping_mul(THE_HUNDRED_OF_NANOSECONDS)
+        .wrapping_add((fraction * THE_HUNDRED_OF_NANOSECONDS as f64) as u64)
+}
+
+/// The number of the seconds of the unit of the time.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the unit
+/// is the first letter of the text -- the "Seconds" is the "S" -- and it is
+/// the second, the minute, the hour or the day.
+fn the_number_of_the_unit_of_the_time(units: &str) -> i64 {
+    match units.trim().chars().next().map(|letter| letter.to_ascii_uppercase()) {
+        Some('M') => 60,
+        Some('H') => 3600,
+        Some('D') => 86400,
+        _ => 1,
+    }
 }
 
 /// The arithmetic that a command of the v1 does.
