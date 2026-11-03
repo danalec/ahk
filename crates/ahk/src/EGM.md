@@ -1955,6 +1955,21 @@ that asks for another one is refused with the reason.
   refuses the write with "This value of type "String" has no property named
   "b".".
 
+- **The operand that is not there is the empty text in the v1.** The v1 does
+  not refuse the expression whose operand is not there: the `x := 1 +` is
+  accepted, and the value of the expression is the empty text. The operand
+  that is not there poisons the operation that holds it, and the `&&` and the
+  `||` are the exception: when the left side decides, the answer is one or
+  zero. The word that is an operator and that begins the expression takes the
+  value of the right one. The line that begins with the operator holds no
+  action, and the v1 does not continue the line that ends with an operator: it
+  merges the line that BEGINS with an operator with the one before it. The
+  parser makes the operand that is not there a node of its own (`Node::Unset`),
+  and the dialect says the three rules
+  (`the_operand_that_is_not_there_is_not_refused`,
+  `the_line_that_begins_with_the_word_holds_no_action` and
+  `a_line_that_ends_with_an_operator_continues`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

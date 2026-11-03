@@ -1187,14 +1187,46 @@ pub trait Dialect: Sync {
         None
     }
 
-    /// Whether the operand that is not there is the empty text.
+    /// Whether the operand that is not there is not refused.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
-    /// does not refuse the operator that has no operand: the `x := 1 +` and
-    /// the `x := not` are accepted, and the value of them is the empty text.
+    /// does not refuse the expression whose operand is not there: the `x := 1 +`
+    /// and the `x := not` are accepted, and the value of the expression is the
+    /// empty text. The operand that is not there poisons the operation that
+    /// holds it, and the `&&` and the `||` are the exception: when the left
+    /// side decides, the answer is one or zero.
     ///
     /// The v2 refuses it with "Missing operand.".
-    fn the_operand_that_is_not_there_is_the_empty_text(&self) -> bool {
+    fn the_operand_that_is_not_there_is_not_refused(&self) -> bool {
+        false
+    }
+
+    /// Whether the line that ends with an operator continues on the next one.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// merges the line that BEGINS with an operator with the one before it,
+    /// and not the other way round: the `x := 1 +` and the `2` that comes
+    /// after it are two lines, and the `2` is refused with "This line does
+    /// not contain a recognized action.". The bracket and the comma do not
+    /// continue the line either: the `x := 1,` and the `2` that comes after
+    /// it are two lines.
+    ///
+    /// The v2 continues the line that ends with an operator, and the bracket
+    /// and the comma too.
+    fn a_line_that_ends_with_an_operator_continues(&self) -> bool {
+        true
+    }
+
+    /// Whether the line that begins with the word holds no action.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// says that the line that begins with the `not` holds no action, and it
+    /// names the whole line: the `not` names the "not", and the `not 1` names
+    /// the "not 1". The same is true of the `and` and of the `or`.
+    ///
+    /// The v2 names the call that the word wanted to make: "not()".
+    fn the_line_that_begins_with_the_word_holds_no_action(&self, word: &str) -> bool {
+        let _ = word;
         false
     }
 
@@ -1993,6 +2025,26 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 drops the write of a property of a value that is not an object.
         true
+    }
+
+    fn the_operand_that_is_not_there_is_not_refused(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 does not refuse the expression whose operand is not there.
+        true
+    }
+
+    fn a_line_that_ends_with_an_operator_continues(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 merges the line that begins with an operator with the one before
+        // it, and not the other way round.
+        false
+    }
+
+    fn the_line_that_begins_with_the_word_holds_no_action(&self, word: &str) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // operators of the v1 are the words that hold no action when they
+        // begin the line.
+        matches!(word, "not" | "and" | "or")
     }
 
     fn the_closing_parenthesis_of_a_call_is_needed(&self) -> bool {

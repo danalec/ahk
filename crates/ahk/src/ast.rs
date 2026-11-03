@@ -52,6 +52,13 @@ pub enum UnaryOp {
     Plus,
     /// `~`, the bitwise not.
     BitwiseNot,
+    /// The word that is an operator and that has no left operand: the `and`
+    /// and the `or` of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `x := and 2` is one, and the `x := or 2` is one: the word takes the
+    /// value of the right side, and it answers the truth of it as a number.
+    Boolean,
     /// `&`, the reference to a variable.
     Address,
     /// `++`, before the name.
@@ -385,6 +392,15 @@ pub enum Node {    /// A value.
     Unary { op: UnaryOp, operand: Box<Node>, line: u32 },
     /// A binary operation.
     Binary { op: BinaryOp, left: Box<Node>, right: Box<Node>, line: u32 },
+    /// The operand that is not there.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not refuse the expression whose operand is not there: the `x := 1 +`
+    /// is accepted, and the value of the expression is the empty text. The
+    /// operand that is not there poisons the operation that holds it, and the
+    /// `&&` and the `||` are the exception: when the left side decides, the
+    /// answer is one or zero.
+    Unset { line: u32 },
     /// `cond ? a : b`.
     Ternary { condition: Box<Node>, then: Box<Node>, otherwise: Box<Node>, line: u32 },
     /// `%expr%`: the name that the script builds.
@@ -741,6 +757,7 @@ impl Node {
             | Node::Var { line, .. }
             | Node::Unary { line, .. }
             | Node::Binary { line, .. }
+            | Node::Unset { line }
             | Node::Ternary { line, .. }
             | Node::DynamicName { line, .. }
             | Node::AssignDynamic { line, .. }

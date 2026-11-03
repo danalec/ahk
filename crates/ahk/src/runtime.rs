@@ -2774,6 +2774,7 @@ impl<'a> Runtime<'a> {
             Node::Literal { .. }
             | Node::Var { .. }
             | Node::Binary { .. }
+            | Node::Unset { .. }
             | Node::Ternary { .. }
             | Node::Group { .. }
             | Node::LegacyComparison { .. }
@@ -9505,6 +9506,12 @@ impl<'a> Runtime<'a> {
 
     fn evaluate(&mut self, node: &Node) -> Result<Value, RuntimeFailure> {
         match node {
+            Node::Unset { .. } => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the value of the expression whose operand is
+                // not there is the empty text.
+                Ok(Value::Text(String::new()))
+            }
             Node::Assign { name, op, value, line } => {
                 // The assignment of v2 is an expression, and the value of
                 // it is the value that was written.
@@ -9725,6 +9732,16 @@ impl<'a> Runtime<'a> {
                     let value = self.evaluate(operand)?;
                     Ok(Value::Int(!self.the_operand_is_true(operand, &value) as i64))
                 }
+                // The word that is an operator and that has no left operand.
+                //
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the word takes the value of the right side, and
+                // it answers the truth of it as a number: the `x := and 2` is
+                // one, and the `x := or 2` is one.
+                UnaryOp::Boolean => {
+                    let value = self.evaluate(operand)?;
+                    Ok(self.the_answer_of_the_boolean(operand, &value))
+                }
                 // A whole number stays a whole number: `-3` is the
                 // integer -3, the way AutoHotkey v2 has it.
                 UnaryOp::Negate => {
@@ -9830,12 +9847,23 @@ impl<'a> Runtime<'a> {
                         if !self.the_operand_is_true(left, &left_value) {
                             return Ok(self.the_answer_of_the_boolean(left, &left_value));
                         }
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-04: the operand that is not there poisons
+                        // the operation that holds it: the `1 and` is the
+                        // empty text, and not the zero that the `1 and ""`
+                        // answers.
+                        if matches!(right.as_ref(), Node::Unset { .. }) {
+                            return Ok(Value::Text(String::new()));
+                        }
                         let right_value = self.evaluate(right)?;
                         return Ok(self.the_answer_of_the_boolean(right, &right_value));
                     }
                     BinaryOp::Or => {
                         if self.the_operand_is_true(left, &left_value) {
                             return Ok(self.the_answer_of_the_boolean(left, &left_value));
+                        }
+                        if matches!(right.as_ref(), Node::Unset { .. }) {
+                            return Ok(Value::Text(String::new()));
                         }
                         let right_value = self.evaluate(right)?;
                         return Ok(self.the_answer_of_the_boolean(right, &right_value));
@@ -11552,6 +11580,7 @@ pub fn op_name_in<'a>(
         Node::Var { .. } => "Var",
         Node::Unary { .. } => "Unary",
         Node::Binary { .. } => "Binary",
+        Node::Unset { .. } => "Unset",
         Node::Ternary { .. } => "Ternary",
         Node::DynamicName { .. } => "DynamicName",
         Node::AssignDynamic { .. } => "AssignDynamic",

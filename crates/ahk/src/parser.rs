@@ -1200,6 +1200,14 @@ pub struct Parser {    tokens: Vec<Token>,
     /// that closes a name that the script builds is the end of it, and not
     /// the beginning of another one: `%x%` is one name.
     derefs: usize,
+    /// The bracket that closes the value that is being read.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// operand that is not there and the bracket that closes the value is the
+    /// empty text: the `x := (1 +)` is accepted, and the `x := )` is refused
+    /// with "Unexpected ")"". The bracket of the block is not one of them: the
+    /// `f() { x := 1 +}` is refused with "Unexpected "}"".
+    expected_bracket: Option<&'static str>,
     /// The loops that the parser is inside.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the `break` and the
@@ -1324,6 +1332,7 @@ impl Parser {
             statement_start: 0,
             bases: Vec::new(),
             derefs: 0,
+            expected_bracket: None,
             loops: 0,
             lines: source.split('\n').map(|line| line.to_string()).collect(),
             dialect,
@@ -3110,6 +3119,9 @@ impl Parser {
                 _ => {
                     // Measured on the binary of v2.0.19 on 2026-11-01: the
                     // words that may not be the name of a variable say so.
+                    if self.dialect.the_line_that_begins_with_the_word_holds_no_action(&word) {
+                        return Err(self.the_line_holds_no_action(token.line));
+                    }
                     if self.the_word_may_not_be_a_name() {
                         if self.the_word_is_the_name_of_a_variable() {
                             return Err(self.the_error_of_the_reserved_word_as_a_name(self.position));
@@ -8142,6 +8154,18 @@ impl Parser {
             }
             let next = if right_associative { prec } else { prec + 1 };
             let right = self.parse_binary(next)?;
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the operand that is not there poisons the operation that holds
+            // it: the `1 +` is the empty text. The `&&` and the `||` are the
+            // exception: the left side decides, and the answer is one or
+            // zero -- the `0 and` is zero, and the `1 or` is one.
+            if op == BinaryOp::And || op == BinaryOp::Or {
+                if the_operand_is_not_there(&left) {
+                    return Ok(Node::Unset { line: token.line });
+                }
+            } else if the_operand_is_not_there(&left) || the_operand_is_not_there(&right) {
+                return Ok(Node::Unset { line: token.line });
+            }
             left = Node::Binary { op, left: Box::new(left), right: Box::new(right), line: token.line };
         }
     }
@@ -8315,6 +8339,12 @@ impl Parser {
     /// decrement are not among the operators: the line that ends with one
     /// of them wants an operand, and it does not continue.
     fn the_line_continues_at(&self, at: usize) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 merges the line that begins with an operator with the one before
+        // it, and not the other way round.
+        if !self.dialect.a_line_that_ends_with_an_operator_continues() {
+            return false;
+        }
         let Some(token) = self.the_token_before(at) else { return false };
         match token.kind {
             TokenKind::Op => matches!(
@@ -8906,12 +8936,21 @@ impl Parser {
                         return Ok(Node::Literal { value: LiteralValue::Number(text), line });
                     }
                 }
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the operand that is not there poisons the
+                // operation that holds it: the `not 1 +` is the empty text.
+                if the_operand_is_not_there(&operand) {
+                    return Ok(Node::Unset { line: token.line });
+                }
                 return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
             }
         }
         if token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("not") {
             self.next();
             let operand = self.parse_binary(precedence::NOT)?;
+            if the_operand_is_not_there(&operand) {
+                return Ok(Node::Unset { line: token.line });
+            }
             return Ok(Node::Unary { op: UnaryOp::NotWord, operand: Box::new(operand), line: token.line });
         }
         self.parse_primary()
@@ -8973,6 +9012,26 @@ impl Parser {
             }
             TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
             TokenKind::Keyword => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the word that is an operator and that begins
+                // the expression takes the value of the right side: the
+                // `x := and 2` is one, and the `x := or 2` is one. The word
+                // alone is the operand that is not there, and the value of
+                // the expression is the empty text.
+                if self.dialect.the_operand_that_is_not_there_is_not_refused() {
+                    let word = token.value.to_lowercase();
+                    if word == "and" || word == "or" {
+                        if !self.starts_expression() {
+                            return Ok(Node::Unset { line: token.line });
+                        }
+                        let operand = self.parse_binary(precedence::AND + 1)?;
+                        return Ok(Node::Unary {
+                            op: UnaryOp::Boolean,
+                            operand: Box::new(operand),
+                            line: token.line,
+                        });
+                    }
+                }
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-04: the `if` and the `while` of the v1 may come
                 // inside the line of the condition of an `if`: the
@@ -9167,6 +9226,10 @@ impl Parser {
                 // The bracket that is not closed is the failure, and not the
                 // operand that is not there inside it.
                 let mut items = Vec::new();
+                // The bracket that closes the group is the one that the
+                // operand that is not there may meet.
+                let outer_bracket = self.expected_bracket;
+                self.expected_bracket = Some(")");
                 // Measured on the binary of v2.0.19 on 2026-10-31: the list
                 // of nothing is a "Syntax error.", and the parenthesis that
                 // closes it is named. The value that is not there at the
@@ -9206,6 +9269,7 @@ impl Parser {
                     }
                     break;
                 }
+                self.expected_bracket = outer_bracket;
                 self.expect_op(")")?;
                 if items.len() == 1 {
                     items.pop().expect("the item of the group")
@@ -9217,6 +9281,10 @@ impl Parser {
                 // The literal of an array: `[a, b, c]`. The brackets of
                 // an index are a suffix of a value, and these open one.
                 let mut items = Vec::new();
+                // The bracket that closes the array is the one that the
+                // operand that is not there may meet.
+                let outer_bracket = self.expected_bracket;
+                self.expected_bracket = Some("]");
                 if !self.at_op(&["]"]) {
                     loop {
                         // Measured on the binary of v2.0.19 on 2026-11-01:
@@ -9260,6 +9328,7 @@ impl Parser {
                 }
                 // The array may be written in more than one line.
                 self.skip_newlines();
+                self.expected_bracket = outer_bracket;
                 self.expect_op("]")?;
                 Node::ArrayLiteral { items, line: token.line }
             }
@@ -9269,6 +9338,24 @@ impl Parser {
                 self.the_object_literal(token.line)?
             }
             _ => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 does not refuse the expression whose
+                // operand is not there: the `x := 1 +` is accepted, and the
+                // value of the expression is the empty text. The end of the
+                // line is where the operand is not there, and so is the
+                // bracket that closes the value that is being read: the
+                // `x := (1 +)` is the empty text, and the `x := )` is
+                // refused with "Unexpected ")"".
+                if self.dialect.the_operand_that_is_not_there_is_not_refused()
+                    && (matches!(token.kind, TokenKind::Newline | TokenKind::Eof)
+                        || (token.kind == TokenKind::Op
+                            && self.expected_bracket == Some(token.value.as_str())))
+                {
+                    // The token is not consumed: the statement ends there, or
+                    // the bracket closes the value that is being read.
+                    self.position -= 1;
+                    return Ok(Node::Unset { line: token.line });
+                }
                 // The operand that the operator wants is not there.
                 return Err(self.the_error_of_a_missing_operand(&token));
             }
@@ -9352,6 +9439,10 @@ impl Parser {
             .map(|token| token.column)
             .unwrap_or(1);
         let mut properties = Vec::new();
+        // The brace that closes the literal is the one that the operand that
+        // is not there may meet.
+        let outer_bracket = self.expected_bracket;
+        self.expected_bracket = Some("}");
         // The property may be on the line that follows the brace.
         self.skip_newlines();
         while !self.at_op(&["}"]) {
@@ -9446,6 +9537,7 @@ impl Parser {
         }
         // The brace that closes the literal may be on a line of its own.
         self.skip_newlines();
+        self.expected_bracket = outer_bracket;
         self.expect_op("}")?;
         Ok(Node::ObjectLiteral { properties, line })
     }
@@ -10028,6 +10120,30 @@ fn the_literal_is_a_text(node: &Node) -> bool {
         Node::Literal { value: LiteralValue::Text(_), .. } => true,
         Node::Binary { op: BinaryOp::Concat, left, right, .. } => {
             the_literal_is_a_text(left) && the_literal_is_a_text(right)
+        }
+        _ => false,
+    }
+}
+
+/// Whether the expression holds the operand that is not there.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// operand that is not there poisons the operation that holds it: the
+/// `not (1 +)` is the empty text, and not the one that the `not` of the empty
+/// text answers. The `&&` and the `||` are the exception, and the parser
+/// keeps them: when the left side decides, the answer is one or zero.
+fn the_operand_is_not_there(node: &Node) -> bool {
+    match node {
+        Node::Unset { .. } => true,
+        Node::Group { items, .. } => items.iter().any(the_operand_is_not_there),
+        Node::Unary { operand, .. } => the_operand_is_not_there(operand),
+        Node::Binary { left, right, .. } => {
+            the_operand_is_not_there(left) || the_operand_is_not_there(right)
+        }
+        Node::Ternary { condition, then, otherwise, .. } => {
+            the_operand_is_not_there(condition)
+                || the_operand_is_not_there(then)
+                || the_operand_is_not_there(otherwise)
         }
         _ => false,
     }

@@ -7217,3 +7217,127 @@ fn the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped_in_the_v1
     assert!(report.ok);
     assert_eq!(report.output, vec!["5".to_string()]);
 }
+
+/// The operand that is not there is the empty text in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not refuse the expression whose operand is not there: the `x := 1 +`
+/// and the `x := not` are accepted, and the value of the expression is the
+/// empty text. The operand that is not there poisons the operation that
+/// holds it: the `not (1 +)` is the empty text, and not the one that the
+/// `not` of the empty text answers.
+///
+/// The `&&` and the `||` are the exception: when the left side decides, the
+/// answer is one or zero.
+#[test]
+fn the_operand_that_is_not_there_is_the_empty_text_in_the_v1() {
+    // The sum that has no operand.
+    let report = run("x := 1 +\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["".to_string()]);
+
+    // The not that has no operand.
+    let report = run("x := not\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["".to_string()]);
+
+    // The and that has no operand.
+    let report = run("x := 1 and\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["".to_string()]);
+
+    // The or that has no operand, and the left side that decides.
+    let report = run("x := 1 or\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+
+    // The and whose left side decides.
+    let report = run("x := 0 and\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0".to_string()]);
+
+    // The operand that is not there poisons the operation that holds it.
+    let report = run("x := not (1 +)\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["".to_string()]);
+
+    // The bracket that closes the value is the operand that is not there.
+    let report = run("x := (1 +)\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["".to_string()]);
+
+    // The bracket that closes nothing is refused.
+    assert_eq!(
+        the_refusal_of_the_load("x := )"),
+        "Unexpected \")\""
+    );
+}
+
+/// The word that is an operator takes the value of the right side in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the word
+/// that begins the expression has no left operand, and it takes the value of
+/// the right one: the `x := and 2` is one, and the `x := or 2` is one. The
+/// word alone is the operand that is not there, and the value of the
+/// expression is the empty text.
+#[test]
+fn the_word_that_is_an_operator_takes_the_value_of_the_right_side_in_the_v1() {
+    let report = run("x := and 2\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+
+    let report = run("x := or 0\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["0".to_string()]);
+
+    // The word alone is the empty text.
+    let report = run("x := and\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["".to_string()]);
+}
+
+/// The line that begins with the operator holds no action in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the line with "This line does not contain a recognized action.",
+/// and it names the whole line: the `not` names the "not", and the `not 1`
+/// names the "not 1".
+#[test]
+fn the_line_that_begins_with_the_operator_holds_no_action_in_the_v1() {
+    assert_eq!(
+        the_refusal_of_the_load("not"),
+        "This line does not contain a recognized action.\n     Specifically: not"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("and 2"),
+        "This line does not contain a recognized action.\n     Specifically: and 2"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("or"),
+        "This line does not contain a recognized action.\n     Specifically: or"
+    );
+}
+
+/// The line that ends with an operator does not continue in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// merges the line that BEGINS with an operator with the one before it, and
+/// not the other way round: the `x := 1 +` and the `2` that comes after it
+/// are two lines, and the `2` is refused with "This line does not contain a
+/// recognized action.". The comma does not continue the line either.
+#[test]
+fn the_line_that_ends_with_an_operator_does_not_continue_in_the_v1() {
+    assert_eq!(
+        the_refusal_of_the_load("x := 1 +\n2"),
+        "This line does not contain a recognized action.\n     Specifically: 2"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := 1,\n2"),
+        "This line does not contain a recognized action.\n     Specifically: 2"
+    );
+
+    // The line that begins with an operator is merged with the one before it.
+    let report = run("x := 1\n+ 2\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["3".to_string()]);
+}

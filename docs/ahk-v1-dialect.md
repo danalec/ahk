@@ -1650,6 +1650,36 @@ The rule is a hook of the dialect
 (`the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped`), and the
 runtime drops the write.
 
+**The operand that is not there** (2026-11-04). The v1 does not refuse the
+expression whose operand is not there: the `x := 1 +` and the `x := not` are
+accepted, and the value of the expression is the empty text.
+
+The operand that is not there poisons the operation that holds it: the
+`not (1 +)` is the empty text, and not the one that the `not` of the empty
+text answers. The `&&` and the `||` are the exception: when the left side
+decides, the answer is one or zero -- the `0 and` is zero, and the `1 or` is
+one.
+
+The word that is an operator and that begins the expression has no left
+operand, and it takes the value of the right one: the `x := and 2` is one,
+and the `x := or 2` is one. The word alone is the operand that is not there.
+
+The line that begins with the operator holds no action: the v1 refuses it
+with "This line does not contain a recognized action." and names the whole
+line -- the `not` names the "not", and the `not 1` names the "not 1".
+
+The v1 does not continue the line that ends with an operator: it merges the
+line that BEGINS with an operator with the one before it. The `x := 1 +` and
+the `2` that comes after it are two lines, and the `2` is refused with "This
+line does not contain a recognized action.". The comma does not continue the
+line either.
+
+The rules are hooks of the dialect
+(`the_operand_that_is_not_there_is_not_refused`,
+`a_line_that_ends_with_an_operator_continues` and
+`the_line_that_begins_with_the_word_holds_no_action`), and the parser makes
+the operand that is not there a node of its own (`Node::Unset`).
+
 **What stays out of the call.** The call of a function of the v1 that is
 written without the parentheses and inside an expression -- `x := InStr
 "abc"` -- is not a call: it is the name of the function and the text, side by
