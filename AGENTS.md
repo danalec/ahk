@@ -624,6 +624,34 @@ of every name, and it is `docs/v2-capability-report.md` .
   describe. The box notes are measurements: a measurement without its date
   is not evidence.
 
+## The swarm and the commit of a block
+
+The swarm of agents measures a family of the dialect against the binary and
+writes its patch under `egm-review/`, which is not in the repository. The
+agents do not commit: one block is one commit, and the owner commits.
+
+Several agents write to the same working tree, and their patches end up in
+the same files. The tree of the owner may not be reset -- another session may
+be working in it -- so the block is put into the INDEX and not into the
+working tree:
+
+- `egm-review/list_groups.py` lists the groups of the lines that a diff adds,
+  and the group is what the block is: the text of the group names the block.
+- `egm-review/split_diff.py` takes the diff and the names of the blocks and
+  writes the part of one block. A hunk that removes lines and holds groups of
+  two blocks is refused: it cannot be split.
+- `git apply --cached` puts that part into the index. The working tree keeps
+  what it has.
+- `egm-review/stage.py` puts a text into the index of a file -- the tests of
+  a block, a section of this file, a bullet of the EGM.md -- and writes it
+  into the working tree as well, so that the two do not drift.
+- `egm-review/check_index.py` writes the tree of the index to a folder and
+  runs the suite there. The working tree carries every block at once, so the
+  suite of the working tree does not say that a single block is good.
+
+The text of a file is edited by a script under `egm-review/` or by the tools
+of the editor, and never by a command of the shell.
+
 ## License
 
 The project is Apache 2.0. The text is in `LICENSE`, and the manifests of
