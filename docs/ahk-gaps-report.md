@@ -184,6 +184,11 @@ and the class that is overwritten.
 The difference that stays: the v1 warns twice for a read that is the value of
 an assignment, and the tree warns once. The text of the warning is the same.
 
+The number of the warnings of the v1 is the number of the times that it
+materializes the empty content of the variable, and that depends on the
+operator: the value of an assignment is materialized twice, and the value of
+an object and the value of a comparison too. The tree warns once per read.
+
 ### 2.3 The holes of the v2 that are known
 
 **`ObjBindMethod`** — *closed on 2026-11-05*. The tree binds the method of an

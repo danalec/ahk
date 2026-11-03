@@ -9433,8 +9433,11 @@ name of the variable.
 
 The difference that stays: the v1 warns twice for a read that is the value of
 an assignment, and the tree warns once. The number of the warnings of the v1
-is the number of the conversions that its compiler makes, and the tree warns
-once per read. The text of the warning is the same in the two.
+is the number of the times that it materializes the empty content of the
+variable, and that depends on the operator: the value of an assignment is
+materialized twice, and the value of an object and the value of a comparison
+too. The tree warns once per read. The text of the warning is the same in the
+two.
 
 The type of the warning that the tree does not carry yet is named in the
 report: the "LocalSameAsGlobal" of the two dialects and the "ClassOverwrite"
