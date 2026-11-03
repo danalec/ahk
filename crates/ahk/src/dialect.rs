@@ -760,6 +760,39 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the object has the methods of the base object of the v2.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// object of the v1 has no method of the base object of the v2: the
+    /// `a.HasOwnProp("b")` is ignored and the answer is the empty text, and
+    /// the `a.HasProp("b")` is the same.
+    ///
+    /// The v2 has the eleven methods of the base object.
+    fn the_object_has_the_methods_of_the_base_object(&self) -> bool {
+        true
+    }
+
+    /// Whether the array has the methods of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// has the `Insert` and the `Remove`, and the v2 does not: the v2 has the
+    /// `InsertAt` and the `RemoveAt`.
+    fn the_array_has_the_methods_of_the_v1(&self) -> bool {
+        false
+    }
+
+    /// Whether the array has the length and the capacity of its own.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// array of the v1 has neither: the `a.Length` is the empty text, and
+    /// the `a.Capacity` is the empty text too. The v1 counts the array with
+    /// the `a.Length()` and the `a.Count()`.
+    ///
+    /// The v2 has both.
+    fn the_array_has_the_length_and_the_capacity(&self) -> bool {
+        true
+    }
+
     /// Whether the item of an object is the property of that name.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -2171,6 +2204,24 @@ impl Dialect for V1 {
     fn the_item_of_an_object_is_its_property(&self) -> bool {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
         // takes the item of an object for the property of that name.
+        true
+    }
+
+    fn the_object_has_the_methods_of_the_base_object(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // object of the v1 has no method of the base object of the v2.
+        false
+    }
+
+    fn the_array_has_the_length_and_the_capacity(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // array of the v1 has neither the length nor the capacity.
+        false
+    }
+
+    fn the_array_has_the_methods_of_the_v1(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // has the `Insert` and the `Remove`, and the v2 does not.
         true
     }
 

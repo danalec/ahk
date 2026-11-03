@@ -117,6 +117,61 @@ pub(crate) fn call(
             set_items(&mut state, items);
             Some(Ok(element_value(&last).unwrap_or(Value::Text(String::new()))))
         }
+        "insert" if rt.dialect().the_array_has_the_methods_of_the_v1() => {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the `Insert` of the v1 takes the index and the value: the
+            // `a.Insert(1, 9)` puts the nine at the first place. A value on
+            // its own goes to the end: the `a.Insert(9)` puts the nine at
+            // the end of the array.
+            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let mut state = state.borrow_mut();
+            let mut items = items(&state);
+            let length = items.len() as i64;
+            if arguments.len() < 2 {
+                if let Some(value) = arguments.first() {
+                    items.push(element(Some(value.clone())));
+                }
+                set_items(&mut state, items);
+                return Some(Ok(Value::Text(String::new())));
+            }
+            let index = match rt.integer(&arguments[0], line) {
+                Ok(number) => number,
+                Err(failure) => return Some(Err(failure)),
+            };
+            let Some(place) = insert_place(index, length) else {
+                return invalid_place("Insert", index);
+            };
+            for (offset, value) in arguments.iter().skip(1).enumerate() {
+                items.insert(place + offset, element(Some(value.clone())));
+            }
+            set_items(&mut state, items);
+            Some(Ok(Value::Text(String::new())))
+        }
+        "remove" if rt.dialect().the_array_has_the_methods_of_the_v1() => {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the `Remove` of the v1 takes the index: the `a.Remove(1)`
+            // takes the first one away. Without an index the last one goes
+            // away: the `a.Remove()` is the `a.Pop()`.
+            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let mut state = state.borrow_mut();
+            let mut items = items(&state);
+            let length = items.len() as i64;
+            let Some(index) = arguments.first() else {
+                let Some(last) = items.pop() else { return failure("Array is empty.") };
+                set_items(&mut state, items);
+                return Some(Ok(element_value(&last).unwrap_or(Value::Text(String::new()))));
+            };
+            let index = match rt.integer(index, line) {
+                Ok(number) => number,
+                Err(failure) => return Some(Err(failure)),
+            };
+            let Some(place) = place(index, length) else {
+                return invalid_place("Remove", index);
+            };
+            let removed = items.remove(place);
+            set_items(&mut state, items);
+            Some(Ok(element_value(&removed).unwrap_or(Value::Text(String::new()))))
+        }
         "insertat" => {
             let Some(index) = arguments.first() else { return failure("Too few parameters passed to function.") };
             // There is something to insert: an index on its own inserts
@@ -364,10 +419,17 @@ pub(crate) fn set_item(
 pub(crate) fn property(
     name: &str,
     this: &Value,
-    _rt: &mut Runtime,
+    rt: &mut Runtime,
     _line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let state = state(this)?;
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    // array of the v1 has neither the length nor the capacity: the
+    // `a.Length` is the empty text. The v1 counts the array with the
+    // `a.Length()` and the `a.Count()`.
+    if !rt.dialect().the_array_has_the_length_and_the_capacity() {
+        return None;
+    }
     let state = state.borrow();
     match name {
         "length" => Some(Ok(Value::Int(items(&state).len() as i64))),
@@ -548,6 +610,26 @@ pub(crate) fn the_items(array: &Value) -> Vec<Value> {
         .collect()
 }
 
+/// The number of the items of an array that are there.
+///
+/// The places that are not there are not items: the array of two with the
+/// third one written has three items, and the holes are not counted.
+pub(crate) fn the_number_of_the_items(array: &Value) -> usize {
+    let Some(state) = state(array) else { return 0 };
+    let state = state.borrow();
+    items(&state).iter().filter(|item| element_value(item).is_some()).count()
+}
+
+/// The number of the places of an array.
+///
+/// The places that are not there are places: the array of two with the
+/// fifth one written has five places.
+pub(crate) fn the_number_of_the_places(array: &Value) -> usize {
+    let Some(state) = state(array) else { return 0 };
+    let state = state.borrow();
+    items(&state).len()
+}
+
 /// The items of an array, written back.
 fn set_items(state: &mut Object, items: Vec<Value>) {
     put(&mut state.properties, "items", Value::List(items));
@@ -700,6 +782,12 @@ fn base_method(
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let Value::Object(object) = this else { return None };
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    // array of the v1 has no method of the base object of the v2: the
+    // `a.HasOwnProp(1)` is ignored and the answer is the empty text.
+    if !rt.dialect().the_object_has_the_methods_of_the_base_object() {
+        return None;
+    }
     let failure = |message: &str| {
         Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
     };

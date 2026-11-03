@@ -8273,3 +8273,126 @@ fn the_compound_write_of_a_variable_of_the_v1_that_is_not_a_number_happens() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["[2]".to_string()]);
 }
+
+/// The object of the v1 has no method of the base object of the v2.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.HasOwnProp("b")` is ignored and the answer is the empty text, and the
+/// `a.HasProp("b")` is the same. The v2 answers 1.
+#[test]
+fn the_object_of_the_v1_has_no_method_of_the_base_object_of_the_v2() {
+    let report = run("a := {b: 1}\nx := a.HasOwnProp(\"b\")\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The array of the v1 has no method of the base object of the v2 either.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.HasOwnProp(1)` is ignored and the answer is the empty text. The v2
+/// answers zero.
+#[test]
+fn the_array_of_the_v1_has_no_method_of_the_base_object_of_the_v2_either() {
+    let report = run("a := [1, 2]\nx := a.HasOwnProp(1)\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The count of an object of the v1 is the number of its members.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.Count()` is the number of the members of the object: the property "b"
+/// of the `{b: 1}` is one, and the `{b: 1, c: 2}` is two.
+#[test]
+fn the_count_of_an_object_of_the_v1_is_the_number_of_its_members() {
+    let report = run("a := {b: 1, c: 2}\nx := a.Count()\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+}
+
+/// The count of an array of the v1 is the number of its members.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.Count()` of the `[1, 2]` is two, and the `[1, 2]` with the property
+/// "b" is three. The places that are not there are not members.
+#[test]
+fn the_count_of_an_array_of_the_v1_is_the_number_of_its_members() {
+    let report = run("a := [1, 2]\na[\"b\"] := 9\nx := a.Count()\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[3]".to_string()]);
+}
+
+/// The length of an object of the v1 is the number of its items.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.Length()` is the number of the items of the object: the `{b: 1}` is
+/// zero, and the `[1, 2]` is two. The places that are not there are places.
+#[test]
+fn the_length_of_an_object_of_the_v1_is_the_number_of_its_items() {
+    let report = run("a := {b: 1}\nx := a.Length()\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[0]".to_string()]);
+}
+
+/// The length of an array of the v1 is the number of its places.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.Length()` of the `[1, 2]` is two, and the `[1, 2]` with the fifth one
+/// written is five: the places that are not there are places.
+#[test]
+fn the_length_of_an_array_of_the_v1_is_the_number_of_its_places() {
+    let report = run("a := [1, 2]\na[5] := 7\nx := a.Length()\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[5]".to_string()]);
+}
+
+/// The array of the v1 has no length and no capacity of its own.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.Length` is the empty text, and the `a.Capacity` is the empty text
+/// too. The v1 counts the array with the `a.Length()` and the `a.Count()`.
+#[test]
+fn the_array_of_the_v1_has_no_length_and_no_capacity_of_its_own() {
+    let report = run("a := [1, 2]\nx := a.Length\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The Insert of an array of the v1 takes the index and the value.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.Insert(1, 9)` puts the nine at the first place, and the array has
+/// three members after that. A value on its own goes to the end: the
+/// `a.Insert(9)` puts the nine at the end.
+#[test]
+fn the_insert_of_an_array_of_the_v1_takes_the_index_and_the_value() {
+    let report = run("a := [1, 2]\na.Insert(1, 9)\nx := a[1]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[9]".to_string()]);
+}
+
+/// The Remove of an array of the v1 takes the index, and without one it
+/// takes the last away.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.Remove(1)` takes the first one away and answers it, and the
+/// `a.Remove()` takes the last one away.
+#[test]
+fn the_remove_of_an_array_of_the_v1_takes_the_index() {
+    let report = run("a := [1, 2]\nx := a.Remove(1)\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The Remove of an array of the v1 without an index takes the last one
+/// away.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.Remove()` answers the last one, and the array has one member after
+/// that.
+#[test]
+fn the_remove_of_an_array_of_the_v1_without_an_index_takes_the_last_one_away() {
+    let report = run("a := [1, 2]\na.Remove()\nx := a.Count()\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}

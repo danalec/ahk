@@ -5466,6 +5466,61 @@ impl<'a> Runtime<'a> {
         })
     }
 
+    /// The methods of the object of the v1: the `Count()` and the `Length()`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `a.Count()` is the number of the members of the object -- the property
+    /// "b" of the `{b: 1}` is one, the items of an array are members as
+    /// well, and the places that are not there are not members. The
+    /// `a.Length()` is the number of the items of the object: the `{b: 1}` is
+    /// zero, and the `[1, 2]` is two.
+    fn the_method_of_the_v1(
+        &mut self,
+        target: &Value,
+        name: &str,
+        _arguments: &[Value],
+        _line: u32,
+    ) -> Option<Result<Value, RuntimeFailure>> {
+        match name.to_lowercase().as_str() {
+            "count" => Some(Ok(Value::Int(self.the_members_of_the_v1(target) as i64))),
+            "length" => Some(Ok(Value::Int(self.the_items_of_the_v1(target) as i64))),
+            _ => None,
+        }
+    }
+
+    /// The members of an object of the v1: the properties that it owns and
+    /// the items of it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `{b: 1}` has one member, and the `[1, 2]` has two, and the `[1, 2]`
+    /// with the property "b" has three.
+    fn the_members_of_the_v1(&self, target: &Value) -> usize {
+        let Value::Object(object) = target else { return 0 };
+        let mut count = 0;
+        for name in object.borrow().properties.keys() {
+            // The names that the runtime owns are not members of the object.
+            if name.as_str() == BASE
+                || name.as_str() == CLASS_NAME
+                || name.as_str() == "prototype"
+                || name.as_str() == "array state"
+            {
+                continue;
+            }
+            count += 1;
+        }
+        count + crate::classes::array::the_number_of_the_items(target)
+    }
+
+    /// The items of an object of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `{b: 1}` has no item, and the `[1, 2]` has two. The places that are
+    /// not there are places: the `[1, 2]` with the fifth one written has
+    /// five places.
+    fn the_items_of_the_v1(&self, target: &Value) -> usize {
+        crate::classes::array::the_number_of_the_places(target)
+    }
+
     /// A method every object has, and the name of it is not in the
     /// failure.
     fn the_base_method(
@@ -5476,6 +5531,12 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Option<Result<Value, RuntimeFailure>> {
         let Value::Object(object) = target else { return None };
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // object of the v1 has no method of the base object of the v2, and it
+        // has the `Count()` and the `Length()`.
+        if !self.dialect.the_object_has_the_methods_of_the_base_object() {
+            return self.the_method_of_the_v1(target, name, arguments, line);
+        }
         let class = object.borrow().class.clone();
         let method = name.to_string();
         let missing = || RuntimeFailure::Error(RuntimeError {
