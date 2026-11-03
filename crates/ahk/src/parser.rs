@@ -8172,8 +8172,15 @@ impl Parser {
                     // `Loop, 3`.
                     if self.dialect.legacy_commands() {
                         self.next();
-                        self.the_expression_begins();
-                        arguments.push(self.the_count_of_the_loop(token.line)?);
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-04: the brace that opens the body of the
+                        // loop of the v1 is the one that is at the end of
+                        // the line: the `Loop, {` is a loop that goes on
+                        // until a break.
+                        if !self.the_brace_opens_the_body_of_the_loop() {
+                            self.the_expression_begins();
+                            arguments.push(self.the_count_of_the_loop(token.line)?);
+                        }
                         if self.at_op(&[","]) {
                             // The kinds of the loop of the v1 come after
                             // the count, and the tree does not carry them
@@ -8195,7 +8202,10 @@ impl Parser {
                     if empty.is_some() {
                         self.next();
                         self.next();
-                    } else if !self.at_end_of_statement() && !self.at_op(&["::", "{"]) {
+                    } else if !self.at_end_of_statement()
+                        && !self.at_op(&["::"])
+                        && !self.the_brace_opens_the_body_of_the_loop()
+                    {
                         self.the_expression_begins();
                         arguments.push(self.the_count_of_the_loop(token.line)?);
                         if self.at_op(&[","]) {
@@ -8282,6 +8292,61 @@ impl Parser {
         Ok(Some(Box::new(condition)))
     }
 
+    /// Whether the brace at the place of the parser is the last thing of
+    /// its line.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// brace that opens the body of the loop of the v1 is the one that is
+    /// at the end of the line of it: the `loop {` opens the body, and the
+    /// `loop { break }` does not.
+    fn the_brace_is_at_the_end_of_the_line(&self) -> bool {
+        let line = self.peek().line;
+        match self.tokens.get(self.position + 1) {
+            Some(next) => {
+                next.kind == TokenKind::Newline
+                    || next.kind == TokenKind::Eof
+                    || next.line != line
+            }
+            None => true,
+        }
+    }
+
+    /// The place of the end of the line of the parser.
+    ///
+    /// The newline is the end of the line, and the end of the script is
+    /// the end of the last line of it.
+    fn the_end_of_the_line(&self) -> usize {
+        let mut at = self.position;
+        while let Some(token) = self.tokens.get(at) {
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                break;
+            }
+            at += 1;
+        }
+        at
+    }
+
+    /// Whether the brace at the place of the parser opens the body of the
+    /// loop.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// brace that opens the body of the loop of the v1 is the one that is
+    /// at the end of the line of it. The text that follows it on the line
+    /// is the text of the count: the `loop { break }` is a loop of files
+    /// whose pattern is the text "{ break }", and it has no turn.
+    ///
+    /// The v2 reads the body of the loop on the line of it, and the brace
+    /// that is not at the end of the line is refused.
+    fn the_brace_opens_the_body_of_the_loop(&self) -> bool {
+        if !self.at_op(&["{"]) {
+            return false;
+        }
+        if !self.dialect.the_brace_of_the_body_of_the_loop_is_at_the_end_of_the_line() {
+            return true;
+        }
+        self.the_brace_is_at_the_end_of_the_line()
+    }
+
     /// The count of the loop.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -8289,6 +8354,12 @@ impl Parser {
     /// text of the count is what the script wrote, and the loop is skipped
     /// when the text is not a number. The `%` and the space force the
     /// expression: the `loop % Count + 1`.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// text of the count goes to the end of the line, and the brace that
+    /// opens the body is the one that is at the end of it. The `loop {
+    /// break }` is a loop of files whose pattern is the text "{ break }",
+    /// and it has no turn.
     ///
     /// The v2 reads the count as an expression.
     fn the_count_of_the_loop(&mut self, line: u32) -> Result<Node, SyntaxError> {
@@ -8303,10 +8374,24 @@ impl Parser {
             return self.parse_expression();
         }
         let start = self.position;
+        // The brace that is not at the end of the line is a part of the
+        // text of the count.
+        if self.at_op(&["{"]) && !self.the_brace_is_at_the_end_of_the_line() {
+            let end = self.the_end_of_the_line();
+            let text = self.the_verbatim_source(start, end);
+            self.position = end;
+            return Ok(Node::Literal { value: LiteralValue::Text(text), line });
+        }
         // The expression is read to know where the count ends, and it is
         // thrown away: the v1 reads the text of it.
         let _ = self.parse_expression()?;
-        let end = self.position;
+        let mut end = self.position;
+        // The brace that is not at the end of the line is a part of the
+        // text of the count.
+        if self.at_op(&["{"]) && !self.the_brace_is_at_the_end_of_the_line() {
+            end = self.the_end_of_the_line();
+            self.position = end;
+        }
         let text = self.the_verbatim_source(start, end);
         Ok(Node::Literal { value: LiteralValue::Text(text), line })
     }

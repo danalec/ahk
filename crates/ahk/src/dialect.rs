@@ -358,6 +358,21 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the brace that opens the body of a loop is the one that is
+    /// at the end of the line.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// brace that opens the body of the loop of the v1 is the one that is
+    /// at the end of the line of it. The text that follows it on the line
+    /// is the text of the count: the `loop { break }` is a loop of files
+    /// whose pattern is the text "{ break }", and it has no turn.
+    ///
+    /// The v2 reads the body of the loop on the line of it, and the brace
+    /// that is not at the end of the line is refused.
+    fn the_brace_of_the_body_of_the_loop_is_at_the_end_of_the_line(&self) -> bool {
+        false
+    }
+
     /// Whether the `for` of the dialect is the one of the v1.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -1999,6 +2014,12 @@ impl Dialect for V1 {
     fn the_count_of_the_loop_is_a_number(&self) -> bool {
         // The count of the `Loop` of the v1 is a number and not an
         // expression: the `loop n` is skipped.
+        true
+    }
+
+    fn the_brace_of_the_body_of_the_loop_is_at_the_end_of_the_line(&self) -> bool {
+        // The brace that opens the body of the loop of the v1 is the one
+        // that is at the end of the line.
         true
     }
 

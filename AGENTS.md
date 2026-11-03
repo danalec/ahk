@@ -8773,3 +8773,28 @@ refusals of the `f("abc` -- the v1 refuses the quote before the function that
 does not exist -- and the text that the refusal of the hotkey names.
 
 The suite of the v1 has two cases more (355).
+
+## 231. The brace that opens the body of the loop of the v1 is the one that is at the end of the line
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 opens
+the body of the loop with the brace that ends the line of it. The `loop {`
+opens the body and the loop goes on until a break, and the `loop 3 {` opens
+it with three turns. The command of the v1 takes the count after a comma,
+and the `Loop, 3 {` opens the body with three turns as well.
+
+The text that follows the brace on the line is the text of the count: the
+`loop { break }` is a loop of files whose pattern is the text "{ break }",
+and it has no turn. The count of the loop of the v1 is the text of the line
+and not the expression.
+
+The rule is in the parser: the hook of the dialect is
+`the_brace_of_the_body_of_the_loop_is_at_the_end_of_the_line`, and the v1
+turns it on. The v2 reads the body of the loop on the line of it, and the
+brace that is not at the end of the line is refused with 'Unexpected "Loop"'.
+
+Two things stay out, and they are the `while` of the v1: the `While, 1 {`
+opens the body of it, and the tree refuses it with 'Unexpected "}"'; and the
+`While, 1 { break }` is refused by the v1 with 'Unexpected "{"', and the
+tree accepts it.
+
+The suite of the v1 has two cases more (357).

@@ -7700,6 +7700,62 @@ fn the_loop_of_the_v1_that_has_a_body_goes_on() {
     assert_eq!(report.variables.get("n"), Some(&Value::Int(3)));
 }
 
+/// The brace that opens the body of the loop of the v1 is the one that is at
+/// the end of the line.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `loop {`
+/// opens the body of the loop and the loop goes on until a break, and the
+/// `loop 3 {` opens it with three turns.
+#[test]
+fn the_brace_of_the_body_of_the_loop_of_the_v1_is_the_one_at_the_end_of_the_line() {
+    // The loop without a count goes on until the break.
+    let report = run("x := 0\nloop {\nx := x + 1\nbreak\n}\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+
+    // The count of the loop is the text that is before the brace.
+    let report = run("x := 0\nloop 3 {\nx := x + 1\n}\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[3]".to_string()]);
+
+    // The command of the v1 takes the count after a comma.
+    let report = run("x := 0\nLoop, 3 {\nx := x + 1\n}\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[3]".to_string()]);
+
+    // The command without a count goes on until the break.
+    let report = run("x := 0\nLoop, {\nx := x + 1\nbreak\n}\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The text that follows the brace of the loop of the v1 is the text of the
+/// count.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the brace
+/// that opens the body of the loop of the v1 is the one that is at the end of
+/// the line, and the text that follows it on the line is the text of the
+/// count: the `loop { break }` is a loop of files whose pattern is the text
+/// "{ break }", and it has no turn.
+#[test]
+fn the_text_that_follows_the_brace_of_the_loop_of_the_v1_is_the_text_of_the_count() {
+    // The count is the text "{ break }", and it is not a number: the loop
+    // has no turn, and the body of it is the line that comes next.
+    let report = run("x := 0\nloop { break }\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    // The count is the text "3 { break }", and it is not a number.
+    let report = run("x := 0\nloop 3 { break }\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    // The command of the v1 takes the count after a comma.
+    let report = run("x := 0\nLoop, 3 { break }\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
 /// The word "true" alone holds no action of the v1.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1

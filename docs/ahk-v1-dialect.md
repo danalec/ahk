@@ -2111,6 +2111,38 @@ ten cases of the binary and the tree: five are the same, and the five that
 are not are the ones that the paragraph above names, and the `FileAppend` that
 has no name of file -- the v1 writes it and the tree refuses it.
 
+**The brace that opens the body of the loop of the v1 is the one that is at
+the end of the line** (2026-11-04). The v1 opens the body of the loop with
+the brace that ends the line of it: the `loop {` opens the body and the loop
+goes on until a break, and the `loop 3 {` opens it with three turns. The
+command of the v1 takes the count after a comma, and the `Loop, 3 {` opens
+the body with three turns as well.
+
+The text that follows the brace on the line is the text of the count: the
+`loop { break }` is a loop of files whose pattern is the text "{ break }",
+and it has no turn. The count of the loop of the v1 is the text of the line
+and not the expression, and the tree already carried that: the text that
+the script wrote is the count, and the loop is skipped when the text is
+not a number.
+
+The tree carries the rule of the brace: the hook of the dialect is
+`the_brace_of_the_body_of_the_loop_is_at_the_end_of_the_line`, and the v1
+turns it on. The v2 reads the body of the loop on the line of it, and the
+brace that is not at the end of the line is refused with 'Unexpected "Loop"'.
+
+Two things stay out, and they are the `while` of the v1: the `While, 1 {`
+opens the body of it, and the tree refuses it with 'Unexpected "}"'; and the
+`While, 1 { break }` is refused by the v1 with 'Unexpected "{"', and the
+tree accepts it.
+
+The probe of the block is `egm-review/probe_v1_loop_brace.py`, and it is
+eight cases of the binary and the tree: seven are the same, and the one that
+is not is the loop without a count and without a break -- the v1 goes on and
+the tree stops it with the guard rail of the statements. The probe of the
+forms is `egm-review/probe_v1_loop_forms.py`, and it is eleven cases: nine
+are the same, and the two that are not are the `while` that the paragraph
+above names.
+
 ---
 
 ## 5. The risks
