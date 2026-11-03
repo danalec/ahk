@@ -553,6 +553,15 @@ pub enum Node {    /// A value.
     /// with a parenthesis is an expression, and the value it leaves behind is
     /// not used.
     Expression { value: Box<Node>, line: u32 },
+    /// The parameter of the v1 that is written with a percent sign and a
+    /// space in front of it: the expression that it holds.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// percent sign and a space in front of a parameter of the v1 force it to
+    /// be an expression: the `FileAppend, % "hello", *` writes "hello", and
+    /// the `Loop, Parse, % "a|b|c", "|"` separates the text of the
+    /// expression.
+    LegacyExpression { value: Box<Node>, line: u32 },
     /// A block that opens a line: `{` and the statements, and `}`.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the brace that opens
@@ -802,6 +811,7 @@ impl Node {
             | Node::LegacyCall { line, .. }
             | Node::LegacyIf { line, .. }
             | Node::Expression { line, .. }
+            | Node::LegacyExpression { line, .. }
             | Node::Block { line, .. }
             | Node::If { line, .. }
             | Node::Switch { line, .. }

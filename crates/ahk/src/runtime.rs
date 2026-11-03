@@ -2771,6 +2771,11 @@ impl<'a> Runtime<'a> {
             Node::Expression { value, .. } => {
                 self.evaluate(value)?;
             }
+            // The expression of a parameter of the v1 is not a statement: the
+            // command that holds the parameter reads it.
+            Node::LegacyExpression { value, .. } => {
+                self.evaluate(value)?;
+            }
             // The jump of a `Goto`: the run goes on at the label.
             Node::Goto { name, line } => {
                 return Err(RuntimeFailure::Flow(Flow::Goto { name: name.clone(), line: *line }));
@@ -9185,18 +9190,45 @@ impl<'a> Runtime<'a> {
         until: &Option<Box<Node>>,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
-        // The second parameter is the name of the variable, and not a value:
-        // the name is what the script wrote.
-        let name = match arguments.get(1) {
-            Some(Node::Literal { value: crate::ast::LiteralValue::Text(text), .. }) => text.trim().to_string(),
-            _ => String::new(),
-        };
-        // The text that is separated is the value of the variable.
-        let text = match self.lookup(&name) {
-            Some(value) => value.to_text(),
+        // The text that is separated is the value of the variable, or the
+        // value of the expression when the percent sign and a space are in
+        // front of the parameter.
+        let text = match arguments.get(1) {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the percent sign and a space in front of the parameter make it
+            // an expression, and the value of it is the text that is
+            // separated.
+            Some(Node::LegacyExpression { value, .. }) => self.evaluate(value)?.to_text(),
+            Some(Node::Literal { value: crate::ast::LiteralValue::Text(text), .. }) => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+                // the name of the variable is the text of the parameter, and
+                // the substitution of the v1 may bring the name from another
+                // variable: the `Loop, Parse, %x%, "|"` separates the text of
+                // the variable that the value of `x` names.
+                let name = self.the_substitution_of_the_v1(text.trim(), line)?;
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+                // the name that is not the name of a variable is not a failure:
+                // the v1 looks for it, does not find it, and the loop has no
+                // turn.
+                match self.lookup(&name) {
+                    Some(value) => value.to_text(),
+                    None => String::new(),
+                }
+            }
+            Some(node) => self.evaluate(node)?.to_text(),
             None => String::new(),
         };
         let delimiters = match arguments.get(2) {
+            Some(node) => self.the_text_of_the_parameter_of_the_loop(node, line)?,
+            None => String::new(),
+        };
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // word "CSV" asks for the comma separated value format, and the case
+        // of it and the spaces around it do not matter.
+        let comma_separated =
+            crate::v1::the_delimiters_ask_for_the_comma_separated_values(&delimiters);
+        // The characters that are not wanted at the ends of a field.
+        let omitted = match arguments.get(3) {
             Some(node) => self.the_text_of_the_parameter_of_the_loop(node, line)?,
             None => String::new(),
         };
@@ -9206,12 +9238,26 @@ impl<'a> Runtime<'a> {
         if text.is_empty() {
             return Ok(());
         }
-        let pieces: Vec<String> = if delimiters.is_empty() {
+        let pieces: Vec<String> = if comma_separated {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the comma separated value format does not use the characters
+            // that are left out.
+            crate::v1::the_fields_of_the_comma_separated_values(&text)
+        } else if delimiters.is_empty() {
             // The delimiters that are not there make every character of the
-            // text a field of its own.
-            text.chars().map(|character| character.to_string()).collect()
+            // text a field of its own, and the characters that are left out
+            // are not seen at all.
+            text.chars()
+                .filter(|character| !omitted.contains(*character))
+                .map(|character| character.to_string())
+                .collect()
         } else {
             split_on_any(&text, &delimiters)
+                .into_iter()
+                .map(|piece| {
+                    piece.trim_matches(|character| omitted.contains(character)).to_string()
+                })
+                .collect()
         };
         for (index, piece) in pieces.iter().enumerate() {
             self.set_global("A_Index", Value::Int(index as i64 + 1));
@@ -10746,6 +10792,7 @@ impl<'a> Runtime<'a> {
                 Ok(Value::Text(String::new()))
             }
             Node::Expression { .. }
+            | Node::LegacyExpression { .. }
             | Node::Block { .. }
             | Node::LegacyCall { .. }
             | Node::LegacyIf { .. }
@@ -12174,6 +12221,7 @@ pub fn op_name_in<'a>(
         Node::Group { .. } => "Group",
         Node::Empty { .. } => "Empty",
         Node::Legacy { .. } => "Legacy",
+        Node::LegacyExpression { .. } => "LegacyExpression",
         Node::LegacyControl { .. } => "LegacyControl",
         Node::LegacyAssign { .. } => "LegacyAssign",
         Node::LegacyComparison { .. } => "LegacyComparison",

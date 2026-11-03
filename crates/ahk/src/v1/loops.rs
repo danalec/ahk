@@ -27,6 +27,7 @@
 
 use alloc::format;
 use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 
 use super::numbers::the_whole_number_at_the_start_of_a_text;
 
@@ -133,17 +134,91 @@ pub(crate) fn the_refusal_of_the_registry_of_the_loop(parameters: &[String]) -> 
 /// refused with "The following variable name contains an illegal character."
 /// and the name after it.
 ///
-/// The name that carries a percent sign is a value and not a name, and the v1
-/// goes on and never ends: the tree refuses it with the reason.
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name
+/// that carries a percent sign is the name of another variable whose value is
+/// the name: the `Loop, Parse, %x%, "|"` separates the text of the variable
+/// that the value of `x` names. The v1 waits for the run to know the name, and
+/// the tree waits for it too.
 pub(crate) fn the_refusal_of_the_name_of_the_parse_loop(text: &str) -> Option<String> {
     let text = text.trim();
-    if let Some(refusal) = super::parameters::the_refusal_of_the_name_of_a_variable(text) {
-        return Some(refusal);
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    // percent sign and a space in front of the name make the text of the
+    // expression the text that is separated, and the name is not checked.
+    if super::parameters::the_text_is_an_expression_of_the_v1(text) {
+        return None;
     }
-    if text.contains('%') {
-        return Some(
-            "the parse loop of the v1 takes the name of a variable, and not its value.".to_string(),
-        );
+    super::parameters::the_refusal_of_the_name_of_a_variable(text)
+}
+
+/// Whether the delimiters of the parse loop ask for the comma separated
+/// values.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the word is
+/// "CSV", and the case of it does not matter, and the spaces that are around
+/// it do not matter either: the " CSV" is the comma separated value format.
+pub(crate) fn the_delimiters_ask_for_the_comma_separated_values(text: &str) -> bool {
+    text.trim().eq_ignore_ascii_case("CSV")
+}
+
+/// The fields of the text that is separated in the comma separated value
+/// format.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the comma
+/// separates the fields, and the field that begins with a quote is a field
+/// that is quoted: the comma that is inside it is a literal, and the two
+/// quotes that are together are one quote. The text that comes after the
+/// quote that closes the field is left out: the `"a" ,b` is the field "a" and
+/// the field "b". The field that does not begin with a quote is the text that
+/// comes until the comma, and the quote that is inside it is a literal.
+///
+/// The characters that are left out are not used in this format.
+pub(crate) fn the_fields_of_the_comma_separated_values(text: &str) -> Vec<String> {
+    let characters: Vec<char> = text.chars().collect();
+    let mut fields: Vec<String> = Vec::new();
+    let mut index = 0usize;
+    loop {
+        let mut field = String::new();
+        if characters.get(index) == Some(&'"') {
+            // The field is quoted.
+            index += 1;
+            while index < characters.len() {
+                if characters[index] != '"' {
+                    field.push(characters[index]);
+                    index += 1;
+                    continue;
+                }
+                // The two quotes that are together are one quote.
+                if characters.get(index + 1) == Some(&'"') {
+                    field.push('"');
+                    index += 2;
+                    continue;
+                }
+                // The quote that closes the field.
+                index += 1;
+                break;
+            }
+            // The text that comes after the quote that closes the field is
+            // left out.
+            while index < characters.len() && characters[index] != ',' {
+                index += 1;
+            }
+        } else {
+            while index < characters.len() && characters[index] != ',' {
+                field.push(characters[index]);
+                index += 1;
+            }
+        }
+        fields.push(field);
+        if index >= characters.len() {
+            break;
+        }
+        // The comma that ends the field.
+        index += 1;
+        if index >= characters.len() {
+            // The comma at the end has a field of its own.
+            fields.push(String::new());
+            break;
+        }
     }
-    None
+    fields
 }

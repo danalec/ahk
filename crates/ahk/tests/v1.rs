@@ -9472,16 +9472,127 @@ fn the_name_of_the_variable_of_the_parse_loop_of_the_v1_is_checked_at_the_load()
     );
 }
 
-/// The parse loop of the v1 does not take the value of a variable.
+/// The parameter of the v1 that is written with a percent sign and a space
+/// in front of it is an expression.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
-/// `Loop, Parse, %x%, "|"` makes the v1 go on and never end -- it hangs in
-/// three of the five runs -- and the tree refuses it with the reason.
+/// `FileAppend, % "hello", *` writes "hello", and the `FileAppend, % n, *`
+/// writes the number of the variable.
 #[test]
-fn the_parse_loop_of_the_v1_does_not_take_the_value_of_a_variable() {
+fn the_parameter_of_the_v1_with_a_percent_sign_and_a_space_is_an_expression() {
+    let report = run("FileAppend, % \"hello\", *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["hello".to_string()]);
+
+    let report = run("n := 5\nFileAppend, % n, *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5".to_string()]);
+}
+
+/// The parse loop of the v1 takes the expression of the text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `Loop, Parse, % "a|b|c", "|"` separates the text of the expression.
+#[test]
+fn the_parse_loop_of_the_v1_takes_the_expression_of_the_text() {
+    let report = run("Loop, Parse, % \"a|b|c\", \"|\"\n{\n  FileAppend, [%A_LoopField%], *\n}");
+    assert!(report.ok, "{:?}", report.error);
     assert_eq!(
-        the_refusal_of_the_load("Loop, Parse, %x%, \"|\"\n{\n}\n"),
-        "the parse loop of the v1 takes the name of a variable, and not its value."
+        report.output,
+        vec!["[a]".to_string(), "[b]".to_string(), "[c]".to_string()]
     );
+}
+
+/// The characters that are left out of the fields of the parse loop of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the fourth
+/// parameter holds the characters that are left out of the ends of each
+/// field, and without the delimiters they are not seen at all.
+#[test]
+fn the_parse_loop_of_the_v1_leaves_out_the_characters_of_the_fourth_parameter() {
+    let report = run(
+        "x := \" a | b \"\nLoop, Parse, x, \"|\", \" \"\n{\n  FileAppend, [%A_LoopField%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[a]".to_string(), "[b]".to_string()]);
+
+    let report = run(
+        "x := \"a b\"\nLoop, Parse, x, , \" \"\n{\n  FileAppend, [%A_LoopField%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[a]".to_string(), "[b]".to_string()]);
+}
+
+/// The parse loop of the v1 parses the comma separated values.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the word
+/// "CSV" asks for the comma separated value format, and the case of it and
+/// the spaces around it do not matter. The field that begins with a quote is
+/// a field that is quoted: the comma that is inside it is a literal, and the
+/// two quotes that are together are one quote. The characters that are left
+/// out are not used in this format.
+#[test]
+fn the_parse_loop_of_the_v1_parses_the_comma_separated_values() {
+    let report = run("x := \"a,b\"\nLoop, Parse, x, CSV\n{\n  FileAppend, [%A_LoopField%], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[a]".to_string(), "[b]".to_string()]);
+
+    // The word in small letters asks for the same format.
+    let report = run("x := \"a,b\"\nLoop, Parse, x, csv\n{\n  FileAppend, [%A_LoopField%], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[a]".to_string(), "[b]".to_string()]);
+
+    // The field that is quoted holds the comma that is inside it.
+    let report = run(
+        "x := Chr(34) \"a,b\" Chr(34) \",c\"\nLoop, Parse, x, CSV\n{\n  FileAppend, [%A_LoopField%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[a,b]".to_string(), "[c]".to_string()]);
+
+    // The two quotes that are together are one quote.
+    let report = run(
+        "x := Chr(34) \"a\" Chr(34) Chr(34) \"b\" Chr(34) \",c\"\nLoop, Parse, x, CSV\n{\n  FileAppend, [%A_LoopField%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[a\"b]".to_string(), "[c]".to_string()]);
+
+    // The characters that are left out are not used in this format.
+    let report = run(
+        "x := \" a , b \"\nLoop, Parse, x, CSV, \" \"\n{\n  FileAppend, [%A_LoopField%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[ a ]".to_string(), "[ b ]".to_string()]);
+}
+
+/// The parse loop of the v1 takes the value of the variable as the name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the manual
+/// of the v1 says that the name of the variable is not to be written between
+/// percent signs, unless the contents of the variable are to be used as the
+/// name: the `Loop, Parse, %x%, "|"` separates the text of the variable that
+/// the value of `x` names.
+#[test]
+fn the_parse_loop_of_the_v1_takes_the_value_of_the_variable_as_the_name() {
+    let report = run(
+        "x := \"y\"\ny := \"a|b|c\"\nLoop, Parse, %x%, \"|\"\n{\n  FileAppend, [%A_LoopField%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["[a]".to_string(), "[b]".to_string(), "[c]".to_string()]
+    );
+}
+
+/// The parse loop of the v1 does not fail when the name is not a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+/// looks for the name, does not find it, and the loop has no turn.
+#[test]
+fn the_parse_loop_of_the_v1_does_not_fail_when_the_name_is_not_a_variable() {
+    let report = run(
+        "x := \"a|b|c\"\nLoop, Parse, %x%, \"|\"\n{\n  FileAppend, [%A_LoopField%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty());
 }
 

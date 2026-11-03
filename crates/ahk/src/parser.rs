@@ -4517,6 +4517,13 @@ impl Parser {
         index: usize,
         place: &ThePlaceOfTheParameter,
     ) -> Option<Node> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // percent sign and a space in front of a parameter force it to be an
+        // expression: the `FileAppend, % "hello", *` writes "hello", and the
+        // `FileAppend, % n, *` writes the number of the variable.
+        if let Some(node) = self.the_expression_of_the_percent_and_the_space(place) {
+            return Some(node);
+        }
         // The parameter that wants a number is an expression, and the others
         // are texts.
         if !self.dialect.the_parameter_wants_a_number(name, index) {
@@ -4554,6 +4561,41 @@ impl Parser {
                 value: crate::ast::LiteralValue::Integer(0),
                 line,
             }),
+        }
+    }
+
+    /// The expression of a parameter that is written with a percent sign and a
+    /// space in front of it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// percent sign and a space in front of a parameter of a command of the v1
+    /// force it to be an expression: the `FileAppend, % "hello", *` writes
+    /// "hello", and the `FileAppend, % n, *` writes the number of the
+    /// variable.
+    fn the_expression_of_the_percent_and_the_space(
+        &mut self,
+        place: &ThePlaceOfTheParameter,
+    ) -> Option<Node> {
+        let (start, end) = place.tokens?;
+        // The percent sign is the first token of the parameter, and the space
+        // is the one that comes after it.
+        let percent = self.tokens.get(start)?;
+        if percent.kind != TokenKind::Op || percent.value != "%" {
+            return None;
+        }
+        let after = self.tokens.get(start + 1)?;
+        if !after.spaced {
+            return None;
+        }
+        // The expression is the text that comes after the percent sign.
+        let saved = self.position;
+        self.position = start + 1;
+        let parsed = self.parse_expression();
+        let after = self.position;
+        self.position = saved;
+        match parsed {
+            Ok(node) if after == end => Some(node),
+            _ => None,
         }
     }
 
@@ -8510,8 +8552,32 @@ impl Parser {
             let pieces = self.the_pieces_of_a_text_parameter(start, end);
             self.position = end;
             for piece in pieces {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-05: the second parameter of the parse loop may be
+                // an expression: the percent sign and a space in front of it
+                // force it, and the value of it is the text that is
+                // separated.
+                let is_the_text_of_the_parse_loop = texts.len() == 1
+                    && texts
+                        .first()
+                        .map(|text| text.trim().eq_ignore_ascii_case("parse"))
+                        .unwrap_or(false);
+                let node = if is_the_text_of_the_parse_loop
+                    && crate::v1::the_text_is_an_expression_of_the_v1(&piece.text)
+                {
+                    match self.the_expression_of_the_percent_and_the_space(&piece) {
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-05: the second parameter of the parse loop
+                        // may be an expression, and the value of it is the
+                        // text that is separated.
+                        Some(node) => Node::LegacyExpression { value: Box::new(node), line },
+                        None => Node::Literal { value: LiteralValue::Text(piece.text.clone()), line },
+                    }
+                } else {
+                    Node::Literal { value: LiteralValue::Text(piece.text.clone()), line }
+                };
                 texts.push(piece.text.clone());
-                arguments.push(Node::Literal { value: LiteralValue::Text(piece.text), line });
+                arguments.push(node);
             }
         }
         Ok(texts)

@@ -52,6 +52,8 @@ pub(crate) use kinds::{keeps_its_text, wants_a_number};
 pub(crate) use labels::the_label_of_the_command;
 pub(crate) use labels::the_refusal_of_a_goto;
 
+pub(crate) use loops::the_delimiters_ask_for_the_comma_separated_values;
+pub(crate) use loops::the_fields_of_the_comma_separated_values;
 pub(crate) use loops::the_flag_asks_for_the_recursion;
 pub(crate) use loops::the_mode_of_the_loop_of_the_files;
 pub(crate) use loops::the_refusal_of_the_name_of_the_parse_loop;
@@ -80,6 +82,7 @@ pub(crate) use parameters::is_the_name_of_a_variable_that_may_carry_a_point;
 pub(crate) use parameters::the_refusal_of_the_name_of_a_variable;
 pub(crate) use parameters::the_refusal_of_the_percent_sign_of_a_parameter;
 pub(crate) use parameters::the_refusal_of_the_arity;
+pub(crate) use parameters::the_text_is_an_expression_of_the_v1;
 pub(crate) use sub_commands::the_refusal_of_a_sub_command;
 pub(crate) use sub_commands::the_parameter_may_not_be_blank;
 

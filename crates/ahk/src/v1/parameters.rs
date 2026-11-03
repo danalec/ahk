@@ -295,6 +295,13 @@ fn the_division_by_zero(parameters: &[String]) -> Option<String> {
 /// The v1 checks the percent sign of every parameter of its commands: the
 /// `FileAppend, a%b, *` is refused when the script loads.
 pub(crate) fn the_refusal_of_the_percent_sign_of_a_parameter(text: &str) -> Option<String> {
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    // percent sign and a space in front of a parameter force it to be an
+    // expression, and the percent sign of it does not open the name of a
+    // variable.
+    if the_text_is_an_expression_of_the_v1(text) {
+        return None;
+    }
     let expanded = the_escapes_of_the_v1(text);
     let mut rest = text;
     while let Some(at) = the_percent_sign_that_opens(rest) {
@@ -312,6 +319,18 @@ pub(crate) fn the_refusal_of_the_percent_sign_of_a_parameter(text: &str) -> Opti
         rest = &after[end + 1..];
     }
     None
+}
+
+/// Whether the text of a parameter of the v1 is an expression.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// percent sign and a space in front of a parameter force it to be an
+/// expression: the `FileAppend, % "hello", *` writes "hello", and the
+/// `FileAppend, % n, *` writes the number of the variable.
+pub(crate) fn the_text_is_an_expression_of_the_v1(text: &str) -> bool {
+    let text = text.trim_start();
+    let Some(rest) = text.strip_prefix('%') else { return false };
+    rest.starts_with(' ') || rest.starts_with('\t')
 }
 
 /// The refusal of the name of a variable of the script.

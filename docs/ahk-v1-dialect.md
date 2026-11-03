@@ -2292,10 +2292,10 @@ not hold the comma back: the `Loop, Parse, x, "a,b"` has the delimiters `"a`
 and not the text `a,b`. The rule is the one of the commands of the v1, and
 the parser cuts the parameters of the loop the way it cuts them.
 
-The name of the variable of the parse loop may not be the value of one: the
-`Loop, Parse, %x%, "|"` makes the v1 go on and never end -- it hangs in three
-of the five runs -- and the tree refuses it when the script loads, with the
-reason that the parse loop takes the name of a variable and not its value.
+The name of the variable of the parse loop may be the value of another one: the
+`Loop, Parse, %x%, "|"` separates the text of the variable that the value of
+`x` names, and the name that is not the name of a variable is not a failure --
+the v1 looks for it, does not find it, and the loop has no turn.
 
 The tree carries it: the rules are in `crates/ahk/src/v1/loops.rs`, the parser
 reads the kind of the loop and the name of the variable of the parse one, and
@@ -2344,6 +2344,56 @@ The probes of the block are `egm-review/probe_v1_files_errors.py`,
 and `egm-review/probe_v1_file_name_tree.py`, and they are the cases of the
 binary and of the tree: twenty of the twenty and nine of the nine are the
 same.
+
+**The parameter of the v1 that is written with a percent sign and a space**
+(2026-11-05). The percent sign and a space in front of a parameter of a
+command of the v1 force it to be an expression: the `FileAppend, % "hello", *`
+writes "hello", and the `FileAppend, % n, *` writes the number of the
+variable. The percent sign of that form does not open the name of a variable,
+and the parameter is not refused when the script loads.
+
+The parse loop takes the expression as the text that is separated: the
+`Loop, Parse, % "a|b|c", "|"` gives the field "a", the field "b" and the field
+"c".
+
+**The comma separated values of the parse loop** (2026-11-05). The manual of
+the v1 says that the delimiters of the parse loop may be the word "CSV", and
+the text is then parsed in the standard comma separated value format. The case
+of the word does not matter and the spaces around it do not matter either: the
+" CSV" is the comma separated value format.
+
+The comma separates the fields, and the field that begins with a quote is a
+field that is quoted: the comma that is inside it is a literal, and the two
+quotes that are together are one quote. The text that comes after the quote
+that closes the field is left out: the `"a" ,b` is the field "a" and the field
+"b". The field that does not begin with a quote is the text that comes until
+the comma, and the quote that is inside it is a literal. The characters that
+are left out are not used in this format.
+
+**The characters that are left out of the fields** (2026-11-05). The fourth
+parameter of the parse loop holds the characters that are left out of the ends
+of each field, and without the delimiters they are not seen at all: the loop
+does not have a field for them.
+
+**The name of the variable of the parse loop** (2026-11-05). The manual of
+the v1 says that the name of the variable is not to be written between percent
+signs, unless the contents of the variable are to be used as the name: the
+`Loop, Parse, %x%, "|"` separates the text of the variable that the value of
+`x` names. The v1 waits for the run to know that name, and the tree waits for
+it too: the name is not checked when the script loads, and the name that is
+not the name of a variable is not a failure -- the v1 looks for it, does not
+find it, and the loop has no turn.
+
+The tree carries it: the rules are in `crates/ahk/src/v1/loops.rs` and in
+`crates/ahk/src/v1/parameters.rs`, the parser reads the expression of the
+parameter that is written with a percent sign and a space, and the runtime
+separates the text.
+
+The probes of the block are `egm-review/probe_v1_percent_space.py`,
+`egm-review/probe_v1_parse_loop.py`, `egm-review/probe_v1_parse_csv2.py` and
+`egm-review/probe_v1_parse_csv3.py`, and they are the cases of the binary and
+of the tree: six of the six, ten of the ten, sixteen of the sixteen and eleven
+of the eleven are the same.
 
 ---
 
