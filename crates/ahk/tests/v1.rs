@@ -8069,3 +8069,104 @@ fn the_literal_of_an_object_of_the_v1_that_is_not_closed_names_no_text() {
     let error = the_refusal_of_the_load("a := {b: 1");
     assert_eq!(error, "Missing \"}\"");
 }
+
+/// The item of an object of the v1 is the property of that name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a["b"]` reads the property "b" of the object of the v1, and the
+/// `a["B"]` reads it too. The v2 asks the `__Item` of the object, and a
+/// plain object of it has no such thing.
+#[test]
+fn the_item_of_an_object_of_the_v1_is_the_property_of_that_name() {
+    let report = run("a := {b: 1}\nx := a[\"b\"]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The item of an object of the v1 does not know the case of the name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a["B"]` reads the property "b", the way `a.B` reads it.
+#[test]
+fn the_item_of_an_object_of_the_v1_does_not_know_the_case_of_the_name() {
+    let report = run("a := {b: 1}\nx := a[\"B\"]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The write of the item of an object of the v1 writes the property.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a["b"] := 5` writes the property "b" of the object, and the `a["c"] := 5`
+/// writes the property "c", which was not there.
+#[test]
+fn the_write_of_the_item_of_an_object_of_the_v1_writes_the_property() {
+    let report = run(
+        "a := {b: 1}\na[\"b\"] := 5\na[\"c\"] := 6\nx := a.b \nFileAppend, [%x%], *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[5]".to_string()]);
+}
+
+/// The item of a value that is not an object is the empty text in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a["b"]` of a number is the empty text, and the v1 does not refuse it.
+#[test]
+fn the_item_of_a_value_that_is_not_an_object_is_the_empty_text_in_the_v1() {
+    let report = run("a := 1\nx := a[\"b\"]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The write of the item of a value that is not an object is dropped in the
+/// v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a["b"] := 5` of a number is accepted, and the value of the `a` is the
+/// one that it had.
+#[test]
+fn the_write_of_the_item_of_a_value_that_is_not_an_object_is_dropped_in_the_v1() {
+    let report = run("a := 1\na[\"b\"] := 5\nx := a\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The compound write of a variable that has no value makes the variable in
+/// the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `zz += 2` of a variable that has no value is the two, and the `zz -= 2`
+/// is the minus two. The v2 refuses with "This global variable has not been
+/// assigned a value.".
+#[test]
+fn the_compound_write_of_a_variable_that_has_no_value_makes_the_variable_in_the_v1() {
+    let report = run("zz += 2\nyy := zz\nFileAppend, [%yy%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+}
+
+/// The compound write of a variable that has no value makes the variable in
+/// the v1, and the value is the one of the operation.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `zz -= 2` of a variable that has no value is the minus two, and the
+/// `zz *= 2` is the zero.
+#[test]
+fn the_compound_write_of_a_variable_that_has_no_value_makes_the_variable_in_the_v1_again() {
+    let report = run("zz -= 2\nyy := zz\nFileAppend, [%yy%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[-2]".to_string()]);
+}
+
+/// The compound write of a local that has no value makes the local in the
+/// v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `zz += 2` inside a function is the two, and the local of it is made.
+#[test]
+fn the_compound_write_of_a_local_that_has_no_value_makes_the_local_in_the_v1() {
+    let report = run("f() {\n  zz += 2\n  return zz\n}\nyy := f()\nFileAppend, [%yy%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+}

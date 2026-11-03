@@ -7187,7 +7187,15 @@ impl<'a> Runtime<'a> {
         if self.dialect.a_value_that_is_not_a_number_is_blank()
             && !matches!(op, AssignOp::Set | AssignOp::Concat)
         {
-            let current = self.assigned(name, current, line)?;
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the compound write of a variable that has no value makes the
+            // variable: the `zz += 2` is the two, and the `zz -= 2` is the
+            // minus two. The value that is not there is the empty text, and
+            // the empty text is the number zero.
+            let current = match current {
+                Some(value) => value,
+                None => Value::Text(String::new()),
+            };
             return self.the_value_of_the_write_of_the_v1(op, &current, &value, line);
         }
         Ok(match op {
@@ -10357,7 +10365,17 @@ impl<'a> Runtime<'a> {
         value: Value,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // write of the item of a value that is not an object is dropped by
+        // the v1.
         let Value::Object(object) = target else {
+            if self.dialect.the_item_of_an_object_is_its_property()
+                && self
+                    .dialect
+                    .the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped()
+            {
+                return Ok(value);
+            }
             return Err(self.no_item(target, line));
         };
         let class = object.borrow().class.clone();
@@ -10369,13 +10387,24 @@ impl<'a> Runtime<'a> {
                 self.apply_assign(other, "the item", Some(current), value, line)?
             }
         };
-        match crate::classes::set_item(&class, key, target, value.clone(), self, line) {
-            Some(result) => {
-                result?;
-                Ok(value)
-            }
-            None => Err(self.no_item(target, line)),
+        if let Some(result) = crate::classes::set_item(&class, key, target, value.clone(), self, line) {
+            result?;
+            return Ok(value);
         }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // item of an object of the v1 is the property of that name: the
+        // `a["b"] := 5` writes the property "b".
+        if self.dialect.the_item_of_an_object_is_its_property() {
+            let name = key.to_text();
+            let current = match op {
+                AssignOp::Set => self.read_property(target, &name, line).ok(),
+                _ => Some(self.read_property(target, &name, line)?),
+            };
+            let stored = self.apply_assign(op, &name, current, value, line)?;
+            self.write_property(target, &name, stored.clone(), line)?;
+            return Ok(stored);
+        }
+        Err(self.no_item(target, line))
     }
 
     /// The value of an item of an object: `obj[key]`.
@@ -10432,6 +10461,15 @@ impl<'a> Runtime<'a> {
         }
         if let Some(result) = crate::classes::item(&class, key, target, self, line) {
             return result;
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // item of an object of the v1 is the property of that name: the
+        // `a["b"]` reads the property "b", and the `a["B"]` reads it too.
+        // The v2 asks the `__Item` of the object, and a plain object of it
+        // has no such thing.
+        if self.dialect.the_item_of_an_object_is_its_property() {
+            let name = key.to_text();
+            return self.read_property(target, &name, line);
         }
         // The `__Item` of the class is the method behind the index syntax,
         // and a class that has one answers it.

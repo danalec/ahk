@@ -744,6 +744,20 @@ pub trait Dialect: Sync {
         true
     }
 
+    /// Whether the item of an object is the property of that name.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// takes the item of an object for the property of that name: the
+    /// `a["b"]` reads the property "b", the `a["B"]` reads it too, and the
+    /// `a["b"] := 5` writes it. The name of the property is the name of the
+    /// key, and the key may be a number.
+    ///
+    /// The v2 asks the `__Item` of the object, and a plain object of it has
+    /// no such thing.
+    fn the_item_of_an_object_is_its_property(&self) -> bool {
+        false
+    }
+
     /// Whether the name that the script builds and that is not there is
     /// answered.
     ///
@@ -2099,6 +2113,12 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
         // names no text.
         false
+    }
+
+    fn the_item_of_an_object_is_its_property(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // takes the item of an object for the property of that name.
+        true
     }
 
     fn the_dynamic_write_inside_a_function_is_refused(&self) -> bool {
