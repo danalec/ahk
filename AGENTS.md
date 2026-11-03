@@ -2317,9 +2317,9 @@ binary of v2.0.19 on 2026-10-29 and 2026-10-30.
   before the stack unwinds, and they are not called while the body of a
   `try` runs: the catch of the script takes the failure first.
 
-Two things are not carried yet. The tree has no reference to a method of the
-script, so a method and a bound function are not callbacks the tree can take
-(the `Bind` of the class `Func` refuses too). And the error object of the
+Two things are not carried yet. A method and a bound function are not
+callbacks the tree can take: the bound function is carried (section 240 says
+how), and the callbacks of the tree are not. And the error object of the
 runtime has an empty `What` and an empty `Extra`: the tree's error does not
 name the built-in that failed and does not carry the value it was given.
 
@@ -9196,3 +9196,36 @@ value, and it does not ask anybody.
 
 The suite of the v1 has three cases more (392), and the suite of the v2 is the
 same (511).
+
+The `ObjBindMethod` binds the method of an object, and the value of it is of
+the class `BoundFunc`: the name of it is empty and the number of its parameters
+is zero. The name of the method is not checked when the value is made: the
+`ObjBindMethod(t, "Nope")` is made, and the call of it fails. The call of the
+value calls the method of the object with the object as its `this`, and the
+`Bind` of a function is the same thing: the object is the first argument of
+the call of the function that is bound. The `Abs.Bind(5)` is made too, and the
+call of it fails -- the built-in takes one parameter and the object is the
+first argument of the call.
+
+The v1 makes the binding too, and it refuses the call of the name that holds
+it: the v1 does not know that the name is a function. The number of the
+parameters is checked at the load: the `ObjBindMethod(t)` is refused with "Too
+few parameters passed to function." and the text of the call.
+
+The probes of the block are `egm-review/probe_v2_obj_bind_method.py` and
+`egm-review/probe_v1_obj_bind_method2.py`, and they are the cases of the
+binary and of the tree: seventeen of the twenty-three and seven of the ten are
+the same. The six that are not in the v2 are the ones where the v2 fails at the
+run: the failure of the run of the v2 opens a dialog, and the dialog is a
+timeout. The three that are not in the v1 are the ones where the v1 refuses
+the name of a variable that has a point in it -- a hole of the v1 that is
+known -- and the one that is not is the object that is not an object, which the
+v1 also refuses at the run.
+
+The suite of the built-ins of the v2 has five cases more (233), the suite of
+the class `Func` has two more (7), and the suite of the v1 has three cases
+more (395). The suite of the v2 -- the language -- is the same (511). The
+surface of the v2 has 828 entries: 638 answer with a value, 190 are refused
+and none is pending. The surface of the v1 has 405 entries: 299 answer with a
+value, 106 are refused and none is pending. No name of either surface is
+refused for lack of implementation any more.

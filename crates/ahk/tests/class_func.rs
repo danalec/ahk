@@ -133,3 +133,30 @@ fn the_name_of_a_function_may_not_be_written() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Property is read-only. |  | Name"]);
 }
+/// The `Bind` of a function binds it to an object.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+/// `t.Method.Bind(t)` is a value of the class `BoundFunc`, and the call of it
+/// calls the method with the object.
+#[test]
+fn the_bind_of_a_method_calls_it_with_the_object() {
+    let report = run(
+        "class Thing {\n    __New() {\n        this.v := 42\n    }\n    Method(x) {\n        return this.v + x\n    }\n}\nt := Thing()\nf := t.Method.Bind(t)\nMsgBox f(8)",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["50"]);
+}
+
+/// The `Bind` of a built-in is made too, and the call of it fails: the object
+/// is the first argument of the call of the function that is bound, and the
+/// built-in takes one parameter.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+/// `Abs.Bind(5)` is a value of the class `BoundFunc`, and the call of it with
+/// an argument fails.
+#[test]
+fn the_bind_of_a_builtin_is_made_and_its_call_fails() {
+    let report = run("f := Abs.Bind(5)\nMsgBox f(3)");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Too many parameters passed to function."));
+}

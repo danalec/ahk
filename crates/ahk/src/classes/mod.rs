@@ -1101,7 +1101,7 @@ fn call_once(
         "enumerator" => enumerator::call(method, this, arguments, rt, line),
         "error" => error::call(method, this, arguments, rt, line),
         "file" => file::call(method, this, arguments, rt, line),
-        "func" => func::call(method, this, arguments, rt, line),
+        "func" | "boundfunc" => func::call(method, this, arguments, rt, line),
         "hotkey" => hotkey::call(method, this, arguments, rt, line),
         "map" => map::call(method, this, arguments, rt, line),
         // The methods of the base object are the methods of every object,
@@ -1126,7 +1126,7 @@ pub(crate) fn call_the_value(
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match class.to_lowercase().as_str() {
-        "func" => func::call_the_value(this, arguments, rt, line),
+        "func" | "boundfunc" => func::call_the_value(this, arguments, rt, line),
         // The enumerator is a function of its own kind, and the call of
         // its value is the turn of the enumeration.
         "enumerator" => enumerator::call_the_value(this, arguments, rt, line),

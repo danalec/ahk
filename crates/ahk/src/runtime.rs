@@ -495,6 +495,18 @@ pub(crate) const METHOD_CLASS: &str = "method class";
 /// The name of the method a reference points at.
 pub(crate) const METHOD_NAME: &str = "method name";
 
+/// The object that a function is bound to.
+///
+/// The key has a space in it, so that a script cannot reach it by name.
+pub(crate) const BOUND: &str = "bound object";
+
+/// What a function that is bound to an object calls.
+///
+/// The value is the name of a method of the object, or the function that is
+/// bound. The key has a space in it, so that a script cannot reach it by
+/// name.
+pub(crate) const BOUND_TARGET: &str = "bound target";
+
 /// The name under which the runtime keeps a closure.
 ///
 /// The name of a closure of v2 is empty, and the name the runtime keeps it
@@ -3364,11 +3376,7 @@ impl<'a> Runtime<'a> {
             }
         }
         // The other objects are named after the class they carry.
-        let mut name = class;
-        if let Some(first) = name.get_mut(0..1) {
-            first.make_ascii_uppercase();
-        }
-        Some(name)
+        Some(crate::classes::the_spelling_of(&class))
     }
 
     /// The name of the class a value is, when the value is a class.
@@ -6463,6 +6471,29 @@ impl<'a> Runtime<'a> {
         Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
     }
 
+    /// The value of a function that is bound to an object.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+    /// `ObjBindMethod` hands over a value of the class `BoundFunc`, and the
+    /// name of it is empty. The target is what the call of the value calls:
+    /// the name of a method of the object, or the function that is bound.
+    ///
+    /// The v1 makes the binding too, and it does not check the name of the
+    /// method: the `ObjBindMethod(t, "Nope")` is made, and the call of it
+    /// fails.
+    pub(crate) fn bound_function(&self, object: Value, target: Value) -> Value {
+        let mut properties: BTreeMap<String, Property> = BTreeMap::new();
+        put(&mut properties, "name", Value::Text(String::new()));
+        put(&mut properties, "minparams", Value::Int(0));
+        put(&mut properties, "maxparams", Value::Int(0));
+        put(&mut properties, "isbuiltin", Value::Int(0));
+        put(&mut properties, "isvariadic", Value::Int(0));
+        // The object and the target: the call of the value calls them.
+        put(&mut properties, BOUND, object);
+        put(&mut properties, BOUND_TARGET, target);
+        Value::Object(Rc::new(RefCell::new(Object { class: "boundfunc".to_string(), properties })))
+    }
+
     /// The reference to a method of a class type of the runtime.
     ///
     /// v2 hands a method over as a function whose first parameter is
@@ -6544,6 +6575,86 @@ impl<'a> Runtime<'a> {
             }));
         };
         self.call_method_with(&defining, &definition, this, rest, line)
+    }
+
+    /// The call of a function that is bound to an object.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+    /// object is the first argument of the call of the function that is
+    /// bound, and the arguments of the call are the rest.
+    pub(crate) fn call_a_bound_function(
+        &mut self,
+        bound: &Value,
+        target: &Value,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        match target {
+            // The name of a method of the object: the method is looked for
+            // when the call runs, and the object is its `this`.
+            Value::Text(method) => self.call_a_method_of_an_object(bound, method, arguments, line),
+            // The function that is bound: the object is its first argument.
+            _ => {
+                let mut all = Vec::with_capacity(arguments.len() + 1);
+                all.push(bound.clone());
+                all.extend_from_slice(arguments);
+                let class = match target {
+                    Value::Object(object) => object.borrow().class.clone(),
+                    _ => String::new(),
+                };
+                match crate::classes::call_the_value(&class, target, &all, self, line) {
+                    Some(result) => result,
+                    None => Err(self.no_method(bound, &target.to_text(), line)),
+                }
+            }
+        }
+    }
+
+    /// The call of a method of an object.
+    ///
+    /// The method is looked for when the call runs: the `ObjBindMethod` does
+    /// not check the name of it when it makes the value.
+    pub(crate) fn call_a_method_of_an_object(
+        &mut self,
+        target: &Value,
+        method: &str,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        // A method of a class of the script.
+        if let Some((defining, definition)) = self.find_method_on(target, method) {
+            return self.call_method_with(&defining, &definition, target, arguments, line);
+        }
+        // A method of a class type of the runtime.
+        let class = match target {
+            Value::Object(object) => object.borrow().class.clone(),
+            _ => String::new(),
+        };
+        if crate::classes::is_type(&class) {
+            if let Some((min, max)) = crate::classes::the_arity_of(&class, method) {
+                let count = arguments.len() as i64;
+                if count < min || (max >= 0 && count > max) {
+                    let message = if count < min {
+                        "Too few parameters passed to function."
+                    } else {
+                        "Too many parameters passed to function."
+                    };
+                    return Err(crate::classes::the_arity_failure(&class, method, message, line));
+                }
+            }
+            return match crate::classes::call(&class, method, target, arguments, self, line) {
+                Some(result) => result,
+                None => Err(self.no_method(target, method, line)),
+            };
+        }
+        // A method of the base object.
+        if crate::classes::the_base_object_has_the_method(&method.to_lowercase()) {
+            return match self.base_method(target, &method.to_lowercase(), arguments, line) {
+                Some(result) => result,
+                None => Err(self.no_method(target, method, line)),
+            };
+        }
+        Err(self.no_method(target, method, line))
     }
 
     /// A property of a value.

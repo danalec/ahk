@@ -144,7 +144,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "NumGet", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: num_get },
     Builtin { name: "NumPut", kind: BuiltinKind::Function, min: 2, max: 4, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value], handler: num_put },
     Builtin { name: "ObjAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: obj_add_ref },
-    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 2, max: 255, variant: 107, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: not_carried },
+    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 2, max: 255, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: crate::builtins::obj_bind_method },
     Builtin { name: "Object", kind: BuiltinKind::Function, min: 0, max: 255, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value], handler: super::object },
     Builtin { name: "OnError", kind: BuiltinKind::Function, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value, Parameter::Value], handler: on_error },
     Builtin { name: "OnMessage", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value], handler: not_carried },

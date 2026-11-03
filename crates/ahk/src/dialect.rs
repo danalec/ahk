@@ -1847,7 +1847,11 @@ pub fn v1() -> &'static dyn Dialect {
     &V1
 }
 
-/// The reason a name of the v1 that the tree does not carry yet gives.
+/// The reason a name that the tree does not carry yet gives.
+///
+/// The `ObjBindMethod` was the last name of the surface of either dialect
+/// that the tree did not carry, and it is carried now: no name of the
+/// surface refuses with this reason any more.
 pub const NOT_CARRIED_YET: &str = "this runtime does not carry that name yet.";
 
 /// The reason a name that is about Windows gives on a machine that is not.

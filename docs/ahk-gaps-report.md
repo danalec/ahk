@@ -1,7 +1,8 @@
 # What is missing in the v1 and in the v2
 
 > **Measured on 2026-11-05.** The state of the tree is the one of the commit
-> `5745a6f` (the branch `port/v2-dialect`). The numbers come from the tree
+> `eb469a3` (the branch `port/v2-dialect`) and of the block of the
+> `ObjBindMethod` that comes after it. The numbers come from the tree
 > itself: `ahk --surface --dialect=v1` and `ahk --surface --dialect=v2`, and
 > the comparisons are `egm-review/run_all_comparisons.py`, which runs the
 > script in the binary of the dialect and in the tree, and puts the two
@@ -17,10 +18,10 @@ against the binaries — the v1.1.37.02 and the v2.0.19.
 | | The v2 | The v1 |
 |---|---|---|
 | The names of the surface | 828 | 405 |
-| Answer with a value | 637 | 298 |
-| Refused with a reason | 191 | 107 |
+| Answer with a value | 638 | 299 |
+| Refused with a reason | 190 | 106 |
 | Pending (not carried yet) | 0 | 0 |
-| The refusals that are not the machine's | 1 (`ObjBindMethod`) | 1 (`ObjBindMethod`) |
+| The refusals that are not the machine's | 0 | 0 |
 | The behaviour that differs from the binary | 0 measured | 0 measured, 1 known |
 
 The two dialects are close to done. What is left is small and is written
@@ -28,15 +29,18 @@ down here with the evidence that says it is missing.
 
 ## 1. The names
 
-### 1.1 The one name that the tree does not carry
+### 1.1 No name of the surface is refused for lack of implementation
 
-`ObjBindMethod` is the only name of the surface of either dialect whose
-refusal is not the machine's: the tree answers it with *"this runtime does
-not carry that name yet."*, the wording of the pending table.
+The `ObjBindMethod` was the last name of the surface of either dialect whose
+refusal was not the machine's, and it is carried now: the tree binds the
+method of an object, and the value of it is of the class `BoundFunc`. The
+name of the method is not checked when the binding is made -- the
+`ObjBindMethod(t, "Nope")` is made, and the call of it fails -- and the call
+of the value calls the method with the object as its `this`.
 
-It is the same hole in the two dialects: the tree has no reference to a method
-of the script, so a method is not a thing it can bind (`AGENTS.md` §35 says
-the same about the `Bind` of the class `Func`, which refuses too).
+No name of either surface refuses with *"this runtime does not carry that
+name yet."* any more, and the pending table of the two dialects holds the
+header that explains them and no name.
 ### 1.2 The refusals that are the right answer
 
 Every other refusal is the machine's, not the tree's:
@@ -60,12 +64,11 @@ Every other refusal is the machine's, not the tree's:
 | *the desktop does not know the scale of the output.* (`ScreenDPI`, `A_ScreenDPI`) | 1 | 1 |
 | *the desktop does not know the address of the network.* (`A_IPAddress1`) | — | 1 |
 | *this name is about Windows.* (`A_OSType`) | — | 1 |
-| *the runtime does not carry that name yet.* (`ObjBindMethod`) | 1 | 1 |
 
 The rule of the plan is the one of `docs/ahk-v1-dialect.md` §7: *no name that
 the dialect does and that the box can do should be in the refusal for lack of
-implementation*. The table above is that rule checked: the only refusal for
-lack of implementation is `ObjBindMethod`.
+implementation*. The table above is that rule checked: no refusal is for lack
+of implementation.
 
 The two dialects have no pending name: the tables
 (`crates/ahk/reference/ahk-v2.0.19.pending.tsv` and
@@ -162,8 +165,10 @@ parser too.
 
 ### 2.3 The holes of the v2 that are known
 
-**`ObjBindMethod`** — §1.1. The tree has no reference to a method of the
-script.
+**`ObjBindMethod`** — *closed on 2026-11-05*. The tree binds the method of an
+object, and the value of it is of the class `BoundFunc`. The call of it calls
+the method with the object as its `this`, and the name of the method is not
+checked when the binding is made.
 
 **The `A_LineNumber` and the `A_ThisFunc` of the v2** — *closed on 2026-11-05*.
 The tree did not write the line of the statement that runs, and it refused the
@@ -207,8 +212,8 @@ it with a dialog. The modes of the v2 are the "R" and the "D", and the "D"
 2. **The point of the operand and the text of a member of the v1** (§2.2) —
    *closed on 2026-11-05*. The operand of the v1 was the work: it does not end
    at the point, and the tree ended the name at it.
-3. **The `ObjBindMethod`** (§1.1). Small, and it is the last name of the
-   surface that the tree does not carry, in the two dialects.
+3. **The `ObjBindMethod`** (§1.1) — *closed on 2026-11-05*. The tree binds
+   the method of an object, and the value of it is of the class `BoundFunc`.
 4. **The mode of the `Loop Files` of the v2** (§2.3). Small: the tree refuses
    the mode that the v2 refuses.
 5. **The second parameter of the `Loop Read` of the v2** (§2.3). The tree
@@ -216,6 +221,7 @@ it with a dialog. The modes of the v2 are the "R" and the "D", and the "D"
 6. **The warnings of the v2** (§2.3). Big: the runtime needs a warning
    channel and the v2 shows a dialog before the error.
 
-The v1 is otherwise done: every name of its surface is carried, the pending
-table is empty, and the harness finds no difference of behaviour that is not
-the machine.
+The v1 is done: every name of its surface is carried, the pending table is
+empty, and the harness finds no difference of behaviour that is not the
+machine. The v2 has no name that the tree refuses for lack of implementation
+either.

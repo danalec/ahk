@@ -9869,3 +9869,47 @@ fn the_names_of_the_tail_of_a_list_of_the_v1_are_checked() {
     );
 }
 
+/// The `ObjBindMethod` of the v1 binds a method of an object.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 makes
+/// the binding too, and it does not check the name of the method. The third
+/// parameter is not a failure either.
+#[test]
+fn the_obj_bind_method_of_the_v1_binds_the_method() {
+    let report = run("t := {v: 42}\nf := ObjBindMethod(t, \"Method\")");
+    assert!(report.ok, "{:?}", report.error);
+
+    // The name of the method is not checked.
+    let report = run("t := {v: 42}\nf := ObjBindMethod(t, \"Nope\")");
+    assert!(report.ok, "{:?}", report.error);
+
+    // The third parameter is not a failure.
+    let report = run("t := {v: 42}\nf := ObjBindMethod(t, \"Method\", 1)");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+/// The number of the parameters of the `ObjBindMethod` of the v1 is checked at
+/// the load.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the call
+/// with one parameter is refused with "Too few parameters passed to function."
+/// and the text of the call.
+#[test]
+fn the_obj_bind_method_of_the_v1_wants_two_parameters() {
+    assert_eq!(
+        the_refusal_of_the_load("t := {v: 42}\nf := ObjBindMethod(t)"),
+        "Too few parameters passed to function.\n     Specifically: ObjBindMethod(t)"
+    );
+}
+
+/// The call of the name that holds the binding is refused by the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 does
+/// not know that the name is a function, and the call is refused at the load.
+#[test]
+fn the_call_of_the_binding_of_the_v1_is_refused() {
+    assert_eq!(
+        the_refusal_of_the_load("t := {v: 42}\nf := ObjBindMethod(t, \"Method\")\nf(8)"),
+        "Call to nonexistent function.\n     Specifically: f(8)"
+    );
+}

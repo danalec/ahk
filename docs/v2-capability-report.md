@@ -2,7 +2,7 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **828 entries** : **637 answer with a value** , **191 are refused** and **none is pending**.
+The surface of the v2.0.19 has **828 entries** : **638 answer with a value** , **190 are refused** and **none is pending**.
 
 The table has **828 entries and 780 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them and the `InputHook` has twelve --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
@@ -17,14 +17,14 @@ The table has **828 entries and 780 distinct names** : a property with a setter 
 | Screen capture and pixel functions | 7 | 6 | 1 |
 | Native function calls (DllCall) | 10 | 10 | 0 |
 | Registry APIs | 11 | 6 | 5 |
-| COM automation (ComObject) | 18 | 3 | 15 |
+| COM automation (ComObject) | 18 | 4 | 14 |
 | The core of the language: text, math and patterns | 64 | 61 | 3 |
 | The objects of the language: Array, Map and Func | 68 | 68 | 0 |
 | Dates and times | 23 | 23 | 0 |
 | The machine, the processes and the environment | 35 | 20 | 15 |
 | The clipboard | 5 | 4 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **828** | **637** | **191** |
+| **The whole of it** | **828** | **638** | **190** |
 
 ## What the numbers do not say
 
@@ -151,14 +151,13 @@ names that the tree answers.
 
 ## 8. COM automation (ComObject)
 
-**18 names: 3 answer with a value, 15 are refused.**
+**18 names: 4 answer with a value, 14 are refused.**
 
-**The ones that answer** (3): `ComObject`, `ComValue`, `ComValue.Ptr`
+**The ones that answer** (4): `ComObject`, `ComValue`, `ComValue.Ptr`, `ObjBindMethod`
 
-**The ones that are refused** (15), by the reason:
+**The ones that are refused** (14), by the reason:
 
 - *this is a name of Windows, and this desktop is not Windows.* (14): `ComCall`, `ComObjActive`, `ComObjConnect`, `ComObjFlags`, `ComObjFromPtr`, `ComObjGet`, `ComObjQuery`, `ComObjType`, `ComObjValue`, `ObjFromPtr`, `ObjFromPtrAddRef`, `ObjPtr`, `ObjPtrAddRef`, `ObjRelease`
-- *this runtime does not carry that name yet.* (1): `ObjBindMethod`
 
 ## 9. The core of the language: text, math and patterns
 

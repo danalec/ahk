@@ -1328,17 +1328,6 @@ fn the_names_of_com_fail_with_the_reason() {
     );
 }
 
-/// `ObjBindMethod` is a name of v2, and not a method of a class: the
-/// tables that were read out of the binary had it in a table of methods,
-/// and the tree carried the reason of that mistake. The name is a
-/// function of the object model, and the tree does not have the bound
-/// functions of v2 yet.
-#[test]
-fn a_name_that_the_tree_does_not_carry_yet_says_so() {
-    let report = run("class Box {\n}\nb := Box()\na := ObjBindMethod(b, \"x\")");
-    assert_eq!(failure_of(&report), "this runtime does not carry that name yet.");
-}
-
 #[test]
 fn mod_takes_the_remainder() {
     let report = run("a := Mod(7, 3)\nb := Mod(7.5, 2)\nc := Mod(-7, 3)");
@@ -3052,4 +3041,73 @@ fn the_wildcards_of_the_delete_are_not_carried() {
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["the wildcards of v2 are not carried yet. | FileDelete"]);
+}
+/// The class that the cases of the binding use: a method that takes one
+/// argument and one that takes two.
+const THE_THING: &str = "class Thing {\n    __New() {\n        this.v := 42\n    }\n    Method(x) {\n        return this.v + x\n    }\n    Two(x, y) {\n        return x + y\n    }\n}\n";
+
+/// The `ObjBindMethod` binds the method of an object.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the value is
+/// of the class `BoundFunc`, and the call of it calls the method of the object
+/// with the object as its `this`. The name of the method is not checked when
+/// the value is made: the `ObjBindMethod(t, "Nope")` is made, and the call of
+/// it fails.
+#[test]
+fn the_obj_bind_method_binds_the_method_of_the_object() {
+    let report = run(&format!(
+        "{THE_THING}t := Thing()\nf := ObjBindMethod(t, \"Method\")\nx := f(8)"
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 50);
+}
+
+/// The value of a binding is of the class `BoundFunc`, and its name is empty.
+#[test]
+fn the_value_of_a_binding_is_of_the_class_bound_func() {
+    let report = run(&format!(
+        "{THE_THING}t := Thing()\nf := ObjBindMethod(t, \"Method\")\nthe_class := f.__Class\nthe_name := f.Name\nthe_minimum := f.MinParams"
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "the_class"), Value::Text("BoundFunc".into()));
+    assert_eq!(value_of(&report, "the_name"), Value::Text("".into()));
+    assert_eq!(int_of(&report, "the_minimum"), 0);
+}
+
+/// The name of the method is not checked when the binding is made.
+#[test]
+fn the_obj_bind_method_does_not_check_the_name_of_the_method() {
+    let report = run(&format!(
+        "{THE_THING}t := Thing()\nf := ObjBindMethod(t, \"Nope\")"
+    ));
+    assert!(report.ok, "{:?}", report.error);
+
+    // The failure comes when the value is called.
+    let report = run(&format!(
+        "{THE_THING}t := Thing()\nf := ObjBindMethod(t, \"Nope\")\nf()"
+    ));
+    assert_eq!(
+        failure_of(&report),
+        "This value of type \"Thing\" has no method named \"Nope\"."
+    );
+}
+
+/// The call of a binding may go through the `Call` method of it.
+#[test]
+fn the_call_of_a_binding_may_go_through_the_call_method() {
+    let report = run(&format!(
+        "{THE_THING}t := Thing()\nf := ObjBindMethod(t, \"Method\")\nx := f.Call(8)"
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 50);
+}
+
+/// The binding of a method of a class type of the runtime.
+#[test]
+fn the_obj_bind_method_binds_the_method_of_a_class_type() {
+    let report = run(
+        "m := Map()\nm[\"a\"] := 1\nf := ObjBindMethod(m, \"Clear\")\nf()\nn := m.Count",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "n"), 0);
 }

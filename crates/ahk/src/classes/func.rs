@@ -4,10 +4,12 @@
 //! wants, and whether it is built in. `Func` is the class of it, and
 //! the methods of the class are the ones that answer about a function.
 
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec::Vec;
 
-use crate::runtime::{CLOSURE, Route, Runtime, RuntimeError, RuntimeFailure, Value, METHOD_CLASS, METHOD_NAME};
+use crate::runtime::{
+    BOUND, BOUND_TARGET, CLOSURE, Route, Runtime, RuntimeFailure, Value, METHOD_CLASS, METHOD_NAME,
+};
 
 /// The properties a function owns.
 ///
@@ -42,9 +44,6 @@ pub(crate) fn call(
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let Value::Object(_) = this else { return None };
-    let failure = |message: String| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message, line })))
-    };
     match method {
         // The call of the function the value holds. A method of a
         // class of the script is a reference to the method: the first
@@ -53,11 +52,18 @@ pub(crate) fn call(
         // The values of the class that the function carries.
         "isoptional" => Some(Ok(Value::Int(0))),
         "isbyref" => Some(Ok(Value::Int(0))),
-        // The binding of a function to an object is a thing this
-        // runtime does not keep.
-        "bind" => failure(
-            "this runtime does not bind a function to an object.".to_string(),
-        ),
+        // The binding of a function to an object is a value of the class
+        // `BoundFunc`, and the call of it calls the function with the object
+        // as its first argument.
+        //
+        // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+        // `t.Method.Bind(t)` calls the method with the object, and the
+        // `Abs.Bind(5)` calls the built-in with the object as its first
+        // argument -- and the built-in takes one, so the call of it fails.
+        "bind" => {
+            let object = arguments.first().cloned().unwrap_or(Value::Text(String::new()));
+            Some(Ok(rt.bound_function(object, this.clone())))
+        }
         _ => None,
     }
 }
@@ -88,6 +94,13 @@ fn call_the_function(
     route: Route,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let Value::Object(object) = this else { return None };
+    // A function that is bound to an object: the object is the first
+    // argument of the call of the function that is bound.
+    let bound = object.borrow().value_of(BOUND);
+    let target = object.borrow().value_of(BOUND_TARGET);
+    if let (Some(bound), Some(target)) = (bound, target) {
+        return Some(rt.call_a_bound_function(&bound, &target, arguments, line));
+    }
     // A closure is called by the name the runtime keeps it under, and not
     // by the name the script sees: the name of a closure of v2 is empty.
     let kept = object.borrow().value_of(CLOSURE).map(|value| value.to_text());

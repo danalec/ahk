@@ -325,7 +325,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin { name: "MonitorGetPrimary", kind: BuiltinKind::Command, min: 0, max: 0, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
     Builtin { name: "MonitorGetWorkArea", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
     Builtin { name: "ObjAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: obj_add_ref },
-    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 1, max: 255, variant: 107, parameters: &[Parameter::Value], handler: not_carried },
+    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: obj_bind_method },
     // -- the object model ---------------------------------------------------------
     Builtin { name: "ObjFromPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
     Builtin { name: "ObjFromPtrAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
@@ -888,7 +888,10 @@ fn refusal_message(variant: u8) -> &'static str {
         20 => "the handler of an error is not carried: this runtime ends the script when it fails.",
         21 => crate::settings::NO_TEXT_OF_A_WINDOW,
         23 => "the registry is a thing of Windows, and this runtime does not carry it.",
-        _ => "this runtime does not carry that name yet.",
+        // No name of the surface has this variant: the `ObjBindMethod` was
+        // the last one, and it is carried now. The arm is the fallback of a
+        // variant that the table does not have.
+        _ => crate::dialect::NOT_CARRIED_YET,
     }
 }
 
@@ -1278,6 +1281,33 @@ fn text_argument(name: &str, values: &[Value], index: usize, line: u32) -> Resul
         }),
         Some(value) => Ok(value.to_text()),
     }
+}
+
+/// `ObjBindMethod`: the function that calls the method of an object.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the value is
+/// of the class `BoundFunc`, and the call of it calls the method of the
+/// object with the object as its `this`. The name of the method is not
+/// checked when the value is made: the `ObjBindMethod(t, "Nope")` is made,
+/// and the call of it fails.
+///
+/// The v1 makes the binding too, and it refuses the call of the name that
+/// holds it: the v1 does not know that the name is a function.
+pub(crate) fn obj_bind_method(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let object = values.first().cloned().unwrap_or(Value::Text(String::new()));
+    if !matches!(object, Value::Object(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ObjBindMethod", TypeName::Object, &object),
+            line,
+        });
+    }
+    let method = text_of(values, 1);
+    Ok(rt.bound_function(object, Value::Text(method)))
 }
 
 /// `HasProp`: whether an object has a property.

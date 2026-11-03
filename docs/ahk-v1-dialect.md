@@ -1416,9 +1416,10 @@ number. The block of the number (2026-11-02) carried it, with the literal
 of a number (`crates/ahk/src/ast.rs`), the coercion of a text
 (`crates/ahk/src/v1/numbers.rs`) and the format of the integers.
 
-The surface of the v1 has **405** entries: **298** answer with a value,
-**107** are refused and none is pending. The surface of the v2 did not
-move: **828** entries, **637** values, **191** refusals and no pending.
+The surface of the v1 has **405** entries: **299** answer with a value,
+**106** are refused and none is pending. The surface of the v2 moved with
+the `ObjBindMethod`: **828** entries, **638** values, **190** refusals and
+no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an
 expression: `x = 5 + 3` leaves `x` at "5 + 3". The tree carries it since the
@@ -2530,6 +2531,26 @@ and of the tree: thirty-three of the thirty-three, twenty of the twenty and
 eleven of the thirteen are the same. The two that are not are the ones where
 the v1 asks the user for the value of a variable: the tree answers an empty
 value, and it does not ask anybody.
+
+**The `ObjBindMethod` of the v1** (2026-11-05). The v1 makes the binding of a
+method of an object too, and it does not check the name of the method: the
+`ObjBindMethod(t, "Nope")` is made. The number of the parameters is checked at
+the load -- the `ObjBindMethod(t)` is refused with "Too few parameters passed
+to function." and the text of the call -- and the call of the name that holds
+the binding is refused too: the v1 does not know that the name is a function,
+and it says "Call to nonexistent function." with the text of the call.
+
+The tree carries it, and the value of it is the same in the two dialects: the
+binding is a value of the class `BoundFunc`, and the call of it calls the
+method of the object with the object as its `this`.
+
+The probes of the block are `egm-review/probe_v1_obj_bind_method2.py` and
+`egm-review/probe_v2_obj_bind_method.py`, and they are the cases of the binary
+and of the tree: seven of the ten and seventeen of the twenty-three are the
+same. The three that are not in the v1 are the ones where the v1 refuses the
+name of a variable that has a point in it -- a hole of the v1 that is known --
+and the six that are not in the v2 are the ones where the v2 fails at the run:
+the failure of the run of the v2 opens a dialog, and the dialog is a timeout.
 
 ---
 
