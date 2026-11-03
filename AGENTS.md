@@ -8302,3 +8302,28 @@ fat arrow make a definition of it. The parser asks the dialect with the text
 of the line that comes after the parenthesis (`the_rest_of_the_line_after`).
 
 The suite of the v1 has one case more (263).
+
+## 214. The call of the v1 does not need the parenthesis that closes it
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 does
+not need the parenthesis that closes the call of a name that is not a
+function, and the call is refused at the load with "Call to nonexistent
+function.\n     Specifically: abc(c". The parse of it does not fail, and the
+arguments of the call are the rest of the line: the list that is not closed
+does not go on to the line that comes next.
+
+The call of a name that is a function needs the parenthesis, and the failure
+is "Missing \")\"": the `x := f(1` of a function of the script, and the
+`x := Abs(1` of a built-in. The name of a function of the script may be
+defined after the call, so the failure of it waits for the end of the parse,
+and it is made with the other refusals of the load and in the order of the
+script.
+
+The rule is a hook of the dialect
+(`the_closing_parenthesis_of_a_call_is_needed`), and the parser reads the
+arguments of the call with it (`the_arguments_of_a_call`). The failure of the
+call that no parenthesis closes is kept in the record of the call
+(`the_call_of_the_v1_is_recorded`) and it is made with the other refusals of
+the load.
+
+The suite of the v1 has one case more (264).

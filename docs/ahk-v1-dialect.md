@@ -1245,6 +1245,13 @@ And one more still: the call of a name that is not a function, when the
 bracket that closes it is not there. The v1 says "Call to nonexistent
 function. Specifically: abc(c" and the tree says "Missing \")\"".
 
+And one more still: the order of the refusals of the load. The v1 refuses the
+call of a name that is not a function before the parenthesis that is not
+closed, and the tree refuses the parenthesis at the parse: the `x := abc(c`
+and the `x := (` are refused by the v1 with "Call to nonexistent function."
+and by the tree with "Missing ")"". The message of the parenthesis is the
+same, and the order of the two refusals is the one that differs.
+
 And one more: the operator of the v1 without an operand. The v1 answers with
 the empty text: the `x := and` is empty, and the tree refuses the line with
 "Syntax error. Specifically: and". The `x := not` is empty in the v1, and the
@@ -1552,6 +1559,26 @@ Two corners of it are not carried yet: the `f(a) { return a }` is a call in
 the v1, and the tree refuses the line with "Unexpected "{"", and the `f(a) {
 x := 1` is refused by the v1 with "Call to nonexistent function." and by the
 tree with "Missing "}"".
+
+**The call whose parenthesis that closes it is not there** (2026-11-04). The
+v1 does not need the parenthesis that closes the call of a name that is not a
+function, and the call is refused at the load: the `x := abc(c` is refused
+with "Call to nonexistent function.\n     Specifically: abc(c", and the parse
+of it does not fail. The arguments of the call are the rest of the line, and
+the list that is not closed does not go on to the line that comes next.
+
+The call of a name that is a function needs the parenthesis, and the failure
+is "Missing ")"": the `x := f(1` of a function of the script, and the
+`x := Abs(1` of a built-in. The name of a function of the script may be
+defined after the call, so the failure of it waits for the end of the parse,
+and it is made with the other refusals of the load and in the order of the
+script: the call that does not close comes before the call that does not
+exist when it is written first.
+
+The rule is a hook of the dialect
+(`the_closing_parenthesis_of_a_call_is_needed`), and the parser reads the
+arguments of the call with it
+(`the_arguments_of_a_call`).
 
 **What stays out of the call.** The call of a function of the v1 that is
 written without the parentheses and inside an expression -- `x := InStr

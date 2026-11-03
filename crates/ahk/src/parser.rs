@@ -1043,6 +1043,14 @@ struct TheCallOfTheScript {
     /// The place of the call in the script.
     line: u32,
     column: u32,
+    /// The failure of the call when the parenthesis that closes the list of
+    /// the arguments is not there.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not need that parenthesis when the name of the call is not a
+    /// function, and the failure waits for the end of the parse: the name
+    /// may be a function of the script that is defined later.
+    missing: Option<SyntaxError>,
 }
 
 /// The label that a command of the script names.
@@ -1655,6 +1663,8 @@ impl Parser {
         self.check_the_assignments(assignments)?;
         // The v1 refuses the call of a function at the load, and the arity of
         // a function of the script is known only now.
+        // The calls of the v1 whose parenthesis that closes them is not there
+        // are refused with the others.
         self.the_calls_of_the_v1_are_checked()?;
         // The label that a command of the v1 names is refused at the load too,
         // and the names of the labels of the script are known only now.
@@ -1703,6 +1713,15 @@ impl Parser {
             return Ok(());
         }
         for call in &self.calls {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the parenthesis that closes the call of a name that is a
+            // function is needed, and the failure of it comes before the
+            // complaint of the number of the arguments.
+            if let Some(failure) = &call.missing {
+                if self.arities.contains_key(&call.name) {
+                    return Err(failure.clone());
+                }
+            }
             let wanted = &call.name;
             // The function of the dialect: the arity is in the table.
             let function = self
@@ -3515,8 +3534,7 @@ impl Parser {
                 }]);
             }
             self.the_expression_begins();
-            let arguments = self.parse_arguments()?;
-            self.expect_op(")")?;
+            let (arguments, missing) = self.the_arguments_of_a_call(&name_token.value)?;
             // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
             // refuses the call of a name that is not a function at the load,
             // and a call that is a statement is a call: the `MyFunc()` is
@@ -3527,6 +3545,7 @@ impl Parser {
                     &name_token.value.to_lowercase(),
                     arguments.len(),
                     at_the_name,
+                    missing,
                 );
             }
             self.the_expression_is_done(self.position, false)?;
@@ -9637,12 +9656,100 @@ impl Parser {
         // call, from the name to the parenthesis that closes it.
         let at = self.position - 1;
         self.expect_op("(")?;
-        let arguments = self.parse_arguments()?;
-        self.expect_op(")")?;
+        let (arguments, missing) = self.the_arguments_of_a_call(&name)?;
         if self.dialect.refuses_the_call_of_a_function_at_the_load() {
-            self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at);
+            self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at, missing);
         }
         Ok(Node::Call { name, arguments, line })
+    }
+
+    /// The arguments of a call, and the parenthesis that closes them.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not need the parenthesis that closes the call of a name that is
+    /// not a function: the `x := abc(c` is refused at the load with "Call to
+    /// nonexistent function.\n     Specifically: abc(c", and the parse of it
+    /// does not fail. The arguments of it are the rest of the line, and the
+    /// list that is not closed does not go on to the line that comes next.
+    ///
+    /// The call of a name that is a function needs the parenthesis, and the
+    /// `x := f(1` is refused with "Missing ")"". The name of a function of
+    /// the script may be defined after the call, so the failure of it waits
+    /// for the end of the parse. The name of a built-in is known at the
+    /// parse, and the failure of it is made there.
+    ///
+    /// The v2 needs the parenthesis always.
+    fn the_arguments_of_a_call(
+        &mut self,
+        name: &str,
+    ) -> Result<(Vec<Node>, Option<SyntaxError>), SyntaxError> {
+        if self.dialect.the_closing_parenthesis_of_a_call_is_needed() {
+            let arguments = self.parse_arguments()?;
+            self.expect_op(")")?;
+            return Ok((arguments, None));
+        }
+        // The list is empty and the parenthesis is not there.
+        if self.at_the_end_of_the_line() {
+            let at = self.position;
+            return Ok((Vec::new(), Some(self.the_error_of_a_missing_parenthesis(at))));
+        }
+        let arguments = match self.parse_arguments() {
+            Ok(arguments) => arguments,
+            Err(error) => {
+                // The list is not closed, and the arguments of it are the rest
+                // of the line.
+                if !self.at_the_end_of_the_line() {
+                    return Err(error);
+                }
+                Vec::new()
+            }
+        };
+        let at = self.position;
+        match self.expect_op(")") {
+            Ok(_) => Ok((arguments, None)),
+            Err(error) => {
+                if self.the_name_is_a_builtin_function(name) {
+                    return Err(error);
+                }
+                // The token that is where the parenthesis should be is not
+                // consumed, and the arguments of the call of the v1 end at
+                // the end of the line: the list does not go on to the line
+                // that comes next.
+                let mut at = at;
+                while at > 0 && self.tokens[at - 1].kind == TokenKind::Newline {
+                    at -= 1;
+                }
+                self.position = at;
+                Ok((arguments, Some(error)))
+            }
+        }
+    }
+
+    /// Whether the line of the token that is there ends there.
+    fn at_the_end_of_the_line(&self) -> bool {
+        let token = self.peek();
+        token.kind == TokenKind::Newline || token.kind == TokenKind::Eof
+    }
+
+    /// The failure of the parenthesis that closes a list of arguments and
+    /// that is not there.
+    fn the_error_of_a_missing_parenthesis(&self, at: usize) -> SyntaxError {
+        let line = self.tokens.get(at).map(|token| token.line).unwrap_or(0);
+        let column = self.tokens.get(at).map(|token| token.column).unwrap_or(0);
+        SyntaxError {
+            message: "Missing \")\"".to_string(),
+            line,
+            column,
+        }
+    }
+
+    /// Whether the name is a built-in of the dialect that is a function.
+    fn the_name_is_a_builtin_function(&self, name: &str) -> bool {
+        let wanted = name.to_lowercase();
+        self.dialect.builtins().iter().any(|builtin| {
+            builtin.name.to_lowercase() == wanted
+                && builtin.kind == crate::builtins::BuiltinKind::Function
+        })
     }
 
     /// The `new` of the v1: `new C` and `new C(5)`.
@@ -9684,7 +9791,13 @@ impl Parser {
     /// call: the `x := abc(c) + 1` is refused with "Call to nonexistent
     /// function.\n     Specifically: abc(c) + 1", and the same is true of the
     /// complaint of the number of the arguments that is wrong.
-    fn the_call_of_the_v1_is_recorded(&mut self, name: &str, count: usize, at: usize) {
+    fn the_call_of_the_v1_is_recorded(
+        &mut self,
+        name: &str,
+        count: usize,
+        at: usize,
+        missing: Option<SyntaxError>,
+    ) {
         let end_of_the_line = the_end_of_the_line_of(self, at);
         let source = self.the_verbatim_source(at, end_of_the_line);
         let line = self.tokens.get(at).map(|token| token.line).unwrap_or(0);
@@ -9695,6 +9808,7 @@ impl Parser {
             source,
             line,
             column,
+            missing,
         });
     }
 }

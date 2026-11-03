@@ -1899,6 +1899,16 @@ that asks for another one is refused with the reason.
   the parenthesis: the brace and the fat arrow make a definition of it. The
   dialect says it (`a_line_is_a_definition`).
 
+- **The call of the v1 does not need the parenthesis that closes it.** The v1
+  does not need the parenthesis that closes the call of a name that is not a
+  function, and the call is refused at the load with "Call to nonexistent
+  function.". The arguments of the call are the rest of the line, and the
+  list that is not closed does not go on to the line that comes next. The
+  call of a name that is a function needs the parenthesis, and the failure of
+  it is "Missing ")"", and it waits for the end of the parse: the name of a
+  function of the script may be defined after the call. The dialect says it
+  (`the_closing_parenthesis_of_a_call_is_needed`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

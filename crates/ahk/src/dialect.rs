@@ -1134,6 +1134,21 @@ pub trait Dialect: Sync {
         the_name_of_the_word(word)
     }
 
+    /// Whether the parenthesis that closes the list of the arguments of a
+    /// call is needed.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not need it when the name of the call is not a function: the
+    /// `x := abc(c` is refused at the load with "Call to nonexistent
+    /// function.\n     Specifically: abc(c", and the parse of it does not fail.
+    /// The call of a name that is a function needs it, and the `x := f(1` is
+    /// refused with "Missing ")"".
+    ///
+    /// The v2 needs it always.
+    fn the_closing_parenthesis_of_a_call_is_needed(&self) -> bool {
+        true
+    }
+
     /// Whether the line that begins with a name and a list of parameters is a
     /// definition of a function.
     ///
@@ -1871,6 +1886,13 @@ impl Dialect for V1 {
             return None;
         }
         Some(rest == "{")
+    }
+
+    fn the_closing_parenthesis_of_a_call_is_needed(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 does not need the parenthesis that closes the call of a name
+        // that is not a function, and the call is refused at the load.
+        false
     }
 
     fn the_refusal_of_the_arity_of_a_command(

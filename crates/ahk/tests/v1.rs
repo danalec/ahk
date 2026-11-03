@@ -4093,6 +4093,45 @@ fn the_definition_of_a_function_of_the_v1_needs_the_brace_at_the_end_of_the_line
     assert_eq!(report.output, vec!["[1]".to_string()]);
 }
 
+/// The call of the v1 whose parenthesis that closes it is not there.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not need the parenthesis that closes the call of a name that is not
+/// a function, and the call is refused at the load with "Call to nonexistent
+/// function.". The call of a name that is a function needs it, and the
+/// failure is "Missing ")"".
+#[test]
+fn the_call_of_the_v1_without_the_parenthesis_that_closes_it() {
+    // The name that is not a function: the call is refused at the load.
+    assert_eq!(
+        the_refusal_of_the_load("x := abc(c"),
+        "Call to nonexistent function.\n     Specifically: abc(c"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := abc(c, d"),
+        "Call to nonexistent function.\n     Specifically: abc(c, d"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := abc("),
+        "Call to nonexistent function.\n     Specifically: abc("
+    );
+
+    // The name that is a function of the script: the parenthesis is needed.
+    assert_eq!(
+        the_refusal_of_the_load("f(a) {\n    return a\n}\nx := f(1"),
+        "Missing \")\""
+    );
+
+    // The name of a built-in: the parenthesis is needed too.
+    assert_eq!(the_refusal_of_the_load("x := Abs(1"), "Missing \")\"");
+
+    // The error of a line that comes later is the one that is reported.
+    assert_eq!(
+        the_refusal_of_the_load("x := abc(c\nthis is not valid"),
+        "This line does not contain a recognized action.\n     Specifically: this is not valid"
+    );
+}
+
 /// The refusal of a call of the v1 names the rest of the line.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text

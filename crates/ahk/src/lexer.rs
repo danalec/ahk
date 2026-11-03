@@ -242,7 +242,7 @@ fn the_operators_of(dialect: &'static dyn crate::dialect::Dialect) -> Vec<&'stat
 }
 
 /// The script does not parse.
-#[derive(Debug, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 #[error("{message} (line {line}, column {column})")]
 pub struct SyntaxError {
     pub message: String,
