@@ -6112,6 +6112,18 @@ fn the_local_that_has_the_name_of_a_global_is_warned_about() {
     );
 }
 
+/// The name that is only read is not a local of the v2.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the v2 reads
+/// the scope of the script when the name is only read, and the name that it
+/// only reads is not a local of it.
+#[test]
+fn the_local_that_is_only_read_is_not_warned_about() {
+    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  y := x\n}\nf()\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+}
+
 /// The local of a method that has the name of a global one is warned about.
 ///
 /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the name of the

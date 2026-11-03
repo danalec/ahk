@@ -178,7 +178,9 @@ the text that was written.
 
 The local that has the name of a global one is warned about inside a class as
 well: the v1 names the method "A.m" and the v2 names the method of the prototype
-"A.Prototype.m".
+"A.Prototype.m". The local of the v1 is a name that the function uses: the name
+that it only reads is a local of it too, and the v2 reads the scope of the script
+when the name is only read.
 
 The tree carries all of them: the variable of the script that is read and
 never written, the variable of a function that is read and never written, the

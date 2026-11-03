@@ -9521,3 +9521,24 @@ The probes of the block are `egm-review/probe_warn_class.py`,
 
 The suite of the v1 has two cases more (406). The suite of the v2 has two cases
 more (528).
+
+The local that is only read is a local of the v1. Measured on the binary of
+AutoHotkey v1.1.37.02 on 2026-11-05: the scope of a function of the v1 is its
+own, and the name that it only reads is a local of it: the `f() { y := x }` has
+a local "x" when the script has a global "x". The name of a variable of the v1
+is between two percent signs, and the text of a command that reads it is a local
+of the function that holds the command.
+
+The v2 reads the scope of the script when the name is only read, and the name
+that it only reads is not a local of it: the local of the v2 is the name that
+the function writes.
+
+The tree walks the tree of the script to find the names that a function reads,
+and the match has an arm for every node of it, so that a node that is added
+later is not forgotten there.
+
+The probes of the block are `egm-review/probe_warn_local_forms.py` and
+`egm-review/probe_warn_local_read.py`.
+
+The suite of the v1 has two cases more (408). The suite of the v2 has one case
+more (529).

@@ -458,8 +458,17 @@ fn the_warnings_of_the_locals_of_a_scope(
     let TheScope { name, parameters, body, declarations, body_line } = scope;
     let mut writes = Vec::new();
     the_writes_of_a_level(body, &mut writes, false);
+    // The locals of the scope are the names that it writes, and the names
+    // that it only reads as well when the scope of a function is its own.
+    let mut locals = writes;
+    if dialect.the_scope_of_a_function_is_its_own() {
+        let mut reads = Vec::new();
+        the_reads_of_a_level(body, &mut reads);
+        locals.extend(reads);
+        locals.sort_by_key(|(_, line)| *line);
+    }
     let mut seen = std::collections::BTreeSet::new();
-    for (local, the_line) in writes {
+    for (local, the_line) in locals {
         if !seen.insert(local.to_lowercase()) {
             continue;
         }
@@ -535,6 +544,265 @@ fn the_warnings_of_the_locals_of_a_class(
             the_warnings_of_the_locals_of_a_class(&path, methods, accessors, nested, globals, dialect, warnings);
         }
     }
+}
+
+/// The names that the level reads, and the lines of the reads.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the scope of
+/// a function of the v1 is its own, and the name that it only reads is a local
+/// of it: the `f() { y := x }` has a local "x" when the script has a global
+/// "x". The name of a variable of the v1 is between two percent signs, and the
+/// escape of the v1 -- the backtick -- carries a percent sign that does not
+/// open a name.
+fn the_reads_of_a_level(statements: &[Node], reads: &mut Vec<(String, u32)>) {
+    for statement in statements {
+        the_reads_of_a_node(statement, reads);
+        for body in the_bodies_of_the_level(statement) {
+            the_reads_of_a_level(body, reads);
+        }
+    }
+}
+
+/// The names that a node reads, and the lines of the reads.
+///
+/// The match has an arm for every node of the tree of the script, so that a
+/// node that is added later is not forgotten here.
+fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
+    match node {
+        Node::Literal { .. } => {}
+        Node::Var { name, line } => reads.push((name.clone(), *line)),
+        Node::Unary { operand, .. } => the_reads_of_a_node(operand, reads),
+        Node::Binary { left, right, .. } => {
+            the_reads_of_a_node(left, reads);
+            the_reads_of_a_node(right, reads);
+        }
+        Node::Unset { .. } => {}
+        Node::Ternary { condition, then, otherwise, .. } => {
+            the_reads_of_a_node(condition, reads);
+            the_reads_of_a_node(then, reads);
+            the_reads_of_a_node(otherwise, reads);
+        }
+        Node::DynamicName { pieces, .. } => {
+            for piece in pieces {
+                the_reads_of_a_piece(piece, reads);
+            }
+        }
+        Node::AssignDynamic { name, value, .. } => {
+            for piece in name {
+                the_reads_of_a_piece(piece, reads);
+            }
+            the_reads_of_a_node(value, reads);
+        }
+        Node::Assign { value, .. } => the_reads_of_a_node(value, reads),
+        Node::LegacyAssign { text, line, .. } => the_names_of_a_text(text, *line, reads),
+        Node::LegacyComparison { left, text, line, .. } => {
+            the_reads_of_a_node(left, reads);
+            the_names_of_a_text(text, *line, reads);
+        }
+        Node::LegacyMatch { left, texts, line, .. } => {
+            the_reads_of_a_node(left, reads);
+            for text in texts {
+                the_names_of_a_text(text, *line, reads);
+            }
+        }
+        Node::LegacyControl { condition, .. } => the_reads_of_a_node(condition, reads),
+        Node::Index { target, index, .. } => {
+            the_reads_of_a_node(target, reads);
+            the_reads_of_a_node(index, reads);
+        }
+        Node::Call { arguments, .. } => {
+            for argument in arguments {
+                the_reads_of_a_node(argument, reads);
+            }
+        }
+        Node::New { arguments, .. } => {
+            for argument in arguments {
+                the_reads_of_a_node(argument, reads);
+            }
+        }
+        Node::LegacyCall { parameters, line, .. } => {
+            for parameter in parameters {
+                match parameter {
+                    crate::ast::LegacyParameter::Text(text) => {
+                        the_names_of_a_text(text, *line, reads)
+                    }
+                    crate::ast::LegacyParameter::Expression(value) => {
+                        the_reads_of_a_node(value, reads)
+                    }
+                }
+            }
+        }
+        Node::LegacyIf { parameters, line, .. } => {
+            for text in parameters {
+                the_names_of_a_text(text, *line, reads);
+            }
+        }
+        Node::Expression { value, .. } => the_reads_of_a_node(value, reads),
+        Node::LegacyExpression { value, .. } => the_reads_of_a_node(value, reads),
+        Node::Block { .. } => {}
+        Node::If { branches, .. } => {
+            for branch in branches {
+                the_reads_of_a_node(&branch.condition, reads);
+                for item in &branch.tail {
+                    the_reads_of_a_node(item, reads);
+                }
+            }
+        }
+        Node::Switch { subject, cases, .. } => {
+            the_reads_of_a_node(subject, reads);
+            for case in cases {
+                for value in &case.values {
+                    the_reads_of_a_node(value, reads);
+                }
+            }
+        }
+        Node::While { condition, .. } => the_reads_of_a_node(condition, reads),
+        Node::Loop { arguments, until, .. } => {
+            for argument in arguments {
+                the_reads_of_a_node(argument, reads);
+            }
+            if let Some(until) = until {
+                the_reads_of_a_node(until, reads);
+            }
+        }
+        Node::Directive { .. } => {}
+        Node::Break { .. } => {}
+        Node::Continue { .. } => {}
+        Node::Return { value, .. } => {
+            if let Some(value) = value {
+                the_reads_of_a_node(value, reads);
+            }
+        }
+        Node::ExitApp { code, .. } => {
+            if let Some(code) = code {
+                the_reads_of_a_node(code, reads);
+            }
+        }
+        Node::FunctionDef { .. } => {}
+        Node::ClassDef { .. } => {}
+        Node::MethodCall { target, arguments, .. } => {
+            the_reads_of_a_node(target, reads);
+            for argument in arguments {
+                the_reads_of_a_node(argument, reads);
+            }
+        }
+        Node::Property { target, name, .. } => {
+            the_reads_of_a_node(target, reads);
+            the_reads_of_a_member_name(name, reads);
+        }
+        Node::AssignProperty { target, name, value, .. } => {
+            the_reads_of_a_node(target, reads);
+            the_reads_of_a_member_name(name, reads);
+            the_reads_of_a_node(value, reads);
+        }
+        Node::AssignIndex { target, index, value, .. } => {
+            the_reads_of_a_node(target, reads);
+            the_reads_of_a_node(index, reads);
+            the_reads_of_a_node(value, reads);
+        }
+        Node::ArrayLiteral { items, .. } => {
+            for item in items.iter().flatten() {
+                the_reads_of_a_node(item, reads);
+            }
+        }
+        Node::Group { items, .. } => {
+            for item in items {
+                the_reads_of_a_node(item, reads);
+            }
+        }
+        Node::Empty { .. } => {}
+        Node::Legacy { items, .. } => {
+            for item in items {
+                the_reads_of_a_node(item, reads);
+            }
+        }
+        Node::ObjectLiteral { items, .. } => {
+            for item in items {
+                match item {
+                    crate::ast::ObjectItem::Property(name, value) => {
+                        the_reads_of_a_member_name(name, reads);
+                        the_reads_of_a_node(value, reads);
+                    }
+                    crate::ast::ObjectItem::LegacyKey(key, value) => {
+                        the_reads_of_a_node(key, reads);
+                        the_reads_of_a_node(value, reads);
+                    }
+                    crate::ast::ObjectItem::Value(value) => the_reads_of_a_node(value, reads),
+                }
+            }
+        }
+        Node::Lambda { body, .. } => the_reads_of_a_node(body, reads),
+        Node::Try { .. } => {}
+        Node::Throw { value, .. } => {
+            if let Some(value) = value {
+                the_reads_of_a_node(value, reads);
+            }
+        }
+        Node::Declare { .. } => {}
+        Node::Super { .. } => {}
+        Node::For { source, .. } => the_reads_of_a_node(source, reads),
+        Node::Label { .. } => {}
+        Node::Goto { .. } => {}
+        Node::HotkeyDefinition { .. } => {}
+    }
+}
+
+/// The names that a piece of a name that the script builds reads.
+fn the_reads_of_a_piece(piece: &crate::ast::DynamicPiece, reads: &mut Vec<(String, u32)>) {
+    if let crate::ast::DynamicPiece::Value(value) = piece {
+        the_reads_of_a_node(value, reads);
+    }
+}
+
+/// The names that a member of a value reads.
+fn the_reads_of_a_member_name(name: &crate::ast::MemberName, reads: &mut Vec<(String, u32)>) {
+    if let crate::ast::MemberName::Dynamic(pieces) = name {
+        for piece in pieces {
+            the_reads_of_a_piece(piece, reads);
+        }
+    }
+}
+
+/// The names that a text of the v1 reads.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the escape
+/// of the v1 makes the character that follows it a literal, and the percent
+/// sign that it carries does not close the name of a variable.
+fn the_names_of_a_text(text: &str, line: u32, reads: &mut Vec<(String, u32)>) {
+    let chars: Vec<char> = text.chars().collect();
+    let mut index = 0usize;
+    while index < chars.len() {
+        if chars[index] == '`' {
+            index += 2;
+            continue;
+        }
+        if chars[index] == '%' {
+            if let Some(close) = the_closing_percent(&chars, index + 1) {
+                let name: String = chars[index + 1..close].iter().collect();
+                reads.push((name.trim().to_string(), line));
+                index = close + 1;
+                continue;
+            }
+        }
+        index += 1;
+    }
+}
+
+/// The place of the percent sign that closes the name of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the escape
+/// of the v1 makes the character that follows it a literal, and the percent
+/// sign that it carries does not close the name of a variable.
+fn the_closing_percent(chars: &[char], from: usize) -> Option<usize> {
+    let mut index = from;
+    while index < chars.len() {
+        match chars[index] {
+            '`' => index += 2,
+            '%' => return Some(index),
+            _ => index += 1,
+        }
+    }
+    None
 }
 
 /// The warning of the class that a variable overwrites.

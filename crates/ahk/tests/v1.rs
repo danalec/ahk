@@ -10080,6 +10080,41 @@ fn the_local_of_a_method_that_has_the_name_of_a_global_is_warned_about_in_the_v1
     );
 }
 
+/// The local that is only read is a local of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the scope of
+/// a function of the v1 is its own, and the name that it only reads is a local
+/// of it: the `f() { y := x }` has a local "x" when the script has a global
+/// "x". The line of the warning is the line that opens the body.
+#[test]
+fn the_local_that_is_only_read_is_warned_about_in_the_v1() {
+    let report = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  y := x\n}\nf()\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable has the same name as a global variable.\n     Specifically: x  (in function f)"
+    );
+}
+
+/// The name that a text of the v1 reads is a local of the function too.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name of
+/// a variable of the v1 is between two percent signs, and the text of a
+/// command that reads it is a local of the function that holds the command.
+#[test]
+fn the_local_that_is_read_by_a_text_is_warned_about_in_the_v1() {
+    let report = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  FileAppend, %x%, *\n}\nf()\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable has the same name as a global variable.\n     Specifically: x  (in function f)"
+    );
+}
+
 /// The body of a function may be on a line of its own.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 names

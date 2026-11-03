@@ -2676,6 +2676,20 @@ brace may be on a line of its own.
 The probes of the block are `egm-review/probe_warn_class.py`,
 `egm-review/probe_warn_lines.py` and `egm-review/probe_getter.py`.
 
+**The `#Warn` of the v1** (2026-11-05, the sixth block). The local that is only
+read is a local of the v1. Measured on the binary of AutoHotkey v1.1.37.02 on
+2026-11-05: the scope of a function of the v1 is its own, and the name that it
+only reads is a local of it: the `f() { y := x }` has a local "x" when the
+script has a global "x". The name of a variable of the v1 is between two
+percent signs, and the text of a command that reads it is a local of the
+function that holds the command.
+
+The v2 reads the scope of the script when the name is only read, and the name
+that it only reads is not a local of it.
+
+The probes of the block are `egm-review/probe_warn_local_forms.py` and
+`egm-review/probe_warn_local_read.py`.
+
 ## 5. The risks
 
 | Risk | Severity | What is done |
