@@ -4032,13 +4032,24 @@ pub(crate) fn mouse_get_pos(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
 
 /// `MouseMove`: the pointer to a place on the screen.
 pub(crate) fn mouse_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    // The speed and the relative place of v2 are not carried: the box
-    // moves the pointer at its own speed.
-    if values.len() > 2 {
+    // The relative place of the move is not carried: the box moves the
+    // pointer to the place, and not from where it is.
+    if values.len() > 3 {
         return Err(RuntimeError {
-            message: "the speed and the relative place are not carried yet.".into(),
+            message: "the relative place of the move is not carried yet.".into(),
             line,
         });
+    }
+    // The speed of the move is not carried either: the box moves the pointer
+    // at its own speed. The speed of zero is the speed of nothing, and the
+    // pointer goes to the place at once.
+    if let Some(speed) = values.get(2) {
+        if speed.to_number().unwrap_or(0.0) != 0.0 {
+            return Err(RuntimeError {
+                message: "the speed of the move is not carried yet.".into(),
+                line,
+            });
+        }
     }
     let x = number_of(values, 0) as i64;
     let y = number_of(values, 1) as i64;

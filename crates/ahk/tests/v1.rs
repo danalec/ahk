@@ -4470,6 +4470,61 @@ fn the_arithmetic_of_the_date_of_the_v1_is_the_date_of_the_machine() {
     assert_eq!(error.message, "Parameter #2 invalid.\n     Specifically: 3");
 }
 
+/// The `MouseMove` of the v1 takes the place and the speed.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `MouseMove` of the v1 takes three parameters -- the place, the place of
+/// the y, and the speed of the move -- and the fourth one is refused when it
+/// is not blank. The place may not be blank, and the speed may not be
+/// negative.
+#[test]
+fn the_parameters_of_the_mouse_move_of_the_v1_are_the_place_and_the_speed() {
+    for script in [
+        "MouseMove, 10, 20",
+        "MouseMove, 10, 20, 100",
+        "MouseMove, 10, 20, 100, ",
+    ] {
+        assert!(
+            ahk::parse_with(script, dialect::v1()).is_ok(),
+            "the script is {script}"
+        );
+    }
+
+    // The place that is blank.
+    let error = ahk::parse_with("MouseMove, , 20", dialect::v1())
+        .expect_err("the place is blank");
+    assert_eq!(
+        error.message,
+        "\"MouseMove\" requires that parameter #1 be non-blank.\n     Specifically: MouseMove,"
+    );
+
+    // The speed that is negative.
+    let error = ahk::parse_with("MouseMove, 10, 20, -1", dialect::v1())
+        .expect_err("the speed is negative");
+    assert_eq!(error.message, "Parameter #3 invalid.\n     Specifically: -1");
+
+    // The fourth parameter.
+    let error = ahk::parse_with("MouseMove, 10, 20, 100, 1", dialect::v1())
+        .expect_err("the fourth parameter is not one of the v1");
+    assert_eq!(error.message, "Parameter #4 invalid.\n     Specifically: 1");
+
+    // The speed that the tree does not carry is refused when the script
+    // runs, and the speed of nothing is the move of the tree -- and the
+    // refusal of the fake comes after it.
+    let report = run("MouseMove, 10, 20, 100");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the speed of the move is not carried yet.")
+    );
+
+    let report = run("MouseMove, 10, 20, 0");
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this desktop cannot move the pointer")
+    );
+}
+
 /// The environment of the v1 writes the `ErrorLevel`, and the name of the
 /// variable of the environment may not be blank.
 ///

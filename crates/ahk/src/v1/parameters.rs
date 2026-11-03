@@ -189,6 +189,7 @@ const RULES: &[Rule] = &[
     Rule { name: "KeyHistory", check: the_command_without_a_parameter },
     Rule { name: "StringMid", check: the_letter_of_the_string_mid },
     Rule { name: "MouseClickDrag", check: the_button_of_the_mouse },
+    Rule { name: "MouseMove", check: the_speed_and_the_fourth_parameter_of_the_mouse_move },
     Rule { name: "GetKeyState", check: the_name_of_a_key },
 ];
 
@@ -509,6 +510,58 @@ fn the_command_without_a_parameter(texts: &[String]) -> Option<usize> {
 /// The text of the parameter at this place, or the empty text.
 fn the_text_at(texts: &[String], place: usize) -> &str {
     texts.get(place).map(String::as_str).unwrap_or("")
+}
+
+/// The speed of the move of the mouse of the v1 and its fourth parameter.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the third
+/// parameter of the `MouseMove` is the speed of the move, and it may not be
+/// negative: the "-1" is refused with "Parameter #3 invalid." and the text
+/// that was written. The text that is not a number is the speed of nothing,
+/// and it is not refused: the "abc" is let through.
+///
+/// The `MouseMove` of the v1 takes three parameters, and the fourth one is
+/// refused when it is not blank: the "1" is refused with "Parameter #4
+/// invalid." and the text that was written.
+fn the_speed_and_the_fourth_parameter_of_the_mouse_move(texts: &[String]) -> Option<usize> {
+    if let Some(place) = the_speed_of_the_move_of_the_mouse(texts) {
+        return Some(place);
+    }
+    the_fourth_parameter_of_the_mouse_move(texts)
+}
+
+/// The speed of the move of the mouse of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the speed
+/// may not be negative, and the text that is not a number is the speed of
+/// nothing.
+fn the_speed_of_the_move_of_the_mouse(texts: &[String]) -> Option<usize> {
+    let text = the_text_at(texts, 2).trim();
+    if text.is_empty() {
+        return None;
+    }
+    let number = crate::v1::the_number_at_the_start_of_a_text(text);
+    let negative = match number {
+        Some(Value::Int(number)) => number < 0,
+        Some(Value::Float(number)) => number < 0.0,
+        _ => false,
+    };
+    if !negative {
+        return None;
+    }
+    Some(2)
+}
+
+/// The fourth parameter of the `MouseMove` of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `MouseMove` of the v1 takes three parameters, and the fourth one is
+/// refused when it is not blank.
+fn the_fourth_parameter_of_the_mouse_move(texts: &[String]) -> Option<usize> {
+    if the_text_at(texts, 3).trim().is_empty() {
+        return None;
+    }
+    Some(3)
 }
 
 /// The name of the key, in the second parameter of the `GetKeyState`.

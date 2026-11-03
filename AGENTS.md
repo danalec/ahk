@@ -8856,3 +8856,26 @@ The probes of the block are `egm-review/probe_v1_env_text.py`,
 and they are the cases of the binary and the tree: all the same.
 
 The suite of the v1 has one case more (359).
+## 234. The MouseMove of the v1 takes the place and the speed
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+`MouseMove` of the v1 takes three parameters -- the place, the place of the
+y, and the speed of the move -- and the fourth one is refused when it is not
+blank: the "1" is refused with "Parameter #4 invalid." and the text that was
+written.
+
+The place may not be blank, and the speed may not be negative: the "-1" is
+refused with "Parameter #3 invalid." and the text that was written. The place
+is checked before the speed, and the speed before the fourth parameter.
+
+The rules are in the tables of the v1: the rule of the `MouseMove` is the
+speed and the fourth parameter, and the place that may not be blank is in the
+table of the sub-commands. The speed of the tree is not carried: the box
+moves the pointer at its own speed, and the `MouseMove, 10, 20, 100` is
+refused when the script runs. The speed of zero is the speed of nothing, and
+the tree moves the pointer.
+
+The probe of the block is `egm-review/probe_v1_mouse_move.py`, and it is
+twenty-seven cases of the binary and the tree, all the same.
+
+The suite of the v1 has one case more (360).

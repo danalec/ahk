@@ -460,6 +460,12 @@ fn the_refusal_of_an_invalid_parameter(place: usize, text: &str) -> String {
 /// amount of the `EnvAdd` of the v1 may not be blank either, and the
 /// complaint of the v1 is the same one. The date of the `EnvSub` may be
 /// blank, and the answer of the command is then zero.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the place
+/// of the `MouseMove` of the v1 may not be blank, and the complaint of the
+/// v1 is the same one. The place of the `MouseMove` is checked before the
+/// parameters of it: the `MouseMove, , 20, -1` complains about the place and
+/// not about the speed.
 pub(crate) fn the_parameter_may_not_be_blank(name: &str, place: usize) -> bool {
     let wanted = if name.eq_ignore_ascii_case("Control")
         || name.eq_ignore_ascii_case("Drive")
@@ -474,6 +480,8 @@ pub(crate) fn the_parameter_may_not_be_blank(name: &str, place: usize) -> bool {
         || name.eq_ignore_ascii_case("EnvAdd")
     {
         2
+    } else if name.eq_ignore_ascii_case("MouseMove") {
+        1
     } else {
         return false;
     };
