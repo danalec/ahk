@@ -10246,10 +10246,19 @@ impl<'a> Runtime<'a> {
                 let name = self.the_name_of_the_pieces(pieces, *line)?;
                 match self.the_variable_of_the_name(&name, *line)? {
                     Some(value) => Ok(value),
-                    None => Err(RuntimeFailure::Detailed(
-                        RuntimeError { message: "Variable not found.".to_string(), line: *line },
-                        Detail { what: String::new(), extra: name },
-                    )),
+                    None => {
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-04: the v1 does not refuse the name that is
+                        // not there: it creates the variable of that name and
+                        // reads it, and the answer is the empty text.
+                        if self.dialect.the_name_that_the_script_builds_and_that_is_not_there_is_answered() {
+                            return Ok(Value::Text(String::new()));
+                        }
+                        Err(RuntimeFailure::Detailed(
+                            RuntimeError { message: "Variable not found.".to_string(), line: *line },
+                            Detail { what: String::new(), extra: name },
+                        ))
+                    }
                 }
             }
             Node::AssignDynamic { name, op, value, line } => {
@@ -10577,14 +10586,36 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         let key = the_key_of(name);
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 refuses the write of a name that the script builds inside a
+        // function, and it refuses it whatever the variable of that name is.
+        if self.declarations.last().is_some()
+            && self.dialect.the_dynamic_write_inside_a_function_is_refused()
+        {
+            return Err(RuntimeFailure::Detailed(
+                RuntimeError {
+                    message: self.dialect.the_message_of_the_dynamic_write_inside_a_function().to_string(),
+                    line,
+                },
+                Detail { what: String::new(), extra: name.to_string() },
+            ));
+        }
         // A dynamic reference does not create a variable: the one that is
         // written has to be there.
         let exists = self.lookup_variable(name).is_some() || self.variables.contains_key(&key);
         if !exists {
-            return Err(RuntimeFailure::Detailed(
-                RuntimeError { message: "Variable not found.".to_string(), line },
-                Detail { what: String::new(), extra: name.to_string() },
-            ));
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 creates the variable of the name that the script builds
+            // and writes it: the `a := 1` and the `%a% := 7` write the
+            // variable "1".
+            if self.dialect.the_name_that_the_script_builds_and_that_is_not_there_is_answered() {
+                self.assign(name, Value::Text(String::new()));
+            } else {
+                return Err(RuntimeFailure::Detailed(
+                    RuntimeError { message: "Variable not found.".to_string(), line },
+                    Detail { what: String::new(), extra: name.to_string() },
+                ));
+            }
         }
         // A function that writes a name of the script says that it wants a
         // global declaration: the name is not a local of the function.

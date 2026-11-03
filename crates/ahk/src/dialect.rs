@@ -704,6 +704,44 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the name that the script builds and that is not there is
+    /// answered.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not refuse the name that is not there: it creates the variable of
+    /// that name and reads it, and the answer is the empty text. The `a := 1`
+    /// and the `x := %a%` read the variable "1", and the `x` is the empty
+    /// text; the `1 := 99` and the `x := %a%` read the variable "1", and the
+    /// `x` is ninety-nine.
+    ///
+    /// The v2 refuses with "Variable not found." and the name in the `Extra`.
+    fn the_name_that_the_script_builds_and_that_is_not_there_is_answered(&self) -> bool {
+        false
+    }
+
+    /// Whether the write of a name that the script builds inside a function
+    /// is refused.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// refuses the write of a name that the script builds inside a function,
+    /// and it refuses it whatever the variable of that name is: the `%a% := 7`
+    /// inside a function opens a dialogue of the v1 and says "This dynamic
+    /// variable is blank. If this variable was not intended to be dynamic,
+    /// remove the % symbols from it.".
+    ///
+    /// The v2 refuses it with "This dynamic assignment requires a \"global\"
+    /// declaration." and only when the name is not a local of the function
+    /// and does not live in the script.
+    fn the_dynamic_write_inside_a_function_is_refused(&self) -> bool {
+        false
+    }
+
+    /// The message of the refusal of the write of a name that the script
+    /// builds inside a function.
+    fn the_message_of_the_dynamic_write_inside_a_function(&self) -> &'static str {
+        "This dynamic assignment requires a \"global\" declaration."
+    }
+
     /// Whether an object has no text.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text of an
@@ -1996,6 +2034,25 @@ impl Dialect for V1 {
     fn a_member_that_is_not_there_is_answered(&self) -> bool {
         // The v1 answers a member that a value does not have.
         true
+    }
+
+    fn the_name_that_the_script_builds_and_that_is_not_there_is_answered(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // creates the variable of the name that the script builds and reads it.
+        true
+    }
+
+    fn the_dynamic_write_inside_a_function_is_refused(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // refuses the write of a name that the script builds inside a
+        // function.
+        true
+    }
+
+    fn the_message_of_the_dynamic_write_inside_a_function(&self) -> &'static str {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 says that the dynamic variable is blank.
+        "This dynamic variable is blank. If this variable was not intended to be dynamic, remove the % symbols from it."
     }
 
     fn an_object_has_no_text(&self) -> bool {

@@ -1980,18 +1980,31 @@ the line before it reads it, and the quote that is not closed is a load
 error: "Missing close-quote". The last parameter of a command of the v1
 takes the rest of the line, and the tree cuts every parameter at its comma.
 
-**What stays out of the legacy reference of the v1.** The `%name%` of a
-command parameter of the v1 is the value of the variable of the script, and
-the tree does that: the `FileAppend, %a%, *` writes the "1" of the `a := 1`,
-and the `FileAppend, %ZZTEST%, *` writes the value of the environment. In an
-expression it is not: the `x := %a%` is the empty text in the v1 even when
-the `a` has a value, and the value of the environment does not appear there
-either -- the `x := %ZZNUM%` is the empty text too. The `%` of an expression
-is not the modulo operator: the `x := 10 % 3` is refused at the load with
-"This parameter contains a variable name missing its ending percent sign.",
-and the `x := %a` is refused the same way. The tree builds the name and
-answers it at the run, and it fails with "Variable not found." when the name
-is not there.
+**The legacy reference of the v1** (2026-11-04). The `%name%` of a command
+parameter of the v1 is the value of the variable of the script, and the tree
+does that: the `FileAppend, %a%, *` writes the "1" of the `a := 1`, and the
+`FileAppend, %ZZTEST%, *` writes the value of the environment. In an
+expression it is a double dereference: the text of the value of the variable
+is the name of the variable that the expression reads, and the tree does that
+too -- the `a := 1` and the `1 := 99` and the `x := %a%` read the variable
+"1", and the `x` is ninety-nine. The name that is not there is not refused
+in the v1: the variable of that name is created and read, and the answer is
+the empty text. The write of a name that the script builds creates the
+variable as well: the `a := 1` and the `%a% := 7` write the variable "1".
+Inside a function the v1 refuses it, and it refuses it whatever the variable
+of that name is.
+
+**What stays out of the legacy reference of the v1.** The `%` of an expression
+is not the modulo operator: the v1 refuses the `x := 10 % 3` at the load
+with "This parameter contains a variable name missing its ending percent
+sign." and it names the word that holds the `%`, and the tree says "Missing
+ending "%"" and names the rest of the line. The `x := % 3` is accepted by the
+v1 -- the percent and the space are left out of the expression -- and the tree
+refuses it. And the name that is not legal: the `x := %a.b%` is refused by
+the v1 at the load with "Ambiguous or invalid use of \".\"", and the tree
+reads it and answers the empty text. The refusal of the write inside a
+function names the name that the script built and not the reference as it was
+written: the v1 says "Specifically: %a%" and the tree says the name "1".
 
 ---
 

@@ -8583,3 +8583,31 @@ The rule is a hook of the dialect (`the_tail_of_a_list_is_text`), and the parser
 reads the tail of a statement with it.
 
 The suite of the v1 has five cases more (302).
+
+## 226. The name that the script builds and that is not there is the empty text in the v1
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 does
+not refuse the name that is not there: it creates the variable of that name
+and reads it, and the answer is the empty text. The `a := 1` and the
+`x := %a%` read the variable "1", and the `x` is the empty text; the
+`1 := 99` and the `x := %a%` read the variable "1", and the `x` is
+ninety-nine.
+
+The name that the reference builds is the text of the value of the variable
+that it names: the `%a%` of an expression is a double dereference, and the
+`%ZZNUM%` is the empty text too, because the value of the environment does
+not appear there.
+
+The write of a name that the script builds creates the variable as well: the
+`a := 1` and the `%a% := 7` write the variable "1". Inside a function the v1
+refuses it, and it refuses it whatever the variable of that name is: the
+dialogue of the v1 says "This dynamic variable is blank. If this variable was
+not intended to be dynamic, remove the % symbols from it.".
+
+The rules are hooks of the dialect
+(`the_name_that_the_script_builds_and_that_is_not_there_is_answered`,
+`the_dynamic_write_inside_a_function_is_refused` and
+`the_message_of_the_dynamic_write_inside_a_function`), and the runtime asks
+them.
+
+The suite of the v1 has five cases more (307).

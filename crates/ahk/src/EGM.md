@@ -2026,6 +2026,19 @@ that asks for another one is refused with the reason.
   (`the_tail_of_a_list_is_text`), and the v2 refuses the item of the list that
   is not an expression with "Syntax error.\n     Specifically: *".
 
+- **The name that the script builds and that is not there is the empty text in
+  the v1.** The v1 creates the variable of the name that the script builds
+  and reads it: the `a := 1` and the `x := %a%` read the variable "1", and
+  the `x` is the empty text; the `1 := 99` and the `x := %a%` read the
+  variable "1", and the `x` is ninety-nine. The write creates it as well,
+  and inside a function the v1 refuses it with "This dynamic variable is
+  blank. If this variable was not intended to be dynamic, remove the % symbols
+  from it.". The dialect says the rules
+  (`the_name_that_the_script_builds_and_that_is_not_there_is_answered`,
+  `the_dynamic_write_inside_a_function_is_refused` and
+  `the_message_of_the_dynamic_write_inside_a_function`), and the runtime asks
+  them.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

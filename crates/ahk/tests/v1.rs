@@ -7900,3 +7900,75 @@ fn the_v2_refuses_the_tail_of_a_call_that_is_not_a_list() {
         .expect_err("the v2 refuses the item of the list that is not there");
     assert_eq!(error.message, "Syntax error.\n     Specifically: *");
 }
+
+
+/// The name that the script builds and that is not there is the empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not refuse the name that is not there: it creates the variable of
+/// that name and reads it, and the answer is the empty text. The `a := 1`
+/// and the `x := %a%` read the variable "1", and the `x` is the empty text.
+#[test]
+fn the_name_that_the_script_builds_and_that_is_not_there_is_the_empty_text_in_the_v1() {
+    let report = run("a := 1\nx := %a%\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The name that the script builds and that is there is read.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text
+/// of the value of the variable is the name of the variable that the
+/// expression reads: the `a := 1` and the `1 := 99` and the `x := %a%` read
+/// the variable "1", and the `x` is ninety-nine.
+#[test]
+fn the_name_that_the_script_builds_and_that_is_there_is_read_in_the_v1() {
+    let report = run("a := 1\n1 := 99\nx := %a%\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[99]".to_string()]);
+}
+
+/// The name of the environment that the script builds is the empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name
+/// that the reference of an expression builds is the text of the value of the
+/// variable, and not the name of the variable of the environment: the
+/// `x := %ZZNUM%` is the empty text, and the variable of the environment
+/// does not appear there.
+#[test]
+fn the_name_of_the_environment_that_the_script_builds_is_the_empty_text_in_the_v1() {
+    let report = run("x := %ZZNUM%\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+
+/// The write of a name that the script builds creates the variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// creates the variable of the name that the script builds and writes it:
+/// the `a := 1` and the `%a% := 7` write the variable "1", and the load
+/// does not fail.
+#[test]
+fn the_write_of_a_name_that_the_script_builds_creates_the_variable_in_the_v1() {
+    let report = run("a := 1\n%a% := 7\nFileAppend, [done], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[done]".to_string()]);
+}
+
+/// The write of a name that the script builds inside a function is refused.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the write of a name that the script builds inside a function, and
+/// it refuses it whatever the variable of that name is: the dialogue of the
+/// v1 says "This dynamic variable is blank. If this variable was not
+/// intended to be dynamic, remove the % symbols from it.".
+#[test]
+fn the_write_of_a_name_that_the_script_builds_inside_a_function_is_refused_in_the_v1() {
+    let report = run("a := 1\nf() {\n  %a% := 7\n}\nf()");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This dynamic variable is blank. If this variable was not intended to be dynamic, remove the % symbols from it.")
+    );
+}
