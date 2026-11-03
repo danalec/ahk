@@ -8003,3 +8003,69 @@ fn the_member_whose_name_is_a_symbol_is_an_illegal_character_in_an_expression_in
         "The leftmost character above is illegal in an expression.\n     Specifically: 'b'"
     );
 }
+
+/// The name of a property of the literal of an object of the v1 is the text
+/// that is written until the colon.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name
+/// of a property of the v1 is the text that is written until the colon, and
+/// the quotes of a text are not part of it: the `a := {"b": 1}` has the
+/// property "b", and the `a.b` is one. The `{1.5: 1}` has the property
+/// "1.5", the `{1: 1}` has the property "1", and the `{: 1}` has the property
+/// of no name. The name of a property that is an expression is the text of
+/// it: the `{1 + 1: 1}` is accepted.
+#[test]
+fn the_name_of_a_property_of_the_v1_is_the_text_that_is_written_until_the_colon() {
+    let report = run("a := {\"b\": 1}\nx := a.b\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The name of a property of the literal of an object of the v1 may be a
+/// number with a point.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a := {1.5: 1}` is accepted, and the name of the property is "1.5".
+#[test]
+fn the_name_of_a_property_of_the_v1_may_be_a_number_with_a_point() {
+    let report = run("a := {1.5: 1}\nFileAppend, [done], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[done]".to_string()]);
+}
+
+/// The name of a property of the literal of an object of the v1 may be of no
+/// name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a := {: 1}` is accepted, and the name of the property is the empty text.
+#[test]
+fn the_name_of_a_property_of_the_v1_may_be_of_no_name() {
+    let report = run("a := {: 1}\nFileAppend, [done], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[done]".to_string()]);
+}
+
+/// The name of a property that the script builds is refused in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the `a := {%x%: 1}` with "Quote marks are required around this
+/// key." and it names the text that is written from the percent sign on.
+#[test]
+fn the_name_of_a_property_that_the_script_builds_is_refused_in_the_v1() {
+    let error = the_refusal_of_the_load("x := \"b\"\na := {%x%: 1}");
+    assert_eq!(
+        error,
+        "Quote marks are required around this key.\n     Specifically: %x%: 1}"
+    );
+}
+
+/// The literal of an object of the v1 that is not closed names no text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// says "Missing "}"" and it names no text. The v2 names the statement with
+/// it.
+#[test]
+fn the_literal_of_an_object_of_the_v1_that_is_not_closed_names_no_text() {
+    let error = the_refusal_of_the_load("a := {b: 1");
+    assert_eq!(error, "Missing \"}\"");
+}

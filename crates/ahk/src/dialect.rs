@@ -704,6 +704,46 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the name of a property of the literal of an object may be any
+    /// text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// takes the name of a property as the text that is written until the
+    /// colon, and the quotes of a text are not part of it: the `a := {"b": 1}`
+    /// has the property "b", and the `a.b` is one. The `{1.5: 1}` has the
+    /// property "1.5", the `{1: 1}` has the property "1", and the `{: 1}` has
+    /// the property of no name. The name of a property that is an expression
+    /// is the text of it: the `{1 + 1: 1}` is accepted.
+    ///
+    /// The v2 refuses the name that is not a name with "Invalid property name
+    /// in object literal.".
+    fn the_name_of_a_property_may_be_any_text(&self) -> bool {
+        false
+    }
+
+    /// Whether the name of a property that the script builds is refused.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// refuses the name of a property that the script builds with "Quote marks
+    /// are required around this key." and it names the text that is written
+    /// from the percent sign on: the `a := {%x%: 1}` names the "%x%: 1}".
+    ///
+    /// The v2 builds the name: the `a := {%x%: 1}` is the property whose name
+    /// is the value of `x`.
+    fn the_name_of_a_property_that_the_script_builds_is_refused(&self) -> bool {
+        false
+    }
+
+    /// Whether the literal of an object that is not closed names the
+    /// statement with it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// says "Missing "}"" and it names no text. The v2 says "Missing "}"" and
+    /// names the statement with it.
+    fn the_literal_that_is_not_closed_names_the_statement(&self) -> bool {
+        true
+    }
+
     /// Whether the name that the script builds and that is not there is
     /// answered.
     ///
@@ -2040,6 +2080,25 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
         // creates the variable of the name that the script builds and reads it.
         true
+    }
+
+    fn the_name_of_a_property_may_be_any_text(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // takes the name of a property as the text that is written until the
+        // colon.
+        true
+    }
+
+    fn the_name_of_a_property_that_the_script_builds_is_refused(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // wants the name of a property between quotes.
+        true
+    }
+
+    fn the_literal_that_is_not_closed_names_the_statement(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // names no text.
+        false
     }
 
     fn the_dynamic_write_inside_a_function_is_refused(&self) -> bool {

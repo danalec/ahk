@@ -830,6 +830,22 @@ fn the_name_of_a_label(tokens: &[Token]) -> Option<String> {
     Some(name)
 }
 
+/// The name of a property of the literal of an object of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the name
+/// is the text that is written until the colon, and the quotes of a text are
+/// not part of it: the `{"b": 1}` has the property "b".
+fn the_name_of_a_property_of_the_v1(parser: &Parser, start: usize, end: usize) -> String {
+    let mut text = String::new();
+    for token in parser.tokens.get(start..end).unwrap_or(&[]) {
+        if !text.is_empty() {
+            text.push(' ');
+        }
+        text.push_str(&token.value);
+    }
+    text.trim().to_string()
+}
+
 /// The text of the tokens of a range, the way the script wrote them.
 fn the_text_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String {
     let mut text = String::new();
@@ -9599,14 +9615,17 @@ impl Parser {
             .get(self.position.saturating_sub(1))
             .map(|token| token.column)
             .unwrap_or(1);
-        SyntaxError {
-            message: format!(
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 says "Missing "}"" and it names no text.
+        let message = if self.dialect.the_literal_that_is_not_closed_names_the_statement() {
+            format!(
                 "Missing \"}}\"\n     Specifically: {}",
                 the_source_with_the_newlines_as_spaces(self, self.statement_start, end)
-            ),
-            line,
-            column,
-        }
+            )
+        } else {
+            "Missing \"}\"".to_string()
+        };
+        SyntaxError { message, line, column }
     }
 
     /// The literal of an object: `{a: 1, b: 2}`.
@@ -9643,58 +9662,101 @@ impl Parser {
         // The property may be on the line that follows the brace.
         self.skip_newlines();
         while !self.at_op(&["}"]) {
-            let name = self.next();
-            // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
-            // property may be built by the script: `{%name%: 1}` is the
-            // property whose name is the value of `name`.
-            let member = if name.kind == TokenKind::Op && name.value == "%" {
-                let open = self.position - 1;
-                if self.at_op(&["%"]) {
-                    return Err(self.the_error_of_a_percent_inside());
-                }
-                let value = self.the_expression_of_a_dynamic_name(open)?;
-                if !self.at_op(&["%"]) {
-                    return Err(self.the_error_of_a_missing_ending(open));
-                }
-                self.next();
-                MemberName::Dynamic(self.the_pieces_after_the_percent(value)?)
-            } else {
-                // The name of a property may be a whole number: the number
-                // with a point is not a name, because the point of it is the
-                // point of a member.
-                //
-                // Measured on the binary of v2.0.19 on 2026-10-31: `{5: 1}`
-                // is an object with the property "5", and `{1.5: 1}` is
-                // refused.
-                if name.kind != TokenKind::Name
-                    && name.kind != TokenKind::Keyword
-                    && !the_number_is_a_whole_one(&name, self.dialect)
+            let member = if self.dialect.the_name_of_a_property_may_be_any_text() {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the name of a property of the v1 is the text
+                // that is written until the colon, and the quotes of a text
+                // are not part of it: the `{"b": 1}` has the property "b",
+                // and the `a.b` is one.
+                let start = self.position;
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 wants the name of a property between
+                // quotes: the `a := {%x%: 1}` is refused with "Quote marks are
+                // required around this key." and the text that is written from
+                // the percent sign on is named.
+                if self.dialect.the_name_of_a_property_that_the_script_builds_is_refused()
+                    && self.at_op(&["%"])
                 {
-                    // Measured on the binary of v2.0.19 on 2026-11-01: the
-                    // comma that opens the list is the name that is not
-                    // there, and the name that is not a name is refused.
-                    if name.kind == TokenKind::Op && name.value == "," {
-                        return Err(SyntaxError {
-                            message: self.dialect.the_refusal_of_the_object_literal().to_string(),
-                            line,
-                            column: open,
-                        });
-                    }
-                    // Measured on the binary of v2.0.19 on 2026-10-31: the
-                    // object that is not closed is the failure, and the name
-                    // of the property that is not there is not it.
-                    if name.kind == TokenKind::Eof {
-                        return Err(
-                            self.the_error_of_a_missing_bracket("}", name.line, name.column)
-                        );
-                    }
                     return Err(SyntaxError {
-                        message: "Invalid property name in object literal.".into(),
+                        message: format!(
+                            "Quote marks are required around this key.\n     Specifically: {}",
+                            the_source_of_the_rest_of_the_line(self, start)
+                        ),
                         line,
                         column: open,
                     });
                 }
-                MemberName::Text(name.value)
+                while !self.at_op(&[":"])
+                    && !self.at_op(&["}"])
+                    && self.peek().kind != TokenKind::Eof
+                {
+                    self.position += 1;
+                }
+                if !self.at_op(&[":"]) {
+                    // The brace that closes the literal without a colon is
+                    // the name that is not there.
+                    return Err(SyntaxError {
+                        message: self.dialect.the_refusal_of_the_object_literal().to_string(),
+                        line,
+                        column: open,
+                    });
+                }
+                MemberName::Text(the_name_of_a_property_of_the_v1(self, start, self.position))
+            } else {
+                let name = self.next();
+                // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+                // property may be built by the script: `{%name%: 1}` is the
+                // property whose name is the value of `name`.
+                let member = if name.kind == TokenKind::Op && name.value == "%" {
+                    let open = self.position - 1;
+                    if self.at_op(&["%"]) {
+                        return Err(self.the_error_of_a_percent_inside());
+                    }
+                    let value = self.the_expression_of_a_dynamic_name(open)?;
+                    if !self.at_op(&["%"]) {
+                        return Err(self.the_error_of_a_missing_ending(open));
+                    }
+                    self.next();
+                    MemberName::Dynamic(self.the_pieces_after_the_percent(value)?)
+                } else {
+                    // The name of a property may be a whole number: the number
+                    // with a point is not a name, because the point of it is the
+                    // point of a member.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-10-31: `{5: 1}`
+                    // is an object with the property "5", and `{1.5: 1}` is
+                    // refused.
+                    if name.kind != TokenKind::Name
+                        && name.kind != TokenKind::Keyword
+                        && !the_number_is_a_whole_one(&name, self.dialect)
+                    {
+                        // Measured on the binary of v2.0.19 on 2026-11-01: the
+                        // comma that opens the list is the name that is not
+                        // there, and the name that is not a name is refused.
+                        if name.kind == TokenKind::Op && name.value == "," {
+                            return Err(SyntaxError {
+                                message: self.dialect.the_refusal_of_the_object_literal().to_string(),
+                                line,
+                                column: open,
+                            });
+                        }
+                        // Measured on the binary of v2.0.19 on 2026-10-31: the
+                        // object that is not closed is the failure, and the name
+                        // of the property that is not there is not it.
+                        if name.kind == TokenKind::Eof {
+                            return Err(
+                                self.the_error_of_a_missing_bracket("}", name.line, name.column)
+                            );
+                        }
+                        return Err(SyntaxError {
+                            message: "Invalid property name in object literal.".into(),
+                            line,
+                            column: open,
+                        });
+                    }
+                    MemberName::Text(name.value)
+                };
+                member
             };
             if !self.at_op(&[":"]) {
                 return Err(SyntaxError {
