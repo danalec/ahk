@@ -1226,6 +1226,19 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// The name of a member of a class of the script.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the method
+    /// of the prototype is "A.Prototype.m", and the static method is "A.m".
+    /// The getter of a property is "A.Prototype.p.get".
+    fn the_name_of_a_member_of_a_class(&self, class: &str, member: &str, is_static: bool) -> String {
+        if is_static {
+            format!("{class}.{member}")
+        } else {
+            format!("{class}.Prototype.{member}")
+        }
+    }
+
     /// Whether the `base` of the dialect is the base of the class where the
     /// method was defined.
     ///
@@ -3043,6 +3056,12 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: every function
         // of the v1 has its own scope.
         true
+    }
+
+    fn the_name_of_a_member_of_a_class(&self, class: &str, member: &str, _is_static: bool) -> String {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+        // spells the method "A.m" and the getter "A.p.get".
+        format!("{class}.{member}")
     }
 
     fn the_base_is_the_base_of_the_class(&self) -> bool {

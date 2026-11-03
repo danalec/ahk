@@ -176,6 +176,10 @@ the "Unreachable" and the "All". The modes are the "MsgBox", the "StdOut", the
 "Parameter #1 invalid." and the source of the line, "Parameter #2 invalid." and
 the text that was written.
 
+The local that has the name of a global one is warned about inside a class as
+well: the v1 names the method "A.m" and the v2 names the method of the prototype
+"A.Prototype.m".
+
 The tree carries all of them: the variable of the script that is read and
 never written, the variable of a function that is read and never written, the
 environment variable that is accessed, the local that has the name of a global

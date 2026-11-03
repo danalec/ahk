@@ -3760,8 +3760,9 @@ impl Parser {
                 // a function may be an expression, and the fat arrow is what
                 // says so: `f(a) => a + 1` is a function that answers the
                 // expression of it.
-                let body = if self.the_fat_arrow_comes_next() {
-                    self.the_body_of_a_fat_arrow(name_token.line)?
+                let (body, body_line) = if self.the_fat_arrow_comes_next() {
+                    let body = self.the_body_of_a_fat_arrow(name_token.line)?;
+                    (body, name_token.line)
                 } else {
                     self.the_body_of_a_scope("function", name_token.line)?
                 };
@@ -3798,6 +3799,7 @@ impl Parser {
                     body,
                     declarations,
                     line: name_token.line,
+                    body_line,
                 }]);
             }
             self.the_expression_begins();
@@ -7283,12 +7285,33 @@ impl Parser {
     ///
     /// The body of a function is a scope of its own: the `break` and the
     /// `continue` of it do not belong to the loop that holds the function.
-    fn the_body_of_a_scope(&mut self, kind: &str, line: u32) -> Result<Vec<Node>, SyntaxError> {
+    fn the_body_of_a_scope(&mut self, kind: &str, line: u32) -> Result<(Vec<Node>, u32), SyntaxError> {
         let loops = self.loops;
         self.loops = 0;
+        // The line of the brace that opens the body. Measured on the binary of
+        // AutoHotkey v1.1.37.02 on 2026-11-05: the v1 names this line when it
+        // warns about a local that has the name of a global one, and the
+        // brace may be on a line of its own.
+        let body_line = self.the_line_of_the_brace_that_opens_the_body();
         let body = self.parse_block(kind, line);
         self.loops = loops;
-        body
+        Ok((body?, body_line))
+    }
+
+    /// The line of the brace that opens the body of a scope.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// names the line of the brace when it warns about a local that has the
+    /// name of a global one.
+    fn the_line_of_the_brace_that_opens_the_body(&self) -> u32 {
+        let mut at = self.position;
+        while let Some(token) = self.tokens.get(at) {
+            if token.kind != TokenKind::Newline {
+                return token.line;
+            }
+            at += 1;
+        }
+        self.peek().line
     }
 
     /// Whether the fat arrow of a definition comes next.
@@ -7922,8 +7945,9 @@ impl Parser {
                 // a method may be an expression too, and the fat arrow is
                 // what says so.
                 let names_the_class = self.dialect.the_class_that_is_not_closed_names_the_class();
-                let body = if self.the_fat_arrow_comes_next() {
-                    self.the_body_of_a_fat_arrow(name_token.line)?
+                let (body, body_line) = if self.the_fat_arrow_comes_next() {
+                    let body = self.the_body_of_a_fat_arrow(name_token.line)?;
+                    (body, name_token.line)
                 } else {
                     self.the_body_of_a_scope("method", name_token.line).map_err(|mut error| {
                         // Measured on the binary of AutoHotkey v1.1.37.02 on
@@ -7966,6 +7990,7 @@ impl Parser {
                     declarations,
                     is_static,
                     line: name_token.line,
+                    body_line,
                 });
                 continue;
             }
@@ -8222,6 +8247,7 @@ impl Parser {
     /// expression after the arrow of v2, and the assignment of v2 is an
     /// expression, and a block of statements between braces.
     fn parse_the_body_of_an_accessor(&mut self, line: u32) -> Result<AccessBody, SyntaxError> {
+        let mut body_line = line;
         let body = if self.at_op(&["=>"]) {
             let token = self.next();
             let expression = self.parse_expression()?;
@@ -8231,6 +8257,8 @@ impl Parser {
                 vec![Node::Return { value: Some(Box::new(expression)), line: token.line }]
             }
         } else if self.at_op(&["{"]) {
+            // The line of the brace that opens the body of the accessor.
+            body_line = self.the_line_of_the_brace_that_opens_the_body();
             self.parse_block("accessor", line)?
         } else {
             // Measured on the binary of v2.0.19 on 2026-10-31: the getter
@@ -8242,7 +8270,7 @@ impl Parser {
             )));
         };
         let declarations = the_declarations_of_a_body(&body, self.dialect)?;
-        Ok(AccessBody { body, declarations })
+        Ok(AccessBody { body, declarations, line: body_line })
     }
 
     /// A directive: the name, and the rest of the line.

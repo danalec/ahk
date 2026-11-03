@@ -9500,3 +9500,24 @@ The probes of the block are `egm-review/probe_warn_rules.py` and
 
 The suite of the v1 has one case more (404). The suite of the v2 is the same
 (526), and the suite of the box is the same (84).
+
+The local that has the name of a global one is warned about inside a class too.
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 names
+the method "A.m" -- the class and the method -- and the class that is nested is
+"A.B.m"; the getter is "A.p.get". Measured on the binary of AutoHotkey v2.0.19
+on 2026-11-05: the v2 names the method of the prototype "A.Prototype.m", the
+static method is "A.m" and the getter is "A.Prototype.p.get".
+
+The v1 names the line that opens the body of the function, and the v2 names the
+line of the write of the local. The line of the body is the line of the brace,
+and the brace may be on a line of its own: the `f()` on one line and the `{` on
+the one after it is the line that the v1 names.
+
+The tree keeps the line of the brace in the tree of the script: the definition of
+a function, the definition of a method and the body of a getter carry it.
+
+The probes of the block are `egm-review/probe_warn_class.py`,
+`egm-review/probe_warn_lines.py` and `egm-review/probe_getter.py`.
+
+The suite of the v1 has two cases more (406). The suite of the v2 has two cases
+more (528).

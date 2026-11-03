@@ -199,6 +199,12 @@ pub struct MethodDef {
     pub is_static: bool,
     /// The line the definition came from.
     pub line: u32,
+    /// The line of the brace that opens the body.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// names this line when it warns about a local that has the name of a
+    /// global one.
+    pub body_line: u32,
 }
 
 /// The definition of a property.
@@ -221,6 +227,12 @@ pub struct AccessBody {
     pub body: Vec<Node>,
     /// The declarations of the body.
     pub declarations: Declarations,
+    /// The line of the brace that opens the body.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// names this line when it warns about a local that has the name of a
+    /// global one.
+    pub line: u32,
 }
 
 /// The definition of a property that has a getter or a setter.
@@ -608,6 +620,12 @@ pub enum Node {    /// A value.
         body: Vec<Node>,
         declarations: Declarations,
         line: u32,
+        /// The line of the brace that opens the body.
+        ///
+        /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        /// v1 names this line when it warns about a local that has the name
+        /// of a global one.
+        body_line: u32,
     },
     /// `super`: the base of the class where the method was defined.
     ///

@@ -7475,6 +7475,7 @@ impl<'a> Runtime<'a> {
             declarations: body.declarations.clone(),
             is_static: access.is_static,
             line: access.line,
+            body_line: body.line,
         };
         let class = match self.class_name_of(target) {
             Some(class) => class,

@@ -10063,6 +10063,36 @@ fn the_local_that_has_the_name_of_a_global_is_warned_about_in_the_v1() {
     );
 }
 
+/// The local of a method that has the name of a global one is warned about.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name of
+/// the method is "A.m" -- the class and the method -- and the line of the
+/// warning is the line that opens the body of the method.
+#[test]
+fn the_local_of_a_method_that_has_the_name_of_a_global_is_warned_about_in_the_v1() {
+    let report = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nclass A {\n  m() {\n    x := 2\n  }\n}\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 4);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable has the same name as a global variable.\n     Specifically: x  (in function A.m)"
+    );
+}
+
+/// The body of a function may be on a line of its own.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 names
+/// the line that opens the body of the function, and not the line of the name
+/// of it.
+#[test]
+fn the_line_of_the_warning_of_a_local_is_the_line_that_opens_the_body_in_the_v1() {
+    let report = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf()\n{\n  x := 2\n}\nf()\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 4);
+}
+
 /// The class that a variable overwrites is warned about.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text of

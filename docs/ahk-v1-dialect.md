@@ -2666,6 +2666,16 @@ source of the directive.
 The probes of the block are `egm-review/probe_warn_rules.py` and
 `egm-review/probe_warn_all.py`.
 
+**The `#Warn` of the v1** (2026-11-05, the fifth block). The local that has the
+name of a global one is warned about inside a class too. Measured on the binary
+of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 names the method "A.m" -- the
+class and the method -- and the class that is nested is "A.B.m"; the getter is
+"A.p.get". The v1 names the line that opens the body of the function, and the
+brace may be on a line of its own.
+
+The probes of the block are `egm-review/probe_warn_class.py`,
+`egm-review/probe_warn_lines.py` and `egm-review/probe_getter.py`.
+
 ## 5. The risks
 
 | Risk | Severity | What is done |

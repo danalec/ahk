@@ -6112,6 +6112,42 @@ fn the_local_that_has_the_name_of_a_global_is_warned_about() {
     );
 }
 
+/// The local of a method that has the name of a global one is warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the name of the
+/// method is "A.Prototype.m" -- the class, the prototype and the method -- and
+/// the line of the warning is the line of the write of the local.
+#[test]
+fn the_local_of_a_method_that_has_the_name_of_a_global_is_warned_about() {
+    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nclass A {\n  m() {\n    x := 2\n  }\n}\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 5);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable has the same name as a global variable.\n     Specifically: x  (in function A.Prototype.m)"
+    );
+}
+
+/// The local of a getter that has the name of a global one is warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the name of the
+/// getter is "A.Prototype.p.get", and the line of the warning is the line of
+/// the write of the local.
+#[test]
+fn the_local_of_a_getter_that_has_the_name_of_a_global_is_warned_about() {
+    let (report, _desktop) = run(
+        "#Warn LocalSameAsGlobal, StdOut\nx := 1\nclass A {\n  p {\n    get {\n      x := 2\n    }\n  }\n}\n",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 6);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable has the same name as a global variable.\n     Specifically: x  (in function A.Prototype.p.get)"
+    );
+}
+
 /// The local that is declared global is not a local.
 ///
 /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the local that

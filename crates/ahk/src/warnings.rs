@@ -397,39 +397,142 @@ fn the_warnings_of_the_locals_of_the_level(
     warnings: &mut Vec<Warning>,
 ) {
     for statement in statements {
-        if let Node::FunctionDef { name, parameters, body, declarations, line } = statement {
-            let mut writes = Vec::new();
-            the_writes_of_a_level(body, &mut writes, false);
-            let mut seen = std::collections::BTreeSet::new();
-            for (local, the_line) in writes {
-                if !seen.insert(local.to_lowercase()) {
-                    continue;
-                }
-                if declarations.globals.iter().any(|name| name.to_lowercase() == local.to_lowercase()) {
-                    continue;
-                }
-                if parameters.iter().any(|parameter| parameter.name.to_lowercase() == local.to_lowercase()) {
-                    continue;
-                }
-                if !globals.contains(&local.to_lowercase()) {
-                    continue;
-                }
-                if crate::variables::is_built_in(&local) {
-                    continue;
-                }
-                // The v1 names the line that opens the body of the function,
-                // and the v2 names the line of the write of the local.
-                let line = if dialect.the_scope_of_a_function_is_its_own() { *line } else { the_line };
-                warnings.push(Warning {
-                    line,
-                    message: format!(
-                        "This local variable has the same name as a global variable.\n     Specifically: {local}  (in function {name})"
-                    ),
-                });
+        match statement {
+            Node::FunctionDef { name, parameters, body, declarations, body_line, .. } => {
+                let scope = TheScope {
+                    name,
+                    parameters,
+                    body,
+                    declarations,
+                    body_line: *body_line,
+                };
+                the_warnings_of_the_locals_of_a_scope(scope, globals, dialect, warnings);
             }
+            Node::ClassDef { name, methods, accessors, nested, .. } => {
+                the_warnings_of_the_locals_of_a_class(
+                    name,
+                    methods,
+                    accessors,
+                    nested,
+                    globals,
+                    dialect,
+                    warnings,
+                );
+            }
+            _ => {}
         }
         for body in the_bodies_of_the_level(statement) {
             the_warnings_of_the_locals_of_the_level(body, globals, dialect, warnings);
+        }
+    }
+}
+
+/// The scope whose locals are warned about.
+///
+/// It is a function of the script, a method of a class or the body of a
+/// getter.
+struct TheScope<'a> {
+    /// The name of the scope, the way the warning names it.
+    name: &'a str,
+    /// The parameters of the scope.
+    parameters: &'a [crate::ast::Parameter],
+    /// The statements of the scope.
+    body: &'a [Node],
+    /// The declarations of the scope.
+    declarations: &'a crate::ast::Declarations,
+    /// The line of the brace that opens the body.
+    body_line: u32,
+}
+
+/// The warnings of the locals of a function or of a method.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+/// names the line that opens the body of the function, and the v2 names the
+/// line of the write of the local.
+fn the_warnings_of_the_locals_of_a_scope(
+    scope: TheScope<'_>,
+    globals: &std::collections::BTreeSet<String>,
+    dialect: &dyn Dialect,
+    warnings: &mut Vec<Warning>,
+) {
+    let TheScope { name, parameters, body, declarations, body_line } = scope;
+    let mut writes = Vec::new();
+    the_writes_of_a_level(body, &mut writes, false);
+    let mut seen = std::collections::BTreeSet::new();
+    for (local, the_line) in writes {
+        if !seen.insert(local.to_lowercase()) {
+            continue;
+        }
+        if declarations.globals.iter().any(|name| name.to_lowercase() == local.to_lowercase()) {
+            continue;
+        }
+        if parameters.iter().any(|parameter| parameter.name.to_lowercase() == local.to_lowercase()) {
+            continue;
+        }
+        if !globals.contains(&local.to_lowercase()) {
+            continue;
+        }
+        if crate::variables::is_built_in(&local) {
+            continue;
+        }
+        // The v1 names the line that opens the body of the function, and the
+        // v2 names the line of the write of the local.
+        let line = if dialect.the_scope_of_a_function_is_its_own() { body_line } else { the_line };
+        warnings.push(Warning {
+            line,
+            message: format!(
+                "This local variable has the same name as a global variable.\n     Specifically: {local}  (in function {name})"
+            ),
+        });
+    }
+}
+
+/// The warnings of the locals of the members of a class.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+/// names the method "A.m" -- the class and the method -- and the class that is
+/// nested is "A.B.m". Measured on the binary of AutoHotkey v2.0.19 on
+/// 2026-11-05: the v2 names the method of the prototype "A.Prototype.m", and
+/// the static method is "A.m".
+fn the_warnings_of_the_locals_of_a_class(
+    path: &str,
+    methods: &[crate::ast::MethodDef],
+    accessors: &[crate::ast::AccessDef],
+    nested: &[Node],
+    globals: &std::collections::BTreeSet<String>,
+    dialect: &dyn Dialect,
+    warnings: &mut Vec<Warning>,
+) {
+    for method in methods {
+        let name = dialect.the_name_of_a_member_of_a_class(path, &method.name, method.is_static);
+        let scope = TheScope {
+            name: &name,
+            parameters: &method.parameters,
+            body: &method.body,
+            declarations: &method.declarations,
+            body_line: method.body_line,
+        };
+        the_warnings_of_the_locals_of_a_scope(scope, globals, dialect, warnings);
+    }
+    for accessor in accessors {
+        for (kind, body) in [("get", &accessor.getter), ("set", &accessor.setter)] {
+            let Some(body) = body else { continue };
+            let name =
+                dialect.the_name_of_a_member_of_a_class(path, &format!("{}.{kind}", accessor.name), accessor.is_static);
+            let scope = TheScope {
+                name: &name,
+                parameters: &accessor.parameters,
+                body: &body.body,
+                declarations: &body.declarations,
+                body_line: body.line,
+            };
+            the_warnings_of_the_locals_of_a_scope(scope, globals, dialect, warnings);
+        }
+    }
+    for class in nested {
+        if let Node::ClassDef { name, methods, accessors, nested, .. } = class {
+            let path = format!("{path}.{name}");
+            the_warnings_of_the_locals_of_a_class(&path, methods, accessors, nested, globals, dialect, warnings);
         }
     }
 }
