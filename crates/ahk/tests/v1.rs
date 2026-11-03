@@ -1921,6 +1921,82 @@ fn the_call_of_a_function_of_the_v1_is_refused_at_the_load() {
     );
 }
 
+/// The parameter that is not there is refused with "Blank parameter".
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the `g(,)` and the `g(, 1)` with "Blank parameter", and it names
+/// the call as it was written. The `g(1,)` is refused with "Too many
+/// parameters passed to function." when g takes one parameter, and the name
+/// that is not a function is refused with "Call to nonexistent function."
+/// before the blank.
+#[test]
+fn the_blank_parameter_of_a_call_of_the_v1_is_refused() {
+    // The parameter that is not there and that is the last one of the list.
+    assert_eq!(
+        the_refusal_of_the_load("g(x) {\n}\nx := g(,)"),
+        "Blank parameter\n     Specifically: g(,)"
+    );
+    // The parameter that is not there and that is in the middle of the list.
+    assert_eq!(
+        the_refusal_of_the_load("g(x) {\n}\nx := g(, 1)"),
+        "Blank parameter\n     Specifically: g(, 1)"
+    );
+    // The comma at the end of the list is a parameter, and the list is full.
+    assert_eq!(
+        the_refusal_of_the_load("g(x) {\n}\nx := g(1,)"),
+        "Too many parameters passed to function.\n     Specifically: g(1,)"
+    );
+    // The built-in.
+    assert_eq!(
+        the_refusal_of_the_load("x := Abs(,)"),
+        "Blank parameter\n     Specifically: Abs(,)"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := Abs(1,)"),
+        "Too many parameters passed to function.\n     Specifically: Abs(1,)"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := Abs(, 1)"),
+        "Blank parameter\n     Specifically: Abs(, 1)"
+    );
+    // The function that takes the rest of the arguments: the comma at the
+    // end of the list is a parameter, and the list is not full.
+    assert_eq!(
+        the_refusal_of_the_load("g(x, rest*) {\n}\nx := g(1,)"),
+        "Blank parameter\n     Specifically: g(1,)"
+    );
+    // The name that is not a function is refused before the blank.
+    assert_eq!(
+        the_refusal_of_the_load("x := zzz(,)"),
+        "Call to nonexistent function.\n     Specifically: zzz(,)"
+    );
+}
+
+/// The list of the arguments of a method of the v1 that ends with a blank is
+/// refused at the load.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the `o.Say(1,)` with "Blank parameter", and the name of it is the
+/// text of the call, from the dot. The number of the arguments of a method is
+/// not checked at the load: the `o.Say(1, 2)` is accepted, and the method
+/// that takes one argument runs with the one that is given.
+#[test]
+fn the_blank_parameter_of_a_method_of_the_v1_is_refused() {
+    let script = "class C {\n    Say(a) {\n        return \"hi\"\n    }\n}\no := new C\n";
+    assert_eq!(
+        the_refusal_of_the_load(&format!("{script}x := o.Say(1,)")),
+        "Blank parameter\n     Specifically: .Say(1,)"
+    );
+    assert_eq!(
+        the_refusal_of_the_load(&format!("{script}x := o.Say(,)")),
+        "Blank parameter\n     Specifically: .Say(,)"
+    );
+    // The number of the arguments of a method is not checked at the load.
+    let report = run(&format!("{script}x := o.Say(1, 2)\nFileAppend, %x%, *"));
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["hi".to_string()]);
+}
+
 /// A function of the v1 is not a command.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the command that is

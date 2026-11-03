@@ -6457,6 +6457,20 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
   most is the number of them: `f(a, b := 1)` takes one argument and two.
   The name of a function of the script may be defined after the call, and the
   call waits for the end of the parse.
+- **The argument that is not there is refused with "Blank parameter".** The v1
+  counts it: the `g(,)` and the `g(, 1)` are refused that way, and the name
+  of it is the call. The blank is refused when the list ends right after it
+  or when the number of the parameters that came before it is less than the
+  least number of them. The complaint of the number of the parameters comes
+  before it -- the `g(1,)` is refused with "Too many parameters passed to
+  function." when g takes one parameter -- and the name that is not a
+  function comes before both: the `zzz(,)` is refused with "Call to
+  nonexistent function.".
+- **A method is not a function, and its list of arguments is refused all the
+  same.** The number of the arguments of a method is not checked at the load
+  -- the `o.Say(1, 2)` is accepted -- and the list that ends with a blank is
+  refused: the `o.Say(1,)` is refused with "Blank parameter", and the name of
+  it is the text of the call, from the dot.
 - **A function of the v1 is not a command.** `StrLen "abc"` is a line that
   holds no action, and the load refuses it with the text of the line: "This
   line does not contain a recognized action. Specifically: StrLen \"abc\"".
@@ -6465,6 +6479,11 @@ The call of a function of the v1 that is written without the parentheses and
 inside an expression is not a call: `x := InStr "abc"` is the name of the
 function and the text, side by side, and the name of a function is not a
 value. It comes with the block of the name of a function (section 156).
+
+The probe that measured the rules is in `egm-review/probe_v1_blank4.py`
+(80 cases), in `egm-review/probe_v1_blank5.py` (4 cases), in
+`egm-review/probe_v1_blank6.py` (5 cases) and in
+`egm-review/probe_v1_method.py` (4 cases).
 
 
 ## 155. The `ErrorLevel` of the v1 is the global variable of the script

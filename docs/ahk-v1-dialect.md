@@ -2042,13 +2042,24 @@ parameter (2026-11-04). The v1 counts it: the `f(1,)` is refused with "Too
 many parameters passed to function." when f takes one parameter, and the name
 of it is the call. The tree counts it too.
 
-**What stays out of the blank parameter of a call of the v1.** The v1 refuses
-the `g(,)` and the `g(, 1)` with "Blank parameter", and the name of it is the
-call: the blank is a parameter that is not there, and the v1 refuses it when
-the list ends right after it or when the number of the parameters that came
-before it is less than the least number of them. The tree says "Too few
-parameters passed to function." for the `g(,)` and "Too many parameters
-passed to function." for the `g(, 1)`.
+**The blank parameter of a call of the v1** is refused with "Blank parameter"
+(2026-11-04). The v1 counts it: the `g(,)` and the `g(, 1)` are refused that
+way, and the name of it is the call. The blank is a parameter that is not
+there, and the v1 refuses it when the list ends right after it or when the
+number of the parameters that came before it is less than the least number of
+them. The complaint of the number of the parameters comes before it -- the
+`g(1,)` is refused with "Too many parameters passed to function." when g takes
+one parameter -- and the name that is not a function comes before both: the
+`zzz(,)` is refused with "Call to nonexistent function.". The tree carries it:
+the blank keeps its place in the list of the arguments, and the place where it
+is decides the complaint.
+
+**The list of the arguments of a method of the v1** that ends with a blank is
+refused at the load (2026-11-04). The number of the arguments of a method is
+not checked there -- the `o.Say(1, 2)` is accepted -- and the blank at the end
+of the list is refused all the same: the `o.Say(1,)` is refused with "Blank
+parameter", and the name of it is the text of the call, from the dot. The
+tree refuses it too.
 
 ---
 

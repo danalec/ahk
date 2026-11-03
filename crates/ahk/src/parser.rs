@@ -1085,6 +1085,23 @@ struct TheCallOfTheScript {
     name: String,
     /// The number of the arguments of the call.
     count: usize,
+    /// The groups of the arguments that are not there: the place of the first
+    /// one of the group and the number of them.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// counts the arguments that are not there, and the place where they are
+    /// decides the complaint of the call: the `f(, 1)` is refused with "Blank
+    /// parameter" and the `f(1,)` is refused with "Too many parameters passed
+    /// to function." when f takes one parameter.
+    blanks: Vec<(usize, usize)>,
+    /// Whether the number of the arguments is checked here.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// number of the arguments of a method is not checked at the load -- the
+    /// `o.Say(1, 2)` is accepted -- and the list of the arguments that ends
+    /// with a blank is refused at the load all the same: the `o.Say(1,)` is
+    /// refused with "Blank parameter".
+    the_arity_is_checked: bool,
     /// The text of the call, the way the script wrote it.
     source: String,
     /// The place of the call in the script.
@@ -1782,6 +1799,10 @@ impl Parser {
     /// "Too few parameters passed to function." or with "Too many parameters
     /// passed to function.", and it names it too.
     ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// argument that is not there is refused with "Blank parameter", and the
+    /// name that is not a function is refused before it.
+    ///
     /// A command of the v1 is not a function: `FileAppend("hello", "*")` is
     /// a call to a name that does not exist. The calls are checked in the
     /// order of the script.
@@ -1799,6 +1820,19 @@ impl Parser {
                     return Err(failure.clone());
                 }
             }
+            // A method is not a function of the script: the number of its
+            // arguments is not checked here, and the list of the arguments
+            // that ends with a blank is refused all the same.
+            if !call.the_arity_is_checked {
+                if call
+                    .blanks
+                    .last()
+                    .is_some_and(|(start, size)| start + size == call.count)
+                {
+                    return Err(self.the_error_of_the_arity_of_the_call(call, "Blank parameter"));
+                }
+                continue;
+            }
             let wanted = &call.name;
             // The function of the dialect: the arity is in the table.
             let function = self
@@ -1810,36 +1844,25 @@ impl Parser {
                         && builtin.kind == crate::builtins::BuiltinKind::Function
                 });
             if let Some(function) = function {
-                if call.count < function.min as usize {
-                    return Err(self.the_error_of_the_arity_of_the_call(
-                        call,
-                        "Too few parameters passed to function.",
-                    ));
-                }
                 // The table says 255 when the built-in takes any number of
                 // them.
-                if function.max < 255 && call.count > function.max as usize {
-                    return Err(self.the_error_of_the_arity_of_the_call(
-                        call,
-                        "Too many parameters passed to function.",
-                    ));
+                let most = if function.max < 255 {
+                    function.max as usize
+                } else {
+                    usize::MAX
+                };
+                if let Some(complaint) =
+                    the_complaint_of_the_arguments(call, function.min as usize, most)
+                {
+                    return Err(self.the_error_of_the_arity_of_the_call(call, complaint));
                 }
                 continue;
             }
             // The function of the script: the arity is the one of the
             // parameters of it.
             if let Some((required, most)) = self.arities.get(wanted) {
-                if call.count < *required {
-                    return Err(self.the_error_of_the_arity_of_the_call(
-                        call,
-                        "Too few parameters passed to function.",
-                    ));
-                }
-                if call.count > *most {
-                    return Err(self.the_error_of_the_arity_of_the_call(
-                        call,
-                        "Too many parameters passed to function.",
-                    ));
+                if let Some(complaint) = the_complaint_of_the_arguments(call, *required, *most) {
+                    return Err(self.the_error_of_the_arity_of_the_call(call, complaint));
                 }
                 continue;
             }
@@ -3651,9 +3674,10 @@ impl Parser {
             if self.dialect.refuses_the_call_of_a_function_at_the_load() {
                 self.the_call_of_the_v1_is_recorded(
                     &name_token.value.to_lowercase(),
-                    arguments.len(),
+                    &arguments,
                     at_the_name,
                     missing,
+                    true,
                     true,
                 );
             }
@@ -5001,7 +5025,15 @@ impl Parser {
                 // The parameter that is not there and that is the last one
                 // is dropped: the commas at the end of the list add
                 // nothing.
+                //
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 counts it: the `f(,)` is refused with
+                // "Blank parameter" when f takes one parameter, and the v2
+                // drops it.
                 if self.the_hole_is_the_last_one(")") {
+                    if self.dialect.the_comma_at_the_end_of_a_list_is_a_parameter() {
+                        arguments.push(Node::Empty { line });
+                    }
                     break;
                 }
                 arguments.push(Node::Empty { line });
@@ -9999,6 +10031,7 @@ impl Parser {
                         self.next();
                         let arguments = self.parse_arguments()?;
                         self.expect_op(")")?;
+                        self.the_method_of_the_v1_is_recorded(&arguments, at_the_dot);
                         node = self.the_method_call(node, name, arguments, dot.line);
                         continue;
                     }
@@ -10061,6 +10094,7 @@ impl Parser {
                     self.next();
                     let arguments = self.parse_arguments()?;
                     self.expect_op(")")?;
+                    self.the_method_of_the_v1_is_recorded(&arguments, at_the_dot);
                     node = self.the_method_call(node, member, arguments, dot.line);
                     continue;
                 }
@@ -10346,7 +10380,7 @@ impl Parser {
         self.expect_op("(")?;
         let (arguments, missing) = self.the_arguments_of_a_call(&name)?;
         if self.dialect.refuses_the_call_of_a_function_at_the_load() {
-            self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at, missing, false);
+            self.the_call_of_the_v1_is_recorded(&name, &arguments, at, missing, false, true);
         }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // call that takes the operand that is not there is the operand that is
@@ -10494,6 +10528,32 @@ impl Parser {
         Ok(Node::New { path, arguments, line })
     }
 
+    /// The method of the v1 is recorded, and it is checked at the end of the
+    /// parse.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// number of the arguments of a method is not checked at the load -- the
+    /// `o.Say(1, 2)` is accepted -- and the list of the arguments that ends
+    /// with a blank is refused at the load all the same: the `o.Say(1,)` is
+    /// refused with "Blank parameter", and the name of it is the text of the
+    /// call, from the dot.
+    fn the_method_of_the_v1_is_recorded(&mut self, arguments: &[Node], at: usize) {
+        if !self.dialect.refuses_the_call_of_a_function_at_the_load() {
+            return;
+        }
+        // The list of the arguments that does not end with a blank is
+        // accepted: the number of the arguments of a method is not checked
+        // at the load.
+        let blanks = the_groups_of_the_blanks(arguments);
+        let ends_with_a_blank = blanks
+            .last()
+            .is_some_and(|(start, size)| start + size == arguments.len());
+        if !ends_with_a_blank {
+            return;
+        }
+        self.the_call_of_the_v1_is_recorded("", arguments, at, None, false, false);
+    }
+
     /// The call of the v1 is recorded, and it is checked at the end of the
     /// parse.
     ///
@@ -10507,10 +10567,11 @@ impl Parser {
     fn the_call_of_the_v1_is_recorded(
         &mut self,
         name: &str,
-        count: usize,
+        arguments: &[Node],
         at: usize,
         missing: Option<SyntaxError>,
         the_call_is_the_statement: bool,
+        the_arity_is_checked: bool,
     ) {
         let end_of_the_line = the_end_of_the_line_of(self, at);
         let mut source = self.the_verbatim_source(at, end_of_the_line);
@@ -10528,7 +10589,9 @@ impl Parser {
         let column = self.tokens.get(at).map(|token| token.column).unwrap_or(0);
         self.calls.push(TheCallOfTheScript {
             name: name.to_lowercase(),
-            count,
+            count: arguments.len(),
+            blanks: the_groups_of_the_blanks(arguments),
+            the_arity_is_checked,
             source,
             line,
             column,
@@ -10554,6 +10617,89 @@ fn the_arity_of_the_parameters(parameters: &[Parameter]) -> (usize, usize) {
         parameters.len()
     };
     (required, most)
+}
+
+/// The groups of the arguments of a call that are not there: the place of the
+/// first one of the group and the number of them.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// counts the arguments that are not there, and the place where they are
+/// decides the complaint of the call: the `f(, 1)` is refused with "Blank
+/// parameter" and the `f(1,)` is refused with "Too many parameters passed to
+/// function." when f takes one parameter.
+fn the_groups_of_the_blanks(arguments: &[Node]) -> Vec<(usize, usize)> {
+    let mut groups: Vec<(usize, usize)> = Vec::new();
+    let mut index = 0;
+    while index < arguments.len() {
+        if !matches!(arguments[index], Node::Empty { .. }) {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        while index < arguments.len() && matches!(arguments[index], Node::Empty { .. }) {
+            index += 1;
+        }
+        groups.push((start, index - start));
+    }
+    groups
+}
+
+/// The complaint of the v1 about the list of the arguments of a call.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the argument that is not there with "Blank parameter", and the
+/// place where it is decides when the complaint is that one and when it is
+/// the number of the arguments. The `f(,)` and the `f(, 1)` are refused with
+/// "Blank parameter", and the `f(1,)` is refused with "Too many parameters
+/// passed to function." when f takes one parameter. The name that is not a
+/// function is refused before this one: the `zzz(,)` is refused with "Call to
+/// nonexistent function.".
+fn the_complaint_of_the_arguments(
+    call: &TheCallOfTheScript,
+    least: usize,
+    most: usize,
+) -> Option<&'static str> {
+    // The parameters that are done.
+    let mut done = 0;
+    // The argument that is read.
+    let mut index = 0;
+    for (start, size) in &call.blanks {
+        // The parameters that came before the group and that are there.
+        while index < *start {
+            if done >= most {
+                return Some("Too many parameters passed to function.");
+            }
+            done += 1;
+            index += 1;
+        }
+        // The group of the arguments that are not there.
+        if done >= most {
+            return Some("Too many parameters passed to function.");
+        }
+        // The argument that is not there and that is the last one of the list.
+        if start + size == call.count {
+            return Some("Blank parameter");
+        }
+        // The argument that is not there and that comes before the least
+        // number of the parameters.
+        if done < least {
+            return Some("Blank parameter");
+        }
+        done += size;
+        index = start + size;
+    }
+    // The parameters that came after the last group.
+    while index < call.count {
+        if done >= most {
+            return Some("Too many parameters passed to function.");
+        }
+        done += 1;
+        index += 1;
+    }
+    if done < least {
+        return Some("Too few parameters passed to function.");
+    }
+    None
 }
 
 /// Whether the value is a text that was written as a literal.

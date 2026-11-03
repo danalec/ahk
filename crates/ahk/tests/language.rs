@@ -5344,6 +5344,17 @@ fn the_built_in_with_the_parameter_that_is_not_there_alone_is_refused() {
     );
 }
 
+#[test]
+fn the_comma_at_the_end_of_the_list_of_the_arguments_adds_nothing_in_the_v2() {
+    // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-04: the comma
+    // at the end of the list of the arguments adds nothing: the `Add(1,)` is
+    // a call of one argument. The v1 counts it, and refuses the call when
+    // the list is full.
+    let (report, _desktop) = run("Add(a) {\n  return a\n}\nFileAppend Add(1,), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
 
 #[test]
 fn the_object_literal_that_is_written_in_more_than_one_line() {
