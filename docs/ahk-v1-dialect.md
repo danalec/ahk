@@ -78,6 +78,7 @@ them is the `SetBatchLines` (§5).
 | `docs/ahk-x11-comparison.md` | the names that changed from the v1 to the v2 (the section "The names that changed from the v1 to the v2") | in the repository, under review |
 | `AutoHotkey.chm` (in the zip of the v1.1) | the offline documentation | in the zip |
 | `AutoHotkey64.exe` (v2.0.19) | the truth of the **v2**: the messages of the run that are not on the console | `E:\autohotkey\AutoHotkey64.exe` on the workstation, and `%TEMP%\ahk-v2-measure\AutoHotkey64.exe` (the two are the same bytes); the package of scoop (`2.0.30`) is a junction without files, and the shims are dead |
+| the source of the v1 (`script.cpp` and `script_expression.cpp`) | the mechanism of the dialect, when the measurement says what happens and the source says why | `raw.githubusercontent.com/Lexikos/AutoHotkey_L/master/source/`; it is GPL, so it is read and never copied, and it stays out of the repository |
 
 **The archive `../archived/ahk-python` is not a reference.** It is not an
 implementation of the v1: its own note says
