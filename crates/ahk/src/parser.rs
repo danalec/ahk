@@ -1208,6 +1208,12 @@ pub struct Parser {    tokens: Vec<Token>,
     /// with "Unexpected ")"". The bracket of the block is not one of them: the
     /// `f() { x := 1 +}` is refused with "Unexpected "}"".
     expected_bracket: Option<&'static str>,
+    /// The comma that ends the value that is being read.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// comma that separates the items of a list ends the value that is being
+    /// read: the `SubStr("abc", 1 +, 1)` is the operand that is not there.
+    the_comma_ends_the_value: bool,
     /// The loops that the parser is inside.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the `break` and the
@@ -1333,6 +1339,7 @@ impl Parser {
             bases: Vec::new(),
             derefs: 0,
             expected_bracket: None,
+            the_comma_ends_the_value: false,
             loops: 0,
             lines: source.split('\n').map(|line| line.to_string()).collect(),
             dialect,
@@ -4874,7 +4881,24 @@ impl Parser {
     }
 
     /// The arguments of a call, between the parentheses.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// parenthesis that closes the list of the arguments and the comma that
+    /// separates them end the value that is being read: the `StrLen(1 +)` is
+    /// the operand that is not there, and so is the `SubStr("abc", 1 +, 1)`.
     fn parse_arguments(&mut self) -> Result<Vec<Node>, SyntaxError> {
+        let outer_bracket = self.expected_bracket;
+        let outer_comma = self.the_comma_ends_the_value;
+        self.expected_bracket = Some(")");
+        self.the_comma_ends_the_value = true;
+        let arguments = self.the_arguments_between_the_parentheses();
+        self.expected_bracket = outer_bracket;
+        self.the_comma_ends_the_value = outer_comma;
+        arguments
+    }
+
+    /// The arguments that are between the parentheses.
+    fn the_arguments_between_the_parentheses(&mut self) -> Result<Vec<Node>, SyntaxError> {
         let mut arguments = Vec::new();
         if self.at_op(&[")"]) {
             return Ok(arguments);
@@ -9282,9 +9306,12 @@ impl Parser {
                 // an index are a suffix of a value, and these open one.
                 let mut items = Vec::new();
                 // The bracket that closes the array is the one that the
-                // operand that is not there may meet.
+                // operand that is not there may meet, and the comma that
+                // separates the items ends the value that is being read.
                 let outer_bracket = self.expected_bracket;
+                let outer_comma = self.the_comma_ends_the_value;
                 self.expected_bracket = Some("]");
+                self.the_comma_ends_the_value = true;
                 if !self.at_op(&["]"]) {
                     loop {
                         // Measured on the binary of v2.0.19 on 2026-11-01:
@@ -9329,7 +9356,20 @@ impl Parser {
                 // The array may be written in more than one line.
                 self.skip_newlines();
                 self.expected_bracket = outer_bracket;
+                self.the_comma_ends_the_value = outer_comma;
                 self.expect_op("]")?;
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the literal of an array that holds the operand
+                // that is not there is the operand that is not there: the
+                // `a := [1 +]` is not an object, and the `IsObject(a)` is
+                // zero.
+                if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+                    && items
+                        .iter()
+                        .any(|item| item.as_ref().is_some_and(the_operand_is_not_there))
+                {
+                    return Ok(Node::Unset { line: token.line });
+                }
                 Node::ArrayLiteral { items, line: token.line }
             }
             TokenKind::Op if token.value == "{" => {
@@ -9346,11 +9386,14 @@ impl Parser {
                 // bracket that closes the value that is being read: the
                 // `x := (1 +)` is the empty text, and the `x := )` is
                 // refused with "Unexpected ")"".
-                if self.dialect.the_operand_that_is_not_there_is_not_refused()
-                    && (matches!(token.kind, TokenKind::Newline | TokenKind::Eof)
-                        || (token.kind == TokenKind::Op
-                            && self.expected_bracket == Some(token.value.as_str())))
-                {
+                // The comma that separates the items of a list ends the
+                // value that is being read, the way the bracket that closes it
+                // does.
+                let the_value_ends = matches!(token.kind, TokenKind::Newline | TokenKind::Eof)
+                    || (token.kind == TokenKind::Op
+                        && (self.expected_bracket == Some(token.value.as_str())
+                            || (token.value == "," && self.the_comma_ends_the_value)));
+                if self.dialect.the_operand_that_is_not_there_is_not_refused() && the_value_ends {
                     // The token is not consumed: the statement ends there, or
                     // the bracket closes the value that is being read.
                     self.position -= 1;
@@ -9440,9 +9483,12 @@ impl Parser {
             .unwrap_or(1);
         let mut properties = Vec::new();
         // The brace that closes the literal is the one that the operand that
-        // is not there may meet.
+        // is not there may meet, and the comma that separates the properties
+        // ends the value that is being read.
         let outer_bracket = self.expected_bracket;
+        let outer_comma = self.the_comma_ends_the_value;
         self.expected_bracket = Some("}");
+        self.the_comma_ends_the_value = true;
         // The property may be on the line that follows the brace.
         self.skip_newlines();
         while !self.at_op(&["}"]) {
@@ -9538,7 +9584,17 @@ impl Parser {
         // The brace that closes the literal may be on a line of its own.
         self.skip_newlines();
         self.expected_bracket = outer_bracket;
+        self.the_comma_ends_the_value = outer_comma;
         self.expect_op("}")?;
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // literal of an object that holds the operand that is not there is
+        // the operand that is not there: the `o := {x: 1 +}` is not an object,
+        // and the `IsObject(o)` is zero.
+        if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+            && properties.iter().any(|(_, value)| the_operand_is_not_there(value))
+        {
+            return Ok(Node::Unset { line });
+        }
         Ok(Node::ObjectLiteral { properties, line })
     }
 
@@ -9588,12 +9644,7 @@ impl Parser {
                         self.next();
                         let arguments = self.parse_arguments()?;
                         self.expect_op(")")?;
-                        node = Node::MethodCall {
-                            target: Box::new(node),
-                            name,
-                            arguments,
-                            line: dot.line,
-                        };
+                        node = self.the_method_call(node, name, arguments, dot.line);
                         continue;
                     }
                     node = Node::Property { target: Box::new(node), name, line: dot.line };
@@ -9644,12 +9695,7 @@ impl Parser {
                     self.next();
                     let arguments = self.parse_arguments()?;
                     self.expect_op(")")?;
-                    node = Node::MethodCall {
-                        target: Box::new(node),
-                        name: member,
-                        arguments,
-                        line: dot.line,
-                    };
+                    node = self.the_method_call(node, member, arguments, dot.line);
                     continue;
                 }
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -9661,12 +9707,7 @@ impl Parser {
                 // member, and the concatenation of v2 takes the two.
                 if self.at_op(&["("]) && self.peek().spaced && command {
                     let arguments = self.the_parameters_of_a_command()?;
-                    return Ok(Node::MethodCall {
-                        target: Box::new(node),
-                        name: member,
-                        arguments,
-                        line: dot.line,
-                    });
+                    return Ok(self.the_method_call(node, member, arguments, dot.line));
                 }
                 node = Node::Property { target: Box::new(node), name: member, line: dot.line };
                 continue;
@@ -9709,7 +9750,37 @@ impl Parser {
             }
             break;
         }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // property and the item of the operand that is not there are the
+        // operand that is not there: the `f(1 +).y` is the empty text, and so
+        // is the `f(1 +)[1]`.
+        if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+            && the_operand_is_not_there(&node)
+        {
+            return Ok(Node::Unset { line: node.line() });
+        }
         Ok(node)
+    }
+
+    /// The call of a method, and the value that holds it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// method that takes the operand that is not there is the operand that is
+    /// not there, and so is the method of it: the `o.Method(1 +)` is the
+    /// empty text.
+    fn the_method_call(
+        &mut self,
+        target: Node,
+        name: MemberName,
+        arguments: Vec<Node>,
+        line: u32,
+    ) -> Node {
+        if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+            && (the_operand_is_not_there(&target) || arguments.iter().any(the_operand_is_not_there))
+        {
+            return Node::Unset { line };
+        }
+        Node::MethodCall { target: Box::new(target), name, arguments, line }
     }
 
     /// The operator of an assignment that comes after the token.
@@ -9910,6 +9981,15 @@ impl Parser {
         let (arguments, missing) = self.the_arguments_of_a_call(&name)?;
         if self.dialect.refuses_the_call_of_a_function_at_the_load() {
             self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at, missing, false);
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // call that takes the operand that is not there is the operand that is
+        // not there: the `StrLen(1 +)` is the empty text, and not the zero
+        // that the `StrLen` of the empty text answers.
+        if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+            && arguments.iter().any(the_operand_is_not_there)
+        {
+            return Ok(Node::Unset { line });
         }
         Ok(Node::Call { name, arguments, line })
     }
@@ -10145,6 +10225,13 @@ fn the_operand_is_not_there(node: &Node) -> bool {
                 || the_operand_is_not_there(then)
                 || the_operand_is_not_there(otherwise)
         }
+        // The member of the value that holds the operand that is not there is
+        // the operand that is not there: the `f(1 +).y` and the `f(1 +)[1]`.
+        Node::Property { target, .. } => the_operand_is_not_there(target),
+        Node::Index { target, index, .. } => {
+            the_operand_is_not_there(target) || the_operand_is_not_there(index)
+        }
+        Node::MethodCall { target, .. } => the_operand_is_not_there(target),
         _ => false,
     }
 }

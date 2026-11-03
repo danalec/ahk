@@ -1970,6 +1970,16 @@ that asks for another one is refused with the reason.
   `the_line_that_begins_with_the_word_holds_no_action` and
   `a_line_that_ends_with_an_operator_continues`).
 
+- **The value that holds the operand that is not there is the operand that is
+  not there.** The `StrLen(1 +)` is the empty text, and not the zero that the
+  `StrLen` of the empty text answers; the `f(1 +).y` and the `f(1 +)[1]` are
+  the empty text; and the `a := [1 +]` is not an object. The parser makes the
+  value that holds it the operand that is not there (`Node::Unset`), the
+  parenthesis that closes the list of the arguments and the comma that
+  separates them end the value that is being read, the item of a value that is
+  not an object is the empty text, and the dialect says the rule
+  (`the_operand_that_is_not_there_poisons_the_value_that_holds_it`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

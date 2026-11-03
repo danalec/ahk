@@ -1201,6 +1201,21 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the operand that is not there poisons the value that holds it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// poisons the value that holds it: the `StrLen(1 +)` is the empty text,
+    /// and not the zero that the `StrLen` of the empty text answers; the
+    /// `o.Method(1 +)` is the empty text, and so is the `f(1 +).y` and the
+    /// `f(1 +)[1]`. The literal of an array and the literal of an object that
+    /// hold it are the empty text too, and they are not objects: the
+    /// `IsObject(a)` of the `a := [1 +]` is zero.
+    ///
+    /// The v2 refuses the expression at the load.
+    fn the_operand_that_is_not_there_poisons_the_value_that_holds_it(&self) -> bool {
+        false
+    }
+
     /// Whether the line that ends with an operator continues on the next one.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -2030,6 +2045,13 @@ impl Dialect for V1 {
     fn the_operand_that_is_not_there_is_not_refused(&self) -> bool {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 does not refuse the expression whose operand is not there.
+        true
+    }
+
+    fn the_operand_that_is_not_there_poisons_the_value_that_holds_it(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // call that takes the operand that is not there is the operand that is
+        // not there, and so is the member of it and the literal that holds it.
         true
     }
 

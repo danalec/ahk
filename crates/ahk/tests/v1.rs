@@ -7341,3 +7341,147 @@ fn the_line_that_ends_with_an_operator_does_not_continue_in_the_v1() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["3".to_string()]);
 }
+
+/// The call that takes the operand that is not there is the empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the call
+/// that takes the operand that is not there is the operand that is not there:
+/// the `StrLen(1 +)` is the empty text, and not the zero that the `StrLen` of
+/// the empty text answers. The argument that is in the second place and the
+/// one that is in the middle of the list are the same, and the call of a
+/// function of the script and the call of a method are the same.
+#[test]
+fn the_call_that_takes_the_operand_that_is_not_there_is_the_empty_text_in_the_v1() {
+    // The built-in that takes it.
+    let report = run("x := StrLen(1 +)\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The built-in that takes it in the second place.
+    let report = run("x := SubStr(\"abc\", 1 +)\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The built-in that takes it in the middle of the list.
+    let report = run("x := SubStr(\"abc\", 1 +, 1)\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The function of the script that takes it.
+    let report = run("f(a) {\n  return a\n}\nx := f(1 +)\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    // The method of a class of the script that takes it.
+    let report = run(
+        "class C {\n  Method(a) {\n    return a\n  }\n}\no := new C\nx := o.Method(1 +)\nFileAppend, [%x%], *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The member of the operand that is not there is the empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// property and the item of the value that holds the operand that is not
+/// there are the operand that is not there: the `f(1 +).y` is the empty text,
+/// and so is the `f(1 +)[1]`.
+#[test]
+fn the_member_of_the_operand_that_is_not_there_is_the_empty_text_in_the_v1() {
+    let report = run("f(a) {\n  return a\n}\nx := f(1 +).y\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    let report = run("f(a) {\n  return a\n}\nx := f(1 +)[1]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The function that returns the operand that is not there returns the empty
+/// text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the value
+/// of the function that returns the operand that is not there is the empty
+/// text, and the variable that holds it has a value: the `IsSet(x)` is one.
+#[test]
+fn the_function_that_returns_the_operand_that_is_not_there_returns_the_empty_text_in_the_v1() {
+    let report = run("f() {\n  return 1 +\n}\nx := f()\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    let report = run("f() {\n  return 1 +\n}\nx := f()\ny := IsSet(x)\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The property that takes the operand that is not there is the empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the value
+/// of the property that takes the operand that is not there is the empty
+/// text, and the `not` of it is the one that the `not` of the empty text
+/// answers. The sum of it is the empty text too.
+#[test]
+fn the_property_that_takes_the_operand_that_is_not_there_is_the_empty_text_in_the_v1() {
+    let report = run("o := {}\no.x := 1 +\ny := o.x\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    let report = run("o := {}\no.x := 1 +\ny := not o.x\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+
+    let report = run("o := {}\no.x := 1 +\ny := o.x + 1\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The literal that holds the operand that is not there is the empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the literal
+/// of an array and the literal of an object that hold the operand that is not
+/// there are the operand that is not there: the `a := [1 +]` is not an
+/// object, and the `IsObject(a)` is zero. The item of it is the empty text,
+/// and so is the item that is not there.
+#[test]
+fn the_literal_that_holds_the_operand_that_is_not_there_is_the_empty_text_in_the_v1() {
+    let report = run("a := [1 +]\ny := IsObject(a)\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[0]".to_string()]);
+
+    let report = run("a := [1 +]\nx := a[1]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    let report = run("a := [1 +]\nx := a[2]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+
+    let report = run("o := {x: 1 +}\ny := IsObject(o)\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[0]".to_string()]);
+}
+
+/// The condition that holds the operand that is not there is false.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// condition that holds the operand that is not there is false, and the body
+/// of the construct does not run. The `or` whose left side decides is the
+/// same.
+#[test]
+fn the_condition_that_holds_the_operand_that_is_not_there_is_false_in_the_v1() {
+    let report = run("if 1 +\ny := 1\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    let report = run("while 1 +\ny := 1\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    let report = run("if 0 or\ny := 1\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert!(!report.variables.contains_key("y"));
+
+    let report = run("if 1 or\ny := 1\nFileAppend, [%y%], *");
+    assert!(report.ok);
+    assert!(report.variables.contains_key("y"));
+}

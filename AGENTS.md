@@ -8447,3 +8447,30 @@ with the word is a third one
 (`the_line_that_begins_with_the_word_holds_no_action`).
 
 The suite of the v1 has four cases more (275).
+
+## 220. The value that holds the operand that is not there is the empty text in the v1
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the value that
+holds the operand that is not there is the operand that is not there. The
+`StrLen(1 +)` is the empty text, and not the zero that the `StrLen` of the
+empty text answers. The argument that is in the second place and the one that
+is in the middle of the list are the same, and so are the call of a function
+of the script and the call of a method.
+
+The member of the value that holds it is the operand that is not there: the
+`f(1 +).y` is the empty text, and so is the `f(1 +)[1]`. The literal of an
+array and the literal of an object that hold it are the operand that is not
+there too: the `a := [1 +]` is not an object, and the `IsObject(a)` is zero.
+
+The item of a value that is not an object is the empty text in the v1, and the
+tree reads it as one: the `a[1]` and the `a[2]` of the `a := [1 +]` are the
+empty text.
+
+The rule is a hook of the dialect
+(`the_operand_that_is_not_there_poisons_the_value_that_holds_it`), and the
+parser makes the call, the literal and the member that hold the operand that
+is not there the operand that is not there (`Node::Unset`). The parenthesis
+that closes the list of the arguments and the comma that separates them end
+the value that is being read, and the parser reads them as the end of it.
+
+The suite of the v1 has six cases more (281).

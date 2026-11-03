@@ -1680,6 +1680,21 @@ The rules are hooks of the dialect
 `the_line_that_begins_with_the_word_holds_no_action`), and the parser makes
 the operand that is not there a node of its own (`Node::Unset`).
 
+**What stays out of the operand that is not there.** The value that holds the
+operand that is not there is the operand that is not there: the `StrLen(1 +)`
+is the empty text, and not the zero that the `StrLen` of the empty text
+answers; the `f(1 +).y` and the `f(1 +)[1]` are the empty text; and the
+`a := [1 +]` is not an object, and the `IsObject(a)` is zero. The item of a
+value that is not an object is the empty text in the v1, and the tree reads it
+as one.
+
+Two things stay out of it. The write of the item of a value that is not an
+object is dropped by the v1 -- the `x[1] := 5` of the `x := ""` runs and the
+write is lost -- and the tree refuses it with "This value of type "String" has
+no property named "__Item".". The length of the array of the v1 is a method
+and not a property: the `a.Length()` of the `a := [1, 2]` is two, and the
+`a.Length` is the empty text; the tree reads the `a.Length` as the length.
+
 **What stays out of the call.** The call of a function of the v1 that is
 written without the parentheses and inside an expression -- `x := InStr
 "abc"` -- is not a call: it is the name of the function and the text, side by

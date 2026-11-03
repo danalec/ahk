@@ -7516,7 +7516,16 @@ impl<'a> Runtime<'a> {
             }),
             // A text has no item, and v2 refuses the index of one:
             // `SubStr` is the way to take a letter out.
-            _ => Err(self.no_item(target, line)),
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 does not refuse the index of a value that is not an
+            // object, and the answer is a blank text.
+            _ => {
+                if self.dialect.a_member_that_is_not_there_is_answered() {
+                    return Ok(Value::Text(String::new()));
+                }
+                Err(self.no_item(target, line))
+            }
         }
     }
 
@@ -10348,6 +10357,12 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         let Value::Object(object) = target else {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 does not refuse the item of a value that is not an
+            // object, and the answer is a blank text.
+            if self.dialect.a_member_that_is_not_there_is_answered() {
+                return Ok(Value::Text(String::new()));
+            }
             return Err(self.no_item(target, line));
         };
         let class = object.borrow().class.clone();
