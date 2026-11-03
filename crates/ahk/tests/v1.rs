@@ -8037,12 +8037,95 @@ fn the_name_of_a_property_of_the_v1_may_be_a_number_with_a_point() {
 /// name.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
-/// `a := {: 1}` is accepted, and the name of the property is the empty text.
+/// `a := {: 1}` is accepted, and the object of it has no property: the key
+/// of the property is not there.
 #[test]
 fn the_name_of_a_property_of_the_v1_may_be_of_no_name() {
     let report = run("a := {: 1}\nFileAppend, [done], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[done]".to_string()]);
+}
+
+/// The literal of an object of the v1 is a list of parameters, and the number
+/// of them has to be even.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// literal is a list of parameters: the key of a property and its value are
+/// two, and a parameter that is in blank is one. The `a := {, 1}` and the
+/// `a := {, "b"}` are accepted, and the `a := {, b: 1}`, the
+/// `a := {, 1, 2}`, the `a := {b: 1, , c: 2}`, the `a := {b: 1, c}` and the
+/// `a := {1, 2}` are refused with "Missing "key:" in object literal.".
+#[test]
+fn the_literal_of_an_object_of_the_v1_is_a_list_of_parameters() {
+    let report = run("a := {, 1}");
+    assert!(report.ok);
+    let report = run("a := {, \"b\"}");
+    assert!(report.ok);
+    assert_eq!(
+        the_refusal_of_the_load("a := {, b: 1}"),
+        "Missing \"key:\" in object literal."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("a := {, 1, 2}"),
+        "Missing \"key:\" in object literal."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("a := {b: 1, , c: 2}"),
+        "Missing \"key:\" in object literal."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("a := {b: 1, c}"),
+        "Missing \"key:\" in object literal."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("a := {1, 2}"),
+        "Missing \"key:\" in object literal."
+    );
+}
+
+/// The blank at the end of the literal of an object of the v1 is refused.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the `a := {b: 1,}` with "Blank parameter", and it names the
+/// whole literal. The `a := {,}`, the `a := {b: 1,,}` and the
+/// `a := {b: 1, c: 2,}` are refused the same way. The v2 accepts the comma
+/// at the end of the literal.
+#[test]
+fn the_blank_at_the_end_of_the_literal_of_the_v1_is_refused() {
+    assert_eq!(
+        the_refusal_of_the_load("a := {b: 1,}"),
+        "Blank parameter\n     Specifically: {b: 1,}"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("a := {,}"),
+        "Blank parameter\n     Specifically: {,}"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("a := {b: 1,,}"),
+        "Blank parameter\n     Specifically: {b: 1,,}"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("a := {b: 1, c: 2,}"),
+        "Blank parameter\n     Specifically: {b: 1, c: 2,}"
+    );
+}
+
+/// The value of the literal of an object of the v1 that has no name is
+/// evaluated, and it is dropped.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a := {, f()}` calls f, and the object of it has no property: the `a[""]`
+/// is the empty text.
+#[test]
+fn the_value_of_the_literal_of_the_v1_that_has_no_name_is_evaluated_and_dropped() {
+    let report = run(
+        "n := 0\nf() {\nglobal n\nn := n + 1\nreturn 0\n}\na := {, f()}\nFileAppend, %n%, *",
+    );
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+    let report = run("a := {, 1}\nx := a[\"\"]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
 }
 
 /// The name of a property that the script builds is refused in the v1.

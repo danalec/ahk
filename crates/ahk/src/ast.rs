@@ -381,6 +381,21 @@ impl PartialEq<str> for MemberName {
     }
 }
 
+/// An item of the literal of an object.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// literal of the v1 is a list of parameters, and the number of them has to
+/// be even: the key of a property and its value are two, and a parameter
+/// that is in blank is one. A parameter that has no name is a value that is
+/// evaluated, and it is dropped: the `{, 1}` is an object of no property.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum ObjectItem {
+    /// A property: the name of it and the value.
+    Property(MemberName, Node),
+    /// A value that has no name: it is evaluated, and it is dropped.
+    Value(Node),
+}
+
 /// One node of the tree.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -659,7 +674,11 @@ pub enum Node {    /// A value.
     /// Measured on the binary of v2.0.19 on 2026-10-31: the name of a
     /// property may be built by the script: `{%name%: 1}` is the property
     /// whose name is the value of `name`.
-    ObjectLiteral { properties: Vec<(MemberName, Node)>, line: u32 },
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// literal of the v1 is a list of parameters, and a parameter that has
+    /// no name is a value that is evaluated and dropped.
+    ObjectLiteral { items: Vec<ObjectItem>, line: u32 },
     /// `(a, b) => a + b`: the literal of a function.
     ///
     /// The body of the arrow function of v2 is an expression, and not a

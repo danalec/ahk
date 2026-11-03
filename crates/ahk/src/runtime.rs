@@ -46,7 +46,7 @@ use core::cell::RefCell;
 
 use crate::ast::{
     AccessBody, AccessDef, AssignOp, BinaryOp, DeclareKind, Declarations, DynamicPiece, LegacyForm, LiteralValue,
-    LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
+    LoopKind, MemberName, MethodDef, Node, ObjectItem, Parameter, PropertyDef, UnaryOp,
 };
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
@@ -9697,7 +9697,7 @@ impl<'a> Runtime<'a> {
                 LiteralValue::Text(text) => Value::Text(self.interpolate(text, *line)?),
                 LiteralValue::Bool(flag) => Value::Int(*flag as i64),
             }),
-            Node::ObjectLiteral { properties, line } => {
+            Node::ObjectLiteral { items, line } => {
                 // The literal of an object of v2: an object of the base
                 // class with the properties it writes. The names of the
                 // properties do not know their case, and a name that the
@@ -9709,10 +9709,21 @@ impl<'a> Runtime<'a> {
                 // empty.
                 let object = crate::classes::object(self.dialect.class_of_an_object());
                 if let Value::Object(cell) = &object {
-                    for (name, value) in properties {
-                        let name = self.the_name_of_the_member(name, *line)?;
-                        let value = self.evaluate(value)?;
-                        put(&mut cell.borrow_mut().properties, &name, value);
+                    for item in items {
+                        match item {
+                            ObjectItem::Property(name, value) => {
+                                let name = self.the_name_of_the_member(name, *line)?;
+                                let value = self.evaluate(value)?;
+                                put(&mut cell.borrow_mut().properties, &name, value);
+                            }
+                            ObjectItem::Value(value) => {
+                                // Measured on the binary of AutoHotkey
+                                // v1.1.37.02 on 2026-11-04: a value that has
+                                // no name is evaluated, and it is dropped: the
+                                // `a := {, 1}` is an object of no property.
+                                self.evaluate(value)?;
+                            }
+                        }
                     }
                 }
                 Ok(object)

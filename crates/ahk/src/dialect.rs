@@ -1530,6 +1530,16 @@ pub trait Dialect: Sync {
         "Missing \"propertyname:\" in object literal."
     }
 
+    /// Whether the blank parameter at the end of a list is refused.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// refuses the `{b: 1,}` with "Blank parameter", and it names the whole
+    /// literal. The v2 accepts the comma at the end of the literal: the
+    /// `{b: 1,}` is an object of one property.
+    fn the_blank_at_the_end_of_a_list_is_refused(&self) -> bool {
+        false
+    }
+
     /// Whether the parameter of the `return` is read before the refusal of
     /// the return.
     ///
@@ -2418,6 +2428,12 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 names the key of the literal, and not the property of it.
         "Missing \"key:\" in object literal."
+    }
+
+    fn the_blank_at_the_end_of_a_list_is_refused(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 refuses the blank at the end of the list with "Blank parameter".
+        true
     }
 
     fn the_parameter_of_the_return_is_read_first(&self) -> bool {

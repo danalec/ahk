@@ -2007,6 +2007,36 @@ reads it and answers the empty text. The refusal of the write inside a
 function names the name that the script built and not the reference as it was
 written: the v1 says "Specifically: %a%" and the tree says the name "1".
 
+**The literal of an object of the v1 is a list of parameters** (2026-11-04).
+The literal is a list of parameters, and the number of them has to be even:
+the key of a property and its value are two, and a parameter that is in
+blank is one. The number is checked after every parameter that is not in
+blank, and a number that is odd is refused with "Missing "key:" in object
+literal.": the `a := {, b: 1}`, the `a := {, 1, 2}`, the `a := {b: 1, , c: 2}`,
+the `a := {b: 1, c}` and the `a := {1, 2}` are refused that way. The
+`a := {, 1}` and the `a := {, "b"}` are accepted, and the object of them has
+no property: a value that has no name is evaluated and dropped, and the
+`a := {, f()}` calls f. The blank at the end of the list is a parameter in
+blank, and the v1 refuses it with "Blank parameter", naming the whole
+literal: the `a := {b: 1,}`, the `a := {,}` and the `a := {b: 1,,}` are
+refused that way. The v2 accepts the comma at the end of the literal, and the
+`x := {a: 1,}` is an object of one property.
+
+The tree does all of it: the literal of the tree is a list of items, and an
+item that has no name is a value that the runtime evaluates and drops.
+
+**What stays out of the key of a property of the literal of an object of the
+v1.** The v1 takes the key as the value of the expression that is written
+until the colon, and not as the text of it: the `{1 + 1: 1}` has the property
+"2", and the `{a.b: 1}` has the property of the value of `a.b`. A key that is
+a single name is the name itself: the `{b: 1}` has the property "b", and the
+value of the variable `b` is not the key. A key that is a number keeps its
+kind: the `{1: 1}` has the item 1, and the `a["1"]` of it is the empty text,
+because the item of a number is not the property of that name. The tree takes
+the text that is written until the colon: the `{1 + 1: 1}` has the property
+"1 + 1" in the tree, and the `{1: 1}` has the property "1", which the
+`a["1"]` finds.
+
 ---
 
 ## 5. The risks

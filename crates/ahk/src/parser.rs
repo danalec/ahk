@@ -37,7 +37,7 @@ use alloc::vec::Vec;
 
 use crate::ast::{
     AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, Catch, DeclareKind, Declared, Declarations, DynamicPiece,
-    LegacyForm, LiteralValue, LoopKind, MemberName, MethodDef, Node, Parameter, PropertyDef, UnaryOp,
+    LegacyForm, LiteralValue, LoopKind, MemberName, MethodDef, Node, ObjectItem, Parameter, PropertyDef, UnaryOp,
 };
 use crate::lexer::{SyntaxError, TheRefusal, Token, TokenKind};
 
@@ -9651,7 +9651,16 @@ impl Parser {
             .get(self.position.saturating_sub(1))
             .map(|token| token.column)
             .unwrap_or(1);
-        let mut properties = Vec::new();
+        let mut items = Vec::new();
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // literal is a list of parameters, and the number of them has to be
+        // even: the key of a property and its value are two, and a parameter
+        // that is in blank is one. The number is checked after every
+        // parameter that is not in blank.
+        let mut count = 0usize;
+        // The brace that opens the literal: the text that the failure of the
+        // blank parameter names starts at it.
+        let brace = self.position.saturating_sub(1);
         // The brace that closes the literal is the one that the operand that
         // is not there may meet, and the comma that separates the properties
         // ends the value that is being read.
@@ -9662,13 +9671,35 @@ impl Parser {
         // The property may be on the line that follows the brace.
         self.skip_newlines();
         while !self.at_op(&["}"]) {
-            let member = if self.dialect.the_name_of_a_property_may_be_any_text() {
+            // The parameter that is in blank: the comma with nothing before
+            // it.
+            if self.at_op(&[","]) {
+                count += 1;
+                self.position += 1;
+                // The property may be on the line that follows the comma.
+                self.skip_newlines();
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 refuses the blank at the end of the
+                // list with "Blank parameter", and it names the whole
+                // literal. The v2 accepts it: the `{b: 1,}` is an object of
+                // one property.
+                if self.at_op(&["}"])
+                    && self.dialect.the_blank_at_the_end_of_a_list_is_refused()
+                {
+                    return Err(self.the_error_of_a_blank_parameter(line, open, brace));
+                }
+                continue;
+            }
+            // The parameter: the key of a property and its value, or a value
+            // that has no name.
+            let start = self.position;
+            if self.dialect.the_name_of_a_property_may_be_any_text() {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-04: the name of a property of the v1 is the text
                 // that is written until the colon, and the quotes of a text
                 // are not part of it: the `{"b": 1}` has the property "b",
                 // and the `a.b` is one.
-                let start = self.position;
+                //
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-04: the v1 wants the name of a property between
                 // quotes: the `a := {%x%: 1}` is refused with "Quote marks are
@@ -9686,92 +9717,162 @@ impl Parser {
                         column: open,
                     });
                 }
+                // The name ends at the colon, and the comma and the brace
+                // that close the list end it too.
                 while !self.at_op(&[":"])
+                    && !self.at_op(&[","])
                     && !self.at_op(&["}"])
                     && self.peek().kind != TokenKind::Eof
                 {
                     self.position += 1;
                 }
                 if !self.at_op(&[":"]) {
-                    // The brace that closes the literal without a colon is
-                    // the name that is not there.
-                    return Err(SyntaxError {
-                        message: self.dialect.the_refusal_of_the_object_literal().to_string(),
-                        line,
-                        column: open,
-                    });
+                    // The value that has no name: it is one parameter, and it
+                    // is evaluated and dropped.
+                    count += 1;
+                    self.position = start;
+                    let value = match self.parse_expression() {
+                        Ok(value) => value,
+                        Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                    };
+                    items.push(ObjectItem::Value(value));
+                } else if self.position == start {
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the name that is not there is no property:
+                    // the `a := {: 1}` is an object of no property.
+                    count += 2;
+                    self.position += 1;
+                    let value = match self.parse_expression() {
+                        Ok(value) => value,
+                        Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                    };
+                    items.push(ObjectItem::Value(value));
+                } else {
+                    // The key and the value of the property are two
+                    // parameters.
+                    count += 2;
+                    let member =
+                        MemberName::Text(the_name_of_a_property_of_the_v1(self, start, self.position));
+                    self.position += 1;
+                    let value = match self.parse_expression() {
+                        Ok(value) => value,
+                        Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                    };
+                    items.push(ObjectItem::Property(member, value));
                 }
-                MemberName::Text(the_name_of_a_property_of_the_v1(self, start, self.position))
             } else {
-                let name = self.next();
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
                 // property may be built by the script: `{%name%: 1}` is the
                 // property whose name is the value of `name`.
-                if name.kind == TokenKind::Op && name.value == "%" {
-                    let open = self.position - 1;
+                if self.at_op(&["%"]) {
+                    let at = self.position;
+                    self.next();
                     if self.at_op(&["%"]) {
                         return Err(self.the_error_of_a_percent_inside());
                     }
-                    let value = self.the_expression_of_a_dynamic_name(open)?;
+                    let value = self.the_expression_of_a_dynamic_name(at)?;
                     if !self.at_op(&["%"]) {
-                        return Err(self.the_error_of_a_missing_ending(open));
+                        return Err(self.the_error_of_a_missing_ending(at));
                     }
                     self.next();
-                    MemberName::Dynamic(self.the_pieces_after_the_percent(value)?)
-                } else {
-                    // The name of a property may be a whole number: the number
-                    // with a point is not a name, because the point of it is the
-                    // point of a member.
-                    //
-                    // Measured on the binary of v2.0.19 on 2026-10-31: `{5: 1}`
-                    // is an object with the property "5", and `{1.5: 1}` is
-                    // refused.
-                    if name.kind != TokenKind::Name
-                        && name.kind != TokenKind::Keyword
-                        && !the_number_is_a_whole_one(&name, self.dialect)
-                    {
-                        // Measured on the binary of v2.0.19 on 2026-11-01: the
-                        // comma that opens the list is the name that is not
-                        // there, and the name that is not a name is refused.
-                        if name.kind == TokenKind::Op && name.value == "," {
-                            return Err(SyntaxError {
-                                message: self.dialect.the_refusal_of_the_object_literal().to_string(),
-                                line,
-                                column: open,
-                            });
-                        }
-                        // Measured on the binary of v2.0.19 on 2026-10-31: the
-                        // object that is not closed is the failure, and the name
-                        // of the property that is not there is not it.
-                        if name.kind == TokenKind::Eof {
-                            return Err(
-                                self.the_error_of_a_missing_bracket("}", name.line, name.column)
-                            );
-                        }
+                    if !self.at_op(&[":"]) {
                         return Err(SyntaxError {
-                            message: "Invalid property name in object literal.".into(),
+                            message: self.dialect.the_refusal_of_the_object_literal().to_string(),
                             line,
                             column: open,
                         });
                     }
-                    MemberName::Text(name.value)
+                    self.position += 1;
+                    count += 2;
+                    let member = MemberName::Dynamic(self.the_pieces_after_the_percent(value)?);
+                    let value = match self.parse_expression() {
+                        Ok(value) => value,
+                        Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                    };
+                    items.push(ObjectItem::Property(member, value));
+                } else {
+                    // Measured on the binary of v2.0.19 on 2026-11-04: the name
+                    // of a property of the v2 is a name of the script, and the
+                    // text that is written until the colon is the name: the
+                    // `{b c: 1}` is refused with "Invalid property name in
+                    // object literal.".
+                    while !self.at_op(&[":"])
+                        && !self.at_op(&[","])
+                        && !self.at_op(&["}"])
+                        && self.peek().kind != TokenKind::Eof
+                    {
+                        self.position += 1;
+                    }
+                    if !self.at_op(&[":"]) {
+                        // The value that has no name: it is one parameter, and
+                        // it is evaluated and dropped.
+                        count += 1;
+                        self.position = start;
+                        let value = match self.parse_expression() {
+                            Ok(value) => value,
+                            Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                        };
+                        items.push(ObjectItem::Value(value));
+                    } else {
+                        // The name of a property may be a whole number: the
+                        // number with a point is not a name, because the point
+                        // of it is the point of a member.
+                        //
+                        // Measured on the binary of v2.0.19 on 2026-10-31:
+                        // `{5: 1}` is an object with the property "5", and
+                        // `{1.5: 1}` is refused.
+                        let mut named = false;
+                        if self.position - start == 1 {
+                            if let Some(token) = self.tokens.get(start) {
+                                named = token.kind == TokenKind::Name
+                                    || token.kind == TokenKind::Keyword
+                                    || the_number_is_a_whole_one(token, self.dialect);
+                            }
+                        }
+                        if !named {
+                            // Measured on the binary of v2.0.19 on 2026-10-31:
+                            // the object that is not closed is the failure, and
+                            // the name of the property that is not there is not
+                            // it.
+                            if let Some(token) = self.tokens.get(start) {
+                                if token.kind == TokenKind::Eof {
+                                    return Err(self.the_error_of_a_missing_bracket(
+                                        "}",
+                                        token.line,
+                                        token.column,
+                                    ));
+                                }
+                            }
+                            return Err(SyntaxError {
+                                message: "Invalid property name in object literal.".into(),
+                                line,
+                                column: open,
+                            });
+                        }
+                        count += 2;
+                        let member = MemberName::Text(
+                            self.tokens.get(start).map(|token| token.value.clone()).unwrap_or_default(),
+                        );
+                        self.position += 1;
+                        let value = match self.parse_expression() {
+                            Ok(value) => value,
+                            Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                        };
+                        items.push(ObjectItem::Property(member, value));
+                    }
                 }
-            };
-            if !self.at_op(&[":"]) {
+            }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the number of the parameters of the literal has to be even, and
+            // a number that is odd is refused with the name of the key that is
+            // not there.
+            if count % 2 == 1 {
                 return Err(SyntaxError {
                     message: self.dialect.the_refusal_of_the_object_literal().to_string(),
                     line,
                     column: open,
                 });
             }
-            self.position += 1;
-            // The bracket that is not closed is the failure, and not the
-            // operand that is not there inside it.
-            let value = match self.parse_expression() {
-                Ok(value) => value,
-                Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
-            };
-            properties.push((member, value));
             // Measured on the binary of v2.0.19 on 2026-11-01: the
             // properties are separated by commas, and the newline is not a
             // separator: the token that is there instead of the comma is the
@@ -9782,6 +9883,15 @@ impl Parser {
                 // The property that follows the comma may be on the line that
                 // follows it.
                 self.skip_newlines();
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the comma that ends the list is a parameter in
+                // blank, and the v1 refuses it with "Blank parameter". The v2
+                // accepts it.
+                if self.at_op(&["}"])
+                    && self.dialect.the_blank_at_the_end_of_a_list_is_refused()
+                {
+                    return Err(self.the_error_of_a_blank_parameter(line, open, brace));
+                }
                 continue;
             }
             if !self.at_op(&["}"]) && self.peek().kind != TokenKind::Eof {
@@ -9803,11 +9913,35 @@ impl Parser {
         // the operand that is not there: the `o := {x: 1 +}` is not an object,
         // and the `IsObject(o)` is zero.
         if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
-            && properties.iter().any(|(_, value)| the_operand_is_not_there(value))
+            && items.iter().any(|item| match item {
+                ObjectItem::Property(_, value) => the_operand_is_not_there(value),
+                ObjectItem::Value(value) => the_operand_is_not_there(value),
+            })
         {
             return Ok(Node::Unset { line });
         }
-        Ok(Node::ObjectLiteral { properties, line })
+        Ok(Node::ObjectLiteral { items, line })
+    }
+
+    /// The failure of the blank parameter at the end of a list.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// refuses the `{b: 1,}` with "Blank parameter", and the text that is
+    /// named is the whole literal, from the brace that opens it.
+    fn the_error_of_a_blank_parameter(
+        &self,
+        line: u32,
+        column: u32,
+        brace: usize,
+    ) -> SyntaxError {
+        SyntaxError {
+            message: format!(
+                "Blank parameter\n     Specifically: {}",
+                the_source_of_the_rest_of_the_line(self, brace)
+            ),
+            line,
+            column,
+        }
     }
 
     /// The `[...]` and the `as` that may follow a value.

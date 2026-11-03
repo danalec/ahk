@@ -1646,6 +1646,66 @@ fn a_property_of_an_object_literal_needs_its_colon() {
     assert_eq!(error.line, 1);
 }
 
+/// The literal of an object of the v2 is a list of parameters, and the number
+/// of them has to be even.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-04: the literal is a list of
+/// parameters: the key of a property and its value are two, and a parameter
+/// that is in blank is one. The `x := {, 1}` is an object of no property, and
+/// the `x := {, b: 1}`, the `x := {, 1, 2}`, the `x := {b: 1, , c: 2}`, the
+/// `x := {b: 1, c}` and the `x := {1, 2}` are refused with "Missing
+/// "propertyname:" in object literal.".
+#[test]
+fn the_literal_of_an_object_of_the_v2_is_a_list_of_parameters() {
+    let (report, _) = run("x := {, 1}\nFileAppend ObjOwnPropCount(x), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0".to_string()]);
+    let error = parse("x := {, b: 1}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    let error = parse("x := {, 1, 2}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    let error = parse("x := {b: 1, , c: 2}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    let error = parse("x := {b: 1, c}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    let error = parse("x := {1, 2}").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+}
+
+/// The blank at the end of the literal of an object of the v2 is accepted.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-04: the `x := {a: 1,}` is
+/// an object of one property, and the `x := {,}` and the `x := {a: 1,,}` are
+/// objects of no property. The v1 refuses the comma at the end of the
+/// literal with "Blank parameter".
+#[test]
+fn the_blank_at_the_end_of_the_literal_of_the_v2_is_accepted() {
+    let (report, _) = run("x := {a: 1,}\nFileAppend ObjOwnPropCount(x), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1".to_string()]);
+    let (report, _) = run("x := {,}\nFileAppend ObjOwnPropCount(x), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0".to_string()]);
+    let (report, _) = run("x := {a: 1,,}\nFileAppend ObjOwnPropCount(x), \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
+/// The value of the literal of an object of the v2 that has no name is
+/// evaluated, and it is dropped.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-04: the `x := {, f()}` calls
+/// f, and the object of it has no property.
+#[test]
+fn the_value_of_the_literal_of_the_v2_that_has_no_name_is_evaluated_and_dropped() {
+    let (report, _) = run(
+        "n := 0\nf() {\n    global n\n    n := n + 1\n    return 0\n}\n\
+         x := {, f()}\nFileAppend n, \"*\"",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
 #[test]
 fn the_name_of_a_property_of_an_object_literal_may_be_a_keyword() {
     let (report, desktop) = run("x := {class: 1}\nSend \"%x.class%\"");
