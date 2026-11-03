@@ -1268,7 +1268,12 @@ script that used them was answered with something else.
 ## 17. How v2 is measured
 
 The binary of v2.0.19 is at `E:\autohotkey\AutoHotkey64.exe`, and it is the
-reference: every measurement in these notes came out of it.
+reference: every measurement in these notes came out of it. There is a copy of
+it at `%TEMP%\ahk-v2-measure\AutoHotkey64.exe`, and the copy of the temporary
+is the one that the probes of the blocks of November of 2026 used. Measured on
+2026-11-05: the two are the same build -- the copy of the temporary refuses
+the comma of the v1 with "Function calls require a space or \"(\"." and the
+version that it says is 2.0.19.
 
 - **A probe writes its answer to a file.** The binary forks, so the
   answer has to survive the process: the script writes to a file and the
