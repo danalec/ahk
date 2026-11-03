@@ -480,6 +480,16 @@ the box: it does no I/O, and it has to keep building without `std`.
   box. The archive's addon cases have no place in this tree: the addon
   lives in `yoko-rust`. The device itself is checked on the box, by hand:
   section 12.
+- **A case of the v1 is measured against the binary, not reasoned about.**
+  The instrument is the differential probe: the same script runs in the
+  binary of v1.1.37.02 and in the tree, with `--dialect=v1`, and the two
+  answers are printed side by side. `egm-review/probe_diff_v1.py` is the
+  harness, and the cases of it live in the `probe_diff_v1_*.py` files next
+  to it. A case that only prints "the same" hides the value: the probe
+  prints the two answers when they differ, and the value of the case has
+  to be read from the binary by hand. The v2 is the same: it shows a
+  dialog for a failure of the run, and the dialog is a timeout, not an
+  answer -- the load failures go to stderr.
 
 ## The guard rails
 
