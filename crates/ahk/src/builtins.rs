@@ -911,7 +911,16 @@ pub(crate) fn not_carried(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, v
 /// `EnvGet`: the value of an environment variable.
 pub(crate) fn env_get(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
     let name = text_of(values, 0);
-    let value = rt.desktop().env_get(&name).map_err(|reason| RuntimeError { message: reason, line })?;
+    // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+    // variable that the environment does not have is an empty text, and it is
+    // not a failure. Measured on the binary of AutoHotkey v1.1.37.02 on
+    // 2026-11-05: the `EnvGet` of a name that is not there leaves the output
+    // empty, and the `ErrorLevel` is zero.
+    let value = rt
+        .desktop()
+        .env_get(&name)
+        .map_err(|reason| RuntimeError { message: reason, line })?
+        .unwrap_or_default();
     Ok(Value::Text(value))
 }
 

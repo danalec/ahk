@@ -244,7 +244,14 @@ pub trait Processes {
     }
 
     /// The value of an environment variable.
-    fn env_get(&mut self, _name: &str) -> Result<String, String> {
+    ///
+    /// The value is `None` when the environment does not have the variable,
+    /// and the value of a variable that is there may be the empty text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// warning of the environment is given when the variable is there, and the
+    /// name that the environment does not have is a name that has no value.
+    fn env_get(&mut self, _name: &str) -> Result<Option<String>, String> {
         Err("this desktop cannot read the environment".to_string())
     }
 

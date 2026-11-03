@@ -9879,7 +9879,7 @@ impl<'a> Runtime<'a> {
             return Ok(None);
         }
         match self.desktop().env_get(name) {
-            Ok(value) => {
+            Ok(Some(value)) => {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-05: the environment variable that is accessed is
                 // warned about.
@@ -9888,6 +9888,13 @@ impl<'a> Runtime<'a> {
             }
             // Measured on the binary of v1.1.37.02 on 2026-11-01: a name
             // that the environment does not have is substituted by nothing.
+            Ok(None) => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-05: the name that is not a variable of the script
+                // and not of the environment is a variable that has no value.
+                self.warn_about_the_variable_that_has_no_value(name, line);
+                Ok(None)
+            }
             Err(_) => {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-05: the name that is not a variable of the script

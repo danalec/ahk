@@ -850,8 +850,12 @@ impl ahk::desktop::Sound for LabDesktop {
 }
 
 impl ahk::desktop::Processes for LabDesktop {
-    fn env_get(&mut self, name: &str) -> Result<String, String> {
-        Ok(std::env::var(name).unwrap_or_default())
+    fn env_get(&mut self, name: &str) -> Result<Option<String>, String> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // warning of the environment is given when the variable is there, and
+        // the name that the environment does not have is a name that has no
+        // value.
+        Ok(std::env::var(name).ok())
     }
 
     fn env_set(&mut self, name: &str, value: &str) -> Result<String, String> {

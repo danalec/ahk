@@ -234,8 +234,8 @@ impl Processes for Fake {
     fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
         Ok((0, format!("ran {command}\n"), String::new()))
     }
-    fn env_get(&mut self, name: &str) -> Result<String, String> {
-        Ok(format!("the value of {name}"))
+    fn env_get(&mut self, name: &str) -> Result<Option<String>, String> {
+        Ok(Some(format!("the value of {name}")))
     }
     fn env_set(&mut self, _name: &str, value: &str) -> Result<String, String> {
         Ok(value.to_string())

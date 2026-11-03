@@ -2690,6 +2690,18 @@ that it only reads is not a local of it.
 The probes of the block are `egm-review/probe_warn_local_forms.py` and
 `egm-review/probe_warn_local_read.py`.
 
+**The `#Warn` of the v1** (2026-11-05, the seventh block). The warning of the
+environment is given when the variable is there. Measured on the binary of
+AutoHotkey v1.1.37.02 on 2026-11-05: the name that the environment does not
+have is a name that has no value, and the warning of the environment is not
+given for it.
+
+The contract of the `env_get` of the desktop says now if the variable exists:
+the `Some` when it exists and the `None` when the environment does not have it.
+
+The probes of the block are `egm-review/probe_env_get.py` and
+`egm-review/probe_warn_rules.py`.
+
 ## 5. The risks
 
 | Risk | Severity | What is done |

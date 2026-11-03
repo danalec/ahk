@@ -9542,3 +9542,20 @@ The probes of the block are `egm-review/probe_warn_local_forms.py` and
 
 The suite of the v1 has two cases more (408). The suite of the v2 has one case
 more (529).
+
+The warning of the environment is given when the variable is there. Measured on
+the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name that the
+environment does not have is a name that has no value, and the warning of the
+environment is not given for it.
+
+The box answered with the empty text for the name that the environment does not
+have, and the runtime took that for a variable that exists with the value of
+nothing. The contract of the `env_get` says now if the variable exists: the
+`Some` when it exists and the `None` when the environment does not have it. The
+`Err` is the failure of the machine, the one that cannot read the environment.
+
+The probes of the block are `egm-review/probe_env_get.py` and
+`egm-review/probe_warn_rules.py`.
+
+The suite of the v1 has two cases more (410). The suite of the v2 is the same
+(529), and the suite of the box is the same (84).

@@ -228,11 +228,11 @@ impl Pointer for Fake {
 impl Processes for Fake {
     /// The environment of the case has one variable, and it is the one that
     /// the cases of the warning do use.
-    fn env_get(&mut self, name: &str) -> Result<String, String> {
+    fn env_get(&mut self, name: &str) -> Result<Option<String>, String> {
         if name == "AHK_TEST_ENV" {
-            return Ok("the value of the environment".to_string());
+            return Ok(Some("the value of the environment".to_string()));
         }
-        Err("this fake has no environment".into())
+        Ok(None)
     }
 
     fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
@@ -10043,6 +10043,35 @@ fn the_environment_variable_that_is_accessed_is_warned_about_in_the_v1() {
     assert_eq!(
         report.warnings[0].message,
         "An environment variable is being accessed; see #NoEnv.\n     Specifically: AHK_TEST_ENV"
+    );
+}
+
+/// The environment variable that is not there is not warned about.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the warning
+/// of the environment is given when the variable is there, and the name that the
+/// environment does not have is a name that has no value.
+#[test]
+fn the_environment_variable_that_is_not_there_is_not_warned_about_in_the_v1() {
+    let report = run("#Warn UseEnv, StdOut\nFileAppend, %AHK_TEST_NO_ENV%, *\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+}
+
+/// The name that the environment does not have is a name that has no value.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name that
+/// is not a variable of the script and not of the environment is warned about
+/// as a variable that has no value.
+#[test]
+fn the_name_that_is_not_in_the_environment_is_warned_about_in_the_v1() {
+    let report = run("#Warn UseUnsetGlobal, StdOut\nFileAppend, %AHK_TEST_NO_ENV%, *\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 2);
+    assert_eq!(
+        report.warnings[0].message,
+        "This variable has not been assigned a value.\n     Specifically: AHK_TEST_NO_ENV  (a global variable)"
     );
 }
 
