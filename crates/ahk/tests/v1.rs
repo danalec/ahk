@@ -9620,3 +9620,77 @@ fn the_parse_loop_of_the_v1_does_not_fail_when_the_name_is_not_a_variable() {
     assert!(report.output.is_empty());
 }
 
+/// The percent sign of an expression of the v1 opens the name of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name
+/// that the percent sign opens has to close with another percent sign, and
+/// the complaint of the v1 is "This parameter contains a variable name
+/// missing its ending percent sign.". The text that it names is the run of
+/// the name -- the characters of the name and the percent signs that are
+/// glued to them -- and not the rest of the line: the `x := 10 % 3` is
+/// refused with the run "%" and the `x := 10%3` is refused with the run
+/// "10%3". The space is what ends the run.
+#[test]
+fn the_percent_sign_of_an_expression_of_the_v1_opens_the_name_of_a_variable() {
+    let cases = [
+        ("x := a%b", "a%b"),
+        ("x := a%", "a%"),
+        ("x := %a", "%a"),
+        ("x := %3", "%3"),
+        ("x := 10%3", "10%3"),
+        ("x := 10 % 3", "%"),
+        ("x := 10 %", "%"),
+        ("x := 10 %3", "%3"),
+        ("x := 10 + a%b", "a%b"),
+        ("x := 10 + 10%3", "10%3"),
+        ("x := (a)%b", "%b"),
+        ("x := \"a\"%b", "%b"),
+        ("x := %a%%b", "%a%%b"),
+    ];
+    for (script, run) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            format!(
+                "This parameter contains a variable name missing its ending percent sign.\n     Specifically: {run}"
+            ),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The reference that is empty is refused by the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name
+/// that the percent sign opens and that has nothing in it is refused with
+/// "Empty variable reference (%%).", and the text that it names is the run of
+/// the name.
+#[test]
+fn the_reference_that_is_empty_is_refused_by_the_v1() {
+    for (script, run) in [("x := %%", "%%"), ("x := a%%b", "a%%b")] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            format!("Empty variable reference (%%).\n     Specifically: {run}"),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The reference of a name in an expression of the v1 reads the variable that
+/// it names.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the value
+/// of the reference is the value of the variable whose name is the value of
+/// the variable that the reference names: the `a := "b"` and the `x := %a%`
+/// give the value of the variable "b", and the `a := 1` and the `x := %a%`
+/// give an empty value, because there is no variable whose name is "1".
+#[test]
+fn the_reference_of_a_name_in_an_expression_of_the_v1_reads_the_variable_that_it_names() {
+    let report = run("b := 7\na := \"b\"\nx := %a%\nFileAppend, [%x%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[7]".to_string()]);
+
+    let report = run("a := 1\nx := %a%\nFileAppend, [%x%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+

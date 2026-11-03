@@ -1705,6 +1705,29 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The refusal of the percent sign that opens a name in an expression.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// opens the name of a variable with the percent sign, and the name that
+    /// is not closed is refused with "This parameter contains a variable name
+    /// missing its ending percent sign." The name that is empty is refused
+    /// with "Empty variable reference (%%).". The text that is named is the
+    /// run of the name: the characters of the name and the percent signs that
+    /// are glued to them.
+    ///
+    /// The `run` is the run of the name, and the `empty` says that the name
+    /// that the percent sign opens is empty.
+    ///
+    /// The v2 does not have this refusal: the percent sign opens the double
+    /// deref, and the parser keeps its own complaint.
+    fn the_refusal_of_the_percent_sign_of_an_expression(
+        &self,
+        _run: &str,
+        _empty: bool,
+    ) -> Option<String> {
+        None
+    }
+
     /// The refusal of the number of the parameters of a command.
     ///
     /// `None` means that the dialect lets the command run with the number of
@@ -2476,6 +2499,17 @@ impl Dialect for V1 {
         // checks the percent sign of every parameter of its commands when the
         // script loads.
         crate::v1::the_refusal_of_the_percent_sign_of_a_parameter(text)
+    }
+
+    fn the_refusal_of_the_percent_sign_of_an_expression(
+        &self,
+        run: &str,
+        empty: bool,
+    ) -> Option<String> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // v1 opens a name with the percent sign, and the name that is not
+        // closed and the name that is empty have a complaint of their own.
+        crate::v1::the_refusal_of_the_percent_sign_of_an_expression(run, empty)
     }
 
     fn the_name_of_the_word_that_wants_a_parameter(&self, word: &str) -> String {

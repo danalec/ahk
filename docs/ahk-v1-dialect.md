@@ -2418,6 +2418,35 @@ its own: the text goes to that file, and the `ErrorLevel` is zero.
 The probe of the block is `egm-review/probe_v1_append_name.py`, and it is nine
 cases of the binary and of the tree, and the nine are the same.
 
+**The percent sign of an expression of the v1 opens the name of a variable**
+(2026-11-05). The percent sign of an expression is not the double deref of the
+v2: it opens the name of a variable, and the name has to close with another
+percent sign. The name that does not close is refused with "This parameter
+contains a variable name missing its ending percent sign." and the name that
+is empty is refused with "Empty variable reference (%%).".
+
+The text that the complaint names is the run of the name -- the characters of
+the name and the percent signs that are glued to them -- and not the rest of
+the line: the `x := 10 % 3` is refused with the run "%", and the `x := 10%3`
+is refused with the run "10%3". The space is what ends the run.
+
+The value of the reference is the value of the variable whose name is the value
+of the variable that the reference names: the `a := "b"` and the `x := %a%`
+give the value of the variable "b", and the `a := 1` and the `x := %a%` give
+an empty value, because there is no variable whose name is "1".
+
+The tree carries it: the parser computes the run of the name and asks the
+dialect for the refusal, and the refusal of the v1 is in
+`crates/ahk/src/v1/parameters.rs`.
+
+The probes of the block are `egm-review/probe_v1_percent_expression.py`,
+`egm-review/probe_v1_percent_and_quotes.py` and
+`egm-review/probe_v1_percent_deref.py`, and they are the cases of the binary
+and of the tree: seven of the nine, sixteen of the nineteen and six of the
+ten are the same. The three that are not are the ones where the v1 asks the
+user for the value of a variable whose name is not the name of a variable:
+the tree answers an empty value, and it does not ask anybody.
+
 ---
 
 ## 5. The risks

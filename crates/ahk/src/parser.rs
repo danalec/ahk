@@ -171,6 +171,52 @@ fn the_source_of_a_token(parser: &Parser, token: &Token) -> String {
     text
 }
 
+/// The run of the name that a percent sign opens.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the run is
+/// the characters of the name and the percent signs that are glued to them,
+/// and the space is what ends it: the `a%b` is the run "a%b", the `a % b` is
+/// the run "%" and the `10%3` is the run "10%3".
+///
+/// The run is the text that the complaint of the v1 names, and not the rest
+/// of the line: the `10 % 3` is refused with the run "%" and with the text
+/// "% 3" that the v2 names.
+fn the_run_of_the_name_of_a_percent_sign(parser: &Parser, at: usize) -> String {
+    let mut start = at;
+    while start > 0
+        && the_token_is_of_a_run(&parser.tokens[start - 1])
+        && !parser.tokens[start].spaced
+    {
+        start -= 1;
+    }
+    let mut end = at;
+    while end + 1 < parser.tokens.len()
+        && the_token_is_of_a_run(&parser.tokens[end + 1])
+        && !parser.tokens[end + 1].spaced
+    {
+        end += 1;
+    }
+    the_source_of_the_tokens(parser, start, end + 1)
+}
+
+/// Whether the token is a part of the run of a name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the run is
+/// made of the characters of a name and of the percent signs, and the number
+/// is a part of it: the `10%3` is the run "10%3".
+fn the_token_is_of_a_run(token: &Token) -> bool {
+    if token.kind == TokenKind::Op {
+        return token.value == "%";
+    }
+    if !matches!(token.kind, TokenKind::Name | TokenKind::Number) {
+        return false;
+    }
+    !token.value.is_empty()
+        && token.value.chars().all(|character| {
+            character.is_alphanumeric() || matches!(character, '_' | '#' | '$' | '@')
+        })
+}
+
 /// The source of the name that carries an escape.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the source
@@ -9364,6 +9410,16 @@ impl Parser {
     /// Measured on the binary of v2.0.19 on 2026-10-31: the text that is
     /// named is the rest of the line, from the hash that opens it.
     fn the_error_of_a_missing_ending(&self, at: usize) -> SyntaxError {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+        // opens the name of a variable with the percent sign, and the name
+        // that is not closed is refused with a complaint of its own. The text
+        // that it names is the run of the name.
+        let run = the_run_of_the_name_of_a_percent_sign(self, at);
+        if let Some(refusal) =
+            self.dialect.the_refusal_of_the_percent_sign_of_an_expression(&run, false)
+        {
+            return self.error(refusal);
+        }
         let token = &self.tokens[at];
         SyntaxError {
             message: format!(
@@ -9403,10 +9459,19 @@ impl Parser {
     /// Measured on the binary of v2.0.19 on 2026-10-31: the percent sign
     /// that is inside a name that the script builds is not a value, and v2
     /// says "Syntax error." and the rest of the line, from it.
-    fn the_error_of_a_percent_inside(&self) -> SyntaxError {
+    fn the_error_of_a_percent_inside(&self, at: usize) -> SyntaxError {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+        // refuses the reference that is empty with "Empty variable reference
+        // (%%).", and the text that it names is the run of the name.
+        let run = the_run_of_the_name_of_a_percent_sign(self, at);
+        if let Some(refusal) =
+            self.dialect.the_refusal_of_the_percent_sign_of_an_expression(&run, true)
+        {
+            return self.error(refusal);
+        }
         self.error(format!(
             "Syntax error.\n     Specifically: {}",
-            the_source_of_the_rest_of_the_line(self, self.position)
+            the_source_of_the_rest_of_the_line(self, at)
         ))
     }
 
@@ -9434,7 +9499,7 @@ impl Parser {
         while self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
             self.next();
             if self.at_op(&["%"]) {
-                return Err(self.the_error_of_a_percent_inside());
+                return Err(self.the_error_of_a_percent_inside(self.position));
             }
             let value = self.the_expression_of_a_dynamic_name(at)?;
             if !self.at_op(&["%"]) {
@@ -9459,7 +9524,7 @@ impl Parser {
             let open = self.position;
             self.next();
             if self.at_op(&["%"]) {
-                return Err(self.the_error_of_a_percent_inside());
+                return Err(self.the_error_of_a_percent_inside(self.position));
             }
             let value = self.the_expression_of_a_dynamic_name(open)?;
             if !self.at_op(&["%"]) {
@@ -9982,7 +10047,7 @@ impl Parser {
                 // refused with the text of the rest of the line.
                 let open = self.position - 1;
                 if self.at_op(&["%"]) {
-                    return Err(self.the_error_of_a_percent_inside());
+                    return Err(self.the_error_of_a_percent_inside(self.position));
                 }
                 let value = self.the_expression_of_a_dynamic_name(open)?;
                 if !self.at_op(&["%"]) {
@@ -10377,7 +10442,7 @@ impl Parser {
                     let at = self.position;
                     self.next();
                     if self.at_op(&["%"]) {
-                        return Err(self.the_error_of_a_percent_inside());
+                        return Err(self.the_error_of_a_percent_inside(self.position));
                     }
                     let value = self.the_expression_of_a_dynamic_name(at)?;
                     if !self.at_op(&["%"]) {
@@ -10589,7 +10654,7 @@ impl Parser {
                     let open = self.position;
                     self.next();
                     if self.at_op(&["%"]) {
-                        return Err(self.the_error_of_a_percent_inside());
+                        return Err(self.the_error_of_a_percent_inside(self.position));
                     }
                     let value = self.the_expression_of_a_dynamic_name(open)?;
                     if !self.at_op(&["%"]) {

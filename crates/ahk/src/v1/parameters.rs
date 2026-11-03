@@ -333,6 +333,27 @@ pub(crate) fn the_text_is_an_expression_of_the_v1(text: &str) -> bool {
     rest.starts_with(' ') || rest.starts_with('\t')
 }
 
+/// The refusal of the percent sign of an expression of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+/// opens the name of a variable with the percent sign, and the name that is
+/// not closed is refused with "This parameter contains a variable name
+/// missing its ending percent sign." and the name that is empty is refused
+/// with "Empty variable reference (%%).". The text that is named is the run
+/// of the name -- the characters of the name and the percent signs that are
+/// glued to them -- and not the rest of the line.
+pub(crate) fn the_refusal_of_the_percent_sign_of_an_expression(
+    run: &str,
+    empty: bool,
+) -> Option<String> {
+    if empty {
+        return Some(format!("Empty variable reference (%%).\n     Specifically: {run}"));
+    }
+    Some(format!(
+        "This parameter contains a variable name missing its ending percent sign.\n     Specifically: {run}"
+    ))
+}
+
 /// The refusal of the name of a variable of the script.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a variable

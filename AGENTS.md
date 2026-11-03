@@ -9100,3 +9100,26 @@ and of the tree: the nine of the nine of the second are the same.
 
 The suite of the v1 has one case more (383), and the suite of the v2 has one
 case more (511).
+
+The percent sign of an expression of the v1 opens the name of a variable, and
+the name has to close with another percent sign. The name that does not close
+is refused with "This parameter contains a variable name missing its ending
+percent sign." and the name that is empty is refused with "Empty variable
+reference (%%).". The text that the complaint names is the run of the name --
+the characters of the name and the percent signs that are glued to them -- and
+not the rest of the line: the `x := 10 % 3` is refused with the run "%" and
+the `x := 10%3` is refused with the run "10%3". The space is what ends the run.
+
+The value of the reference is the value of the variable whose name is the value
+of the variable that the reference names.
+
+The probes of the block are `egm-review/probe_v1_percent_expression.py`,
+`egm-review/probe_v1_percent_and_quotes.py` and
+`egm-review/probe_v1_percent_deref.py`, and they are the cases of the binary
+and of the tree: seven of the nine, sixteen of the nineteen and six of the
+ten are the same. The three that are not are the ones where the v1 asks the
+user for the value of a variable whose name is not the name of a variable: the
+tree answers an empty value, and it does not ask anybody.
+
+The suite of the v1 has three cases more (386), and the suite of the v2 is the
+same (511).
