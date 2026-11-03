@@ -1134,6 +1134,26 @@ pub trait Dialect: Sync {
         the_name_of_the_word(word)
     }
 
+    /// Whether the line that begins with a name and a list of parameters is a
+    /// definition of a function.
+    ///
+    /// The v2 decides with the token that comes after the parenthesis: the
+    /// brace and the fat arrow make a definition of it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// decides with the rest of the line: the definition is the line `f(a) {`
+    /// and the line `f(a)`, and when there is anything else after the
+    /// parenthesis that closes the list, the line is a call. The `f(a) { return
+    /// a }` is a call of the name "f", and it is refused with "Call to
+    /// nonexistent function.".
+    ///
+    /// `rest` is the text of the line that comes after the parenthesis that
+    /// closes the list, and the answer of `None` is that the dialect does not
+    /// decide: the token that comes after the parenthesis does.
+    fn a_line_is_a_definition(&self, _rest: &str) -> Option<bool> {
+        None
+    }
+
     /// The refusal of the `until` that has no loop.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -1835,6 +1855,22 @@ impl Dialect for V1 {
         // `until` of the v1 that no loop takes is refused with "UNTIL with no
         // matching LOOP", and it names nothing else.
         Some("UNTIL with no matching LOOP".to_string())
+    }
+
+    fn a_line_is_a_definition(&self, rest: &str) -> Option<bool> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // definition of the v1 is the line `f(a) {` and the line `f(a)` with
+        // the brace on the line that comes next, and when there is anything
+        // else after the parenthesis that closes the list, the line is a
+        // call. The `f(a) { return a }` is a call of the name "f", and it is
+        // refused with "Call to nonexistent function.".
+        let rest = rest.trim();
+        if rest.is_empty() {
+            // The brace may be on the line that comes next, and the token
+            // that comes after the parenthesis decides.
+            return None;
+        }
+        Some(rest == "{")
     }
 
     fn the_refusal_of_the_arity_of_a_command(

@@ -5014,6 +5014,14 @@ impl Parser {
                     ")" | "]" => {
                         depth = depth.saturating_sub(1);
                         if depth == 0 {
+                            // Measured on the binary of AutoHotkey v1.1.37.02
+                            // on 2026-11-04: the v1 decides with the rest of
+                            // the line, and the dialect says it.
+                            if let Some(answer) =
+                                self.dialect.a_line_is_a_definition(&self.the_rest_of_the_line_after(at))
+                            {
+                                return answer;
+                            }
                             // The fat arrow is the body of the definition, and
                             // it may be on the line of the parameters or on
                             // the one after it.
@@ -5051,6 +5059,19 @@ impl Parser {
             at += 1;
         }
         false
+    }
+
+    /// The text of the line that comes after the token.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// decides with it whether the line is a definition of a function: the
+    /// `f(a) {` is a definition and the `f(a) { return a }` is a call.
+    fn the_rest_of_the_line_after(&self, at: usize) -> String {
+        let end = the_end_of_the_line_of(self, at);
+        if at + 1 >= end {
+            return String::new();
+        }
+        self.the_verbatim_source(at + 1, end)
     }
 
     /// The tail of the `if` of the v1: the text that follows the condition

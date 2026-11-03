@@ -1891,6 +1891,14 @@ that asks for another one is refused with the reason.
   number of the arguments that is wrong names the rest of the line too. The
   spaces that the script wrote are in it.
 
+- **The definition of a function of the v1 needs the brace at the end of the
+  line.** The definition is the line `f(a) {` and the line `f(a)` whose brace
+  is on the line that comes next, and the rest of the line after the
+  parenthesis that closes the list decides: when there is anything else
+  there, the line is a call. The v2 decides with the token that comes after
+  the parenthesis: the brace and the fat arrow make a definition of it. The
+  dialect says it (`a_line_is_a_definition`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

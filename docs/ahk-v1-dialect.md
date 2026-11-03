@@ -1538,6 +1538,21 @@ number of the arguments that is wrong -- the `x := Abs() + 1` is refused with
 spaces that the script wrote are in it: the `x := InStr( "ABCabc" )` names
 the `InStr( "ABCabc" )` and not only the call.
 
+**The definition of a function of the v1** (2026-11-04). The definition is
+the line `f(a) {` and the line `f(a)` whose brace is on the line that comes
+next, and the rest of the line after the parenthesis that closes the list
+decides: when there is anything else there, the line is a call. The `f(a) 1`
+is refused with "Call to nonexistent function.\n     Specifically: f(a) 1",
+and the `f(a)` alone is refused with "f(a)". The rule is a hook of the
+dialect (`a_line_is_a_definition`), and the v2 decides with the token that
+comes after the parenthesis: the brace and the fat arrow make a definition
+of it.
+
+Two corners of it are not carried yet: the `f(a) { return a }` is a call in
+the v1, and the tree refuses the line with "Unexpected "{"", and the `f(a) {
+x := 1` is refused by the v1 with "Call to nonexistent function." and by the
+tree with "Missing "}"".
+
 **What stays out of the call.** The call of a function of the v1 that is
 written without the parentheses and inside an expression -- `x := InStr
 "abc"` -- is not a call: it is the name of the function and the text, side by

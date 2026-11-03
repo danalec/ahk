@@ -8286,3 +8286,19 @@ call (2026-11-02); the text of the refusal is the rest of the line now
 (`the_call_of_the_v1_is_recorded`).
 
 The suite of the v1 has one case more (262).
+
+## 213. The definition of a function of the v1 needs the brace at the end of the line
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+definition of the v1 is the line `f(a) {` and the line `f(a)` whose brace is
+on the line that comes next, and the rest of the line after the parenthesis
+that closes the list decides: when there is anything else there, the line is
+a call. The `f(a) 1` is refused with "Call to nonexistent function.\n
+Specifically: f(a) 1", and the `f(a)` alone is refused with "f(a)".
+
+The rule is a hook of the dialect (`a_line_is_a_definition`), and the v2
+decides with the token that comes after the parenthesis: the brace and the
+fat arrow make a definition of it. The parser asks the dialect with the text
+of the line that comes after the parenthesis (`the_rest_of_the_line_after`).
+
+The suite of the v1 has one case more (263).

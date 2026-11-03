@@ -4053,6 +4053,46 @@ fn the_number_of_the_parameters_of_a_command_of_the_v1_is_the_number_of_the_bina
     }
 }
 
+/// The definition of a function of the v1 needs the brace at the end of the
+/// line.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// definition of the v1 is the line `f(a) {` and the line `f(a)` with the
+/// brace on the line that comes next, and when there is anything else after
+/// the parenthesis that closes the list, the line is a call. The `f(a) 1` is
+/// refused with "Call to nonexistent function.\n     Specifically: f(a) 1".
+#[test]
+fn the_definition_of_a_function_of_the_v1_needs_the_brace_at_the_end_of_the_line() {
+    // The line that has something else after the list of the parameters is
+    // a call.
+    assert_eq!(
+        the_refusal_of_the_load("f(a)"),
+        "Call to nonexistent function.\n     Specifically: f(a)"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("f(a) 1"),
+        "Call to nonexistent function.\n     Specifically: f(a) 1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("f(a), 1"),
+        "Call to nonexistent function.\n     Specifically: f(a), 1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("f(a) \"x\""),
+        "Call to nonexistent function.\n     Specifically: f(a) \"x\""
+    );
+
+    // The definition is the line that has the brace at the end of it, and
+    // the line whose brace is on the line that comes next.
+    let report = run("f(a) {\n    return a\n}\nx := f(1)\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+
+    let report = run("f(a)\n{\n    return a\n}\nx := f(1)\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
 /// The refusal of a call of the v1 names the rest of the line.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text
