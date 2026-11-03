@@ -1134,6 +1134,17 @@ pub trait Dialect: Sync {
         the_name_of_the_word(word)
     }
 
+    /// Whether the brace that follows a value opens the literal of an object.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// refuses the brace at once, and it does not look for the brace that
+    /// closes the literal: the `x := 1 {` is refused with "Unexpected "{"".
+    /// The v2 looks for the closing brace first, and the literal that is not
+    /// closed is a "Missing "}"".
+    fn the_brace_after_a_value_opens_a_literal(&self) -> bool {
+        true
+    }
+
     /// Whether the parenthesis that closes the list of the arguments of a
     /// call is needed.
     ///
@@ -1892,6 +1903,13 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 does not need the parenthesis that closes the call of a name
         // that is not a function, and the call is refused at the load.
+        false
+    }
+
+    fn the_brace_after_a_value_opens_a_literal(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 refuses the brace that follows a value at once, and it does not
+        // look for the brace that closes the literal of an object.
         false
     }
 

@@ -1909,6 +1909,13 @@ that asks for another one is refused with the reason.
   function of the script may be defined after the call. The dialect says it
   (`the_closing_parenthesis_of_a_call_is_needed`).
 
+- **The brace that follows a value is refused at once in the v1.** The v1
+  refuses the brace at once, and it does not look for the brace that closes
+  the literal of an object: the `x := 1 {` is refused with "Unexpected "{"",
+  and not with "Missing "}"". The literal of an object is a literal of the v1
+  too, when it begins the expression. The dialect says it
+  (`the_brace_after_a_value_opens_a_literal`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

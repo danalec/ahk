@@ -4093,6 +4093,23 @@ fn the_definition_of_a_function_of_the_v1_needs_the_brace_at_the_end_of_the_line
     assert_eq!(report.output, vec!["[1]".to_string()]);
 }
 
+/// The brace that follows a value is refused at once in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the brace at once, and it does not look for the brace that closes
+/// the literal of an object: the `x := 1 {` is refused with "Unexpected
+/// "{"", and not with "Missing "}"".
+#[test]
+fn the_brace_that_follows_a_value_is_refused_at_once_in_the_v1() {
+    assert_eq!(the_refusal_of_the_load("x := 1 {"), "Unexpected \"{\"");
+    assert_eq!(the_refusal_of_the_load("x := \"a\" {"), "Unexpected \"{\"");
+
+    // The literal of an object is a literal of the v1 too, when it begins
+    // the expression.
+    let report = run("x := {a: 1}\nFileAppend, [%x.a%], *");
+    assert!(report.ok);
+}
+
 /// The call of the v1 whose parenthesis that closes it is not there.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1

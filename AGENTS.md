@@ -8327,3 +8327,18 @@ call that no parenthesis closes is kept in the record of the call
 the load.
 
 The suite of the v1 has one case more (264).
+
+## 215. The brace that follows a value is refused at once in the v1
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+refuses the brace that follows a value at once, and it does not look for the
+brace that closes the literal of an object: the `x := 1 {` is refused with
+"Unexpected \"{\"", and not with "Missing \"}\"". The literal of an object is
+a literal of the v1 too, when it begins the expression: the `x := {a: 1}` is
+a literal.
+
+The rule is a hook of the dialect
+(`the_brace_after_a_value_opens_a_literal`), and the v2 looks for the closing
+brace first.
+
+The suite of the v1 has one case more (265).

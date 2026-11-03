@@ -3303,6 +3303,17 @@ impl Parser {
             return Ok(());
         }
         if token.kind == TokenKind::Op && token.value == "{" {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 refuses the brace that follows a value at once, and it
+            // does not look for the brace that closes the literal of an
+            // object: the `x := 1 {` is refused with "Unexpected "{"".
+            if !self.dialect.the_brace_after_a_value_opens_a_literal() {
+                return Err(SyntaxError {
+                    message: "Unexpected \"{\"".to_string(),
+                    line: token.line,
+                    column: token.column,
+                });
+            }
             // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
             // follows a value opens the literal of an object, and not a
             // block: the literal that is not closed is a "Missing "}"", and

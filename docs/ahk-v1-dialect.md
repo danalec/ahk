@@ -1560,6 +1560,15 @@ the v1, and the tree refuses the line with "Unexpected "{"", and the `f(a) {
 x := 1` is refused by the v1 with "Call to nonexistent function." and by the
 tree with "Missing "}"".
 
+**The brace that follows a value** (2026-11-04). The v1 refuses the brace
+at once, and it does not look for the brace that closes the literal of an
+object: the `x := 1 {` is refused with "Unexpected "{"", and not with
+"Missing "}"". The literal of an object is a literal of the v1 too, when it
+begins the expression: the `x := {a: 1}` is a literal.
+
+The rule is a hook of the dialect (`the_brace_after_a_value_opens_a_literal`),
+and the v2 looks for the closing brace first.
+
 **The call whose parenthesis that closes it is not there** (2026-11-04). The
 v1 does not need the parenthesis that closes the call of a name that is not a
 function, and the call is refused at the load: the `x := abc(c` is refused
