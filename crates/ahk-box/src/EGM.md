@@ -223,7 +223,7 @@ the attributes, the times, the directories and the ini files.
 | `append_file` | `(path, bytes, mark) -> Result<String, String>` | The bytes go to the end of the file, and the mark of the encoding is written when the file is made and not when the file is already there. |
 | `letters_of` | private fn | The attributes of a file, in the order of v2. |
 | `the_failure_of_the_machine` | private fn | The failure of the machine, in the words of v2: "(2) The system cannot find the file specified." |
-| `list_files` | `(folder, pattern, mode) -> Result<Vec<String>, String>` | The pattern of v2 is a path: the folder of it is where the files are, and the rest of it is the name of them. The answer comes in the order of the name with the case taken away, and the case of the pattern does not count. |
+| `list_files` | `(folder, pattern, mode) -> Result<Vec<String>, String>` | The pattern of v2 is a path: the folder of it is where the files are, and the rest of it is the name of them. The mode is a set of letters: the "F" and the "V" give the files, the "D" and the "K" give the folders, the "A" gives the two of them, and the "R" walks into the folders. The answer comes in the order of the name with the case taken away, and the case of the pattern does not count. |
 
 The wildcards are not carried: `FileCopy "a*.txt", "b"` and the folders
 that hold the folders are not in the tree, and the names that would ask for

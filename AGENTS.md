@@ -1198,6 +1198,13 @@ against the real thing.
   and "D" gives the directories instead of the files. The letters are
   read without regard to the case, and a third parameter is refused:
   "\"Loop Files\" accepts at most 2 parameters."
+- **The mode carries the letters of the v2, and the other ones are
+  refused.** Measured on the binary of v2.0.19 on 2026-11-05: the mode is a
+  set of letters -- the "R" walks into the folders, the "D" and the "K" give
+  the folders, the "F" and the "V" give the files -- and the spaces and the
+  tabs between them are ignored. The letter that is not one of them is
+  refused when the loop runs, and the "A" is not one of them: the tree took
+  it and gave the files and the folders, and the v2 refuses it.
 - **The loop writes the variables of v2**: `A_LoopFileName`,
   `A_LoopFileFullPath`, `A_LoopFileExt`, `A_LoopFileDir` and
   `A_LoopFilePath`, beside `A_Index`. The tree wrote a name of its own,
@@ -4758,9 +4765,11 @@ which one it is.
 - **The line of the file is `A_LoopReadLine`, and `A_LoopField` is the
   field of the loop that parses.** The variables of the loops are there
   before the first loop runs: the index is zero and the others are empty.
-- **The second parameter of `Loop Read` is not carried yet.** The v2 keeps
-  that file open for the duration of the loop and the `FileAppend` of the
-  body writes to it; the tree reads the file and writes nothing.
+- **The second parameter of `Loop Read` is carried.** Measured on the
+  binary of v2.0.19 on 2026-11-05: the v2 does not open the file of the
+  second parameter when the loop begins -- the file that is not there is not
+  made, and the one that has text keeps it -- and the `FileAppend` of the
+  body writes to it. The tree does the same.
 
 The comparison of the tree with the binary is in
 `egm-review/compare_loop_family.py` (39 cases, three of them the ones where
@@ -9229,3 +9238,30 @@ surface of the v2 has 828 entries: 638 answer with a value, 190 are refused
 and none is pending. The surface of the v1 has 405 entries: 299 answer with a
 value, 106 are refused and none is pending. No name of either surface is
 refused for lack of implementation any more.
+
+The mode of the `Loop Files` of the v2 is a set of letters, and the letter
+that is not one of them is refused when the loop runs: the "R" walks into the
+folders, the "D" and the "K" give the folders, the "F" and the "V" give the
+files, and the spaces and the tabs between them are ignored. The "A" is not
+one of them, and the tree took it and gave the files and the folders.
+
+The box reads the mode the same way: the "FD" gives the files and the
+folders, and the "K" gives the folders like the "D". The "A" is the way that
+the tree asks for the two of them, and it is the mode of the v1 whose number
+is one.
+
+The second parameter of the `Loop Read` of the v2 is carried already, and the
+report of what was missing was stale: the v2 does not open the file when the
+loop begins, the file that is not there is not made, the one that has text
+keeps it, and the `FileAppend` of the body writes to it. The tree does the
+same, and the probe of the block is the one of the two.
+
+The probes of the block are `egm-review/probe_v2_loop_files_modes.py` and
+`egm-review/probe_v2_loop_read_output.py`, and they are the cases of the
+binary and of the tree: fifteen of the nineteen and four of the four are the
+same. The four that are not in the first one are the ones where the v2 fails
+at the run: the failure of the run of the v2 opens a dialog, and the dialog is
+a timeout.
+
+The suite of the v2 has one case more (512), and the suite of the box has one
+case more (84). The suite of the v1 is the same (395).

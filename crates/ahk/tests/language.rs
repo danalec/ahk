@@ -5843,3 +5843,31 @@ fn the_statement_that_begins_with_a_member_whose_name_is_not_a_name_and_a_sum_ho
         "This line does not contain a recognized action.\n     Specifically: a.'b' + 1"
     );
 }
+
+/// The mode of the loop of the files is a set of letters, and the letter that
+/// is not one of them is refused when the loop runs.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the mode is the
+/// "R" that walks into the folders, the "D" and the "K" that give the
+/// folders, the "F" and the "V" that give the files, and the spaces between
+/// them are ignored. The "A" is not one of them.
+#[test]
+fn the_mode_of_the_loop_of_the_files_carries_the_letters_of_v2() {
+    let (report, _desktop) = run("Loop Files \"*.txt\", \"A\" {\n}\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some(
+            "the mode of a `Loop Files` is the \"R\", the \"D\", the \"F\", the \"V\" or the \"K\", and the letter \"A\" is not one of them."
+        )
+    );
+    assert_eq!(report.error_line, Some(1));
+    // The spaces between the letters are ignored.
+    let (report, desktop) = run("Loop Files \"*.txt\", \"D R\" {\n  Send \"%A_LoopFileName%\"\n}\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(
+        desktop.calls.contains(&("list_files".to_string(), "/work|*.txt|D R".to_string())),
+        "{:?}",
+        desktop.calls
+    );
+}

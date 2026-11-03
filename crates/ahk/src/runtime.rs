@@ -464,6 +464,24 @@ fn the_extension_of(name: &str) -> &str {
     }
 }
 
+/// The letter of the mode of the loop of the files that the mode does not
+/// carry.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05 and on the
+/// binary of AutoHotkey v1.1.37.02 on 2026-11-05: the mode is a set of
+/// letters -- the "R" walks into the folders, the "D" and the "K" give the
+/// folders, the "F" and the "V" give the files -- and the spaces and the tabs
+/// between them are ignored. The letter "A" is not one of them, and a number
+/// is not one either.
+fn the_letter_that_the_mode_does_not_carry(mode: &str) -> Option<char> {
+    mode.chars().find(|letter| {
+        !matches!(
+            letter,
+            'R' | 'r' | 'D' | 'd' | 'F' | 'f' | 'V' | 'v' | 'K' | 'k' | ' ' | '\t'
+        )
+    })
+}
+
 /// The path of a file without its extension.
 fn without_the_extension(path: &str, extension: &str) -> String {
     if extension.is_empty() {
@@ -2702,6 +2720,21 @@ impl<'a> Runtime<'a> {
                             Some(node) => self.evaluate(node)?.to_text(),
                             None => String::new(),
                         };
+                        // Measured on the binary of AutoHotkey v2.0.19 on
+                        // 2026-11-05: the mode of the `Loop Files` is a set of
+                        // letters -- the "R" walks into the folders, the "D"
+                        // and the "K" give the folders, the "F" and the "V"
+                        // give the files -- and the spaces between them are
+                        // ignored. The letter that is not one of them is
+                        // refused when the loop runs.
+                        if let Some(letter) = the_letter_that_the_mode_does_not_carry(&mode) {
+                            return Err(RuntimeFailure::Error(RuntimeError {
+                                message: format!(
+                                    "the mode of a `Loop Files` is the \"R\", the \"D\", the \"F\", the \"V\" or the \"K\", and the letter \"{letter}\" is not one of them."
+                                ),
+                                line: *line,
+                            }));
+                        }
                         let folder = self
                             .desktop()
                             .working_directory()

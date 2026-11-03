@@ -1437,4 +1437,41 @@ mod tests {
         assert!(files[0].ends_with("b.txt"), "{files:?}");
         let _ = fs::remove_dir_all(&folder);
     }
+
+    /// The mode of the loop of the files is a set of letters.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the "D"
+    /// gives the folders, the "K" gives them too, the "F" and the "V" give the
+    /// files, and the "FD" gives the two of them.
+    #[test]
+    fn the_mode_of_the_loop_of_the_files_is_a_set_of_letters() {
+        let folder = scratch("modes");
+        let sub = folder.join("sub");
+        fs::create_dir_all(&sub).expect("the subfolder");
+        file_of(&folder, "a.txt");
+        file_of(&sub, "b.txt");
+        let mut desktop = LabDesktop::new();
+        let mut names = |mode: &str| {
+            let files = desktop
+                .list_files(&folder.to_string_lossy(), "*", mode)
+                .expect("the files of the folder");
+            files
+                .iter()
+                .map(|file| {
+                    Path::new(file)
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
+                })
+                .collect::<Vec<String>>()
+        };
+        assert_eq!(names("D"), vec!["sub"]);
+        assert_eq!(names("K"), vec!["sub"]);
+        assert_eq!(names("F"), vec!["a.txt"]);
+        assert_eq!(names("V"), vec!["a.txt"]);
+        assert_eq!(names("FD"), vec!["a.txt", "sub"]);
+        assert_eq!(names(""), vec!["a.txt"]);
+        let _ = fs::remove_dir_all(&folder);
+    }
 }

@@ -182,16 +182,17 @@ the v2 shows a dialog before the error that caused it. It is a feature, and
 it is a big one: the warning of the v2 says what is wrong with the script
 before it stops.
 
-**The second parameter of the `Loop Read` of the v2** — the v2 keeps the file
-open for the duration of the loop, and the `FileAppend` of the body writes to
-it. The tree reads the file and writes nothing: the file of the second
-parameter is not opened (`AGENTS.md` §102).
+**The second parameter of the `Loop Read` of the v2** — *closed on 2026-11-05*.
+The v2 does not open the file of the second parameter when the loop begins:
+the file that is not there is not made, and the one that has text keeps it.
+The `FileAppend` of the body writes to it, and the tree does the same.
 
-**The mode of the `Loop Files` of the v2** — the tree accepts the mode "A"
-(the files and the folders), which is the mode of the v1, and the v2 refuses
-it with a dialog. The modes of the v2 are the "R" and the "D", and the "D"
-(the folders) is measured and agrees with the tree
-(`egm-review/probe_v2_loop_files_d2.py`).
+**The mode of the `Loop Files` of the v2** — *closed on 2026-11-05*. The mode
+is a set of letters -- the "R" walks into the folders, the "D" and the "K"
+give the folders, the "F" and the "V" give the files -- and the spaces and
+the tabs between them are ignored. The letter that is not one of them is
+refused when the loop runs, and the "A" is not one of them: the tree took it
+and gave the files and the folders, and the v2 refuses it with a dialog.
 
 ### 2.4 What is not a hole
 
@@ -214,10 +215,12 @@ it with a dialog. The modes of the v2 are the "R" and the "D", and the "D"
    at the point, and the tree ended the name at it.
 3. **The `ObjBindMethod`** (§1.1) — *closed on 2026-11-05*. The tree binds
    the method of an object, and the value of it is of the class `BoundFunc`.
-4. **The mode of the `Loop Files` of the v2** (§2.3). Small: the tree refuses
-   the mode that the v2 refuses.
-5. **The second parameter of the `Loop Read` of the v2** (§2.3). The tree
-   opens the file and the `FileAppend` of the body writes to it.
+4. **The mode of the `Loop Files` of the v2** (§2.3) — *closed on 2026-11-05*.
+   The mode is a set of letters, and the tree refuses the letter that the v2
+   refuses.
+5. **The second parameter of the `Loop Read` of the v2** (§2.3) — *closed on
+   2026-11-05*. The tree does what the v2 does: the file is not opened when
+   the loop begins, and the `FileAppend` of the body writes to it.
 6. **The warnings of the v2** (§2.3). Big: the runtime needs a warning
    channel and the v2 shows a dialog before the error.
 

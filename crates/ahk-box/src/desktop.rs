@@ -1182,17 +1182,24 @@ pub(crate) fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &
     entries.sort_by(|one, other| {
         one.0.to_uppercase().cmp(&other.0.to_uppercase()).then_with(|| one.0.cmp(&other.0))
     });
+    // The mode is a set of letters: the "F" and the "V" give the files, the
+    // "D" and the "K" give the folders, and the "A" gives the two of them --
+    // it is the way that the tree asks for the two of them. The mode that
+    // asks for neither of them gives the files.
+    //
+    // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the "FD"
+    // gives the files and the folders, and the "K" gives the folders like the
+    // "D".
+    let wants_the_files = mode.contains('F')
+        || mode.contains('V')
+        || mode.contains('A')
+        || !(mode.contains('D') || mode.contains('K'));
+    let wants_the_folders = mode.contains('D') || mode.contains('K') || mode.contains('A');
     for (name, is_file, path) in &entries {
         // The directories are not files: a loop over the files of a
         // folder does not walk into them, unless the mode asks for the
         // directories instead, or for the two of them.
-        let wanted = if mode.contains('D') {
-            !is_file
-        } else if mode.contains('A') {
-            true
-        } else {
-            *is_file
-        };
+        let wanted = if *is_file { wants_the_files } else { wants_the_folders };
         if wanted && name_matches(pattern, name) {
             files.push(path.to_string_lossy().to_string());
         }
