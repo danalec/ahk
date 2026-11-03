@@ -9707,7 +9707,7 @@ impl Parser {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
                 // property may be built by the script: `{%name%: 1}` is the
                 // property whose name is the value of `name`.
-                let member = if name.kind == TokenKind::Op && name.value == "%" {
+                if name.kind == TokenKind::Op && name.value == "%" {
                     let open = self.position - 1;
                     if self.at_op(&["%"]) {
                         return Err(self.the_error_of_a_percent_inside());
@@ -9755,8 +9755,7 @@ impl Parser {
                         });
                     }
                     MemberName::Text(name.value)
-                };
-                member
+                }
             };
             if !self.at_op(&[":"]) {
                 return Err(SyntaxError {
