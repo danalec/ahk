@@ -2738,3 +2738,23 @@ once per read.
 The probe of the block is `egm-review/probe_v1_v2_warn_vars.py`, and the
 comparison of the binary and of the tree is five of the eight: the three that
 are not are the ones where the v1 warns twice.
+
+**The `#Warn` of the v1** (2026-11-05, the third block). The two warnings
+that are read out of the script are carried too, and the `#Warn` of the v1 has
+all of its types.
+
+The local variable that has the name of a global one is warned about once,
+when the script is read: "This local variable has the same name as a global
+variable." and the name of the variable with the function of it -- "x  (in
+function f)". The line of the warning is the line that opens the body of the
+function in the v1, and the line of the write of the local in the v2. A local
+that is declared global is not a local, and a local without a global is not
+warned about, and the parameters of the function are declared.
+
+The class that a variable overwrites is warned about: "Class may be
+overwritten." and the name of it, at the line of the write -- and the write
+inside a function warns about it too.
+
+The probes of the block are `egm-review/probe_v1_v2_warn_names.py` and
+`egm-review/probe_v1_v2_warn_names_compare.py`, and the comparison of the
+binary and of the tree is fifteen of the fifteen.

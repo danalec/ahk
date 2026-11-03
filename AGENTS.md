@@ -9121,6 +9121,18 @@ and of the tree: the nine of the nine of the second are the same.
 The suite of the v1 has one case more (383), and the suite of the v2 has one
 case more (511).
 
+## 242. The warnings that are read out of the script are given when the script is read
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05 and on the
+binary of AutoHotkey v2.0.19 on 2026-11-05: the local variable that has the
+name of a global one is warned about once, when the script is read, and the
+text of it names the variable and the function of it -- "x  (in function f)".
+The v1 names the line that opens the body of the function, and the v2 names
+the line of the write of the local.
+
+The class that a variable overwrites is warned about too: "Class may be
+overwritten." and the name of it, at the line of the write.
+
 ## 241. The warning of the variable that is read and never written is given when the variable is read
 
 Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning of
@@ -9438,3 +9450,29 @@ warns twice.
 
 The suite of the v2 has four cases more (524), and the suite of the v1 has
 three cases more (401).
+
+The warnings that are read out of the script are carried now, and the `#Warn`
+of the two dialects has all of its types.
+
+The local variable that has the name of a global one is warned about once,
+when the script is read: "This local variable has the same name as a global
+variable." and the name of the variable with the function of it -- "x  (in
+function f)". The line of the warning is the line that opens the body of the
+function in the v1, and the line of the write of the local in the v2. A local
+that is declared global is not a local, and a local without a global is not
+warned about, and the parameters of the function are declared.
+
+The class that a variable overwrites is warned about: "Class may be
+overwritten." and the name of it, at the line of the write -- and the write
+inside a function warns about it too.
+
+The types of the warning that the tree does not carry are named in the
+report, and the tree carries them all now: the note is there for the types
+that are missing, and there are none.
+
+The probes of the block are `egm-review/probe_v1_v2_warn_names.py` and
+`egm-review/probe_v1_v2_warn_names_compare.py`, and the comparison of the
+binary and of the tree is fifteen of the fifteen.
+
+The suite of the v2 has two cases more (526), and the suite of the v1 has two
+cases more (403).

@@ -6074,20 +6074,53 @@ fn the_type_of_the_warn_that_the_v2_does_not_know_is_refused() {
     );
 }
 
-/// The type of the warning that the tree does not carry is named in the
-/// report.
+/// The type of the warning that the tree carries is not named in the report.
 ///
-/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the local
-/// that has the name of a global is warned about by the v2, and the tree does
-/// not carry that warning yet: the report says so.
+/// The report names the types of the warning that the tree does not carry, and
+/// the tree carries them all: the note is only there for the types that are
+/// missing.
 #[test]
-fn the_type_of_the_warn_that_the_tree_does_not_carry_is_named_in_the_report() {
+fn the_type_of_the_warn_that_the_tree_carries_is_not_named_in_the_report() {
     let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\n");
     assert!(report.ok, "{:?}", report.error);
     assert!(
-        report.notes.iter().any(|note| note.contains("LocalSameAsGlobal")),
+        !report.notes.iter().any(|note| note.contains("LocalSameAsGlobal")),
         "{:?}",
         report.notes
     );
 }
 
+/// The local variable that has the name of a global one is warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning
+/// is given once, when the script is read, and the text of it names the
+/// variable and the function of it -- "x  (in function f)". The line of it is
+/// the line of the write of the local.
+#[test]
+fn the_local_that_has_the_name_of_a_global_is_warned_about() {
+    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  x := 2\n}\nf()\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 4);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable has the same name as a global variable.\n     Specifically: x  (in function f)"
+    );
+    assert_eq!(
+        report.output,
+        vec!["(4) : ==> Warning: This local variable has the same name as a global variable.\n     Specifically: x  (in function f)".to_string()]
+    );
+}
+
+/// The local that is declared global is not a local.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the local that
+/// the function declares global is not warned about.
+#[test]
+fn the_local_that_is_declared_global_is_not_warned_about() {
+    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  global x\n  x := 2\n}\nf()\n");
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    // The local without a global is not warned about either.
+    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nf() {\n  x := 2\n}\nf()\n");
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+}

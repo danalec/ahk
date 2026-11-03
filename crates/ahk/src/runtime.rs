@@ -1805,6 +1805,27 @@ impl<'a> Runtime<'a> {
                 warnings.push(warning);
             }
         }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05 and on
+        // the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning of the
+        // local that has the name of a global is given when the script is
+        // read, and the warning of the class that is overwritten is given
+        // after it.
+        if self.modes.local_same_as_global != crate::warnings::WarningMode::Off {
+            let mode = self.modes.local_same_as_global;
+            for warning in
+                crate::warnings::the_warnings_of_the_locals_that_are_globals(statements, self.dialect)
+            {
+                self.warn(warning.line, warning.message.clone(), mode);
+                warnings.push(warning);
+            }
+        }
+        if self.modes.class_overwrite != crate::warnings::WarningMode::Off {
+            let mode = self.modes.class_overwrite;
+            for warning in crate::warnings::the_warnings_of_the_classes_that_are_overwritten(statements) {
+                self.warn(warning.line, warning.message.clone(), mode);
+                warnings.push(warning);
+            }
+        }
         warnings
     }
 

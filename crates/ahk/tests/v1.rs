@@ -10046,3 +10046,40 @@ fn the_environment_variable_that_is_accessed_is_warned_about_in_the_v1() {
     );
 }
 
+/// The local variable that has the name of a global one is warned about.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text of
+/// the warning names the variable and the function of it -- "x  (in function
+/// f)" -- and the line of it is the line that opens the body of the function.
+#[test]
+fn the_local_that_has_the_name_of_a_global_is_warned_about_in_the_v1() {
+    let report = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  x := 2\n}\nf()\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable has the same name as a global variable.\n     Specifically: x  (in function f)"
+    );
+}
+
+/// The class that a variable overwrites is warned about.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text of
+/// it is "Class may be overwritten." and the name of the class, and the line
+/// of it is the line of the write that overwrites it.
+#[test]
+fn the_class_that_is_overwritten_is_warned_about_in_the_v1() {
+    let report = run("#Warn ClassOverwrite, StdOut\nclass A {\n}\nA := 5\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 4);
+    assert_eq!(
+        report.warnings[0].message,
+        "Class may be overwritten.\n     Specifically: A"
+    );
+    // The class that is overwritten inside a function is warned about too.
+    let report = run("#Warn ClassOverwrite, StdOut\nclass A {\n}\nf() {\n  A := 5\n}\nf()\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 5);
+}

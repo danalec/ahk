@@ -169,20 +169,18 @@ and the `Loop Files, <pattern>, <mode>` whose mode is a set of letters. The
 tree carried the first one and not the second one: the pattern of the files
 was the word "Files" and the mode was the pattern.
 
-**The `#Warn` of the v1** -- *closed on 2026-11-05, for the warnings of the
-variables*. The v1 has a `#Warn` of its own, and its types are not the ones of
-the v2: the "UseUnsetLocal", the "UseUnsetGlobal", the "UseEnv", the
-"LocalSameAsGlobal", the "ClassOverwrite" and the "All". The modes are the
-"MsgBox", the "StdOut", the "OutputDebug" and the "Off". The words of the
-refusal are the ones of the v2 -- "Parameter #1 invalid." and the source of
-the line, "Parameter #2 invalid." and the text that was written.
+**The `#Warn` of the v1** -- *closed on 2026-11-05*. The v1 has a `#Warn` of
+its own, and its types are not the ones of the v2: the "UseUnsetLocal", the
+"UseUnsetGlobal", the "UseEnv", the "LocalSameAsGlobal", the "ClassOverwrite"
+and the "All". The modes are the "MsgBox", the "StdOut", the "OutputDebug" and
+the "Off". The words of the refusal are the ones of the v2 -- "Parameter #1
+invalid." and the source of the line, "Parameter #2 invalid." and the text
+that was written.
 
-The tree carries the three warnings of the variables -- the variable of the
-script that is read and never written, the variable of a function that is
-read and never written, and the environment variable that is accessed. The two
-that are read out of the script -- the local that has the name of a global and
-the class that is overwritten -- are not carried yet, and the report names
-them.
+The tree carries all of them: the variable of the script that is read and
+never written, the variable of a function that is read and never written, the
+environment variable that is accessed, the local that has the name of a global
+and the class that is overwritten.
 
 The difference that stays: the v1 warns twice for a read that is the value of
 an assignment, and the tree warns once. The text of the warning is the same.
@@ -211,8 +209,9 @@ read, and before the failure of the run.
 
 The tree has no dialog, and the warning goes to the report: the report has the
 warnings of the script, and the mode of the "StdOut" writes them to the
-standard output as well. The type that is left — the "LocalSameAsGlobal" — is
-not carried yet, and the report names it.
+standard output as well. The type that was left — the "LocalSameAsGlobal" —
+is carried too: the local that has the name of a global one is warned about
+when the script is read.
 
 **The second parameter of the `Loop Read` of the v2** — *closed on 2026-11-05*.
 The v2 does not open the file of the second parameter when the loop begins:
@@ -256,14 +255,14 @@ and gave the files and the folders, and the v2 refuses it with a dialog.
 6. **The `Loop Files` of the v1** (§2.2) — *closed on 2026-11-05*. The v1
    has two forms of the loop of the files, and the tree carried the one whose
    mode is a number and not the one whose mode is a set of letters.
-7. **The warnings of the v2** (§2.3) — *closed on 2026-11-05 for the
-   "Unreachable" and the "VarUnset"*. The runtime has a warning channel now:
-   the warnings go to the report, and the mode of the "StdOut" writes them to
-   the standard output. The type that is left is the "LocalSameAsGlobal".
-8. **The `#Warn` of the v1** (§2.2) — *closed on 2026-11-05 for the warnings
-   of the variables*. The directive of the v1 is carried, and the warning of
-   the variable that is read and never written and the one of the environment
-   are given. The two types that are read out of the script are not.
+7. **The warnings of the v2** (§2.3) — *closed on 2026-11-05*. The runtime
+   has a warning channel now: the warnings go to the report, and the mode of
+   the "StdOut" writes them to the standard output. The three types of the v2
+   are carried.
+8. **The `#Warn` of the v1** (§2.2) — *closed on 2026-11-05*. The directive
+   of the v1 is carried, and its five types are: the variable that is read
+   and never written, the environment variable that is accessed, the local
+   that has the name of a global and the class that is overwritten.
 
 The v1 has every name of its surface carried, the pending table is empty, and
 the harness finds no difference of behaviour that is not the machine. The one

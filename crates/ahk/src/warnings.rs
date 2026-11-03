@@ -163,6 +163,8 @@ pub fn the_types_that_are_carried() -> &'static [WarningType] {
         WarningType::UseUnsetGlobal,
         WarningType::UseUnsetLocal,
         WarningType::UseEnv,
+        WarningType::LocalSameAsGlobal,
+        WarningType::ClassOverwrite,
         WarningType::Unreachable,
     ]
 }
@@ -358,6 +360,196 @@ fn the_bodies_of(statement: &Node) -> Vec<&[Node]> {
             for class in nested {
                 bodies.extend(the_bodies_of(class));
             }
+            bodies
+        }
+        Node::LegacyIf { body, otherwise, .. } => vec![body, otherwise],
+        Node::HotkeyDefinition { body, .. } => vec![body],
+        _ => Vec::new(),
+    }
+}
+
+/// The warning of the local variable that has the name of a global one.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05 and on the
+/// binary of AutoHotkey v2.0.19 on 2026-11-05: the warning is given once,
+/// when the script is read, and the text of it names the variable and the
+/// function of it -- "x  (in function f)". The v1 names the line that opens
+/// the body of the function, and the v2 names the line of the write of the
+/// local.
+///
+/// A local that is declared global is not a local, and a local that has the
+/// name of a variable of the script is warned about. The parameters of the
+/// function are declared, and they are not warned about.
+pub fn the_warnings_of_the_locals_that_are_globals(
+    statements: &[Node],
+    dialect: &dyn Dialect,
+) -> Vec<Warning> {
+    let globals = the_globals_of_the_script(statements);
+    let mut warnings = Vec::new();
+    the_warnings_of_the_locals_of_the_level(statements, &globals, dialect, &mut warnings);
+    warnings
+}
+
+fn the_warnings_of_the_locals_of_the_level(
+    statements: &[Node],
+    globals: &std::collections::BTreeSet<String>,
+    dialect: &dyn Dialect,
+    warnings: &mut Vec<Warning>,
+) {
+    for statement in statements {
+        if let Node::FunctionDef { name, parameters, body, declarations, line } = statement {
+            let mut writes = Vec::new();
+            the_writes_of_a_level(body, &mut writes, false);
+            let mut seen = std::collections::BTreeSet::new();
+            for (local, the_line) in writes {
+                if !seen.insert(local.to_lowercase()) {
+                    continue;
+                }
+                if declarations.globals.iter().any(|name| name.to_lowercase() == local.to_lowercase()) {
+                    continue;
+                }
+                if parameters.iter().any(|parameter| parameter.name.to_lowercase() == local.to_lowercase()) {
+                    continue;
+                }
+                if !globals.contains(&local.to_lowercase()) {
+                    continue;
+                }
+                if crate::variables::is_built_in(&local) {
+                    continue;
+                }
+                // The v1 names the line that opens the body of the function,
+                // and the v2 names the line of the write of the local.
+                let line = if dialect.the_scope_of_a_function_is_its_own() { *line } else { the_line };
+                warnings.push(Warning {
+                    line,
+                    message: format!(
+                        "This local variable has the same name as a global variable.\n     Specifically: {local}  (in function {name})"
+                    ),
+                });
+            }
+        }
+        for body in the_bodies_of_the_level(statement) {
+            the_warnings_of_the_locals_of_the_level(body, globals, dialect, warnings);
+        }
+    }
+}
+
+/// The warning of the class that a variable overwrites.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text of
+/// it is "Class may be overwritten." and the name of the class, and it is
+/// given at the line of the write that overwrites it.
+pub fn the_warnings_of_the_classes_that_are_overwritten(statements: &[Node]) -> Vec<Warning> {
+    let mut classes = std::collections::BTreeSet::new();
+    the_classes_of_the_script(statements, &mut classes);
+    let mut warnings = Vec::new();
+    let mut writes = Vec::new();
+    the_writes_of_a_level(statements, &mut writes, true);
+    for (name, line) in writes {
+        if !classes.contains(&name.to_lowercase()) {
+            continue;
+        }
+        warnings.push(Warning {
+            line,
+            message: format!("Class may be overwritten.\n     Specifically: {name}"),
+        });
+    }
+    warnings
+}
+
+/// The names of the variables of the script.
+///
+/// The names that the script writes at its level are the variables of the
+/// script, and the classes of the script are variables too.
+fn the_globals_of_the_script(statements: &[Node]) -> std::collections::BTreeSet<String> {
+    let mut globals = std::collections::BTreeSet::new();
+    let mut writes = Vec::new();
+    the_writes_of_a_level(statements, &mut writes, false);
+    for (name, _line) in writes {
+        globals.insert(name.to_lowercase());
+    }
+    let mut classes = std::collections::BTreeSet::new();
+    the_classes_of_the_script(statements, &mut classes);
+    for name in classes {
+        globals.insert(name);
+    }
+    globals
+}
+
+/// The names of the classes of the script.
+fn the_classes_of_the_script(
+    statements: &[Node],
+    classes: &mut std::collections::BTreeSet<String>,
+) {
+    for statement in statements {
+        if let Node::ClassDef { name, .. } = statement {
+            classes.insert(name.to_lowercase());
+        }
+        for body in the_bodies_of_the_level(statement) {
+            the_classes_of_the_script(body, classes);
+        }
+    }
+}
+
+/// The names that the level writes, and the lines of the writes.
+///
+/// The names that a function writes are the locals of it, and the walk does
+/// not go into the functions when the names that are wanted are the variables
+/// of the script.
+fn the_writes_of_a_level(
+    statements: &[Node],
+    writes: &mut Vec<(String, u32)>,
+    deep: bool,
+) {
+    for statement in statements {
+        match statement {
+            Node::Assign { name, line, .. } => writes.push((name.clone(), *line)),
+            Node::LegacyAssign { name, line, .. } => writes.push((name.clone(), *line)),
+            Node::For { variables, line, .. } => {
+                for name in variables {
+                    writes.push((name.clone(), *line));
+                }
+            }
+            Node::LegacyCall { name, parameters, line } if name.eq_ignore_ascii_case("VarSet") => {
+                // The `VarSet` of the v1 writes the variable of its first
+                // parameter, and the parameter is a text.
+                if let Some(crate::ast::LegacyParameter::Text(text)) = parameters.first() {
+                    if !text.contains('%') {
+                        writes.push((text.clone(), *line));
+                    }
+                }
+            }
+            _ => {}
+        }
+        let bodies = if deep { the_bodies_of(statement) } else { the_bodies_of_the_level(statement) };
+        for body in bodies {
+            the_writes_of_a_level(body, writes, deep);
+        }
+    }
+}
+
+/// The bodies of a statement, without the bodies of the functions.
+///
+/// The functions of the script have a scope of their own, and the variables
+/// that they write are the locals of them.
+fn the_bodies_of_the_level(statement: &Node) -> Vec<&[Node]> {
+    match statement {
+        Node::Block { body, .. } => vec![body],
+        Node::If { branches, otherwise, .. } => {
+            let mut bodies: Vec<&[Node]> =
+                branches.iter().map(|branch| branch.body.as_slice()).collect();
+            bodies.push(otherwise);
+            bodies
+        }
+        Node::Switch { cases, .. } => {
+            cases.iter().map(|case| case.body.as_slice()).collect()
+        }
+        Node::While { body, .. } => vec![body],
+        Node::Loop { body, .. } => vec![body],
+        Node::For { body, .. } => vec![body],
+        Node::Try { body, catches, otherwise, finally, .. } => {
+            let mut bodies: Vec<&[Node]> = vec![body, otherwise, finally];
+            bodies.extend(catches.iter().map(|catch| catch.body.as_slice()));
             bodies
         }
         Node::LegacyIf { body, otherwise, .. } => vec![body, otherwise],
