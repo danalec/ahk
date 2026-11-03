@@ -8559,3 +8559,27 @@ The rules are hooks of the dialect
 them.
 
 The suite of the v1 has seven cases more (297).
+
+## 225. The tail of a call of the v1 is a list of items, and a text is not refused
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the tail of a
+statement is a list of items in the v1, and the commas are what separate them.
+The items that are expressions are evaluated, and an item that is not an
+expression is a text -- the parameter of a command -- that the v1 does not run
+and does not refuse. The `f(1) FileAppend, [tail], *` runs the call and nothing
+else, and the load does not fail, and the `f(1) x := 2` writes the variable "x".
+The items that come after the text are texts as well, and they do not run.
+
+The name of the command is a variable when the item is read as an expression,
+and the variable has no value: the `f(1) FileAppend, [tail], *` writes nothing.
+The rule is the one of the tail of the `if`, and it holds the list that follows
+an assignment as well: the `x := 1, FileAppend, [tail], *` writes the "x" and
+writes nothing else.
+
+The v2 refuses the item of the list that is not an expression with "Syntax
+error.\n     Specifically: *".
+
+The rule is a hook of the dialect (`the_tail_of_a_list_is_text`), and the parser
+reads the tail of a statement with it.
+
+The suite of the v1 has five cases more (302).

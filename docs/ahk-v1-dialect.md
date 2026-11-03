@@ -1621,10 +1621,18 @@ The rules are hooks of the dialect
 of the functions of the script before it reads the lines of it
 (`the_functions_of_the_script`).
 
-**What stays out of the tail.** The tail of a call whose name is a function is
-text in the v1 as well: the `f(1) FileAppend, [tail], *` runs nothing, and the
-`f(1) x := 2` writes the variable "x". The tree reads the tail as the list of
-the v2, and the `*` of it is refused with "Syntax error.\n     Specifically: *".
+**The tail of a call whose name is a function** (2026-11-04). The tail of a
+statement is a list of items in the v1, and the commas are what separate them.
+The items that are expressions are evaluated, and an item that is not an
+expression is a text -- the parameter of a command -- that the v1 does not run
+and does not refuse. The `f(1) FileAppend, [tail], *` runs the call and
+nothing else, and the load does not fail, and the `f(1) x := 2` writes the
+variable "x". The items that come after the text are texts as well, and they
+do not run.
+
+The tree reads the tail of a statement the way the v1 reads it. The rule is a
+hook of the dialect (`the_tail_of_a_list_is_text`), and the v2 refuses the
+item of the list that is not an expression with "Syntax error.\n     Specifically: *".
 
 **The failure of the condition of the v1 is not reported** (2026-11-04). The v1
 does not report the failure of the condition of an `if` or of a `while`: the

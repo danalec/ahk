@@ -2013,6 +2013,19 @@ that asks for another one is refused with the reason.
   `the_declaration_with_no_name_is_the_first_statement`), and the parser
   asks it.
 
+- **The tail of a call of the v1 is a list of items, and a text is not
+  refused.** The v1 reads the tail of a statement as a list of items, and the
+  commas are what separate them. The items that are expressions are evaluated,
+  and an item that is not an expression is a text -- the parameter of a command
+  -- that the v1 does not run and does not refuse: the `f(1) FileAppend,
+  [tail], *` runs the call and nothing else, and the load does not fail. The
+  items that come after the text do not run either. The name of the command is
+  a variable when the item is read as an expression, and the variable has no
+  value. The rule is the one of the tail of the `if`, and it holds the list
+  that follows an assignment as well. The dialect says it
+  (`the_tail_of_a_list_is_text`), and the v2 refuses the item of the list that
+  is not an expression with "Syntax error.\n     Specifically: *".
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

@@ -7778,3 +7778,125 @@ fn the_declaration_with_no_name_that_is_not_the_first_statement_holds_no_action(
         "This line does not contain a recognized action.\n     Specifically: local"
     );
 }
+
+// The new cases of the tail of a call whose name is a function of the script.
+// They are for crates/ahk/tests/v1.rs, and they use the helpers that are
+// there: `run(...)` and `the_refusal_of_the_load(...)`.
+//
+// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04. The probes
+// are in egm-review/probe_v1_call_tail.py, egm-review/probe_v1_call_tail2.py,
+// egm-review/probe_v1_call_tail3.py, egm-review/probe_v1_call_tail4.py and
+// egm-review/probe_v1_call_tail5.py.
+
+/// The tail of a call of the v1 whose name is a function is text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// reads the tail of a statement as a list of items, and an item that is not
+/// an expression is a text: it is the parameter of a command, and the v1 does
+/// not run it and does not refuse it. The `f(1) FileAppend, [tail], *` runs
+/// the call and nothing else, and the load does not fail.
+#[test]
+fn the_tail_of_a_call_of_the_v1_whose_name_is_a_function_is_text() {
+    // The command of the tail does not run, and the call does.
+    let report = run("f(a) {\n    FileAppend, [f], *\n    return a\n}\nf(1) FileAppend, [tail], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[f]".to_string()]);
+
+    // The name of the command is a variable when the tail is read as an
+    // expression, and the variable has no value.
+    let report = run("f(a) {\n    FileAppend, [f], *\n    return a\n}\nf(1) FileAppend, [tail]");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[f]".to_string()]);
+
+    // The function that takes no argument is a function as well.
+    let report = run("g() {\n    FileAppend, [g], *\n}\ng() tail");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[g]".to_string()]);
+
+    // The name of a function that the script defines further down is known
+    // when the line is read.
+    let report = run("f(1) tail\nFileAppend, [end], *\nf(a) {\n    FileAppend, [f], *\n    return a\n}");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[f]".to_string(), "[end]".to_string()]);
+
+    // The built-in is a function as well, and the tail of it is text.
+    let report = run("StrLen(\"a\") FileAppend, [tail], *\nFileAppend, [end], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[end]".to_string()]);
+}
+
+/// The items of the tail of a call of the v1 that are expressions run.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the items
+/// of the tail are expressions, and they are evaluated: the `f(1) x := 2`
+/// writes the variable "x", and the `f(1) x := 2, y := 3` writes the two.
+/// The text that is not an expression is not run, and the load does not fail.
+#[test]
+fn the_items_of_the_tail_of_a_call_of_the_v1_that_are_expressions_run() {
+    // The assignment of the tail writes the variable.
+    let report = run("f(a) {\n    return a\n}\nf(1) x := 2");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("2".into())));
+
+    // The two assignments of the tail write the two variables.
+    let report = run("f(a) {\n    return a\n}\nf(1) x := 2, y := 3");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("2".into())));
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("3".into())));
+
+    // The text that comes after the assignment does not fail the load.
+    let report = run("f(a) {\n    return a\n}\nf(1) x := 2, *");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("2".into())));
+
+    // The call of the tail runs as well.
+    let report = run("f(a) {\n    FileAppend, [f], *\n    return a\n}\nf(1) f(2)");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[f]".to_string(), "[f]".to_string()]);
+}
+
+/// The tail of a call of the v1 whose name is not a function is named.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// reads the rest of the line as text when the name of the call is not a
+/// function, and the refusal of the call is the only one of the line: the
+/// name of the refusal is the whole of the tail.
+#[test]
+fn the_tail_of_a_call_of_the_v1_whose_name_is_not_a_function_is_named() {
+    assert_eq!(
+        the_refusal_of_the_load("nosuch(1) FileAppend, [tail], *"),
+        "Call to nonexistent function.\n     Specifically: nosuch(1) FileAppend, [tail], *"
+    );
+}
+
+/// The list of a statement of the v1 holds the text that is not an expression.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the rule is
+/// the one of the tail of the call, and it holds the list that follows an
+/// assignment as well: the `x := 1, FileAppend, [tail], *` writes the "x" and
+/// writes nothing else, and the load does not fail.
+#[test]
+fn the_list_of_a_statement_of_the_v1_holds_the_text_that_is_not_an_expression() {
+    // The assignment of the statement runs, and the command of the list does
+    // not.
+    let report = run("x := 1, FileAppend, [tail], *\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+
+    // The text of the list is not an expression, and the load does not fail.
+    let report = run("x := 1, *\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The v2 refuses the tail of a call that is not a list.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: the v2 reads the tail of
+/// a statement as the list of v1, and the item of the list that is not an
+/// expression is a "Syntax error.".
+#[test]
+fn the_v2_refuses_the_tail_of_a_call_that_is_not_a_list() {
+    let error = ahk::parse_with("f(1) FileAppend, [tail], *", dialect::v2())
+        .expect_err("the v2 refuses the item of the list that is not there");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: *");
+}

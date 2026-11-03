@@ -4822,6 +4822,13 @@ impl Parser {
     /// of v1: it is evaluated, and its value is thrown away. The value
     /// that is not there in the list is a "Syntax error.", and the comma
     /// that follows it is named.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// reads the tail of a statement as a list of items, and an item that is
+    /// not an expression is a text: it is the parameter of a command, and the
+    /// v1 does not run it and does not refuse it. The `f(1) FileAppend,
+    /// [tail], *` runs nothing and the load does not fail, and the items that
+    /// come after the text do not run either.
     fn the_legacy_list(&mut self) -> Result<Vec<Node>, SyntaxError> {
         if !self.at_op(&[","]) {
             return Ok(Vec::new());
@@ -4840,17 +4847,43 @@ impl Parser {
                 }
             }
             if self.at_op(&[","]) {
+                if self.dialect.the_tail_of_a_list_is_text() {
+                    // The item is a text: the v1 does not run it, and the load
+                    // does not fail.
+                    self.position = the_end_of_the_line_of(self, self.position);
+                    break;
+                }
                 return Err(self.error(format!(
                     "Syntax error.\n     Specifically: {}",
                     the_source_of_the_rest_of_the_line(self, self.position)
                 )));
             }
-            items.push(self.parse_expression()?);
+            // The item of the list is an expression, and the v1 reads it as
+            // one: the name of a command is a variable when it is read as an
+            // expression, and the variable has no value.
+            let item = match self.parse_expression() {
+                Ok(item) => item,
+                Err(error) => {
+                    if !self.dialect.the_tail_of_a_list_is_text() {
+                        return Err(error);
+                    }
+                    // The item is not an expression: the v1 reads it as a
+                    // text, and the text is not run and does not fail.
+                    self.position = the_end_of_the_line_of(self, self.position);
+                    break;
+                }
+            };
+            items.push(item);
             if self.at_op(&[","]) {
                 self.position += 1;
                 continue;
             }
             break;
+        }
+        // The text that is left after the last item is not read: the v1 does
+        // not run it, and it does not fail.
+        if self.dialect.the_tail_of_a_list_is_text() && !self.at_end_of_statement() {
+            self.position = the_end_of_the_line_of(self, self.position);
         }
         if items.is_empty() {
             return Ok(Vec::new());

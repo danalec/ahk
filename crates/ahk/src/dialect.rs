@@ -1176,6 +1176,21 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the tail of a list of a statement is text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// reads the tail of a statement as a list of items, and an item that is
+    /// not an expression is a text: it is the parameter of a command, and the
+    /// v1 does not run it and does not refuse it. The `f(1) FileAppend,
+    /// [tail], *` runs nothing and the load does not fail, and the items that
+    /// come after the text do not run either.
+    ///
+    /// The v2 refuses the item that is not there with "Syntax error.\n
+    /// Specifically: *".
+    fn the_tail_of_a_list_is_text(&self) -> bool {
+        false
+    }
+
     /// The message of the brace that opens the body of a construct when the
     /// content of the block is on the line of it.
     ///
@@ -2223,6 +2238,14 @@ impl Dialect for V1 {
         // v1 reads the rest of the line as text when the name of the call is
         // not a function, and the refusal of the call is the only one of the
         // line.
+        true
+    }
+
+    fn the_tail_of_a_list_is_text(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 reads the tail of a statement as a list of items, and an item
+        // that is not an expression is a text: it is the parameter of a
+        // command, and the v1 does not run it and does not refuse it.
         true
     }
 
