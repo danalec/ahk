@@ -392,6 +392,16 @@ impl PartialEq<str> for MemberName {
 pub enum ObjectItem {
     /// A property: the name of it and the value.
     Property(MemberName, Node),
+    /// A property whose key is the value of an expression: the key and the
+    /// value.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the key
+    /// of the v1 is the value of the expression that is written until the
+    /// colon, and not the text of it: the `{1 + 1: 1}` has the property "2",
+    /// and the `{a.b: 1}` has the property of the value of `a.b`. A key that
+    /// is a name is the name itself: the `{b: 1}` has the property "b",
+    /// whatever the value of `b` is.
+    LegacyKey(Node, Node),
     /// A value that has no name: it is evaluated, and it is dropped.
     Value(Node),
 }

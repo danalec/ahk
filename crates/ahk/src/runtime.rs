@@ -9716,6 +9716,21 @@ impl<'a> Runtime<'a> {
                                 let value = self.evaluate(value)?;
                                 put(&mut cell.borrow_mut().properties, &name, value);
                             }
+                            ObjectItem::LegacyKey(key, value) => {
+                                // Measured on the binary of AutoHotkey
+                                // v1.1.37.02 on 2026-11-04: the key of the v1
+                                // is the value of the expression that is
+                                // written until the colon: the `{1 + 1: 1}`
+                                // has the property "2", and the `{a.b: 1}`
+                                // has the property of the value of `a.b`.
+                                let key = self.evaluate(key)?;
+                                let value = self.evaluate(value)?;
+                                put(
+                                    &mut cell.borrow_mut().properties,
+                                    &key.to_text(),
+                                    value,
+                                );
+                            }
                             ObjectItem::Value(value) => {
                                 // Measured on the binary of AutoHotkey
                                 // v1.1.37.02 on 2026-11-04: a value that has

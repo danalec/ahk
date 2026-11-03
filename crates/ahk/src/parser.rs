@@ -846,6 +846,22 @@ fn the_name_of_a_property_of_the_v1(parser: &Parser, start: usize, end: usize) -
     text.trim().to_string()
 }
 
+/// Whether the key of a property of the literal of an object of the v1 is a
+/// name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the key is
+/// the name when it is one, and the value of the expression when it is not:
+/// the `{b: 1}` has the property "b" whatever the value of `b` is, and the
+/// `{(b): 1}` has the property of the value of `b`.
+fn the_key_of_a_property_of_the_v1_is_a_name(
+    parser: &Parser,
+    start: usize,
+    end: usize,
+) -> bool {
+    let tokens = parser.tokens.get(start..end).unwrap_or(&[]);
+    tokens.len() == 1 && tokens[0].kind == TokenKind::Name
+}
+
 /// The text of the tokens of a range, the way the script wrote them.
 fn the_text_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String {
     let mut text = String::new();
@@ -9792,14 +9808,39 @@ impl Parser {
                     // The key and the value of the property are two
                     // parameters.
                     count += 2;
-                    let member =
-                        MemberName::Text(the_name_of_a_property_of_the_v1(self, start, self.position));
-                    self.position += 1;
-                    let value = match self.parse_expression() {
-                        Ok(value) => value,
-                        Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
-                    };
-                    items.push(ObjectItem::Property(member, value));
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the key is the name when it is a name, and
+                    // the value of the expression when it is not one: the
+                    // `{b: 1}` has the property "b" whatever the value of b
+                    // is, and the `{1 + 1: 1}` has the property "2".
+                    if the_key_of_a_property_of_the_v1_is_a_name(self, start, self.position) {
+                        let member = MemberName::Text(the_name_of_a_property_of_the_v1(
+                            self,
+                            start,
+                            self.position,
+                        ));
+                        self.position += 1;
+                        let value = match self.parse_expression() {
+                            Ok(value) => value,
+                            Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                        };
+                        items.push(ObjectItem::Property(member, value));
+                    } else {
+                        // The key is the value of the expression that is
+                        // written until the colon.
+                        self.position = start;
+                        let key = match self.parse_expression() {
+                            Ok(key) => key,
+                            Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                        };
+                        // The expression of the key ends at the colon.
+                        self.position += 1;
+                        let value = match self.parse_expression() {
+                            Ok(value) => value,
+                            Err(error) => return Err(self.the_error_of_the_bracket(error, "}")),
+                        };
+                        items.push(ObjectItem::LegacyKey(key, value));
+                    }
                 }
             } else {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
@@ -9956,6 +9997,9 @@ impl Parser {
         if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
             && items.iter().any(|item| match item {
                 ObjectItem::Property(_, value) => the_operand_is_not_there(value),
+                ObjectItem::LegacyKey(key, value) => {
+                    the_operand_is_not_there(key) || the_operand_is_not_there(value)
+                }
                 ObjectItem::Value(value) => the_operand_is_not_there(value),
             })
         {

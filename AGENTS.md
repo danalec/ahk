@@ -8558,6 +8558,17 @@ says 'Missing "propertyname:" in object literal.'.
 The rule is a hook of the dialect (`the_refusal_of_the_object_literal`), and
 the parser asks the dialect for the complaint.
 
+The key of a property of the literal of the v1 is the value of the expression
+that is written until the colon, and not the text of it: the `{1 + 1: 1}` has
+the property "2", and the `{a.b: 1}` has the property of the value of `a.b`.
+A key that is a single name is the name itself: the `{b: 1}` has the property
+"b", whatever the value of the variable `b` is. The parser reads the key as
+an expression when it is not a name, and the runtime evaluates it.
+
+The kind of the key stays out: the v1 keeps it, and the `{1: 1}` has the item
+1, which the `a["1"]` of it does not find. The tree keeps the property of the
+text. The document of the dialect says so.
+
 The suite of the v1 has two cases more (286).
 
 ## 223. The loop of the v1 that has no body ends the script

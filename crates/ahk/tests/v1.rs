@@ -8171,6 +8171,38 @@ fn the_literal_of_an_object_of_the_v1_is_a_list_of_parameters() {
     );
 }
 
+/// The key of a property of the literal of an object of the v1 is the value
+/// of the expression that is written until the colon.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// takes the key as a value and not as the text of it: the `{1 + 1: 1}` has
+/// the property "2", and the `{a.b: 1}` has the property of the value of
+/// `a.b`. A key that is a single name is the name itself: the `{b: 1}` has
+/// the property "b", whatever the value of the variable `b` is.
+#[test]
+fn the_key_of_a_property_of_the_literal_of_the_v1_is_the_value_of_the_expression() {
+    // The name of the key is the name, and not the value of the variable.
+    let report = run("b := \"xx\"\na := {b: 1}\nx := a[\"b\"]\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+    // The value of the expression.
+    let report = run("a := {1 + 1: 1}\nx := a[2]\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+    // The value of the member.
+    let report = run("a := {b: 1}\na := {a.b: 1}\nx := a[1]\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+    // The value of the concatenation.
+    let report = run("b := \"xx\"\na := {\"b\" b: 1}\nx := a[\"bxx\"]\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+    // The name in parentheses is an expression, and not a name.
+    let report = run("b := \"xx\"\na := {(b): 1}\nx := a[\"xx\"]\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
 /// The blank at the end of the literal of an object of the v1 is refused.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
