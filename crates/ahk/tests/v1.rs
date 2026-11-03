@@ -8170,3 +8170,106 @@ fn the_compound_write_of_a_local_that_has_no_value_makes_the_local_in_the_v1() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["[2]".to_string()]);
 }
+
+/// The item of an array of the v1 that is not there is the empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not refuse the item of an array that is not there: the `a[5]` of
+/// an array of two is the empty text. The v2 refuses with "Invalid
+/// index.".
+#[test]
+fn the_item_of_an_array_of_the_v1_that_is_not_there_is_the_empty_text() {
+    let report = run("a := [1, 2]\nx := a[5]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The item of an array of the v1 with an index that is not positive is the
+/// empty text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not count from the end: the `a[-1]` of an array of two is the
+/// empty text, and the `a[0]` is the empty text too.
+#[test]
+fn the_item_of_an_array_of_the_v1_with_an_index_that_is_not_positive_is_the_empty_text() {
+    let report = run("a := [1, 2]\nx := a[-1]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The write of an item of an array of the v1 makes the array grow.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not refuse the write of an item that is not there: the `a[5] := 7`
+/// of an array of two is the seven, and the places that are not there are
+/// holes.
+#[test]
+fn the_write_of_an_item_of_an_array_of_the_v1_makes_the_array_grow() {
+    let report = run("a := [1, 2]\na[5] := 7\nx := a[5]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[7]".to_string()]);
+}
+
+/// The item of an array of the v1 with a key that is not a number is the
+/// property of that name.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// takes the item of an array with a key that is not a number for the
+/// property of that name: the `a["b"]` reads the property "b", and the
+/// `a["b"] := 9` writes it. The places of the array are the ones of a
+/// number.
+#[test]
+fn the_item_of_an_array_of_the_v1_with_a_key_that_is_not_a_number_is_the_property() {
+    let report = run("a := [1, 2]\na[\"b\"] := 9\nx := a[\"b\"]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[9]".to_string()]);
+}
+
+/// The compound write of a property of the v1 that is not a number does not
+/// happen.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not write the property when the value that is there is not a
+/// number: the `a.b += 2` of the "abc" leaves the property as it was.
+#[test]
+fn the_compound_write_of_a_property_of_the_v1_that_is_not_a_number_does_not_happen() {
+    let report = run("a := {b: \"abc\"}\na.b += 2\nx := a.b\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[abc]".to_string()]);
+}
+
+/// The compound write of a property of the v1 that is a number happens.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `a.b += 2` of the "5" is the seven.
+#[test]
+fn the_compound_write_of_a_property_of_the_v1_that_is_a_number_happens() {
+    let report = run("a := {b: \"5\"}\na.b += 2\nx := a.b\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[7]".to_string()]);
+}
+
+/// The compound write of a place of an array of the v1 that is not there
+/// does not happen.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not write the place when the value that is there is not a number:
+/// the `a[5] += 2` of an array of two leaves the place as it was.
+#[test]
+fn the_compound_write_of_a_place_of_an_array_of_the_v1_that_is_not_there_does_not_happen() {
+    let report = run("a := [1, 2]\na[5] += 2\nx := a[5]\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The compound write of a variable of the v1 that is not a number happens.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// variable is not one of the things that the v1 does not write: the
+/// `zz += 2` of the "abc" is the two.
+#[test]
+fn the_compound_write_of_a_variable_of_the_v1_that_is_not_a_number_happens() {
+    let report = run("zz := \"abc\"\nzz += 2\nx := zz\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+}

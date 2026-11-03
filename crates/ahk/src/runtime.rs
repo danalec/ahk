@@ -7440,6 +7440,19 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// Whether the value is a number in the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// value of the v1 is a number when it can be one -- the "5" is 5 -- and
+    /// the text that is not a number ("abc", "5abc" and the empty text) is
+    /// not one at all.
+    fn the_value_is_a_number_of_the_v1(&self, value: &Value) -> bool {
+        match value {
+            Value::Int(_) | Value::Float(_) => true,
+            other => crate::v1::the_number_of_a_text(&other.to_text()).is_some(),
+        }
+    }
+
     /// The whole number of a value in the v1, for the operators that write.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the value of the
@@ -8541,6 +8554,21 @@ impl<'a> Runtime<'a> {
             AssignOp::Set => self.read_property(&target_value, name, line).ok(),
             _ => Some(self.read_property(&target_value, name, line)?),
         };
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 does not write the property when the value that is there is not
+        // a number: the `a.b += 2` of the "abc" leaves the property as it
+        // was.
+        if self
+            .dialect
+            .the_compound_write_of_a_thing_that_is_not_a_number_is_dropped()
+            && !matches!(op, AssignOp::Set | AssignOp::Concat)
+        {
+            if let Some(current) = &current {
+                if !self.the_value_is_a_number_of_the_v1(current) {
+                    return Ok(current.clone());
+                }
+            }
+        }
         let stored = self.apply_assign(op, name, current, value, line)?;
         self.write_property(&target_value, name, stored.clone(), line)?;
         Ok(stored)
@@ -10384,6 +10412,18 @@ impl<'a> Runtime<'a> {
             AssignOp::Set => value,
             other => {
                 let current = self.read_item(target, key, line)?;
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 does not write the item when the value
+                // that is there is not a number: the `a[5] += 2` of an array
+                // of two leaves the place as it was.
+                if self
+                    .dialect
+                    .the_compound_write_of_a_thing_that_is_not_a_number_is_dropped()
+                    && !matches!(op, AssignOp::Set | AssignOp::Concat)
+                    && !self.the_value_is_a_number_of_the_v1(&current)
+                {
+                    return Ok(current);
+                }
                 self.apply_assign(other, "the item", Some(current), value, line)?
             }
         };

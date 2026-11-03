@@ -292,6 +292,20 @@ pub(crate) fn set_item(
     // The place of an item is a number: a value that is not one is not a
     // place at all, and v2 says that the index is invalid.
     let Some(index) = rt.the_place_of_an_item(key) else {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 takes the item of an array with a key that is not a number for
+        // the property of that name: the `a["b"] := 9` writes the property
+        // "b" of the array.
+        if rt
+            .dialect()
+            .the_item_of_an_array_with_a_key_that_is_not_a_number_is_its_property()
+        {
+            let name = key.to_text();
+            return Some(
+                rt.write_property_of(this, &name, value, line)
+                    .map_err(RuntimeFailure::Error),
+            );
+        }
         return Some(Err(crate::classes::the_failure_with(
             "Invalid index.",
             &crate::runtime::the_extra_of_the_value(key),
@@ -308,7 +322,33 @@ pub(crate) fn set_item(
     let mut state = state.borrow_mut();
     let mut items = items(&state);
     let length = items.len() as i64;
-    let Some(place) = place(index, length) else {
+    let place = if rt.dialect().the_array_grows_with_the_write_of_an_item() {
+        the_place_of_the_v1(index, length)
+    } else {
+        place(index, length)
+    };
+    let Some(place) = place else {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 makes the array grow: the `a[5] := 7` of an array of two is the
+        // seven, and the places that are not there are holes.
+        if rt.dialect().the_array_grows_with_the_write_of_an_item() {
+            if index > length {
+                while (items.len() as i64) < index - 1 {
+                    items.push(element(None));
+                }
+                items.push(element(Some(value)));
+                set_items(&mut state, items);
+                return Some(Ok(()));
+            }
+            // The index that is not positive is not a place of the array: the
+            // `a[0] := 7` writes the property "0" of the array, and the
+            // `a[-1] := 7` writes the property "-1".
+            let name = key.to_text();
+            return Some(
+                rt.write_property_of(this, &name, value, line)
+                    .map_err(RuntimeFailure::Error),
+            );
+        }
         return Some(Err(crate::classes::the_failure_with(
             "Invalid index.",
             &index.to_string(),
@@ -406,6 +446,16 @@ pub(crate) fn item(
     // The place of an item is a number: a value that is not one is not a
     // place at all, and v2 says that the index is invalid.
     let Some(index) = rt.the_place_of_an_item(key) else {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 takes the item of an array with a key that is not a number for
+        // the property of that name: the `a["b"]` reads the property "b".
+        if rt
+            .dialect()
+            .the_item_of_an_array_with_a_key_that_is_not_a_number_is_its_property()
+        {
+            let name = key.to_text();
+            return Some(rt.read_property(this, &name, line));
+        }
         return Some(Err(crate::classes::the_failure_with(
             "Invalid index.",
             &crate::runtime::the_extra_of_the_value(key),
@@ -422,7 +472,23 @@ pub(crate) fn item(
     let state = state.borrow();
     let items = items(&state);
     let length = items.len() as i64;
-    let Some(place) = place(index, length) else {
+    let place = if rt.dialect().the_item_of_an_array_that_is_not_there_is_the_empty_text() {
+        the_place_of_the_v1(index, length)
+    } else {
+        place(index, length)
+    };
+    let Some(place) = place else {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 does not refuse the item of an array that is not there: the
+        // `a[5]` of an array of two is the empty text, and the `a[0]` is the
+        // property "0" of the array.
+        if rt.dialect().the_item_of_an_array_that_is_not_there_is_the_empty_text() {
+            if index < 1 {
+                let name = key.to_text();
+                return Some(rt.read_property(this, &name, line));
+            }
+            return Some(Ok(Value::Text(String::new())));
+        }
         return Some(Err(crate::classes::the_failure_with(
             "Invalid index.",
             &index.to_string(),
@@ -585,6 +651,20 @@ fn place(index: i64, length: i64) -> Option<usize> {
         None
     } else {
         Some(place as usize - 1)
+    }
+}
+
+/// The place of an index in the dialect of the v1: the places count from
+/// one, and an index that is not positive is not a place at all.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not count from the end: the `a[-1]` of an array of two is the
+/// empty text, and the `a[0]` is the empty text too.
+fn the_place_of_the_v1(index: i64, length: i64) -> Option<usize> {
+    if index < 1 || index > length {
+        None
+    } else {
+        Some(index as usize - 1)
     }
 }
 

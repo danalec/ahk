@@ -744,6 +744,22 @@ pub trait Dialect: Sync {
         true
     }
 
+    /// Whether the compound write of a thing that is not a number is
+    /// dropped.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not write the property when the value that is there is not a
+    /// number: the `a.b += 2` of the "abc" leaves the property as it was,
+    /// and the `a[5] += 2` of an array of two leaves the place as it was
+    /// too.
+    ///
+    /// The variable is not one of them: the `zz += 2` of the "abc" is the
+    /// two, and the `zz += 2` of a variable that has no value makes the
+    /// variable.
+    fn the_compound_write_of_a_thing_that_is_not_a_number_is_dropped(&self) -> bool {
+        false
+    }
+
     /// Whether the item of an object is the property of that name.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -755,6 +771,43 @@ pub trait Dialect: Sync {
     /// The v2 asks the `__Item` of the object, and a plain object of it has
     /// no such thing.
     fn the_item_of_an_object_is_its_property(&self) -> bool {
+        false
+    }
+
+    /// Whether the item of an array that is not there is the empty text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not refuse the item of an array that is not there: the `a[5]` of
+    /// an array of two is the empty text, and the `a[0]` is the empty text
+    /// too.
+    ///
+    /// The v2 refuses with "Invalid index.".
+    fn the_item_of_an_array_that_is_not_there_is_the_empty_text(&self) -> bool {
+        false
+    }
+
+    /// Whether the array grows with the write of an item that is not there.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// makes the array grow: the `a[5] := 7` of an array of two is the
+    /// seven, and the places that are not there are holes.
+    ///
+    /// The v2 refuses with "Invalid index.".
+    fn the_array_grows_with_the_write_of_an_item(&self) -> bool {
+        false
+    }
+
+    /// Whether the item of an array with a key that is not a number is the
+    /// property of that name.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// takes the item of an array with a key that is not a number for the
+    /// property of that name: the `a["b"]` reads the property "b", and the
+    /// `a["b"] := 9` writes it. The places of the array are the ones of a
+    /// number.
+    ///
+    /// The v2 refuses with "Invalid index.".
+    fn the_item_of_an_array_with_a_key_that_is_not_a_number_is_its_property(&self) -> bool {
         false
     }
 
@@ -2118,6 +2171,32 @@ impl Dialect for V1 {
     fn the_item_of_an_object_is_its_property(&self) -> bool {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
         // takes the item of an object for the property of that name.
+        true
+    }
+
+    fn the_compound_write_of_a_thing_that_is_not_a_number_is_dropped(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // does not write the property when the value that is there is not a
+        // number.
+        true
+    }
+
+    fn the_item_of_an_array_that_is_not_there_is_the_empty_text(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // does not refuse the item of an array that is not there.
+        true
+    }
+
+    fn the_array_grows_with_the_write_of_an_item(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // makes the array grow with the write of an item that is not there.
+        true
+    }
+
+    fn the_item_of_an_array_with_a_key_that_is_not_a_number_is_its_property(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+        // takes the item of an array with a key that is not a number for the
+        // property of that name.
         true
     }
 
