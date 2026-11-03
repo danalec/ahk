@@ -35,6 +35,8 @@ struct Fake {
     clipboard: String,
     /// What the machine was asked, in the order of the questions.
     calls: RefCell<Vec<String>>,
+    /// The mode that the machine was asked for, when it lists the files.
+    modes: RefCell<Vec<String>>,
     /// The hotkeys that the fake fires, in the order of the questions.
     fired: RefCell<Vec<String>>,
 }
@@ -90,8 +92,9 @@ impl Files for Fake {
         Ok(String::new())
     }
 
-    fn list_files(&mut self, _folder: &str, pattern: &str, _mode: &str) -> Result<Vec<String>, String> {
+    fn list_files(&mut self, _folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
         self.calls.borrow_mut().push(format!("list_files {pattern}"));
+        self.modes.borrow_mut().push(mode.to_string());
         // The pattern with the wildcard is the one of the cases that want
         // many files, and the one with the "bin" is the one whose file cannot
         // be copied. The pattern that is not there matches nothing.
@@ -104,11 +107,29 @@ impl Files for Fake {
             }
             return Ok(vec!["C:\\work\\a.txt".to_string(), "C:\\work\\b.txt".to_string()]);
         }
-        Ok(vec![format!("C:\\work\\{pattern}")])
+        // The pattern without a wildcard is the name of a file, and the
+        // machine gives the file that has that name. The name of the file
+        // that is not there matches nothing.
+        let name = pattern.rsplit(['\\', '/']).next().unwrap_or(pattern);
+        if name == "a.txt" || name == "b.txt" {
+            return Ok(vec![format!("C:\\work\\{name}")]);
+        }
+        Ok(Vec::new())
     }
 
     fn working_directory(&mut self) -> Result<String, String> {
         Ok("C:\\work".to_string())
+    }
+
+    fn the_size_of_a_file(&mut self, path: &str) -> Result<i64, String> {
+        self.calls.borrow_mut().push(format!("the_size_of_a_file {path}"));
+        // The files of the fake have five bytes.
+        Ok(5)
+    }
+
+    fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
+        self.calls.borrow_mut().push(format!("file_attributes {path}"));
+        Ok(vec!["A".to_string()])
     }
 }
 impl Hotkeys for Fake {
@@ -239,6 +260,7 @@ fn run_with_the_clipboard(script: &str, clipboard: &str) -> Report {
     let mut desktop = Fake {
         clipboard: clipboard.to_string(),
         calls: RefCell::new(Vec::new()),
+        modes: RefCell::new(Vec::new()),
         fired: RefCell::new(Vec::new()),
     };
     Runtime::new(&mut desktop, Duration::from_secs(60))
@@ -257,6 +279,7 @@ fn run_and_the_calls(script: &str) -> (Report, Vec<String>) {
     let mut desktop = Fake {
         clipboard: String::new(),
         calls: RefCell::new(Vec::new()),
+        modes: RefCell::new(Vec::new()),
         fired: RefCell::new(Vec::new()),
     };
     let report = Runtime::new(&mut desktop, Duration::from_secs(60))
@@ -264,6 +287,28 @@ fn run_and_the_calls(script: &str) -> (Report, Vec<String>) {
         .run(&statements);
     let calls = desktop.calls.into_inner();
     (report, calls)
+}
+
+/// Run a script of the v1 and answer with the report and with the mode that
+/// the machine was asked for.
+///
+/// The cases of the loop of the files need to know the mode of the machine:
+/// the mode of the v1 is a number, and the tree gives it to the machine as
+/// the letters of the v2.
+fn run_and_the_modes(script: &str) -> (Report, Vec<String>) {
+    let _turn = THE_TURN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let statements = ahk::parse_with(script, dialect::v1()).expect("the script of the v1 parses");
+    let mut desktop = Fake {
+        clipboard: String::new(),
+        calls: RefCell::new(Vec::new()),
+        modes: RefCell::new(Vec::new()),
+        fired: RefCell::new(Vec::new()),
+    };
+    let report = Runtime::new(&mut desktop, Duration::from_secs(60))
+        .with_dialect(dialect::v1())
+        .run(&statements);
+    let modes = desktop.modes.into_inner();
+    (report, modes)
 }
 
 /// The number that the answer of the command holds.
@@ -291,6 +336,7 @@ fn run_and_the_calls_with_the_fired(script: &str, fired: &[&str]) -> (Report, Ve
     let mut desktop = Fake {
         clipboard: String::new(),
         calls: RefCell::new(Vec::new()),
+        modes: RefCell::new(Vec::new()),
         fired: RefCell::new(fired.iter().map(|name| name.to_string()).collect()),
     };
     let report = Runtime::new(&mut desktop, Duration::from_secs(60))
@@ -6759,7 +6805,9 @@ fn the_count_of_the_loop_of_the_v1_is_a_number() {
         vec!["[x]".to_string(), "[x]".to_string(), "[x]".to_string(), "[3]".to_string()]
     );
 
-    // The variable is not a number, and the loop is skipped.
+    // The variable is not a number, and the loop is a loop of files whose
+    // pattern is the text "n": no file has that name, and the loop has no
+    // turn.
     let report = run("n := 3\nx := 0\nloop n {\nFileAppend, [x], *\nx++\n}\nFileAppend, [%x%], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[0]".to_string()]);
@@ -7891,8 +7939,8 @@ fn the_brace_of_the_body_of_the_loop_of_the_v1_is_the_one_at_the_end_of_the_line
 /// "{ break }", and it has no turn.
 #[test]
 fn the_text_that_follows_the_brace_of_the_loop_of_the_v1_is_the_text_of_the_count() {
-    // The count is the text "{ break }", and it is not a number: the loop
-    // has no turn, and the body of it is the line that comes next.
+    // The pattern is the text "{ break }", and no file has that name: the
+    // loop has no turn, and the body of it is the line that comes next.
     let report = run("x := 0\nloop { break }\nFileAppend, [%x%], *");
     assert!(report.ok);
     assert!(report.output.is_empty());
@@ -8993,5 +9041,214 @@ fn the_text_whose_quote_is_not_closed_is_refused_in_an_expression() {
         the_refusal_of_the_load("x := \"abc"),
         "Missing close-quote\n     Specifically: \"abc"
     );
+}
+
+/// The loop of the v1 is a loop of files when the text of it is not a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the `Loop`
+/// of the v1 is a loop of a number of turns when the text of its first
+/// parameter is a number, and it is a loop of the files that match the
+/// pattern when it is not. With more than one parameter, the v1 reads the
+/// first one always as the pattern: the `Loop, 3, *.txt` is a loop of the
+/// files that match the "3", and it has no turn.
+#[test]
+fn the_loop_of_the_v1_is_a_loop_of_files_when_the_text_is_not_a_number() {
+    // The number is the count of the turns, and the machine is not asked.
+    let (report, calls) = run_and_the_calls("Loop, 3\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["[x]".to_string(), "[x]".to_string(), "[x]".to_string()]
+    );
+    assert!(calls.is_empty());
+
+    // The text is the pattern of the files.
+    let (report, calls) = run_and_the_calls("Loop, *.txt\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        calls,
+        vec![
+            "list_files *.txt".to_string(),
+            "the_size_of_a_file C:\\work\\a.txt".to_string(),
+            "file_attributes C:\\work\\a.txt".to_string(),
+            "the_size_of_a_file C:\\work\\b.txt".to_string(),
+            "file_attributes C:\\work\\b.txt".to_string(),
+        ]
+    );
+
+    // The count with a second parameter is a pattern.
+    let (report, calls) = run_and_the_calls("Loop, 3, 2\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(calls, vec!["list_files 3".to_string()]);
+    assert!(report.output.is_empty());
+}
+
+/// The size of the file and its attributes are given to the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the size of
+/// the file is the number of the bytes of it, the kilobytes and the megabytes
+/// are the parts of it, and the attributes of it are the letters of them.
+#[test]
+fn the_loop_of_the_files_of_the_v1_gives_the_size_and_the_attributes() {
+    let report = run(concat!(
+        "Loop, *.txt\n",
+        "{\n",
+        "  FileAppend, [%A_LoopFileSize%|%A_LoopFileSizeKB%|%A_LoopFileSizeMB%|%A_LoopFileAttrib%], *\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["[5|0|0|A]".to_string(), "[5|0|0|A]".to_string()]
+    );
+}
+
+/// The kinds of the loop of the v1 that the tree does not carry are refused.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the first
+/// parameter of the `Loop` of the v1 names the kind of the loop when it is
+/// the "Read" or the "Parse", and it is a loop of the registry when it begins
+/// with one of the roots of it. The tree carries the loop of the files alone,
+/// and it says so instead of walking over the files of a pattern that is
+/// called "Read".
+#[test]
+fn the_kinds_of_the_loop_of_the_v1_that_the_tree_does_not_carry_are_refused() {
+    assert_eq!(
+        the_refusal_of_the_load("Loop, Read, lines.txt\n{\n}\n"),
+        "the read loop of the v1 is not carried yet."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Loop, Parse, x, \",\"\n{\n}\n"),
+        "the parse loop of the v1 is not carried yet."
+    );
+    assert_eq!(
+        the_refusal_of_the_load("Loop, HKLM\\Software\n{\n}\n"),
+        "the registry is a Windows thing and this box has none."
+    );
+
+    // The name of a kind alone is a pattern of the files: the loop has no
+    // turn, because no file has that name.
+    let report = run("Loop, Read\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty());
+}
+
+/// The loop of the files of the v1 gives the variables of the file to the
+/// script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name of
+/// the file keeps its extension, the extension is the one of it without the
+/// point, the folder of the file is the one that is relative to the folder
+/// the script runs in, and the path of the file is the one that is relative
+/// to it as well. The `A_LoopFileFullPath` of the v1 is that path, and not the
+/// long one: the name of the v1 is a mistake that the v1 keeps.
+#[test]
+fn the_loop_of_the_files_of_the_v1_gives_the_variables_of_the_file() {
+    let report = run(concat!(
+        "Loop, *.txt\n",
+        "{\n",
+        "  FileAppend, [%A_LoopFileName%|%A_LoopFileExt%|%A_LoopFileDir%|%A_LoopFilePath%|%A_LoopFileFullPath%|%A_Index%], *\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "[a.txt|txt||a.txt|a.txt|1]".to_string(),
+            "[b.txt|txt||b.txt|b.txt|2]".to_string(),
+        ]
+    );
+
+    // The long path is the path of the file that the machine gave.
+    let report = run("Loop, *.txt\n{\n  FileAppend, [%A_LoopFileLongPath%], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["[C:\\work\\a.txt]".to_string(), "[C:\\work\\b.txt]".to_string()]
+    );
+}
+
+/// The mode of the loop of the files of the v1 is a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the mode is
+/// the zero for the files, the one for the files and the folders, and the two
+/// for the folders alone. A text that is not a number is the mode of the
+/// files, and a number that is not one of the three is refused when the
+/// script loads.
+#[test]
+fn the_mode_of_the_loop_of_the_files_of_the_v1_is_a_number() {
+    // The mode that is not there is the mode of the files.
+    let (report, modes) = run_and_the_modes("Loop, *.txt\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["".to_string()]);
+
+    // The zero is the mode of the files.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, 0\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["".to_string()]);
+
+    // The one is the mode of the files and of the folders.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, 1\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["A".to_string()]);
+
+    // The two is the mode of the folders.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, 2\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["D".to_string()]);
+
+    // The text that is not a number is the mode of the files.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, R\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["".to_string()]);
+
+    // The number that is not one of the three is refused when the script
+    // loads.
+    assert_eq!(
+        the_refusal_of_the_load("Loop, *.txt, 5\n{\n}\n"),
+        "Parameter #2 invalid.\n     Specifically: 5"
+    );
+}
+
+/// The flag of the recursion of the loop of the files of the v1 is a zero or a
+/// one.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the flag
+/// that is a one asks for the folders of the files, and the flag that is
+/// anything else is refused when the script loads. The flag walks into the
+/// folders when the mode is the files, and it does nothing when the mode is
+/// the folders or the two of them.
+#[test]
+fn the_flag_of_the_recursion_of_the_loop_of_the_files_of_the_v1_is_a_zero_or_a_one() {
+    // The flag that walks into the folders.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, , 1\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["R".to_string()]);
+
+    // The flag that does not.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, , 0\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["".to_string()]);
+
+    // The flag that is not there.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, ,\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["".to_string()]);
+
+    // The flag does nothing when the mode is the folders.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, 2, 1\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["D".to_string()]);
+
+    // The text that is not a zero or a one is refused when the script loads.
+    assert_eq!(
+        the_refusal_of_the_load("Loop, *.txt, , 2\n{\n}\n"),
+        "Parameter #3 invalid.\n     Specifically: 2"
+    );
+
+    // The parameter that comes after the flag is read, and it does nothing.
+    let (report, modes) = run_and_the_modes("Loop, *.txt, , , 1\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(modes, vec!["".to_string()]);
 }
 

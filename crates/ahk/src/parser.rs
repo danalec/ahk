@@ -8192,18 +8192,46 @@ impl Parser {
                         // loop of the v1 is the one that is at the end of
                         // the line: the `Loop, {` is a loop that goes on
                         // until a break.
+                        //
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-05: the parameters that come after the
+                        // first one are the mode of the loop of the files
+                        // and the flag of the recursion, and the v1 reads
+                        // them as texts.
+                        let mut texts: Vec<String> = Vec::new();
                         if !self.the_brace_opens_the_body_of_the_loop() {
                             self.the_expression_begins();
-                            arguments.push(self.the_count_of_the_loop(token.line)?);
+                            let node = self.the_count_of_the_loop(token.line)?;
+                            // The text of the first parameter: the count of
+                            // the turns or the pattern of the files.
+                            texts.push(match &node {
+                                Node::Literal { value: LiteralValue::Text(text), .. } => text.clone(),
+                                _ => String::new(),
+                            });
+                            arguments.push(node);
+                        } else {
+                            texts.push(String::new());
                         }
-                        if self.at_op(&[","]) {
-                            // The kinds of the loop of the v1 come after
-                            // the count, and the tree does not carry them
-                            // yet.
-                            return Err(self.error(format!(
-                                "Invalid loop type.\n     Specifically: {}",
-                                the_source_of_the_line(self, token.line)
-                            )));
+                        while self.at_op(&[","]) {
+                            self.next();
+                            let start = self.position;
+                            let end = self.the_end_of_a_parameter(start);
+                            let text = self.the_verbatim_source(start, end).trim().to_string();
+                            self.position = end;
+                            texts.push(text.clone());
+                            arguments.push(Node::Literal { value: LiteralValue::Text(text), line: token.line });
+                        }
+                        // The v1 checks the kind of the loop first: the first
+                        // parameter names it when it is the "Read", the
+                        // "Parse" or a root of the registry.
+                        if let Some(refusal) = crate::v1::the_refusal_of_the_kind_of_the_loop(&texts) {
+                            return Err(self.error(refusal));
+                        }
+                        // The v1 checks the mode and the flag of the loop when
+                        // the script loads, and the complaint of the v1 names
+                        // the parameter that it does not want.
+                        if let Some(refusal) = crate::v1::the_refusal_of_the_parameters_of_the_loop(&texts) {
+                            return Err(self.error(refusal));
                         }
                     } else {
                         // The comma of a call is not there.
@@ -8399,7 +8427,19 @@ impl Parser {
         }
         // The expression is read to know where the count ends, and it is
         // thrown away: the v1 reads the text of it.
-        let _ = self.parse_expression()?;
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // text of the first parameter of the loop of the v1 is not an
+        // expression: the `Loop, *.txt` is a loop of the files that match the
+        // pattern, and the v1 does not refuse it.
+        let saved = self.position;
+        if self.parse_expression().is_err() {
+            self.position = saved;
+            let end = self.the_end_of_a_parameter(start);
+            let text = self.the_verbatim_source(start, end);
+            self.position = end;
+            return Ok(Node::Literal { value: LiteralValue::Text(text), line });
+        }
         let mut end = self.position;
         // The brace that is not at the end of the line is a part of the
         // text of the count.

@@ -267,7 +267,9 @@ pub trait Files {
     /// The files of a directory that match a pattern.
     ///
     /// The mode is v2's: "R" walks into the subfolders as well, and "D"
-    /// gives the directories instead of the files.
+    /// gives the directories instead of the files. The "A" gives the files
+    /// and the directories together, and it is the mode of the v1 that has
+    /// the number one.
     fn list_files(&mut self, _folder: &str, _pattern: &str, _mode: &str) -> Result<Vec<String>, String> {
         Err("this desktop cannot list the files of a directory".to_string())
     }
@@ -362,6 +364,14 @@ pub trait Files {
 
     /// How big an open file is.
     fn file_size(&mut self, _handle: i64) -> Result<i64, String> {
+        Err("this desktop cannot tell how big a file is".to_string())
+    }
+
+    /// How big a file is, in the bytes of it.
+    ///
+    /// The answer is the size of the file and not the size of a folder: the
+    /// machine gives the size of a folder as zero.
+    fn the_size_of_a_file(&mut self, _path: &str) -> Result<i64, String> {
         Err("this desktop cannot tell how big a file is".to_string())
     }
 

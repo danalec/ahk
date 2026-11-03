@@ -173,14 +173,11 @@ impl ahk::desktop::Files for LabDesktop {
         crate::desktop::walk_the_folder(&where_to_look, &name, &mode.to_ascii_uppercase(), &mut files)?;
         // The order of a directory is not the order of its name, and a
         // script that loops over the files wants the same order every
-        // time.
+        // time. The walk sorts the entries of every folder that it visits.
         //
         // Measured on the binary of v2.0.19 on 2026-10-31: the files of a
         // folder of NTFS come in the order of the name with the case taken
         // away, and the tree sorts them the same way.
-        files.sort_by(|one, other| {
-            one.to_uppercase().cmp(&other.to_uppercase()).then_with(|| one.cmp(other))
-        });
         Ok(files)
     }
     fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
@@ -340,6 +337,15 @@ impl ahk::desktop::Files for LabDesktop {
     fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
         let metadata = fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
         Ok(letters_of(&metadata).into_iter().map(|letter| letter.to_string()).collect())
+    }
+
+    fn the_size_of_a_file(&mut self, path: &str) -> Result<i64, String> {
+        let metadata = fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
+        // A folder has no size: the machine gives zero for one.
+        if metadata.is_dir() {
+            return Ok(0);
+        }
+        Ok(metadata.len() as i64)
     }
 
     fn set_file_attributes(&mut self, path: &str, attributes: &[String]) -> Result<String, String> {

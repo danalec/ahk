@@ -2214,6 +2214,57 @@ twenty-seven cases of the binary and the tree, all the same. The script of
 the probe leaves before the command runs, so the mouse of the machine stays
 where it is.
 
+**The loop of the files of the v1 is a loop of files** (2026-11-05). The `Loop`
+of the v1 reads its first parameter as a text: it is the count of the turns
+when the text is a number, and it is the pattern of the files when it is not.
+With more than one parameter, the v1 reads the first one always as the
+pattern: the `Loop, 3, *.txt` is a loop of the files that match the "3", and
+it has no turn.
+
+The loop gives the variables of the file to the script. The `A_LoopFileName`
+keeps the extension of the file, the `A_LoopFileExt` is the extension without
+the point, the `A_LoopFileDir` is the folder of the file that is relative to
+the folder the script runs in, and the `A_LoopFilePath` is the path of the file
+that is relative to it as well. The `A_LoopFileFullPath` of the v1 is that
+path, and not the long one -- the name of the v1 is a mistake that the v1
+keeps -- and the `A_LoopFileLongPath` is the path that the machine gave. The
+size of the file is the number of the bytes of it, the kilobytes and the
+megabytes are the parts of it, and the attributes of it are the letters of
+them.
+
+The second parameter of the loop is the mode, and it is a number: the zero
+gives the files, the one gives the files and the folders, and the two gives
+the folders alone. A text that is not a number is the mode of the files, and
+a number that is not one of the three is refused when the script loads, with
+"Parameter #2 invalid." and the text that was written. The third parameter is
+the flag of the recursion, and it is a zero or a one: the text that is not
+one of them is refused when the script loads, with "Parameter #3 invalid." and
+the text that was written. The flag walks into the folders when the mode is
+the files, and it does nothing when the mode is the folders or the two of
+them. The parameter that comes after the flag is read, and it does nothing.
+
+The order of the files is the one that the two binaries give: the files of a
+folder come first, and the walk into the folders of it comes after them. The
+box used to sort the whole list by the path, and the walk sorts the entries
+of every folder that it visits.
+
+The tree carries it: the rules are in `crates/ahk/src/v1/loops.rs`, the parser
+reads the parameters of the loop as texts, and the runtime walks over the files
+of the machine. The mode of the v1 is given to the machine as the letters of
+the v2: the "D" gives the folders, the "A" gives the files and the folders,
+and the "R" walks into the folders.
+
+Two kinds of the loop of the v1 are not carried yet, and the tree says so
+instead of walking over the files of a pattern that is called "Read": the
+read loop is the `Loop, Read, file`, and the parse loop is the
+`Loop, Parse, variable, delimiters`. The loop of the registry of the v1 is
+refused with the reason that the box has no registry.
+
+The probe of the block is `egm-review/probe_v1_file_loop.py`, and it is
+fifty-four cases of the binary and the tree, all the same but one: the
+`A_LoopFileShortName` of the v1 is the name that Windows gives to a file
+that has a short one, and the box has no such names.
+
 ---
 
 ## 5. The risks

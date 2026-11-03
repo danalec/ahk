@@ -1155,23 +1155,52 @@ fn the_filter_of_zenity(filter: &str) -> Option<String> {
 /// The files of a folder that match a pattern.
 ///
 /// The mode is v2's: "R" walks into the subfolders as well, and "D"
-/// gives the directories instead of the files.
+/// gives the directories instead of the files. The "A" gives the files and
+/// the directories together, and it is the mode of the v1 that has the
+/// number one.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-05 and on the binary of
+/// AutoHotkey v1.1.37.02 on 2026-11-05: the files of a folder come first,
+/// and the walk into the folders of it comes after them.
 pub(crate) fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &mut Vec<String>) -> Result<(), String> {
-    let entries = std::fs::read_dir(folder)
-        .map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?;
-    for entry in entries {
+    let mut entries: Vec<(String, bool, PathBuf)> = Vec::new();
+    for entry in std::fs::read_dir(folder)
+        .map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?
+    {
         let entry = entry.map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?;
         let name = entry.file_name().to_string_lossy().to_string();
-        let is_file = entry.path().is_file();
+        let path = entry.path();
+        let is_file = path.is_file();
+        entries.push((name, is_file, path));
+    }
+    // The order of a directory is not the order of its name, and a script
+    // that loops over the files wants the same order every time.
+    //
+    // Measured on the binary of v2.0.19 on 2026-10-31: the files of a folder
+    // of NTFS come in the order of the name with the case taken away, and the
+    // tree sorts them the same way.
+    entries.sort_by(|one, other| {
+        one.0.to_uppercase().cmp(&other.0.to_uppercase()).then_with(|| one.0.cmp(&other.0))
+    });
+    for (name, is_file, path) in &entries {
         // The directories are not files: a loop over the files of a
         // folder does not walk into them, unless the mode asks for the
-        // directories instead.
-        let wanted = if mode.contains('D') { !is_file } else { is_file };
-        if wanted && name_matches(pattern, &name) {
-            files.push(entry.path().to_string_lossy().to_string());
+        // directories instead, or for the two of them.
+        let wanted = if mode.contains('D') {
+            !is_file
+        } else if mode.contains('A') {
+            true
+        } else {
+            *is_file
+        };
+        if wanted && name_matches(pattern, name) {
+            files.push(path.to_string_lossy().to_string());
         }
-        if mode.contains('R') && !is_file {
-            walk_the_folder(&entry.path(), pattern, mode, files)?;
+    }
+    // The walk into the folders of the folder comes after the files of it.
+    if mode.contains('R') {
+        for (_, _is_file, path) in entries.iter().filter(|(_, is_file, _)| !*is_file) {
+            walk_the_folder(path, pattern, mode, files)?;
         }
     }
     Ok(())

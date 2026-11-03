@@ -658,3 +658,17 @@ fn is_a_root_of_the_registry(text: &str) -> bool {
             | "hkey_current_config"
     )
 }
+
+/// Whether the text begins with a root of the registry of the v1.
+///
+/// The key of the registry is the root of it and the name of a key under it:
+/// the "HKLM\Software" is a key of the registry, and the case of the letters
+/// does not matter.
+pub(crate) fn the_text_begins_with_a_root_of_the_registry(text: &str) -> bool {
+    let text = text.trim();
+    if text.contains('%') {
+        return false;
+    }
+    let root = text.split('\\').next().unwrap_or(text);
+    is_a_root_of_the_registry(root)
+}

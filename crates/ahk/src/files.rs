@@ -786,7 +786,7 @@ fn parent_and_name(path: &str) -> (String, String) {
 /// not in it: a run that does not know the timezone of the machine is
 /// told so in the notes, and the time of a file is then the time of the
 /// UTC.
-fn local_offset(rt: &mut Runtime<'_>) -> i64 {
+pub(crate) fn local_offset(rt: &mut Runtime<'_>) -> i64 {
     match rt.wall_clock() {
         Some(clock) if clock.knows_the_timezone => clock.offset_minutes,
         _ => {
@@ -800,7 +800,7 @@ fn local_offset(rt: &mut Runtime<'_>) -> i64 {
 ///
 /// The stamp is the fourteen digits of `YYYYMMDDHH24MISS`. The
 /// milliseconds are not in it: v2 writes the second and no more.
-fn stamp_of(millis: i64, offset: i64) -> String {
+pub(crate) fn stamp_of(millis: i64, offset: i64) -> String {
     let local = millis + offset * 60_000;
     let days = local.div_euclid(DAY);
     let rest = local.rem_euclid(DAY);

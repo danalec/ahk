@@ -103,6 +103,17 @@ pub(crate) fn the_count_of_the_loop(text: &str) -> i64 {
     0
 }
 
+/// Whether the text is the count of a loop of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the count
+/// of the `Loop` of the v1 is a number and not an expression, and the text
+/// that is not a number is the pattern of the files of the loop. The hex is
+/// a number: the `loop 0x3` is three turns.
+pub(crate) fn the_text_is_the_count_of_a_loop(text: &str) -> bool {
+    let text = text.trim();
+    text.parse::<i64>().is_ok() || the_text_is_a_hex(text)
+}
+
 /// The whole number that the hex holds.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the hex

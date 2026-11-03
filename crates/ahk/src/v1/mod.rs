@@ -24,6 +24,7 @@ mod hotkeys;
 mod keys;
 mod kinds;
 mod labels;
+mod loops;
 mod math;
 mod names;
 mod numbers;
@@ -50,6 +51,12 @@ pub(crate) use kinds::{keeps_its_text, wants_a_number};
 pub(crate) use labels::the_label_of_the_command;
 pub(crate) use labels::the_refusal_of_a_goto;
 
+pub(crate) use loops::the_flag_asks_for_the_recursion;
+pub(crate) use loops::the_mode_of_the_loop_of_the_files;
+pub(crate) use loops::the_refusal_of_the_kind_of_the_loop;
+pub(crate) use loops::the_refusal_of_the_parameters_of_the_loop;
+pub(crate) use loops::{THE_FILES, THE_FILES_AND_THE_FOLDERS, THE_FOLDERS};
+
 pub(crate) use hotkeys::is_the_name_of_a_command;
 pub(crate) use hotkeys::the_context_of_the_v1_is_refused_in_a_hotkey;
 pub(crate) use hotkeys::the_name_of_a_hotkey;
@@ -61,7 +68,7 @@ pub(crate) use math::{
 
 pub(crate) use numbers::{
     the_count_of_the_loop, the_number_at_the_start_of_a_text, the_number_is_a_number, the_number_of_a_text,
-    the_text_is_a_float, the_text_is_a_hex, the_text_of_the_number_that_fits,
+    the_text_is_a_float, the_text_is_a_hex, the_text_is_the_count_of_a_loop, the_text_of_the_number_that_fits,
     the_whole_number_at_the_start_of_a_text, the_whole_number_of_a_hex,
 };
 

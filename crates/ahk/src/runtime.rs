@@ -439,6 +439,20 @@ fn the_folder_of(path: &str) -> &str {
     }
 }
 
+/// The path of a file that is relative to the folder that the script runs in.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the path
+/// of a file of the loop of the v1 is the one that is relative to the folder
+/// that the script runs in: the "a.txt" of the folder itself, and the
+/// "sub/d.txt" of a folder of it.
+fn the_path_that_is_relative_to(file: &str, folder: &str) -> String {
+    let rest = match file.strip_prefix(folder) {
+        Some(rest) => rest,
+        None => return file.to_string(),
+    };
+    rest.trim_start_matches(['/', '\\']).to_string()
+}
+
 /// The extension of a file: the part of the name after the last dot.
 ///
 /// A dot that opens the name is not one: a file that begins with a dot
@@ -2503,6 +2517,22 @@ impl<'a> Runtime<'a> {
                     LoopKind::Count => {
                         match arguments.first() {
                             Some(node) => {
+                                // Measured on the binary of AutoHotkey
+                                // v1.1.37.02 on 2026-11-05: the `Loop` of the
+                                // v1 is a loop of files when the text of its
+                                // first parameter is not a number, and it is a
+                                // loop of a number of turns when it is.
+                                if self.dialect.legacy_commands() {
+                                    if let Some(pattern) =
+                                        self.the_pattern_of_the_files_of_the_v1(node, arguments, *line)?
+                                    {
+                                        self.the_loop_of_the_files_of_the_v1(
+                                            &pattern, arguments, body, until, *line,
+                                        )?;
+                                        self.the_index_is_given_back(saved);
+                                        return Ok(());
+                                    }
+                                }
                                 let count = self.the_count_of_the_loop(node, *line)?;
                                 // Measured on the binary of v2.0.19 on 2026-11-01:
                                 // the index of the turn is the value of
@@ -8892,6 +8922,180 @@ impl<'a> Runtime<'a> {
             }
         }
         Ok(self.evaluate(node)?.to_number().unwrap_or(0.0) as i64)
+    }
+
+    /// The pattern of the files of the v1, when the loop is a loop of files.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// text of the first parameter of the `Loop` of the v1 is the count of the
+    /// turns when it is a number and when it is the only parameter, and it is
+    /// the pattern of the files when it is not. With more than one parameter,
+    /// the v1 reads it always as the pattern: the `Loop, 3, *.txt` is a loop
+    /// of the files that match the "3", and it has no turn.
+    fn the_pattern_of_the_files_of_the_v1(
+        &mut self,
+        node: &Node,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<Option<String>, RuntimeFailure> {
+        let text = match node {
+            Node::Literal { value: crate::ast::LiteralValue::Text(text), .. } => text,
+            _ => return Ok(None),
+        };
+        let text = self.the_substitution_of_the_v1(text, line)?.trim().to_string();
+        if arguments.len() == 1 && crate::v1::the_text_is_the_count_of_a_loop(&text) {
+            return Ok(None);
+        }
+        Ok(Some(text))
+    }
+
+    /// The mode of the loop of the files of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the mode
+    /// is a number, and the v1 refuses the one that is not a zero, a one or a
+    /// two when the script loads. The text that carries the name of a variable
+    /// is read when the loop runs, and the value that is not one of the three
+    /// is a failure then.
+    fn the_mode_of_the_loop_of_the_files_of_the_v1(
+        &mut self,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<u8, RuntimeFailure> {
+        let Some(node) = arguments.get(1) else { return Ok(crate::v1::THE_FILES) };
+        let text = self.the_text_of_the_parameter_of_the_loop(node, line)?;
+        match crate::v1::the_mode_of_the_loop_of_the_files(&text) {
+            Some(mode) => Ok(mode),
+            None => Err(RuntimeFailure::Error(RuntimeError {
+                message: format!("Parameter #2 invalid.\n     Specifically: {}", text.trim()),
+                line,
+            })),
+        }
+    }
+
+    /// The flag of the recursion of the loop of the files of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the flag
+    /// is a zero or a one, and the one asks for the folders of the files. The
+    /// value that is not a zero or a one is not a failure when the loop runs:
+    /// the loop does not walk into the folders.
+    fn the_flag_of_the_recursion_of_the_v1(
+        &mut self,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<bool, RuntimeFailure> {
+        let Some(node) = arguments.get(2) else { return Ok(false) };
+        let text = self.the_text_of_the_parameter_of_the_loop(node, line)?;
+        Ok(crate::v1::the_flag_asks_for_the_recursion(&text))
+    }
+
+    /// The text of a parameter of the loop of the v1.
+    ///
+    /// The parameters of the loop of the v1 are texts, and the text of them is
+    /// read with the substitution of the v1.
+    fn the_text_of_the_parameter_of_the_loop(
+        &mut self,
+        node: &Node,
+        line: u32,
+    ) -> Result<String, RuntimeFailure> {
+        match node {
+            Node::Literal { value: crate::ast::LiteralValue::Text(text), .. } => {
+                Ok(self.the_substitution_of_the_v1(text, line)?)
+            }
+            _ => Ok(self.evaluate(node)?.to_text()),
+        }
+    }
+
+    /// The loop of the files of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// `Loop` of the v1 walks over the files that match the pattern, and it
+    /// gives the name of the file, its extension, the folder it is in and the
+    /// path of it to the script. The name keeps its extension, and the path is
+    /// the one that is relative to the folder the script runs in.
+    fn the_loop_of_the_files_of_the_v1(
+        &mut self,
+        pattern: &str,
+        arguments: &[Node],
+        body: &[Node],
+        until: &Option<Box<Node>>,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        let mode = self.the_mode_of_the_loop_of_the_files_of_the_v1(arguments, line)?;
+        let recurse = self.the_flag_of_the_recursion_of_the_v1(arguments, line)?;
+        // The mode of the desktop is the one of the v2: the "R" walks into the
+        // folders, the "D" gives the folders alone, and the "A" gives the
+        // files and the folders.
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // flag of the recursion walks into the folders when the mode is the
+        // files, and it does nothing when the mode is the folders or the two
+        // of them.
+        let mut wanted = String::new();
+        match mode {
+            crate::v1::THE_FOLDERS => wanted.push('D'),
+            crate::v1::THE_FILES_AND_THE_FOLDERS => wanted.push('A'),
+            _ => {}
+        }
+        if recurse && mode == crate::v1::THE_FILES {
+            wanted.push('R');
+        }
+        let folder = self
+            .desktop()
+            .working_directory()
+            .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line }))?;
+        let files = self
+            .desktop()
+            .list_files(&folder, pattern, &wanted)
+            .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line }))?;
+        for (index, file) in files.iter().enumerate() {
+            self.set_global("A_Index", Value::Int(index as i64 + 1));
+            let name = the_name_of(file).to_string();
+            let path = the_path_that_is_relative_to(file, &folder);
+            self.set_global("A_LoopFileName", Value::Text(name.clone()));
+            self.set_global("A_LoopFileExt", Value::Text(the_extension_of(&name).to_string()));
+            self.set_global("A_LoopFileDir", Value::Text(the_folder_of(&path).to_string()));
+            self.set_global("A_LoopFilePath", Value::Text(path.clone()));
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the `A_LoopFileFullPath` of the v1 is the path of the file that
+            // is relative to the folder the script runs in, and not the long
+            // one: the name of the v1 is a mistake that the v1 keeps.
+            self.set_global("A_LoopFileFullPath", Value::Text(path));
+            self.set_global("A_LoopFileLongPath", Value::Text(file.clone()));
+            // The size of the file, and the times of it. Measured on the
+            // binary of AutoHotkey v1.1.37.02 on 2026-11-05: the size is the
+            // number of the bytes of the file, the kilobytes and the megabytes
+            // are the parts of it, and the times are the fourteen digits of
+            // the local time of the machine.
+            //
+            // The variable that the machine cannot answer is left out, and the
+            // script that reads it is told that it has no value.
+            if let Ok(size) = self.desktop().the_size_of_a_file(file) {
+                self.set_global("A_LoopFileSize", Value::Int(size));
+                self.set_global("A_LoopFileSizeKB", Value::Int(size / 1024));
+                self.set_global("A_LoopFileSizeMB", Value::Int(size / 1024 / 1024));
+            }
+            if let Ok(letters) = self.desktop().file_attributes(file) {
+                self.set_global("A_LoopFileAttrib", Value::Text(letters.concat()));
+            }
+            if let Ok(times) = self.desktop().file_times(file) {
+                let offset = crate::files::local_offset(self);
+                self.set_global("A_LoopFileTimeCreated", Value::Text(crate::files::stamp_of(times.0, offset)));
+                self.set_global("A_LoopFileTimeModified", Value::Text(crate::files::stamp_of(times.1, offset)));
+                self.set_global("A_LoopFileTimeAccessed", Value::Text(crate::files::stamp_of(times.2, offset)));
+            }
+            match self.run_block(body) {
+                Ok(()) => {}
+                Err(RuntimeFailure::Flow(Flow::Break)) => break,
+                Err(RuntimeFailure::Flow(Flow::Continue)) => {}
+                Err(other) => return Err(other),
+            }
+            // The `until` of the v1 is the condition of the loop, and it is
+            // read after every turn of the body.
+            if self.the_until_ends_the_loop(until)? {
+                break;
+            }
+        }
+        Ok(())
     }
 
     /// The `until` of the v1 ends the loop.
