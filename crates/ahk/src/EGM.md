@@ -2039,6 +2039,14 @@ that asks for another one is refused with the reason.
   `the_message_of_the_dynamic_write_inside_a_function`), and the runtime asks
   them.
 
+- **The member whose name is not a name holds no action when it opens a
+  statement.** The name of a member may not be a text, and the single quote is
+  not a text in the v1: the `x := a.'b'` is an illegal character in an
+  expression, and the text is named as it was written. The statement that
+  BEGINS with such a member holds no action: the `a.'b' := 5` and the
+  `a.'b' + 1` are refused with "This line does not contain a recognized
+  action." and the whole line is named, in the two dialects alike.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

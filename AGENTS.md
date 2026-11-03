@@ -8611,3 +8611,26 @@ The rules are hooks of the dialect
 them.
 
 The suite of the v1 has five cases more (307).
+
+## 227. The member whose name is not a name holds no action when it opens a statement
+
+Measured on the binary of AutoHotkey v2.0.19 on 2026-11-02 and on the binary
+of AutoHotkey v1.1.37.02 on 2026-11-04: the name of a member may not be a
+text, and the single quote is not a text in the v1.
+
+The member whose name is not a name is an illegal character in an expression:
+the `x := a.'b'` is refused with "Illegal character in expression." by the v2
+and with "The leftmost character above is illegal in an expression." by the
+v1, and the text is named as it was written -- the "'b'".
+
+The statement that BEGINS with such a member holds no action: the `a.'b' := 5`
+and the `a.'b' + 1` are refused with "This line does not contain a
+recognized action." and the whole line is named. The two dialects say the
+same.
+
+The rule is in the parser: the statement that begins with a member whose name
+is not a name is refused before it is read, and the name of a member that is
+a text is an illegal character.
+
+The suite of the v2 has three cases more (506) and the suite of the v1 has two
+more (309).

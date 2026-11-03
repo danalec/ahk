@@ -1240,8 +1240,8 @@ accepted, and the value of the `a` does not change. The tree reads the member
 as a property, and the `a.b := 5` fails at the run with "This value of type
 "String" has no property named "b".". And the member whose name is a symbol
 -- the `a.'b' := 5` -- is refused by the v1 with "This line does not contain
-a recognized action. Specifically: a.'b' := 5", and the tree refuses it with
-the illegal character of the expression.
+a recognized action. Specifically: a.'b' := 5", and the tree refuses it the
+same way.
 
 And one more still: the call of a name that is not a function, when the
 bracket that closes it is not there. The v1 says "Call to nonexistent

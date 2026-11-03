@@ -5722,3 +5722,36 @@ fn the_goto_whose_parenthesis_is_spaced_looks_for_the_whole_text() {
     let error = parse("Goto (nowhere)").expect_err("does not parse");
     assert_eq!(error.message, "Label not found in current scope.\n     Specifically: (nowhere)");
 }
+
+#[test]
+fn the_name_of_a_member_that_is_a_text_is_an_illegal_character() {
+    // Measured on the binary of v2.0.19 on 2026-11-02: the name of a member
+    // may not be a text: the `a.'b'` is refused with "Illegal character in
+    // expression." and the text is named as it was written.
+    let error = parse("a := 1\nx := a.'b'").expect_err("does not parse");
+    assert_eq!(error.message, "Illegal character in expression.\n     Specifically: 'b'");
+}
+
+#[test]
+fn the_statement_that_begins_with_a_member_whose_name_is_not_a_name_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-11-02: the statement that
+    // begins with a member whose name is not a name holds no action: the
+    // `a.'b' := 5` is refused with "This line does not contain a recognized
+    // action." and the whole line is named.
+    let error = parse("a := 1\na.'b' := 5").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: a.'b' := 5"
+    );
+}
+
+#[test]
+fn the_statement_that_begins_with_a_member_whose_name_is_not_a_name_and_a_sum_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-11-02: the `a.'b' + 1` is a
+    // statement that holds no action, and the whole line is named.
+    let error = parse("a := 1\na.'b' + 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: a.'b' + 1"
+    );
+}

@@ -3191,6 +3191,14 @@ impl Parser {
             if self.the_illegal_character_is_glued_to_the_name_that_opens() {
                 return Err(self.the_line_holds_no_action(token.line));
             }
+            // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-02: the
+            // statement that begins with a member whose name is not a name
+            // holds no action: the `a.'b' := 5` and the `a.'b' + 1` are
+            // refused with "This line does not contain a recognized action."
+            // and the whole line is named. The v1 says the same.
+            if self.the_statement_begins_with_a_member_whose_name_is_not_a_name() {
+                return Err(self.the_line_holds_no_action(token.line));
+            }
             // Measured on the binary of v2.0.19 on 2026-10-31: the operator
             // that comes after the name is the increment, and it may be a
             // statement of its own.
@@ -6751,6 +6759,30 @@ impl Parser {
         }
     }
 
+    /// Whether the statement begins with a member whose name is not a name.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-02: the name
+    /// of a member may not be a text, and the single quote is not a text in
+    /// the v1: the `a.'b' := 5` and the `a."b" := 5` hold no action, and the
+    /// whole line is named.
+    ///
+    /// The name that is a number is a name of the member: the `a.2` is the
+    /// member "2" of the value of `a`.
+    fn the_statement_begins_with_a_member_whose_name_is_not_a_name(&self) -> bool {
+        let Some(dot) = self.tokens.get(self.position + 1) else { return false };
+        if dot.kind != TokenKind::Op || dot.value != "." || dot.spaced {
+            return false;
+        }
+        let Some(name) = self.tokens.get(self.position + 2) else { return false };
+        match name.kind {
+            TokenKind::String => true,
+            TokenKind::Name => {
+                self.dialect.the_single_quote_is_not_a_text() && name.value.starts_with('\'')
+            }
+            _ => false,
+        }
+    }
+
     /// The body of a loop.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the `break` and the
@@ -9777,6 +9809,17 @@ impl Parser {
                 if self.dialect.the_single_quote_is_not_a_text()
                     && the_symbol_begins_with_the_illegal_quote(&name)
                 {
+                    return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
+                }
+                // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-02:
+                // the name of a member may not be a text: the `a.'b'` is
+                // refused with "Illegal character in expression." and the text
+                // is named as it was written.
+                //
+                // The v1 reads the single quote as a symbol and refuses it
+                // above, and the double quote is a text that the v1 refuses
+                // with "This character is not allowed here.".
+                if name.kind == TokenKind::String && !self.dialect.the_single_quote_is_not_a_text() {
                     return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
                 }
                 // The member of v2 may be a number: the name of the

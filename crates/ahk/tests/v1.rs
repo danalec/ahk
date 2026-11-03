@@ -7972,3 +7972,34 @@ fn the_write_of_a_name_that_the_script_builds_inside_a_function_is_refused_in_th
         Some("This dynamic variable is blank. If this variable was not intended to be dynamic, remove the % symbols from it.")
     );
 }
+
+/// The statement that begins with a member whose name is a symbol holds no
+/// action.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// statement that begins with a member whose name is not a name holds no
+/// action: the `a.'b' := 5` is refused with "This line does not contain a
+/// recognized action." and the whole line is named.
+#[test]
+fn the_statement_that_begins_with_a_member_whose_name_is_a_symbol_holds_no_action_in_the_v1() {
+    let error = the_refusal_of_the_load("a := 1\na.'b' := 5");
+    assert_eq!(
+        error,
+        "This line does not contain a recognized action.\n     Specifically: a.'b' := 5"
+    );
+}
+
+/// The member whose name is a symbol is an illegal character in an
+/// expression.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `x := a.'b'` is refused with "The leftmost character above is illegal in
+/// an expression." and the symbol is named.
+#[test]
+fn the_member_whose_name_is_a_symbol_is_an_illegal_character_in_an_expression_in_the_v1() {
+    let error = the_refusal_of_the_load("a := 1\nx := a.'b'");
+    assert_eq!(
+        error,
+        "The leftmost character above is illegal in an expression.\n     Specifically: 'b'"
+    );
+}
