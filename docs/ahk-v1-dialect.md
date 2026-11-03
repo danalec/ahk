@@ -2582,7 +2582,8 @@ name of a variable that has a point in it -- a hole of the v1 that is known --
 and the six that are not in the v2 are the ones where the v2 fails at the run:
 the failure of the run of the v2 opens a dialog, and the dialog is a timeout.
 
-**The `#Warn` of the v1** (2026-11-05). The v1 has a `#Warn` of its own, and
+**The `#Warn` of the v1** (2026-11-05, the first block). The v1 has a `#Warn`
+of its own, and
 its types are not the ones of the v2: the "UseUnsetLocal", the
 "UseUnsetGlobal", the "UseEnv", the "LocalSameAsGlobal", the "ClassOverwrite"
 and the "All". The modes are the "MsgBox", the "StdOut", the "OutputDebug" and
@@ -2601,6 +2602,55 @@ this runtime.", and the warning of the v1 is not written by it. The probe of
 the block is `egm-review/probe_v1_warn.py`.
 
 ---
+
+**The `#Warn` of the v1** (2026-11-05, the second block). The directive of
+the v1 is carried, and the warnings of the variables are the three that the
+runtime gives: the variable of the script that is read and never written, the
+variable of a function that is read and never written, and the environment
+variable that is accessed.
+
+The text of the warning of the v1 is one for the two kinds, and the kind is in
+the text that names the variable -- "This variable has not been assigned a
+value." and "nope  (a global variable)". A local variable that has the name of
+a global says so: "x  (a local variable with same name as a global)". The
+warning of the environment is "An environment variable is being accessed; see
+#NoEnv." and the name of the variable.
+
+The warnings of the v1 are off when the script does not say, and the types of
+the v1 are refused at the load when the v2 does not know them: the "#Warn
+UseUnsetGlobal" of the v2 is refused with "Parameter #1 invalid." and the
+source of the directive.
+
+The difference that stays: the v1 warns twice for a read that is the value of
+an assignment, and the tree warns once. The number of the warnings of the v1
+is the number of the times that it materializes the empty content of the
+variable, and that depends on the operator: the value of an assignment is
+materialized twice, and the value of an object and the value of a comparison
+too. The tree warns once per read.
+
+The probe of the block is `egm-review/probe_v1_v2_warn_vars.py`, and the
+comparison of the binary and of the tree is five of the eight: the three that
+are not are the ones where the v1 warns twice.
+
+**The `#Warn` of the v1** (2026-11-05, the third block). The two warnings
+that are read out of the script are carried too, and the `#Warn` of the v1 has
+all of its types.
+
+The local variable that has the name of a global one is warned about once,
+when the script is read: "This local variable has the same name as a global
+variable." and the name of the variable with the function of it -- "x  (in
+function f)". The line of the warning is the line that opens the body of the
+function in the v1, and the line of the write of the local in the v2. A local
+that is declared global is not a local, and a local without a global is not
+warned about, and the parameters of the function are declared.
+
+The class that a variable overwrites is warned about: "Class may be
+overwritten." and the name of it, at the line of the write -- and the write
+inside a function warns about it too.
+
+The probes of the block are `egm-review/probe_v1_v2_warn_names.py` and
+`egm-review/probe_v1_v2_warn_names_compare.py`, and the comparison of the
+binary and of the tree is fifteen of the fifteen.
 
 ## 5. The risks
 
@@ -2708,53 +2758,7 @@ honest rule is the same as the one of the comparison with the X11 —
 | **What does not change** | the v2, the `Desktop`, the box, the report, the guard rails |
 | **The classes of the v1** | none: the v1 has objects and script classes, not runtime types |
 | **The divergence that stays written** | the v1 runs in the cooperative model: no threads |
+| **The state of the v1** | done (2026-11-05): the surface is carried whole, the `#Warn` of the v1 is carried with all of its types, and the harness finds no difference of behaviour that is not the machine. The difference that stays is the number of the warnings of the v1 when the variable that is read is the value of an assignment |
 | **The authority** | the binary of the v1.1.37.02 and the documentation of the v1 |
 | **The dependency** | the `--surface` of the wave of 2026-10-29, with one dialect more |
 | **The coordination** | the wave ports capabilities into the v2; this plan adds the dialect beside it |
-
-**The `#Warn` of the v1** (2026-11-05, the second block). The directive of
-the v1 is carried, and the warnings of the variables are the three that the
-runtime gives: the variable of the script that is read and never written, the
-variable of a function that is read and never written, and the environment
-variable that is accessed.
-
-The text of the warning of the v1 is one for the two kinds, and the kind is in
-the text that names the variable -- "This variable has not been assigned a
-value." and "nope  (a global variable)". A local variable that has the name of
-a global says so: "x  (a local variable with same name as a global)". The
-warning of the environment is "An environment variable is being accessed; see
-#NoEnv." and the name of the variable.
-
-The warnings of the v1 are off when the script does not say, and the types of
-the v1 are refused at the load when the v2 does not know them: the "#Warn
-UseUnsetGlobal" of the v2 is refused with "Parameter #1 invalid." and the
-source of the directive.
-
-The difference that stays: the v1 warns twice for a read that is the value of
-an assignment, and the tree warns once. The number of the warnings of the v1
-is the number of the conversions that its compiler makes, and the tree warns
-once per read.
-
-The probe of the block is `egm-review/probe_v1_v2_warn_vars.py`, and the
-comparison of the binary and of the tree is five of the eight: the three that
-are not are the ones where the v1 warns twice.
-
-**The `#Warn` of the v1** (2026-11-05, the third block). The two warnings
-that are read out of the script are carried too, and the `#Warn` of the v1 has
-all of its types.
-
-The local variable that has the name of a global one is warned about once,
-when the script is read: "This local variable has the same name as a global
-variable." and the name of the variable with the function of it -- "x  (in
-function f)". The line of the warning is the line that opens the body of the
-function in the v1, and the line of the write of the local in the v2. A local
-that is declared global is not a local, and a local without a global is not
-warned about, and the parameters of the function are declared.
-
-The class that a variable overwrites is warned about: "Class may be
-overwritten." and the name of it, at the line of the write -- and the write
-inside a function warns about it too.
-
-The probes of the block are `egm-review/probe_v1_v2_warn_names.py` and
-`egm-review/probe_v1_v2_warn_names_compare.py`, and the comparison of the
-binary and of the tree is fifteen of the fifteen.

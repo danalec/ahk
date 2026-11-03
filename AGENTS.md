@@ -9121,17 +9121,25 @@ and of the tree: the nine of the nine of the second are the same.
 The suite of the v1 has one case more (383), and the suite of the v2 has one
 case more (511).
 
-## 242. The warnings that are read out of the script are given when the script is read
+## 240. The warnings of a script are computed before the script runs
 
-Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05 and on the
-binary of AutoHotkey v2.0.19 on 2026-11-05: the local variable that has the
-name of a global one is warned about once, when the script is read, and the
-text of it names the variable and the function of it -- "x  (in function f)".
-The v1 names the line that opens the body of the function, and the v2 names
-the line of the write of the local.
+Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the `#Warn` takes
+the type of the warning and the mode of it, and the type that is not one of
+them is refused at the load with "Parameter #1 invalid." and the source of
+the line up to the comma -- "#Warn Nope" -- and the mode that is not one of
+them with "Parameter #2 invalid." and the text that was written -- "StdOut,
+Extra".
 
-The class that a variable overwrites is warned about too: "Class may be
-overwritten." and the name of it, at the line of the write.
+The warning of the line that never runs is of the line that comes right after
+the statement that leaves the level: the `Return`, the `Break`, the
+`Continue`, the `Throw` and the `Goto` leave it, and the label that is the
+target of the jump is not warned about. The warning is computed before the
+script runs: the two `Return` of a script give two warnings, and the second
+one is of a line that the script never reaches.
+
+The tree has no dialog, and the warning goes to the report: the report has the
+warnings of the script, and the mode of the "StdOut" writes them to the
+standard output as well, the way the v2 does.
 
 ## 241. The warning of the variable that is read and never written is given when the variable is read
 
@@ -9153,25 +9161,17 @@ are off when the script does not say, and the warnings of the v2 are on. A
 type that the dialect does not know is refused at the load, and the type of
 the warning that the tree does not carry yet is named in the report.
 
-## 240. The warnings of a script are computed before the script runs
+## 242. The warnings that are read out of the script are given when the script is read
 
-Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the `#Warn` takes
-the type of the warning and the mode of it, and the type that is not one of
-them is refused at the load with "Parameter #1 invalid." and the source of
-the line up to the comma -- "#Warn Nope" -- and the mode that is not one of
-them with "Parameter #2 invalid." and the text that was written -- "StdOut,
-Extra".
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05 and on the
+binary of AutoHotkey v2.0.19 on 2026-11-05: the local variable that has the
+name of a global one is warned about once, when the script is read, and the
+text of it names the variable and the function of it -- "x  (in function f)".
+The v1 names the line that opens the body of the function, and the v2 names
+the line of the write of the local.
 
-The warning of the line that never runs is of the line that comes right after
-the statement that leaves the level: the `Return`, the `Break`, the
-`Continue`, the `Throw` and the `Goto` leave it, and the label that is the
-target of the jump is not warned about. The warning is computed before the
-script runs: the two `Return` of a script give two warnings, and the second
-one is of a line that the script never reaches.
-
-The tree has no dialog, and the warning goes to the report: the report has the
-warnings of the script, and the mode of the "StdOut" writes them to the
-standard output as well, the way the v2 does.
+The class that a variable overwrites is warned about too: "Class may be
+overwritten." and the name of it, at the line of the write.
 
 The percent sign of an expression of the v1 opens the name of a variable, and
 the name has to close with another percent sign. The name that does not close
