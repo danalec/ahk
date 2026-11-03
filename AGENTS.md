@@ -9105,10 +9105,11 @@ The percent sign of an expression of the v1 opens the name of a variable, and
 the name has to close with another percent sign. The name that does not close
 is refused with "This parameter contains a variable name missing its ending
 percent sign." and the name that is empty is refused with "Empty variable
-reference (%%).". The text that the complaint names is the run of the name --
-the characters of the name and the percent signs that are glued to them -- and
-not the rest of the line: the `x := 10 % 3` is refused with the run "%" and
-the `x := 10%3` is refused with the run "10%3". The space is what ends the run.
+reference (%%).". The text that the complaint names is the operand of the name
+-- the text that goes from its first character to the first character that ends
+it -- and not the rest of the line: the `x := 10 % 3` is refused with the
+operand "%" and the `x := 10%3` is refused with the operand "10%3". The space
+is what ends the operand, and the point is a part of it.
 
 The value of the reference is the value of the variable whose name is the value
 of the variable that the reference names.
@@ -9166,5 +9167,32 @@ The probes of the block are `egm-review/probe_v1_this_func.py` and
 `egm-review/probe_v2_line_number.py`, and they are the cases of the binary
 and of the tree: eight of the eight and three of the three are the same.
 
-The suite of the v1 has one case more (390), and the suite of the v2 has one
-case more (512).
+The suite of the v1 has two cases more (389), and the suite of the v2 is the
+same (511).
+
+The name that the script builds may not carry a point: the `x := a.b%c` is
+refused at the load with "Ambiguous or invalid use of \".\"" and the text that
+it names is the operand from its first point to its end. The name of a member
+of the v1 may not be a text: the `x := a."b"` is refused with "This character
+is not allowed here." and the rest of the line, from the quote.
+
+The point of the operand is refused before anything else of the name: the
+`x := a.b% c` is refused with the point and not with the percent sign, and the
+`x := a."b"%c` is refused with the point and not with the text of the member.
+
+The text that begins an operand is not one: the v1 goes past it, and the
+operand begins after it, and the `"a"b%c` is refused with the operand "b%c".
+The percent sign that closes a name is in the operand of the one that opens it:
+the `x := %a % b` is refused with the operand "%a", and the `x := %a+b%` with
+"%a" too.
+
+The probes of the block are `egm-review/probe_v1_member_names2.py`,
+`egm-review/probe_v1_member_names3.py` and
+`egm-review/probe_v1_closing_percent.py`, and they are the cases of the binary
+and of the tree: thirty-three of the thirty-three, twenty of the twenty and
+eleven of the thirteen are the same. The two that are not are the ones where
+the v1 asks the user for the value of a variable: the tree answers an empty
+value, and it does not ask anybody.
+
+The suite of the v1 has three cases more (392), and the suite of the v2 is the
+same (511).

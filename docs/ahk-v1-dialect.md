@@ -2425,17 +2425,19 @@ percent sign. The name that does not close is refused with "This parameter
 contains a variable name missing its ending percent sign." and the name that
 is empty is refused with "Empty variable reference (%%).".
 
-The text that the complaint names is the run of the name -- the characters of
-the name and the percent signs that are glued to them -- and not the rest of
-the line: the `x := 10 % 3` is refused with the run "%", and the `x := 10%3`
-is refused with the run "10%3". The space is what ends the run.
+The text that the complaint names is the operand of the name -- the text that
+goes from its first character to the first character that ends it -- and not
+the rest of the line: the `x := 10 % 3` is refused with the operand "%", and
+the `x := 10%3` is refused with the operand "10%3". The space is what ends the
+operand, and the point is a part of it: the `x := a%c.b` is refused with the
+operand "a%c.b".
 
 The value of the reference is the value of the variable whose name is the value
 of the variable that the reference names: the `a := "b"` and the `x := %a%`
 give the value of the variable "b", and the `a := 1` and the `x := %a%` give
 an empty value, because there is no variable whose name is "1".
 
-The tree carries it: the parser computes the run of the name and asks the
+The tree carries it: the parser computes the operand of the name and asks the
 dialect for the refusal, and the refusal of the v1 is in
 `crates/ahk/src/v1/parameters.rs`.
 
@@ -2492,6 +2494,42 @@ runs there.
 The probes of the block are `egm-review/probe_v1_this_func.py` and
 `egm-review/probe_v2_line_number.py`, and they are the cases of the binary
 and of the tree: eight of the eight and three of the three are the same.
+
+**The point of the operand and the text of a member of the v1** (2026-11-05).
+The v1 reads the operand of an expression -- the text that goes from its first
+character to the first character that ends it -- and the point does not end it:
+the `a.b%c` is one operand. When the operand has a point and the text that
+comes from that point has a percent sign, the v1 refuses it with "Ambiguous
+or invalid use of \".\"" and the text that it names is the operand from its
+first point to its end: the `x := a.b%c` is refused with ".b%c", the
+`x := a.b.c%c` with ".b.c%c" and the `x := 1.5%c` with ".5%c".
+
+The name of a member of the v1 may not be a text: the `x := a."b"` is refused
+with "This character is not allowed here." and the rest of the line, from the
+quote: the `x := a."b" + 1` names `"b" + 1`.
+
+The point of the operand is refused before anything else of the name: the
+`x := a.b% c` is refused with the point and not with the percent sign, and the
+`x := a."b"%c` is refused with the point and not with the text of the member.
+
+The text that begins an operand is not one: the v1 goes past it, and the
+operand begins after it, and the `"a"b%c` is refused with the operand "b%c".
+The percent sign that closes a name is in the operand of the one that opens it:
+the `x := %a % b` is refused with the operand "%a".
+
+The tree carries it: the parser computes the operand of the v1, refuses the
+point of it and refuses the text that is the name of a member, and it asks the
+dialect for the two refusals (`the_refusal_of_the_point_of_an_operand` and
+`the_refusal_of_the_text_of_a_member`). The refusals of the v1 are in
+`crates/ahk/src/v1/parameters.rs`.
+
+The probes of the block are `egm-review/probe_v1_member_names2.py`,
+`egm-review/probe_v1_member_names3.py` and
+`egm-review/probe_v1_closing_percent.py`, and they are the cases of the binary
+and of the tree: thirty-three of the thirty-three, twenty of the twenty and
+eleven of the thirteen are the same. The two that are not are the ones where
+the v1 asks the user for the value of a variable: the tree answers an empty
+value, and it does not ask anybody.
 
 ---
 

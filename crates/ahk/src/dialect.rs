@@ -1741,6 +1741,32 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The refusal of the point of the operand.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// name that the script builds may not carry a point: the `x := a.b%c` is
+    /// refused with "Ambiguous or invalid use of \".\"" and the text that it
+    /// names is the operand from its first point to its end.
+    ///
+    /// The v2 does not have this refusal: the point is the point of a member,
+    /// and the name of a member may be built by the script.
+    fn the_refusal_of_the_point_of_an_operand(&self, _text: &str) -> Option<String> {
+        None
+    }
+
+    /// The refusal of the text that is the name of a member.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// name of a member of the v1 may not be a text: the `x := a."b"` is
+    /// refused with "This character is not allowed here." and the rest of the
+    /// line, from the quote.
+    ///
+    /// The v2 refuses the text with "Illegal character in expression." and the
+    /// text as it was written, and the parser keeps that complaint.
+    fn the_refusal_of_the_text_of_a_member(&self, _text: &str) -> Option<String> {
+        None
+    }
+
     /// The refusal of the number of the parameters of a command.
     ///
     /// `None` means that the dialect lets the command run with the number of
@@ -2530,6 +2556,18 @@ impl Dialect for V1 {
         // v1 opens a name with the percent sign, and the name that is not
         // closed and the name that is empty have a complaint of their own.
         crate::v1::the_refusal_of_the_percent_sign_of_an_expression(run, empty)
+    }
+
+    fn the_refusal_of_the_point_of_an_operand(&self, text: &str) -> Option<String> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // name that the script builds may not carry a point.
+        crate::v1::the_refusal_of_the_point_of_an_operand(text)
+    }
+
+    fn the_refusal_of_the_text_of_a_member(&self, text: &str) -> Option<String> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // name of a member of the v1 may not be a text.
+        crate::v1::the_refusal_of_the_text_of_a_member(text)
     }
 
     fn the_name_of_the_word_that_wants_a_parameter(&self, word: &str) -> String {

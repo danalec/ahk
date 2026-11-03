@@ -82,6 +82,8 @@ pub(crate) use parameters::is_the_name_of_a_variable_that_may_carry_a_point;
 pub(crate) use parameters::the_refusal_of_the_name_of_a_variable;
 pub(crate) use parameters::the_refusal_of_the_percent_sign_of_a_parameter;
 pub(crate) use parameters::the_refusal_of_the_percent_sign_of_an_expression;
+pub(crate) use parameters::the_refusal_of_the_point_of_an_operand;
+pub(crate) use parameters::the_refusal_of_the_text_of_a_member;
 pub(crate) use parameters::the_refusal_of_the_arity;
 pub(crate) use parameters::the_text_is_an_expression_of_the_v1;
 pub(crate) use sub_commands::the_refusal_of_a_sub_command;

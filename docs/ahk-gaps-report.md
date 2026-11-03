@@ -132,18 +132,33 @@ The holes that the probes of 2026-11-05 found after that one:
 | The script | The v1 | The tree |
 |---|---|---|
 | `FileAppend, %A_Index%, *` | `0` | `0` (2026-11-05) |
-| `x := a.b%c` | refused at the load: *"Ambiguous or invalid use of \".\"\n     Specifically: .b%c"* | refused with the complaint of the percent sign |
-| `x := a."b"` | refused at the load: *"This character is not allowed here.\n     Specifically: \"b\""* | refused with "Syntax error." |
+| `x := a.b%c` | refused at the load: *"Ambiguous or invalid use of \".\"\n     Specifically: .b%c"* | refused at the load, with the same words (2026-11-05) |
+| `x := a."b"` | refused at the load: *"This character is not allowed here.\n     Specifically: \"b\""* | refused at the load, with the same words (2026-11-05) |
 
 The first one is a name of the v1 that is a number outside a loop, and it was
 closed on 2026-11-05: the substitution of the v1 did not ask the runtime for
 the variables that it owns. The other two are the complaints of the v1 for the
-point and for the quote of a member.
+point and for the quote of a member, and they were closed on the same day.
 
 The `A_LineNumber` and the `A_ThisFunc` were closed on the same day: the tree
 did not write the line of the statement that runs, and the name of the
 function that runs was an empty text in the dialect of the v1 and a failure in
 the dialect of the v2.
+
+**The point of the operand and the text of a member** -- *closed on 2026-11-05*.
+The v1 reads the operand of an expression -- the text that goes from its first
+character to the first character that ends it, and the point does not end it --
+and it refuses the operand that has a point and a percent sign after the point,
+before it refuses anything else of it. The name of a member may not be a text
+either.
+
+The work was in the parser: the tree computes the operand of the v1 now, and
+it asks the dialect for the two refusals
+(`the_refusal_of_the_point_of_an_operand` and
+`the_refusal_of_the_text_of_a_member`), and the refusals of the v1 are in
+`crates/ahk/src/v1/parameters.rs`. The closing percent sign of a name has to
+be in the operand of the one that opens it, and that was the work of the
+parser too.
 
 ### 2.3 The holes of the v2 that are known
 
@@ -189,13 +204,16 @@ it with a dialog. The modes of the v2 are the "R" and the "D", and the "D"
 1. **The quote that a string of the v1 begins with** (§2.2) — *closed on
    2026-11-05*. The check of the name was the work: the v1 reads the tail of a
    list as symbols, and the tree swallowed the complaint.
-2. **The `ObjBindMethod`** (§1.1). Small, and it is the last name of the
+2. **The point of the operand and the text of a member of the v1** (§2.2) —
+   *closed on 2026-11-05*. The operand of the v1 was the work: it does not end
+   at the point, and the tree ended the name at it.
+3. **The `ObjBindMethod`** (§1.1). Small, and it is the last name of the
    surface that the tree does not carry, in the two dialects.
-3. **The mode of the `Loop Files` of the v2** (§2.3). Small: the tree refuses
+4. **The mode of the `Loop Files` of the v2** (§2.3). Small: the tree refuses
    the mode that the v2 refuses.
-4. **The second parameter of the `Loop Read` of the v2** (§2.3). The tree
+5. **The second parameter of the `Loop Read` of the v2** (§2.3). The tree
    opens the file and the `FileAppend` of the body writes to it.
-5. **The warnings of the v2** (§2.3). Big: the runtime needs a warning
+6. **The warnings of the v2** (§2.3). Big: the runtime needs a warning
    channel and the v2 shows a dialog before the error.
 
 The v1 is otherwise done: every name of its surface is carried, the pending

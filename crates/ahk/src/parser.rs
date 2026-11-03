@@ -171,50 +171,86 @@ fn the_source_of_a_token(parser: &Parser, token: &Token) -> String {
     text
 }
 
-/// The run of the name that a percent sign opens.
+/// The tokens of the operand that holds a percent sign.
 ///
-/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the run is
-/// the characters of the name and the percent signs that are glued to them,
-/// and the space is what ends it: the `a%b` is the run "a%b", the `a % b` is
-/// the run "%" and the `10%3` is the run "10%3".
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// operand of the v1 is the text that goes from its first character to the
+/// first character that ends it -- the space, the tab, an operator or a
+/// bracket -- and the point does not end it: the `a.b%c` is one operand.
 ///
-/// The run is the text that the complaint of the v1 names, and not the rest
-/// of the line: the `10 % 3` is refused with the run "%" and with the text
-/// "% 3" that the v2 names.
-fn the_run_of_the_name_of_a_percent_sign(parser: &Parser, at: usize) -> String {
+/// The text of the operand is the text that the complaint of the v1 names,
+/// and not the rest of the line: the `10 % 3` is refused with the operand "%"
+/// and with the text "% 3" that the v2 names.
+fn the_operand_of_the_percent_sign(parser: &Parser, at: usize) -> (usize, usize) {
     let mut start = at;
     while start > 0
-        && the_token_is_of_a_run(&parser.tokens[start - 1])
+        && the_token_is_of_an_operand(&parser.tokens[start - 1])
         && !parser.tokens[start].spaced
+        && !the_text_ends_the_operand(parser, start - 1)
     {
         start -= 1;
     }
     let mut end = at;
     while end + 1 < parser.tokens.len()
-        && the_token_is_of_a_run(&parser.tokens[end + 1])
+        && the_token_is_of_an_operand(&parser.tokens[end + 1])
         && !parser.tokens[end + 1].spaced
     {
         end += 1;
     }
-    the_source_of_the_tokens(parser, start, end + 1)
+    (start, end + 1)
 }
 
-/// Whether the token is a part of the run of a name.
+/// The source of the operand that holds a percent sign.
+fn the_source_of_the_operand(parser: &Parser, at: usize) -> String {
+    let (start, end) = the_operand_of_the_percent_sign(parser, at);
+    the_source_of_the_tokens(parser, start, end)
+}
+
+/// Whether the percent sign that closes a name is in the operand of the one
+/// that opens it.
 ///
-/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the run is
-/// made of the characters of a name and of the percent signs, and the number
-/// is a part of it: the `10%3` is the run "10%3".
-fn the_token_is_of_a_run(token: &Token) -> bool {
-    if token.kind == TokenKind::Op {
-        return token.value == "%";
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name
+/// that the percent sign opens is closed by a percent sign of the same
+/// operand: the `x := %a.b % c` is refused with the operand "%a.b", and the
+/// space is what ends the operand.
+fn the_closing_is_in_the_operand(parser: &Parser, open: usize, close: usize) -> bool {
+    let (start, end) = the_operand_of_the_percent_sign(parser, open);
+    start <= close && close < end
+}
+
+/// Whether the token is a part of the operand of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// operand is made of the names, of the numbers, of the words and of the
+/// texts, and the percent sign and the point are a part of it: the `a.b%c`
+/// is one operand.
+fn the_token_is_of_an_operand(token: &Token) -> bool {
+    match token.kind {
+        TokenKind::Name | TokenKind::Number | TokenKind::Keyword | TokenKind::String => true,
+        TokenKind::Op => matches!(token.value.as_str(), "%" | "."),
+        _ => false,
     }
-    if !matches!(token.kind, TokenKind::Name | TokenKind::Number) {
+}
+
+/// Whether the text ends the operand of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text
+/// that begins an operand is not one: the v1 goes past it, and the operand
+/// begins after it. The `"a"b%c` is refused with the operand "b%c".
+///
+/// The text that is inside an operand is a part of it: the `a."b"%c` is one
+/// operand, and the point of it is the point of the member.
+fn the_text_ends_the_operand(parser: &Parser, at: usize) -> bool {
+    if parser.tokens[at].kind != TokenKind::String {
         return false;
     }
-    !token.value.is_empty()
-        && token.value.chars().all(|character| {
-            character.is_alphanumeric() || matches!(character, '_' | '#' | '$' | '@')
-        })
+    if parser.tokens[at].spaced {
+        return true;
+    }
+    match at.checked_sub(1).and_then(|before| parser.tokens.get(before)) {
+        None => true,
+        Some(token) => !the_token_is_of_an_operand(token),
+    }
 }
 
 /// The source of the name that carries an escape.
@@ -9454,8 +9490,8 @@ impl Parser {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
         // opens the name of a variable with the percent sign, and the name
         // that is not closed is refused with a complaint of its own. The text
-        // that it names is the run of the name.
-        let run = the_run_of_the_name_of_a_percent_sign(self, at);
+        // that it names is the operand of the name.
+        let run = the_source_of_the_operand(self, at);
         if let Some(refusal) =
             self.dialect.the_refusal_of_the_percent_sign_of_an_expression(&run, false)
         {
@@ -9503,8 +9539,8 @@ impl Parser {
     fn the_error_of_a_percent_inside(&self, at: usize) -> SyntaxError {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
         // refuses the reference that is empty with "Empty variable reference
-        // (%%).", and the text that it names is the run of the name.
-        let run = the_run_of_the_name_of_a_percent_sign(self, at);
+        // (%%).", and the text that it names is the operand of the name.
+        let run = the_source_of_the_operand(self, at);
         if let Some(refusal) =
             self.dialect.the_refusal_of_the_percent_sign_of_an_expression(&run, true)
         {
@@ -9514,6 +9550,31 @@ impl Parser {
             "Syntax error.\n     Specifically: {}",
             the_source_of_the_rest_of_the_line(self, at)
         ))
+    }
+
+    /// The refusal of the point of the operand.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// name that the script builds may not carry a point: the `x := a.b%c` is
+    /// refused with "Ambiguous or invalid use of \".\"" and the text that it
+    /// names is the operand from its first point to its end.
+    ///
+    /// The v1 refuses the point before it refuses anything else of the name:
+    /// the `x := a.b% c` is refused with the point and not with the percent
+    /// sign, and the `x := a."b"%c` is refused with the point and not with
+    /// the text of the member.
+    ///
+    /// The `at` is the place of the token that holds the percent sign, or the
+    /// place of the point of a member.
+    fn the_refusal_of_the_point_of_the_operand(&self, at: usize) -> Option<SyntaxError> {
+        let (start, end) = the_operand_of_the_percent_sign(self, at);
+        let text = the_source_of_the_tokens(self, start, end);
+        let point = text.find('.')?;
+        if !text[point..].contains('%') {
+            return None;
+        }
+        let refusal = self.dialect.the_refusal_of_the_point_of_an_operand(&text[point..])?;
+        Some(self.error(refusal))
     }
 
     /// The pieces of a name that the script builds.
@@ -9538,12 +9599,19 @@ impl Parser {
     ) -> Result<Vec<DynamicPiece>, SyntaxError> {
         let mut pieces = vec![DynamicPiece::Text(first)];
         while self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
+            let open = self.position;
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the v1 refuses the point of the operand before it reads the
+            // name: the `x := a.b%c` is refused with the point.
+            if let Some(refusal) = self.the_refusal_of_the_point_of_the_operand(open) {
+                return Err(refusal);
+            }
             self.next();
             if self.at_op(&["%"]) {
                 return Err(self.the_error_of_a_percent_inside(self.position));
             }
             let value = self.the_expression_of_a_dynamic_name(at)?;
-            if !self.at_op(&["%"]) {
+            if !self.at_op(&["%"]) || !the_closing_is_in_the_operand(self, open, self.position) {
                 return Err(self.the_error_of_a_missing_ending(at));
             }
             self.next();
@@ -9563,12 +9631,18 @@ impl Parser {
         let mut pieces = vec![DynamicPiece::Value(Box::new(value))];
         while self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
             let open = self.position;
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the v1 refuses the point of the operand before it reads the
+            // name.
+            if let Some(refusal) = self.the_refusal_of_the_point_of_the_operand(open) {
+                return Err(refusal);
+            }
             self.next();
             if self.at_op(&["%"]) {
                 return Err(self.the_error_of_a_percent_inside(self.position));
             }
             let value = self.the_expression_of_a_dynamic_name(open)?;
-            if !self.at_op(&["%"]) {
+            if !self.at_op(&["%"]) || !the_closing_is_in_the_operand(self, open, self.position) {
                 return Err(self.the_error_of_a_missing_ending(open));
             }
             self.next();
@@ -10087,11 +10161,17 @@ impl Parser {
                 // the answer -- and the hash that does not close it is
                 // refused with the text of the rest of the line.
                 let open = self.position - 1;
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+                // the v1 refuses the point of the operand before it reads the
+                // name: the `x := %a.b%` is refused with the point.
+                if let Some(refusal) = self.the_refusal_of_the_point_of_the_operand(open) {
+                    return Err(refusal);
+                }
                 if self.at_op(&["%"]) {
                     return Err(self.the_error_of_a_percent_inside(self.position));
                 }
                 let value = self.the_expression_of_a_dynamic_name(open)?;
-                if !self.at_op(&["%"]) {
+                if !self.at_op(&["%"]) || !the_closing_is_in_the_operand(self, open, self.position) {
                     return Err(self.the_error_of_a_missing_ending(open));
                 }
                 self.next();
@@ -10693,12 +10773,19 @@ impl Parser {
                 // the method whose name is the value of `x`.
                 if self.at_op(&["%"]) {
                     let open = self.position;
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-05: the v1 refuses the point of the operand
+                    // before it reads the name: the `x := a.%b%` is refused
+                    // with the point.
+                    if let Some(refusal) = self.the_refusal_of_the_point_of_the_operand(open) {
+                        return Err(refusal);
+                    }
                     self.next();
                     if self.at_op(&["%"]) {
                         return Err(self.the_error_of_a_percent_inside(self.position));
                     }
                     let value = self.the_expression_of_a_dynamic_name(open)?;
-                    if !self.at_op(&["%"]) {
+                    if !self.at_op(&["%"]) || !the_closing_is_in_the_operand(self, open, self.position) {
                         return Err(self.the_error_of_a_missing_ending(open));
                     }
                     self.next();
@@ -10732,9 +10819,25 @@ impl Parser {
                 //
                 // The v1 reads the single quote as a symbol and refuses it
                 // above, and the double quote is a text that the v1 refuses
-                // with "This character is not allowed here.".
-                if name.kind == TokenKind::String && !self.dialect.the_single_quote_is_not_a_text() {
-                    return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
+                // with "This character is not allowed here." and the rest of
+                // the line, from the quote: the `x := a."b" + 1` names
+                // `"b" + 1`.
+                if name.kind == TokenKind::String {
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-05: the v1 refuses the point of the operand
+                    // before it refuses the text of the member: the
+                    // `x := a."b"%c` is refused with the point.
+                    if let Some(refusal) = self.the_refusal_of_the_point_of_the_operand(at_the_dot) {
+                        return Err(refusal);
+                    }
+                    if let Some(refusal) = self.dialect.the_refusal_of_the_text_of_a_member(
+                        &the_source_of_the_rest_of_the_line(self, self.position - 1),
+                    ) {
+                        return Err(self.error(refusal));
+                    }
+                    if !self.dialect.the_single_quote_is_not_a_text() {
+                        return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
+                    }
                 }
                 // The member of v2 may be a number: the name of the
                 // property is the text of the number, and `1.5.2` asks for

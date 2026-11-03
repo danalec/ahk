@@ -354,6 +354,25 @@ pub(crate) fn the_refusal_of_the_percent_sign_of_an_expression(
     ))
 }
 
+/// The refusal of the point of the operand of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name
+/// that the script builds may not carry a point: the `x := a.b%c` is refused
+/// with "Ambiguous or invalid use of \".\"". The text that is named is the
+/// operand from its first point to its end.
+pub(crate) fn the_refusal_of_the_point_of_an_operand(text: &str) -> Option<String> {
+    Some(format!("Ambiguous or invalid use of \".\"\n     Specifically: {text}"))
+}
+
+/// The refusal of the text that is the name of a member of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name of
+/// a member may not be a text: the `x := a."b"` is refused with "This
+/// character is not allowed here." and the rest of the line, from the quote.
+pub(crate) fn the_refusal_of_the_text_of_a_member(text: &str) -> Option<String> {
+    Some(format!("This character is not allowed here.\n     Specifically: {text}"))
+}
+
 /// The refusal of the name of a variable of the script.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the name of a variable

@@ -9625,11 +9625,12 @@ fn the_parse_loop_of_the_v1_does_not_fail_when_the_name_is_not_a_variable() {
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name
 /// that the percent sign opens has to close with another percent sign, and
 /// the complaint of the v1 is "This parameter contains a variable name
-/// missing its ending percent sign.". The text that it names is the run of
-/// the name -- the characters of the name and the percent signs that are
-/// glued to them -- and not the rest of the line: the `x := 10 % 3` is
-/// refused with the run "%" and the `x := 10%3` is refused with the run
-/// "10%3". The space is what ends the run.
+/// missing its ending percent sign.". The text that it names is the operand
+/// of the name -- the text that goes from its first character to the first
+/// character that ends it -- and not the rest of the line: the `x := 10 % 3`
+/// is refused with the operand "%" and the `x := 10%3` is refused with the
+/// operand "10%3". The space is what ends the operand, and the point is a
+/// part of it: the `x := a%c.b` is refused with the operand "a%c.b".
 #[test]
 fn the_percent_sign_of_an_expression_of_the_v1_opens_the_name_of_a_variable() {
     let cases = [
@@ -9646,6 +9647,8 @@ fn the_percent_sign_of_an_expression_of_the_v1_opens_the_name_of_a_variable() {
         ("x := (a)%b", "%b"),
         ("x := \"a\"%b", "%b"),
         ("x := %a%%b", "%a%%b"),
+        ("x := a%c.b", "a%c.b"),
+        ("x := a%b.c", "a%b.c"),
     ];
     for (script, run) in cases {
         assert_eq!(
@@ -9662,14 +9665,108 @@ fn the_percent_sign_of_an_expression_of_the_v1_opens_the_name_of_a_variable() {
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name
 /// that the percent sign opens and that has nothing in it is refused with
-/// "Empty variable reference (%%).", and the text that it names is the run of
-/// the name.
+/// "Empty variable reference (%%).", and the text that it names is the
+/// operand of the name.
 #[test]
 fn the_reference_that_is_empty_is_refused_by_the_v1() {
     for (script, run) in [("x := %%", "%%"), ("x := a%%b", "a%%b")] {
         assert_eq!(
             the_refusal_of_the_load(script),
             format!("Empty variable reference (%%).\n     Specifically: {run}"),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The name that the script builds may not carry a point.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `x := a.b%c` is refused with "Ambiguous or invalid use of \".\"" and the
+/// text that it names is the operand from its first point to its end. The v1
+/// refuses the point before it refuses anything else of the name: the
+/// `x := a.b% c` is refused with the point and not with the percent sign, and
+/// the `x := a."b"%c` is refused with the point and not with the text of the
+/// member.
+#[test]
+fn the_point_of_the_name_that_the_script_builds_is_refused_by_the_v1() {
+    let cases = [
+        ("x := a.b%c", ".b%c"),
+        ("x := a.b%c%", ".b%c%"),
+        ("x := a.b%c + 1", ".b%c"),
+        ("x := a.b.c%c", ".b.c%c"),
+        ("x := \"a\".b%c", ".b%c"),
+        ("x := 1.5%c", ".5%c"),
+        ("x := 0.0%c", ".0%c"),
+        ("x := a.%b%", ".%b%"),
+        ("x := a.b%c%d", ".b%c%d"),
+        ("x := %a.b%", ".b%"),
+        ("x := %a.b%c", ".b%c"),
+        ("x := a.b% c", ".b%"),
+        ("x := a.b%%c", ".b%%c"),
+        ("x := a.if%c", ".if%c"),
+        ("x := .5%c", ".5%c"),
+        ("x := a.b%", ".b%"),
+        ("x := a.%", ".%"),
+        ("x := a.b%c.5", ".b%c.5"),
+        ("x := a.5%c", ".5%c"),
+    ];
+    for (script, text) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            format!("Ambiguous or invalid use of \".\"\n     Specifically: {text}"),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The name of a member of the v1 may not be a text.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `x := a."b"` is refused with "This character is not allowed here." and the
+/// rest of the line, from the quote: the `x := a."b" + 1` names `"b" + 1`.
+#[test]
+fn the_text_of_the_name_of_a_member_is_refused_by_the_v1() {
+    let cases = [
+        ("x := a.\"b\"", "\"b\""),
+        ("x := a.\"b\" + 1", "\"b\" + 1"),
+        ("x := a.\"b\".c", "\"b\".c"),
+        ("x := a.\"b\"c", "\"b\"c"),
+        ("x := {a: 1}.\"a\"", "\"a\""),
+        ("x := a.\"\"", "\"\""),
+        ("x := a.\"b\"()", "\"b\"()"),
+        ("x := a.\"b\" := 1", "\"b\" := 1"),
+    ];
+    for (script, text) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            format!("This character is not allowed here.\n     Specifically: {text}"),
+            "the script is {script}"
+        );
+    }
+}
+
+/// The percent sign that closes a name of the v1 is in the operand of the one
+/// that opens it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the space
+/// and the operator end the operand, and the name that the percent sign opens
+/// is closed by a percent sign of the same operand: the `x := %a % b` is
+/// refused with the operand "%a", and the `x := %a+b%` with "%a".
+#[test]
+fn the_percent_sign_that_closes_a_name_of_the_v1_is_in_the_operand() {
+    let cases = [
+        ("x := %a % b", "%a"),
+        ("x := %a+b%", "%a"),
+        ("x := a%b %c", "a%b"),
+        ("x := a%b+c%", "a%b"),
+        ("x := %a%b%", "%a%b%"),
+    ];
+    for (script, operand) in cases {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            format!(
+                "This parameter contains a variable name missing its ending percent sign.\n     Specifically: {operand}"
+            ),
             "the script is {script}"
         );
     }
