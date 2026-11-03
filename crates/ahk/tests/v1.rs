@@ -7179,3 +7179,41 @@ fn the_failure_of_the_condition_of_the_v1_is_not_reported() {
     assert_eq!(the_refusal_of_the_load("if (x"), "Missing \")\"");
     assert_eq!(the_refusal_of_the_load("if [1"), "Missing \"]\"");
 }
+
+/// The write of a property of a value that is not an object is dropped in the
+/// v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 does
+/// not refuse it: the `a.b := 5` is accepted when the `a` has no value, when
+/// the `a` is a text and when the `a` is a number, and the write is dropped.
+/// The write of a member of an object is kept.
+///
+/// The v2 refuses the write with "This value of type "String" has no property
+/// named "b"."
+#[test]
+fn the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped_in_the_v1() {
+    // The value that has no value.
+    let report = run("a.b := 5\nFileAppend, %a%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["".to_string()]);
+
+    // The text.
+    let report = run("a := \"text\"\na.b := 5\nFileAppend, %a%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["text".to_string()]);
+
+    // The number.
+    let report = run("a := 5\na.b := 6\nFileAppend, %a%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["5".to_string()]);
+
+    // The member of a member.
+    let report = run("a.b.c := 5\nFileAppend, ok, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["ok".to_string()]);
+
+    // The write of a member of an object is kept.
+    let report = run("a := {}\na.b := 5\nx := a.b\nFileAppend, %x%, *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["5".to_string()]);
+}

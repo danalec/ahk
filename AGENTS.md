@@ -8395,3 +8395,20 @@ and the failure of the parse is caught by the parser
 (`the_failure_of_a_condition_is_not_reported`), and the v2 reports the failure.
 
 The suite of the v1 has one case more (270).
+
+## 218. The write of a property of a value that is not an object is dropped in the v1
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 does not
+refuse the write of a property of a value that is not an object. The `a.b := 5`
+is accepted when the `a` has no value, when the `a` is a text and when the `a`
+is a number, and the write is dropped: the value of the `a` does not change.
+The write of a member of an object is kept.
+
+The v2 refuses the write with "This value of type \"String\" has no property
+named \"b\".".
+
+The rule is a hook of the dialect
+(`the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped`) and the
+runtime drops the write.
+
+The suite of the v1 has one case more (271).

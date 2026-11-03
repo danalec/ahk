@@ -6633,6 +6633,16 @@ impl<'a> Runtime<'a> {
         let written = name.to_string();
         let name = name.to_lowercase();
         let Value::Object(object) = target else {
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 does not refuse the write of a property of a value that
+            // is not an object: the `a.b := 5` is accepted when the `a` is
+            // not an object, and the write is dropped.
+            if self
+                .dialect
+                .the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped()
+            {
+                return Ok(());
+            }
             // The class of a value that is not an object cannot be
             // written: v2 says that the property is read-only.
             if name == "__class" {

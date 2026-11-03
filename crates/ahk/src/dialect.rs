@@ -1187,6 +1187,30 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// Whether the operand that is not there is the empty text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not refuse the operator that has no operand: the `x := 1 +` and
+    /// the `x := not` are accepted, and the value of them is the empty text.
+    ///
+    /// The v2 refuses it with "Missing operand.".
+    fn the_operand_that_is_not_there_is_the_empty_text(&self) -> bool {
+        false
+    }
+
+    /// Whether the write of a property of a value that is not an object is
+    /// dropped.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not refuse it: the `a.b := 5` is accepted when the `a` is not an
+    /// object, and the write is dropped.
+    ///
+    /// The v2 refuses it with "This value of type "String" has no property
+    /// named "b"."
+    fn the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped(&self) -> bool {
+        false
+    }
+
     /// Whether the failure of the condition of a construct is not reported.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -1962,6 +1986,12 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 does not report the failure of the condition of an `if` or of a
         // `while`, and the condition is false.
+        true
+    }
+
+    fn the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 drops the write of a property of a value that is not an object.
         true
     }
 

@@ -1946,6 +1946,15 @@ that asks for another one is refused with the reason.
   failure is not reported
   (`the_failure_of_a_condition_is_not_reported`).
 
+- **The write of a property of a value that is not an object is dropped in the
+  v1.** The v1 does not refuse it: the `a.b := 5` is accepted when the `a` has
+  no value, when the `a` is a text and when the `a` is a number, and the write
+  is dropped. The write of a member of an object is kept. The runtime drops the
+  write, and the dialect says that it is dropped
+  (`the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped`). The v2
+  refuses the write with "This value of type "String" has no property named
+  "b".".
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes
