@@ -9685,6 +9685,7 @@ fn the_reference_that_is_empty_is_refused_by_the_v1() {
 /// give an empty value, because there is no variable whose name is "1".
 #[test]
 fn the_reference_of_a_name_in_an_expression_of_the_v1_reads_the_variable_that_it_names() {
+
     let report = run("b := 7\na := \"b\"\nx := %a%\nFileAppend, [%x%], *");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[7]".to_string()]);
@@ -9692,5 +9693,39 @@ fn the_reference_of_a_name_in_an_expression_of_the_v1_reads_the_variable_that_it
     let report = run("a := 1\nx := %a%\nFileAppend, [%x%], *");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
+/// The names of the tail of a list of the v1 are checked.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+/// reads the tail of a list as symbols, and the name of each one of them is
+/// checked: the `x := 1, a"b"` is refused at the load with "The following
+/// variable name contains an illegal character:" and the name of it, and so
+/// is the `x := 1, "a"b"` with the name "b"".
+///
+/// The name of a function is not the name of a variable, and the v1 does not
+/// refuse it: the `x := 1, a"b"(2)` is refused with "Call to nonexistent
+/// function.".
+#[test]
+fn the_names_of_the_tail_of_a_list_of_the_v1_are_checked() {
+    for (script, name) in [
+        ("x := 1, a\"b\"", "a\"b\""),
+        ("x := 1, 5\"a\"", "5\"a\""),
+        ("x := 1, \"a\"b\"", "b\""),
+        ("x := 1, FileAppend, a\"b\", *", "a\"b\""),
+        ("x := \"\"a,b\"\",c\"", "b\"\""),
+    ] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            format!("The following variable name contains an illegal character:\n\"{name}\""),
+            "the script is {script}"
+        );
+    }
+
+    // The name of a function is not the name of a variable.
+    assert_eq!(
+        the_refusal_of_the_load("x := 1, a\"b\"(2)"),
+        "Call to nonexistent function.\n     Specifically: a\"b\"(2)"
+    );
 }
 

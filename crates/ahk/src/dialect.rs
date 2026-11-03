@@ -1705,6 +1705,19 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// Whether the names of the tail of a list are checked.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// reads the tail of a list as symbols, and the name of each one of them
+    /// is checked: the `x := 1, a"b"` is refused with the name of it, and so
+    /// is the `x := 1, "a"b"` with the name "b"".
+    ///
+    /// The v2 does not have this check: the name of the v2 may not carry a
+    /// quote at all.
+    fn the_names_of_a_tail_are_checked(&self) -> bool {
+        false
+    }
+
     /// The refusal of the percent sign that opens a name in an expression.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
@@ -2499,6 +2512,13 @@ impl Dialect for V1 {
         // checks the percent sign of every parameter of its commands when the
         // script loads.
         crate::v1::the_refusal_of_the_percent_sign_of_a_parameter(text)
+    }
+
+    fn the_names_of_a_tail_are_checked(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+        // reads the tail of a list as symbols, and the name of each one of
+        // them is checked.
+        true
     }
 
     fn the_refusal_of_the_percent_sign_of_an_expression(

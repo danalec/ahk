@@ -5198,6 +5198,38 @@ impl Parser {
         self.dialect.the_refusal_of_the_increment_of_a_built_in_variable(name)
     }
 
+    /// The refusal of a name that carries a quote in the tail of a list.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// reads the tail of a list as symbols, and the name of each one of them
+    /// is checked: the `x := 1, a"b"` is refused with the name of it, and so
+    /// is the `x := 1, "a"b"` with the name "b"".
+    ///
+    /// The name of a function is not the name of a variable, and the v1 does
+    /// not refuse it: the `x := 1, a"b"(2)` is refused with "Call to
+    /// nonexistent function.", and the call is checked at the end of the load.
+    fn the_refusal_of_a_name_of_the_tail(&self, start: usize) -> Option<SyntaxError> {
+        let end = the_end_of_the_line_of(self, start);
+        for index in start..end {
+            let token = &self.tokens[index];
+            if token.kind != TokenKind::Name {
+                continue;
+            }
+            let is_a_call = self
+                .tokens
+                .get(index + 1)
+                .map(|next| next.value == "(" && !next.spaced)
+                .unwrap_or(false);
+            if is_a_call {
+                continue;
+            }
+            if let Some(refusal) = self.the_refusal_of_the_name(token) {
+                return Some(refusal);
+            }
+        }
+        None
+    }
+
     /// The list of v1 that may follow the expression of a statement.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the expression of
@@ -5215,6 +5247,15 @@ impl Parser {
     fn the_legacy_list(&mut self) -> Result<Vec<Node>, SyntaxError> {
         if !self.at_op(&[","]) {
             return Ok(Vec::new());
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+        // reads the tail of a list as symbols, and the name of each one of
+        // them is checked: the `x := 1, a"b"` is refused with the name of it,
+        // and so is the `x := 1, "a"b"` with the name "b"".
+        if self.dialect.the_names_of_a_tail_are_checked() {
+            if let Some(refusal) = self.the_refusal_of_a_name_of_the_tail(self.position) {
+                return Err(refusal);
+            }
         }
         self.position += 1;
         let mut items = Vec::new();

@@ -9123,3 +9123,21 @@ tree answers an empty value, and it does not ask anybody.
 
 The suite of the v1 has three cases more (386), and the suite of the v2 is the
 same (511).
+
+The v1 reads the tail of a list as symbols, and the name of each one of them
+is checked: the `x := 1, a"b"` is refused at the load with "The following
+variable name contains an illegal character:" and the name of it, and so is
+the `x := 1, "a"b"` with the name "b"". The name of a function is not the name
+of a variable, and the v1 does not refuse it: the `x := 1, a"b"(2)` is
+refused with "Call to nonexistent function." The complaint of the name is at
+the parse and the complaint of the call is at the end of the load, and so the
+name is heard first.
+
+The probes of the block are `egm-review/probe_v1_quotes_start.py`,
+`egm-review/probe_v1_comma_expression.py` and
+`egm-review/probe_v1_order_of_refusals.py`, and they are the cases of the
+binary and of the tree: thirteen of the thirteen, seventeen of the seventeen
+and seven of the seven are the same.
+
+The suite of the v1 has one case more (387), and the suite of the v2 is the
+same (511).

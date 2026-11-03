@@ -103,25 +103,41 @@ more than six hundred cases. The differences that are left:
 So the harness finds **no difference of behaviour** between the tree and the
 binaries that is not the machine.
 
-### 2.2 The one hole of the v1 that is known
+### 2.2 The holes of the v1
 
-**The quote that a string begins with.** The name of the v1 is permissive: it
-holds the quote, and the check of the name refuses it. The tree ends the name
-at the quote, and the script that the v1 refuses at the load is accepted.
+**The quote that a string begins with** — *closed on 2026-11-05*. The name of
+the v1 is permissive: it holds the quote, and the check of the name refuses
+it. The tree ended the name at the quote, and the script that the v1 refuses
+at the load was accepted.
 
 Measured on the binary of v1.1.37.02 on 2026-11-05:
 
 | The script | The v1 | The tree |
 |---|---|---|
 | `x := ""a""` | refused at the load: *"The following variable name contains an illegal character:\n\"a\"\"\""* | refused at the load, with the same words |
-| `x := ""a,b"",c"` | refused at the load: *"The following variable name contains an illegal character:\n\"b\"\"\""* | **accepted**, and `x` is `a,b` |
+| `x := ""a,b"",c"` | refused at the load: *"The following variable name contains an illegal character:\n\"b\"\"\""* | refused at the load, with the same words (2026-11-05) |
 | `x := """"` | the text is `"` | the text is `"` |
 
 The way of the v1 that works is `x := """a""b"""`, and the tree agrees with
-the v1 on it. The hole is only for the scripts that the v1 refuses.
+the v1 on it. The hole was only for the scripts that the v1 refuses.
 
-The size of the work: the lexer of the v1 (the name holds the quote) and the
-check of the name (`crates/ahk/src/v1/parameters.rs`).
+The work was in the check of the name and not in the lexer: the v1 reads the
+tail of a list as symbols, and the name of each one of them is checked, and
+the tree swallowed the complaint because the tail of the v1 is a text. The
+parser asks the dialect now (`the_names_of_a_tail_are_checked`), and the
+refusal of the v1 is in the parser.
+
+The holes that the probes of 2026-11-05 found after that one:
+
+| The script | The v1 | The tree |
+|---|---|---|
+| `FileAppend, %A_Index%, *` | `0` | an empty value: the `A_Index` of the v1 is "0" outside a loop, and the tree gives an empty text |
+| `x := a.b%c` | refused at the load: *"Ambiguous or invalid use of \".\"\n     Specifically: .b%c"* | refused with the complaint of the percent sign |
+| `x := a."b"` | refused at the load: *"This character is not allowed here.\n     Specifically: \"b\""* | refused with "Syntax error." |
+
+The first one is a name of the v1 that is a number outside a loop, and the
+other two are the complaints of the v1 for the point and for the quote of a
+member.
 
 ### 2.3 The holes of the v2 that are known
 
