@@ -17,6 +17,13 @@
 //!      Specifically: {the text that the script wrote}". The v1 checks the
 //! two of them when the script loads, and it waits for the run when the text
 //! carries the name of a variable.
+//!
+//! Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the first
+//! parameter of the `Loop` of the v1 names the kind of the loop when it is the
+//! "Read" or the "Parse" and when another parameter comes after it: the
+//! `Loop, Read` alone is a loop of the files that match the pattern "Read".
+//! The second parameter of the `Loop, Parse` is the name of the variable whose
+//! text is separated, and not its value.
 
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -104,25 +111,39 @@ pub(crate) fn the_refusal_of_the_parameters_of_the_loop(parameters: &[String]) -
     None
 }
 
-/// The refusal of the kind of the loop of the v1 that the tree does not carry.
+/// The refusal of the loop of the registry of the v1.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the first
-/// parameter of the `Loop` of the v1 names the kind of the loop when it is
-/// "Read" or "Parse", and it is a loop of the registry when it begins with
-/// one of the roots of it. The "Read" and the "Parse" name a kind of the loop
-/// when there is another parameter after them: the `Loop, Read` alone is a
-/// loop of the files that match the pattern "Read".
-pub(crate) fn the_refusal_of_the_kind_of_the_loop(parameters: &[String]) -> Option<String> {
+/// parameter of the `Loop` of the v1 is a loop of the registry when it begins
+/// with one of the roots of it.
+pub(crate) fn the_refusal_of_the_registry_of_the_loop(parameters: &[String]) -> Option<String> {
     let first = parameters.first()?.trim().to_string();
-    if parameters.len() > 1 {
-        match first.to_lowercase().as_str() {
-            "read" => return Some("the read loop of the v1 is not carried yet.".to_string()),
-            "parse" => return Some("the parse loop of the v1 is not carried yet.".to_string()),
-            _ => {}
-        }
-    }
     if super::sub_commands::the_text_begins_with_a_root_of_the_registry(&first) {
         return Some("the registry is a Windows thing and this box has none.".to_string());
+    }
+    None
+}
+
+/// The refusal of the name of the variable of the parse loop of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the second
+/// parameter of the `Loop, Parse` is the name of the variable whose text is
+/// separated, and the v1 checks the name when the script loads: the name that
+/// carries a character that is not a letter, a digit or the underscore is
+/// refused with "The following variable name contains an illegal character."
+/// and the name after it.
+///
+/// The name that carries a percent sign is a value and not a name, and the v1
+/// goes on and never ends: the tree refuses it with the reason.
+pub(crate) fn the_refusal_of_the_name_of_the_parse_loop(text: &str) -> Option<String> {
+    let text = text.trim();
+    if let Some(refusal) = super::parameters::the_refusal_of_the_name_of_a_variable(text) {
+        return Some(refusal);
+    }
+    if text.contains('%') {
+        return Some(
+            "the parse loop of the v1 takes the name of a variable, and not its value.".to_string(),
+        );
     }
     None
 }

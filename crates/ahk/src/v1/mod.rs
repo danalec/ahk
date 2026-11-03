@@ -53,8 +53,9 @@ pub(crate) use labels::the_refusal_of_a_goto;
 
 pub(crate) use loops::the_flag_asks_for_the_recursion;
 pub(crate) use loops::the_mode_of_the_loop_of_the_files;
-pub(crate) use loops::the_refusal_of_the_kind_of_the_loop;
+pub(crate) use loops::the_refusal_of_the_name_of_the_parse_loop;
 pub(crate) use loops::the_refusal_of_the_parameters_of_the_loop;
+pub(crate) use loops::the_refusal_of_the_registry_of_the_loop;
 pub(crate) use loops::{THE_FILES, THE_FILES_AND_THE_FOLDERS, THE_FOLDERS};
 
 pub(crate) use hotkeys::is_the_name_of_a_command;

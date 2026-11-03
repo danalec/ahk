@@ -8922,11 +8922,12 @@ machine. The mode of the v1 is given to the machine as the letters of the v2:
 the "D" gives the folders, the "A" gives the files and the folders, and the
 "R" walks into the folders.
 
-Two kinds of the loop of the v1 are not carried yet, and the tree says so
+Two kinds of the loop of the v1 were not carried yet, and the tree said so
 instead of walking over the files of a pattern that is called "Read": the
-read loop is the `Loop, Read, file`, and the parse loop is the
-`Loop, Parse, variable, delimiters`. The loop of the registry of the v1 is
-refused with the reason that the box has no registry.
+read loop was the `Loop, Read, file`, and the parse loop was the
+`Loop, Parse, variable, delimiters`. They are carried now, and the next
+section is about them. The loop of the registry of the v1 is refused with the
+reason that the box has no registry.
 
 The probe of the block is `egm-review/probe_v1_file_loop.py`, and it is
 fifty-four cases of the binary and the tree, all the same but one: the
@@ -8934,3 +8935,53 @@ fifty-four cases of the binary and the tree, all the same but one: the
 that has a short one, and the box has no such names.
 
 The suite of the v1 has six cases more (366).
+
+## 236. The read loop and the parse loop of the v1 read what they are for
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the first
+parameter of the `Loop` of the v1 names the kind of the loop when it is the
+"Read" or the "Parse" and when another parameter comes after it -- the
+`Loop, Read` alone is a loop of the files that match the pattern "Read", and
+the `Loop Read, file` is the loop that reads the file.
+
+The read loop gives the line of the file to the script in `A_LoopReadLine`,
+and the number of the line in `A_Index`. The file that is not there is not a
+failure: the loop has no turn, and the script goes on. The second parameter
+is the name of the file, and the third one is the file where the `FileAppend`
+that has no name of its own writes.
+
+The parse loop takes the name of the variable whose text is separated, and
+not its value. The name is checked when the script loads, and a name that
+carries a character that is not a letter, a digit or the underscore is
+refused with the complaint of the v1. The delimiters are the characters of
+the third parameter, and every one of them is a delimiter of its own. The
+field is in `A_LoopField` and its number is in `A_Index`. The delimiters that
+are not there make every character of the text a field of its own, and the
+variable that has no value is a blank text: the loop has no turn.
+
+The parameters of the loop of the v1 are cut at the commas, and the quotes do
+not hold the comma back: the `Loop, Parse, x, "a,b"` has the delimiters `"a`
+and not the text `a,b`. The rule is the one of the commands of the v1, and
+the parser cuts the parameters of the loop the way it cuts them.
+
+The name of the variable of the parse loop may not be the value of one: the
+`Loop, Parse, %x%, "|"` makes the v1 go on and never end -- it hangs in three
+of the five runs -- and the tree refuses it when the script loads, with the
+reason that the parse loop takes the name of a variable and not its value.
+
+The rules are in `crates/ahk/src/v1/loops.rs`, the parser reads the kind of
+the loop and the name of the variable of the parse one, and the runtime reads
+the file and separates the text.
+
+The probes of the block are `egm-review/probe_v1_read_parse.py`,
+`egm-review/probe_v1_parse_fields.py`, `egm-review/probe_v1_read_loop.py`,
+`egm-review/probe_v1_read_parse2.py`, `egm-review/probe_v1_read_parse3.py`,
+`egm-review/probe_v1_loop_cut.py` and `egm-review/probe_v1_read_parse_tree.py`,
+and they are the cases of the binary and of the tree: fifteen of the sixteen
+are the same, and the one that is not is the value of a variable, where the
+v1 hangs.
+
+The `FileAppend` that has no name of its own is a hole that is left: the v1
+writes the text nowhere, and the tree refuses it with the refusal of the v2.
+
+The suite of the v1 has eight cases more (374).

@@ -9103,24 +9103,13 @@ fn the_loop_of_the_files_of_the_v1_gives_the_size_and_the_attributes() {
     );
 }
 
-/// The kinds of the loop of the v1 that the tree does not carry are refused.
+/// The loop of the registry of the v1 is refused.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the first
-/// parameter of the `Loop` of the v1 names the kind of the loop when it is
-/// the "Read" or the "Parse", and it is a loop of the registry when it begins
-/// with one of the roots of it. The tree carries the loop of the files alone,
-/// and it says so instead of walking over the files of a pattern that is
-/// called "Read".
+/// parameter of the `Loop` of the v1 is a loop of the registry when it begins
+/// with one of the roots of it, and the tree carries none of them.
 #[test]
-fn the_kinds_of_the_loop_of_the_v1_that_the_tree_does_not_carry_are_refused() {
-    assert_eq!(
-        the_refusal_of_the_load("Loop, Read, lines.txt\n{\n}\n"),
-        "the read loop of the v1 is not carried yet."
-    );
-    assert_eq!(
-        the_refusal_of_the_load("Loop, Parse, x, \",\"\n{\n}\n"),
-        "the parse loop of the v1 is not carried yet."
-    );
+fn the_loop_of_the_registry_of_the_v1_is_refused() {
     assert_eq!(
         the_refusal_of_the_load("Loop, HKLM\\Software\n{\n}\n"),
         "the registry is a Windows thing and this box has none."
@@ -9250,5 +9239,140 @@ fn the_flag_of_the_recursion_of_the_loop_of_the_files_of_the_v1_is_a_zero_or_a_o
     let (report, modes) = run_and_the_modes("Loop, *.txt, , , 1\n{\n  FileAppend, [x], *\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(modes, vec!["".to_string()]);
+}
+
+/// The read loop of the v1 reads the file and gives its lines.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `Loop, Read, file` gives the line of the file in `A_LoopReadLine` and the
+/// number of it in `A_Index`.
+#[test]
+fn the_read_loop_of_the_v1_reads_the_file_and_gives_its_lines() {
+    let path = std::env::temp_dir().join("ahk-v1-read-loop.txt");
+    std::fs::write(&path, "one\ntwo\n").unwrap();
+
+    let script = format!(
+        "Loop, Read, {}\n{{\n  FileAppend, [%A_LoopReadLine%], *\n  FileAppend, [%A_Index%], *\n}}",
+        path.to_string_lossy()
+    );
+    let report = run(&script);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["[one]".to_string(), "[1]".to_string(), "[two]".to_string(), "[2]".to_string()]
+    );
+}
+
+/// The file that is not there is not a failure of the read loop of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `Loop, Read, file` of a file that is not there has no turn, and the script
+/// goes on.
+#[test]
+fn the_read_loop_of_the_v1_that_has_no_file_has_no_turn() {
+    let report = run("Loop, Read, zzz.txt\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty());
+}
+
+/// The name of the kind of the loop of the v1 needs another parameter.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the `Loop,
+/// Read` alone is a loop of the files that match the pattern "Read", and the
+/// `Loop Read, file` is the loop that reads the file.
+#[test]
+fn the_kind_of_the_loop_of_the_v1_needs_another_parameter() {
+    let (report, calls) = run_and_the_calls("Loop, Read\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(calls, vec!["list_files Read".to_string()]);
+
+    let (report, calls) = run_and_the_calls("Loop, Parse\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(calls, vec!["list_files Parse".to_string()]);
+}
+
+/// The parse loop of the v1 separates the text of the variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `Loop, Parse, name, delimiters` gives the field in `A_LoopField` and its
+/// number in `A_Index`.
+#[test]
+fn the_parse_loop_of_the_v1_separates_the_text_of_the_variable() {
+    let report = run(
+        "x := \"a|b|c\"\nLoop, Parse, x, \"|\"\n{\n  FileAppend, [%A_LoopField%], *\n  FileAppend, [%A_Index%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "[a]".to_string(),
+            "[1]".to_string(),
+            "[b]".to_string(),
+            "[2]".to_string(),
+            "[c]".to_string(),
+            "[3]".to_string(),
+        ]
+    );
+}
+
+/// The parse loop of the v1 takes the name of the variable, and not its
+/// value.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// variable that has no value is a blank text, and the loop has no turn.
+#[test]
+fn the_parse_loop_of_the_v1_takes_the_name_of_the_variable() {
+    let report = run("Loop, Parse, zzz, \"|\"\n{\n  FileAppend, [x], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty());
+}
+
+/// The delimiters of the parse loop of the v1 are cut at the commas.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// delimiters that are not there make every character of the text a field of
+/// its own, and the comma that is inside the quotes is a cut: the `Loop,
+/// Parse, x, "a,b"` has the delimiters `"a` and not the text `a,b`.
+#[test]
+fn the_delimiters_of_the_parse_loop_of_the_v1_are_cut_at_the_commas() {
+    // The delimiters that are not there make every character a field.
+    let report = run("x := \"a,b\"\nLoop, Parse, x\n{\n  FileAppend, [%A_LoopField%], *\n}");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[a]".to_string(), "[,]".to_string(), "[b]".to_string()]);
+
+    // The comma that is inside the quotes is a cut, and the quotes are part
+    // of the text.
+    let report = run(
+        "x := \"a|b|c\"\nLoop, Parse, x, \"a,b\"\n{\n  FileAppend, [%A_LoopField%], *\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]".to_string(), "[|b|c]".to_string()]);
+}
+
+/// The name of the variable of the parse loop of the v1 is checked when the
+/// script loads.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the name
+/// that carries a character that is not a letter, a digit or the underscore
+/// is refused, and the complaint of the v1 is its own.
+#[test]
+fn the_name_of_the_variable_of_the_parse_loop_of_the_v1_is_checked_at_the_load() {
+    assert_eq!(
+        the_refusal_of_the_load("Loop, Parse, \"x\", \"|\"\n{\n}\n"),
+        "The following variable name contains an illegal character:\n\"\"x\"\""
+    );
+}
+
+/// The parse loop of the v1 does not take the value of a variable.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `Loop, Parse, %x%, "|"` makes the v1 go on and never end -- it hangs in
+/// three of the five runs -- and the tree refuses it with the reason.
+#[test]
+fn the_parse_loop_of_the_v1_does_not_take_the_value_of_a_variable() {
+    assert_eq!(
+        the_refusal_of_the_load("Loop, Parse, %x%, \"|\"\n{\n}\n"),
+        "the parse loop of the v1 takes the name of a variable, and not its value."
+    );
 }
 

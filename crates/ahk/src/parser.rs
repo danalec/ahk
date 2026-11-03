@@ -8108,7 +8108,7 @@ impl Parser {
         // the text of it.
         let head = self.position;
         let token = self.next();
-        let kind = self.the_kind_of_the_loop();
+        let mut kind = self.the_kind_of_the_loop();
         let mut arguments = Vec::new();
         // Measured on the binary of v2.0.19 on 2026-11-01: the v2 reads the
         // body of the construct before it reads the count of it, and the
@@ -8198,41 +8198,10 @@ impl Parser {
                         // first one are the mode of the loop of the files
                         // and the flag of the recursion, and the v1 reads
                         // them as texts.
-                        let mut texts: Vec<String> = Vec::new();
-                        if !self.the_brace_opens_the_body_of_the_loop() {
-                            self.the_expression_begins();
-                            let node = self.the_count_of_the_loop(token.line)?;
-                            // The text of the first parameter: the count of
-                            // the turns or the pattern of the files.
-                            texts.push(match &node {
-                                Node::Literal { value: LiteralValue::Text(text), .. } => text.clone(),
-                                _ => String::new(),
-                            });
-                            arguments.push(node);
-                        } else {
-                            texts.push(String::new());
-                        }
-                        while self.at_op(&[","]) {
-                            self.next();
-                            let start = self.position;
-                            let end = self.the_end_of_a_parameter(start);
-                            let text = self.the_verbatim_source(start, end).trim().to_string();
-                            self.position = end;
-                            texts.push(text.clone());
-                            arguments.push(Node::Literal { value: LiteralValue::Text(text), line: token.line });
-                        }
-                        // The v1 checks the kind of the loop first: the first
-                        // parameter names it when it is the "Read", the
-                        // "Parse" or a root of the registry.
-                        if let Some(refusal) = crate::v1::the_refusal_of_the_kind_of_the_loop(&texts) {
-                            return Err(self.error(refusal));
-                        }
-                        // The v1 checks the mode and the flag of the loop when
-                        // the script loads, and the complaint of the v1 names
-                        // the parameter that it does not want.
-                        if let Some(refusal) = crate::v1::the_refusal_of_the_parameters_of_the_loop(&texts) {
-                            return Err(self.error(refusal));
-                        }
+                        let texts = self.the_parameters_of_the_loop_of_the_v1(token.line, &mut arguments)?;
+                        // The kind of the loop, and the checks of the
+                        // parameters of it.
+                        kind = self.the_kind_of_the_loop_of_the_v1(&texts)?;
                     } else {
                         // The comma of a call is not there.
                         return Err(self.error(format!(
@@ -8249,14 +8218,23 @@ impl Parser {
                         && !self.at_op(&["::"])
                         && !self.the_brace_opens_the_body_of_the_loop()
                     {
-                        self.the_expression_begins();
-                        arguments.push(self.the_count_of_the_loop(token.line)?);
-                        if self.at_op(&[","]) {
-                            // The count of the loop is not a name of a kind.
-                            return Err(self.error(format!(
-                                "Invalid loop type.\n     Specifically: {}",
-                                the_source_of_the_line(self, token.line)
-                            )));
+                        if self.dialect.legacy_commands() {
+                            // Measured on the binary of AutoHotkey v1.1.37.02 on
+                            // 2026-11-05: the parameters of the loop of the v1
+                            // are the count of the turns or the pattern of the
+                            // files, and the ones that come after it.
+                            let texts = self.the_parameters_of_the_loop_of_the_v1(token.line, &mut arguments)?;
+                            kind = self.the_kind_of_the_loop_of_the_v1(&texts)?;
+                        } else {
+                            self.the_expression_begins();
+                            arguments.push(self.the_count_of_the_loop(token.line)?);
+                            if self.at_op(&[","]) {
+                                // The count of the loop is not a name of a kind.
+                                return Err(self.error(format!(
+                                    "Invalid loop type.\n     Specifically: {}",
+                                    the_source_of_the_line(self, token.line)
+                                )));
+                            }
                         }
                     }
                 }
@@ -8457,7 +8435,15 @@ impl Parser {
     /// Measured on the binary of v2.0.19 on 2026-10-31: the word is a
     /// name of the kind when the line goes on after it, and it is the
     /// count of the loop when the line ends there.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// has no kind of the loop that is written this way: the `Loop Files` of
+    /// the v1 is a loop of the files that match the pattern "Files", and the
+    /// `Loop Read` is the loop that reads a file.
     fn the_kind_of_the_loop(&self) -> Option<LoopKind> {
+        if self.dialect.legacy_commands() {
+            return None;
+        }
         let word = self.peek();
         if word.kind != TokenKind::Name {
             return None;
@@ -8476,6 +8462,105 @@ impl Parser {
             return None;
         }
         Some(kind)
+    }
+
+    /// The parameters of the loop of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// parameters of the `Loop` of the v1 are texts, and they are cut at the
+    /// commas: the comma that is inside the quotes is a cut too, and the
+    /// quotes are part of the text. The `Loop, *.txt, 1,x` is the proof of it
+    /// -- the v1 refuses it with "Parameter #3 invalid." and the "x" after
+    /// it, and not with the mode of "1,x".
+    fn the_parameters_of_the_loop_of_the_v1(
+        &mut self,
+        line: u32,
+        arguments: &mut Vec<Node>,
+    ) -> Result<Vec<String>, SyntaxError> {
+        let mut texts: Vec<String> = Vec::new();
+        if !self.the_brace_opens_the_body_of_the_loop() {
+            let start = self.position;
+            self.the_expression_begins();
+            let node = self.the_count_of_the_loop(line)?;
+            let end = self.position;
+            match &node {
+                Node::Literal { value: LiteralValue::Text(_), .. } => {
+                    // The text of the first parameter: the count of the
+                    // turns, the pattern of the files, or the name of the
+                    // kind of the loop.
+                    for piece in self.the_pieces_of_a_text_parameter(start, end) {
+                        texts.push(piece.text.clone());
+                        arguments.push(Node::Literal { value: LiteralValue::Text(piece.text), line });
+                    }
+                }
+                _ => {
+                    // The count that is an expression is a parameter of its
+                    // own, and the v1 does not cut it.
+                    texts.push(String::new());
+                    arguments.push(node);
+                }
+            }
+        } else {
+            texts.push(String::new());
+        }
+        while self.at_op(&[","]) {
+            self.next();
+            let start = self.position;
+            let end = self.the_end_of_a_parameter(start);
+            let pieces = self.the_pieces_of_a_text_parameter(start, end);
+            self.position = end;
+            for piece in pieces {
+                texts.push(piece.text.clone());
+                arguments.push(Node::Literal { value: LiteralValue::Text(piece.text), line });
+            }
+        }
+        Ok(texts)
+    }
+
+    /// The kind of the loop of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// first parameter of the `Loop` of the v1 names the kind of the loop
+    /// when it is the "Read" or the "Parse" and when another parameter comes
+    /// after it: the `Loop, Read` alone is a loop of the files that match the
+    /// pattern "Read", and the `Loop Read, file` is the loop that reads the
+    /// file.
+    ///
+    /// The first parameter that begins with a root of the registry is a loop
+    /// of the registry, and the mode and the flag of the loop of the files
+    /// are checked when the script loads.
+    fn the_kind_of_the_loop_of_the_v1(
+        &mut self,
+        texts: &[String],
+    ) -> Result<Option<LoopKind>, SyntaxError> {
+        let first = texts.first().map(|text| text.trim().to_lowercase()).unwrap_or_default();
+        if texts.len() > 1 {
+            match first.as_str() {
+                "read" => return Ok(Some(LoopKind::Read)),
+                "parse" => {
+                    // The second parameter is the name of the variable whose
+                    // text is separated, and the v1 checks the name when the
+                    // script loads.
+                    let name = texts.get(1).map(|text| text.trim()).unwrap_or_default();
+                    if let Some(refusal) = crate::v1::the_refusal_of_the_name_of_the_parse_loop(name) {
+                        return Err(self.error(refusal));
+                    }
+                    return Ok(Some(LoopKind::Parse));
+                }
+                _ => {}
+            }
+        }
+        // The loop of the registry of the v1.
+        if let Some(refusal) = crate::v1::the_refusal_of_the_registry_of_the_loop(texts) {
+            return Err(self.error(refusal));
+        }
+        // The v1 checks the mode and the flag of the loop of the files when
+        // the script loads, and the complaint of the v1 names the parameter
+        // that it does not want.
+        if let Some(refusal) = crate::v1::the_refusal_of_the_parameters_of_the_loop(texts) {
+            return Err(self.error(refusal));
+        }
+        Ok(None)
     }
 
     /// The loop over what an object enumerates: `for x in y { }`.

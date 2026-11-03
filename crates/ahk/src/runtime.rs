@@ -2613,6 +2613,15 @@ impl<'a> Runtime<'a> {
                         }
                     }
                     LoopKind::Parse => {
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-05: the parse loop of the v1 takes the name
+                        // of the variable whose text is separated, and not its
+                        // value.
+                        if self.dialect.legacy_commands() {
+                            self.the_parse_loop_of_the_v1(arguments, body, until, *line)?;
+                            self.the_index_is_given_back(saved);
+                            return Ok(());
+                        }
                         let text = self.loop_argument(arguments, 0, *line)?.to_text();
                         let delimiters = match arguments.get(1) {
                             Some(node) => self.evaluate(node)?.to_text(),
@@ -2693,6 +2702,15 @@ impl<'a> Runtime<'a> {
                         }
                     }
                     LoopKind::Read => {
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-05: the read loop of the v1 takes the name
+                        // of the file in its second parameter, and the file
+                        // where the text goes in its third one.
+                        if self.dialect.legacy_commands() {
+                            self.the_read_loop_of_the_v1(arguments, body, until, *line)?;
+                            self.the_index_is_given_back(saved);
+                            return Ok(());
+                        }
                         let path = self.loop_argument(arguments, 0, *line)?.to_text();
                         // The file of the loop is where a `FileAppend` that
                         // has no name of its own writes.
@@ -9087,6 +9105,121 @@ impl<'a> Runtime<'a> {
                 Ok(()) => {}
                 Err(RuntimeFailure::Flow(Flow::Break)) => break,
                 Err(RuntimeFailure::Flow(Flow::Continue)) => {}
+                Err(other) => return Err(other),
+            }
+            // The `until` of the v1 is the condition of the loop, and it is
+            // read after every turn of the body.
+            if self.the_until_ends_the_loop(until)? {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    /// The read loop of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// `Loop, Read, file` reads the file and gives its lines in
+    /// `A_LoopReadLine`, one turn for each line, and the number of the line
+    /// is in `A_Index`. The file that is not there is not a failure: the loop
+    /// has no turn. The second parameter is the file where the `FileAppend`
+    /// that has no name of its own writes, and the third one is not carried.
+    fn the_read_loop_of_the_v1(
+        &mut self,
+        arguments: &[Node],
+        body: &[Node],
+        until: &Option<Box<Node>>,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        let path = match arguments.get(1) {
+            Some(node) => self.the_text_of_the_parameter_of_the_loop(node, line)?,
+            None => String::new(),
+        };
+        let output = match arguments.get(2) {
+            Some(node) => self.the_text_of_the_parameter_of_the_loop(node, line)?,
+            None => String::new(),
+        };
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // file that is not there is not a failure, and the loop has no turn.
+        let lines = self.desktop().read_file(&path).unwrap_or_default();
+        self.loop_output_files.push(output);
+        let mut failure = None;
+        for (index, line_text) in lines.iter().enumerate() {
+            self.set_global("A_Index", Value::Int(index as i64 + 1));
+            self.set_global("A_LoopReadLine", Value::Text(line_text.clone()));
+            match self.run_block(body) {
+                Ok(()) => {}
+                Err(RuntimeFailure::Flow(Flow::Break)) => break,
+                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
+                Err(other) => {
+                    failure = Some(other);
+                    break;
+                }
+            }
+            // The `until` of the v1 is the condition of the loop, and it is
+            // read after every turn of the body.
+            if self.the_until_ends_the_loop(until)? {
+                break;
+            }
+        }
+        self.loop_output_files.pop();
+        if let Some(other) = failure {
+            return Err(other);
+        }
+        Ok(())
+    }
+
+    /// The parse loop of the v1.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// `Loop, Parse, name, delimiters` separates the text of the variable
+    /// whose name is the second parameter, and every character of the
+    /// delimiters is a delimiter of its own. The field is in `A_LoopField`
+    /// and its number is in `A_Index`. The delimiters that are not there make
+    /// every character of the text a field of its own, and the variable that
+    /// has no value is a blank text: the loop has no turn.
+    fn the_parse_loop_of_the_v1(
+        &mut self,
+        arguments: &[Node],
+        body: &[Node],
+        until: &Option<Box<Node>>,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        // The second parameter is the name of the variable, and not a value:
+        // the name is what the script wrote.
+        let name = match arguments.get(1) {
+            Some(Node::Literal { value: crate::ast::LiteralValue::Text(text), .. }) => text.trim().to_string(),
+            _ => String::new(),
+        };
+        // The text that is separated is the value of the variable.
+        let text = match self.lookup(&name) {
+            Some(value) => value.to_text(),
+            None => String::new(),
+        };
+        let delimiters = match arguments.get(2) {
+            Some(node) => self.the_text_of_the_parameter_of_the_loop(node, line)?,
+            None => String::new(),
+        };
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // text that is empty has no field, and the loop has no turn: the
+        // variable that has no value is a blank text.
+        if text.is_empty() {
+            return Ok(());
+        }
+        let pieces: Vec<String> = if delimiters.is_empty() {
+            // The delimiters that are not there make every character of the
+            // text a field of its own.
+            text.chars().map(|character| character.to_string()).collect()
+        } else {
+            split_on_any(&text, &delimiters)
+        };
+        for (index, piece) in pieces.iter().enumerate() {
+            self.set_global("A_Index", Value::Int(index as i64 + 1));
+            self.set_global("A_LoopField", Value::Text(piece.clone()));
+            match self.run_block(body) {
+                Ok(()) => {}
+                Err(RuntimeFailure::Flow(Flow::Break)) => break,
+                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
                 Err(other) => return Err(other),
             }
             // The `until` of the v1 is the condition of the loop, and it is
