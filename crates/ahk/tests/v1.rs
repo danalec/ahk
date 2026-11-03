@@ -1892,6 +1892,18 @@ fn the_call_of_a_function_of_the_v1_is_refused_at_the_load() {
         "Too many parameters passed to function.\n     Specifically: f(1, 2)"
     );
 
+    // The comma at the end of the list of the arguments is a parameter of the
+    // v1.
+    //
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    // refuses the `f(1,)` with "Too many parameters passed to function." when
+    // f takes one parameter, and the name of it is the call. The v2 accepts the
+    // comma at the end of the list.
+    assert_eq!(
+        the_refusal_of_the_load("f(a) {\n}\nx := f(1,)"),
+        "Too many parameters passed to function.\n     Specifically: f(1,)"
+    );
+
     // The parameter that has a default may be left out.
     let error = ahk::parse_with("f(a, b := 1) {\n}\nx := f()", dialect::v1())
         .expect_err("the function wants one argument");

@@ -5019,9 +5019,18 @@ impl Parser {
             // The list may be written in more than one line.
             self.skip_newlines();
             if self.at_op(&[","]) {
+                let line = self.peek().line;
                 self.position += 1;
                 // A comma at the end of the list is allowed.
                 if self.at_op(&[")"]) {
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the v1 counts the comma at the end of the
+                    // list: the `f(1,)` is refused with "Too many parameters
+                    // passed to function." when f takes one parameter, and the
+                    // v2 accepts it.
+                    if self.dialect.the_comma_at_the_end_of_a_list_is_a_parameter() {
+                        arguments.push(Node::Empty { line });
+                    }
                     break;
                 }
                 continue;

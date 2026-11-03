@@ -1540,6 +1540,16 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the comma at the end of a list is a parameter.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// counts the comma at the end of the list of the arguments of a call: the
+    /// `f(1,)` is refused with "Too many parameters passed to function." when
+    /// f takes one parameter. The v2 accepts it.
+    fn the_comma_at_the_end_of_a_list_is_a_parameter(&self) -> bool {
+        false
+    }
+
     /// Whether the parameter of the `return` is read before the refusal of
     /// the return.
     ///
@@ -2433,6 +2443,12 @@ impl Dialect for V1 {
     fn the_blank_at_the_end_of_a_list_is_refused(&self) -> bool {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 refuses the blank at the end of the list with "Blank parameter".
+        true
+    }
+
+    fn the_comma_at_the_end_of_a_list_is_a_parameter(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 counts the comma at the end of the list of the arguments.
         true
     }
 
