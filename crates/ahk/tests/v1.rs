@@ -7056,3 +7056,88 @@ fn the_until_of_the_v1_may_be_the_name_of_a_variable() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["[3]".to_string()]);
 }
+
+/// The call of a name that is not a function takes the rest of the line.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// reads the rest of the line as text when the name of the call is not a
+/// function, and the refusal of the call is the only one of the line: the
+/// `MyFunc() { return 2 }` is refused with "Call to nonexistent function.
+/// Specifically: MyFunc() { return 2 }", and the brace of it is not refused.
+#[test]
+fn the_call_of_a_name_that_is_not_a_function_takes_the_rest_of_the_line() {
+    assert_eq!(
+        the_refusal_of_the_load("MyFunc() { return 2 }"),
+        "Call to nonexistent function.\n     Specifically: MyFunc() { return 2 }"
+    );
+
+    // The definition whose body is on the same line is a call.
+    assert_eq!(
+        the_refusal_of_the_load("f(a) { return a }"),
+        "Call to nonexistent function.\n     Specifically: f(a) { return a }"
+    );
+
+    // The brace that opens a block is not a part of the text that the
+    // refusal names, and the definition that has no body is a call.
+    assert_eq!(
+        the_refusal_of_the_load("zzz(1) {"),
+        "Call to nonexistent function.\n     Specifically: zzz(1)"
+    );
+
+    // The definition that has a body is a definition.
+    let report = run("zzz(1) {\n}");
+    assert!(report.ok);
+
+    // The brace of an expression is a part of the text.
+    assert_eq!(
+        the_refusal_of_the_load("x := abc(c) {"),
+        "Call to nonexistent function.\n     Specifically: abc(c) {"
+    );
+
+    // The name of a command of the v1 is not a function.
+    assert_eq!(
+        the_refusal_of_the_load("FileAppend(\"hello\", \"*\")"),
+        "Call to nonexistent function.\n     Specifically: FileAppend(\"hello\", \"*\")"
+    );
+}
+
+/// The name of a parameter of the v1 may begin with a number.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `f(1)
+/// {` is a definition, and the parameter of it is the variable "1": the
+/// `f(7)` writes 7 in it.
+#[test]
+fn the_name_of_a_parameter_of_the_v1_may_begin_with_a_number() {
+    let report = run("f(1) {\n    FileAppend, %1%, *\n}\nf(7)");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["7".to_string()]);
+}
+
+/// The v1 knows the name of a function that the script defines further down.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `f(1) { return 2 }` is refused with "Unexpected "{" when f is a function
+/// of the script, and the `MyFunc() { return 2 }` is refused with "Call to
+/// nonexistent function." when it is not. The name of the function is known
+/// before the lines of the script are read.
+#[test]
+fn the_v1_knows_the_name_of_a_function_that_is_defined_further_down() {
+    assert_eq!(
+        the_refusal_of_the_load("f(1) { return 2 }\nf(a) {\n    return a\n}"),
+        "Unexpected \"{\""
+    );
+}
+
+/// The brace that opens the body of a construct of the v1 names the brace.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `if 1
+/// { return 2 }` and the `while 0 { return 2 }` are refused with
+/// "Unexpected "{". The v2 names the construct that opens the body.
+#[test]
+fn the_brace_that_opens_the_body_of_a_construct_of_the_v1_names_the_brace() {
+    assert_eq!(the_refusal_of_the_load("if 1 { return 2 }"), "Unexpected \"{\"");
+    assert_eq!(
+        the_refusal_of_the_load("while 0 { return 2 }"),
+        "Unexpected \"{\""
+    );
+}

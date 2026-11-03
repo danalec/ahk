@@ -1916,6 +1916,25 @@ that asks for another one is refused with the reason.
   too, when it begins the expression. The dialect says it
   (`the_brace_after_a_value_opens_a_literal`).
 
+- **The tail of a call of the v1 is text when the name is not a function.**
+  The v1 reads the rest of the line as text when the name of the call is not
+  a function, and the refusal of the call is the only one of the line: the
+  `MyFunc() { return 2 }` is refused at the load with "Call to nonexistent
+  function.\n     Specifically: MyFunc() { return 2 }", and the brace of it is
+  not refused. When the name is a function, the rest of the line is read, and
+  the `f(1) { return 2 }` is refused with "Unexpected "{"". The name of a
+  function that the script defines further down is known when the line is
+  read, and the parser collects it before the lines of the script
+  (`the_functions_of_the_script`). The brace that opens a block is not a part
+  of the text that the refusal names: the `zzz(1) {` names the "zzz(1)".
+
+  Two more rules came with it: the definition of the v1 needs a body (the
+  `f(a) {` at the end of the file is a call), and the name of a parameter of
+  the v1 may begin with a number (the `f(1) {` is a definition). The dialect
+  says them (`the_tail_of_a_call_to_a_name_that_is_not_a_function_is_text`,
+  `the_definition_needs_a_body` and
+  `the_message_of_the_brace_that_opens_the_body`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

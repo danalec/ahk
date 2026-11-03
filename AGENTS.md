@@ -8342,3 +8342,40 @@ The rule is a hook of the dialect
 brace first.
 
 The suite of the v1 has one case more (265).
+
+## 216. The tail of a call of the v1 is text when the name is not a function
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 reads
+the rest of the line as text when the name of the call is not a function, and
+the refusal of the call is the only one of the line: the `MyFunc() { return 2 }`
+is refused at the load with "Call to nonexistent function.\n     Specifically:
+MyFunc() { return 2 }", and the brace of it is not refused. When the name is a
+function, the rest of the line is read, and the `f(1) { return 2 }` is refused
+with "Unexpected \"{\"". The name of a function that the script defines further
+down is known when the line is read: the `f(1) { return 2 }` with the definition
+of `f` after it is refused with "Unexpected \"{\"".
+
+The brace that opens a block is not a part of the text that the refusal names:
+the `zzz(1) {` is refused with "Call to nonexistent function.\n     Specifically:
+zzz(1)". The brace of an expression is a part of it: the `x := abc(c) {` is
+refused with "abc(c) {".
+
+Two more rules of the v1 came with it:
+
+- The definition of the v1 needs a body: the `f(a) {` at the end of the file
+  is a call, and the `f(a) {` with a body is a definition.
+- The name of a parameter of the v1 may begin with a number: the `f(1) {` is a
+  definition, and the parameter of it is the variable "1".
+
+And the brace that opens the body of a construct names the brace in the v1: the
+`if 1 { return 2 }` and the `while 0 { return 2 }` are refused with
+"Unexpected \"{\"", and the v2 names the construct ("Unexpected \"If\"").
+
+The rules are hooks of the dialect
+(`the_tail_of_a_call_to_a_name_that_is_not_a_function_is_text`,
+`the_definition_needs_a_body` and
+`the_message_of_the_brace_that_opens_the_body`), and the parser knows the names
+of the functions of the script before it reads the lines of it
+(`the_functions_of_the_script`).
+
+The suite of the v1 has four cases more (269).

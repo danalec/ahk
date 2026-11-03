@@ -1555,10 +1555,10 @@ dialect (`a_line_is_a_definition`), and the v2 decides with the token that
 comes after the parenthesis: the brace and the fat arrow make a definition
 of it.
 
-Two corners of it are not carried yet: the `f(a) { return a }` is a call in
-the v1, and the tree refuses the line with "Unexpected "{"", and the `f(a) {
-x := 1` is refused by the v1 with "Call to nonexistent function." and by the
-tree with "Missing "}"".
+Two corners of it came with the block of the tail of the call (2026-11-04):
+the `f(a) { return a }` is a call in the v1, and the tree refuses it with
+"Call to nonexistent function.\n     Specifically: f(a) { return a }", and the
+`f(a) { x := 1` is refused the same way.
 
 **The brace that follows a value** (2026-11-04). The v1 refuses the brace
 at once, and it does not look for the brace that closes the literal of an
@@ -1588,6 +1588,43 @@ The rule is a hook of the dialect
 (`the_closing_parenthesis_of_a_call_is_needed`), and the parser reads the
 arguments of the call with it
 (`the_arguments_of_a_call`).
+
+**The tail of a call of the v1** (2026-11-04). The v1 reads the rest of the line
+as text when the name of the call is not a function, and the refusal of the
+call is the only one of the line: the `MyFunc() { return 2 }` is refused at the
+load with "Call to nonexistent function.\n     Specifically: MyFunc() { return 2 }",
+and the brace of it is not refused. When the name is a function, the rest of
+the line is read, and the `f(1) { return 2 }` is refused with "Unexpected "{"".
+The name of a function that the script defines further down is known when the
+line is read: the `f(1) { return 2 }` with the definition of `f` after it is
+refused with "Unexpected "{"", and not with "Call to nonexistent function.".
+
+The brace that opens a block is not a part of the text that the refusal names:
+the `zzz(1) {` is refused with "Call to nonexistent function.\n     Specifically:
+zzz(1)". The brace of an expression is a part of it: the `x := abc(c) {` names
+the "abc(c) {".
+
+Two more rules of the v1 came with it: the definition of the v1 needs a body
+-- the `f(a) {` at the end of the file is a call, and the `f(a) {` with a body
+is a definition -- and the name of a parameter of the v1 may begin with a
+number: the `f(1) {` is a definition, and the parameter of it is the variable
+"1".
+
+The brace that opens the body of a construct names the brace in the v1: the
+`if 1 { return 2 }` and the `while 0 { return 2 }` are refused with
+"Unexpected "{"".
+
+The rules are hooks of the dialect
+(`the_tail_of_a_call_to_a_name_that_is_not_a_function_is_text`,
+`the_definition_needs_a_body` and
+`the_message_of_the_brace_that_opens_the_body`), and the parser knows the names
+of the functions of the script before it reads the lines of it
+(`the_functions_of_the_script`).
+
+**What stays out of the tail.** The tail of a call whose name is a function is
+text in the v1 as well: the `f(1) FileAppend, [tail], *` runs nothing, and the
+`f(1) x := 2` writes the variable "x". The tree reads the tail as the list of
+the v2, and the `*` of it is refused with "Syntax error.\n     Specifically: *".
 
 **What stays out of the call.** The call of a function of the v1 that is
 written without the parentheses and inside an expression -- `x := InStr

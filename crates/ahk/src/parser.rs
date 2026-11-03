@@ -1103,6 +1103,16 @@ pub struct Parser {    tokens: Vec<Token>,
     /// The v1 refuses the call of a function at the load, and the number of
     /// the arguments of it is one of the things that it refuses there.
     arities: BTreeMap<String, (usize, usize)>,
+    /// The names of the functions of the script, known before the lines of it
+    /// are read.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// knows the name of a function that the script defines further down when
+    /// it decides what the rest of the line is: the `f(1) { return 2 }` is
+    /// refused with "Unexpected "{" when f is a function of the script, and
+    /// the `MyFunc() { return 2 }` is refused with "Call to nonexistent
+    /// function." when it is not.
+    functions_of_the_script: BTreeSet<String>,
     /// The calls of the script that the v1 refuses at the load.
     ///
     /// The name of a function of the script may be defined after the call, so
@@ -1297,6 +1307,7 @@ impl Parser {
             classes: BTreeMap::new(),
             functions: BTreeSet::new(),
             arities: BTreeMap::new(),
+            functions_of_the_script: BTreeSet::new(),
             calls: Vec::new(),
             untils_without_a_loop: Vec::new(),
             labels: Vec::new(),
@@ -1636,6 +1647,9 @@ impl Parser {
         self.classes.clear();
         self.functions.clear();
         self.arities.clear();
+        // The v1 knows the names of the functions of the script before it
+        // reads the lines of it.
+        self.functions_of_the_script = self.the_functions_of_the_script();
         self.calls.clear();
         self.untils_without_a_loop.clear();
         self.labels.clear();
@@ -2517,7 +2531,16 @@ impl Parser {
             ),
             // The loop of a kind names the loop and not the kind.
             kind if the_loop_of_the_kind(kind) => "Unexpected \"Loop\"".to_string(),
-            "If" | "While" | "For" | "Switch" => format!("Unexpected {kind:?}"),
+            "If" | "While" | "For" => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 names the brace that opens the body of
+                // the construct, and the v2 names the construct.
+                match self.dialect.the_message_of_the_brace_that_opens_the_body() {
+                    Some(message) => message.to_string(),
+                    None => format!("Unexpected {kind:?}"),
+                }
+            }
+            "Switch" => "Unexpected \"Switch\"".to_string(),
             _ => "Missing \"}\"".to_string(),
         }
     }
@@ -3557,6 +3580,7 @@ impl Parser {
                     arguments.len(),
                     at_the_name,
                     missing,
+                    true,
                 );
             }
             self.the_expression_is_done(self.position, false)?;
@@ -4952,7 +4976,14 @@ impl Parser {
                         && matches!(
                             crate::lexer::the_refusal_of_a_word(&name_token.value),
                             Some(TheRefusal::Func) | Some(TheRefusal::Class)
-                        ));
+                        ))
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-04: the names of the v1 may begin with a
+                    // number, and the name of a parameter is one of them: the
+                    // `f(1) {` is a definition, and the parameter of it is
+                    // the variable "1".
+                    || (name_token.kind == TokenKind::Number
+                        && self.dialect.the_numbers_may_be_names());
                 if !is_a_name {
                     // A name that begins with a number is refused by the
                     // lexer, a reserved word is a word that cannot be a
@@ -5015,6 +5046,59 @@ impl Parser {
         Ok(parameters)
     }
 
+    /// The names of the functions of the script, known before the lines of it
+    /// are read.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// knows the name of a function that the script defines further down when
+    /// it decides what the rest of the line is: the `f(1) { return 2 }` is
+    /// refused with "Unexpected "{" when f is a function of the script, and
+    /// the `MyFunc() { return 2 }` is refused with "Call to nonexistent
+    /// function." when it is not.
+    ///
+    /// A definition of a function is a statement of its own, and the name of
+    /// it is at the start of a line.
+    fn the_functions_of_the_script(&self) -> BTreeSet<String> {
+        let mut names = BTreeSet::new();
+        if !self
+            .dialect
+            .the_tail_of_a_call_to_a_name_that_is_not_a_function_is_text()
+        {
+            return names;
+        }
+        let mut at = 0;
+        while at < self.tokens.len() {
+            let token = &self.tokens[at];
+            // The name of a definition is at the start of a line.
+            let at_the_start_of_a_line = at == 0
+                || self.tokens[at - 1].kind == TokenKind::Newline
+                || self.tokens[at - 1].kind == TokenKind::Eof;
+            if at_the_start_of_a_line
+                && matches!(token.kind, TokenKind::Name | TokenKind::Keyword)
+                && self
+                    .tokens
+                    .get(at + 1)
+                    .map(|next| next.kind == TokenKind::Op && next.value == "(")
+                    .unwrap_or(false)
+                && self.a_definition_follows_at(at + 1)
+            {
+                names.insert(token.value.to_lowercase());
+            }
+            at += 1;
+        }
+        names
+    }
+
+    /// Whether the name is a function of the dialect or of the script.
+    ///
+    /// The names of the functions of the script are known before the lines of
+    /// it are read, and the name of a function that the script defines
+    /// further down is one of them.
+    fn the_name_is_a_function(&self, name: &str) -> bool {
+        self.the_name_is_a_builtin_function(name)
+            || self.functions_of_the_script.contains(&name.to_lowercase())
+    }
+
     /// Whether a definition follows the parenthesis.
     ///
     /// A definition is `Name(a, b) { }`, and the brace is what tells it
@@ -5050,6 +5134,18 @@ impl Parser {
                             if let Some(answer) =
                                 self.dialect.a_line_is_a_definition(&self.the_rest_of_the_line_after(at))
                             {
+                                // Measured on the binary of AutoHotkey v1.1.37.02
+                                // on 2026-11-04: the definition of the v1 needs
+                                // a body, and the `f(a) {` at the end of the
+                                // file is a call: it is refused with "Call to
+                                // nonexistent function.\n     Specifically:
+                                // f(a)".
+                                if answer
+                                    && self.dialect.the_definition_needs_a_body()
+                                    && !self.the_body_of_a_definition_is_there(at)
+                                {
+                                    return false;
+                                }
                                 return answer;
                             }
                             // The fat arrow is the body of the definition, and
@@ -5089,6 +5185,26 @@ impl Parser {
             at += 1;
         }
         false
+    }
+
+    /// Whether the body of a definition is there.
+    ///
+    /// The body of a definition is the line that comes after the brace that
+    /// opens it, and the file that ends with the brace does not have it.
+    fn the_body_of_a_definition_is_there(&self, at: usize) -> bool {
+        let mut next = the_end_of_the_line_of(self, at);
+        while self
+            .tokens
+            .get(next)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
+            next += 1;
+        }
+        self.tokens
+            .get(next)
+            .map(|token| token.kind != TokenKind::Eof)
+            .unwrap_or(false)
     }
 
     /// The text of the line that comes after the token.
@@ -9669,7 +9785,7 @@ impl Parser {
         self.expect_op("(")?;
         let (arguments, missing) = self.the_arguments_of_a_call(&name)?;
         if self.dialect.refuses_the_call_of_a_function_at_the_load() {
-            self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at, missing);
+            self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at, missing, false);
         }
         Ok(Node::Call { name, arguments, line })
     }
@@ -9717,7 +9833,23 @@ impl Parser {
         };
         let at = self.position;
         match self.expect_op(")") {
-            Ok(_) => Ok((arguments, None)),
+            Ok(_) => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 reads the rest of the line as text when
+                // the name of the call is not a function: the `MyFunc() { return
+                // 2 }` is refused at the load with "Call to nonexistent
+                // function.", and the brace of it is not refused. When the
+                // name is a function, the rest of the line is read, and the
+                // `f(1) { return 2 }` is refused with "Unexpected "{"".
+                if self
+                    .dialect
+                    .the_tail_of_a_call_to_a_name_that_is_not_a_function_is_text()
+                    && !self.the_name_is_a_function(name)
+                {
+                    self.position = the_end_of_the_line_of(self, self.position);
+                }
+                Ok((arguments, None))
+            }
             Err(error) => {
                 if self.the_name_is_a_builtin_function(name) {
                     return Err(error);
@@ -9808,9 +9940,20 @@ impl Parser {
         count: usize,
         at: usize,
         missing: Option<SyntaxError>,
+        the_call_is_the_statement: bool,
     ) {
         let end_of_the_line = the_end_of_the_line_of(self, at);
-        let source = self.the_verbatim_source(at, end_of_the_line);
+        let mut source = self.the_verbatim_source(at, end_of_the_line);
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // brace that opens a block is not a part of the text that the refusal
+        // names: the `zzz(1) {` is refused with "Call to nonexistent function.
+        // Specifically: zzz(1)". The brace of an expression is a part of the
+        // text: the `x := abc(c) {` is refused with "Call to nonexistent
+        // function.\n     Specifically: abc(c) {".
+        if the_call_is_the_statement && source.ends_with('{') {
+            source.truncate(source.len() - 1);
+            source = source.trim_end().to_string();
+        }
         let line = self.tokens.get(at).map(|token| token.line).unwrap_or(0);
         let column = self.tokens.get(at).map(|token| token.column).unwrap_or(0);
         self.calls.push(TheCallOfTheScript {

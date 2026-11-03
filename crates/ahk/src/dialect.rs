@@ -1160,6 +1160,45 @@ pub trait Dialect: Sync {
         true
     }
 
+    /// Whether the tail of a call to a name that is not a function is text.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// reads the rest of the line as text when the name of the call is not a
+    /// function: the `MyFunc() { return 2 }` is refused at the load with
+    /// "Call to nonexistent function.\n     Specifically: MyFunc() { return 2 }",
+    /// and the brace of it is not refused. When the name is a function, the
+    /// rest of the line is read: the `f(1) { return 2 }` is refused with
+    /// "Unexpected "{"", and the name of the function may be one that the
+    /// script defines further down.
+    ///
+    /// The v2 reads the rest of the line always.
+    fn the_tail_of_a_call_to_a_name_that_is_not_a_function_is_text(&self) -> bool {
+        false
+    }
+
+    /// The message of the brace that opens the body of a construct when the
+    /// content of the block is on the line of it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// names the brace: the `if 1 { return 2 }` is refused with
+    /// "Unexpected "{"". The v2 names the construct: the `if (1) { return 2 }`
+    /// is refused with "Unexpected "If"".
+    fn the_message_of_the_brace_that_opens_the_body(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// Whether the definition of a function of the dialect needs a body.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// definition of the v1 needs one: the `f(a) {` at the end of the file is
+    /// a call, and it is refused with "Call to nonexistent function.\n
+    /// Specifically: f(a)".
+    ///
+    /// The v2 does not ask.
+    fn the_definition_needs_a_body(&self) -> bool {
+        false
+    }
+
     /// Whether the line that begins with a name and a list of parameters is a
     /// definition of a function.
     ///
@@ -1899,11 +1938,33 @@ impl Dialect for V1 {
         Some(rest == "{")
     }
 
+    fn the_definition_needs_a_body(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // definition of the v1 needs a body, and the `f(a) {` at the end of
+        // the file is a call.
+        true
+    }
+
     fn the_closing_parenthesis_of_a_call_is_needed(&self) -> bool {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 does not need the parenthesis that closes the call of a name
         // that is not a function, and the call is refused at the load.
         false
+    }
+
+    fn the_tail_of_a_call_to_a_name_that_is_not_a_function_is_text(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 reads the rest of the line as text when the name of the call is
+        // not a function, and the refusal of the call is the only one of the
+        // line.
+        true
+    }
+
+    fn the_message_of_the_brace_that_opens_the_body(&self) -> Option<&'static str> {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 names the brace that opens the body, and the v2 names the
+        // construct that opens it.
+        Some("Unexpected \"{\"")
     }
 
     fn the_brace_after_a_value_opens_a_literal(&self) -> bool {
