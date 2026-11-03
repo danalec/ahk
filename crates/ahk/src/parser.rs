@@ -6213,7 +6213,14 @@ impl Parser {
         // Measured on the binary of v2.0.19 on 2026-11-01: a return that
         // carries a value outside a function is refused at the load, and the
         // reason comes before the one of the expression that it carries.
-        if !self.at_end_of_statement() && !self.in_function {
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 reads the parameter of the return before it refuses the return,
+        // and so the name that is not legal is the first refusal.
+        if !self.dialect.the_parameter_of_the_return_is_read_first()
+            && !self.at_end_of_statement()
+            && !self.in_function
+        {
             return Err(SyntaxError {
                 message: "Return's parameter should be blank except inside a function.".to_string(),
                 line: token.line,
@@ -6225,6 +6232,16 @@ impl Parser {
         } else {
             Some(Box::new(self.the_expression_of_a_statement()?))
         };
+        if self.dialect.the_parameter_of_the_return_is_read_first()
+            && value.is_some()
+            && !self.in_function
+        {
+            return Err(SyntaxError {
+                message: "Return's parameter should be blank except inside a function.".to_string(),
+                line: token.line,
+                column: token.column,
+            });
+        }
         self.end_of_statement()?;
         Ok(Node::Return { value, line: token.line })
     }
@@ -9524,7 +9541,7 @@ impl Parser {
                     // there, and the name that is not a name is refused.
                     if name.kind == TokenKind::Op && name.value == "," {
                         return Err(SyntaxError {
-                            message: "Missing \"propertyname:\" in object literal.".into(),
+                            message: self.dialect.the_refusal_of_the_object_literal().to_string(),
                             line,
                             column: open,
                         });
@@ -9547,7 +9564,7 @@ impl Parser {
             };
             if !self.at_op(&[":"]) {
                 return Err(SyntaxError {
-                    message: "Missing \"propertyname:\" in object literal.".into(),
+                    message: self.dialect.the_refusal_of_the_object_literal().to_string(),
                     line,
                     column: open,
                 });

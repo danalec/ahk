@@ -1271,6 +1271,48 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// The complaint of the object literal that has no property.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// says "Missing \"key:\" in object literal." and the v2 says "Missing
+    /// \"propertyname:\" in object literal.". The complaint of the v1 is the
+    /// same when the name of the property is not there: the `{b: 1 c: 2}` is
+    /// refused with "Missing \"key:\" in object literal.".
+    fn the_refusal_of_the_object_literal(&self) -> &'static str {
+        "Missing \"propertyname:\" in object literal."
+    }
+
+    /// Whether the parameter of the `return` is read before the refusal of
+    /// the return.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// reads the parameter before it refuses the return: the `return a"b` is
+    /// refused with "The following variable name contains an illegal
+    /// character:\n\"a\"b\"", and the `return hello` is refused with
+    /// "Return's parameter should be blank except inside a function.". The
+    /// v1 has the rule of the blank parameter, and the name that is not
+    /// legal is the first refusal.
+    ///
+    /// The v2 refuses the return before it reads the parameter.
+    fn the_parameter_of_the_return_is_read_first(&self) -> bool {
+        false
+    }
+
+    /// Whether a loop of the dialect that has no body ends the script.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// takes the body of a loop from the statement that comes next, and the
+    /// script that has none ends at the loop: the `loop` that is the last
+    /// line of the script ends the script at once, and the `while 1` that is
+    /// the last line of it does the same. The `loop 3` that is the last line
+    /// of the script goes on three times, and the script ends after them.
+    ///
+    /// The v2 refuses the loop that has no body, and the loop of the v2
+    /// without a count goes on until a break.
+    fn a_loop_without_a_body_ends_the_script(&self) -> bool {
+        false
+    }
+
     /// Whether the definition of a function of the dialect needs a body.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -2033,6 +2075,25 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 does not report the failure of the condition of an `if` or of a
         // `while`, and the condition is false.
+        true
+    }
+
+    fn the_refusal_of_the_object_literal(&self) -> &'static str {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 names the key of the literal, and not the property of it.
+        "Missing \"key:\" in object literal."
+    }
+
+    fn the_parameter_of_the_return_is_read_first(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 reads the parameter of the return before it refuses the return.
+        true
+    }
+
+    fn a_loop_without_a_body_ends_the_script(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 takes the body of a loop from the statement that comes next, and
+        // the script that has none ends at the loop.
         true
     }
 

@@ -1980,6 +1980,24 @@ that asks for another one is refused with the reason.
   not an object is the empty text, and the dialect says the rule
   (`the_operand_that_is_not_there_poisons_the_value_that_holds_it`).
 
+- **The return of the v1 reads its parameter before it refuses it.** The v1
+  reads the parameter of the return before it refuses it: the `return a"b` is
+  refused with "The following variable name contains an illegal character:
+  "a"b"", and the `return hello` is refused with "Return's parameter should
+  be blank except inside a function.". The dialect says the order
+  (`the_parameter_of_the_return_is_read_first`), and the parser asks it.
+- **The object literal of the v1 names the key and not the property.** The v1
+  refuses the `a := {1 +}` with 'Missing "key:" in object literal.', and the
+  v2 says 'Missing "propertyname:" in object literal.'. The dialect says the
+  complaint (`the_refusal_of_the_object_literal`), and the parser asks it.
+- **The loop of the v1 that has no body ends the script.** The v1 takes the
+  body of a loop from the statement that comes next, and the script that has
+  none ends at the loop: the `loop` that is the last line of the script ends
+  the script at once, and the `while 1` that is the last line of it does the
+  same. The dialect says the rule
+  (`a_loop_without_a_body_ends_the_script`), and the runtime asks it before
+  it turns the loop.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

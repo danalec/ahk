@@ -8474,3 +8474,49 @@ that closes the list of the arguments and the comma that separates them end
 the value that is being read, and the parser reads them as the end of it.
 
 The suite of the v1 has six cases more (281).
+
+## 221. The return of the v1 reads its parameter before it refuses it
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 reads
+the parameter of the return before it refuses the return, and so the name
+that is not legal is the first refusal: the `return a"b` is refused with
+"The following variable name contains an illegal character: "a"b"".
+
+The v1 HAS the rule of the blank parameter: the `return hello`, the `return 5`
+and the `return a b` are refused with "Return's parameter should be blank
+except inside a function.", and the `return` alone is accepted.
+
+The rule is a hook of the dialect
+(`the_parameter_of_the_return_is_read_first`), and the parser asks it before
+it refuses the return.
+
+The suite of the v1 has three cases more (284).
+
+## 222. The object literal of the v1 names the key and not the property
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+refuses the `a := {1 +}` with 'Missing "key:" in object literal.', and the v2
+says 'Missing "propertyname:" in object literal.'.
+
+The rule is a hook of the dialect (`the_refusal_of_the_object_literal`), and
+the parser asks the dialect for the complaint.
+
+The suite of the v1 has two cases more (286).
+
+## 223. The loop of the v1 that has no body ends the script
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 takes
+the body of a loop from the statement that comes next, and the script that
+has none ends at the loop. The `loop` that is the last line of the script
+ends the script at once, and the `while 1` that is the last line of it does
+the same. The tree went on until the guard rail said "the script ran more
+than 20000 statements".
+
+The `loop 3` that is the last line of the script goes on three times, and the
+script ends after them: the rule is about the loop that has no count.
+
+The rule is a hook of the dialect
+(`a_loop_without_a_body_ends_the_script`), and the runtime asks it before it
+turns the loop.
+
+The suite of the v1 has four cases more (290).

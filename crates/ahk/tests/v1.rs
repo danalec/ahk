@@ -7485,3 +7485,129 @@ fn the_condition_that_holds_the_operand_that_is_not_there_is_false_in_the_v1() {
     assert!(report.ok);
     assert!(report.variables.contains_key("y"));
 }
+
+/// The return of the v1 that carries a name that is not legal is refused
+/// with the name.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the v1 reads the
+/// parameter of the return before it refuses the return, and so the name
+/// that is not legal is the first refusal: the `return a"b` is refused with
+/// "The following variable name contains an illegal character: "a"b"".
+#[test]
+fn the_return_of_the_v1_that_carries_a_name_that_is_not_legal_is_refused_with_the_name() {
+    assert_eq!(
+        the_refusal_of_the_load("return a\"b"),
+        "The following variable name contains an illegal character:\n\"a\"b\""
+    );
+}
+
+/// The return of the v1 that carries a value outside a function is refused.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the v1 has the rule
+/// of the blank parameter: the `return hello`, the `return 5` and the
+/// `return a b` are refused with "Return's parameter should be blank except
+/// inside a function.". The refusal is at the load.
+#[test]
+fn the_return_of_the_v1_that_carries_a_value_outside_a_function_is_refused() {
+    for script in ["return hello", "return 5", "return a b"] {
+        assert_eq!(
+            the_refusal_of_the_load(script),
+            "Return's parameter should be blank except inside a function."
+        );
+    }
+}
+
+/// The return of the v1 alone is accepted.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the `return` alone
+/// is a script that loads, and it ends at once. The return of a function
+/// carries a value, and the function returns it.
+#[test]
+fn the_return_of_the_v1_alone_is_accepted() {
+    let report = run("return");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    let report = run("f() {\nreturn 5\n}\nx := f()");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
+}
+
+/// The object literal of the v1 that has no property names the key.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the v1 refuses the
+/// `a := {1 +}` with "Missing "key:" in object literal.", and the v2 says
+/// "Missing "propertyname:" in object literal.". The refusal is at the load.
+#[test]
+fn the_object_literal_of_the_v1_that_has_no_property_names_the_key() {
+    assert_eq!(
+        the_refusal_of_the_load("a := {1 +}"),
+        "Missing \"key:\" in object literal."
+    );
+}
+
+/// The object literal of the v1 that has a property is accepted.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the `a := {b: 1}` is
+/// a script that loads, and the `a := {}` is one too.
+#[test]
+fn the_object_literal_of_the_v1_that_has_a_property_is_accepted() {
+    let report = run("a := {b: 1}");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    let report = run("a := {}");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
+/// The loop of the v1 that has no body ends the script.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the v1 takes the body
+/// of a loop from the statement that comes next, and the script that has
+/// none ends at the loop: the `loop` that is the last line of the script
+/// ends the script at once, and the tree does not go on until the guard rail
+/// says "the script ran more than 20000 statements".
+#[test]
+fn the_loop_of_the_v1_that_has_no_body_ends_the_script() {
+    let report = run("loop");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
+/// The loop of the v1 that has a count and no body goes on the number of
+/// times.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the `loop 3` that is
+/// the last line of the script goes on three times, and the script ends
+/// after them.
+#[test]
+fn the_loop_of_the_v1_that_has_a_count_and_no_body_goes_on_the_number_of_times() {
+    let report = run("loop 3");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
+/// The while of the v1 that has no body ends the script.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the `while 1` that is
+/// the last line of the script ends the script at once, and the tree stops
+/// it with the guard rail of the turns.
+#[test]
+fn the_while_of_the_v1_that_has_no_body_ends_the_script() {
+    let report = run("while 1");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+}
+
+/// The loop of the v1 that has a body goes on.
+///
+/// Measured on the binary of v1.1.37.02 on 2026-11-04: the `loop 3` with the
+/// body that counts goes on three times, and the value of the counter is
+/// three.
+#[test]
+fn the_loop_of_the_v1_that_has_a_body_goes_on() {
+    let report = run("n := 0\nloop 3\nn := n + 1");
+    assert!(report.ok);
+    assert_eq!(report.variables.get("n"), Some(&Value::Int(3)));
+}

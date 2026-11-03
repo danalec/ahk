@@ -1896,6 +1896,29 @@ body of a class (2026-11-02), with the two hooks of the dialect
 a variable of the script may be the same in the v1 -- the `C := 5` with the
 class `C` is taken, and the value of `C` is five -- and the tree refuses it.
 
+**What stays out of the return of the v1.** The form of the command -- the
+`return, value` -- is not carried: the tree reads the `return` of the v1 as
+the keyword of the v2, and the `return, hello` is refused with "Missing
+operand.". What the tree carries is the order of the two refusals: the v1
+reads the parameter of the return before it refuses it, and so the
+`return a"b` is refused with the name that is not legal, and not with the
+refusal of the blank parameter.
+
+**What stays out of the object literal of the v1.** The literal of the v1 is
+not the literal of the v2: the v1 refuses the `a := {,}` with "Blank
+parameter", and it takes the name of a property that is a text or a number
+with a point -- the `a := {"b": 1}` and the `a := {1.5: 1}` are accepted. The
+tree carries the word of the complaint that the two have in common: the v1
+says 'Missing "key:" in object literal.', and the v2 says 'Missing
+"propertyname:" in object literal.'.
+
+**What stays out of the loop of the v1.** The body of a construct of the v1 is
+the statement that comes next, and the brace that closes a block is not one:
+the `f() { loop }` and the `if (1) { loop }` are refused at the load with
+'Unexpected "}"', and the tree accepts them. What the tree carries is the loop
+that has no body at the end of the script: the v1 ends the script at it, and
+the tree went on until the guard rail.
+
 ---
 
 ## 5. The risks

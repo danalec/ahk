@@ -2403,6 +2403,14 @@ impl<'a> Runtime<'a> {
                 let _ = (matched, line);
             }
             Node::While { condition, body, .. } => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+                // the v1 takes the body of the loop from the statement that
+                // comes next, and the script that has none ends at the loop:
+                // the `while 1` that is the last line of the script ends the
+                // script at once.
+                if body.is_empty() && self.dialect.a_loop_without_a_body_ends_the_script() {
+                    return Err(RuntimeFailure::Flow(Flow::Return(None)));
+                }
                 let mut iterations = 0usize;
                 // Measured on the binary of v2.0.19 on 2026-11-01: the index
                 // of the turn is the number of it, and a while loop counts
@@ -2523,6 +2531,18 @@ impl<'a> Runtime<'a> {
                                 }
                             }
                             None => {
+                                // Measured on the binary of AutoHotkey
+                                // v1.1.37.02 on 2026-11-04: the v1 takes the
+                                // body of the loop from the statement that
+                                // comes next, and the script that has none
+                                // ends at the loop: the `loop` that is the
+                                // last line of the script ends the script at
+                                // once.
+                                if body.is_empty()
+                                    && self.dialect.a_loop_without_a_body_ends_the_script()
+                                {
+                                    return Err(RuntimeFailure::Flow(Flow::Return(None)));
+                                }
                                 // Measured on the binary of v2.0.19 on
                                 // 2026-10-31: the loop without a count goes
                                 // on until a break. The step count is the
