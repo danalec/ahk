@@ -8795,6 +8795,26 @@ brace that is not at the end of the line is refused with 'Unexpected "Loop"'.
 Two things stay out, and they are the `while` of the v1: the `While, 1 {`
 opens the body of it, and the tree refuses it with 'Unexpected "}"'; and the
 `While, 1 { break }` is refused by the v1 with 'Unexpected "{"', and the
-tree accepts it.
+tree accepts it. The section that comes next closes them.
 
 The suite of the v1 has two cases more (357).
+
+## 232. The condition of the while of the v1 comes after a comma
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+`While, n < 2` is the while of the v1. The body of it is the line that comes
+next or the block that the brace opens, and the brace that is not at the end
+of the line is refused with 'Unexpected "{"'.
+
+The condition that is not there is refused at the load: the `While,` is
+refused with '"While" requires at least 1 parameter.' and the text of the
+line, the "While,". The blank condition is refused the same way.
+
+The rule is in the parser: it takes the comma of the v1 before it reads the
+condition. The v2 has no comma there, and the `while , 1` is refused with
+"Missing operand.".
+
+The probe of the block is `egm-review/probe_v1_while_forms.py`, and it is ten
+cases of the binary and the tree, all the same.
+
+The suite of the v1 has one case more (358).

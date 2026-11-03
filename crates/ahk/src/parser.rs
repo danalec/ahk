@@ -7184,6 +7184,12 @@ impl Parser {
 
     fn parse_while(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // condition of the `while` of the v1 comes after a comma: `While, 1`.
+        // The v2 has no comma there.
+        if self.dialect.legacy_commands() && self.at_op(&[","]) {
+            self.next();
+        }
         if self.at_end_of_statement() {
             // Measured on the binary of v2.0.19 on 2026-10-31: the `while`
             // needs a condition, and it says so in its own words.

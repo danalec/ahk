@@ -2133,7 +2133,7 @@ brace that is not at the end of the line is refused with 'Unexpected "Loop"'.
 Two things stay out, and they are the `while` of the v1: the `While, 1 {`
 opens the body of it, and the tree refuses it with 'Unexpected "}"'; and the
 `While, 1 { break }` is refused by the v1 with 'Unexpected "{"', and the
-tree accepts it.
+tree accepts it. The paragraph that comes next closes them.
 
 The probe of the block is `egm-review/probe_v1_loop_brace.py`, and it is
 eight cases of the binary and the tree: seven are the same, and the one that
@@ -2142,6 +2142,22 @@ the tree stops it with the guard rail of the statements. The probe of the
 forms is `egm-review/probe_v1_loop_forms.py`, and it is eleven cases: nine
 are the same, and the two that are not are the `while` that the paragraph
 above names.
+
+**The condition of the while of the v1 comes after a comma** (2026-11-04).
+The `While, n < 2` is the while of the v1: the body of it is the line that
+comes next or the block that the brace opens, and the brace that is not at
+the end of the line is refused with 'Unexpected "{"'.
+
+The condition that is not there is refused at the load: the `While,` is
+refused with '"While" requires at least 1 parameter.' and the text of the
+line, the "While,". The blank condition is refused the same way.
+
+The tree carries it: the parser takes the comma of the v1 before it reads
+the condition. The v2 has no comma there, and the `while , 1` is refused
+with "Missing operand.".
+
+The probe of the block is `egm-review/probe_v1_while_forms.py`, and it is
+ten cases of the binary and the tree, all the same.
 
 ---
 

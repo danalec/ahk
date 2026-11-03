@@ -7756,6 +7756,37 @@ fn the_text_that_follows_the_brace_of_the_loop_of_the_v1_is_the_text_of_the_coun
     assert!(report.output.is_empty());
 }
 
+/// The condition of the while of the v1 comes after a comma.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+/// `While, n < 2` is the while of the v1, and the body of it is the line that
+/// comes next or the block that the brace opens. The condition that is not
+/// there is refused at the load.
+#[test]
+fn the_condition_of_the_while_of_the_v1_comes_after_a_comma() {
+    // The body of the while is the line that comes next.
+    let report = run("n := 0\nWhile, n < 2\nn := n + 1\nFileAppend, [%n%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+
+    // The brace of the line opens the body of the while.
+    let report = run("n := 0\nWhile, n < 2 {\nn := n + 1\n}\nFileAppend, [%n%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+
+    // The condition that is not there is refused at the load.
+    assert_eq!(
+        the_refusal_of_the_load("While,"),
+        "\"While\" requires at least 1 parameter.\n     Specifically: While,"
+    );
+
+    // The brace that is not at the end of the line is refused at the load.
+    assert_eq!(
+        the_refusal_of_the_load("While, n < 2 { n := n + 1 }"),
+        "Unexpected \"{\""
+    );
+}
+
 /// The word "true" alone holds no action of the v1.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
