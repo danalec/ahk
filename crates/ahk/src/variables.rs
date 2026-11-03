@@ -70,6 +70,14 @@ const AHK_VERSION: &str = "2.0.19";
 /// tree is not the one of Windows.
 const NOT_WINDOWS: &str = "this is a name of Windows, and this desktop is not Windows.";
 
+/// The reason the short names of the files are not answered.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `A_LoopFileShortName` is the name that Windows gives to a file that has a
+/// short one, and this desktop has no such names.
+pub(crate) const NO_SHORT_NAMES_OF_THE_FILES: &str =
+    "the short names of the files are a thing of Windows, and this desktop is not Windows.";
+
 /// The reason a folder of the machine is not there.
 ///
 /// The folders are the ones the machine has, and the ones it does not have

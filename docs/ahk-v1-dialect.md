@@ -2264,7 +2264,8 @@ reason that the box has no registry.
 The probe of the block is `egm-review/probe_v1_file_loop.py`, and it is
 fifty-four cases of the binary and the tree, all the same but one: the
 `A_LoopFileShortName` of the v1 is the name that Windows gives to a file
-that has a short one, and the box has no such names.
+that has a short one, and the box has no such names. The block below closes
+that one: the script that reads the name is told the reason.
 
 **The read loop and the parse loop of the v1 read what they are for**
 (2026-11-05). The first parameter of the `Loop` of the v1 names the kind of
@@ -2394,6 +2395,28 @@ The probes of the block are `egm-review/probe_v1_percent_space.py`,
 `egm-review/probe_v1_parse_csv3.py`, and they are the cases of the binary and
 of the tree: six of the six, ten of the ten, sixteen of the sixteen and eleven
 of the eleven are the same.
+
+**The short names of the files are refused with the reason** (2026-11-05). The
+`A_LoopFileShortName` of the v1 is the name that Windows gives to a file that
+has a short one -- the "LONGNA~1.TXT" of a file that is called "long
+name.txt" -- and the box has none. The script that reads the name is told
+that, and the tree does not make up a name for the file: the reading fails
+with "the short names of the files are a thing of Windows, and this desktop
+is not Windows."
+
+The name has no value before a loop of the files runs, and the tree does not
+fail for that: the v1 answers a blank text, and so does the tree.
+
+The v2 has the same two names, and the tree refuses them in the same way.
+
+**The FileAppend of the v1 that has no name writes the text nowhere**
+(2026-11-05). The `FileAppend, hello` writes the text nowhere -- not even in
+the file of the script -- and the `ErrorLevel` is one and the script goes on.
+The name that is empty is the same, unless the loop that reads has a file of
+its own: the text goes to that file, and the `ErrorLevel` is zero.
+
+The probe of the block is `egm-review/probe_v1_append_name.py`, and it is nine
+cases of the binary and of the tree, and the nine are the same.
 
 ---
 

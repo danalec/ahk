@@ -9072,3 +9072,31 @@ of the tree: six of the six, ten of the ten, sixteen of the sixteen and
 eleven of the eleven are the same.
 
 The suite of the v1 has five cases more (382).
+
+## 239. The short names of the files are refused with the reason
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+`A_LoopFileShortName` of the v1 is the name that Windows gives to a file that
+has a short one -- the "LONGNA~1.TXT" of a file that is called "long
+name.txt" -- and the box has none. The script that reads the name is told
+that, and the tree does not make up a name for the file: the reading fails
+with "the short names of the files are a thing of Windows, and this desktop
+is not Windows."
+
+The name has no value before a loop of the files runs, and the tree does not
+fail for that: the v1 answers a blank text, and so does the tree. The v2 has
+the same two names -- the `A_LoopFileShortName` and the `A_LoopFileShortPath`
+-- and the tree refuses them in the same way.
+
+The `FileAppend` of the v1 that has no name writes the text nowhere -- not
+even in the file of the script -- and the `ErrorLevel` is one and the script
+goes on. The name that is empty is the same, unless the loop that reads has a
+file of its own: the text goes to that file, and the `ErrorLevel` is zero.
+The reason of the report is the one of the v1 and not the one of the v2.
+
+The probes of the block are `egm-review/probe_v1_short_name.py` and
+`egm-review/probe_v1_append_name.py`, and they are the cases of the binary
+and of the tree: the nine of the nine of the second are the same.
+
+The suite of the v1 has one case more (383), and the suite of the v2 has one
+case more (511).

@@ -864,6 +864,16 @@ pub(crate) fn file_append(
     line: u32,
     variant: u8,
 ) -> Result<Value, RuntimeError> {
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    // `FileAppend` that has no name of its own writes the text nowhere -- not
+    // even in the file of the script -- and the `ErrorLevel` is one. The
+    // `ErrorLevel` is zero when the loop that reads has a file of its own:
+    // the text goes to that file.
+    if values.get(1).is_none() && rt.the_output_file_of_the_loop().is_none() {
+        rt.set_the_error_level(Value::Int(1));
+        rt.note("the command FileAppend did not do the thing: the text has no file to go to.");
+        return Ok(Value::Text(String::new()));
+    }
     let answer = crate::files::file_append(rt, values, line, variant);
     the_error_level_of_a_command_that_goes_on(rt, answer)
 }

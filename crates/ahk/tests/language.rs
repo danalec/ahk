@@ -1029,6 +1029,23 @@ fn a_loop_over_the_files_writes_the_variables_of_v2() {
 }
 
 #[test]
+fn the_short_names_of_the_files_are_refused_with_the_reason() {
+    // The short names of the files are a thing of Windows, and this box has
+    // none: the script that reads the name is told that, and the tree does
+    // not make up a name for the file.
+    //
+    // Measured on the binary of AutoHotkey v2.0.19 on 2026-10-31: the
+    // `A_LoopFileShortName` is one of the variables of the loop of the files.
+    let (report, _desktop) = run("Loop Files \"*.txt\" {\n  short := A_LoopFileShortName\n}\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the short names of the files are a thing of Windows, and this desktop is not Windows.")
+    );
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
 fn a_loop_over_the_files_takes_the_comma_of_v1_too() {
     // v2 takes the comma after the kind of the loop, and does not need
     // it: both forms are the same loop.

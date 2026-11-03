@@ -9266,6 +9266,30 @@ fn the_loop_of_the_files_of_the_v1_gives_the_variables_of_the_file() {
     );
 }
 
+/// The short names of the files are a thing of Windows, and this box has none.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `A_LoopFileShortName` is the name that Windows gives to a file that has a
+/// short one -- the "LONGNA~1.TXT" of a file that is called "long name.txt" --
+/// and this box has none: the script that reads the name is told that, and the
+/// tree does not make up a name for the file.
+#[test]
+fn the_short_names_of_the_files_of_the_v1_are_refused_with_the_reason() {
+    let report = run("Loop, *.txt\n{\n  FileAppend, [%A_LoopFileShortName%], *\n}");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the short names of the files are a thing of Windows, and this desktop is not Windows.")
+    );
+    assert_eq!(report.error_line, Some(3));
+
+    // The name has no value before the loop runs, and the tree does not fail
+    // for that: the v1 answers a blank text.
+    let report = run("FileAppend, [%A_LoopFileShortName%], *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[]".to_string()]);
+}
+
 /// The mode of the loop of the files of the v1 is a number.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the mode is

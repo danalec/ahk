@@ -1133,6 +1133,14 @@ pub struct Runtime<'a> {
     /// body of a `Loop Read` that has a file of its own, and the text goes
     /// to that file. The last one of the list is the loop that runs.
     loop_output_files: Vec<String>,
+    /// Whether the short names of the files are refused.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// `A_LoopFileShortName` is the name that Windows gives to a file that has
+    /// a short one, and this box has none: the script that reads the name is
+    /// told that. The field is set when a loop of the files runs, and the
+    /// name has no value before it.
+    the_short_names_of_the_files_are_refused: bool,
     /// The lines of the script, when the host gave them.
     ///
     /// The stack of an error names the source of the line that failed,
@@ -1260,6 +1268,7 @@ impl<'a> Runtime<'a> {
             current_classes: Vec::new(),
             frames: Vec::new(),
             loop_output_files: Vec::new(),
+            the_short_names_of_the_files_are_refused: false,
             source: Vec::new(),
             auto_execute_line: 0,
             functions: BTreeMap::new(),
@@ -1321,6 +1330,7 @@ impl<'a> Runtime<'a> {
             current_classes: Vec::new(),
             frames: Vec::new(),
             loop_output_files: Vec::new(),
+            the_short_names_of_the_files_are_refused: false,
             source: Vec::new(),
             auto_execute_line: 0,
             functions: BTreeMap::new(),
@@ -2693,6 +2703,9 @@ impl<'a> Runtime<'a> {
                             self.set_global("A_LoopFileExt", Value::Text(extension.to_string()));
                             self.set_global("A_LoopFileDir", Value::Text(the_folder_of(file).to_string()));
                             self.set_global("A_LoopFilePath", Value::Text(without_the_extension(file, extension)));
+                            // The short names of the files are a thing of
+                            // Windows, and this box has none.
+                            self.the_short_names_of_the_files_are_refused = true;
                             match self.run_block(body) {
                                 Ok(()) => {}
                                 Err(RuntimeFailure::Flow(Flow::Break)) => break,
@@ -7580,6 +7593,25 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The reason the short names of the files are not answered.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// `A_LoopFileShortName` is the name that Windows gives to a file that has
+    /// a short one -- the "LONGNA~1.TXT" of a file that is called "long
+    /// name.txt" -- and this box has none. The reason is there after a loop of
+    /// the files has run: before it, the name has no value.
+    fn the_reason_of_the_short_names_of_the_files(&self, name: &str) -> Option<&'static str> {
+        if !self.the_short_names_of_the_files_are_refused {
+            return None;
+        }
+        if name.eq_ignore_ascii_case("A_LoopFileShortName")
+            || name.eq_ignore_ascii_case("A_LoopFileShortPath")
+        {
+            return Some(crate::variables::NO_SHORT_NAMES_OF_THE_FILES);
+        }
+        None
+    }
+
     /// The value of a variable of the runtime, when it has none yet.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the variables of
@@ -9078,6 +9110,9 @@ impl<'a> Runtime<'a> {
             self.set_global("A_LoopFileExt", Value::Text(the_extension_of(&name).to_string()));
             self.set_global("A_LoopFileDir", Value::Text(the_folder_of(&path).to_string()));
             self.set_global("A_LoopFilePath", Value::Text(path.clone()));
+            // The short names of the files are a thing of Windows, and this
+            // box has none.
+            self.the_short_names_of_the_files_are_refused = true;
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
             // the `A_LoopFileFullPath` of the v1 is the path of the file that
             // is relative to the folder the script runs in, and not the long
@@ -9427,6 +9462,12 @@ impl<'a> Runtime<'a> {
                     line: if error.line == 0 { line } else { error.line },
                 })),
             };
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // short names of the files are a thing of Windows, and this box has
+        // none: the script that reads the name is told that.
+        if let Some(reason) = self.the_reason_of_the_short_names_of_the_files(name) {
+            return Err(RuntimeFailure::Error(RuntimeError { message: reason.to_string(), line }));
         }
         if !self.dialect.percent_looks_at_the_environment() {
             return Ok(None);
@@ -10251,26 +10292,39 @@ impl<'a> Runtime<'a> {
                         message: error.message,
                         line: *line,
                     })),
-                    None => match self.the_value_of_a_variable_of_the_runtime(name) {
-                        Some(value) => Ok(value),
-                        None => {
-                            // Measured on the binary of v1.1.37.02 on
-                            // 2026-11-01: a variable of the v1 that has no
-                            // value is blank, and it is not a failure.
-                            if self.dialect.unset_is_blank() {
-                                return Ok(self.the_value_of_an_unset_variable(name));
-                            }
-                            Err(match self.alias_of(name) {
-                                // A parameter that is an alias says that it is
-                                // the parameter that has no value.
-                                Some(_) => RuntimeFailure::Error(RuntimeError {
-                                    message: unassigned_parameter(),
-                                    line: *line,
-                                }),
-                                None => self.the_unassigned_failure(name, *line),
-                            })
+                    None => {
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-05: the short names of the files are a thing
+                        // of Windows, and this box has none: the script that
+                        // reads the name is told that, and the tree does not
+                        // make up a name for the file.
+                        if let Some(reason) = self.the_reason_of_the_short_names_of_the_files(name) {
+                            return Err(RuntimeFailure::Error(RuntimeError {
+                                message: reason.to_string(),
+                                line: *line,
+                            }));
                         }
-                    },
+                        match self.the_value_of_a_variable_of_the_runtime(name) {
+                            Some(value) => Ok(value),
+                            None => {
+                                // Measured on the binary of v1.1.37.02 on
+                                // 2026-11-01: a variable of the v1 that has no
+                                // value is blank, and it is not a failure.
+                                if self.dialect.unset_is_blank() {
+                                    return Ok(self.the_value_of_an_unset_variable(name));
+                                }
+                                Err(match self.alias_of(name) {
+                                    // A parameter that is an alias says that it is
+                                    // the parameter that has no value.
+                                    Some(_) => RuntimeFailure::Error(RuntimeError {
+                                        message: unassigned_parameter(),
+                                        line: *line,
+                                    }),
+                                    None => self.the_unassigned_failure(name, *line),
+                                })
+                            }
+                        }
+                    }
                 },
             },
             Node::Unary { op, operand, line } => match op {
