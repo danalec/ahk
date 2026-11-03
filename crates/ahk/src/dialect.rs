@@ -1074,19 +1074,19 @@ pub trait Dialect: Sync {
         false
     }
 
-    /// Whether the property that has a getter or a setter is refused.
+    /// Whether the body of the getter and of the setter may be an expression.
     ///
-    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the class of the v1
-    /// has no property with a getter, and the refusal is the one of the v1:
-    /// the getter that is on the same line as the name with "Not a valid
-    /// method, class or property definition.\n     Specifically: x { get => 1
-    /// }", and the getter that is in a block with "Not a valid property
-    /// getter/setter.\n     Specifically: get => 1". The v2 has the property
-    /// with a getter.
+    /// Measured on the binary of v2.0.19 on 2026-11-05: the body of the getter
+    /// is an expression after the arrow, and a block of statements between
+    /// braces.
     fn the_accessor_takes_an_expression(&self) -> bool {
         true
     }
 
+    /// Whether the member of the property that has no body is a call.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-05: the v2 refuses it with
+    /// "Not a valid property getter/setter.\n     Specifically: get".
     fn the_member_of_an_accessor_without_a_body_is_a_call(&self) -> bool {
         false
     }
