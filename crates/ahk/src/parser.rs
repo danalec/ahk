@@ -2532,7 +2532,7 @@ impl Parser {
                 let token = self.tokens[close].clone();
                 let text = the_text_of_the_line_of_the_closing_brace(self, open, close);
                 return Err(SyntaxError {
-                    message: format!("Unexpected \"}}\"\n     Specifically: {text}"),
+                    message: self.the_message_of_the_closing_brace(&text),
                     line: token.line,
                     column: token.column,
                 });
@@ -2606,10 +2606,22 @@ impl Parser {
         if self.the_brace_is_at_the_start_of_its_line() {
             return Ok(());
         }
-        Err(self.error(format!(
-            "Unexpected \"}}\"\n     Specifically: {}",
-            the_text_of_the_line_of_the_closing_brace(self, open, self.position)
-        )))
+        let text = the_text_of_the_line_of_the_closing_brace(self, open, self.position);
+        Err(self.error(self.the_message_of_the_closing_brace(&text)))
+    }
+
+    /// The message of the brace that closes a block and that is not where it
+    /// belongs.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// names the brace and nothing else, and the v2 names the line of the
+    /// script under it.
+    fn the_message_of_the_closing_brace(&self, text: &str) -> String {
+        if self.dialect.the_closing_brace_names_the_text() {
+            format!("Unexpected \"}}\"\n     Specifically: {text}")
+        } else {
+            "Unexpected \"}\"".to_string()
+        }
     }
 
     /// The message of v2 when the brace that opens a block is not where it
@@ -3410,13 +3422,13 @@ impl Parser {
             // Measured on the binary of v2.0.19 on 2026-10-31: a brace that
             // is not at the start of its line names the line of the script,
             // and a brace that is alone on its line names nothing.
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 names the brace and nothing else.
             if self.the_brace_is_at_the_start_of_its_line() {
                 "Unexpected \"}\"".to_string()
             } else {
-                format!(
-                    "Unexpected \"}}\"\n     Specifically: {}",
-                    the_source_of_the_line(self, token.line)
-                )
+                let text = the_source_of_the_line(self, token.line);
+                self.the_message_of_the_closing_brace(&text)
             }
         } else if token.kind == TokenKind::Op && the_token_is_an_illegal_character(&token) {
             // Measured on the binary of v2.0.19 on 2026-11-01: the character

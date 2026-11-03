@@ -8702,3 +8702,19 @@ a text is an illegal character.
 
 The suite of the v2 has three cases more (506) and the suite of the v1 has two
 more (309).
+
+## 228. The brace that closes a block of the v1 names the brace and nothing else
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 does
+not name the line of the script under the refusal of a brace that is not where
+it belongs, and the v2 does.
+
+The v1 says "Unexpected "}"" and nothing else: the `y := 2 }` that comes
+after the `if (1) {`, the `return 1 }` that closes the body of a function and
+the brace that closes nothing are refused that way. The v2 names the line of
+the script under the same refusal.
+
+The rule is a hook of the dialect (`the_closing_brace_names_the_text`), and
+the v1 turns it off.
+
+The suite of the v1 has two cases more (348).

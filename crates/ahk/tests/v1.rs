@@ -8599,3 +8599,43 @@ fn the_remove_of_an_array_of_the_v1_without_an_index_takes_the_last_one_away() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["[1]".to_string()]);
 }
+
+/// The brace that closes a block of the v1 names the brace and nothing else.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// says "Unexpected "}"" and the line of the script is not under it. The v2
+/// names the line of the script under the same refusal.
+#[test]
+fn the_brace_that_closes_a_block_of_the_v1_names_the_brace_alone() {
+    // The brace that follows a statement.
+    assert_eq!(the_refusal_of_the_load("x := 1\ny := 2 }"), "Unexpected \"}\"");
+
+    // The brace that closes the block of an `if` on the line of the body.
+    assert_eq!(
+        the_refusal_of_the_load("if (1) {\n    y := 2 }"),
+        "Unexpected \"}\""
+    );
+
+    // The brace that closes the body of a function.
+    assert_eq!(
+        the_refusal_of_the_load("f() {\n    return 1 }"),
+        "Unexpected \"}\""
+    );
+
+    // The brace that closes nothing, after a block that is closed.
+    assert_eq!(
+        the_refusal_of_the_load("x := 1\nif (1) {\n    y := 2\n}\n}"),
+        "Unexpected \"}\""
+    );
+}
+
+/// The brace that closes nothing in the v1 names the brace alone.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the brace
+/// that is alone on its line is an "Unexpected "}"" with nothing under it, in
+/// the v1 and in the v2.
+#[test]
+fn the_brace_that_closes_nothing_in_the_v1_names_the_brace_alone() {
+    assert_eq!(the_refusal_of_the_load("}"), "Unexpected \"}\"");
+    assert_eq!(the_refusal_of_the_load("x := 1\n}"), "Unexpected \"}\"");
+}

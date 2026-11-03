@@ -229,6 +229,16 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the brace that closes a block names the text of its line.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// names the brace and nothing else: the `y := 2 }` of the line that comes
+    /// after the `if (1) {` is an "Unexpected "}"" with no text under it. The
+    /// v2 names the line of the script under it.
+    fn the_closing_brace_names_the_text(&self) -> bool {
+        true
+    }
+
     /// Whether the body of a construct may be missing.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -1902,6 +1912,12 @@ impl Dialect for V1 {
         // The v1 names the bracket and nothing else: the `x := (1` is a
         // "Missing ")" and the line of the script is not under it.
         true
+    }
+
+    fn the_closing_brace_names_the_text(&self) -> bool {
+        // The v1 names the brace and nothing else: the `y := 2 }` is an
+        // "Unexpected "}"" with no text under it.
+        false
     }
 
     fn the_body_may_be_missing(&self) -> bool {

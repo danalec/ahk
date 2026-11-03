@@ -2063,6 +2063,14 @@ of the list is refused all the same: the `o.Say(1,)` is refused with "Blank
 parameter", and the name of it is the text of the call, from the dot. The
 tree refuses it too.
 
+**The brace that closes a block of the v1 names the brace and nothing else**
+(2026-11-04). The v1 does not name the line of the script under the refusal:
+the `y := 2 }` that comes after the `if (1) {` is an "Unexpected "}"" with
+nothing under it, and so are the brace that closes the body of a function and
+the brace that closes nothing. The v2 names the line of the script under the
+same refusal. The tree carries it: the hook of the dialect is
+`the_closing_brace_names_the_text`, and the v1 turns it off.
+
 ---
 
 ## 5. The risks
