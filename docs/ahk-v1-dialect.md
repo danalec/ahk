@@ -1529,6 +1529,15 @@ that is not a function is refused with "Call to nonexistent function.". A
 command of the v1 is not a function, and a function of the v1 is not a
 command.
 
+**The text that the refusal of a call names** (2026-11-04). The text is the
+rest of the line, from the name of the call, and not only the call: the
+`x := abc(c) + 1` is refused with "Call to nonexistent function.\n
+     Specifically: abc(c) + 1", and the same is true of the complaint of the
+number of the arguments that is wrong -- the `x := Abs() + 1` is refused with
+"Too few parameters passed to function.\n     Specifically: Abs() + 1". The
+spaces that the script wrote are in it: the `x := InStr( "ABCabc" )` names
+the `InStr( "ABCabc" )` and not only the call.
+
 **What stays out of the call.** The call of a function of the v1 that is
 written without the parentheses and inside an expression -- `x := InStr
 "abc"` -- is not a call: it is the name of the function and the text, side by

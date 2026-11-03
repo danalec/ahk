@@ -4053,6 +4053,40 @@ fn the_number_of_the_parameters_of_a_command_of_the_v1_is_the_number_of_the_bina
     }
 }
 
+/// The refusal of a call of the v1 names the rest of the line.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text
+/// that the refusal names is the rest of the line, from the name of the
+/// call, and not only the call: the `x := abc(c) + 1` is refused with "Call
+/// to nonexistent function.\n     Specifically: abc(c) + 1". The same is
+/// true of the complaint of the number of the arguments that is wrong.
+#[test]
+fn the_refusal_of_a_call_of_the_v1_names_the_rest_of_the_line() {
+    // The name that is not a function.
+    assert_eq!(
+        the_refusal_of_the_load("x := abc(c) + 1"),
+        "Call to nonexistent function.\n     Specifically: abc(c) + 1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("abc(c).d"),
+        "Call to nonexistent function.\n     Specifically: abc(c).d"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("abc(c), 2"),
+        "Call to nonexistent function.\n     Specifically: abc(c), 2"
+    );
+
+    // The number of the arguments that is wrong.
+    assert_eq!(
+        the_refusal_of_the_load("x := Abs() + 1"),
+        "Too few parameters passed to function.\n     Specifically: Abs() + 1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("x := Abs(1, 2) + 1"),
+        "Too many parameters passed to function.\n     Specifically: Abs(1, 2) + 1"
+    );
+}
+
 /// The call of a name that is not a function is refused at the load, and a
 /// call that is a statement is a call.
 ///

@@ -1884,6 +1884,13 @@ that asks for another one is refused with the reason.
   (`the_name_of_the_word_that_wants_a_parameter` and
   `the_refusal_of_the_until_that_has_no_loop`).
 
+- **The refusal of a call of the v1 names the rest of the line.** The text
+  that the refusal names is the rest of the line, from the name of the call,
+  and not only the call: the `x := abc(c) + 1` is refused with "Call to
+  nonexistent function.\n     Specifically: abc(c) + 1". The complaint of the
+  number of the arguments that is wrong names the rest of the line too. The
+  spaces that the script wrote are in it.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

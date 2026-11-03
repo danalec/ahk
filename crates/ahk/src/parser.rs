@@ -3517,7 +3517,6 @@ impl Parser {
             self.the_expression_begins();
             let arguments = self.parse_arguments()?;
             self.expect_op(")")?;
-            let end = self.position;
             // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
             // refuses the call of a name that is not a function at the load,
             // and a call that is a statement is a call: the `MyFunc()` is
@@ -3528,7 +3527,6 @@ impl Parser {
                     &name_token.value.to_lowercase(),
                     arguments.len(),
                     at_the_name,
-                    end,
                 );
             }
             self.the_expression_is_done(self.position, false)?;
@@ -9620,9 +9618,8 @@ impl Parser {
         self.expect_op("(")?;
         let arguments = self.parse_arguments()?;
         self.expect_op(")")?;
-        let end = self.position;
         if self.dialect.refuses_the_call_of_a_function_at_the_load() {
-            self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at, end);
+            self.the_call_of_the_v1_is_recorded(&name, arguments.len(), at);
         }
         Ok(Node::Call { name, arguments, line })
     }
@@ -9661,8 +9658,14 @@ impl Parser {
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the call is
     /// refused at the load, and the text of it is the text of the script.
-    fn the_call_of_the_v1_is_recorded(&mut self, name: &str, count: usize, at: usize, end: usize) {
-        let source = self.the_verbatim_source(at, end);
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text
+    /// that the refusal names is the rest of the line, from the name of the
+    /// call: the `x := abc(c) + 1` is refused with "Call to nonexistent
+    /// function.\n     Specifically: abc(c) + 1", and the same is true of the
+    /// complaint of the number of the arguments that is wrong.
+    fn the_call_of_the_v1_is_recorded(&mut self, name: &str, count: usize, at: usize) {
+        let end_of_the_line = the_end_of_the_line_of(self, at);
+        let source = self.the_verbatim_source(at, end_of_the_line);
         let line = self.tokens.get(at).map(|token| token.line).unwrap_or(0);
         let column = self.tokens.get(at).map(|token| token.column).unwrap_or(0);
         self.calls.push(TheCallOfTheScript {

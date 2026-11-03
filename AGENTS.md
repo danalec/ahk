@@ -8268,3 +8268,21 @@ that no loop takes when the load is over
 the condition is true (`the_until_ends_the_loop`).
 
 The suite of the v1 has four cases more (261).
+
+## 212. The refusal of a call of the v1 names the rest of the line
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the text that
+the refusal of a call names is the rest of the line, from the name of the
+call, and not only the call. The `x := abc(c) + 1` is refused with "Call to
+nonexistent function.\n     Specifically: abc(c) + 1", and the `abc(c).d` is
+refused with "abc(c).d". The complaint of the number of the arguments that is
+wrong names the rest of the line too: the `x := Abs() + 1` is refused with
+"Too few parameters passed to function.\n     Specifically: Abs() + 1".
+
+The spaces that the script wrote are in the text: the `x := InStr( "ABCabc" )`
+names the `InStr( "ABCabc" )`. The text of the call was the name and the
+parenthesis that closes it, and the tree carried it since the block of the
+call (2026-11-02); the text of the refusal is the rest of the line now
+(`the_call_of_the_v1_is_recorded`).
+
+The suite of the v1 has one case more (262).
