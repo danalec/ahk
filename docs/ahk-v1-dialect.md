@@ -2808,7 +2808,7 @@ honest rule is the same as the one of the comparison with the X11 —
 | **What does not change** | the v2, the `Desktop`, the box, the report, the guard rails |
 | **The classes of the v1** | none: the v1 has objects and script classes, not runtime types |
 | **The divergence that stays written** | the v1 runs in the cooperative model: no threads |
-| **The state of the v1** | done (2026-11-05): the surface is carried whole, the `#Warn` of the v1 is carried with all of its types, and the harness finds no difference of behaviour that is not the machine. The difference that stays is the number of the warnings of the v1 when the variable that is read is the value of an assignment |
+| **The state of the v1** | done (2026-11-05): the surface is carried whole, the `#Warn` of the v1 is carried with all of its types -- the line that never runs, the local that has the name of a global inside a class, the local that is only read, and the environment variable that is there -- and the harness finds no difference of behaviour that is not the machine. The difference that stays is the number of the warnings of the v1 when the variable that is read is the value of an assignment |
 | **The authority** | the binary of the v1.1.37.02 and the documentation of the v1 |
 | **The dependency** | the `--surface` of the wave of 2026-10-29, with one dialect more |
 | **The coordination** | the wave ports capabilities into the v2; this plan adds the dialect beside it |

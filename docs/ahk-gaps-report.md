@@ -275,9 +275,11 @@ and gave the files and the folders, and the v2 refuses it with a dialog.
    the "StdOut" writes them to the standard output. The three types of the v2
    are carried.
 8. **The `#Warn` of the v1** (§2.2) — *closed on 2026-11-05*. The directive
-   of the v1 is carried, and its five types are: the variable that is read
-   and never written, the environment variable that is accessed, the local
-   that has the name of a global and the class that is overwritten.
+   of the v1 is carried, and its six types are: the variable of the script that
+   is read and never written, the variable of a function that is read and
+   never written, the environment variable that is accessed, the local that has
+   the name of a global, the class that is overwritten and the line that never
+   runs.
 
 The v1 is done: every name of its surface is carried, the pending table is
 empty, the harness finds no difference of behaviour that is not the machine,
@@ -287,4 +289,6 @@ read is the value of an assignment: the v1 warns twice and the tree warns
 once, and the text of the warning is the same.
 
 The v2 has no name that the tree refuses for lack of implementation either,
-and the three types of its `#Warn` are carried.
+and the three types of its `#Warn` are carried. The warning of the variable
+that is read and never written is given when the script is read, and the tree
+gives it the way the binary gives it.
