@@ -966,6 +966,8 @@ pub struct Report {
     pub ok: bool,
     pub steps: Vec<Step>,
     pub output: Vec<String>,
+    /// The warnings of the script.
+    pub warnings: Vec<crate::warnings::Warning>,
     pub notes: Vec<String>,
     pub error: Option<String>,
     pub error_line: Option<u32>,
@@ -1076,6 +1078,12 @@ pub struct Runtime<'a> {
     /// substitution of a parameter of the v1 is then the variable of the
     /// script alone.
     no_env: bool,
+    /// The warnings of the script.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+    /// warnings are computed before the script runs, and they go to the
+    /// report.
+    warnings: Vec<crate::warnings::Warning>,
     /// Whether the text of a legacy assignment is trimmed.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `AutoTrim`
@@ -1281,6 +1289,7 @@ impl<'a> Runtime<'a> {
             clock: ClockSource::System(SystemClock::new()),
             dialect: crate::dialect::v2(),
             no_env: false,
+            warnings: Vec::new(),
             auto_trim: true,
             integer_format: IntegerFormat::Decimal,
             float_format: FloatFormat::DEFAULT,
@@ -1343,6 +1352,7 @@ impl<'a> Runtime<'a> {
             clock: ClockSource::Borrowed(clock),
             dialect: crate::dialect::v2(),
             no_env: false,
+            warnings: Vec::new(),
             auto_trim: true,
             integer_format: IntegerFormat::Decimal,
             float_format: FloatFormat::DEFAULT,
@@ -1614,6 +1624,15 @@ impl<'a> Runtime<'a> {
         // The functions are collected before the first statement runs, so a
         // script may call a function it defines further down.
         self.collect_functions(statements);
+        // The warnings of the script are computed before the script runs, the
+        // way the v2 computes them: the directives are all read, and then the
+        // script is checked.
+        //
+        // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+        // warning of the unreachable line is given before the first statement
+        // runs, and the mode of the "StdOut" writes it to the standard
+        // output.
+        self.warnings = self.the_warnings_of_the_script(statements);
         // The hotkeys of the v1 are registered when the script loads, and
         // the one that is written in the body of another one is registered
         // too.
@@ -1737,6 +1756,7 @@ impl<'a> Runtime<'a> {
             ok: error.is_none(),
             steps: self.steps,
             output: self.output,
+            warnings: self.warnings,
             notes: self.notes,
             error,
             error_line,
@@ -1744,6 +1764,36 @@ impl<'a> Runtime<'a> {
             elapsed_ms,
             variables: self.variables.clone(),
         }
+    }
+
+    /// The warnings of the script.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the check
+    /// of the unreachable lines is made before the script runs, and the mode
+    /// of the "StdOut" writes the warning to the standard output with the
+    /// line of it. The tree has no dialog, and the warning goes to the
+    /// report.
+    fn the_warnings_of_the_script(
+        &mut self,
+        statements: &[Node],
+    ) -> Vec<crate::warnings::Warning> {
+        if !self.dialect.the_warnings_are_carried() {
+            return Vec::new();
+        }
+        let modes = crate::warnings::the_modes_of_the_script(statements);
+        if modes.unreachable == crate::warnings::WarningMode::Off {
+            return Vec::new();
+        }
+        let warnings = crate::warnings::the_warnings_of_the_script(statements);
+        if modes.unreachable == crate::warnings::WarningMode::StdOut {
+            for warning in &warnings {
+                self.output.push(format!(
+                    "({}) : ==> Warning: {}",
+                    warning.line, warning.message
+                ));
+            }
+        }
+        warnings
     }
 
     /// A note for the report: a thing the script should know, and that is
@@ -7436,6 +7486,18 @@ impl<'a> Runtime<'a> {
             // The errors are always in the report, and the report is
             // always on the standard output.
             "errorstdout" => Ok("the errors are in the report".into()),
+            // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+            // `#Warn` of the v2 takes the type of the warning and the mode of
+            // it, and the warnings go to the report: the tree has no dialog.
+            "warn" => {
+                if !self.dialect.the_warnings_are_carried() {
+                    return Err(RuntimeFailure::Error(RuntimeError {
+                        message: "the warnings are not carried by this runtime.".into(),
+                        line,
+                    }));
+                }
+                Ok("the warnings are in the report".into())
+            }
             "requires" => {
                 let words: Vec<&str> = argument.split_whitespace().collect();
                 let wanted = words.get(1).copied().unwrap_or("");

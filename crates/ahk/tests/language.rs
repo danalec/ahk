@@ -5871,3 +5871,151 @@ fn the_mode_of_the_loop_of_the_files_carries_the_letters_of_v2() {
         desktop.calls
     );
 }
+
+/// The `#Warn` takes the type of the warning and the mode of it.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the type that
+/// is not one of them is refused at the load with "Parameter #1 invalid." and
+/// the source of the line up to the comma, and the mode that is not one of
+/// them with "Parameter #2 invalid." and the text that was written.
+#[test]
+fn the_type_of_the_warn_that_is_not_one_of_them_is_refused() {
+    let error = parse("#Warn Nope").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #1 invalid.\n     Specifically: #Warn Nope"
+    );
+    assert_eq!(error.line, 1);
+}
+
+/// The text that the refusal of the type names is the source of the line.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the case of
+/// the script is the case of the text -- "#warn nope" -- and the spaces of
+/// the line are the spaces of the text -- "#Warn    Nope".
+#[test]
+fn the_type_of_the_warn_is_named_with_the_source_of_the_line() {
+    let error = parse("#warn nope").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #1 invalid.\n     Specifically: #warn nope"
+    );
+    let error = parse("#WARN NOPE").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #1 invalid.\n     Specifically: #WARN NOPE"
+    );
+    let error = parse("#Warn    Nope").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #1 invalid.\n     Specifically: #Warn    Nope"
+    );
+    // The text stops at the comma.
+    let error = parse("#Warn Nope , StdOut").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #1 invalid.\n     Specifically: #Warn Nope"
+    );
+}
+
+/// The mode of the `#Warn` that is not one of them is refused.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the text that
+/// the refusal names is the text that comes after the comma, and it is the
+/// whole of it -- "StdOut, Extra".
+#[test]
+fn the_mode_of_the_warn_that_is_not_one_of_them_is_refused() {
+    let error = parse("#Warn All, StdOut, Extra").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #2 invalid.\n     Specifically: StdOut, Extra"
+    );
+    let error = parse("#Warn All, StdOut Extra").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #2 invalid.\n     Specifically: StdOut Extra"
+    );
+}
+
+/// A type that is empty is not a type, and the mode is the text that comes
+/// after the comma.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the "#Warn ,
+/// StdOut" is not a failure, and the "#Warn ,Nope" is a refusal of the mode.
+#[test]
+fn the_empty_type_of_the_warn_is_not_a_type() {
+    parse("#Warn , StdOut").expect("parses");
+    parse("#Warn All").expect("parses");
+    let error = parse("#Warn ,Nope").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #2 invalid.\n     Specifically: Nope"
+    );
+}
+
+/// The line that never runs is warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning
+/// is of the line that comes right after the statement that leaves the level,
+/// and the mode of the "StdOut" writes it to the standard output.
+#[test]
+fn the_line_that_never_runs_is_warned_about() {
+    let (report, _desktop) = run("#Warn Unreachable, StdOut\nreturn\nx := 1\ny := 2\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This line will never execute, due to Return preceding it."
+    );
+    assert_eq!(
+        report.output,
+        vec!["(3) : ==> Warning: This line will never execute, due to Return preceding it.".to_string()]
+    );
+}
+
+/// The warning is of the level of the statement that leaves it.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the break of
+/// a loop warns the line that comes after it in the body of the loop, and the
+/// return of a block does not warn the line that comes after the block.
+#[test]
+fn the_warning_of_the_unreachable_line_is_of_its_own_level() {
+    let (report, _desktop) = run("#Warn Unreachable, StdOut\nloop 3 {\nbreak\nx := 1\n}\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 4);
+    assert_eq!(
+        report.warnings[0].message,
+        "This line will never execute, due to Break preceding it."
+    );
+    let (report, _desktop) = run("#Warn Unreachable, StdOut\nif 1 {\nreturn\n}\nx := 1\n");
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+}
+
+/// The label that is the target of the jump is not warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the `Goto`
+/// warns the line that comes after it, and the label is the line that the
+/// jump comes to.
+#[test]
+fn the_label_that_is_the_target_of_the_jump_is_not_warned_about() {
+    let (report, _desktop) = run("#Warn Unreachable, StdOut\ngoto later\nx := 1\nlater:\ny := 2\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This line will never execute, due to Goto preceding it."
+    );
+}
+
+/// The warning of the unreachable line is off when the directive says so.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the mode of
+/// the "Off" is no warning at all.
+#[test]
+fn the_warning_of_the_unreachable_line_is_off_when_the_directive_says_so() {
+    let (report, _desktop) = run("#Warn Unreachable, Off\nreturn\nx := 1\n");
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    assert!(report.output.is_empty(), "{:?}", report.output);
+}
+

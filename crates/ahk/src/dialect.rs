@@ -555,6 +555,14 @@ pub trait Dialect: Sync {
     /// parameters of a command of the v1 are texts and not expressions.
     fn legacy_commands(&self) -> bool;
 
+    /// Whether the dialect carries the warnings of a script.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the v2
+    /// has the `#Warn` directive and the warnings that it names. The v1 has
+    /// a `#Warn` too, and the tree does not carry it: the directive of the
+    /// v1 is refused, and the warnings of the v1 are not given.
+    fn the_warnings_are_carried(&self) -> bool;
+
     /// The parameters of a command that may not be left out.
     ///
     /// The numbers are the places of the parameters, counted from one.
@@ -1927,6 +1935,10 @@ impl Dialect for V2 {
         false
     }
 
+    fn the_warnings_are_carried(&self) -> bool {
+        true
+    }
+
     fn assign_with_equal(&self) -> bool {
         false
     }
@@ -2218,6 +2230,10 @@ impl Dialect for V1 {
 
     fn legacy_commands(&self) -> bool {
         true
+    }
+
+    fn the_warnings_are_carried(&self) -> bool {
+        false
     }
 
     fn the_parameters_that_may_not_be_left_out(&self, name: &str) -> &'static [u8] {

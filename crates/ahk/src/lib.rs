@@ -122,6 +122,7 @@ pub mod settings;
 pub mod surface;
 pub mod v1;
 pub mod variables;
+pub mod warnings;
 
 pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, Parameter, UnaryOp};
 pub use keys::{KeyStroke, UnknownKey, parse_spec, resolve_name};

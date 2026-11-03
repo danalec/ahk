@@ -1,8 +1,8 @@
 # What is missing in the v1 and in the v2
 
 > **Measured on 2026-11-05.** The state of the tree is the one of the commit
-> `eb469a3` (the branch `port/v2-dialect`) and of the block of the
-> `ObjBindMethod` that comes after it. The numbers come from the tree
+> `5776873` (the branch `port/v2-dialect`) and of the block of the `#Warn`
+> that comes after it. The numbers come from the tree
 > itself: `ahk --surface --dialect=v1` and `ahk --surface --dialect=v2`, and
 > the comparisons are `egm-review/run_all_comparisons.py`, which runs the
 > script in the binary of the dialect and in the tree, and puts the two
@@ -169,6 +169,17 @@ and the `Loop Files, <pattern>, <mode>` whose mode is a set of letters. The
 tree carried the first one and not the second one: the pattern of the files
 was the word "Files" and the mode was the pattern.
 
+**The `#Warn` of the v1** -- *open*. The v1 has a `#Warn` of its own, and its
+types are not the ones of the v2: the "UseUnsetLocal", the "UseUnsetGlobal",
+the "UseEnv", the "LocalSameAsGlobal", the "ClassOverwrite" and the "All".
+The modes are the "MsgBox", the "StdOut", the "OutputDebug" and the "Off".
+The words of the refusal are the ones of the v2 -- "Parameter #1 invalid." and
+the source of the line, "Parameter #2 invalid." and the text that was written
+-- and the mode of the "StdOut" writes the warning of the variable that is
+read and never written to the standard output. The tree refuses the directive
+of the v1 with *"the warnings are not carried by this runtime."*, and the
+warning of the v1 is not written by it.
+
 ### 2.3 The holes of the v2 that are known
 
 **`ObjBindMethod`** — *closed on 2026-11-05*. The tree binds the method of an
@@ -181,12 +192,18 @@ The tree did not write the line of the statement that runs, and it refused the
 two names with *"This global variable has not been assigned a value."*. The
 runtime writes them now, and they are seen in a function.
 
-**The warnings of the v2** — the `#Warn` and the other directives of the
-warnings are refused with *"the warnings are not carried by this runtime."*.
-This is not a hole of a name: the runtime has no warning channel at all, and
-the v2 shows a dialog before the error that caused it. It is a feature, and
-it is a big one: the warning of the v2 says what is wrong with the script
-before it stops.
+**The warnings of the v2** — *closed on 2026-11-05, for the "Unreachable"*.
+The `#Warn` takes the type of the warning and the mode of it, and the type
+that is not one of them is refused at the load with "Parameter #1 invalid."
+and the source of the line, and the mode that is not one of them with
+"Parameter #2 invalid." and the text that was written. The warning of the
+line that never runs is of the line that comes right after the statement that
+leaves the level, and it is computed before the script runs.
+
+The tree has no dialog, and the warning goes to the report: the report has the
+warnings of the script, and the mode of the "StdOut" writes them to the
+standard output as well. The two types that are left — the "VarUnset" and the
+"LocalSameAsGlobal" — are not carried yet.
 
 **The second parameter of the `Loop Read` of the v2** — *closed on 2026-11-05*.
 The v2 does not open the file of the second parameter when the loop begins:
@@ -230,10 +247,16 @@ and gave the files and the folders, and the v2 refuses it with a dialog.
 6. **The `Loop Files` of the v1** (§2.2) — *closed on 2026-11-05*. The v1
    has two forms of the loop of the files, and the tree carried the one whose
    mode is a number and not the one whose mode is a set of letters.
-7. **The warnings of the v2** (§2.3). Big: the runtime needs a warning
-   channel and the v2 shows a dialog before the error.
+7. **The warnings of the v2** (§2.3) — *closed on 2026-11-05 for the
+   "Unreachable"*. The runtime has a warning channel now: the warnings go to
+   the report, and the mode of the "StdOut" writes them to the standard
+   output. The two types that are left are the "VarUnset" and the
+   "LocalSameAsGlobal".
+8. **The `#Warn` of the v1** (§2.2). The v1 has a `#Warn` of its own, with its
+   types and its modes, and the tree refuses the directive.
 
-The v1 is done: every name of its surface is carried, the pending table is
-empty, and the harness finds no difference of behaviour that is not the
-machine. The v2 has no name that the tree refuses for lack of implementation
-either.
+The v1 has every name of its surface carried, the pending table is empty, and
+the harness finds no difference of behaviour that is not the machine. The one
+thing that is left of the v1 is its `#Warn`, which is a directive and not a
+name of the surface. The v2 has no name that the tree refuses for lack of
+implementation either, and the warning of the line that never runs is carried.

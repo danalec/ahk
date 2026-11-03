@@ -2582,6 +2582,24 @@ name of a variable that has a point in it -- a hole of the v1 that is known --
 and the six that are not in the v2 are the ones where the v2 fails at the run:
 the failure of the run of the v2 opens a dialog, and the dialog is a timeout.
 
+**The `#Warn` of the v1** (2026-11-05). The v1 has a `#Warn` of its own, and
+its types are not the ones of the v2: the "UseUnsetLocal", the
+"UseUnsetGlobal", the "UseEnv", the "LocalSameAsGlobal", the "ClassOverwrite"
+and the "All". The modes are the "MsgBox", the "StdOut", the "OutputDebug" and
+the "Off", and the warnings are off when the script does not say.
+
+The words of the refusal are the ones of the v2: the type that is not one of
+them is refused at the load with "Parameter #1 invalid." and the source of the
+line -- "#Warn Nope" -- and the mode that is not one of them with "Parameter
+#2 invalid." and the text that was written. The mode of the "StdOut" writes
+the warning of the variable that is read and never written to the standard
+output: "This variable has not been assigned a value." and the name of it,
+and the kind of it -- "a local variable", "a global variable".
+
+The tree refuses the directive of the v1 with "the warnings are not carried by
+this runtime.", and the warning of the v1 is not written by it. The probe of
+the block is `egm-review/probe_v1_warn.py`.
+
 ---
 
 ## 5. The risks

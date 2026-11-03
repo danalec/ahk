@@ -9961,3 +9961,21 @@ fn the_mode_of_the_loop_files_of_the_v1_is_a_set_of_letters() {
         Some("Parameter #3 invalid.\n     Specifically: A")
     );
 }
+
+/// The `#Warn` of the v1 is not carried by this tree.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 has
+/// a `#Warn` of its own, with the types "UseUnsetLocal", "UseUnsetGlobal",
+/// "UseEnv", "LocalSameAsGlobal", "ClassOverwrite" and "All", and the modes
+/// "MsgBox", "StdOut", "OutputDebug" and "Off". The tree refuses the
+/// directive of the v1, and the warnings of it are not given.
+#[test]
+fn the_warn_of_the_v1_is_not_carried_by_the_tree() {
+    let report = run("#Warn UseUnsetLocal\nx := 1\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the warnings are not carried by this runtime.")
+    );
+}
+

@@ -9121,6 +9121,26 @@ and of the tree: the nine of the nine of the second are the same.
 The suite of the v1 has one case more (383), and the suite of the v2 has one
 case more (511).
 
+## 240. The warnings of a script are computed before the script runs
+
+Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the `#Warn` takes
+the type of the warning and the mode of it, and the type that is not one of
+them is refused at the load with "Parameter #1 invalid." and the source of
+the line up to the comma -- "#Warn Nope" -- and the mode that is not one of
+them with "Parameter #2 invalid." and the text that was written -- "StdOut,
+Extra".
+
+The warning of the line that never runs is of the line that comes right after
+the statement that leaves the level: the `Return`, the `Break`, the
+`Continue`, the `Throw` and the `Goto` leave it, and the label that is the
+target of the jump is not warned about. The warning is computed before the
+script runs: the two `Return` of a script give two warnings, and the second
+one is of a line that the script never reaches.
+
+The tree has no dialog, and the warning goes to the report: the report has the
+warnings of the script, and the mode of the "StdOut" writes them to the
+standard output as well, the way the v2 does.
+
 The percent sign of an expression of the v1 opens the name of a variable, and
 the name has to close with another percent sign. The name that does not close
 is refused with "This parameter contains a variable name missing its ending
@@ -9301,3 +9321,56 @@ a timeout.
 
 The suite of the v1 has two cases more (397). The suite of the v2 is the same
 (512), and the suite of the box is the same (84).
+
+The `#Warn` of the v2 is carried, and the type of the warning that is carried
+is the "Unreachable": the line that comes right after a statement that leaves
+the level is warned about, and the warning is computed before the script runs.
+
+The directive takes the type of the warning and the mode of it, and the two
+are separated by a comma. The type that is not one of them is refused at the
+load with "Parameter #1 invalid." and the source of the line up to the comma,
+with the case that the script wrote: the "#warn nope" is refused with the
+"#warn nope". The mode that is not one of them is refused with "Parameter #2
+invalid." and the text that was written: the "#Warn All, StdOut, Extra" is
+refused with the "StdOut, Extra". A type that is empty is not a type, and the
+text that comes after the comma is the mode then: the "#Warn ,Nope" is a
+refusal of the mode.
+
+The refusal is in the lexer, and not in the parser: the lexer is the one that
+has the source of the line, and the parser rebuilds the line from the tokens
+-- the name of the directive is read in lower case and the argument is a text
+-- and the text came out as "warn\"Nope\"". The refusal is in the lexer, and
+the line of it is the line of the directive and not the line that comes after
+it.
+
+The warning of the line that never runs is of the line that comes right after
+the statement that leaves the level, and the label that is the target of the
+jump is not warned about. The warning is computed before the script runs: the
+two `Return` of a script give two warnings, and the second one is of a line
+that the script never reaches. The `Return` of a block does not warn the line
+that comes after the block: the warning is of the level of the statement that
+leaves it.
+
+The tree has no dialog, and the warning goes to the report: the report has the
+warnings of the script, and the mode of the "StdOut" writes them to the
+standard output as well, the way the v2 does -- the line of the script and
+the text of the warning.
+
+The v1 has a `#Warn` of its own, with the types "UseUnsetLocal",
+"UseUnsetGlobal", "UseEnv", "LocalSameAsGlobal", "ClassOverwrite" and "All",
+and the modes "MsgBox", "StdOut", "OutputDebug" and "Off". The words of the
+refusal are the ones of the v2 -- "Parameter #1 invalid." and the source of
+the line -- and the tree refuses the directive of the v1 with "the warnings
+are not carried by this runtime.": the warning of the v1 is not written by
+the tree yet.
+
+The probes of the block are `egm-review/probe_v2_warn_compare.py`,
+`egm-review/probe_v2_warn_unreachable.py`,
+`egm-review/probe_v2_warn_unreachable2.py`,
+`egm-review/probe_v2_warn_unreachable3.py`, `egm-review/probe_v2_warn_case.py`,
+`egm-review/probe_v2_warn_case2.py` and `egm-review/probe_v1_warn.py`. The
+first one is the cases of the binary and of the tree: twenty-three of the
+twenty-three are the same.
+
+The suite of the v2 has eight cases more (520), and the suite of the v1 has
+one case more (398). The suite of the box is the same (84).

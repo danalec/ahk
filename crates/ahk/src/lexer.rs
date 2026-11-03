@@ -422,6 +422,42 @@ fn the_line_of_the_hash(chars: &[char], start: usize) -> String {
     chars[start..end].iter().collect::<String>().trim_end().to_string()
 }
 
+/// The refusal of the type or of the mode of the `#Warn`.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the text that
+/// the refusal of the type names is the source of the line up to the comma --
+/// "#Warn Nope" -- with the case that the script wrote, and the text that the
+/// refusal of the mode names is the text that comes after the comma --
+/// "StdOut, Extra". A type that is empty is not a type, and the text that
+/// comes after the comma is the mode then: the "#Warn ,Nope" is a refusal of
+/// the mode.
+fn the_refusal_of_the_warn(
+    chars: &[char],
+    hash_at: usize,
+    argument: &str,
+    line: u32,
+    column: u32,
+) -> Result<(), SyntaxError> {
+    let (kind, mode) = crate::warnings::the_parts_of_the_argument(argument);
+    if !kind.is_empty() && crate::warnings::the_type_of_the_name(kind).is_none() {
+        let source = the_line_of_the_hash(chars, hash_at);
+        let text = source.split(',').next().unwrap_or(source.as_str()).trim_end();
+        return Err(SyntaxError::new(
+            format!("Parameter #1 invalid.\n     Specifically: {text}"),
+            line,
+            column,
+        ));
+    }
+    if !mode.is_empty() && crate::warnings::the_mode_of_the_name(mode).is_none() {
+        return Err(SyntaxError::new(
+            format!("Parameter #2 invalid.\n     Specifically: {mode}"),
+            line,
+            column,
+        ));
+    }
+    Ok(())
+}
+
 /// The source of a part of the script, as it was written.
 ///
 /// The text of the dialect is the line as the script wrote it, and the
@@ -912,6 +948,15 @@ pub fn tokenize_with(
                     start_line,
                     start_column,
                 ));
+            }
+            // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+            // `#Warn` takes the type of the warning and the mode of it. The
+            // type that is not one of them is refused at the load with
+            // "Parameter #1 invalid." and the text of the directive, and the
+            // mode that is not one of them with "Parameter #2 invalid." and
+            // the text that was written.
+            if name.eq_ignore_ascii_case("warn") && dialect.the_warnings_are_carried() {
+                the_refusal_of_the_warn(&chars, hash_at, &argument, start_line, start_column)?;
             }
             tokens.push(Token {
                 kind: TokenKind::Directive,
