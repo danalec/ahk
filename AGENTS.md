@@ -9476,3 +9476,10 @@ binary and of the tree is fifteen of the fifteen.
 
 The suite of the v2 has two cases more (526), and the suite of the v1 has two
 cases more (403).
+
+The v1 of the tree is done: every name of its surface is carried, the pending
+table is empty, the harness finds no difference of behaviour that is not the
+machine, and the `#Warn` of the v1 is carried with all of its types. The one
+difference that is left is the number of the warnings of the v1 when the
+variable that is read is the value of an assignment: the v1 warns twice and
+the tree warns once, and the text of the warning is the same.

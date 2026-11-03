@@ -1,8 +1,7 @@
 # What is missing in the v1 and in the v2
 
 > **Measured on 2026-11-05.** The state of the tree is the one of the commit
-> `5776873` (the branch `port/v2-dialect`) and of the block of the `#Warn`
-> that comes after it. The numbers come from the tree
+> `d41dec5` (the branch `port/v2-dialect`). The numbers come from the tree
 > itself: `ahk --surface --dialect=v1` and `ahk --surface --dialect=v2`, and
 > the comparisons are `egm-review/run_all_comparisons.py`, which runs the
 > script in the binary of the dialect and in the tree, and puts the two
@@ -264,8 +263,12 @@ and gave the files and the folders, and the v2 refuses it with a dialog.
    and never written, the environment variable that is accessed, the local
    that has the name of a global and the class that is overwritten.
 
-The v1 has every name of its surface carried, the pending table is empty, and
-the harness finds no difference of behaviour that is not the machine. The one
-thing that is left of the v1 is its `#Warn`, which is a directive and not a
-name of the surface. The v2 has no name that the tree refuses for lack of
-implementation either, and the warning of the line that never runs is carried.
+The v1 is done: every name of its surface is carried, the pending table is
+empty, the harness finds no difference of behaviour that is not the machine,
+and the `#Warn` of the v1 is carried with all of its types. The one difference
+that is left is the number of the warnings of the v1 when the variable that is
+read is the value of an assignment: the v1 warns twice and the tree warns
+once, and the text of the warning is the same.
+
+The v2 has no name that the tree refuses for lack of implementation either,
+and the three types of its `#Warn` are carried.
