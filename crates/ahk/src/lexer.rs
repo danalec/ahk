@@ -432,6 +432,7 @@ fn the_line_of_the_hash(chars: &[char], start: usize) -> String {
 /// comes after the comma is the mode then: the "#Warn ,Nope" is a refusal of
 /// the mode.
 fn the_refusal_of_the_warn(
+    dialect: &dyn crate::dialect::Dialect,
     chars: &[char],
     hash_at: usize,
     argument: &str,
@@ -439,7 +440,7 @@ fn the_refusal_of_the_warn(
     column: u32,
 ) -> Result<(), SyntaxError> {
     let (kind, mode) = crate::warnings::the_parts_of_the_argument(argument);
-    if !kind.is_empty() && crate::warnings::the_type_of_the_name(kind).is_none() {
+    if !kind.is_empty() && dialect.the_type_of_the_warning(kind).is_none() {
         let source = the_line_of_the_hash(chars, hash_at);
         let text = source.split(',').next().unwrap_or(source.as_str()).trim_end();
         return Err(SyntaxError::new(
@@ -448,7 +449,7 @@ fn the_refusal_of_the_warn(
             column,
         ));
     }
-    if !mode.is_empty() && crate::warnings::the_mode_of_the_name(mode).is_none() {
+    if !mode.is_empty() && dialect.the_mode_of_the_warning(mode).is_none() {
         return Err(SyntaxError::new(
             format!("Parameter #2 invalid.\n     Specifically: {mode}"),
             line,
@@ -955,8 +956,8 @@ pub fn tokenize_with(
             // "Parameter #1 invalid." and the text of the directive, and the
             // mode that is not one of them with "Parameter #2 invalid." and
             // the text that was written.
-            if name.eq_ignore_ascii_case("warn") && dialect.the_warnings_are_carried() {
-                the_refusal_of_the_warn(&chars, hash_at, &argument, start_line, start_column)?;
+            if name.eq_ignore_ascii_case("warn") {
+                the_refusal_of_the_warn(dialect, &chars, hash_at, &argument, start_line, start_column)?;
             }
             tokens.push(Token {
                 kind: TokenKind::Directive,

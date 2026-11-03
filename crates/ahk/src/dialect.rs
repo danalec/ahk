@@ -555,13 +555,37 @@ pub trait Dialect: Sync {
     /// parameters of a command of the v1 are texts and not expressions.
     fn legacy_commands(&self) -> bool;
 
-    /// Whether the dialect carries the warnings of a script.
+    /// The type of the warning that the name names.
     ///
-    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the v2
-    /// has the `#Warn` directive and the warnings that it names. The v1 has
-    /// a `#Warn` too, and the tree does not carry it: the directive of the
-    /// v1 is refused, and the warnings of the v1 are not given.
-    fn the_warnings_are_carried(&self) -> bool;
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05 and on the
+    /// binary of AutoHotkey v1.1.37.02 on 2026-11-05: the two dialects have
+    /// their own types of the warning, and a name that is not one of them is
+    /// refused at the load with "Parameter #1 invalid.".
+    fn the_type_of_the_warning(&self, name: &str) -> Option<crate::warnings::WarningType>;
+
+    /// The mode of the warning that the name names.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05 and on the
+    /// binary of AutoHotkey v1.1.37.02 on 2026-11-05: the modes are the
+    /// "MsgBox", the "StdOut" and the "Off", and the "OutputDebug" is a mode
+    /// of the v1 and not of the v2.
+    fn the_mode_of_the_warning(&self, name: &str) -> Option<crate::warnings::WarningMode>;
+
+    /// The types of the warning that the dialect has.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05 and on the
+    /// binary of AutoHotkey v1.1.37.02 on 2026-11-05: the type of the "All"
+    /// is the type of every warning of the dialect.
+    fn the_types_of_the_warning(&self) -> &'static [crate::warnings::WarningType];
+
+    /// The mode of each warning when the script does not say.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+    /// warnings of the v2 are on, and the mode of the "MsgBox" is the one of
+    /// them, and the warnings of the "LocalSameAsGlobal" are off. Measured on
+    /// the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the warnings of the
+    /// v1 are off.
+    fn the_default_warnings(&self) -> crate::warnings::TheModes;
 
     /// The parameters of a command that may not be left out.
     ///
@@ -1935,8 +1959,35 @@ impl Dialect for V2 {
         false
     }
 
-    fn the_warnings_are_carried(&self) -> bool {
-        true
+    fn the_type_of_the_warning(&self, name: &str) -> Option<crate::warnings::WarningType> {
+        match name.to_lowercase().as_str() {
+            "all" => Some(crate::warnings::WarningType::All),
+            "varunset" => Some(crate::warnings::WarningType::VarUnset),
+            "localsameasglobal" => Some(crate::warnings::WarningType::LocalSameAsGlobal),
+            "unreachable" => Some(crate::warnings::WarningType::Unreachable),
+            _ => None,
+        }
+    }
+
+    fn the_mode_of_the_warning(&self, name: &str) -> Option<crate::warnings::WarningMode> {
+        match name.to_lowercase().as_str() {
+            "msgbox" => Some(crate::warnings::WarningMode::MsgBox),
+            "stdout" => Some(crate::warnings::WarningMode::StdOut),
+            "off" => Some(crate::warnings::WarningMode::Off),
+            _ => None,
+        }
+    }
+
+    fn the_types_of_the_warning(&self) -> &'static [crate::warnings::WarningType] {
+        &[
+            crate::warnings::WarningType::VarUnset,
+            crate::warnings::WarningType::LocalSameAsGlobal,
+            crate::warnings::WarningType::Unreachable,
+        ]
+    }
+
+    fn the_default_warnings(&self) -> crate::warnings::TheModes {
+        crate::warnings::TheModes::the_defaults_of_the_v2()
     }
 
     fn assign_with_equal(&self) -> bool {
@@ -2232,8 +2283,40 @@ impl Dialect for V1 {
         true
     }
 
-    fn the_warnings_are_carried(&self) -> bool {
-        false
+    fn the_type_of_the_warning(&self, name: &str) -> Option<crate::warnings::WarningType> {
+        match name.to_lowercase().as_str() {
+            "all" => Some(crate::warnings::WarningType::All),
+            "useunsetlocal" => Some(crate::warnings::WarningType::UseUnsetLocal),
+            "useunsetglobal" => Some(crate::warnings::WarningType::UseUnsetGlobal),
+            "useenv" => Some(crate::warnings::WarningType::UseEnv),
+            "localsameasglobal" => Some(crate::warnings::WarningType::LocalSameAsGlobal),
+            "classoverwrite" => Some(crate::warnings::WarningType::ClassOverwrite),
+            _ => None,
+        }
+    }
+
+    fn the_mode_of_the_warning(&self, name: &str) -> Option<crate::warnings::WarningMode> {
+        match name.to_lowercase().as_str() {
+            "msgbox" => Some(crate::warnings::WarningMode::MsgBox),
+            "stdout" => Some(crate::warnings::WarningMode::StdOut),
+            "outputdebug" => Some(crate::warnings::WarningMode::OutputDebug),
+            "off" => Some(crate::warnings::WarningMode::Off),
+            _ => None,
+        }
+    }
+
+    fn the_types_of_the_warning(&self) -> &'static [crate::warnings::WarningType] {
+        &[
+            crate::warnings::WarningType::UseUnsetLocal,
+            crate::warnings::WarningType::UseUnsetGlobal,
+            crate::warnings::WarningType::UseEnv,
+            crate::warnings::WarningType::LocalSameAsGlobal,
+            crate::warnings::WarningType::ClassOverwrite,
+        ]
+    }
+
+    fn the_default_warnings(&self) -> crate::warnings::TheModes {
+        crate::warnings::TheModes::the_defaults_of_the_v1()
     }
 
     fn the_parameters_that_may_not_be_left_out(&self, name: &str) -> &'static [u8] {

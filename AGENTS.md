@@ -9121,6 +9121,26 @@ and of the tree: the nine of the nine of the second are the same.
 The suite of the v1 has one case more (383), and the suite of the v2 has one
 case more (511).
 
+## 241. The warning of the variable that is read and never written is given when the variable is read
+
+Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning of
+the variable that is read and never written is given before the failure of the
+run, and the text of it names the kind of the variable -- "This global
+variable appears to never be assigned a value." and "This local variable
+appears to never be assigned a value.".
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the warning of
+the v1 has one text for the two kinds, and the kind is in the text that names
+the variable -- "This variable has not been assigned a value." and "nope  (a
+global variable)". A local variable that has the name of a global one says so
+-- "x  (a local variable with same name as a global)".
+
+The two dialects have their own types of the warning and their own modes: the
+"OutputDebug" is a mode of the v1 and not of the v2, the warnings of the v1
+are off when the script does not say, and the warnings of the v2 are on. A
+type that the dialect does not know is refused at the load, and the type of
+the warning that the tree does not carry yet is named in the report.
+
 ## 240. The warnings of a script are computed before the script runs
 
 Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the `#Warn` takes
@@ -9374,3 +9394,47 @@ twenty-three are the same.
 
 The suite of the v2 has eight cases more (520), and the suite of the v1 has
 one case more (398). The suite of the box is the same (84).
+
+The `#Warn` of the v1 is carried, and the warnings of the variables are the
+ones that the tree gives: the variable that is read and never written, and the
+environment variable that is accessed.
+
+The v1 has a `#Warn` of its own, and its types are not the ones of the v2: the
+"UseUnsetLocal", the "UseUnsetGlobal", the "UseEnv", the "LocalSameAsGlobal",
+the "ClassOverwrite" and the "All". The modes are the "MsgBox", the "StdOut",
+the "OutputDebug" and the "Off", and the "OutputDebug" is a mode of the v1 and
+not of the v2. The warnings of the v1 are off when the script does not say, and
+the warnings of the v2 are on.
+
+The warning of the variable that is read and never written is given when the
+variable is read, and the text of it names the kind of the variable. The one
+of the v2 is "This global variable appears to never be assigned a value." and
+"This local variable appears to never be assigned a value.", and the one of
+the v1 is one text for the two kinds: "This variable has not been assigned a
+value." and the name of the variable with its kind -- "nope  (a global
+variable)". A local that has the name of a global says so: "x  (a local
+variable with same name as a global)".
+
+The warning of the environment of the v1 is given when the environment is
+accessed: "An environment variable is being accessed; see #NoEnv." and the
+name of the variable.
+
+The difference that stays: the v1 warns twice for a read that is the value of
+an assignment, and the tree warns once. The number of the warnings of the v1
+is the number of the conversions that its compiler makes, and the tree warns
+once per read. The text of the warning is the same in the two.
+
+The type of the warning that the tree does not carry yet is named in the
+report: the "LocalSameAsGlobal" of the two dialects and the "ClassOverwrite"
+of the v1 are read out of the script, and the tree does not read them yet.
+
+The probes of the block are `egm-review/probe_v1_v2_warn_vars.py`,
+`egm-review/probe_v1_warn.py`, `egm-review/probe_v1_warn2.py`,
+`egm-review/probe_v1_warn3.py`, `egm-review/probe_v1_warn4.py`,
+`egm-review/probe_v1_warn_texts.py`, `egm-review/probe_v1_warn_env.py` and
+`egm-review/probe_v2_warn_types.py`. The comparison of the binary and of the
+tree is five of the eight: the three that are not are the ones where the v1
+warns twice.
+
+The suite of the v2 has four cases more (524), and the suite of the v1 has
+three cases more (401).

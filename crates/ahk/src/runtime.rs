@@ -1084,6 +1084,13 @@ pub struct Runtime<'a> {
     /// warnings are computed before the script runs, and they go to the
     /// report.
     warnings: Vec<crate::warnings::Warning>,
+    /// The mode of each warning of the script.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05 and on the
+    /// binary of AutoHotkey v1.1.37.02 on 2026-11-05: the directives are read
+    /// before the script runs, and the mode of each warning is the one of the
+    /// last `#Warn` that names it.
+    modes: crate::warnings::TheModes,
     /// Whether the text of a legacy assignment is trimmed.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `AutoTrim`
@@ -1290,6 +1297,7 @@ impl<'a> Runtime<'a> {
             dialect: crate::dialect::v2(),
             no_env: false,
             warnings: Vec::new(),
+            modes: crate::warnings::TheModes::the_defaults_of_the_v2(),
             auto_trim: true,
             integer_format: IntegerFormat::Decimal,
             float_format: FloatFormat::DEFAULT,
@@ -1353,6 +1361,7 @@ impl<'a> Runtime<'a> {
             dialect: crate::dialect::v2(),
             no_env: false,
             warnings: Vec::new(),
+            modes: crate::warnings::TheModes::the_defaults_of_the_v2(),
             auto_trim: true,
             integer_format: IntegerFormat::Decimal,
             float_format: FloatFormat::DEFAULT,
@@ -1777,23 +1786,100 @@ impl<'a> Runtime<'a> {
         &mut self,
         statements: &[Node],
     ) -> Vec<crate::warnings::Warning> {
-        if !self.dialect.the_warnings_are_carried() {
-            return Vec::new();
-        }
-        let modes = crate::warnings::the_modes_of_the_script(statements);
-        if modes.unreachable == crate::warnings::WarningMode::Off {
-            return Vec::new();
-        }
-        let warnings = crate::warnings::the_warnings_of_the_script(statements);
-        if modes.unreachable == crate::warnings::WarningMode::StdOut {
-            for warning in &warnings {
-                self.output.push(format!(
-                    "({}) : ==> Warning: {}",
-                    warning.line, warning.message
+        self.modes = crate::warnings::the_modes_of_the_script(statements, self.dialect);
+        // The type of the warning that the tree does not carry yet is named in
+        // the report: the script asks for it, and the tree does not give it.
+        for kind in crate::warnings::the_types_of_the_script(statements, self.dialect) {
+            if !crate::warnings::the_types_that_are_carried().contains(&kind) {
+                self.note(format!(
+                    "the warnings of the type \"{}\" are not carried by this runtime.",
+                    crate::warnings::the_name_of_the_type(kind)
                 ));
             }
         }
+        let mut warnings = Vec::new();
+        if self.modes.unreachable != crate::warnings::WarningMode::Off {
+            let mode = self.modes.unreachable;
+            for warning in crate::warnings::the_warnings_of_the_script(statements) {
+                self.warn(warning.line, warning.message.clone(), mode);
+                warnings.push(warning);
+            }
+        }
         warnings
+    }
+
+    /// The warning of the script.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the mode
+    /// of the "StdOut" writes the warning to the standard output with the
+    /// line of it, and the tree has no dialog: the other modes write it to
+    /// the report alone.
+    fn warn(&mut self, line: u32, message: String, mode: crate::warnings::WarningMode) {
+        self.warnings.push(crate::warnings::Warning { line, message: message.clone() });
+        if mode == crate::warnings::WarningMode::StdOut {
+            self.output.push(format!("({line}) : ==> Warning: {message}"));
+        }
+    }
+
+    /// The warning of the variable that is read and never written.
+    ///
+    /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+    /// warning is given before the failure of the run, and the text of it
+    /// names the kind of the variable -- "This global variable appears to
+    /// never be assigned a value." and "This local variable appears to never
+    /// be assigned a value.".
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// text of the v1 is one for the two kinds, and the kind is in the text
+    /// that names the variable -- "This variable has not been assigned a
+    /// value." and "nope  (a global variable)". A local variable that has the
+    /// name of a global one says so -- "x  (a local variable with same name
+    /// as a global)".
+    fn warn_about_the_variable_that_has_no_value(&mut self, name: &str, line: u32) {
+        let local = !matches!(self.the_scope_of(name), Scope::Global);
+        let (mode, message) = if self.dialect.unset_is_blank() {
+            let kind = if local {
+                if self.variables.contains_key(&the_key_of(name)) {
+                    "a local variable with same name as a global"
+                } else {
+                    "a local variable"
+                }
+            } else {
+                "a global variable"
+            };
+            let mode = if local { self.modes.use_unset_local } else { self.modes.use_unset_global };
+            (
+                mode,
+                format!("This variable has not been assigned a value.\n     Specifically: {name}  ({kind})"),
+            )
+        } else {
+            let kind = if local { "local" } else { "global" };
+            (
+                self.modes.var_unset,
+                format!("This {kind} variable appears to never be assigned a value.\n     Specifically: {name}"),
+            )
+        };
+        if mode == crate::warnings::WarningMode::Off {
+            return;
+        }
+        self.warn(line, message, mode);
+    }
+
+    /// The warning of the environment variable that is accessed.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// text of it is "An environment variable is being accessed; see
+    /// #NoEnv." and the name of the variable, and it is given when the
+    /// environment is accessed.
+    fn warn_about_the_environment_that_is_accessed(&mut self, name: &str, line: u32) {
+        let mode = self.modes.use_env;
+        if mode == crate::warnings::WarningMode::Off {
+            return;
+        }
+        let message = format!(
+            "An environment variable is being accessed; see #NoEnv.\n     Specifically: {name}"
+        );
+        self.warn(line, message, mode);
     }
 
     /// A note for the report: a thing the script should know, and that is
@@ -7489,15 +7575,7 @@ impl<'a> Runtime<'a> {
             // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
             // `#Warn` of the v2 takes the type of the warning and the mode of
             // it, and the warnings go to the report: the tree has no dialog.
-            "warn" => {
-                if !self.dialect.the_warnings_are_carried() {
-                    return Err(RuntimeFailure::Error(RuntimeError {
-                        message: "the warnings are not carried by this runtime.".into(),
-                        line,
-                    }));
-                }
-                Ok("the warnings are in the report".into())
-            }
+            "warn" => Ok("the warnings are in the report".into()),
             "requires" => {
                 let words: Vec<&str> = argument.split_whitespace().collect();
                 let wanted = words.get(1).copied().unwrap_or("");
@@ -9779,10 +9857,22 @@ impl<'a> Runtime<'a> {
             return Ok(None);
         }
         match self.desktop().env_get(name) {
-            Ok(value) => Ok(Some(Value::Text(value))),
+            Ok(value) => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-05: the environment variable that is accessed is
+                // warned about.
+                self.warn_about_the_environment_that_is_accessed(name, line);
+                Ok(Some(Value::Text(value)))
+            }
             // Measured on the binary of v1.1.37.02 on 2026-11-01: a name
             // that the environment does not have is substituted by nothing.
-            Err(_) => Ok(None),
+            Err(_) => {
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-05: the name that is not a variable of the script
+                // and not of the environment is a variable that has no value.
+                self.warn_about_the_variable_that_has_no_value(name, line);
+                Ok(None)
+            }
         }
     }
 
@@ -10608,6 +10698,11 @@ impl<'a> Runtime<'a> {
                         match self.the_value_of_a_variable_of_the_runtime(name) {
                             Some(value) => Ok(value),
                             None => {
+                                // Measured on the binary of AutoHotkey v2.0.19 on
+                                // 2026-11-05: the warning of the variable that
+                                // is read and never written is given before
+                                // the failure of the run.
+                                self.warn_about_the_variable_that_has_no_value(name, *line);
                                 // Measured on the binary of v1.1.37.02 on
                                 // 2026-11-01: a variable of the v1 that has no
                                 // value is blank, and it is not a failure.

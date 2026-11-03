@@ -2711,3 +2711,30 @@ honest rule is the same as the one of the comparison with the X11 —
 | **The authority** | the binary of the v1.1.37.02 and the documentation of the v1 |
 | **The dependency** | the `--surface` of the wave of 2026-10-29, with one dialect more |
 | **The coordination** | the wave ports capabilities into the v2; this plan adds the dialect beside it |
+
+**The `#Warn` of the v1** (2026-11-05, the second block). The directive of
+the v1 is carried, and the warnings of the variables are the three that the
+runtime gives: the variable of the script that is read and never written, the
+variable of a function that is read and never written, and the environment
+variable that is accessed.
+
+The text of the warning of the v1 is one for the two kinds, and the kind is in
+the text that names the variable -- "This variable has not been assigned a
+value." and "nope  (a global variable)". A local variable that has the name of
+a global says so: "x  (a local variable with same name as a global)". The
+warning of the environment is "An environment variable is being accessed; see
+#NoEnv." and the name of the variable.
+
+The warnings of the v1 are off when the script does not say, and the types of
+the v1 are refused at the load when the v2 does not know them: the "#Warn
+UseUnsetGlobal" of the v2 is refused with "Parameter #1 invalid." and the
+source of the directive.
+
+The difference that stays: the v1 warns twice for a read that is the value of
+an assignment, and the tree warns once. The number of the warnings of the v1
+is the number of the conversions that its compiler makes, and the tree warns
+once per read.
+
+The probe of the block is `egm-review/probe_v1_v2_warn_vars.py`, and the
+comparison of the binary and of the tree is five of the eight: the three that
+are not are the ones where the v1 warns twice.

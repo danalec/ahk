@@ -1,18 +1,19 @@
 //! The warnings of a script.
 //!
-//! Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the `#Warn`
-//! directive takes the type of the warning and the mode of it. The types are
-//! the "All", the "VarUnset", the "LocalSameAsGlobal" and the "Unreachable",
-//! and the modes are the "MsgBox", the "StdOut" and the "Off". The type that
-//! is not one of them is refused at the load with "Parameter #1 invalid." and
-//! the text of the directive, and the mode that is not one of them with
-//! "Parameter #2 invalid." and the text that was written.
+//! Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05 and on the
+//! binary of AutoHotkey v1.1.37.02 on 2026-11-05: the `#Warn` directive takes
+//! the type of the warning and the mode of it, and the two dialects have
+//! their own types. The type that is not one of them is refused at the load
+//! with "Parameter #1 invalid." and the source of the directive, and the mode
+//! that is not one of them with "Parameter #2 invalid." and the text that was
+//! written.
 //!
 //! The tree has no dialog, and the warnings go to the report. The mode of the
 //! "StdOut" writes them to the standard output as well, the way the v2 does:
 //! the line of the script and the text of the warning.
 
 use crate::ast::Node;
+use crate::dialect::Dialect;
 use serde::Serialize;
 
 /// The type of a warning.
@@ -22,8 +23,16 @@ pub enum WarningType {
     All,
     /// A variable that is read and never written.
     VarUnset,
+    /// A variable of the script that is read and never written.
+    UseUnsetGlobal,
+    /// A variable of a function that is read and never written.
+    UseUnsetLocal,
+    /// An environment variable that is accessed.
+    UseEnv,
     /// A local variable that has the name of a global one.
     LocalSameAsGlobal,
+    /// A class that is overwritten by a variable.
+    ClassOverwrite,
     /// A line that comes after a statement that leaves the level.
     Unreachable,
 }
@@ -36,6 +45,9 @@ pub enum WarningMode {
     MsgBox,
     /// The warning goes to the standard output.
     StdOut,
+    /// The warning goes to the debug output of the machine. The tree has
+    /// none, and the warning goes to the report.
+    OutputDebug,
     /// There is no warning.
     Off,
 }
@@ -43,25 +55,129 @@ pub enum WarningMode {
 /// The mode of the warnings of each type.
 ///
 /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the warnings
-/// are on when the script does not say, and they use the mode of the "MsgBox",
-/// and the warnings of the "LocalSameAsGlobal" are off.
+/// of the v2 are on when the script does not say, and they use the mode of the
+/// "MsgBox", and the warnings of the "LocalSameAsGlobal" are off.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// warnings of the v1 are off when the script does not say.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TheModes {
-    /// The mode of the warnings of a variable that is read and never written.
+    /// The mode of the warning of the variable that is read and never
+    /// written.
     pub var_unset: WarningMode,
-    /// The mode of the warnings of a local that has the name of a global.
+    /// The mode of the warning of the variable of the script that is read and
+    /// never written.
+    pub use_unset_global: WarningMode,
+    /// The mode of the warning of the variable of a function that is read and
+    /// never written.
+    pub use_unset_local: WarningMode,
+    /// The mode of the warning of the environment variable that is accessed.
+    pub use_env: WarningMode,
+    /// The mode of the warning of the local that has the name of a global.
     pub local_same_as_global: WarningMode,
-    /// The mode of the warnings of a line that never runs.
+    /// The mode of the warning of the class that is overwritten.
+    pub class_overwrite: WarningMode,
+    /// The mode of the warning of the line that never runs.
     pub unreachable: WarningMode,
 }
 
-impl Default for TheModes {
-    fn default() -> Self {
+impl TheModes {
+    /// The modes of the v2 when the script does not say.
+    pub fn the_defaults_of_the_v2() -> TheModes {
         TheModes {
             var_unset: WarningMode::MsgBox,
+            use_unset_global: WarningMode::Off,
+            use_unset_local: WarningMode::Off,
+            use_env: WarningMode::Off,
             local_same_as_global: WarningMode::Off,
+            class_overwrite: WarningMode::Off,
             unreachable: WarningMode::MsgBox,
         }
+    }
+
+    /// The modes of the v1 when the script does not say.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// warnings of the v1 are off when the script does not say.
+    pub fn the_defaults_of_the_v1() -> TheModes {
+        TheModes {
+            var_unset: WarningMode::Off,
+            use_unset_global: WarningMode::Off,
+            use_unset_local: WarningMode::Off,
+            use_env: WarningMode::Off,
+            local_same_as_global: WarningMode::Off,
+            class_overwrite: WarningMode::Off,
+            unreachable: WarningMode::Off,
+        }
+    }
+
+    /// The mode of the type of the warning.
+    pub fn the_mode_of(&self, kind: WarningType) -> WarningMode {
+        match kind {
+            WarningType::All => WarningMode::Off,
+            WarningType::VarUnset => self.var_unset,
+            WarningType::UseUnsetGlobal => self.use_unset_global,
+            WarningType::UseUnsetLocal => self.use_unset_local,
+            WarningType::UseEnv => self.use_env,
+            WarningType::LocalSameAsGlobal => self.local_same_as_global,
+            WarningType::ClassOverwrite => self.class_overwrite,
+            WarningType::Unreachable => self.unreachable,
+        }
+    }
+
+    /// The mode of the type of the warning is written.
+    pub fn write(&mut self, kind: WarningType, mode: WarningMode) {
+        match kind {
+            WarningType::All => {
+                self.var_unset = mode;
+                self.use_unset_global = mode;
+                self.use_unset_local = mode;
+                self.use_env = mode;
+                self.local_same_as_global = mode;
+                self.class_overwrite = mode;
+                self.unreachable = mode;
+            }
+            WarningType::VarUnset => self.var_unset = mode,
+            WarningType::UseUnsetGlobal => self.use_unset_global = mode,
+            WarningType::UseUnsetLocal => self.use_unset_local = mode,
+            WarningType::UseEnv => self.use_env = mode,
+            WarningType::LocalSameAsGlobal => self.local_same_as_global = mode,
+            WarningType::ClassOverwrite => self.class_overwrite = mode,
+            WarningType::Unreachable => self.unreachable = mode,
+        }
+    }
+}
+
+/// The types of the warning that the tree carries.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05 and on the
+/// binary of AutoHotkey v1.1.37.02 on 2026-11-05: the tree warns about the
+/// variable that is read and never written, about the environment variable
+/// that is accessed, and about the line that never runs. The two warnings
+/// that are read out of the script -- the local that has the name of a global
+/// and the class that is overwritten -- are not carried yet, and the report
+/// says so.
+pub fn the_types_that_are_carried() -> &'static [WarningType] {
+    &[
+        WarningType::VarUnset,
+        WarningType::UseUnsetGlobal,
+        WarningType::UseUnsetLocal,
+        WarningType::UseEnv,
+        WarningType::Unreachable,
+    ]
+}
+
+/// The name of the type of the warning, the way the v2 writes it.
+pub fn the_name_of_the_type(kind: WarningType) -> &'static str {
+    match kind {
+        WarningType::All => "All",
+        WarningType::VarUnset => "VarUnset",
+        WarningType::UseUnsetGlobal => "UseUnsetGlobal",
+        WarningType::UseUnsetLocal => "UseUnsetLocal",
+        WarningType::UseEnv => "UseEnv",
+        WarningType::LocalSameAsGlobal => "LocalSameAsGlobal",
+        WarningType::ClassOverwrite => "ClassOverwrite",
+        WarningType::Unreachable => "Unreachable",
     }
 }
 
@@ -74,36 +190,18 @@ pub struct Warning {
     pub message: String,
 }
 
-/// The type of the warnings that the name names.
-pub fn the_type_of_the_name(name: &str) -> Option<WarningType> {
-    match name.to_lowercase().as_str() {
-        "all" => Some(WarningType::All),
-        "varunset" => Some(WarningType::VarUnset),
-        "localsameasglobal" => Some(WarningType::LocalSameAsGlobal),
-        "unreachable" => Some(WarningType::Unreachable),
-        _ => None,
-    }
-}
-
-/// The mode of the warnings that the name names.
-pub fn the_mode_of_the_name(name: &str) -> Option<WarningMode> {
-    match name.to_lowercase().as_str() {
-        "msgbox" => Some(WarningMode::MsgBox),
-        "stdout" => Some(WarningMode::StdOut),
-        "off" => Some(WarningMode::Off),
-        _ => None,
-    }
-}
-
 /// The type and the mode that the argument of the `#Warn` names.
 ///
 /// The type is the text that comes before the comma, and the mode is the text
 /// that comes after it. The type that is not one of them is named by the
 /// caller, and the mode that is not one of them is named by the caller too.
-pub fn the_kind_and_the_mode(argument: &str) -> (Option<WarningType>, Option<WarningMode>) {
+pub fn the_kind_and_the_mode(
+    argument: &str,
+    dialect: &dyn Dialect,
+) -> (Option<WarningType>, Option<WarningMode>) {
     let (kind, mode) = the_parts_of_the_argument(argument);
-    let kind = if kind.is_empty() { None } else { the_type_of_the_name(kind) };
-    let mode = if mode.is_empty() { None } else { the_mode_of_the_name(mode) };
+    let kind = if kind.is_empty() { None } else { dialect.the_type_of_the_warning(kind) };
+    let mode = if mode.is_empty() { None } else { dialect.the_mode_of_the_warning(mode) };
     (kind, mode)
 }
 
@@ -123,35 +221,63 @@ pub fn the_parts_of_the_argument(argument: &str) -> (&str, &str) {
 ///
 /// The directives are read before the script runs, the way the v2 reads them,
 /// and the last `#Warn` is the one that counts.
-pub fn the_modes_of_the_script(statements: &[Node]) -> TheModes {
-    let mut modes = TheModes::default();
-    the_modes_of_the_level(statements, &mut modes);
+pub fn the_modes_of_the_script(statements: &[Node], dialect: &dyn Dialect) -> TheModes {
+    let mut modes = dialect.the_default_warnings();
+    the_modes_of_the_level(statements, &mut modes, dialect);
     modes
 }
 
-fn the_modes_of_the_level(statements: &[Node], modes: &mut TheModes) {
+fn the_modes_of_the_level(statements: &[Node], modes: &mut TheModes, dialect: &dyn Dialect) {
     for statement in statements {
         if let Node::Directive { name, argument, .. } = statement {
             if name.eq_ignore_ascii_case("warn") {
-                let (kind, mode) = the_kind_and_the_mode(argument);
+                let (kind, mode) = the_kind_and_the_mode(argument, dialect);
                 if let Some(kind) = kind {
                     if let Some(mode) = mode {
-                        match kind {
-                            WarningType::All => {
-                                modes.var_unset = mode;
-                                modes.local_same_as_global = mode;
-                                modes.unreachable = mode;
-                            }
-                            WarningType::VarUnset => modes.var_unset = mode,
-                            WarningType::LocalSameAsGlobal => modes.local_same_as_global = mode,
-                            WarningType::Unreachable => modes.unreachable = mode,
+                        modes.write(kind, mode);
+                    }
+                }
+            }
+        }
+        for body in the_bodies_of(statement) {
+            the_modes_of_the_level(body, modes, dialect);
+        }
+    }
+}
+
+/// The types of the warning that the script asks for.
+///
+/// The directives are read before the script runs, and the type of the "All"
+/// is the type of every warning of the dialect.
+pub fn the_types_of_the_script(statements: &[Node], dialect: &dyn Dialect) -> Vec<WarningType> {
+    let mut types = Vec::new();
+    the_types_of_the_level(statements, &mut types, dialect);
+    types
+}
+
+fn the_types_of_the_level(statements: &[Node], types: &mut Vec<WarningType>, dialect: &dyn Dialect) {
+    for statement in statements {
+        if let Node::Directive { name, argument, .. } = statement {
+            if name.eq_ignore_ascii_case("warn") {
+                let (kind, _) = the_kind_and_the_mode(argument, dialect);
+                if let Some(kind) = kind {
+                    // The type of the "All" is the type of every warning of
+                    // the dialect.
+                    let kinds = if kind == WarningType::All {
+                        dialect.the_types_of_the_warning().to_vec()
+                    } else {
+                        vec![kind]
+                    };
+                    for kind in kinds {
+                        if !types.contains(&kind) {
+                            types.push(kind);
                         }
                     }
                 }
             }
         }
         for body in the_bodies_of(statement) {
-            the_modes_of_the_level(body, modes);
+            the_types_of_the_level(body, types, dialect);
         }
     }
 }

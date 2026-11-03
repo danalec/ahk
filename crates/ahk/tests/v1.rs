@@ -226,6 +226,15 @@ impl Pointer for Fake {
 }
 
 impl Processes for Fake {
+    /// The environment of the case has one variable, and it is the one that
+    /// the cases of the warning do use.
+    fn env_get(&mut self, name: &str) -> Result<String, String> {
+        if name == "AHK_TEST_ENV" {
+            return Ok("the value of the environment".to_string());
+        }
+        Err("this fake has no environment".into())
+    }
+
     fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
         // The name that is not there is the one that the cases use for the
         // command that fails, and the program that runs answers with seven.
@@ -9962,20 +9971,78 @@ fn the_mode_of_the_loop_files_of_the_v1_is_a_set_of_letters() {
     );
 }
 
-/// The `#Warn` of the v1 is not carried by this tree.
+/// The `#Warn` of the v1 is carried, and the warnings are off when the
+/// script does not say.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 has
 /// a `#Warn` of its own, with the types "UseUnsetLocal", "UseUnsetGlobal",
 /// "UseEnv", "LocalSameAsGlobal", "ClassOverwrite" and "All", and the modes
-/// "MsgBox", "StdOut", "OutputDebug" and "Off". The tree refuses the
-/// directive of the v1, and the warnings of it are not given.
+/// "MsgBox", "StdOut", "OutputDebug" and "Off". The warnings of the v1 are
+/// off when the script does not say.
 #[test]
-fn the_warn_of_the_v1_is_not_carried_by_the_tree() {
-    let report = run("#Warn UseUnsetLocal\nx := 1\n");
-    assert!(!report.ok);
+fn the_warn_of_the_v1_is_carried_and_the_warnings_are_off_by_default() {
+    let report = run("#Warn UseUnsetGlobal\nx := nope\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    assert!(report.output.is_empty(), "{:?}", report.output);
+}
+
+/// The variable that is read and never written is warned about.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text
+/// of the warning names the kind of the variable -- "nope  (a global
+/// variable)" -- and the script goes on.
+#[test]
+fn the_variable_that_is_read_and_never_written_is_warned_about_in_the_v1() {
+    let report = run("#Warn UseUnsetGlobal, StdOut\nx := nope\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 2);
     assert_eq!(
-        report.error.as_deref(),
-        Some("the warnings are not carried by this runtime.")
+        report.warnings[0].message,
+        "This variable has not been assigned a value.\n     Specifically: nope  (a global variable)"
+    );
+    assert_eq!(
+        report.output,
+        vec!["(2) : ==> Warning: This variable has not been assigned a value.\n     Specifically: nope  (a global variable)".to_string()]
+    );
+}
+
+/// The local variable that is read and never written is warned about, and the
+/// local that has the name of a global says so.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text of
+/// the warning of a local that has the name of a global one says it -- "x  (a
+/// local variable with same name as a global)".
+#[test]
+fn the_local_variable_that_is_read_and_never_written_is_warned_about_in_the_v1() {
+    let report = run("#Warn UseUnsetLocal, StdOut\nf() {\n  y := nope\n}\nf()\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This variable has not been assigned a value.\n     Specifically: nope  (a local variable)"
+    );
+    let report = run("#Warn UseUnsetLocal, StdOut\nx := 1\nf() {\n  y := x\n}\nf()\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(
+        report.warnings[0].message,
+        "This variable has not been assigned a value.\n     Specifically: x  (a local variable with same name as a global)"
+    );
+}
+
+/// The environment variable that is accessed is warned about.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text of
+/// it says that an environment variable is being accessed, and it names it.
+#[test]
+fn the_environment_variable_that_is_accessed_is_warned_about_in_the_v1() {
+    let report = run("#Warn UseEnv, StdOut\nFileAppend, %AHK_TEST_ENV%, *\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(
+        report.warnings[0].message,
+        "An environment variable is being accessed; see #NoEnv.\n     Specifically: AHK_TEST_ENV"
     );
 }
 

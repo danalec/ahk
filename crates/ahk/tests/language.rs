@@ -6019,3 +6019,75 @@ fn the_warning_of_the_unreachable_line_is_off_when_the_directive_says_so() {
     assert!(report.output.is_empty(), "{:?}", report.output);
 }
 
+/// The variable that is read and never written is warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning
+/// is given before the failure of the run, and the text of it names the kind
+/// of the variable.
+#[test]
+fn the_variable_that_is_read_and_never_written_is_warned_about() {
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nx := nope\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This global variable has not been assigned a value.")
+    );
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 2);
+    assert_eq!(
+        report.warnings[0].message,
+        "This global variable appears to never be assigned a value.\n     Specifically: nope"
+    );
+    assert_eq!(
+        report.output,
+        vec!["(2) : ==> Warning: This global variable appears to never be assigned a value.\n     Specifically: nope".to_string()]
+    );
+}
+
+/// The local variable that is read and never written is warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the text of
+/// the warning of a local says "This local variable appears to never be
+/// assigned a value.".
+#[test]
+fn the_local_variable_that_is_read_and_never_written_is_warned_about() {
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nf() {\n  x := nope\n}\nf()\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable appears to never be assigned a value.\n     Specifically: nope"
+    );
+}
+
+/// The type of the warning that the v2 does not know is refused.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the types of
+/// the v1 are not types of the v2, and the directive that names one of them
+/// is refused at the load.
+#[test]
+fn the_type_of_the_warn_that_the_v2_does_not_know_is_refused() {
+    let error = parse("#Warn UseUnsetGlobal, StdOut").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #1 invalid.\n     Specifically: #Warn UseUnsetGlobal"
+    );
+}
+
+/// The type of the warning that the tree does not carry is named in the
+/// report.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the local
+/// that has the name of a global is warned about by the v2, and the tree does
+/// not carry that warning yet: the report says so.
+#[test]
+fn the_type_of_the_warn_that_the_tree_does_not_carry_is_named_in_the_report() {
+    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert!(
+        report.notes.iter().any(|note| note.contains("LocalSameAsGlobal")),
+        "{:?}",
+        report.notes
+    );
+}
+
