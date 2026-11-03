@@ -1695,6 +1695,49 @@ no property named "__Item".". The length of the array of the v1 is a method
 and not a property: the `a.Length()` of the `a := [1, 2]` is two, and the
 `a.Length` is the empty text; the tree reads the `a.Length` as the length.
 
+**The word that is alone at the start of a statement holds no action**
+(2026-11-04). The v1 refuses a line that begins with a reserved word and
+that holds no action, and it says "This line does not contain a
+recognized action." The `true` alone and the `false` alone are refused the
+same way as the `not` and the `and`: the word is named, and the line that
+begins with it is named whole -- the `true` names the "true", and the
+`true + 1` names the "true + 1". The comment of the line is not a part of
+the text that is named.
+
+The declaration is refused the same way. The `global` alone at the top
+level of the script is refused, and the `local` alone and the `static`
+alone too: they are declarations of a function, and the script is not a
+function. The `local x` and the `static x` are refused the same way, and
+the text that is named is the whole declaration -- the "local x" and the
+"local x := 1".
+
+The declaration that has no name is the first statement of the body of the
+function, and it is accepted there: the `local` alone and the `static`
+alone declare nothing, and the `global` alone is the mode of the function.
+Anywhere else it is refused, and the word is named.
+
+The v2 keeps its own messages: the `true` alone is refused with
+"Unexpected \"true\"", the `local` alone with "Unexpected declaration.\n
+Specifically: local", and the `global` alone at the top level of the script
+is accepted.
+
+The rules are hooks of the dialect
+(`the_line_that_begins_with_the_word_holds_no_action`,
+`the_message_of_the_refused_declaration`,
+`the_bare_local_is_a_declaration_of_no_name`,
+`the_bare_global_is_the_mode_of_the_script` and
+`the_declaration_with_no_name_is_the_first_statement`), and the parser asks
+them.
+
+**What stays out of the word alone.** The call of a word that is a
+reserved word is a call and not a line that holds no action: the `true()`
+of the v1 is refused with "Call to nonexistent function.\n     Specifically:
+true()", and the tree says that the line holds no action. The same is true
+of the label of a word that is a reserved word -- the `true:` is a label of
+the v1 -- and of the command of a word that is a declaration: the `static,
+x` is a line that holds no action in the v1, and the tree says that a
+declaration needs a name.
+
 **What stays out of the call.** The call of a function of the v1 that is
 written without the parentheses and inside an expression -- `x := InStr
 "abc"` -- is not a call: it is the name of the function and the text, side by

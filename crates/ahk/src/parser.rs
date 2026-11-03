@@ -854,7 +854,10 @@ fn the_text_of_the_tokens(parser: &Parser, start: usize, end: usize) -> String {
 /// refuses any other one. The names of the declarations are read when the
 /// script is read: a declaration inside a block takes effect for the whole
 /// function.
-fn the_declarations_of_a_body(body: &[Node]) -> Result<Declarations, SyntaxError> {
+fn the_declarations_of_a_body(
+    body: &[Node],
+    dialect: &dyn crate::dialect::Dialect,
+) -> Result<Declarations, SyntaxError> {
     let mut declarations = Declarations::default();
     let mut first = true;
     for statement in body {
@@ -867,8 +870,19 @@ fn the_declarations_of_a_body(body: &[Node]) -> Result<Declarations, SyntaxError
                     continue;
                 }
             }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 accepts the `local` alone and the `static` alone when
+            // they are the first statement of the body of the function, and
+            // they declare nothing.
+            if let Node::Declare { names, .. } = statement {
+                if names.is_empty()
+                    && dialect.the_declaration_with_no_name_is_the_first_statement()
+                {
+                    continue;
+                }
+            }
         }
-        the_declarations_of_a_statement(statement, &mut declarations)?;
+        the_declarations_of_a_statement(statement, &mut declarations, dialect)?;
     }
     Ok(declarations)
 }
@@ -877,13 +891,29 @@ fn the_declarations_of_a_body(body: &[Node]) -> Result<Declarations, SyntaxError
 fn the_declarations_of_a_statement(
     statement: &Node,
     declarations: &mut Declarations,
+    dialect: &dyn crate::dialect::Dialect,
 ) -> Result<(), SyntaxError> {
     match statement {
         Node::Declare { scope: kind, names, line } => {
             if *kind == DeclareKind::Global && names.is_empty() {
                 // A bare `global` that is not the mode of the function.
+                //
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-04: the v1 says that the line holds no action.
                 return Err(SyntaxError {
-                    message: "Unexpected declaration.\n     Specifically: global".into(),
+                    message: dialect.the_message_of_the_refused_declaration("global"),
+                    line: *line,
+                    column: 1,
+                });
+            }
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
+            // the v1 refuses the declaration that has no name when it is
+            // not the first statement of the body of the function: the
+            // `local` alone and the `static` alone.
+            if names.is_empty() && dialect.the_declaration_with_no_name_is_the_first_statement()
+            {
+                return Err(SyntaxError {
+                    message: dialect.the_message_of_the_refused_declaration(kind.word()),
                     line: *line,
                     column: 1,
                 });
@@ -906,25 +936,25 @@ fn the_declarations_of_a_statement(
         }
         Node::If { branches, otherwise, .. } => {
             for branch in branches {
-                the_declarations_of_a_body_of(&branch.body, declarations)?;
+                the_declarations_of_a_body_of(&branch.body, declarations, dialect)?;
             }
-            the_declarations_of_a_body_of(otherwise, declarations)?;
+            the_declarations_of_a_body_of(otherwise, declarations, dialect)?;
         }
         Node::Switch { cases, .. } => {
             for case in cases {
-                the_declarations_of_a_body_of(&case.body, declarations)?;
+                the_declarations_of_a_body_of(&case.body, declarations, dialect)?;
             }
         }
         Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
-            the_declarations_of_a_body_of(body, declarations)?;
+            the_declarations_of_a_body_of(body, declarations, dialect)?;
         }
         Node::Try { body, catches, otherwise, finally, .. } => {
-            the_declarations_of_a_body_of(body, declarations)?;
+            the_declarations_of_a_body_of(body, declarations, dialect)?;
             for catch in catches {
-                the_declarations_of_a_body_of(&catch.body, declarations)?;
+                the_declarations_of_a_body_of(&catch.body, declarations, dialect)?;
             }
-            the_declarations_of_a_body_of(otherwise, declarations)?;
-            the_declarations_of_a_body_of(finally, declarations)?;
+            the_declarations_of_a_body_of(otherwise, declarations, dialect)?;
+            the_declarations_of_a_body_of(finally, declarations, dialect)?;
         }
         _ => {}
     }
@@ -935,9 +965,10 @@ fn the_declarations_of_a_statement(
 fn the_declarations_of_a_body_of(
     body: &[Node],
     declarations: &mut Declarations,
+    dialect: &dyn crate::dialect::Dialect,
 ) -> Result<(), SyntaxError> {
     for statement in body {
-        the_declarations_of_a_statement(statement, declarations)?;
+        the_declarations_of_a_statement(statement, declarations, dialect)?;
     }
     Ok(())
 }
@@ -3556,7 +3587,7 @@ impl Parser {
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
                 self.assignments.pop();
                 self.parameters.pop();
-                let declarations = the_declarations_of_a_body(&body)?;
+                let declarations = the_declarations_of_a_body(&body, self.dialect)?;
                 // The assignments of the function that live in the scope of
                 // the script are the ones of the names it declares global.
                 for assignment in assignments {
@@ -6415,14 +6446,35 @@ impl Parser {
             }
             self.next();
         }
+        // The `global` alone is the mode of a function, and the `local`
+        // alone is a declaration of no name.
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 refuses the `global` alone at the top level of the script, and
+        // the line holds no action.
+        //
+        // The v2 accepts it at the top level of the script.
+        if kind == DeclareKind::Global
+            && names.is_empty()
+            && self.parameters.is_empty()
+            && !self.dialect.the_bare_global_is_the_mode_of_the_script()
+        {
+            return Err(self.the_error_of_the_refused_declaration(kind, &names));
+        }
         // A bare `local` is never a thing: only `global` has a mode, and
         // the bare `static` is a declaration with no name.
         //
         // Measured on the binary of v2.0.19 on 2026-10-31: the bare
         // `static` inside a function is accepted, and the bare `local` is
         // refused.
-        if kind == DeclareKind::Local && names.is_empty() {
-            return Err(self.error("Unexpected declaration.\n     Specifically: local"));
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 accepts the `local` alone inside a function, and it refuses it
+        // at the top level of the script, where the line holds no action.
+        let the_bare_local_is_accepted = self.dialect.the_bare_local_is_a_declaration_of_no_name()
+            && !self.parameters.is_empty();
+        if kind == DeclareKind::Local && names.is_empty() && !the_bare_local_is_accepted {
+            return Err(self.the_error_of_the_refused_declaration(kind, &names));
         }
         // A `local` outside a function has no scope to live in, and a
         // `static` has no function to live in.
@@ -6430,14 +6482,31 @@ impl Parser {
         // Measured on the binary of v2.0.19 on 2026-10-31: the `static` at
         // the top level is refused, and the text that is named is the whole
         // declaration.
+        //
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 refuses the same declarations, and it says that the line holds
+        // no action.
         if (kind == DeclareKind::Local || kind == DeclareKind::Static) && self.parameters.is_empty() {
-            return Err(self.error(format!(
-                "Unexpected declaration.\n     Specifically: {}",
-                the_text_of_a_declaration(kind, &names)
-            )));
+            return Err(self.the_error_of_the_refused_declaration(kind, &names));
         }
         self.end_of_statement()?;
         Ok(Node::Declare { scope: kind, names, line: token.line })
+    }
+
+    /// The error of a declaration that the dialect refuses.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// says that the line holds no action, and it names the declaration: the
+    /// "global", the "local", the "local x" and the "local x := 1".
+    ///
+    /// The v2 says "Unexpected declaration." and names the same text.
+    fn the_error_of_the_refused_declaration(
+        &self,
+        kind: DeclareKind,
+        names: &[Declared],
+    ) -> SyntaxError {
+        let text = the_text_of_a_declaration(kind, names);
+        self.error(self.dialect.the_message_of_the_refused_declaration(&text))
     }
 
     /// The label of a line, when the line is one.
@@ -7344,7 +7413,7 @@ impl Parser {
                 let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
                 self.assignments.pop();
                 self.parameters.pop();
-                let declarations = the_declarations_of_a_body(&body)?;
+                let declarations = the_declarations_of_a_body(&body, self.dialect)?;
                 for assignment in assignments {
                     if declarations.globals.contains(&assignment.name.to_lowercase()) {
                         self.check_the_assignments(vec![assignment])?;
@@ -7632,7 +7701,7 @@ impl Parser {
                 the_source_of_the_line(self, line)
             )));
         };
-        let declarations = the_declarations_of_a_body(&body)?;
+        let declarations = the_declarations_of_a_body(&body, self.dialect)?;
         Ok(AccessBody { body, declarations })
     }
 

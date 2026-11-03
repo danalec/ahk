@@ -1239,9 +1239,64 @@ pub trait Dialect: Sync {
     /// names the whole line: the `not` names the "not", and the `not 1` names
     /// the "not 1". The same is true of the `and` and of the `or`.
     ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    /// `true` and the `false` are the same: the line that begins with them
+    /// holds no action, and it names the whole line: the `true` names the
+    /// "true", and the `true + 1` names the "true + 1".
+    ///
     /// The v2 names the call that the word wanted to make: "not()".
     fn the_line_that_begins_with_the_word_holds_no_action(&self, word: &str) -> bool {
         let _ = word;
+        false
+    }
+
+    /// The message of a declaration that the dialect refuses.
+    ///
+    /// The text is the declaration as the script wrote it: the "global", the
+    /// "local", the "local x" and the "local x := 1".
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// says that the line holds no action, and it names the declaration.
+    ///
+    /// The v2 says "Unexpected declaration." and names the same text.
+    fn the_message_of_the_refused_declaration(&self, text: &str) -> String {
+        format!("Unexpected declaration.\n     Specifically: {text}")
+    }
+
+    /// Whether the `local` alone is a declaration of no name.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// accepts the `local` alone inside a function, and it refuses it at the
+    /// top level of the script, where the line holds no action.
+    ///
+    /// The v2 refuses the `local` alone everywhere.
+    fn the_bare_local_is_a_declaration_of_no_name(&self) -> bool {
+        false
+    }
+
+    /// Whether the `global` alone is the mode of the script.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// refuses the `global` alone at the top level of the script, and the
+    /// line holds no action: the mode of a function is the `global` alone of
+    /// its first line, and the script is not a function.
+    ///
+    /// The v2 accepts it at the top level of the script.
+    fn the_bare_global_is_the_mode_of_the_script(&self) -> bool {
+        true
+    }
+
+    /// Whether the declaration that has no name is the first statement of
+    /// the body of the function.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// accepts the `local` alone and the `static` alone when they are the
+    /// first statement of the body of the function, and it refuses them
+    /// anywhere else: the line holds no action.
+    ///
+    /// The v2 accepts the `static` alone anywhere inside a function, and it
+    /// refuses the `local` alone everywhere.
+    fn the_declaration_with_no_name_is_the_first_statement(&self) -> bool {
         false
     }
 
@@ -2126,8 +2181,34 @@ impl Dialect for V1 {
     fn the_line_that_begins_with_the_word_holds_no_action(&self, word: &str) -> bool {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // operators of the v1 are the words that hold no action when they
-        // begin the line.
-        matches!(word, "not" | "and" | "or")
+        // begin the line, and the `true` and the `false` are the same.
+        matches!(word, "not" | "and" | "or" | "true" | "false")
+    }
+
+    fn the_message_of_the_refused_declaration(&self, text: &str) -> String {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 says that the line holds no action, and it names the
+        // declaration.
+        format!("This line does not contain a recognized action.\n     Specifically: {text}")
+    }
+
+    fn the_bare_local_is_a_declaration_of_no_name(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 accepts the `local` alone inside a function.
+        true
+    }
+
+    fn the_bare_global_is_the_mode_of_the_script(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 refuses the `global` alone at the top level of the script.
+        false
+    }
+
+    fn the_declaration_with_no_name_is_the_first_statement(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 accepts the `local` alone and the `static` alone when they
+        // are the first statement of the body of the function.
+        true
     }
 
     fn the_closing_parenthesis_of_a_call_is_needed(&self) -> bool {

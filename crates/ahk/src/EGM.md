@@ -1998,6 +1998,21 @@ that asks for another one is refused with the reason.
   (`a_loop_without_a_body_ends_the_script`), and the runtime asks it before
   it turns the loop.
 
+- **The word that is alone at the start of a statement holds no action in the
+  v1.** The `true` alone and the `false` alone are refused with "This line
+  does not contain a recognized action." and the line is named, and the
+  declaration that the v1 does not allow -- the `global` alone at the top
+  level of the script, the `local` alone and the `static` alone -- is
+  refused the same way, and the declaration is named. The declaration that
+  has no name is the first statement of the body of the function, and it is
+  accepted there. The dialect says it
+  (`the_line_that_begins_with_the_word_holds_no_action`,
+  `the_message_of_the_refused_declaration`,
+  `the_bare_local_is_a_declaration_of_no_name`,
+  `the_bare_global_is_the_mode_of_the_script` and
+  `the_declaration_with_no_name_is_the_first_statement`), and the parser
+  asks it.
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes

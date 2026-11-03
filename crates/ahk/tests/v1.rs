@@ -7611,3 +7611,170 @@ fn the_loop_of_the_v1_that_has_a_body_goes_on() {
     assert!(report.ok);
     assert_eq!(report.variables.get("n"), Some(&Value::Int(3)));
 }
+
+/// The word "true" alone holds no action of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the line with "This line does not contain a recognized action.\n
+/// Specifically: true", and the line that begins with the word is the one
+/// that is named.
+#[test]
+fn the_true_alone_holds_no_action_of_the_v1() {
+    assert_eq!(
+        the_refusal_of_the_load("true"),
+        "This line does not contain a recognized action.\n     Specifically: true"
+    );
+
+    // The line that has more names the whole line.
+    assert_eq!(
+        the_refusal_of_the_load("true + 1"),
+        "This line does not contain a recognized action.\n     Specifically: true + 1"
+    );
+
+    // The comment is not a part of the line that is named.
+    assert_eq!(
+        the_refusal_of_the_load("true ; a comment"),
+        "This line does not contain a recognized action.\n     Specifically: true"
+    );
+
+    // The word is a value when it is on the right side of an assignment.
+    let report = run("x := true\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[1]".to_string()]);
+}
+
+/// The word "false" alone holds no action of the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the line with "This line does not contain a recognized action.\n
+/// Specifically: false", and the line that begins with the word is the one
+/// that is named.
+#[test]
+fn the_false_alone_holds_no_action_of_the_v1() {
+    assert_eq!(
+        the_refusal_of_the_load("false"),
+        "This line does not contain a recognized action.\n     Specifically: false"
+    );
+
+    // The line that has more names the whole line.
+    assert_eq!(
+        the_refusal_of_the_load("false + 1"),
+        "This line does not contain a recognized action.\n     Specifically: false + 1"
+    );
+
+    // The word is a value when it is on the right side of an assignment.
+    let report = run("x := false\nFileAppend, [%x%], *");
+    assert!(report.ok);
+    assert_eq!(report.output, vec!["[0]".to_string()]);
+}
+
+/// The word "global" alone holds no action of the v1 at the top level of the
+/// script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the line with "This line does not contain a recognized action.\n
+/// Specifically: global". The `global` alone is the mode of a function, and
+/// the script is not a function.
+#[test]
+fn the_global_alone_holds_no_action_of_the_v1() {
+    assert_eq!(
+        the_refusal_of_the_load("global"),
+        "This line does not contain a recognized action.\n     Specifically: global"
+    );
+
+    // The `global` with a name is a declaration of the script, and it is
+    // accepted.
+    ahk::parse_with("global x", dialect::v1()).expect("the declaration of the script");
+}
+
+/// The words "local" and "static" alone hold no action of the v1 at the top
+/// level of the script.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the line with "This line does not contain a recognized action.\n
+/// Specifically: local" and with the "static". The `local` and the `static`
+/// are declarations of a function, and the script is not a function.
+#[test]
+fn the_local_and_the_static_alone_hold_no_action_of_the_v1() {
+    assert_eq!(
+        the_refusal_of_the_load("local"),
+        "This line does not contain a recognized action.\n     Specifically: local"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("static"),
+        "This line does not contain a recognized action.\n     Specifically: static"
+    );
+}
+
+/// The declaration of the v1 that is outside a function holds no action.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the line with "This line does not contain a recognized action.\n
+/// Specifically: local x", and the declaration that is named is the whole
+/// declaration: the "local x := 1" is named the "local x := 1".
+#[test]
+fn the_declaration_of_the_v1_that_is_outside_a_function_holds_no_action() {
+    assert_eq!(
+        the_refusal_of_the_load("local x"),
+        "This line does not contain a recognized action.\n     Specifically: local x"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("static x"),
+        "This line does not contain a recognized action.\n     Specifically: static x"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("local x := 1"),
+        "This line does not contain a recognized action.\n     Specifically: local x := 1"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("static x := 1"),
+        "This line does not contain a recognized action.\n     Specifically: static x := 1"
+    );
+}
+
+/// The declaration that has no name of the v1 is the first statement of the
+/// body of the function.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the `local`
+/// alone and the `static` alone are accepted when they are the first
+/// statement of the body of the function, and they declare nothing. The
+/// `global` alone is the mode of the function, and it is accepted the same
+/// way.
+#[test]
+fn the_declaration_with_no_name_of_the_v1_is_the_first_statement_of_the_function() {
+    ahk::parse_with("f() {\n    local\n}", dialect::v1())
+        .expect("the declaration with no name is the first statement");
+    ahk::parse_with("f() {\n    static\n}", dialect::v1())
+        .expect("the declaration with no name is the first statement");
+    ahk::parse_with("f() {\n    global\n}", dialect::v1())
+        .expect("the mode of the function");
+}
+
+/// The declaration that has no name of the v1 that is not the first statement
+/// of the body of the function holds no action.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// refuses the line with "This line does not contain a recognized action.\n
+/// Specifically: local", and the declaration that is named is the one that
+/// has no name.
+#[test]
+fn the_declaration_with_no_name_that_is_not_the_first_statement_holds_no_action() {
+    assert_eq!(
+        the_refusal_of_the_load("f() {\n    x := 1\n    local\n}"),
+        "This line does not contain a recognized action.\n     Specifically: local"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("f() {\n    x := 1\n    static\n}"),
+        "This line does not contain a recognized action.\n     Specifically: static"
+    );
+    assert_eq!(
+        the_refusal_of_the_load("f() {\n    x := 1\n    global\n}"),
+        "This line does not contain a recognized action.\n     Specifically: global"
+    );
+    // The declaration that has a name is not the first statement, and the
+    // one that has no name comes after it: it is refused the same way.
+    assert_eq!(
+        the_refusal_of_the_load("f() {\n    local x\n    local\n}"),
+        "This line does not contain a recognized action.\n     Specifically: local"
+    );
+}

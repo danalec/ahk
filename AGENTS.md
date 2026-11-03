@@ -8520,3 +8520,42 @@ The rule is a hook of the dialect
 turns the loop.
 
 The suite of the v1 has four cases more (290).
+
+## 224. The word that is alone at the start of a statement holds no action in the v1
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+refuses a line that begins with a reserved word and that holds no action,
+and it says "This line does not contain a recognized action." The `true`
+alone and the `false` alone are refused the same way as the `not` and the
+`and`: the word is named, and the line that begins with it is named whole
+-- the `true` names the "true", and the `true + 1` names the "true + 1".
+The comment of the line is not a part of the text that is named.
+
+The declaration is refused the same way. The `global` alone at the top
+level of the script is refused, and the `local` alone and the `static`
+alone too: they are declarations of a function, and the script is not a
+function. The `local x` and the `static x` are refused the same way, and
+the text that is named is the whole declaration -- the "local x" and the
+"local x := 1".
+
+The declaration that has no name is the first statement of the body of the
+function, and it is accepted there: the `local` alone and the `static`
+alone declare nothing, and the `global` alone is the mode of the function.
+Anywhere else it is refused, and the word is named -- the `local` that
+comes after another statement of the body of the function is refused with
+the "local".
+
+The v2 keeps its own messages: the `true` alone is refused with
+"Unexpected \"true\"", the `local` alone with "Unexpected declaration.\n
+Specifically: local", and the `global` alone at the top level of the script
+is accepted.
+
+The rules are hooks of the dialect
+(`the_line_that_begins_with_the_word_holds_no_action`,
+`the_message_of_the_refused_declaration`,
+`the_bare_local_is_a_declaration_of_no_name`,
+`the_bare_global_is_the_mode_of_the_script` and
+`the_declaration_with_no_name_is_the_first_statement`), and the parser asks
+them.
+
+The suite of the v1 has seven cases more (297).
