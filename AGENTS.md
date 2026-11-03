@@ -8379,3 +8379,19 @@ of the functions of the script before it reads the lines of it
 (`the_functions_of_the_script`).
 
 The suite of the v1 has four cases more (269).
+
+## 217. The failure of the condition of the v1 is not reported
+
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1 does not
+report the failure of the condition of an `if` or of a `while`: the `if := 5`,
+the `if 1 := 5`, the `if 1/0` and the `if x.y` are accepted, the condition is
+false, and the body of the construct does not run. The failure of a bracket
+that is not closed is reported: the `if (x` is refused with "Missing \")\"" and
+the `if [1` with "Missing \"]\"".
+
+The failure of the run is caught by the runtime (`the_value_of_the_condition`),
+and the failure of the parse is caught by the parser
+(`the_condition_that_is_not_reported`). The rule is a hook of the dialect
+(`the_failure_of_a_condition_is_not_reported`), and the v2 reports the failure.
+
+The suite of the v1 has one case more (270).

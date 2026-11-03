@@ -2358,7 +2358,7 @@ impl<'a> Runtime<'a> {
             Node::If { branches, otherwise, .. } => {
                 let mut taken = false;
                 for branch in branches {
-                    let value = self.evaluate(&branch.condition)?;
+                    let value = self.the_value_of_the_condition(&branch.condition)?;
                     // Measured on the binary of AutoHotkey v1.1.37.02 on
                     // 2026-11-04: the items that come after the comma of the
                     // line of the condition run after the condition is
@@ -2414,7 +2414,7 @@ impl<'a> Runtime<'a> {
                 // gives it back when it ends.
                 let saved = self.the_index_is_saved();
                 loop {
-                    let value = self.evaluate(condition)?;
+                    let value = self.the_value_of_the_condition(condition)?;
                     if !self.the_value_is_true(&value) {
                         break;
                     }
@@ -9466,6 +9466,31 @@ impl<'a> Runtime<'a> {
             }
         }
         value.truthy()
+    }
+
+    /// The value of the condition of a construct.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not report the failure of the condition of an `if` or of a
+    /// `while`: the `if 1/0`, the `if x.y` and the `if x.y := 5` are
+    /// accepted, the condition is false, and the body of the construct does
+    /// not run.
+    ///
+    /// The failure that a throw carries, the failure that no catch takes and
+    /// the timeout are not the failure of a condition, and they are reported.
+    fn the_value_of_the_condition(&mut self, condition: &Node) -> Result<Value, RuntimeFailure> {
+        match self.evaluate(condition) {
+            Ok(value) => Ok(value),
+            Err(failure) => {
+                if !self.dialect.the_failure_of_a_condition_is_not_reported() {
+                    return Err(failure);
+                }
+                if !matches!(failure, RuntimeFailure::Error(_) | RuntimeFailure::Detailed(_, _)) {
+                    return Err(failure);
+                }
+                Ok(Value::Int(0))
+            }
+        }
     }
 
     fn evaluate(&mut self, node: &Node) -> Result<Value, RuntimeFailure> {

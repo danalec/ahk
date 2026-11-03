@@ -1626,6 +1626,18 @@ text in the v1 as well: the `f(1) FileAppend, [tail], *` runs nothing, and the
 `f(1) x := 2` writes the variable "x". The tree reads the tail as the list of
 the v2, and the `*` of it is refused with "Syntax error.\n     Specifically: *".
 
+**The failure of the condition of the v1 is not reported** (2026-11-04). The v1
+does not report the failure of the condition of an `if` or of a `while`: the
+`if := 5`, the `if 1 := 5`, the `if 1/0` and the `if x.y` are accepted, the
+condition is false, and the body of the construct does not run. The failure of
+a bracket that is not closed is reported: the `if (x` is refused with
+"Missing ")"", and the `if [1` with "Missing "]"".
+
+The failure of the run is caught by the runtime (`the_value_of_the_condition`),
+and the failure of the parse is caught by the parser
+(`the_condition_that_is_not_reported`). The rule is a hook of the dialect
+(`the_failure_of_a_condition_is_not_reported`), and the v2 reports the failure.
+
 **What stays out of the call.** The call of a function of the v1 that is
 written without the parentheses and inside an expression -- `x := InStr
 "abc"` -- is not a call: it is the name of the function and the text, side by

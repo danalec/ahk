@@ -5737,6 +5737,35 @@ impl Parser {
         condition
     }
 
+    /// The condition of a construct, when the failure of it is not reported.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not report the failure of the condition of an `if` or of a
+    /// `while`: the `if := 5` and the `if 1 := 5` are accepted, the
+    /// condition is false, and the body of the construct does not run. The
+    /// failure of a bracket that is not closed is reported: the `if (x` is
+    /// refused with "Missing ")"", and the `if [1` with "Missing "]"".
+    fn the_condition_that_is_not_reported(
+        &mut self,
+        line: u32,
+        condition: Result<Node, SyntaxError>,
+    ) -> Result<Node, SyntaxError> {
+        match condition {
+            Ok(condition) => Ok(condition),
+            Err(error) => {
+                if !self.dialect.the_failure_of_a_condition_is_not_reported()
+                    || error.message.starts_with("Missing \"")
+                {
+                    return Err(error);
+                }
+                // The line of the condition is over, and the body of the
+                // construct is the line that comes.
+                self.position = the_end_of_the_line_of(self, self.position);
+                Ok(Node::Literal { value: LiteralValue::Integer(0), line })
+            }
+        }
+    }
+
     /// The `if` or the `while` that comes inside the line of the condition of
     /// an `if`.
     ///
@@ -5795,7 +5824,8 @@ impl Parser {
                     self.next();
                     None
                 } else {
-                    Some(self.the_condition_of_an_if()?)
+                    let condition = self.the_condition_of_an_if();
+                    Some(self.the_condition_that_is_not_reported(token.line, condition)?)
                 }
             }
         };
@@ -5872,7 +5902,8 @@ impl Parser {
                                 self.next();
                                 None
                             } else {
-                                Some(self.the_condition_of_an_if()?)
+                                let condition = self.the_condition_of_an_if();
+                                Some(self.the_condition_that_is_not_reported(branch.line, condition)?)
                             }
                         }
                     };
@@ -6690,7 +6721,8 @@ impl Parser {
             self.next();
             None
         } else {
-            Some(self.the_expression_of_a_statement()?)
+            let condition = self.the_expression_of_a_statement();
+            Some(self.the_condition_that_is_not_reported(token.line, condition)?)
         };
         self.end_of_block()?;
         let body = self.the_body_of_a_loop("While", token.line)?;

@@ -1187,6 +1187,19 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// Whether the failure of the condition of a construct is not reported.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+    /// does not report the failure of the condition of an `if` or of a
+    /// `while`: the `if 1/0`, the `if x.y` and the `if x.y := 5` are
+    /// accepted, the condition is false, and the body of the construct does
+    /// not run.
+    ///
+    /// The v2 reports the failure.
+    fn the_failure_of_a_condition_is_not_reported(&self) -> bool {
+        false
+    }
+
     /// Whether the definition of a function of the dialect needs a body.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -1942,6 +1955,13 @@ impl Dialect for V1 {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // definition of the v1 needs a body, and the `f(a) {` at the end of
         // the file is a call.
+        true
+    }
+
+    fn the_failure_of_a_condition_is_not_reported(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+        // v1 does not report the failure of the condition of an `if` or of a
+        // `while`, and the condition is false.
         true
     }
 

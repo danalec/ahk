@@ -7141,3 +7141,41 @@ fn the_brace_that_opens_the_body_of_a_construct_of_the_v1_names_the_brace() {
         "Unexpected \"{\""
     );
 }
+
+/// The failure of the condition of the v1 is not reported.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
+/// does not report the failure of the condition of an `if` or of a `while`:
+/// the `if := 5`, the `if 1 := 5`, the `if 1/0` and the `if x.y` are
+/// accepted, the condition is false, and the body of the construct does not
+/// run. The failure of a bracket that is not closed is reported: the `if (x`
+/// is refused with "Missing ")"".
+#[test]
+fn the_failure_of_the_condition_of_the_v1_is_not_reported() {
+    // The condition that is an assignment that cannot be made.
+    let report = run("if := 5\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    let report = run("if 1 := 5\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    // The condition that fails at the run.
+    let report = run("if 1/0\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    let report = run("if x.y\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    // The while of the v1.
+    let report = run("while 1/0\nFileAppend, [body], *");
+    assert!(report.ok);
+    assert!(report.output.is_empty());
+
+    // The bracket that is not closed is reported.
+    assert_eq!(the_refusal_of_the_load("if (x"), "Missing \")\"");
+    assert_eq!(the_refusal_of_the_load("if [1"), "Missing \"]\"");
+}

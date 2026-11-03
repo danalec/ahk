@@ -1935,6 +1935,17 @@ that asks for another one is refused with the reason.
   `the_definition_needs_a_body` and
   `the_message_of_the_brace_that_opens_the_body`).
 
+- **The failure of the condition of the v1 is not reported.** The v1 does not
+  report the failure of the condition of an `if` or of a `while`: the
+  `if := 5`, the `if 1 := 5`, the `if 1/0` and the `if x.y` are accepted, the
+  condition is false, and the body of the construct does not run. The failure
+  of a bracket that is not closed is reported: the `if (x` is refused with
+  "Missing ")"". The runtime catches the failure of the run
+  (`the_value_of_the_condition`) and the parser catches the failure of the
+  parse (`the_condition_that_is_not_reported`), and the dialect says that the
+  failure is not reported
+  (`the_failure_of_a_condition_is_not_reported`).
+
 ## Side Effects
 
 - **None of its own.** The crate opens no file, starts no process, writes
