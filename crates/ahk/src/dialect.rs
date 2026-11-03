@@ -2291,6 +2291,10 @@ impl Dialect for V1 {
             "useenv" => Some(crate::warnings::WarningType::UseEnv),
             "localsameasglobal" => Some(crate::warnings::WarningType::LocalSameAsGlobal),
             "classoverwrite" => Some(crate::warnings::WarningType::ClassOverwrite),
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the v1 carries the type "Unreachable" as well, and the text of
+            // the warning is the one of the v2.
+            "unreachable" => Some(crate::warnings::WarningType::Unreachable),
             _ => None,
         }
     }
@@ -2312,6 +2316,7 @@ impl Dialect for V1 {
             crate::warnings::WarningType::UseEnv,
             crate::warnings::WarningType::LocalSameAsGlobal,
             crate::warnings::WarningType::ClassOverwrite,
+            crate::warnings::WarningType::Unreachable,
         ]
     }
 

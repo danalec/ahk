@@ -9486,3 +9486,17 @@ machine, and the `#Warn` of the v1 is carried with all of its types. The one
 difference that is left is the number of the warnings of the v1 when the
 variable that is read is the value of an assignment: the v1 warns twice and
 the tree warns once, and the text of the warning is the same.
+
+The v1 has one more type of warning: the "Unreachable". Measured on the binary
+of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 carries it, the warning is the
+one of the v2 -- "This line will never execute, due to Return preceding it." --
+and the line of it is the line that comes right after the statement that leaves
+the level. The "All" of the v1 carries it too. The types that the v1 refuses
+are the ones of the v2 that it does not have: the "UseUnset" and the "VarUnset"
+are refused with "Parameter #1 invalid." and the source of the directive.
+
+The probes of the block are `egm-review/probe_warn_rules.py` and
+`egm-review/probe_warn_all.py`.
+
+The suite of the v1 has one case more (404). The suite of the v2 is the same
+(526), and the suite of the box is the same (84).

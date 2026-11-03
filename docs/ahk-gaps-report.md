@@ -170,11 +170,11 @@ was the word "Files" and the mode was the pattern.
 
 **The `#Warn` of the v1** -- *closed on 2026-11-05*. The v1 has a `#Warn` of
 its own, and its types are not the ones of the v2: the "UseUnsetLocal", the
-"UseUnsetGlobal", the "UseEnv", the "LocalSameAsGlobal", the "ClassOverwrite"
-and the "All". The modes are the "MsgBox", the "StdOut", the "OutputDebug" and
-the "Off". The words of the refusal are the ones of the v2 -- "Parameter #1
-invalid." and the source of the line, "Parameter #2 invalid." and the text
-that was written.
+"UseUnsetGlobal", the "UseEnv", the "LocalSameAsGlobal", the "ClassOverwrite",
+the "Unreachable" and the "All". The modes are the "MsgBox", the "StdOut", the
+"OutputDebug" and the "Off". The words of the refusal are the ones of the v2 --
+"Parameter #1 invalid." and the source of the line, "Parameter #2 invalid." and
+the text that was written.
 
 The tree carries all of them: the variable of the script that is read and
 never written, the variable of a function that is read and never written, the

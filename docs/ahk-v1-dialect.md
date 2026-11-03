@@ -2652,6 +2652,20 @@ The probes of the block are `egm-review/probe_v1_v2_warn_names.py` and
 `egm-review/probe_v1_v2_warn_names_compare.py`, and the comparison of the
 binary and of the tree is fifteen of the fifteen.
 
+**The `#Warn` of the v1** (2026-11-05, the fourth block). The v1 has one more
+type of warning: the "Unreachable". Measured on the binary of AutoHotkey
+v1.1.37.02 on 2026-11-05: the v1 carries it, the warning is the one of the v2
+-- "This line will never execute, due to Return preceding it." -- and the line
+of it is the line that comes right after the statement that leaves the level.
+The "All" of the v1 carries it too.
+
+The types that the v1 refuses are the ones of the v2 that it does not have: the
+"UseUnset" and the "VarUnset" are refused with "Parameter #1 invalid." and the
+source of the directive.
+
+The probes of the block are `egm-review/probe_warn_rules.py` and
+`egm-review/probe_warn_all.py`.
+
 ## 5. The risks
 
 | Risk | Severity | What is done |

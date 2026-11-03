@@ -10083,3 +10083,37 @@ fn the_class_that_is_overwritten_is_warned_about_in_the_v1() {
     assert_eq!(report.warnings.len(), 1);
     assert_eq!(report.warnings[0].line, 5);
 }
+
+/// The line that never runs is warned about in the v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 has
+/// the type "Unreachable" of the `#Warn`, and the text of the warning is the
+/// one of the v2 -- "This line will never execute, due to Return preceding
+/// it." -- at the line that comes right after the statement that leaves the
+/// level. The "All" of the v1 carries the type too.
+#[test]
+fn the_line_that_never_runs_is_warned_about_in_the_v1() {
+    let report = run("#Warn Unreachable, StdOut\nreturn\nx := 1\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This line will never execute, due to Return preceding it."
+    );
+    assert_eq!(
+        report.output,
+        vec!["(3) : ==> Warning: This line will never execute, due to Return preceding it.".to_string()]
+    );
+    // The "All" of the v1 carries the type too.
+    let report = run("#Warn All, StdOut\nreturn\nx := 1\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    // The type of the v2 that the v1 does not have is refused.
+    let error = ahk::parse_with("#Warn VarUnset, StdOut", dialect::v1())
+        .expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter #1 invalid.\n     Specifically: #Warn VarUnset"
+    );
+}
