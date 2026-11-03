@@ -163,6 +163,12 @@ it asks the dialect for the two refusals
 be in the operand of the one that opens it, and that was the work of the
 parser too.
 
+**The `Loop Files` of the v1** -- *closed on 2026-11-05*. The v1 has two forms
+of the loop of the files: the `Loop, <pattern>, <mode>` whose mode is a number,
+and the `Loop Files, <pattern>, <mode>` whose mode is a set of letters. The
+tree carried the first one and not the second one: the pattern of the files
+was the word "Files" and the mode was the pattern.
+
 ### 2.3 The holes of the v2 that are known
 
 **`ObjBindMethod`** — *closed on 2026-11-05*. The tree binds the method of an
@@ -221,7 +227,10 @@ and gave the files and the folders, and the v2 refuses it with a dialog.
 5. **The second parameter of the `Loop Read` of the v2** (§2.3) — *closed on
    2026-11-05*. The tree does what the v2 does: the file is not opened when
    the loop begins, and the `FileAppend` of the body writes to it.
-6. **The warnings of the v2** (§2.3). Big: the runtime needs a warning
+6. **The `Loop Files` of the v1** (§2.2) — *closed on 2026-11-05*. The v1
+   has two forms of the loop of the files, and the tree carried the one whose
+   mode is a number and not the one whose mode is a set of letters.
+7. **The warnings of the v2** (§2.3). Big: the runtime needs a warning
    channel and the v2 shows a dialog before the error.
 
 The v1 is done: every name of its surface is carried, the pending table is

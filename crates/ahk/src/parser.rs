@@ -8736,6 +8736,15 @@ impl Parser {
                     }
                     return Ok(Some(LoopKind::Parse));
                 }
+                "files" => {
+                    // Measured on the binary of AutoHotkey v1.1.37.02 on
+                    // 2026-11-05: the word "Files" is the first parameter of
+                    // the `Loop` of the v1, and the pattern of the files is
+                    // the second parameter and the mode is the third one. The
+                    // mode is a set of letters, and the letter that is not one
+                    // of them is refused when the loop runs.
+                    return Ok(Some(LoopKind::Files));
+                }
                 _ => {}
             }
         }

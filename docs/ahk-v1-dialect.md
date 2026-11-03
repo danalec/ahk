@@ -2244,6 +2244,17 @@ the text that was written. The flag walks into the folders when the mode is
 the files, and it does nothing when the mode is the folders or the two of
 them. The parameter that comes after the flag is read, and it does nothing.
 
+The v1 has a second form of the loop of the files, and it is the one that the
+documentation of the v1 names: the `Loop Files` is the `Loop` whose first
+parameter is the word "Files". The pattern of the files is the second parameter
+and the mode is the third one, and the mode is a set of letters -- the "R"
+walks into the folders, the "D" and the "K" give the folders, the "F" and the
+"V" give the files -- and the spaces and the tabs between them are ignored.
+The letter that is not one of them is refused when the loop runs, with
+"Parameter #3 invalid." and the text that was written, and the "A" is not one
+of them. The tree did not carry the form at all: the pattern was the word
+"Files" and the mode was the pattern.
+
 The order of the files is the one that the two binaries give: the files of a
 folder come first, and the walk into the folders of it comes after them. The
 box used to sort the whole list by the path, and the walk sorts the entries
@@ -2531,6 +2542,25 @@ and of the tree: thirty-three of the thirty-three, twenty of the twenty and
 eleven of the thirteen are the same. The two that are not are the ones where
 the v1 asks the user for the value of a variable: the tree answers an empty
 value, and it does not ask anybody.
+
+**The `Loop Files` of the v1** (2026-11-05). The `Loop Files` of the v1 is the
+`Loop` whose first parameter is the word "Files": the pattern of the files is
+the second parameter and the mode is the third one, and the mode is a set of
+letters -- the "R" walks into the folders, the "D" and the "K" give the
+folders, the "F" and the "V" give the files -- and the spaces and the tabs
+between them are ignored. The letter that is not one of them is refused when
+the loop runs, and the "A" is not one of them.
+
+The tree did not carry the form at all: the pattern of the files was the word
+"Files" and the mode was the pattern. The parser reads the word "Files" as the
+name of the kind of the loop, the way it reads the "Read" and the "Parse".
+
+The probes of the block are `egm-review/probe_v1_loop_files_forms.py` and
+`egm-review/probe_v1_loop_files_modes2.py`, and they are the cases of the
+binary and of the tree: six of the six and sixteen of the twenty are the
+same. The four that are not in the second one are the ones where the v1 fails
+at the run: the failure of the run of the v1 opens a dialog, and the dialog is
+a timeout.
 
 **The `ObjBindMethod` of the v1** (2026-11-05). The v1 makes the binding of a
 method of an object too, and it does not check the name of the method: the

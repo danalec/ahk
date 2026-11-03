@@ -2707,6 +2707,18 @@ impl<'a> Runtime<'a> {
                         }
                     }
                     LoopKind::Files => {
+                        // Measured on the binary of AutoHotkey v1.1.37.02 on
+                        // 2026-11-05: the `Loop Files` of the v1 is the `Loop`
+                        // whose first parameter is the word "Files": the
+                        // pattern of the files is the second parameter and the
+                        // mode is the third one.
+                        if self.dialect.legacy_commands() {
+                            self.the_loop_of_the_files_of_the_v1_with_the_kind(
+                                arguments, body, until, *line,
+                            )?;
+                            self.the_index_is_given_back(saved);
+                            return Ok(());
+                        }
                         // v2 takes the pattern first and the mode second,
                         // and the folder is the one the script runs in.
                         if arguments.len() > 2 {
@@ -9264,13 +9276,63 @@ impl<'a> Runtime<'a> {
         if recurse && mode == crate::v1::THE_FILES {
             wanted.push('R');
         }
+        self.the_walk_of_the_files_of_the_v1(pattern, &wanted, body, until, line)
+    }
+
+    /// The loop of the files of the v1 that names the kind of the loop.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+    /// `Loop Files` of the v1 is the `Loop` whose first parameter is the word
+    /// "Files": the pattern of the files is the second parameter and the mode
+    /// is the third one. The mode is a set of letters -- the "R" walks into
+    /// the folders, the "D" and the "K" give the folders, the "F" and the "V"
+    /// give the files -- and the spaces and the tabs between them are ignored.
+    /// The letter that is not one of them is refused when the loop runs, and
+    /// the "A" is not one of them.
+    fn the_loop_of_the_files_of_the_v1_with_the_kind(
+        &mut self,
+        arguments: &[Node],
+        body: &[Node],
+        until: &Option<Box<Node>>,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        let pattern = match arguments.get(1) {
+            Some(node) => self.the_text_of_the_parameter_of_the_loop(node, line)?,
+            None => String::new(),
+        };
+        let mode = match arguments.get(2) {
+            Some(node) => self.the_text_of_the_parameter_of_the_loop(node, line)?,
+            None => String::new(),
+        };
+        if the_letter_that_the_mode_does_not_carry(&mode).is_some() {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: format!("Parameter #3 invalid.\n     Specifically: {}", mode.trim()),
+                line,
+            }));
+        }
+        self.the_walk_of_the_files_of_the_v1(&pattern, &mode, body, until, line)
+    }
+
+    /// The walk of the files of the v1.
+    ///
+    /// The mode is the mode of the desktop: the "R" walks into the folders,
+    /// the "D" and the "K" give the folders, the "F" and the "V" give the
+    /// files, and the "A" gives the two of them.
+    fn the_walk_of_the_files_of_the_v1(
+        &mut self,
+        pattern: &str,
+        mode: &str,
+        body: &[Node],
+        until: &Option<Box<Node>>,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
         let folder = self
             .desktop()
             .working_directory()
             .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line }))?;
         let files = self
             .desktop()
-            .list_files(&folder, pattern, &wanted)
+            .list_files(&folder, pattern, mode)
             .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line }))?;
         for (index, file) in files.iter().enumerate() {
             self.set_global("A_Index", Value::Int(index as i64 + 1));

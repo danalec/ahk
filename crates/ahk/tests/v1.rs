@@ -9913,3 +9913,51 @@ fn the_call_of_the_binding_of_the_v1_is_refused() {
         "Call to nonexistent function.\n     Specifically: f(8)"
     );
 }
+
+/// The `Loop Files` of the v1 is the `Loop` whose first parameter is the word
+/// "Files": the pattern of the files is the second parameter and the mode is
+/// the third one.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+/// `Loop Files, *.txt` walks over the files that match the pattern, and the
+/// tree did not carry the form at all: the pattern was the word "Files" and
+/// the mode was the pattern.
+#[test]
+fn the_loop_files_of_the_v1_takes_the_pattern_of_the_files() {
+    let (report, calls) = run_and_the_calls(
+        "Loop Files, *.txt\n{\n  FileAppend, [%A_LoopFileName%], *\n}\n",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The machine is asked for the size, the attributes and the times of every
+    // file of the loop, after the one of the listing.
+    assert_eq!(calls.first().map(String::as_str), Some("list_files *.txt"));
+    assert_eq!(
+        report.output,
+        vec!["[a.txt]".to_string(), "[b.txt]".to_string()]
+    );
+}
+
+/// The mode of the `Loop Files` of the v1 is a set of letters, and the letter
+/// that is not one of them is refused when the loop runs.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the "R"
+/// walks into the folders, the "D" and the "K" give the folders, the "F" and
+/// the "V" give the files, and the spaces and the tabs between them are
+/// ignored. The "A" is not one of them.
+#[test]
+fn the_mode_of_the_loop_files_of_the_v1_is_a_set_of_letters() {
+    // The mode that asks for the folders gives none: the machine of the case
+    // has none.
+    let (report, calls) = run_and_the_calls("Loop Files, *.txt, D\n{\n}\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(calls.first().map(String::as_str), Some("list_files *.txt"));
+    assert!(report.output.is_empty());
+
+    // The letter that is not one of them is refused when the loop runs.
+    let report = run("Loop Files, *.txt, A\n{\n}\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #3 invalid.\n     Specifically: A")
+    );
+}
