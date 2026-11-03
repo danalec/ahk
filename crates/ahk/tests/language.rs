@@ -6226,3 +6226,89 @@ fn the_local_that_is_declared_global_is_not_warned_about() {
     let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nf() {\n  x := 2\n}\nf()\n");
     assert!(report.warnings.is_empty(), "{:?}", report.warnings);
 }
+
+/// The body of the getter is a scope of the v2.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-05: the `return` of the body
+/// of the getter is the value of the property, and the name that the body
+/// writes is a local of it.
+#[test]
+fn the_body_of_the_getter_is_a_scope_of_the_v2() {
+    let (report, desktop) = run("class Thing {\n  p {\n    get {\n      return 1\n    }\n  }\n}\ninst := Thing()\nSend inst.p");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["1"]);
+}
+
+/// The getter that is on the same line as the name is refused.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-05: the script does not load,
+/// and the member is named whole: "p { get { return 1 } }".
+#[test]
+fn the_getter_that_is_on_the_same_line_as_the_name_is_refused() {
+    let error = parse("class Thing {\n  p { get {\n      return 1\n  } }\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Not a valid method, class or property definition.\n     Specifically: p { get { return 1 } }"
+    );
+    assert_eq!(error.line, 2);
+}
+
+/// The body of the getter that is on the line of the member is refused.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-05: the script does not load,
+/// and the line of the member is named: "get { return 1 }".
+#[test]
+fn the_body_of_the_getter_that_is_on_the_line_of_the_member_is_refused() {
+    let error = parse("class Thing {\n  p {\n    get { return 1 }\n  }\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Not a valid property getter/setter.\n     Specifically: get { return 1 }"
+    );
+    assert_eq!(error.line, 3);
+}
+
+/// The setter of the v2 writes the value that is given to it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-05: the body of the setter is
+/// a scope, and the name "value" is the value that is written.
+#[test]
+fn the_setter_of_the_v2_writes_the_value_that_is_given_to_it() {
+    let (report, desktop) = run(
+        "class Thing {\n  p {\n    set {\n      this.stored := value\n    }\n  }\n}\ninst := Thing()\ninst.p := 7\nSend inst.stored",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(desktop.types(), vec!["7"]);
+}
+
+/// The value of the setter is a parameter of it, and it is not warned about.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-05: the name "value" is the
+/// value that is written, and the v2 does not warn about it.
+#[test]
+fn the_value_of_the_setter_is_not_warned_about_in_the_v2() {
+    let (report, _desktop) = run(
+        "#Warn VarUnset, StdOut\nclass Thing {\n  p {\n    set {\n      this.stored := value\n    }\n  }\n}\ninst := Thing()\ninst.p := 7\n",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+}
+
+/// The `this` of a class is not a variable.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-05: the `this` of the body of
+/// a class, the one of a method, the one of a static method and the one of a
+/// getter are not warned about, and the `this` of a function is.
+#[test]
+fn the_this_of_a_class_is_not_a_variable_of_the_v2() {
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nclass Thing {\n  m() {\n    this.x := 1\n  }\n}\n");
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nclass Thing {\n  p {\n    get {\n      this.x := 1\n    }\n  }\n}\n");
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    // The `this` of a function is a variable that has no value.
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nf() {\n  y := this\n}\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable appears to never be assigned a value.\n     Specifically: this"
+    );
+}

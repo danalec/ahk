@@ -8008,6 +8008,26 @@ impl Parser {
             // with "Not a valid property getter/setter.\n     Specifically:
             // get => 1".
             if self.at_op(&["[", "{"]) {
+                // The body of the property begins on the line that comes after
+                // the name of it.
+                //
+                // Measured on the binary of v2.0.19 on 2026-11-05: the getter
+                // that is on the same line as the name is refused with "Not a
+                // valid method, class or property definition.\n     Specifically:
+                // p { get => 1 }".
+                //
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-05: the v1 refuses it the same way.
+                if !self.the_body_of_the_accessor_begins_on_the_next_line(name_token.line) {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Not a valid method, class or property definition.\n     Specifically: {}",
+                            self.the_text_of_the_member_that_is_refused(name_at, name_token.line)
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
                 if self.dialect.the_accessor_of_a_class_is_refused() {
                     return Err(self.the_refusal_of_an_accessor(name_token));
                 }
@@ -8135,6 +8155,68 @@ impl Parser {
         }
     }
 
+    /// Whether the body of the property begins on the line that comes after
+    /// the name of it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-05: the getter that is on
+    /// the same line as the name is refused, and so is the body of the getter
+    /// that is on the line of the member.
+    fn the_body_of_the_accessor_begins_on_the_next_line(&self, line: u32) -> bool {
+        // The brace that opens the body, and the token that comes after it:
+        // the newline that ends the line of the name is not a part of it.
+        let Some(open) = self.the_brace_that_opens_the_body_of_the_accessor() else {
+            return true;
+        };
+        let mut after = open + 1;
+        while self
+            .tokens
+            .get(after)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
+            after += 1;
+        }
+        match self.tokens.get(after) {
+            Some(token) => token.line != line,
+            None => true,
+        }
+    }
+
+    /// The place of the brace that opens the body of the property.
+    fn the_brace_that_opens_the_body_of_the_accessor(&self) -> Option<usize> {
+        let mut at = self.position;
+        while let Some(token) = self.tokens.get(at) {
+            if token.kind == TokenKind::Op && token.value == "{" {
+                return Some(at);
+            }
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                return None;
+            }
+            at += 1;
+        }
+        None
+    }
+
+    /// The text that is named when the member is refused.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-05: the member is named
+    /// whole, and the newlines of it are spaces: "p { get { return 1 } }".
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// names the line of the member: "p { get {".
+    fn the_text_of_the_member_that_is_refused(&self, name_at: usize, line: u32) -> String {
+        if !self.dialect.the_member_that_is_refused_is_named_whole() {
+            return the_source_of_the_line(self, line);
+        }
+        let Some(open) = self.the_brace_that_opens_the_body_of_the_accessor() else {
+            return the_source_of_the_line(self, line);
+        };
+        let Some(close) = self.the_closing_brace_of_a_block_that_opens_a_line(open) else {
+            return the_source_of_the_line(self, line);
+        };
+        the_source_of_a_definition(self, name_at, close + 1)
+    }
+
     /// The refusal of the property that has a getter or a setter.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the getter that is
@@ -8216,7 +8298,7 @@ impl Parser {
                 break;
             }
             let token = self.next();
-            let body = self.parse_the_body_of_an_accessor(token.line)?;
+            let body = self.parse_the_body_of_an_accessor(&token)?;
             match token.value.to_lowercase().as_str() {
                 "get" => getter = Some(body),
                 "set" => setter = Some(body),
@@ -8246,20 +8328,61 @@ impl Parser {
     /// Measured on the binary of v2.0.19 on 2026-10-31: the body is an
     /// expression after the arrow of v2, and the assignment of v2 is an
     /// expression, and a block of statements between braces.
-    fn parse_the_body_of_an_accessor(&mut self, line: u32) -> Result<AccessBody, SyntaxError> {
-        let mut body_line = line;
-        let body = if self.at_op(&["=>"]) {
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-05: the body that is a
+    /// block is an âmbito of si: o `return` dele é o valor da propriedade, e o
+    /// nome que ele escreve é um local dele.
+    fn parse_the_body_of_an_accessor(&mut self, member: &Token) -> Result<AccessBody, SyntaxError> {
+        let line = member.line;
+        let (body, declarations, body_line) = if self.at_op(&["=>"]) {
             let token = self.next();
             let expression = self.parse_expression()?;
-            if self.at_an_assignment_operator() {
+            let body = if self.at_an_assignment_operator() {
                 vec![self.parse_the_assignment(expression)?]
             } else {
                 vec![Node::Return { value: Some(Box::new(expression)), line: token.line }]
-            }
+            };
+            let declarations = the_declarations_of_a_body(&body, self.dialect)?;
+            (body, declarations, line)
         } else if self.at_op(&["{"]) {
-            // The line of the brace that opens the body of the accessor.
-            body_line = self.the_line_of_the_brace_that_opens_the_body();
-            self.parse_block("accessor", line)?
+            // The body begins on the line that comes after the one of the
+            // member.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-05: the body of the
+            // getter that is on the line of the member is refused with "Not a
+            // valid property getter/setter.\n     Specifically: get { return 1
+            // }".
+            if !self.the_body_of_the_accessor_begins_on_the_next_line(line) {
+                return Err(self.error(format!(
+                    "Not a valid property getter/setter.\n     Specifically: {}",
+                    the_source_of_the_line(self, line)
+                )));
+            }
+            // The body of the getter is an âmbito de si: o `return` dele é o
+            // valor da propriedade, e o nome que ele escreve é um local dele.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-05: o `return` do
+            // corpo do getter responde o valor da propriedade.
+            let was_in_a_function = self.in_function;
+            self.in_function = true;
+            self.parameters.push(Vec::new());
+            self.assignments.push(Vec::new());
+            let outcome = self.the_body_of_a_scope("accessor", line);
+            self.in_function = was_in_a_function;
+            let assignments =
+                core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
+            self.assignments.pop();
+            self.parameters.pop();
+            let (body, body_line) = outcome?;
+            let declarations = the_declarations_of_a_body(&body, self.dialect)?;
+            // The assignments of the body that live in the scope of the script
+            // are the ones of the names that it declares global.
+            for assignment in assignments {
+                if declarations.globals.contains(&assignment.name.to_lowercase()) {
+                    self.check_the_assignments(vec![assignment])?;
+                }
+            }
+            (body, declarations, body_line)
         } else {
             // Measured on the binary of v2.0.19 on 2026-10-31: the getter
             // and the setter have a body, and the line that has none is
@@ -8269,7 +8392,6 @@ impl Parser {
                 the_source_of_the_line(self, line)
             )));
         };
-        let declarations = the_declarations_of_a_body(&body, self.dialect)?;
         Ok(AccessBody { body, declarations, line: body_line })
     }
 

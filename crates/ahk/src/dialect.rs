@@ -1087,6 +1087,18 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the member that is refused is named whole.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-05: the member that is not
+    /// a valid definition is named whole, and the newlines of it are spaces:
+    /// "p { get { return 1 } }".
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// names the line of it: "p { get {".
+    fn the_member_that_is_refused_is_named_whole(&self) -> bool {
+        true
+    }
+
     /// Whether the refusal of a duplicate names the member that was written.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
@@ -2975,6 +2987,12 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the class of the
         // v1 has no property with a getter.
         true
+    }
+
+    fn the_member_that_is_refused_is_named_whole(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // v1 names the line of the member, and not the whole of it.
+        false
     }
 
     fn the_duplicate_names_the_member_that_was_written(&self) -> bool {

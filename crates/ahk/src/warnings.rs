@@ -872,6 +872,13 @@ fn the_warnings_of_the_reads_of_the_script(
                 // there, and the properties themselves are not variables of the
                 // scope.
                 let mut own = TheNames::new();
+                // The `this` of a class is the value that the class holds, and
+                // it is not a variable.
+                //
+                // Measured on the binary of v2.0.19 on 2026-11-05: the `this`
+                // of the body of a class is not warned about, and the `this`
+                // of a function is.
+                own.insert("this".to_string());
                 let mut reads = Vec::new();
                 for property in properties {
                     if let Some(value) = &property.value {
@@ -891,6 +898,13 @@ fn the_warnings_of_the_reads_of_the_script(
                     for parameter in &method.parameters {
                         own.insert(parameter.name.to_lowercase());
                     }
+                    // The `this` of a method is the value that the method was
+                    // called on, and it is not a variable.
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-11-05: the
+                    // `this` of a method and the one of a static method are
+                    // not warned about.
+                    own.insert("this".to_string());
                     let mut writes = Vec::new();
                     the_writes_of_a_level(&method.body, &mut writes, false);
                     for (name, _) in writes {
@@ -908,10 +922,29 @@ fn the_warnings_of_the_reads_of_the_script(
                     );
                 }
                 for accessor in accessors {
-                    for body in [&accessor.getter, &accessor.setter].into_iter().flatten() {
+                    for (body, is_the_setter) in
+                        [(accessor.getter.as_ref(), false), (accessor.setter.as_ref(), true)]
+                    {
+                        let Some(body) = body else { continue };
                         let mut own = TheNames::new();
                         for parameter in &accessor.parameters {
                             own.insert(parameter.name.to_lowercase());
+                        }
+                        // The `this` of a getter is the value that it was
+                        // called on, and it is not a variable.
+                        //
+                        // Measured on the binary of v2.0.19 on 2026-11-05: the
+                        // `this` of a getter is not warned about.
+                        own.insert("this".to_string());
+                        // The setter takes the value that is written after the
+                        // parameters of the property, and the name of it is
+                        // "value".
+                        //
+                        // Measured on the binary of v2.0.19 on 2026-11-05: the
+                        // value of the setter is a parameter of it, and the v2
+                        // does not warn about it.
+                        if is_the_setter {
+                            own.insert("value".to_string());
                         }
                         let mut writes = Vec::new();
                         the_writes_of_a_level(&body.body, &mut writes, false);

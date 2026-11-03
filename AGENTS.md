@@ -9597,3 +9597,28 @@ Os testes e as sondas do bloco são `egm-review/probe_warn_varunset.py`,
 
 A suite do v2 tem quatro casos mais (533). A suite do v1 é a mesma (410), e a
 suite da caixa é a mesma (84).
+
+The body of a getter is a scope of the v2. Measured on the binary of v2.0.19
+on 2026-11-05: the body of the getter and of the setter that is a block is a
+scope of its own -- the `return` of it is the value of the property, and the
+name that it writes is a local of it. The tree refused the `return` with
+"Return's parameter should be blank except inside a function.".
+
+The getter that is on the same line as the name is refused, and the body of the
+getter that is on the line of the member is refused too. Measured on the binary
+of v2.0.19 on 2026-11-05: "Not a valid method, class or property definition."
+names the member whole -- "p { get { return 1 } }" -- and "Not a valid property
+getter/setter." names the line of the member -- "get { return 1 }". The tree
+took the first one and answered the second one with "Missing "}".
+
+The `this` of a class is not a variable. Measured on the binary of v2.0.19 on
+2026-11-05: the `this` of the body of a class, the one of a method, the one of
+a static method and the one of a getter are not warned about, and the `this` of
+a function and the one of the script are. The tree warned about all of them.
+
+The probes of the block are `egm-review/probe_accessor3.py`,
+`egm-review/probe_accessor4.py`, `egm-review/probe_accessor7.py` and
+`egm-review/probe_this2.py`.
+
+The suite of the v2 has six cases more (539). The suite of the v1 is the same
+(410), and the suite of the box is the same (84).
