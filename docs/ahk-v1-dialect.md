@@ -77,6 +77,7 @@ them is the `SetBatchLines` (§5).
 | `autohotkey.com/docs/v1/` | the list of the commands and the functions, and the grammar |same |
 | `docs/ahk-x11-comparison.md` | the names that changed from the v1 to the v2 (the section "The names that changed from the v1 to the v2") | in the repository, under review |
 | `AutoHotkey.chm` (in the zip of the v1.1) | the offline documentation | in the zip |
+| `AutoHotkey64.exe` (v2.0.19) | the truth of the **v2**: the messages of the run that are not on the console | `E:\autohotkey\AutoHotkey64.exe` on the workstation, and `%TEMP%\ahk-v2-measure\AutoHotkey64.exe` (the two are the same bytes); the package of scoop (`2.0.30`) is a junction without files, and the shims are dead |
 
 **The archive `../archived/ahk-python` is not a reference.** It is not an
 implementation of the v1: its own note says
@@ -1233,9 +1234,10 @@ not closed. The v1 takes the parameter as it was written: the `FileAppend,
 "abc, *` writes `"abc`, and the tree refuses the line with "Missing
 close-quote".
 
-And the member that is written: the v1 has no objects, and the `a.b := 5`
-writes the variable whose name is "a.b". The tree reads the member as a
-property, and the `a.b := 5` fails at the run with "This value of type
+And the member that is written: the v1 has no objects, and the write of a
+property of a value that is not an object is dropped -- the `a.b := 5` is
+accepted, and the value of the `a` does not change. The tree reads the member
+as a property, and the `a.b := 5` fails at the run with "This value of type
 "String" has no property named "b".". And the member whose name is a symbol
 -- the `a.'b' := 5` -- is refused by the v1 with "This line does not contain
 a recognized action. Specifically: a.'b' := 5", and the tree refuses it with
@@ -1969,6 +1971,27 @@ the `f() { loop }` and the `if (1) { loop }` are refused at the load with
 'Unexpected "}"', and the tree accepts them. What the tree carries is the loop
 that has no body at the end of the script: the v1 ends the script at it, and
 the tree went on until the guard rail.
+
+**What stays out of the text of a command of the v1.** The parameters of a
+command of the v1 are cut at the commas, and the quote of the v1 does not
+protect the comma: the `FileAppend, "abc, *` writes the text `"abc`, and the
+`StringGetPos, "a, b", pos, 1` is refused with the name `"a`. The tree lexes
+the line before it reads it, and the quote that is not closed is a load
+error: "Missing close-quote". The last parameter of a command of the v1
+takes the rest of the line, and the tree cuts every parameter at its comma.
+
+**What stays out of the legacy reference of the v1.** The `%name%` of a
+command parameter of the v1 is the value of the variable of the script, and
+the tree does that: the `FileAppend, %a%, *` writes the "1" of the `a := 1`,
+and the `FileAppend, %ZZTEST%, *` writes the value of the environment. In an
+expression it is not: the `x := %a%` is the empty text in the v1 even when
+the `a` has a value, and the value of the environment does not appear there
+either -- the `x := %ZZNUM%` is the empty text too. The `%` of an expression
+is not the modulo operator: the `x := 10 % 3` is refused at the load with
+"This parameter contains a variable name missing its ending percent sign.",
+and the `x := %a` is refused the same way. The tree builds the name and
+answers it at the run, and it fails with "Variable not found." when the name
+is not there.
 
 ---
 
