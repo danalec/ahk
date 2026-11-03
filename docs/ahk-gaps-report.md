@@ -223,6 +223,11 @@ standard output as well. The type that was left — the "LocalSameAsGlobal" —
 is carried too: the local that has the name of a global one is warned about
 when the script is read.
 
+The warning of the variable that is read and never written is given when the
+script is read, and not when the variable is read. The v2 measures it as the
+binary measures it: the `if 0 { x := nope }` is warned about, and the name that
+the scope writes is not warned about.
+
 **The second parameter of the `Loop Read` of the v2** — *closed on 2026-11-05*.
 The v2 does not open the file of the second parameter when the loop begins:
 the file that is not there is not made, and the one that has text keeps it.

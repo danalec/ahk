@@ -1798,18 +1798,11 @@ impl<'a> Runtime<'a> {
             }
         }
         let mut warnings = Vec::new();
-        if self.modes.unreachable != crate::warnings::WarningMode::Off {
-            let mode = self.modes.unreachable;
-            for warning in crate::warnings::the_warnings_of_the_script(statements) {
-                self.warn(warning.line, warning.message.clone(), mode);
-                warnings.push(warning);
-            }
-        }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05 and on
         // the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning of the
         // local that has the name of a global is given when the script is
-        // read, and the warning of the class that is overwritten is given
-        // after it.
+        // read, and it comes before the warning of the variable that is read
+        // and never written.
         if self.modes.local_same_as_global != crate::warnings::WarningMode::Off {
             let mode = self.modes.local_same_as_global;
             for warning in
@@ -1819,9 +1812,34 @@ impl<'a> Runtime<'a> {
                 warnings.push(warning);
             }
         }
+        // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+        // warning of the variable that is read and never written is given when
+        // the script is read, and not when the variable is read.
+        if self.modes.var_unset != crate::warnings::WarningMode::Off {
+            let mode = self.modes.var_unset;
+            for warning in
+                crate::warnings::the_warnings_of_the_variables_that_are_never_written(statements)
+            {
+                self.warn(warning.line, warning.message.clone(), mode);
+                warnings.push(warning);
+            }
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // warning of the class that is overwritten comes after the warning of
+        // the local that has the name of a global.
         if self.modes.class_overwrite != crate::warnings::WarningMode::Off {
             let mode = self.modes.class_overwrite;
             for warning in crate::warnings::the_warnings_of_the_classes_that_are_overwritten(statements) {
+                self.warn(warning.line, warning.message.clone(), mode);
+                warnings.push(warning);
+            }
+        }
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05 and on
+        // the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning of the
+        // line that never runs comes last.
+        if self.modes.unreachable != crate::warnings::WarningMode::Off {
+            let mode = self.modes.unreachable;
+            for warning in crate::warnings::the_warnings_of_the_script(statements) {
                 self.warn(warning.line, warning.message.clone(), mode);
                 warnings.push(warning);
             }
@@ -1857,33 +1875,31 @@ impl<'a> Runtime<'a> {
     /// name of a global one says so -- "x  (a local variable with same name
     /// as a global)".
     fn warn_about_the_variable_that_has_no_value(&mut self, name: &str, line: u32) {
+        // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+        // warning of the v2 is given when the script is read, and not when the
+        // variable is read: the runtime only fails.
+        if !self.dialect.unset_is_blank() {
+            return;
+        }
         let local = !matches!(self.the_scope_of(name), Scope::Global);
-        let (mode, message) = if self.dialect.unset_is_blank() {
-            let kind = if local {
-                if self.variables.contains_key(&the_key_of(name)) {
-                    "a local variable with same name as a global"
-                } else {
-                    "a local variable"
-                }
+        let kind = if local {
+            if self.variables.contains_key(&the_key_of(name)) {
+                "a local variable with same name as a global"
             } else {
-                "a global variable"
-            };
-            let mode = if local { self.modes.use_unset_local } else { self.modes.use_unset_global };
-            (
-                mode,
-                format!("This variable has not been assigned a value.\n     Specifically: {name}  ({kind})"),
-            )
+                "a local variable"
+            }
         } else {
-            let kind = if local { "local" } else { "global" };
-            (
-                self.modes.var_unset,
-                format!("This {kind} variable appears to never be assigned a value.\n     Specifically: {name}"),
-            )
+            "a global variable"
         };
+        let mode = if local { self.modes.use_unset_local } else { self.modes.use_unset_global };
         if mode == crate::warnings::WarningMode::Off {
             return;
         }
-        self.warn(line, message, mode);
+        self.warn(
+            line,
+            format!("This variable has not been assigned a value.\n     Specifically: {name}  ({kind})"),
+            mode,
+        );
     }
 
     /// The warning of the environment variable that is accessed.

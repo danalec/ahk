@@ -9149,6 +9149,12 @@ run, and the text of it names the kind of the variable -- "This global
 variable appears to never be assigned a value." and "This local variable
 appears to never be assigned a value.".
 
+The warning of the v2 is given when the script is read, and not when the
+variable is read: the `if 0 { x := nope }` is warned about, and the read of it
+never happens. The scope of the name decides the text of it, and the names of
+the script are the globals: the scopes that the script holds see them, and the
+scope of a function does not see the names of another function.
+
 Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the warning of
 the v1 has one text for the two kinds, and the kind is in the text that names
 the variable -- "This variable has not been assigned a value." and "nope  (a
@@ -9559,3 +9565,35 @@ The probes of the block are `egm-review/probe_env_get.py` and
 
 The suite of the v1 has two cases more (410). The suite of the v2 is the same
 (529), and the suite of the box is the same (84).
+
+The warning of the variable that is read and never written is given when the
+script is read. Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
+warning is given when the script is read, and not when the variable is read --
+the `if 0 { x := nope }` is warned about, and the read of it never happens.
+
+A regra é uma passagem pelo script, na ordem do código:
+
+- O aviso não é dado quando o nome é escrito no âmbito: o `x := nope` com o
+  `nope := 5` depois não é avisado.
+- O aviso não é dado quando o script já viu o nome: o script lê `x` e a função
+  lê `x` depois, e há um aviso só. A função que lê `x` antes do script tem o
+  seu aviso, e o script tem o dele.
+- O âmbito do nome decide o texto: um nome que o script escreve é uma global, e
+  um nome que o script não escreve é uma local do âmbito onde é lido. O nome que
+  uma função declara global é uma global.
+- O aviso é dado uma vez por nome e por âmbito.
+
+A ordem das advertências do binário é a local que tem o nome de uma global, a
+variável que é lida e nunca escrita, a classe que é sobrescrita e o unreachable
+no fim.
+
+A árvore não dá mais o aviso do v2 quando a variável é lida: o runtime só
+falha, e a análise do script é que avisa.
+
+Os testes e as sondas do bloco são `egm-review/probe_warn_varunset.py`,
+`egm-review/probe_warn_varunset2.py`,
+`egm-review/probe_warn_varunset_compare.py` e
+`egm-review/probe_warn_order.py`.
+
+A suite do v2 tem quatro casos mais (533). A suite do v1 é a mesma (410), e a
+suite da caixa é a mesma (84).

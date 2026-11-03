@@ -6060,6 +6060,60 @@ fn the_local_variable_that_is_read_and_never_written_is_warned_about() {
     );
 }
 
+/// The variable that is read and never written is warned about when the
+/// script is read.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning is
+/// given when the script is read, and not when the variable is read: the
+/// `if 0 { x := nope }` is warned about, and the read of it never happens.
+#[test]
+fn the_variable_that_is_never_run_is_warned_about() {
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nif 0 {\n  x := nope\n}\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This global variable appears to never be assigned a value.\n     Specifically: nope"
+    );
+}
+
+/// The variable that is written after the read is not warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the name that
+/// the scope writes is a local of it, and the warning is not given for it.
+#[test]
+fn the_variable_that_is_written_after_the_read_is_not_warned_about() {
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nx := nope\nnope := 5\n");
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+}
+
+/// The name that the script has seen is a global one.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the script reads
+/// the name and the function reads it after, and there is one warning only.
+#[test]
+fn the_name_that_the_script_has_seen_is_not_warned_about_again() {
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nx := nope\nf() {\n  y := x\n}\nf()\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 2);
+}
+
+/// The variable of a class that is read and never written is warned about.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the body of the
+/// class is a scope of its own, and the name that it reads and that the script
+/// does not write is a local of it.
+#[test]
+fn the_variable_of_a_class_that_is_never_written_is_warned_about() {
+    let (report, _desktop) = run("#Warn VarUnset, StdOut\nclass A {\n  y := nope\n}\n");
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].line, 3);
+    assert_eq!(
+        report.warnings[0].message,
+        "This local variable appears to never be assigned a value.\n     Specifically: nope"
+    );
+}
+
 /// The type of the warning that the v2 does not know is refused.
 ///
 /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the types of

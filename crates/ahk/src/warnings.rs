@@ -805,6 +805,200 @@ fn the_closing_percent(chars: &[char], from: usize) -> Option<usize> {
     None
 }
 
+/// The names of a scope: the ones that it writes and the ones that it reads.
+type TheNames = std::collections::BTreeSet<String>;
+
+/// The warning of the variable that is read and never written.
+///
+/// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the warning is
+/// given when the script is read, and not when the variable is read: the
+/// `if 0 { x := nope }` is warned about, and the read of it never happens.
+///
+/// The names of the script are the globals: the scopes that the script holds
+/// see them, and the scope of a function does not see the names of another
+/// function. The warning is given once for each name of each scope.
+pub fn the_warnings_of_the_variables_that_are_never_written(statements: &[Node]) -> Vec<Warning> {
+    let mut warnings = Vec::new();
+    let mut globals = TheNames::new();
+    the_warnings_of_the_reads_of_the_script(statements, &mut globals, &mut warnings);
+    warnings
+}
+
+/// The warnings of the reads of the script and of the scopes that it holds.
+///
+/// The script is a scope of its own, and the scopes that it holds are seen in
+/// the order of the code: a name that the script has read before the scope is
+/// a global one.
+fn the_warnings_of_the_reads_of_the_script(
+    statements: &[Node],
+    globals: &mut TheNames,
+    warnings: &mut Vec<Warning>,
+) {
+    // The names that the script writes are the globals.
+    let mut writes = Vec::new();
+    the_writes_of_a_level(statements, &mut writes, false);
+    for (name, _) in writes {
+        globals.insert(name.to_lowercase());
+    }
+    let empty = std::collections::BTreeSet::new();
+    for statement in statements {
+        match statement {
+            Node::FunctionDef { body, declarations, parameters, .. } => {
+                let mut own = TheNames::new();
+                // The parameters are declared, and they are not names that have
+                // no value.
+                for parameter in parameters {
+                    own.insert(parameter.name.to_lowercase());
+                }
+                // The names that the function writes are the locals of it.
+                let mut writes = Vec::new();
+                the_writes_of_a_level(body, &mut writes, false);
+                for (name, _) in writes {
+                    own.insert(name.to_lowercase());
+                }
+                let mut reads = Vec::new();
+                the_reads_of_a_level(body, &mut reads);
+                the_warnings_of_the_reads_of_a_scope(
+                    &reads,
+                    &mut own,
+                    Some(&mut *globals),
+                    &declarations.globals,
+                    false,
+                    warnings,
+                );
+            }
+            Node::ClassDef { properties, methods, accessors, nested, .. } => {
+                // The body of the class: the values of the properties are read
+                // there, and the properties themselves are not variables of the
+                // scope.
+                let mut own = TheNames::new();
+                let mut reads = Vec::new();
+                for property in properties {
+                    if let Some(value) = &property.value {
+                        the_reads_of_a_node(value, &mut reads);
+                    }
+                }
+                the_warnings_of_the_reads_of_a_scope(
+                    &reads,
+                    &mut own,
+                    Some(&mut *globals),
+                    &empty,
+                    false,
+                    warnings,
+                );
+                for method in methods {
+                    let mut own = TheNames::new();
+                    for parameter in &method.parameters {
+                        own.insert(parameter.name.to_lowercase());
+                    }
+                    let mut writes = Vec::new();
+                    the_writes_of_a_level(&method.body, &mut writes, false);
+                    for (name, _) in writes {
+                        own.insert(name.to_lowercase());
+                    }
+                    let mut reads = Vec::new();
+                    the_reads_of_a_level(&method.body, &mut reads);
+                    the_warnings_of_the_reads_of_a_scope(
+                        &reads,
+                        &mut own,
+                        Some(&mut *globals),
+                        &method.declarations.globals,
+                        false,
+                        warnings,
+                    );
+                }
+                for accessor in accessors {
+                    for body in [&accessor.getter, &accessor.setter].into_iter().flatten() {
+                        let mut own = TheNames::new();
+                        for parameter in &accessor.parameters {
+                            own.insert(parameter.name.to_lowercase());
+                        }
+                        let mut writes = Vec::new();
+                        the_writes_of_a_level(&body.body, &mut writes, false);
+                        for (name, _) in writes {
+                            own.insert(name.to_lowercase());
+                        }
+                        let mut reads = Vec::new();
+                        the_reads_of_a_level(&body.body, &mut reads);
+                        the_warnings_of_the_reads_of_a_scope(
+                            &reads,
+                            &mut own,
+                            Some(&mut *globals),
+                            &body.declarations.globals,
+                            false,
+                            warnings,
+                        );
+                    }
+                }
+                for class in nested {
+                    if let Node::ClassDef { .. } = class {
+                        the_warnings_of_the_reads_of_the_script(
+                            std::slice::from_ref(class),
+                            globals,
+                            warnings,
+                        );
+                    }
+                }
+            }
+            _ => {
+                // The body of the script.
+                let mut reads = Vec::new();
+                the_reads_of_a_level(std::slice::from_ref(statement), &mut reads);
+                the_warnings_of_the_reads_of_a_scope(&reads, globals, None, &empty, true, warnings);
+            }
+        }
+    }
+}
+
+/// The warnings of the reads of a scope.
+///
+/// The scope is the script itself, a function, a method or the body of a
+/// class. The names of the script are the globals, and the scope of a function
+/// does not see the names of another function.
+fn the_warnings_of_the_reads_of_a_scope(
+    reads: &[(String, u32)],
+    own: &mut TheNames,
+    mut globals: Option<&mut TheNames>,
+    declared_global: &std::collections::BTreeSet<String>,
+    the_script: bool,
+    warnings: &mut Vec<Warning>,
+) {
+    for (name, line) in reads {
+        let key = name.to_lowercase();
+        if own.contains(&key) {
+            continue;
+        }
+        if crate::variables::is_built_in(name) {
+            continue;
+        }
+        // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the name
+        // that the script has seen is a global one.
+        if let Some(globals) = globals.as_deref_mut() {
+            if globals.contains(&key) {
+                continue;
+            }
+        }
+        // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the name
+        // that a function declares global is a global one.
+        let is_global = the_script || declared_global.contains(&key);
+        let message = if is_global {
+            format!(
+                "This global variable appears to never be assigned a value.\n     Specifically: {name}"
+            )
+        } else {
+            format!(
+                "This local variable appears to never be assigned a value.\n     Specifically: {name}"
+            )
+        };
+        // The name is seen now, and the scope that sees it is the scope of it.
+        match globals.as_deref_mut() {
+            Some(globals) if is_global => globals.insert(key),
+            _ => own.insert(key),
+        };
+        warnings.push(Warning { line: *line, message });
+    }
+}
+
 /// The warning of the class that a variable overwrites.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the text of
