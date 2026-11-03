@@ -4207,12 +4207,9 @@ The comparison of the tree with the binary is in
 `egm-review/probe_prototype_members.py` (the sweep of every member of every
 prototype of v2).
 
-One corner is still open, and it is the parser: v2 writes the property of a
-class with a getter -- `value { get => 1 }` -- and the tree refuses the
-line with "Not a valid method, class or property definition.". The
-property of a class is own of the prototype of it in v2, and the tree has
-no property of a class: the `value := 1` of a class is a variable of the
-instance, and v2 owns it in the same way.
+The corner of the parser was closed by section 93: the tree reads the property
+of a class with a getter. The property of a class is own of the prototype of it
+in v2, and the tree owns it in the same way.
 
 ## 90. The methods are values, and the `GetMethod` of a value
 
@@ -6770,9 +6767,10 @@ compare the two are `egm-review/probe_both_v1_class_members.py` and
 `egm-review/probe_both_v1_class_names.py`.
 
 What stays out: the `__Init` that is static, which the v1 refuses with
-"Invalid class variable declaration.\n     Specifically: __Init() {", and
-the property that has a getter, which the v1 refuses with "Not a valid
-property getter/setter.\n     Specifically: get => 1" -- the tree takes both.
+"Invalid class variable declaration.\n     Specifically: __Init() {" -- the tree
+takes it. The property that has a getter is not out of the refusals any more:
+the measurement of 2026-11-02 saw only the form of the arrow, and the v1 has
+the property when the body of the getter is a block of commands.
 The name of a class and the name of a function may be the same in the v1,
 and the name of a class may be the output of an assignment, and the tree
 refuses the two. And the two refusals of the shape of a class -- the "Missing
@@ -6824,16 +6822,19 @@ that is not an expression -- the `Exit, )` is refused with "Unexpected \")\""
 and the tree gives zero -- and the grammar of the expression of the v1, which
 is the old one: the `x := 1e2` is empty in the v1 and a hundred in the tree.
 
-## 165. The class of the v1 has no static method and no property with a getter
+## 165. The class of the v1 has no static method, and its property has a getter
 
-Measured on the binary of v1.1.37.02 on 2026-11-02.
+Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02, and measured
+again on 2026-11-05.
 
 - **The class of the v1 has no static method.** The v1 refuses it with "Invalid class variable declaration.\n     Specifically: __Init() {", and the text is the member, from the name to the brace that opens the body: "Say() {".
-- **The class of the v1 has no property with a getter.** The getter that is on the same line as the name is refused with "Not a valid method, class or property definition.\n     Specifically: x { get => 1 }", and the getter that is in a block with "Not a valid property getter/setter.\n     Specifically: get => 1".
+- **The class of the v1 has the property with a getter.** The body of the getter is a block of commands, and the `return` of it is the value of the property. The measurement of 2026-11-02 saw only the form of the arrow, and the v1 refuses it: "Not a valid property getter/setter.\n     Specifically: get => 1".
+- **The getter that is on the same line as the name is refused** with "Not a valid method, class or property definition.\n     Specifically: x { get => 1 }", and the body of the getter that is on the line of the member is refused with "Not a valid property getter/setter.\n     Specifically: get { return 1 }". The v1 names the line of the member, and the v2 names the member whole.
+- **The member that has no body is a method of the property**, and the v1 refuses it with "Missing \"{\"\n     Specifically: p.get()".
 
-The rules are two hooks of the dialect (`crates/ahk/src/dialect.rs`): the
-static method is refused, and the property that has a getter or a setter is
-refused. The parser asks them (`crates/ahk/src/parser.rs`).
+The rules are hooks of the dialect (`crates/ahk/src/dialect.rs`): the static
+method is refused, and the body of the getter of the v1 is a block and not an
+expression. The parser asks them (`crates/ahk/src/parser.rs`).
 
 What stays out: the name of a class and the name of a variable of the script
 may be the same in the v1 -- the `C := 5` with the class `C` is taken, and the
@@ -9622,3 +9623,33 @@ The probes of the block are `egm-review/probe_accessor3.py`,
 
 The suite of the v2 has six cases more (539). The suite of the v1 is the same
 (410), and the suite of the box is the same (84).
+
+The class of the v1 has the property with a getter. Measured on the binary of
+AutoHotkey v1.1.37.02 on 2026-11-05: the getter whose body is a block of
+commands answers the value of the property, and the setter whose body is a
+block writes the value that is given to it. The measurement of 2026-11-02 saw
+only the form of the arrow, and the tree refused the property altogether: the
+refusal was "Not a valid property getter/setter.\n     Specifically: get {".
+
+What the v1 refuses:
+
+- the getter that is on the same line as the name: "Not a valid method, class
+  or property definition.\n     Specifically: p { get {" -- the v1 names the
+  line of the member, and the v2 names the member whole.
+- the body of the getter that is on the line of the member: "Not a valid
+  property getter/setter.\n     Specifically: get { return 1 }".
+- the expression after the arrow: "Not a valid property getter/setter.\n
+  Specifically: get => 1".
+- the member that has no body: "Missing \"{\"\n     Specifically: p.get()".
+- the member that is static: "Invalid class variable declaration.\n
+  Specifically: p {".
+
+The body of the getter is a scope of its own: the `local` of it is a local of
+it, and the global is not seen -- the scope of a function of the v1 is its own,
+and the body of the getter is one of them.
+
+The probes of the block are `egm-review/probe_accessor3.py`,
+`egm-review/probe_accessor4.py` and `egm-review/probe_accessor7.py`.
+
+The suite of the v1 has seven cases more (417). The suite of the v2 is the same
+(539), and the suite of the box is the same (84).

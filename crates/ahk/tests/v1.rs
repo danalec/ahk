@@ -3577,15 +3577,15 @@ fn the_class_of_the_v1_has_no_static_method() {
     );
 }
 
-/// The class of the v1 has no property with a getter.
+/// The getter of the v1 that is on the same line as the name is refused.
 ///
-/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the getter
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the getter
 /// that is on the same line as the name is refused with "Not a valid method,
 /// class or property definition.\n     Specifically: x { get => 1 }", and the
 /// getter that is in a block with "Not a valid property
 /// getter/setter.\n     Specifically: get => 1".
 #[test]
-fn the_class_of_the_v1_has_no_property_with_a_getter() {
+fn the_getter_of_the_v1_that_is_on_the_same_line_as_the_name_is_refused() {
     let error = ahk::parse_with("class C\n{\n    x { get => 1 }\n}", dialect::v1())
         .expect_err("the getter is refused");
     assert_eq!(
@@ -10210,4 +10210,98 @@ fn the_line_that_never_runs_is_warned_about_in_the_v1() {
         error.message,
         "Parameter #1 invalid.\n     Specifically: #Warn VarUnset"
     );
+}
+
+/// The class of the v1 has the property with a getter.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the getter
+/// that is in a block of commands answers the value of the property.
+#[test]
+fn the_class_of_the_v1_has_the_property_with_a_getter() {
+    let report = run("class C\n{\n    p {\n        get {\n            return 1\n        }\n    }\n}\ninst := new C\nx := inst.p\nFileAppend, %x%, *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1".to_string()]);
+}
+
+/// The setter of the v1 writes the value that is given to it.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the body of
+/// the setter is a scope, and the name "value" is the value that is written.
+#[test]
+fn the_setter_of_the_v1_writes_the_value_that_is_given_to_it() {
+    let report = run("class C\n{\n    p {\n        set {\n            this.stored := value\n        }\n    }\n}\ninst := new C\ninst.p := 7\nx := inst.stored\nFileAppend, %x%, *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7".to_string()]);
+}
+
+/// The body of the getter of the v1 is a scope of its own.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the `local`
+/// of the body of the getter is a local of it, and the global is not seen:
+/// the getter answers the local that has no value.
+#[test]
+fn the_body_of_the_getter_of_the_v1_is_a_scope_of_its_own() {
+    let report = run("class C\n{\n    p {\n        get {\n            local n := 5\n            return n\n        }\n    }\n}\ninst := new C\nx := inst.p\nFileAppend, %x%, *");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5".to_string()]);
+}
+
+/// A expressão depois da seta não é do v1.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+/// refuses it with "Not a valid property getter/setter.\n     Specifically: get
+/// => 1".
+#[test]
+fn the_expression_after_the_arrow_is_not_of_the_v1() {
+    let error = ahk::parse_with("class C\n{\n    p {\n        get => 1\n    }\n}", dialect::v1())
+        .expect_err("the arrow is refused");
+    assert_eq!(
+        error.message,
+        "Not a valid property getter/setter.\n     Specifically: get => 1"
+    );
+    assert_eq!(error.line, 4);
+}
+
+/// O corpo do getter que está na linha do membro é recusado.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+/// refuses it with "Not a valid property getter/setter.\n     Specifically: get
+/// { return 1 }".
+#[test]
+fn the_body_of_the_getter_of_the_v1_that_is_on_the_line_of_the_member_is_refused() {
+    let error = ahk::parse_with("class C\n{\n    p {\n        get { return 1 }\n    }\n}", dialect::v1())
+        .expect_err("the body is refused");
+    assert_eq!(
+        error.message,
+        "Not a valid property getter/setter.\n     Specifically: get { return 1 }"
+    );
+    assert_eq!(error.line, 4);
+}
+
+/// O membro estático da propriedade é recusado.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 has no
+/// static member, and it refuses it with "Invalid class variable
+/// declaration.\n     Specifically: p {".
+#[test]
+fn the_static_member_of_the_property_of_the_v1_is_refused() {
+    let error = ahk::parse_with("class C\n{\n    static p {\n        get {\n            return 1\n        }\n    }\n}", dialect::v1())
+        .expect_err("the static property is refused");
+    assert_eq!(
+        error.message,
+        "Invalid class variable declaration.\n     Specifically: p {"
+    );
+    assert_eq!(error.line, 3);
+}
+
+/// O membro que não tem corpo é um método da propriedade.
+///
+/// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+/// refuses it with "Missing "{".\n     Specifically: p.get()".
+#[test]
+fn the_member_of_the_property_of_the_v1_that_has_no_body_is_a_method() {
+    let error = ahk::parse_with("class C\n{\n    p {\n        get\n    }\n}", dialect::v1())
+        .expect_err("the member without a body is refused");
+    assert_eq!(error.message, "Missing \"{\"\n     Specifically: p.get()");
+    assert_eq!(error.line, 4);
 }

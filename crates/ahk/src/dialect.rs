@@ -1083,7 +1083,11 @@ pub trait Dialect: Sync {
     /// }", and the getter that is in a block with "Not a valid property
     /// getter/setter.\n     Specifically: get => 1". The v2 has the property
     /// with a getter.
-    fn the_accessor_of_a_class_is_refused(&self) -> bool {
+    fn the_accessor_takes_an_expression(&self) -> bool {
+        true
+    }
+
+    fn the_member_of_an_accessor_without_a_body_is_a_call(&self) -> bool {
         false
     }
 
@@ -2983,9 +2987,18 @@ impl Dialect for V1 {
         true
     }
 
-    fn the_accessor_of_a_class_is_refused(&self) -> bool {
-        // Measured on the binary of v1.1.37.02 on 2026-11-02: the class of the
-        // v1 has no property with a getter.
+    fn the_accessor_takes_an_expression(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // body of the getter of the v1 is a block of statements, and the
+        // expression is refused with "Not a valid property
+        // getter/setter.\n     Specifically: get => 1".
+        false
+    }
+
+    fn the_member_of_an_accessor_without_a_body_is_a_call(&self) -> bool {
+        // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
+        // v1 reads the member that has no body as a method of the property,
+        // and it refuses it with "Missing "{".\n     Specifically: p.get()".
         true
     }
 

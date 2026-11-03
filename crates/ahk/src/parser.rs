@@ -8028,8 +8028,22 @@ impl Parser {
                         column: name_token.column,
                     });
                 }
-                if self.dialect.the_accessor_of_a_class_is_refused() {
-                    return Err(self.the_refusal_of_an_accessor(name_token));
+                // The v1 has no static member, and the property that has a
+                // getter is one of them.
+                //
+                // Measured on the binary of AutoHotkey v1.1.37.02 on
+                // 2026-11-05: "Invalid class variable declaration.\n
+                // Specifically: p {". The text is the member, from the name to
+                // the brace that opens the body.
+                if is_static && self.dialect.the_static_method_is_refused() {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Invalid class variable declaration.\n     Specifically: {}",
+                            self.the_text_of_a_static_member(name_at)
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
                 }
                 let key = name_token.value.to_lowercase();
                 let taken = if is_static { &mut class_accessors } else { &mut instance_accessors };
@@ -8217,64 +8231,6 @@ impl Parser {
         the_source_of_a_definition(self, name_at, close + 1)
     }
 
-    /// The refusal of the property that has a getter or a setter.
-    ///
-    /// Measured on the binary of v1.1.37.02 on 2026-11-02: the getter that is
-    /// on the same line as the name is refused with "Not a valid method, class
-    /// or property definition.\n     Specifically: x { get => 1 }", and the
-    /// getter that is in a block with "Not a valid property
-    /// getter/setter.\n     Specifically: get => 1".
-    fn the_refusal_of_an_accessor(&self, name_token: Token) -> SyntaxError {
-        // The brace opens the body of the getter, and the token that comes
-        // after it says whether the getter is on the same line as the name.
-        let mut at = self.position;
-        while at < self.tokens.len() {
-            let token = &self.tokens[at];
-            if token.kind == TokenKind::Op && token.value == "{" {
-                break;
-            }
-            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
-                break;
-            }
-            at += 1;
-        }
-        // The token that comes after the brace: the newline that ends the line
-        // of the member is not a part of it.
-        let mut after = at + 1;
-        while self
-            .tokens
-            .get(after)
-            .map(|token| token.kind == TokenKind::Newline)
-            .unwrap_or(false)
-        {
-            after += 1;
-        }
-        let after = self.tokens.get(after);
-        let on_the_same_line = after
-            .map(|token| token.line == name_token.line)
-            .unwrap_or(false);
-        if on_the_same_line {
-            return SyntaxError {
-                message: format!(
-                    "Not a valid method, class or property definition.\n     Specifically: {}",
-                    the_source_of_the_line(self, name_token.line)
-                ),
-                line: name_token.line,
-                column: name_token.column,
-            };
-        }
-        // The getter is in a block, and the refusal is at the line of it.
-        let line = after.map(|token| token.line).unwrap_or(name_token.line);
-        SyntaxError {
-            message: format!(
-                "Not a valid property getter/setter.\n     Specifically: {}",
-                the_source_of_the_line(self, line)
-            ),
-            line,
-            column: name_token.column,
-        }
-    }
-
     /// A property of the class that has a getter or a setter.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the property may
@@ -8298,7 +8254,7 @@ impl Parser {
                 break;
             }
             let token = self.next();
-            let body = self.parse_the_body_of_an_accessor(&token)?;
+            let body = self.parse_the_body_of_an_accessor(&name_token.value, &token)?;
             match token.value.to_lowercase().as_str() {
                 "get" => getter = Some(body),
                 "set" => setter = Some(body),
@@ -8330,11 +8286,30 @@ impl Parser {
     /// expression, and a block of statements between braces.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-05: the body that is a
-    /// block is an âmbito of si: o `return` dele é o valor da propriedade, e o
-    /// nome que ele escreve é um local dele.
-    fn parse_the_body_of_an_accessor(&mut self, member: &Token) -> Result<AccessBody, SyntaxError> {
+    /// block is a scope of its own: the `return` of it is the value of the
+    /// property, and the name that it writes is a local of it.
+    ///
+    /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
+    /// has only the block, and the expression after the arrow is refused with
+    /// "Not a valid property getter/setter.\n     Specifically: get => 1".
+    fn parse_the_body_of_an_accessor(
+        &mut self,
+        property: &str,
+        member: &Token,
+    ) -> Result<AccessBody, SyntaxError> {
         let line = member.line;
         let (body, declarations, body_line) = if self.at_op(&["=>"]) {
+            // The v1 does not have the expression after the arrow.
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the v1 refuses it with "Not a valid property
+            // getter/setter.\n     Specifically: get => 1".
+            if !self.dialect.the_accessor_takes_an_expression() {
+                return Err(self.error(format!(
+                    "Not a valid property getter/setter.\n     Specifically: {}",
+                    the_source_of_the_line(self, line)
+                )));
+            }
             let token = self.next();
             let expression = self.parse_expression()?;
             let body = if self.at_an_assignment_operator() {
@@ -8384,9 +8359,26 @@ impl Parser {
             }
             (body, declarations, body_line)
         } else {
-            // Measured on the binary of v2.0.19 on 2026-10-31: the getter
-            // and the setter have a body, and the line that has none is
-            // named.
+            // The member that has no body.
+            //
+            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
+            // the v1 reads it as a method of the property, and it refuses it
+            // with "Missing "{".\n     Specifically: p.get()".
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-05: the v2 refuses
+            // it with "Not a valid property getter/setter.\n     Specifically:
+            // get".
+            if self.dialect.the_member_of_an_accessor_without_a_body_is_a_call() {
+                return Err(SyntaxError {
+                    message: format!(
+                        "Missing \"{{\"\n     Specifically: {}.{}()",
+                        property,
+                        member.value
+                    ),
+                    line,
+                    column: member.column,
+                });
+            }
             return Err(self.error(format!(
                 "Not a valid property getter/setter.\n     Specifically: {}",
                 the_source_of_the_line(self, line)

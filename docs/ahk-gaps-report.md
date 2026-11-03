@@ -195,6 +195,26 @@ materializes the empty content of the variable, and that depends on the
 operator: the value of an assignment is materialized twice, and the value of
 an object and the value of a comparison too. The tree warns once per read.
 
+**The property with a getter of the v1** -- *closed on 2026-11-05*. The v1 has
+the property with a getter, and the body of the getter is a block of commands:
+the `return` of it is the value of the property. The tree refused the property
+altogether, and the refusal was "Not a valid property getter/setter.\n
+Specifically: get {". The v1 refuses the expression after the arrow, the getter
+that is on the same line as the name, the body of the getter that is on the
+line of the member, the member that has no body -- that one is a method of the
+property, and the refusal is "Missing \"{\"\n Specifically: p.get()" -- and
+the member that is static.
+
+**The property with a getter of the v1** -- *closed on 2026-11-05*. The v1 has
+the property with a getter, and the body of the getter is a block of commands:
+the `return` of it is the value of the property. The tree refused the property
+altogether, and the refusal was "Not a valid property getter/setter.\n
+Specifically: get {". The v1 refuses the expression after the arrow, the getter
+that is on the same line as the name, the body of the getter that is on the
+line of the member, the member that has no body -- that one is a method of the
+property, and the refusal is "Missing \"{\"\n Specifically: p.get()" -- and
+the member that is static.
+
 ### 2.3 The holes of the v2 that are known
 
 **`ObjBindMethod`** — *closed on 2026-11-05*. The tree binds the method of an
@@ -227,6 +247,14 @@ The warning of the variable that is read and never written is given when the
 script is read, and not when the variable is read. The v2 measures it as the
 binary measures it: the `if 0 { x := nope }` is warned about, and the name that
 the scope writes is not warned about.
+
+**The body of the getter of the v2** — *closed on 2026-11-05*. The body of the
+getter and of the setter that is a block is a scope of its own: the `return` of
+it is the value of the property, and the name that it writes is a local of it.
+The tree refused the `return` with "Return's parameter should be blank except
+inside a function.". The getter that is on the same line as the name and the
+body of the getter that is on the line of the member are refused, and the
+`this` of a class is not a variable that the warning of the "VarUnset" names.
 
 **The second parameter of the `Loop Read` of the v2** — *closed on 2026-11-05*.
 The v2 does not open the file of the second parameter when the loop begins:

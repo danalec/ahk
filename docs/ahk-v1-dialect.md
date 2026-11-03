@@ -1866,12 +1866,14 @@ the refusals (2026-11-02), and the probes that compare the two are
 `egm-review/probe_both_v1_class_names.py`.
 
 **What stays out of the refusals.** The `__Init` that is static, which the v1
-refuses with "Invalid class variable declaration.\n Specifically: __Init() {",
-and the property that has a getter, which the v1 refuses with "Not a valid
-property getter/setter.\n Specifically: get => 1" -- the tree takes both. The
-name of a class and the name of a function may be the same in the v1, and
-the name of a class may be the output of an assignment, and the tree refuses
-the two.
+refuses with "Invalid class variable declaration.\n Specifically: __Init() {"
+-- the tree takes it. The name of a class and the name of a function may be
+the same in the v1, and the name of a class may be the output of an assignment,
+and the tree refuses the two.
+
+The property that has a getter is not out of the refusals any more: the
+measurement of 2026-11-02 saw only the form of the arrow, and the v1 has the
+property when the body of the getter is a block of commands.
 
 
 **The number of a parameter of the v1.** The built-in of the v1 does not check
@@ -1934,11 +1936,18 @@ v1 and a hundred in the tree.
 **The body of a class of the v1.** The class of the v1 has no static method,
 and the v1 refuses it with "Invalid class variable declaration.\n
 Specifically: __Init() {" -- the text is the member, from the name to the brace
-that opens the body. The class of the v1 has no property with a getter, and
-the v1 refuses it too: the getter that is on the same line as the name with
-"Not a valid method, class or property definition.\n Specifically: x { get =>
-1 }", and the getter that is in a block with "Not a valid property
-getter/setter.\n Specifically: get => 1".
+that opens the body. The class of the v1 has the property with a getter, and
+the body of the getter is a block of commands: the getter that is on the same
+line as the name is refused with "Not a valid method, class or property
+definition.\n Specifically: x { get => 1 }", the body of the getter that is on
+the line of the member is refused with "Not a valid property
+getter/setter.\n Specifically: get { return 1 }", and the expression after
+the arrow is refused with "Not a valid property getter/setter.\n Specifically:
+get => 1". The member that has no body is a method of the property, and the v1
+refuses it with "Missing \"{\"\n Specifically: p.get()".
+
+The measurement of 2026-11-05 is the one that carries these rules, and it is
+the block of the accessor (2026-11-05) that brought them to the tree.
 
 **The block carries.** The tree carries these two rules since the block of the
 body of a class (2026-11-02), with the two hooks of the dialect
