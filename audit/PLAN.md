@@ -921,6 +921,40 @@ were acted on; this one was not, and it was wrong.
 
 The audit is corrected: the row now says what the binary does.
 
+### Round 22 — 2026-11-09: the other half of a defect that was not one
+
+**No code changed.** Defect 6 said two things. Measured on the binary of
+v2.0.19 on 2026-11-09, one of them is not true:
+
+| script | the binary | this tree |
+|---|---|---|
+| `A_ThisFunc` at the top level | `""` | `[]` — the same |
+| `A_ThisFunc` inside `F1()` | `F1` | `[F]` — the same |
+| `A_Args` | an **Array**, length 0 | *"This global variable has not been assigned a value."* |
+
+So `A_ThisFunc` was never broken; the audit's claim that it answered
+"Variable not found." does not reproduce at the top level or inside a function.
+**`A_Args` is a real gap**, and it has two blockers that are worth writing down
+rather than rediscovering:
+
+1. **The name is not in the reference table.** `A_Args` does not appear in
+   `crates/ahk/reference/ahk-v2.0.19.surface.tsv`, although the binary answers
+   it. That is an extraction miss of the same kind the audit found for the nine
+   class types -- and it means `--surface` cannot even count the name, so
+   "carrying it" would not move the metric that measures the port.
+2. **The read path cannot build an Array.** `the_value_of_a_variable_of_the_runtime`
+   takes `&self`, and an Array of v2 is made through `classes::construct`, which
+   needs `&mut Runtime` and a line. A `Value::List` would be the wrong answer
+   again -- that is the round-3 lesson, where a list answered `value` and then
+   had no `Length`.
+
+The way in is to seed the empty Array into the globals where the runtime is
+built, which has `&mut self` and a line, rather than at the read.
+
+**That is two rounds in a row where a defect row was wrong**, and both were
+wrong in the same way: the row described the tree and not the binary. The
+audit is corrected.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
