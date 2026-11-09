@@ -374,7 +374,7 @@ wrong refusals (a process question answered with "this is Windows").
 | # | What | Names | Why it is the real work |
 |---|---|---|---|
 | 13 | **A GUI toolkit** | **148** `Gui`/`ListView`/`TreeView`/`StatusBar` methods + `ToolTip` | needs GTK4 (or an equivalent), and the runner must stay headless-capable. AHK_X11's `gui-add.cr` (8 KB, ~30 control types) is the behavioural reference — **not** copyable (GPL-2.0) |
-| 14 | **Accessibility (AT-SPI)** | 48 `Control*` + `WinGetText` | D-Bus, so it works on Wayland. AHK_X11's `at-spi.cr` is 21 KB — the single most valuable piece it has |
+| 14 | **Accessibility (AT-SPI)** | 48 `Control*` + `WinGetText` | D-Bus, so it works on Wayland. AHK_X11's `at-spi.cr` is 21 KB — the single most valuable piece it has. **Measured live on the box in round 24**: `org.a11y.Bus` runs, the compositor owns `org.freedesktop.a11y.Manager`, and the registry enumerates applications with accessible roots — so this verdict is measured, not judged |
 | 15 | **Script lifecycle / events** | `Pause`, `Suspend`, `Reload`, `Persistent`, `OnExit` (partly), `OnMessage`, `OutputDebug`, `CallbackCreate` | changes the execution model from "runs to the end" to an event loop. The right v2 shape is events + callbacks, not the v1 thread model |
 | 16 | **Genuinely impossible** | ~85 names | Win32 messages, COM, registry, Win32 menu bars, image lists |
 

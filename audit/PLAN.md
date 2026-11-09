@@ -992,6 +992,60 @@ The audit's own rule -- every behaviour carries the measurement that justifies
 it -- was applied to the tree and not to the defect table. It is now applied to
 both.
 
+### Round 24 — 2026-11-09: the largest gap is real, and measured
+
+The plan said to re-verify the audit's doability judgement, because rounds 21-23
+found three defect claims that were wrong. The biggest claim in the gap list is
+that the `Control*` family is implementable through **AT-SPI**. It is, and this
+round proves it on the box rather than reasoning about it.
+
+```
+$ busctl --user list | grep a11y
+org.a11y.Bus                 1767 at-spi-bus-laun …
+org.freedesktop.a11y.Manager 1358 cosmic-comp    …
+
+$ dbus-send --bus=unix:path=/run/user/1000/at-spi/bus_0 --print-reply \
+    --dest=org.a11y.atspi.Registry /org/a11y/atspi/accessible/root \
+    org.a11y.atspi.Accessible.GetChildren
+   array [ struct { ":1.1" "/org/a11y/atspi/accessible/root" }
+           struct { ":1.4" "/org/a11y/atspi/accessible/root" } ]
+```
+
+The accessibility bus is running, **the compositor itself owns the manager**,
+and the registry enumerates applications with accessible roots. So the audit's
+`missing-linux-impl` verdict on that family is **confirmed by measurement**.
+
+**The size of what is behind it**, from `--surface`:
+
+| family | refused | what it needs |
+|---|---|---|
+| `Control*` | **32** | AT-SPI |
+| `Edit*` | **7** | AT-SPI (the text of a control) |
+| `Win*` | 35 | mostly compositor requests that do not exist (`activate`, `close`, `move`), plus `WinGetText` through AT-SPI |
+| `Gui`/`List`/`Tree`/`Status` | 7 | a window toolkit |
+| `Com*` | 9 | Windows COM |
+| `Reg*` | 5 | the Windows registry |
+
+**The way in, in the order it should be taken.** The tree has no D-Bus
+dependency and declares its foreign calls by hand; it *does* shell out to
+`grim`, `paplay`, `zenity`, `df` and `notify-send`, and `dbus-send` is installed
+on the box. So the cheapest first slice is a shell-out:
+
+1. `org.a11y.Bus.GetAddress` gives the accessibility bus, and `dbus-send`
+   connects to it. No new dependency.
+2. Walk `org.a11y.atspi.Accessible`: `GetChildren` down from the registry root,
+   reading `Name`, `Role` and the `Text` interface.
+3. **The hard part is the correlation**: a Wayland toplevel is a title and an
+   application id, and an AT-SPI application is a bus name. Matching one to the
+   other is what `ControlGetText(Control, WinTitle)` actually needs, and it is
+   where the AHK_X11 spent its effort.
+4. Then `ControlGetText`, `ControlGetPos`, `ControlClick` follow.
+
+**This is not a one-round cluster.** It is the first thing in this plan that is
+bigger than a round, and it is worth modelling as a family the way `Process*`
+and `Drive*` were modelled: a trait, a box implementation, and the built-ins
+that ride it.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
