@@ -1232,6 +1232,31 @@ pub trait Dialect: Sync {
         true
     }
 
+    /// Whether the base of a class may lead back to the class itself.
+    ///
+    /// Measured on the binary of v2.0.31 on 2026-11-09: a chain of bases that
+    /// returns to where it began is refused at the load, with "Invalid base
+    /// class." and the name of the last base of the chain in the reason. The
+    /// changelog of v2.0.27 records the fix: "Fixed class declarations to not
+    /// permit a class to subclass itself." Before that the binary of v2.0.19
+    /// failed on the same script with a dialog and no report.
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-09: the v1 runs the
+    /// same script, and the class is its own base.
+    fn the_class_may_extend_itself(&self) -> bool {
+        false
+    }
+
+    /// The reason a body that has no head is refused with.
+    ///
+    /// `kind` is `Else`, `Catch` or `Finally`, which is the word the line
+    /// began with. Measured on the binary of v2.0.31 on 2026-11-09: the v2
+    /// names the word it found -- `Unexpected "Catch"` -- and that is the
+    /// whole of the reason.
+    fn the_refusal_of_a_body_without_a_head(&self, kind: &str) -> String {
+        format!("Unexpected \"{kind}\"")
+    }
+
     /// Whether the scope of a function is its own.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1
@@ -3083,6 +3108,22 @@ impl Dialect for V1 {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 has no
         // class types, and the base of a class is a class of the script.
         false
+    }
+
+    fn the_class_may_extend_itself(&self) -> bool {
+        // Measured on the binary of v1.1.37.02 on 2026-11-09: a class that
+        // extends itself runs, and the class is its own base.
+        true
+    }
+
+    fn the_refusal_of_a_body_without_a_head(&self, kind: &str) -> String {
+        // Measured on the binary of v1.1.37.02 on 2026-11-09: the v1 says
+        // what the body was missing, in capitals, and not the word it found.
+        match kind {
+            "Catch" => "CATCH with no matching TRY".into(),
+            "Finally" => "FINALLY with no matching TRY or CATCH".into(),
+            _ => "ELSE with no matching IF".into(),
+        }
     }
 
     fn the_scope_of_a_function_is_its_own(&self) -> bool {

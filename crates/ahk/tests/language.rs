@@ -1891,6 +1891,111 @@ fn the_name_of_a_property_of_an_object_literal_must_be_a_name() {
     assert_eq!(error.line, 1);
 }
 
+// -- a body that has no head, and a chain of bases that closes -----------------
+//
+// Measured on the binaries of v2.0.31 and of v1.1.37.02 on 2026-11-09. The
+// two versions changed the answer of the first group: v2.0.19 let the line
+// pass and ran nothing, and the changelog of v2.0.20 records the fix. The
+// second group is the fix of v2.0.27, and the v1 runs the same script, so the
+// rule is the dialect's.
+
+#[test]
+fn the_else_without_an_if_is_refused_by_the_v2() {
+    let error = parse("else\n    FileAppend \"ran\", \"*\"\n").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Else\"");
+}
+
+#[test]
+fn the_catch_without_a_try_is_refused_by_the_v2() {
+    let error = parse("catch\n    FileAppend \"ran\", \"*\"\n").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Catch\"");
+}
+
+#[test]
+fn the_finally_without_a_try_is_refused_by_the_v2() {
+    let error = parse("finally\n    FileAppend \"ran\", \"*\"\n").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Finally\"");
+}
+
+#[test]
+fn the_v1_says_what_the_body_was_missing() {
+    // The v1 does not name the word it found: it says which head is absent.
+    for (source, message) in [
+        ("else\n    FileAppend, ran, *\n", "ELSE with no matching IF"),
+        ("catch\n    FileAppend, ran, *\n", "CATCH with no matching TRY"),
+        (
+            "finally\n    FileAppend, ran, *\n",
+            "FINALLY with no matching TRY or CATCH",
+        ),
+    ] {
+        let error = ahk::parse_with(source, ahk::dialect::v1()).expect_err("does not parse");
+        assert_eq!(error.message, message);
+    }
+}
+
+#[test]
+fn the_bodies_that_have_a_head_still_run() {
+    // The refusal is for the word on its own: the legitimate forms reach
+    // their own head and are untouched by it.
+    let (report, _) = run(
+        "if (1)\n    FileAppend \"a\", \"*\"\nelse\n    FileAppend \"b\", \"*\"\n\
+         try {\n    FileAppend \"t\", \"*\"\n} catch {\n    FileAppend \"c\", \"*\"\n}\
+         finally {\n    FileAppend \"f\", \"*\"\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a", "t", "f"]);
+}
+
+#[test]
+fn a_class_that_extends_itself_is_refused() {
+    let error = parse("class A extends A\n{\n}\n").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid base class.\n     Specifically: A");
+}
+
+#[test]
+fn the_reason_names_the_class_and_not_the_spelling_of_the_base() {
+    let error = parse("class A extends a\n{\n}\n").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid base class.\n     Specifically: A");
+}
+
+#[test]
+fn a_pair_that_is_each_others_base_is_refused() {
+    let error =
+        parse("class A extends B\n{\n}\nclass B extends A\n{\n}\n").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid base class.\n     Specifically: B");
+}
+
+#[test]
+fn a_trio_that_closes_on_itself_is_refused() {
+    let error = parse("class A extends B\n{\n}\nclass B extends C\n{\n}\nclass C extends A\n{\n}\n")
+        .expect_err("does not parse");
+    assert_eq!(error.message, "Invalid base class.\n     Specifically: C");
+}
+
+#[test]
+fn a_chain_of_bases_that_does_not_close_is_a_class() {
+    let (report, _) = run("class A\n{\n}\nclass B extends A\n{\n}\nFileAppend \"ran\", \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ran"]);
+}
+
+#[test]
+fn the_v1_runs_a_class_that_extends_itself() {
+    // Measured on the binary of v1.1.37.02 on 2026-11-09: the class is its
+    // own base and the script runs.
+    let statements = ahk::parse_with(
+        "class A extends A\n{\n}\nFileAppend, ran, *\n",
+        ahk::dialect::v1(),
+    )
+    .expect("the v1 parses it");
+    let mut desktop = Fake::default();
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10))
+        .with_dialect(ahk::dialect::v1())
+        .run(&statements);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ran"]);
+}
+
 #[test]
 fn a_property_of_an_object_literal_needs_its_colon() {
     let error = parse("x := {a 1}").expect_err("does not parse");

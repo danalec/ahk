@@ -2285,7 +2285,70 @@ impl Parser {
                 column: *column,
             });
         }
+        self.check_the_chain_of_the_bases()
+    }
+
+    /// The refusal of a chain of bases that returns to where it began.
+    ///
+    /// Measured on the binary of v2.0.31 on 2026-11-09: `class A extends A`,
+    /// and the pair or the trio that are each other's base, are refused at
+    /// the load with "Invalid base class." and the name of the **last base of
+    /// the chain** in the reason -- `A` for the class that is its own, `B` for
+    /// the pair `A extends B` / `B extends A`, `C` for the trio. The name is
+    /// the one of the class, and not the spelling of the base: `class A
+    /// extends a` answers "A".
+    ///
+    /// Measured on the binary of v1.1.37.02 on 2026-11-09: the v1 runs the
+    /// same script, so the rule is the dialect's and not the language's.
+    fn check_the_chain_of_the_bases(&self) -> Result<(), SyntaxError> {
+        if self.dialect.the_class_may_extend_itself() {
+            return Ok(());
+        }
+        for (class, _base, line, column) in &self.bases {
+            // The walk goes up from the class by its bases, and a name that
+            // was already walked is the one that closes the chain.
+            let mut seen: Vec<String> = vec![class.to_lowercase()];
+            let mut current = class.clone();
+            let mut closes_with = None;
+            while let Some(next) = self.base_declared_for(&current) {
+                if seen.contains(&next.to_lowercase()) {
+                    // The base of the first step that closes is the base of
+                    // the class itself; after that it is the class that was
+                    // walked last, which is the one its own base answers with.
+                    closes_with = Some(if current.eq_ignore_ascii_case(class) {
+                        next
+                    } else {
+                        current.clone()
+                    });
+                    break;
+                }
+                seen.push(next.to_lowercase());
+                current = next;
+            }
+            if let Some(found) = closes_with {
+                // The reason names the class, and not the spelling of the
+                // base: the class of the name is the one of the script.
+                let name = self
+                    .classes
+                    .get(&found.to_lowercase())
+                    .cloned()
+                    .unwrap_or(found);
+                return Err(SyntaxError {
+                    message: format!("Invalid base class.\n     Specifically: {name}"),
+                    line: *line,
+                    column: *column,
+                });
+            }
+        }
         Ok(())
+    }
+
+    /// The base that a class of the script declares, if it declares one.
+    fn base_declared_for(&self, class: &str) -> Option<String> {
+        self.bases
+            .iter()
+            .find(|(name, _, _, _)| name.eq_ignore_ascii_case(class))
+            .map(|(_, base, _, _)| base.clone())
     }
 
     /// The refusal of the assignments whose output variable is a class.
@@ -3427,17 +3490,30 @@ impl Parser {
                     }]);
                 }
                 "else" | "catch" | "finally" => {
-                    // Measured on the binary of v2.0.19 on 2026-10-31: the
-                    // `else`, the `catch` and the `finally` are statements of
-                    // their own, and the body of them never runs.
-                    let keyword = self.next();
-                    let kind = if keyword.value.eq_ignore_ascii_case("catch") {
+                    // Measured on the binary of v2.0.31 on 2026-11-09: a body
+                    // that has no head is a load error, and it says so with
+                    // the word it found. v2.0.19 let the line pass and ran
+                    // nothing, which the changelog of v2.0.20 records as a
+                    // fix: "Fixed erroneous `Else` placement to raise an
+                    // error, not crash on load."
+                    //
+                    // The legitimate forms never reach this arm: the `if`
+                    // takes its own `else`, and the `try` takes the `catch`,
+                    // the `else` and the `finally` that belong to it. What is
+                    // here is the word on its own.
+                    let token = self.peek().clone();
+                    let kind = if token.value.eq_ignore_ascii_case("catch") {
                         "Catch"
+                    } else if token.value.eq_ignore_ascii_case("finally") {
+                        "Finally"
                     } else {
-                        "else"
+                        "Else"
                     };
-                    let _body = self.parse_block(kind, keyword.line)?;
-                    return Ok(Vec::new());
+                    return Err(SyntaxError {
+                        message: self.dialect.the_refusal_of_a_body_without_a_head(kind),
+                        line: token.line,
+                        column: token.column,
+                    });
                 }
                 "try" => return Ok(vec![self.parse_try()?]),
                 "goto" => return Ok(vec![self.parse_goto()?]),
