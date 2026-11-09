@@ -1,0 +1,834 @@
+Any class value
+Array class value
+BoundFunc class value
+Buffer class value
+Class class value
+ClipboardAll class value
+Closure class value
+ComObject class value
+ComValue class value
+Enumerator class value
+Error class value
+File class value
+Float class value
+Func class value
+Gui class value
+IndexError class value
+InputHook class value
+Integer class value
+Map class value
+MemberError class value
+MemoryError class value
+Menu class value
+MethodError class value
+Number class value
+Object class value
+OSError class value
+Primitive class value
+PropertyError class value
+RegExMatchInfo class value
+String class value
+TargetError class value
+TimeoutError class value
+TypeError class value
+UnsetError class value
+UnsetItemError class value
+ValueError class value
+ZeroDivisionError class value
+BlockInput command refusal: this is a name of Windows, and this desktop is not Windows.
+CallbackCreate command refusal: this is a name of Windows, and this desktop is not Windows.
+CallbackFree command refusal: this is a name of Windows, and this desktop is not Windows.
+ClipWait command value
+ControlAddItem command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlChooseIndex command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlChooseString command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlClick command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlDeleteItem command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlFindItem command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlFocus command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetChecked command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetChoice command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetClassNN command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetEnabled command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetExStyle command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetFocus command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetHwnd command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetIndex command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetItems command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetPos command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetStyle command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetText command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlGetVisible command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlHide command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlHideDropDown command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlMove command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlSend command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlSendText command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlSetChecked command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlSetEnabled command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlSetExStyle command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlSetStyle command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlSetText command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlShow command refusal: this is a name of Windows, and this desktop is not Windows.
+ControlShowDropDown command refusal: this is a name of Windows, and this desktop is not Windows.
+CoordMode command value
+Critical command refusal: this runtime runs one script in one thread, and it cannot make it critical.
+DateAdd command value
+DateDiff command value
+DetectHiddenText command value
+DetectHiddenWindows command value
+DirCopy command value
+DirCreate command value
+DirDelete command value
+DirExist command value
+DirMove command value
+DirSelect command value
+Download command value
+DriveEject command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetCapacity command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetFilesystem command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetLabel command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetList command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetSerial command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetSpaceFree command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetStatus command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetStatusCD command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveGetType command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveLock command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveRetract command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveSetLabel command refusal: this is a name of Windows, and this desktop is not Windows.
+DriveUnlock command refusal: this is a name of Windows, and this desktop is not Windows.
+Edit command refusal: this is a name of Windows, and this desktop is not Windows.
+EditGetCurrentCol command refusal: this is a name of Windows, and this desktop is not Windows.
+EditGetCurrentLine command refusal: this is a name of Windows, and this desktop is not Windows.
+EditGetLine command refusal: this is a name of Windows, and this desktop is not Windows.
+EditGetLineCount command refusal: this is a name of Windows, and this desktop is not Windows.
+EditGetSelectedText command refusal: this is a name of Windows, and this desktop is not Windows.
+EditPaste command refusal: this is a name of Windows, and this desktop is not Windows.
+EnvGet command value
+EnvSet command value
+Exit command value
+ExitApp command value
+FileAppend command value
+FileCopy command value
+FileCreateShortcut command refusal: this is a name of Windows, and this desktop is not Windows.
+FileDelete command value
+FileEncoding command value
+FileExist command value
+FileGetAttrib command value
+FileGetShortcut command refusal: this is a name of Windows, and this desktop is not Windows.
+FileGetSize command value
+FileGetTime command value
+FileGetVersion command refusal: this is a name of Windows, and this desktop is not Windows.
+FileInstall command value
+FileMove command value
+FileRead command value
+FileRecycle command refusal: this is a name of Windows, and this desktop is not Windows.
+FileRecycleEmpty command refusal: this is a name of Windows, and this desktop is not Windows.
+FileSelect command value
+FileSetAttrib command value
+FileSetTime command value
+GetKeyName command value
+GetKeySC command value
+GetKeyState command value
+GetKeyVK command value
+GroupActivate command refusal: this is a name of Windows, and this desktop is not Windows.
+GroupAdd command refusal: this is a name of Windows, and this desktop is not Windows.
+GroupClose command refusal: this is a name of Windows, and this desktop is not Windows.
+GroupDeactivate command refusal: this is a name of Windows, and this desktop is not Windows.
+GuiCtrlFromHwnd command refusal: this is a name of Windows, and this desktop is not Windows.
+GuiFromHwnd command refusal: this is a name of Windows, and this desktop is not Windows.
+HotIf command value
+HotIfWinActive command value
+HotIfWinExist command value
+HotIfWinNotActive command value
+HotIfWinNotExist command value
+Hotkey command value
+Hotstring command value
+IL_Add command refusal: this is a name of Windows, and this desktop is not Windows.
+IL_Create command refusal: this is a name of Windows, and this desktop is not Windows.
+IL_Destroy command refusal: this is a name of Windows, and this desktop is not Windows.
+ImageSearch command value
+IniDelete command value
+IniRead command value
+IniWrite command value
+InputBox command value
+InstallKeybdHook command value
+InstallMouseHook command value
+IsLabel command value
+KeyHistory command value
+KeyWait command value
+ListHotkeys command value
+ListLines command refusal: the lines are listed in a window of v2, and this runtime has no window to show them in.
+ListVars command refusal: the variables are listed in a window of v2, and this runtime has no window to show them in.
+ListViewGetContent command refusal: this is a name of Windows, and this desktop is not Windows.
+LoadPicture command value
+MenuFromHandle command refusal: this is a name of Windows, and this desktop is not Windows.
+MenuSelect command refusal: this is a name of Windows, and this desktop is not Windows.
+MonitorGet command refusal: this is a name of Windows, and this desktop is not Windows.
+MonitorGetCount command refusal: this is a name of Windows, and this desktop is not Windows.
+MonitorGetName command refusal: this is a name of Windows, and this desktop is not Windows.
+MonitorGetPrimary command refusal: this is a name of Windows, and this desktop is not Windows.
+MonitorGetWorkArea command refusal: this is a name of Windows, and this desktop is not Windows.
+MouseClick command value
+MouseClickDrag command value
+MouseGetPos command value
+MouseMove command value
+MsgBox command value
+OnClipboardChange command refusal: this is a name of Windows, and this desktop is not Windows.
+OnError command value
+OnExit command value
+OnMessage command refusal: this is a name of Windows, and this desktop is not Windows.
+OutputDebug command refusal: this is a name of Windows, and this desktop is not Windows.
+Pause command refusal: this runtime cannot wait for a key to continue: the script ends when it ends.
+Persistent command refusal: this runtime is a script that ends when it ends, and it cannot be kept alive.
+PixelGetColor command value
+PixelSearch command value
+PostMessage command refusal: this is a name of Windows, and this desktop is not Windows.
+ProcessClose command refusal: this is a name of Windows, and this desktop is not Windows.
+ProcessExist command refusal: this is a name of Windows, and this desktop is not Windows.
+ProcessGetName command refusal: this is a name of Windows, and this desktop is not Windows.
+ProcessGetParent command refusal: this is a name of Windows, and this desktop is not Windows.
+ProcessGetPath command refusal: this is a name of Windows, and this desktop is not Windows.
+ProcessSetPriority command refusal: this is a name of Windows, and this desktop is not Windows.
+ProcessWait command refusal: this is a name of Windows, and this desktop is not Windows.
+ProcessWaitClose command refusal: this is a name of Windows, and this desktop is not Windows.
+Reload command refusal: this runtime runs one script once, and it cannot run itself again.
+Run command value
+RunAs command refusal: this is a name of Windows, and this desktop is not Windows.
+Send command value
+SendEvent command value
+SendInput command value
+SendLevel command value
+SendMessage command refusal: this is a name of Windows, and this desktop is not Windows.
+SendMode command value
+SendPlay command value
+SendText command value
+SetCapsLockState command refusal: this is a name of Windows, and this desktop is not Windows.
+SetControlDelay command value
+SetDefaultMouseSpeed command value
+SetKeyDelay command value
+SetMouseDelay command value
+SetNumLockState command refusal: this is a name of Windows, and this desktop is not Windows.
+SetRegView command value
+SetScrollLockState command refusal: this is a name of Windows, and this desktop is not Windows.
+SetStoreCapsLockMode command value
+SetTimer command value
+SetTitleMatchMode command value
+SetWinDelay command value
+SetWorkingDir command value
+Shutdown command refusal: this is a name of Windows, and this desktop is not Windows.
+Sleep command value
+SoundBeep command value
+SoundPlay command value
+StatusBarGetText command refusal: this is a name of Windows, and this desktop is not Windows.
+StatusBarWait command refusal: this is a name of Windows, and this desktop is not Windows.
+StrSplit command value
+Suspend command refusal: this runtime cannot stop itself: it would never end.
+SysGet command refusal: this is a name of Windows, and this desktop is not Windows.
+SysGetIPAddresses command refusal: this is a name of Windows, and this desktop is not Windows.
+Thread command refusal: this runtime runs one script in one thread, and it cannot start another.
+ToolTip command refusal: this is a name of Windows, and this desktop is not Windows.
+TraySetIcon command refusal: this is a name of Windows, and this desktop is not Windows.
+TrayTip command refusal: this is a name of Windows, and this desktop is not Windows.
+WinActivate command refusal: this is a name of Windows, and this desktop is not Windows.
+WinActivateBottom command refusal: this is a name of Windows, and this desktop is not Windows.
+WinClose command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetClass command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetClientPos command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetControls command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetControlsHwnd command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetCount command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetExStyle command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetID command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetIDLast command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetList command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetMinMax command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetPID command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetPos command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetProcessName command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetProcessPath command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetStyle command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetText command refusal: this runtime reads no text of a window.
+WinGetTitle command value
+WinGetTransColor command refusal: this is a name of Windows, and this desktop is not Windows.
+WinGetTransparent command refusal: this is a name of Windows, and this desktop is not Windows.
+WinHide command refusal: this is a name of Windows, and this desktop is not Windows.
+WinKill command refusal: this is a name of Windows, and this desktop is not Windows.
+WinMaximize command refusal: this is a name of Windows, and this desktop is not Windows.
+WinMinimize command refusal: this is a name of Windows, and this desktop is not Windows.
+WinMinimizeAll command refusal: this is a name of Windows, and this desktop is not Windows.
+WinMinimizeAllUndo command refusal: this is a name of Windows, and this desktop is not Windows.
+WinMove command refusal: this is a name of Windows, and this desktop is not Windows.
+WinMoveBottom command refusal: this is a name of Windows, and this desktop is not Windows.
+WinMoveTop command refusal: this is a name of Windows, and this desktop is not Windows.
+WinRedraw command refusal: this is a name of Windows, and this desktop is not Windows.
+WinRestore command refusal: this is a name of Windows, and this desktop is not Windows.
+WinSetAlwaysOnTop command refusal: this is a name of Windows, and this desktop is not Windows.
+WinSetEnabled command refusal: this is a name of Windows, and this desktop is not Windows.
+WinSetExStyle command refusal: this is a name of Windows, and this desktop is not Windows.
+WinSetRegion command refusal: this is a name of Windows, and this desktop is not Windows.
+WinSetStyle command refusal: this is a name of Windows, and this desktop is not Windows.
+WinSetTitle command refusal: this is a name of Windows, and this desktop is not Windows.
+WinSetTransColor command refusal: this is a name of Windows, and this desktop is not Windows.
+WinSetTransparent command refusal: this is a name of Windows, and this desktop is not Windows.
+WinShow command refusal: this is a name of Windows, and this desktop is not Windows.
+WinWait command refusal: this is a name of Windows, and this desktop is not Windows.
+WinWaitActive command refusal: this is a name of Windows, and this desktop is not Windows.
+WinWaitClose command refusal: this is a name of Windows, and this desktop is not Windows.
+WinWaitNotActive command refusal: this is a name of Windows, and this desktop is not Windows.
+AhkPath variable refusal: this runtime is not AutoHotkey, and it has no path of an executable.
+AhkVersion variable value
+AllowMainWindow variable value
+AppData variable value
+AppDataCommon variable value
+Clipboard variable value
+ComputerName variable value
+ComSpec variable value
+ControlDelay variable value
+CoordModeCaret variable value
+CoordModeMenu variable value
+CoordModeMouse variable value
+CoordModePixel variable value
+CoordModeToolTip variable value
+Cursor variable refusal: the shape of the cursor of the machine is not read by this runtime.
+DD variable value
+DDD variable value
+DDDD variable value
+DefaultMouseSpeed variable value
+Desktop variable value
+DesktopCommon variable value
+DetectHiddenText variable value
+DetectHiddenWindows variable value
+EndChar variable value
+EventInfo variable value
+FileEncoding variable value
+HotkeyInterval variable value
+HotkeyModifierTimeout variable value
+Hour variable value
+IconFile variable refusal: this runtime has no tray icon.
+IconHidden variable value
+IconNumber variable refusal: this runtime has no tray icon.
+IconTip variable value
+Index variable value
+InitialWorkingDir variable value
+Is64bitOS variable value
+IsAdmin variable value
+IsCompiled variable value
+IsCritical variable value
+IsPaused variable value
+IsSuspended variable value
+KeyDelay variable value
+KeyDelayPlay variable value
+KeyDuration variable value
+KeyDurationPlay variable value
+Language variable value
+LastError variable value
+LineFile variable value
+LineNumber variable value
+ListLines variable value
+LoopField variable value
+LoopFileAttrib variable value
+LoopFileDir variable value
+LoopFileExt variable value
+LoopFileFullPath variable value
+LoopFileName variable value
+LoopFilePath variable value
+LoopFileShortName variable value
+LoopFileShortPath variable value
+LoopFileSize variable value
+LoopFileSizeKB variable value
+LoopFileSizeMB variable value
+LoopFileTimeAccessed variable value
+LoopFileTimeCreated variable value
+LoopFileTimeModified variable value
+LoopReadLine variable value
+LoopRegKey variable value
+LoopRegName variable value
+LoopRegTimeModified variable value
+LoopRegType variable value
+MaxHotkeysPerInterval variable value
+MDay variable value
+MenuMaskKey variable value
+Min variable value
+MM variable value
+MMM variable value
+MMMM variable value
+Mon variable value
+MouseDelay variable value
+MouseDelayPlay variable value
+MSec variable value
+MyDocuments variable value
+Now variable value
+NowUTC variable value
+OSVersion variable value
+PriorHotkey variable value
+PriorKey variable value
+ProgramFiles variable refusal: this is a name of Windows, and this desktop is not Windows.
+Programs variable value
+ProgramsCommon variable value
+PtrSize variable value
+RegView variable value
+ScreenDPI variable refusal: this desktop does not know the scale of the output.
+ScreenHeight variable value
+ScreenWidth variable value
+ScriptDir variable value
+ScriptFullPath variable value
+ScriptHwnd variable refusal: this runtime has no window of its own: it is a script that runs and ends.
+ScriptName variable value
+Sec variable value
+SendLevel variable value
+SendMode variable value
+Space variable value
+StartMenu variable value
+StartMenuCommon variable value
+Startup variable value
+StartupCommon variable value
+StoreCapsLockMode variable value
+Tab variable value
+Temp variable value
+ThisFunc variable value
+ThisHotkey variable value
+TickCount variable value
+TimeIdle variable value
+TimeIdleKeyboard variable value
+TimeIdleMouse variable value
+TimeIdlePhysical variable value
+TimeSincePriorHotkey variable value
+TimeSinceThisHotkey variable value
+TitleMatchMode variable value
+TitleMatchModeSpeed variable value
+TrayMenu variable refusal: this runtime has no tray icon.
+UserName variable value
+WDay variable value
+WinDelay variable value
+WinDir variable refusal: this is a name of Windows, and this desktop is not Windows.
+WorkingDir variable value
+YDay variable value
+Year variable value
+YWeek variable value
+YYYY variable value
+Abs function value
+ACos function value
+ASin function value
+ATan function value
+CaretGetPos function refusal: this is a name of Windows, and this desktop is not Windows.
+Ceil function value
+Chr function value
+Click function value
+ComCall function refusal: this is a name of Windows, and this desktop is not Windows.
+ComObjActive function refusal: this is a name of Windows, and this desktop is not Windows.
+ComObjConnect function refusal: this is a name of Windows, and this desktop is not Windows.
+ComObjFlags function refusal: this is a name of Windows, and this desktop is not Windows.
+ComObjFromPtr function refusal: this is a name of Windows, and this desktop is not Windows.
+ComObjGet function refusal: this is a name of Windows, and this desktop is not Windows.
+ComObjQuery function refusal: this is a name of Windows, and this desktop is not Windows.
+ComObjType function refusal: this is a name of Windows, and this desktop is not Windows.
+ComObjValue function refusal: this is a name of Windows, and this desktop is not Windows.
+Cos function value
+DllCall function value
+Exp function value
+FileOpen function value
+Floor function value
+Format function value
+FormatTime function value
+GetMethod function value
+HasBase function value
+HasMethod function value
+HasProp function value
+InStr function value
+IsAlnum function value
+IsAlpha function value
+IsDigit function value
+IsFloat function value
+IsInteger function value
+IsLower function value
+IsNumber function value
+IsObject function value
+IsSetRef function value
+IsSpace function value
+IsTime function value
+IsUpper function value
+IsXDigit function value
+Ln function value
+Log function value
+LTrim function value
+Max function value
+Min function value
+Mod function value
+NumGet function value
+NumPut function value
+ObjAddRef function value
+ObjBindMethod function value
+ObjFromPtr function refusal: this is a name of Windows, and this desktop is not Windows.
+ObjFromPtrAddRef function refusal: this is a name of Windows, and this desktop is not Windows.
+ObjGetBase function value
+ObjGetCapacity function value
+ObjHasOwnProp function value
+ObjOwnPropCount function value
+ObjOwnProps function value
+ObjPtr function refusal: this is a name of Windows, and this desktop is not Windows.
+ObjPtrAddRef function refusal: this is a name of Windows, and this desktop is not Windows.
+ObjRelease function refusal: this is a name of Windows, and this desktop is not Windows.
+ObjSetBase function value
+ObjSetCapacity function value
+Ord function value
+Random function value
+RegCreateKey function refusal: the registry is a thing of Windows, and this runtime does not carry it.
+RegDelete function refusal: the registry is a thing of Windows, and this runtime does not carry it.
+RegDeleteKey function refusal: the registry is a thing of Windows, and this runtime does not carry it.
+RegExMatch function value
+RegExReplace function value
+RegRead function refusal: the registry is a thing of Windows, and this runtime does not carry it.
+RegWrite function refusal: the registry is a thing of Windows, and this runtime does not carry it.
+Round function value
+RTrim function value
+RunWait function value
+Sin function value
+Sort function value
+SoundGetInterface function refusal: this is a name of Windows, and this desktop is not Windows.
+SoundGetMute function value
+SoundGetName function refusal: this is a name of Windows, and this desktop is not Windows.
+SoundGetVolume function value
+SoundSetMute function value
+SoundSetVolume function value
+SplitPath function value
+Sqrt function value
+StrCompare function value
+StrGet function refusal: this is a name of Windows, and this desktop is not Windows.
+StrLen function value
+StrLower function value
+StrPtr function refusal: this is a name of Windows, and this desktop is not Windows.
+StrPut function refusal: this is a name of Windows, and this desktop is not Windows.
+StrReplace function value
+StrTitle function value
+StrUpper function value
+SubStr function value
+Tan function value
+Trim function value
+Type function value
+VarSetStrCapacity function value
+VerCompare function value
+WinActive function value
+WinExist function value
+Gui.__Enum method value
+Gui.__New method value
+Gui.Add method value
+Gui.AddActiveX method value
+Gui.AddButton method value
+Gui.AddCheckBox method value
+Gui.AddComboBox method value
+Gui.AddCustom method value
+Gui.AddDateTime method value
+Gui.AddDDL method value
+Gui.AddDropDownList method value
+Gui.AddEdit method value
+Gui.AddGroupBox method value
+Gui.AddHotkey method value
+Gui.AddLink method value
+Gui.AddListBox method value
+Gui.AddListView method value
+Gui.AddMonthCal method value
+Gui.AddPic method value
+Gui.AddPicture method value
+Gui.AddProgress method value
+Gui.AddRadio method value
+Gui.AddSlider method value
+Gui.AddStatusBar method value
+Gui.AddTab method value
+Gui.AddTab2 method value
+Gui.AddTab3 method value
+Gui.AddText method value
+Gui.AddTreeView method value
+Gui.AddUpDown method value
+Gui.Destroy method value
+Gui.Flash method value
+Gui.GetClientPos method value
+Gui.GetPos method value
+Gui.Hide method value
+Gui.Maximize method value
+Gui.Minimize method value
+Gui.Move method value
+Gui.OnEvent method value
+Gui.Opt method value
+Gui.Restore method value
+Gui.SetFont method value
+Gui.Show method value
+Gui.Submit method value
+Gui.__Item method value
+Gui.Hwnd method value
+Gui.Title method value
+Gui.Title method value
+Gui.Name method value
+Gui.Name method value
+Gui.FocusedCtrl method value
+Gui.BackColor method value
+Gui.BackColor method value
+Gui.MarginX method value
+Gui.MarginX method value
+Gui.MarginY method value
+Gui.MarginY method value
+Gui.MenuBar method value
+Gui.MenuBar method value
+Hotkey.__New method value
+Hotkey.KeyOpt method value
+Hotkey.Start method value
+Hotkey.Stop method value
+Hotkey.Wait method value
+Hotkey.BackspaceIsUndo method value
+Hotkey.BackspaceIsUndo method value
+Hotkey.CaseSensitive method value
+Hotkey.CaseSensitive method value
+Hotkey.FindAnywhere method value
+Hotkey.FindAnywhere method value
+Hotkey.NotifyNonText method value
+Hotkey.NotifyNonText method value
+Hotkey.VisibleNonText method value
+Hotkey.VisibleNonText method value
+Hotkey.VisibleText method value
+Hotkey.VisibleText method value
+Hotkey.EndKey method value
+Hotkey.EndMods method value
+Hotkey.EndReason method value
+Hotkey.InProgress method value
+Hotkey.Input method value
+Hotkey.Match method value
+Hotkey.MinSendLevel method value
+Hotkey.MinSendLevel method value
+Hotkey.OnChar method value
+Hotkey.OnChar method value
+Hotkey.OnEnd method value
+Hotkey.OnEnd method value
+Hotkey.OnKeyDown method value
+Hotkey.OnKeyDown method value
+Hotkey.OnKeyUp method value
+Hotkey.OnKeyUp method value
+Hotkey.Timeout method value
+Hotkey.Timeout method value
+File.AtEOF method value
+File.Close method value
+File.Encoding method value
+File.Encoding method value
+File.Handle method value
+File.Length method value
+File.Length method value
+File.Pos method value
+File.Pos method value
+File.RawRead method value
+File.RawWrite method value
+File.Read method value
+File.ReadChar method value
+File.ReadDouble method value
+File.ReadFloat method value
+File.ReadInt method value
+File.ReadInt64 method value
+File.ReadLine method value
+File.ReadShort method value
+File.ReadUChar method value
+File.ReadUInt method value
+File.ReadUShort method value
+File.Seek method value
+File.Write method value
+File.WriteChar method value
+File.WriteDouble method value
+File.WriteFloat method value
+File.WriteInt method value
+File.WriteInt64 method value
+File.WriteLine method value
+File.WriteShort method value
+File.WriteUChar method value
+File.WriteUInt method value
+File.WriteUShort method value
+Gui.Control.Focus method value
+Gui.Control.GetPos method value
+Gui.Control.Move method value
+Gui.Control.OnCommand method value
+Gui.Control.OnEvent method value
+Gui.Control.OnNotify method value
+Gui.Control.Opt method value
+Gui.Control.Redraw method value
+Gui.Control.SetFont method value
+Gui.Control.ClassNN method value
+Gui.Control.Enabled method value
+Gui.Control.Enabled method value
+Gui.Control.Focused method value
+Gui.Control.Gui method value
+Gui.Control.Hwnd method value
+Gui.Control.Name method value
+Gui.Control.Name method value
+Gui.Control.Text method value
+Gui.Control.Text method value
+Gui.Control.Type method value
+Gui.Control.Value method value
+Gui.Control.Value method value
+Gui.Control.Visible method value
+Gui.Control.Visible method value
+Gui.Control.Add method value
+Gui.Control.Choose method value
+Gui.Control.Delete method value
+Gui.Control.UseTab method value
+Gui.Control.SetFormat method value
+Gui.Menu.Add method value
+Gui.Menu.AddStandard method value
+Gui.Menu.Check method value
+Gui.Menu.ClickCount method value
+Gui.Menu.ClickCount method value
+Gui.Menu.Default method value
+Gui.Menu.Default method value
+Gui.Menu.Delete method value
+Gui.Menu.Disable method value
+Gui.Menu.Enable method value
+Gui.Menu.Handle method value
+Gui.Menu.Insert method value
+Gui.Menu.Rename method value
+Gui.Menu.SetColor method value
+Gui.Menu.SetIcon method value
+Gui.Menu.Show method value
+Gui.Menu.ToggleCheck method value
+Gui.Menu.ToggleEnable method value
+Gui.Menu.Uncheck method value
+Buffer.Ptr method value
+Buffer.Size method value
+Buffer.__New method value
+Map.__Item method value
+Map.Capacity method value
+Map.CaseSense method value
+Map.Count method value
+Map.__Enum method value
+Map.__New method value
+Map.Clear method value
+Map.Clone method value
+Map.Delete method value
+Map.Get method value
+Map.Has method value
+Map.Set method value
+Map.Clone method value
+Map.DefineProp method value
+Map.DeleteProp method value
+Map.GetOwnPropDesc method value
+Map.HasOwnProp method value
+Map.OwnProps method value
+Gui.ListView.Add method value
+Gui.ListView.Delete method value
+Gui.ListView.Get method value
+Gui.ListView.GetChild method value
+Gui.ListView.GetCount method value
+Gui.ListView.GetNext method value
+Gui.ListView.GetParent method value
+Gui.ListView.GetPrev method value
+Gui.ListView.GetSelection method value
+Gui.ListView.GetText method value
+Gui.ListView.Modify method value
+Gui.ListView.SetImageList method value
+Gui.ListView.SetIcon method value
+Gui.ListView.SetParts method value
+Gui.ListView.SetText method value
+Func.Bind method value
+Func.Call method value
+Func.IsByRef method value
+Func.IsOptional method value
+Func.IsBuiltIn method value
+Func.IsVariadic method value
+Func.MaxParams method value
+Func.MinParams method value
+Func.Name method value
+Array.__Item method value
+Array.Capacity method value
+Array.Length method value
+Array.__New method value
+Array.__Enum method value
+Array.Clone method value
+Array.Delete method value
+Array.Get method value
+Array.Has method value
+Array.InsertAt method value
+Array.Pop method value
+Array.Push method value
+Array.RemoveAt method value
+Gui.StatusBar.GetNext method value
+Gui.StatusBar.GetCount method value
+Gui.StatusBar.GetText method value
+Gui.StatusBar.Add method value
+Gui.StatusBar.Insert method value
+Gui.StatusBar.Modify method value
+Gui.StatusBar.Delete method value
+Gui.StatusBar.InsertCol method value
+Gui.StatusBar.ModifyCol method value
+Gui.StatusBar.DeleteCol method value
+Gui.StatusBar.SetImageList method value
+InputHook.__New method value
+InputHook.KeyOpt method value
+InputHook.Start method value
+InputHook.Stop method value
+InputHook.Wait method value
+InputHook.BackspaceIsUndo method value
+InputHook.BackspaceIsUndo method value
+InputHook.CaseSensitive method value
+InputHook.CaseSensitive method value
+InputHook.FindAnywhere method value
+InputHook.FindAnywhere method value
+InputHook.NotifyNonText method value
+InputHook.NotifyNonText method value
+InputHook.VisibleNonText method value
+InputHook.VisibleNonText method value
+InputHook.VisibleText method value
+InputHook.VisibleText method value
+InputHook.EndKey method value
+InputHook.EndMods method value
+InputHook.EndReason method value
+InputHook.InProgress method value
+InputHook.Input method value
+InputHook.Match method value
+InputHook.MinSendLevel method value
+InputHook.MinSendLevel method value
+InputHook.OnChar method value
+InputHook.OnChar method value
+InputHook.OnEnd method value
+InputHook.OnEnd method value
+InputHook.OnKeyDown method value
+InputHook.OnKeyDown method value
+InputHook.OnKeyUp method value
+InputHook.OnKeyUp method value
+InputHook.Timeout method value
+InputHook.Timeout method value
+Gui.TreeView.Add method value
+Gui.TreeView.Delete method value
+Gui.TreeView.Get method value
+Gui.TreeView.GetChild method value
+Gui.TreeView.GetCount method value
+Gui.TreeView.GetNext method value
+Gui.TreeView.GetParent method value
+Gui.TreeView.GetPrev method value
+Gui.TreeView.GetSelection method value
+Gui.TreeView.GetText method value
+Gui.TreeView.Modify method value
+Gui.TreeView.SetImageList method value
+Gui.TreeView.SetIcon method value
+Gui.TreeView.SetParts method value
+Gui.TreeView.SetText method value
+Object.Base method value
+Object.Clone method value
+Object.DefineProp method value
+Object.DeleteProp method value
+Object.GetOwnPropDesc method value
+Object.HasOwnProp method value
+Object.OwnProps method value
+Class.Base method value
+Class.Call method value
+Class.Prototype method value
+Class.__Init method value
+Object.GetMethod method value
+Object.HasBase method value
+Object.HasMethod method value
+Object.HasProp method value
+Error.Message method value
+Error.What method value
+Error.Extra method value
+Error.File method value
+Error.Line method value
+Error.Stack method value
+Enumerator.Call method value
+ComValue.Ptr method value
+ClipboardAll.Ptr method value
+ClipboardAll.Size method value
+the surface of v2 has 833 entries: 643 answer with a value, 190 are refused, 0 are pending.

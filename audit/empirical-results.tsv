@@ -1,0 +1,193 @@
+family	v2_name	probe_file	verdict	observed	report_ok	note
+1 Clipboard	Clipboard	empirical/probes/clipboard.ahk	refusal	This global variable has not been assigned a value.	true	not a v2 name; v2 uses A_Clipboard. Surface lists the variable "Clipboard" (= A_Clipboard)
+1 Clipboard	ClipboardAll	empirical/probes/clipboard.ahk	value	ClipboardAll() constructs; Type() = ClipboardAll	true	constructor carried, members refuse
+1 Clipboard	ClipboardAll.Size	empirical/probes/clipboard.ahk	refusal	this runtime does not carry that class yet.	true	surface says value for ClipboardAll.Size; the member refuses
+1 Clipboard	A_Clipboard	empirical/probes/clipboard.ahk	refusal	the clipboard of an X11 session cannot be read: neither xclip nor xsel is installed on this machine	true	platform-dependent: Windows 11 host; the runtime reaches for an X11 tool
+1 Clipboard	ClipWait	empirical/probes/clipboard.ahk	refusal	the clipboard of an X11 session cannot be read: neither xclip nor xsel is installed on this machine	true	platform-dependent: same X11 path
+1 Clipboard	OnClipboardChange	empirical/probes/clipboard.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	Windows-shaped refusal of a Windows name, given on a Windows host
+2 Sound	SoundGet	empirical/probes/sound.ahk	refusal	This global variable has not been assigned a value.	true	not a v2 name (v1 name); absent from the v2 surface
+2 Sound	SoundSet	empirical/probes/sound.ahk	refusal	This global variable has not been assigned a value.	true	not a v2 name (v1 name); absent from the v2 surface
+2 Sound	SoundBeep	empirical/probes/sound.ahk	refusal	the mixer could not play "/tmp/ahk-tone-1794253358032.wav": sh: line 0: paplay: not found	true	platform-dependent: shells out to sh and paplay, and writes a /tmp path on Windows
+2 Sound	SoundPlay	empirical/probes/sound.ahk	refusal	the mixer could not play "C:\\ahk-no-such-file-zzz.wav": sh: line 0: paplay: not found	true	platform-dependent: same Linux mixer
+2 Sound	SoundGetVolume	empirical/probes/sound.ahk	refusal	the mixer refused: sh: line 0: pactl: not found	true	platform-dependent: shells out to pactl
+2 Sound	SoundSetVolume	empirical/probes/sound.ahk	refusal	the mixer refused: sh: line 0: pactl: not found	true	platform-dependent: shells out to pactl
+2 Sound	SoundGetMute	empirical/probes/sound.ahk	refusal	the mixer refused: sh: line 0: pactl: not found	true	platform-dependent: shells out to pactl
+3 Files	FileCopy	empirical/probes/files.ahk	value	returns ""; the destination exists after the call	true	real copy; a failure says "Failed" (see the silent-wrong rows)
+3 Files	FileMove	empirical/probes/files.ahk	value	returns ""; source gone, destination exists	true	real move
+3 Files	FileDelete	empirical/probes/files.ahk	value	returns ""; the file is gone	true	real delete; a missing file gives "(2) The system cannot find the file specified."
+3 Files	FileExist	empirical/probes/files.ahk	value	returns "A" for a file and "D" for a folder	true	attribute letters, v2 shape
+3 Files	FileRead	empirical/probes/files.ahk	value	returns the text of the file ("line-one")	true	real read
+3 Files	FileAppend	empirical/probes/files.ahk	value	returns ""; the text lands in the file	true	real write; the "UTF-8" encoding argument is accepted
+3 Files	FileGetSize	empirical/probes/files.ahk	value	9	true	real size
+3 Files	FileGetTime	empirical/probes/files.ahk	value	20261109194238	true	real timestamp, YYYYMMDDHH24MISS
+3 Files	FileSetTime	empirical/probes/files.ahk	value	returns ""; a later FileGetTime reads back 20200101120000	true	real write of the timestamp
+3 Files	FileGetAttrib	empirical/probes/files.ahk	value	"A", then "RA" after +R	true	real read of the attributes
+3 Files	FileSetAttrib	empirical/probes/files.ahk	value	returns ""; FileGetAttrib then reads "RA"	true	real write of the attributes
+3 Files	FileCreateDir	empirical/probes/files.ahk	not-probed	<absent from the v2 surface>	true	not a v2 name; v2's name is DirCreate
+3 Files	DirCreate	empirical/probes/files.ahk	value	returns ""; the folder exists	true	real mkdir
+3 Files	DirDelete	empirical/probes/files.ahk	value	returns the path; an empty folder is gone afterwards	true	real rmdir of an empty folder
+3 Files	DirDelete	empirical/probes/files3.ahk	silent-wrong	class Error, What "DirDelete", message "Failed", the folder still exists	true	a non-empty folder is refused with the literal "Failed" and no cause
+3 Files	DirExist	empirical/probes/files2.ahk	value	returns "D"	true	real question
+3 Files	DirCopy	empirical/probes/files2.ahk	value	returns ""; the copy exists	true	real copy
+3 Files	DirMove	empirical/probes/files2.ahk	value	returns ""; the moved folder exists	true	real move
+3 Files	FileReadLine	empirical/probes/files.ahk	not-probed	<absent from the v2 surface>	true	v2.0.19 has no such name; the tree follows the surface
+3 Files	FileGetVersion	empirical/probes/files2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	platform-dependent: refused on a Windows host
+3 Files	FileRecycle	empirical/probes/files2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	platform-dependent: refused on a Windows host
+3 Files	FileCreateShortcut	empirical/probes/files2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	platform-dependent: refused on a Windows host
+3 Files	FileCopy (failure)	empirical/probes/files3.ahk	silent-wrong	class Error, What "FileCopy", Extra "1", message "Failed"	true	a missing source gives "Failed"; FileDelete and FileRead give the real "(2) The system cannot find the file specified."
+3 Files	FileMove (failure)	empirical/probes/files3.ahk	silent-wrong	What "FileMove", message "Failed"	true	same loss of the cause
+3 Files	FileGetSize (failure)	empirical/probes/files3.ahk	refusal	(2) The system cannot find the file specified.	true	the real OS message is carried here, unlike FileCopy
+3 Files	FileRead (failure)	empirical/probes/files3.ahk	refusal	(2) The system cannot find the file specified.	true	the real OS message is carried here
+4 INI	IniWrite	empirical/probes/ini.ahk	value	returns ""; the line lands in the file	true	real write
+4 INI	IniRead	empirical/probes/ini.ahk	value	hello	true	real read; a missing key answers the default ("the-default")
+4 INI	IniDelete	empirical/probes/ini.ahk	value	returns ""; the key reads back as the default afterwards	true	real delete
+5 Windows	WinExist	empirical/probes/windows.ahk	refusal	WinExist cannot answer: the windows of the desktop are a thing of the Linux box: this host has neither the compositor of a Wayland session nor an X server to ask.	true	platform-dependent: it throws; it does not answer 0 as AGENTS.md section 7 says a missing window does
+5 Windows	WinActive	empirical/probes/windows.ahk	refusal	the windows of the desktop are a thing of the Linux box: this host has neither the compositor of a Wayland session nor an X server to ask.	true	platform-dependent
+5 Windows	WinGetTitle	empirical/probes/windows3.ahk	refusal	the window to ask about is not carried yet: only the active one is.	true	given a title; the no-argument form refuses with the Linux-box message instead
+5 Windows	WinGetTitle	empirical/probes/windows4.ahk	refusal	the windows of the desktop are a thing of the Linux box: this host has neither the compositor of a Wayland session nor an X server to ask.	true	no-argument form
+5 Windows	WinGetText	empirical/probes/windows.ahk	refusal	this runtime reads no text of a window.	true	own reason, not a platform one
+5 Windows	WinGetPos	empirical/probes/windows3.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	given &x &y &w &h; a String in parameter 1 gives "Parameter #1 of WinGetPos requires a VarRef, but received a String."
+5 Windows	WinGetList	empirical/probes/windows.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinGetClass	empirical/probes/windows.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinGetPID	empirical/probes/windows3.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	the v2 name of the former WinGetProcess
+5 Windows	WinGetProcess	empirical/probes/windows3.ahk	not-probed	<absent from the v2 surface>	true	not a v2 name; v2 has WinGetPID
+5 Windows	WinActivate	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinMove	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinClose	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinShow	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinHide	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinMinimize	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinMaximize	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinSetTitle	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinWait	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host; the 0.2 s timeout is not reached
+5 Windows	WinWaitActive	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinWaitClose	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+5 Windows	WinSetAlwaysOnTop	empirical/probes/windows2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+6 Controls	ControlGetText	empirical/probes/controls2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+6 Controls	ControlSetText	empirical/probes/controls.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+6 Controls	ControlGetPos	empirical/probes/controls2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	given &x &y &w &h; a String in parameter 1 gives "Parameter #1 of ControlGetPos requires a VarRef, but received a String."
+6 Controls	ControlClick	empirical/probes/controls.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+6 Controls	ControlSend	empirical/probes/controls.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+6 Controls	ControlFocus	empirical/probes/controls.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+6 Controls	ControlGetFocus	empirical/probes/controls2.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+6 Controls	ControlMove	empirical/probes/controls.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+7 GUI/dialogs	Gui	empirical/probes/gui.ahk	value	Gui("+AlwaysOnTop", "ahk probe window") constructs; Type() = Gui	true	the object is made, every operation on it refuses
+7 GUI/dialogs	Gui.Show	empirical/probes/gui.ahk	refusal	Gui cannot show the window: a window is a Windows window, and this desktop is a Wayland session without one.	true	a Wayland-shaped reason given on Windows
+7 GUI/dialogs	Gui.Add	empirical/probes/gui.ahk	refusal	Gui cannot add a control to the window: a window is a Windows window, and this desktop is a Wayland session without one.	true	same
+7 GUI/dialogs	Gui.Destroy	empirical/probes/gui.ahk	refusal	Gui cannot destroy the window: a window is a Windows window, and this desktop is a Wayland session without one.	true	same
+7 GUI/dialogs	Menu	empirical/probes/menu.ahk	value	Menu() constructs; Type() = Menu	true	the object is made, every operation on it refuses
+7 GUI/dialogs	Menu.Add	empirical/probes/menu.ahk	refusal	Menu cannot add an item to the menu bar: a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one.	true	a Wayland-shaped reason given on Windows
+7 GUI/dialogs	Menu.Show	empirical/probes/menu.ahk	refusal	Menu cannot show the menu bar: a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one.	true	same
+7 GUI/dialogs	Menu.Delete	empirical/probes/menu.ahk	refusal	Menu cannot delete an item of the menu bar: a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one.	true	same
+7 GUI/dialogs	MsgBox	empirical/probes/gui.ahk	value	returns ""; the text lands in the report output ("a message from the probe")	true	no window is shown; the report carries the text
+7 GUI/dialogs	InputBox	empirical/probes/dialogs.ahk	refusal	zenity is not on this machine, and the box has no other dialog	true	platform-dependent: zenity is the Linux dialog; nothing blocks, the call fails at once
+7 GUI/dialogs	FileSelect	empirical/probes/dialogs.ahk	refusal	zenity is not on this machine, and the box has no other dialog	true	platform-dependent
+7 GUI/dialogs	DirSelect	empirical/probes/dialogs.ahk	refusal	zenity is not on this machine, and the box has no other dialog	true	platform-dependent
+7 GUI/dialogs	ToolTip	empirical/probes/gui.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+7 GUI/dialogs	TrayTip	empirical/probes/gui.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+8 Hotkeys/hotstrings	Hotkey	empirical/probes/hotkeys.ahk	refusal	the hotkeys of this box watch a Linux device; this is not Linux	false	the registration is checked before the first statement; the caught failure still fails the run (error_line 0, output empty)
+8 Hotkeys/hotstrings	Hotstring	empirical/probes/hotstrings.ahk	refusal	Parameter #1 of Hotstring is invalid.	true	one-argument form "::btw::by the way"; the surface gives Hotstring the arity 1..3, so a valid v2 call is refused as an invalid parameter
+8 Hotkeys/hotstrings	Hotstring	empirical/probes/hotstrings2.ahk	refusal	the hotkeys of this box watch a Linux device; this is not Linux	false	two-argument form: the registration fails the whole run
+8 Hotkeys/hotstrings	HotIf	empirical/probes/hotstrings.ahk	value	returns "" and does not fail	true	silent acceptance: a condition the runtime cannot evaluate is accepted without a word
+8 Hotkeys/hotstrings	HotIfWinActive	empirical/probes/hotstrings.ahk	value	returns "" and does not fail	true	silent acceptance, while the #HotIf directive refuses
+8 Hotkeys/hotstrings	Suspend	empirical/probes/settings.ahk	refusal	this runtime cannot stop itself: it would never end.	true	honest reason
+8 Hotkeys/hotstrings	Pause	empirical/probes/settings.ahk	refusal	this runtime cannot wait for a key to continue: the script ends when it ends.	true	honest reason
+8 Hotkeys/hotstrings	Persistent	empirical/probes/settings.ahk	refusal	this runtime is a script that ends when it ends, and it cannot be kept alive.	true	honest reason
+8 Hotkeys/hotstrings	Reload	empirical/probes/reload.ahk	refusal	this runtime runs one script once, and it cannot run itself again.	true	no restart happens, so nothing loops
+9 Processes/machine	Run	empirical/probes/run2.ahk	value	returns 0 for both a short and a longer-lived command	true	the process really starts; the pid is not carried (the reference binary answered "" for the same command, so the 0 is not proven wrong)
+9 Processes/machine	RunWait	empirical/probes/processes.ahk	value	7 for "cmd /c exit 7"	true	the real exit code is carried
+9 Processes/machine	Run	empirical/probes/run2.ahk	refusal	the options of the window and the pid of the process are not carried yet.	true	the &OutputVarPID form and the RunWait options
+9 Processes/machine	ProcessExist	empirical/probes/processes.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+9 Processes/machine	ProcessGetName	empirical/probes/processes.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+9 Processes/machine	ProcessSetPriority	empirical/probes/processes.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+9 Processes/machine	ProcessClose	empirical/probes/processes.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+9 Processes/machine	ProcessWait	empirical/probes/processes.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+9 Processes/machine	ProcessWaitClose	empirical/probes/processes.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+9 Processes/machine	EnvGet	empirical/probes/processes.ahk	value	the PATH of the host, 3375 characters	true	real read
+9 Processes/machine	EnvSet	empirical/probes/processes.ahk	value	AHK_PROBE_VAR reads back as "probe-42"	true	real write into the run's environment
+9 Processes/machine	SysGet	empirical/probes/processes.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host; the reference binary answers 3840 for SysGet(80)
+10 Time	FormatTime	empirical/probes/time.ahk	value	2026-11-09 19:44:36; a given stamp formats as 2026-01-02	true	real clock
+10 Time	DateAdd	empirical/probes/date3.ahk	value	the single-letter units work: s m h d (case-insensitive)	true	v2 documents the words "Seconds"/"Minutes"/"Hours"/"Days", which refuse
+10 Time	DateAdd	empirical/probes/date3.ahk	silent-wrong	Parameter #3 of DateAdd is invalid.	true	the documented "Days" form fails; the reference binary answers 20260112030405 for the same call
+10 Time	DateDiff	empirical/probes/date3.ahk	value	-2678400 s, -44640 m, -744 h, -31 d; the words refuse with "Parameter #3 of DateDiff is invalid."	true	same split as DateAdd; the reference binary answers -31 for "Days"
+10 Time	A_Now	empirical/probes/time.ahk	value	20261109194436	true	real clock
+10 Time	A_Year	empirical/probes/time.ahk	value	2026	true	real clock
+10 Time	A_TickCount	empirical/probes/time.ahk	value	moved 5 ms across a Sleep 5	true	real monotonic clock
+11 Binary/memory	Buffer	empirical/probes/binary.ahk	value	Buffer(16, 0) constructs; Size = 16	true	real buffer
+11 Binary/memory	NumPut	empirical/probes/binary.ahk	value	with a Buffer: returns a value and the write lands	true	the memory of a buffer is written
+11 Binary/memory	NumGet	empirical/probes/binary.ahk	value	with a Buffer: 7 after NumPut("Int", 7, b, 0)	true	the memory of a buffer is read
+11 Binary/memory	NumGet	empirical/probes/binary.ahk	refusal	this runtime does not read the memory of an address: the source of a number is a buffer.	true	bare address refused with an honest reason
+11 Binary/memory	NumPut	empirical/probes/binary.ahk	refusal	this runtime does not write to the memory of an address: the target of a number is a buffer.	true	bare address refused with an honest reason
+11 Binary/memory	VarSetStrCapacity	empirical/probes/binary.ahk	value	64	true	real
+11 Binary/memory	StrPtr	empirical/probes/binary.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+12 Screen/pictures	PixelGetColor	empirical/probes/screen.ahk	refusal	grim failed: sh: line 0: grim: not found	true	platform-dependent: the screen is read with grim, a Wayland tool
+12 Screen/pictures	PixelSearch	empirical/probes/screen.ahk	refusal	grim failed: sh: line 0: grim: not found	true	platform-dependent
+12 Screen/pictures	ImageSearch	empirical/probes/imagesearch.ahk	silent-wrong	class Error, What "ImageSearch", Extra "", message "" (length 0)	true	a failure with an empty message: no reason is given at all
+12 Screen/pictures	LoadPicture	empirical/probes/screen.ahk	value	0 for a file that is not there, as v2 answers	true	a picture that cannot be loaded is 0 and not a failure
+12 Screen/pictures	LoadPicture	empirical/probes/screen.ahk	refusal	the file is not a PNG	true	a non-image file gives a real reason
+12 Screen/pictures	Screenshot	empirical/probes/screen.ahk	not-probed	<absent from the v2 surface>	true	not a v2 name
+13 Native	DllCall	empirical/probes/dllcall.ahk	value	GetTickCount 10645265, GetCurrentProcessId 24792, GetSystemMetrics(0) 3840	true	real native calls on this host
+13 Native	DllCall	empirical/probes/dllcall.ahk	refusal	Failed to load DLL.	true	a library that is not there is refused with that sentence
+13 Native	ComObject	empirical/probes/native.ahk	refusal	the COM objects are a thing of Windows, and this runtime does not carry them.	true	the surface lists ComObject as a class with state value; the call refuses
+13 Native	ComCall	empirical/probes/native.ahk	refusal	this is a name of Windows, and this desktop is not Windows.	true	refused on a Windows host
+13 Native	ObjGetBase	empirical/probes/native.ahk	value	returns the prototype of the object	true	real
+13 Native	ObjSetBase	empirical/probes/native.ahk	value	sets the base and returns ""	true	real
+13 Native	ObjOwnPropCount	empirical/probes/native.ahk	value	1	true	real
+14 Regex/strings	RegExMatch	empirical/probes/strings2.ahk	value	13 (the position found); 0 when the pattern does not match	true	the plain form works
+14 Regex/strings	RegExMatch	empirical/probes/strings2.ahk	refusal	the matches of the pattern are not carried into a variable yet.	true	the &Match output variable, which is the common v2 use, is refused
+14 Regex/strings	RegExReplace	empirical/probes/strings2.ahk	value	"world hello" for "(\w+) (\w+)" with "$2 $1"; "hell0 w0rld" for "o"	true	back references work
+14 Regex/strings	InStr	empirical/probes/strings2.ahk	value	7, and 3 with CaseSense	true	real
+14 Regex/strings	StrSplit	empirical/probes/strings2.ahk	value	Array of 3; a[2] = "b"	true	real
+14 Regex/strings	Sort	empirical/probes/strings2.ahk	value	"a\nb\nc" for "c\na\nb"	true	the plain sort works
+14 Regex/strings	Sort	empirical/probes/strings2.ahk	refusal	the options of the sort are not carried yet.	true	the options argument is refused
+14 Regex/strings	Format	empirical/probes/regex.ahk	value	"a-3.14" for "{1}-{2:05.2f}"; "42|x|3.14" for "{:d}|{:s}|{:.2f}"	true	real
+14 Regex/strings	StrReplace	empirical/probes/regex.ahk	value	a+b+c	true	real
+14 Regex/strings	SubStr	empirical/probes/regex.ahk	value	bcd	true	real
+14 Regex/strings	StrLen	empirical/probes/strings2.ahk	value	5	true	real
+15 A_* variables	A_AhkVersion	empirical/probes/avars.ahk	value	2.0.19	true	same as the reference binary
+15 A_* variables	A_Now	empirical/probes/avars.ahk	value	20261109194436	true	real
+15 A_* variables	A_Year	empirical/probes/avars.ahk	value	2026	true	real
+15 A_* variables	A_TickCount	empirical/probes/avars.ahk	value	111	true	real monotonic clock
+15 A_* variables	A_ScriptDir	empirical/probes/avars.ahk	value	the working directory of the run	true	the script comes from stdin, so this is the directory of the run
+15 A_* variables	A_ScriptName	empirical/probes/avars.ahk	value	*	true	the name of a script that came on stdin
+15 A_* variables	A_WorkingDir	empirical/probes/avars.ahk	value	the working directory of the run	true	real
+15 A_* variables	A_Temp	empirical/probes/avars.ahk	value	the temp folder of the user, with a trailing backslash	true	real
+15 A_* variables	A_Space	empirical/probes/avars.ahk	value	a space	true	real
+15 A_* variables	A_Tab	empirical/probes/avars.ahk	value	a tab	true	real
+15 A_* variables	A_LineNumber	empirical/probes/avars.ahk	value	9	true	real
+15 A_* variables	A_PtrSize	empirical/probes/avars.ahk	value	8	true	real
+15 A_* variables	A_KeyDelay	empirical/probes/avars.ahk	value	10	true	real
+15 A_* variables	A_CoordModeMouse	empirical/probes/avars.ahk	value	Client	true	real
+15 A_* variables	A_ScreenWidth	empirical/probes/avars.ahk	refusal	grim failed: sh: line 0: grim: not found	true	platform-dependent: the geometry is read with grim; the reference binary answers 3840
+15 A_* variables	A_ScreenHeight	empirical/probes/avars.ahk	refusal	grim failed: sh: line 0: grim: not found	true	platform-dependent: same path
+15 A_* variables	A_ComputerName	empirical/probes/avars.ahk	refusal	the session does not carry the name of the computer: the environment has no HOSTNAME.	true	platform-dependent: the name is looked up in the Linux variable; the reference binary answers RAPHAEL
+15 A_* variables	A_UserName	empirical/probes/avars.ahk	refusal	the session does not carry the name of the user: the environment has no USER.	true	platform-dependent: same; the reference binary answers danalec
+15 A_* variables	A_OSVersion	empirical/probes/avars.ahk	refusal	the version of the operating system is the release of the kernel, and this is not Linux.	true	platform-dependent: same; the reference binary answers 10.0.26300
+15 A_* variables	A_IsAdmin	empirical/probes/avars.ahk	refusal	the rights of an administrator are the effective user id, and this is not Linux.	true	platform-dependent
+15 A_* variables	A_Language	empirical/probes/avars.ahk	refusal	the session does not carry the language: the environment has no LC_ALL, LANG or LANGUAGE, and /etc/locale.conf is not there.	true	platform-dependent
+15 A_* variables	A_ScriptHwnd	empirical/probes/avars.ahk	refusal	this runtime has no window of its own: it is a script that runs and ends.	true	honest reason
+15 A_* variables	A_Clipboard	empirical/probes/avars.ahk	refusal	the clipboard of an X11 session cannot be read: neither xclip nor xsel is installed on this machine	true	platform-dependent
+15 A_* variables	A_Args	empirical/probes/avars.ahk	silent-wrong	Variable not found.	true	v2 answers an Array when there are no arguments; the surface does not carry the name at all
+15 A_* variables	A_ThisFunc	empirical/probes/avars.ahk	silent-wrong	Variable not found.	true	the surface lists ThisFunc as a variable with state value; the runtime refuses it
+15 A_* variables	A_ExitReason	empirical/probes/avars.ahk	refusal	Variable not found.	true	a generic message instead of a reason
+16 # directives	#Requires AutoHotkey v2	empirical/probes/d-requires-v2.ahk	value	the directive loads; the script runs	true	the bare "v2" is the form that works
+16 # directives	#Requires AutoHotkey v2.0	empirical/probes/d-requires-v2.0.ahk	silent-wrong	This script requires AutoHotkey v2.0. This interpreter is v2.	false	exit 1, error_line 1; the reference binary of v2.0.19 loads the same line
+16 # directives	#Requires AutoHotkey v2.0.19	empirical/probes/d-requires-v2.0.19.ahk	silent-wrong	This script requires AutoHotkey v2.0.19. This interpreter is v2.	false	the interpreter calls itself "v2", so every version with a minor component fails
+16 # directives	#Requires AutoHotkey >=2.0 <2.1	empirical/probes/d-requires-range.ahk	silent-wrong	This script requires AutoHotkey >=2.0 <2.1. This interpreter is v2.	false	the range form fails the same way
+16 # directives	#SingleInstance Force	empirical/probes/d-singleinstance.ahk	value	the directive loads; the script runs	true	accepted and ignored
+16 # directives	#NoTrayIcon	empirical/probes/d-notrayicon.ahk	value	the directive loads; the script runs	true	accepted and ignored
+16 # directives	#Warn	empirical/probes/d-warn.ahk	value	the directive loads; the script runs	true	accepted; the report does carry warnings
+16 # directives	#MaxThreads 2	empirical/probes/d-maxthreads.ahk	refusal	the hotkeys are not carried by this runtime.	false	exit 1, error_line 1
+16 # directives	#MaxThreadsPerHotkey 1	empirical/probes/d-maxthreadsperhotkey.ahk	refusal	the hotkeys are not carried by this runtime.	false	exit 1, error_line 1
+16 # directives	#Hotstring EndChars	empirical/probes/d-hotstring.ahk	refusal	the hotkeys are not carried by this runtime.	false	exit 1, error_line 1
+16 # directives	#HotIf	empirical/probes/d-hotif.ahk	refusal	the hotkeys are not carried by this runtime.	false	exit 1, error_line 1; the HotIf() function, by contrast, returns "" silently
+16 # directives	#Include (missing file)	empirical/probes/include.ahk	refusal	the include "".\\ahk-probe-no-such-include.ahk"" cannot be found.	false	exit 2, reduced report with error_line 0 and column 0
+16 # directives	#Include (file present)	empirical/probes/include-ok.ahk	value	the function of the included file is defined and greet("world") answers "hello world"	true	works only when the working directory of the run is the folder of the file; a stdin script has no file to be relative to
+17 Output	FileAppend to "*"	empirical/probes/output.ahk	value	the text appears in the report's output, in order	true	the console of v2 is the output of the report
+17 Output	MsgBox	empirical/probes/output.ahk	value	the text appears in the report's output in the same order as FileAppend	true	no window; the report carries it
+17 Output	FileOpen("*", "w")	empirical/probes/output.ahk	value	opens as a File; Write returns 18 and the text appears in the output	true	the console may be opened as a file
+17 Output	FileAppend (return)	empirical/probes/output.ahk	value	returns ""	true	v2 gives nothing back
+3.3 primitives (extra)	Send	empirical/probes/keys.ahk	value	returns "" for the empty string	true	not one of the 17 families; probed for section 3.3. The empty string short-circuits, so nothing is typed; real text was deliberately not sent, because it would be typed into whatever window has the focus of this user's desktop
+3.3 primitives (extra)	SendText	empirical/probes/keys.ahk	value	returns "" for the empty string	true	same
+3.3 primitives (extra)	MouseGetPos	empirical/probes/keys.ahk	silent-wrong	returns 0,0 and a note: the kernel did not say where the pointer is (grim failed: sh: line 0: grim: not found); this is the position the runtime put it at	true	the answer is not where the desktop's pointer is; the note discloses it, the value does not
+3.3 primitives (extra)	KeyWait	empirical/probes/keys.ahk	refusal	this runtime does not keep the keys that are down, so it cannot wait for one.	true	honest reason

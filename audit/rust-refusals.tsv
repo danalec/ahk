@@ -1,0 +1,191 @@
+name	kind	refusal_text	refusal_class	linux_doable	note
+GroupActivate	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] a v2 window group is script state over window records; the listing already gives a stable identifier per toplevel, so a group can be held and matched over it.
+GroupAdd	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] the group is a name the script defines over the same listing.
+GroupClose	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] closing every window of a group is the ext close request per identifier.
+GroupDeactivate	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] a group of not-active windows is a filter over the active state the cosmic protocol already reports.
+OnMessage	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a Win32 message loop; a Wayland client receives no such messages.
+PostMessage	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] posts a WM_* to an HWND; there is no HWND and no message queue on Wayland.
+SendMessage	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] synchronous WM_* send; same as PostMessage.
+WinActivate	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] needs an activate request: ext-foreign-toplevel-list has none, wlr-foreign-toplevel-management (not spoken here) has one.
+WinActivateBottom	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[windows] needs a z-order; no protocol the tree or COSMIC publishes exposes one.
+WinClose	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] ext_foreign_toplevel_handle_v1 carries a close request, in the very protocol the tree already binds (wayland/linux.rs:122).
+WinGetClass	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] app_id of the listing is the class of the window for this purpose.
+WinGetClientPos	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] zcosmic_toplevel_handle_v1.geometry carries x/y/width/height (protocols/cosmic-toplevel-info-unstable-v1.xml:229); client vs frame area may differ.
+WinGetControls	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] enumerates child HWNDs; a client has no access to another client's children.
+WinGetControlsHwnd	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] same as WinGetControls.
+WinGetCount	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] the size of the toplevel listing.
+WinGetExStyle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a Win32 extended style word; nothing on Wayland carries it.
+WinGetID	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] the identifier event of ext_foreign_toplevel_handle_v1, stable while the window lives.
+WinGetIDLast	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[windows] needs creation or z order; the listing carries neither.
+WinGetList	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] the listing itself is already computed in ahk-box/src/wayland/linux.rs.
+WinGetMinMax	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] the cosmic state array carries activated/fullscreen (xml:215-217); maximised is not a protocol state.
+WinGetPID	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[windows] the protocol carries app_id, never a pid.
+WinGetPos	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] the cosmic geometry event carries the rectangle; the portable protocol carries none.
+WinGetProcessName	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[windows] needs the pid, which the protocol does not give; app_id is the nearest thing and is WinGetClass.
+WinGetProcessPath	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[windows] same as WinGetProcessName.
+WinGetStyle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a Win32 style word.
+WinGetText	command	this runtime reads no text of a window.	missing-linux-impl	likely	[windows] AT-SPI exposes the text of a window; the tree speaks no accessibility bus (settings.rs:147-149 owns this refusal).
+WinGetTransColor	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a layered-window key colour; the compositor owns the alpha.
+WinGetTransparent	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] transparency of a foreign surface is not readable by a client.
+WinHide	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a client cannot unmap another client's surface.
+WinKill	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[windows] close request plus kill of the owner, but the owner's pid is not in the protocol.
+WinMaximize	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[windows] no request for it in either protocol the tree speaks.
+WinMinimize	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[windows] no request for it.
+WinMinimizeAll	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a Win32 shell feature.
+WinMinimizeAllUndo	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] same as WinMinimizeAll.
+WinMove	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] Wayland deliberately gives placement to the compositor; a client cannot move another client's window.
+WinMoveBottom	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] z order belongs to the compositor.
+WinMoveTop	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] same as WinMoveBottom.
+WinRedraw	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] forces a WM_PAINT; there is no equivalent message.
+WinRestore	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[windows] no request for it.
+WinSetAlwaysOnTop	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a compositor decision; no client request exists.
+WinSetEnabled	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] no equivalent of a disabled window.
+WinSetExStyle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a Win32 style word.
+WinSetRegion	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a Win32 region.
+WinSetStyle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a Win32 style word.
+WinSetTitle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] the title belongs to the client that owns the surface; another client cannot rename it.
+WinSetTransColor	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a layered-window feature.
+WinSetTransparent	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a layered-window feature.
+WinShow	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[windows] a client cannot map another client's surface.
+WinWait	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] poll the listing; the runtime already waits up to 250 ms for the compositor state (desktop.rs wayland path).
+WinWaitActive	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] poll the active title over the listing, which WinActive already does.
+WinWaitClose	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] poll until the identifier leaves the listing.
+WinWaitNotActive	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[windows] poll until the active title stops matching.
+CaretGetPos	function	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI's Text interface reports the caret offset; the tree speaks no accessibility bus. 1 of 2 by-reference names in this family.
+ControlAddItem	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] an AT-SPI list/add action; the Win32 combo/listbox model is what is refused, not the capability.
+ControlChooseIndex	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI selection by index.
+ControlChooseString	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI selection by text.
+ControlClick	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI component action (AHK_X11 does exactly this on X11).
+ControlDeleteItem	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI list model.
+ControlFindItem	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI list model, text search.
+ControlFocus	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI component grab-focus.
+ControlGetChecked	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI check/toggle state.
+ControlGetChoice	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI selected child.
+ControlGetClassNN	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] ClassNN is the Win32 class-name-plus-ordinal spelling; AT-SPI has no such name.
+ControlGetEnabled	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI enabled state.
+ControlGetExStyle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] a Win32 extended style word.
+ControlGetFocus	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI focused object.
+ControlGetHwnd	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] an HWND is a Win32 handle; an AT-SPI object reference is not one and is not interchangeable with the rest of the family.
+ControlGetIndex	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI list model position.
+ControlGetItems	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI list model contents.
+ControlGetPos	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI component extents.
+ControlGetStyle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] a Win32 style word.
+ControlGetText	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI text/name of the control.
+ControlGetVisible	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI showing state.
+ControlHide	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI component show/hide is compositor-mediated; likely, not certain.
+ControlHideDropDown	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI popup handling.
+ControlMove	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI component extents are usually read-only; likely, not certain.
+ControlSend	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] focus plus the uinput keyboard this tree already drives.
+ControlSendText	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] same, through the text path of the keyboard.
+ControlSetChecked	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI toggle action.
+ControlSetEnabled	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI state is usually read-only; likely, not certain.
+ControlSetExStyle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] a Win32 extended style word.
+ControlSetStyle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] a Win32 style word.
+ControlSetText	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI editable-text interface.
+ControlShow	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI show; compositor-mediated.
+ControlShowDropDown	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI popup handling.
+Edit	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] the v2 Edit command is a control command; AT-SPI text is the equivalent.
+EditGetCurrentCol	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI text caret offset mapped to a column.
+EditGetCurrentLine	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI text composition.
+EditGetLine	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI text content.
+EditGetLineCount	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI text content.
+EditGetSelectedText	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI text selection.
+EditPaste	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] the clipboard capability is already implemented (wl-paste/wl-copy) and the keyboard is here.
+GuiCtrlFromHwnd	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] maps an HWND to a Gui control object; there are no HWNDs and no Gui window on this desktop.
+GuiFromHwnd	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] same as GuiCtrlFromHwnd.
+IL_Add	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] Win32 image lists belong to the Win32 control model, which is exactly what is absent.
+IL_Create	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] same as IL_Add.
+IL_Destroy	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[controls] same as IL_Add.
+ListViewGetContent	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI table interface.
+StatusBarGetText	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] AT-SPI statusbar/text; the part model would have to be mapped.
+StatusBarWait	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[controls] poll the same AT-SPI text.
+MenuFromHandle	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[GUI] maps a Win32 HMENU to the Menu object; there are no HMENUs here.
+MenuSelect	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[GUI] selects an item of a Win32 menu by its command id.
+ToolTip	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[GUI] a Wayland client can make a layer-shell surface to show a tip; no toolkit is carried, so it is work, not impossibility.
+BlockInput	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[hotkeys] AHK_X11 grabs the keyboard with XGrabKeyboard; a Wayland client cannot block the user's input at all.
+SetCapsLockState	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[hotkeys] the uinput keyboard can press "CapsLock": keys.rs:171 and keys.rs:770 already resolve the key and its code.
+SetNumLockState	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[hotkeys] the same, with the NumLock code keys.rs:772.
+SetScrollLockState	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[hotkeys] the same, with the ScrollLock code keys.rs:771.
+ProcessClose	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[processes] kill(2) or /proc; the Processes trait has no such method yet.
+ProcessExist	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[processes] kill(pid, 0) answers it; no trait method exists.
+ProcessGetName	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[processes] /proc/<pid>/comm (and cmdline).
+ProcessGetParent	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[processes] /proc/<pid>/stat field 4.
+ProcessGetPath	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[processes] /proc/<pid>/exe.
+ProcessSetPriority	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[processes] renice(2); the mapping of the v2 words to nice values is the only design work.
+ProcessWait	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[processes] poll /proc/<pid> or waitpid.
+ProcessWaitClose	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[processes] same as ProcessWait.
+RunAs	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[processes] sudo/pkexec carry the capability, with a credential prompt and a policy this runtime does not have.
+FileCreateShortcut	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[files] a .lnk file is a Windows format; a .desktop file is a different thing and v2 does not mean that.
+FileGetShortcut	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[files] reads .lnk.
+FileGetVersion	command	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[files] reads the PE version resource; Linux ELF has no such field.
+FileRecycle	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[files] the XDG trash specification and gio/trash-cli do this; the box files module carries no trash code (no match for trash in ahk-box/src/files.rs).
+FileRecycleEmpty	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[files] empties ~/.local/share/Trash.
+SoundGetInterface	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[sound] answers a COM interface of the sound device; there is no COM here.
+SoundGetName	function	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[sound] the sink names are already read: desktop.rs lists them through pactl (sinks(), line ~1375); only the name of a device by number is missing.
+OnClipboardChange	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[clipboard] wl-paste --watch gives the change events; the clipboard read/write pair is already implemented in ahk-box/src/desktop.rs:367-446.
+Cursor	variable	the shape of the cursor of the machine is not read by this runtime.	windows-only	no	[screen] a Wayland client is not told the cursor image; the compositor draws it.
+ScreenDPI	variable	this desktop does not know the scale of the output.	missing-linux-impl	likely	[screen] wl_output.scale is a core Wayland event; the client binds no wl_output today (wayland/linux.rs binds only the two toplevel interfaces).
+CallbackCreate	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[native] the tree already builds call trampolines (native.rs, the raven helper); a callback needs an executable thunk, which the same asm can provide.
+CallbackFree	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[native] frees what CallbackCreate made; same work.
+ObjFromPtr	function	this is a name of Windows, and this desktop is not Windows.	subsystem-absent	no	[native] the value has no address: this runtime holds Rust values, not a heap of COM objects to make an object from.
+ObjFromPtrAddRef	function	this is a name of Windows, and this desktop is not Windows.	subsystem-absent	no	[native] same as ObjFromPtr.
+ObjPtr	function	this is a name of Windows, and this desktop is not Windows.	subsystem-absent	no	[native] an object here is a Rust enum with no stable address to hand out.
+ObjPtrAddRef	function	this is a name of Windows, and this desktop is not Windows.	subsystem-absent	no	[native] same as ObjPtr.
+ObjRelease	function	this is a name of Windows, and this desktop is not Windows.	subsystem-absent	no	[native] the refcount of a value is Rust's; note ObjAddRef is reported as a value but fails on an object ("Parameter #1 of ObjAddRef is invalid."), so the pair is inconsistent.
+StrGet	function	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[native] the string marshalling exists: dll.rs encodes and decodes AStr/WStr for DllCall, and NumGet/NumPut already read a Buffer.
+StrPtr	function	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[native] needs a stable buffer for a string, which Buffer plus the encoder already give.
+StrPut	function	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[native] the encoding side already exists in dll.rs.
+ComCall	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] calls a COM vtable slot; there is no COM on Linux.
+ComObjActive	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] binds a running COM object.
+ComObjConnect	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] COM event sinks.
+ComObjFlags	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] COM refcount flags.
+ComObjFromPtr	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] wraps a COM pointer.
+ComObjGet	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] resolves a COM moniker.
+ComObjQuery	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] QueryInterface.
+ComObjType	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] a COM variant type.
+ComObjValue	function	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[registry/COM] the raw value of a COM variant.
+RegCreateKey	function	the registry is a thing of Windows, and this runtime does not carry it.	windows-only	no	[registry/COM] there is no registry on Linux; a settings store would be a different feature, not this name.
+RegDelete	function	the registry is a thing of Windows, and this runtime does not carry it.	windows-only	no	[registry/COM] same.
+RegDeleteKey	function	the registry is a thing of Windows, and this runtime does not carry it.	windows-only	no	[registry/COM] same.
+RegRead	function	the registry is a thing of Windows, and this runtime does not carry it.	windows-only	no	[registry/COM] same.
+RegWrite	function	the registry is a thing of Windows, and this runtime does not carry it.	windows-only	no	[registry/COM] same.
+AhkPath	variable	this runtime is not AutoHotkey, and it has no path of an executable.	missing-linux-impl	yes	[machine] the runtime does have an executable: std::env::current_exe answers it, so the reason is true only in the narrow sense that it is not AutoHotkey.exe.
+Critical	command	this runtime runs one script in one thread, and it cannot make it critical.	subsystem-absent	no	[machine] there is one thread, so there is no interruption to turn off.
+DriveEject	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] udisks2 (or eject(1)) does it.
+DriveGetCapacity	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] statvfs(2).
+DriveGetFilesystem	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] statfs f_type plus /proc/filesystems.
+DriveGetLabel	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] blkid/lsblk; needs the right to read the device.
+DriveGetList	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] /proc/mounts and /proc/partitions.
+DriveGetSerial	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] blkid.
+DriveGetSpaceFree	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] statvfs f_bavail.
+DriveGetStatus	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] whether the mount is present and readable.
+DriveGetStatusCD	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[machine] audio-CD state; the box has no such device and Linux exposes none portably.
+DriveGetType	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] /proc/mounts device names and statfs.
+DriveLock	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] udisks2 Lock/Unlock; needs a policy.
+DriveRetract	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] eject -t / udisks2.
+DriveSetLabel	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] e2label/exfatlabel; needs the right to write the device.
+DriveUnlock	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] udisks2.
+IconFile	variable	this runtime has no tray icon.	subsystem-absent	no	[machine] there is no tray icon of this runtime to name a file for.
+IconNumber	variable	this runtime has no tray icon.	subsystem-absent	no	[machine] same as IconFile.
+ListLines	command	the lines are listed in a window of v2, and this runtime has no window to show them in.	missing-linux-impl	likely	[machine] the runner already has an output channel (the MsgBox path writes into it); the listing could go there instead of a window.
+ListVars	command	the variables are listed in a window of v2, and this runtime has no window to show them in.	missing-linux-impl	likely	[machine] the report already serialises the variables map; a listing is a format, not a capability.
+MonitorGet	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] wl_output geometry/mode; the client binds no wl_output yet.
+MonitorGetCount	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] the number of wl_output globals.
+MonitorGetName	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] wl_output name/description; a compositor may leave it empty.
+MonitorGetPrimary	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] no portable "primary"; COSMIC may expose it through its own protocol.
+MonitorGetWorkArea	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	no	[machine] the work area (screen minus panels) is not in wl_output nor in the ext protocols the tree speaks.
+OutputDebug	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] writes to stderr or to the report's output array; there is a channel already.
+Pause	command	this runtime cannot wait for a key to continue: the script ends when it ends.	subsystem-absent	no	[machine] a pause means a key waits for the script; a script read from stdin has no such window.
+Persistent	command	this runtime is a script that ends when it ends, and it cannot be kept alive.	subsystem-absent	no	[machine] the runner ends when the script does; keeping it alive is a different runner.
+ProgramFiles	variable	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[machine] there is no Windows "program files" folder; the nearest Linux answer would be a different semantic.
+Reload	command	this runtime runs one script once, and it cannot run itself again.	subsystem-absent	no	[machine] the script arrives on stdin, so there is no file to reload.
+ScriptHwnd	variable	this runtime has no window of its own: it is a script that runs and ends.	subsystem-absent	no	[machine] there is no window of the script.
+Shutdown	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] systemctl poweroff/suspend, with polkit policy.
+Suspend	command	this runtime cannot stop itself: it would never end.	missing-linux-impl	likely	[machine] the hotkey dispatcher already exists (ahk-box/src/hotkeys.rs); Suspend is a flag it would consult.
+SysGet	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] the sub-commands are a mixed bag: screen metrics are answerable from the screen capability, the SPI_* set is not.
+SysGetIPAddresses	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	yes	[machine] getifaddrs(3) is a C call like the ones sys.rs already declares.
+Thread	command	this runtime runs one script in one thread, and it cannot start another.	subsystem-absent	no	[machine] the runtime has one thread by design.
+TrayMenu	variable	this runtime has no tray icon.	subsystem-absent	no	[machine] there is no tray icon of this runtime.
+TraySetIcon	command	this is a name of Windows, and this desktop is not Windows.	subsystem-absent	no	[machine] there is no tray icon; with no icon there is nothing to set.
+TrayTip	command	this is a name of Windows, and this desktop is not Windows.	missing-linux-impl	likely	[machine] a desktop notification (notify-send, org.freedesktop.Notifications) carries the capability without a tray.
+WinDir	variable	this is a name of Windows, and this desktop is not Windows.	windows-only	no	[machine] there is no Windows directory.

@@ -1,0 +1,141 @@
+family	v1_name_in_ahk_x11	v2_name	in_v2_surface	ahk_tree_state	gap_class	evidence
+strings	StringLen	StrLen	yes	value	covered	v2 surface: StrLen function value
+strings	StringLeft	SubStr	yes	value	covered	v2 surface: SubStr function value
+strings	StringRight	SubStr	yes	value	covered	v2 surface: SubStr function value
+strings	StringMid	SubStr	yes	value	covered	v2 surface: SubStr function value
+strings	StringTrimLeft	LTrim	yes	value	covered	v2 surface: LTrim function value
+strings	StringTrimRight	RTrim	yes	value	covered	v2 surface: RTrim function value
+strings	StringGetPos	InStr	yes	value	covered	v2 surface: InStr function value
+strings	StringReplace	StrReplace	yes	value	covered	v2 surface: StrReplace function value
+strings	StringSplit	StrSplit	yes	value	covered	v2 surface: StrSplit command value
+strings	StringUpper	StrUpper	yes	value	covered	v2 surface: StrUpper function value
+strings	StringLower	StrLower	yes	value	covered	v2 surface: StrLower function value
+strings	Sort	Sort	yes	value	covered	v2 surface: Sort function value
+strings	StringCaseSense	StringCaseSense	yes	value	covered	covered by v2 StringCaseSense
+control-flow	Else / { } / Break / Continue / Return	(statements)	yes	value	covered	language syntax
+control-flow	Exit	Exit	yes	value	covered	language statement
+control-flow	ExitApp	ExitApp	yes	value	covered	language statement
+control-flow	GoSub	-	no	-	not-a-gap-v2-removed	v1 label/gosub model dropped by v2
+control-flow	GoTo	-	no	-	not-a-gap-v2-removed	v1 label/goto model dropped by v2
+control-flow	IfEqual/IfNotEqual/IfGreater/IfLess/...	(operators)	yes	value	covered	v2 uses = != > < operators
+control-flow	If var [not] in/contains	(operators)	yes	value	covered	v2 uses in/contains operators
+control-flow	If var between	(operators)	yes	value	covered	v2 uses between
+control-flow	IfExist / IfNotExist	FileExist	yes	value	covered	v2 surface: FileExist command value
+control-flow	IfInString / IfNotInString	InStr	yes	value	covered	v2 surface: InStr function value
+control-flow	IfMsgBox	-	no	-	not-a-gap-v2-removed	v2 has no IfMsgBox; MsgBox returns the button
+control-flow	Loop	Loop	yes	value	covered	language
+control-flow	Loop (files & folders)	Loop Files	yes	value	covered	measured on the box, AGENTS.md 13
+control-flow	Loop (parse)	Loop Parse	yes	value	covered	language
+control-flow	Loop (read file contents)	Loop Read	yes	value	covered	language
+control-flow	SetTimer	SetTimer	yes	value	covered	v2 surface: SetTimer command value
+control-flow	Sleep	Sleep	yes	value	covered	language
+control-flow	#Persistent	Persistent	yes	refusal	lifecycle	refusal: ...cannot be kept alive.
+keyboard	Send	Send	yes	value	covered	v2 surface: Send command value
+keyboard	SendRaw	SendText	yes	value	covered	v2 surface: SendText command value
+keyboard	ControlSend	ControlSend	yes	refusal	GAP-controls	refusal: name of Windows
+keyboard	ControlSendRaw	ControlSendText	yes	refusal	GAP-controls	refusal: name of Windows
+keyboard	GetKeyState	GetKeyState	yes	value	covered	v2 surface: GetKeyState command value
+keyboard	KeyWait	KeyWait	yes	value	covered	v2 surface: KeyWait command value
+keyboard	SetKeyDelay	SetKeyDelay	yes	value	covered	v2 surface: SetKeyDelay command value
+keyboard	Input	InputHook	yes	value	covered	InputHook class carried (v1 Input command dropped)
+keyboard	BlockInput	BlockInput	yes	refusal	GAP-wayland-no-grab	refusal: name of Windows (really: Wayland has no global grab)
+mouse	MouseClick	Click	yes	value	covered	v2 surface: Click function value
+mouse	MouseClickDrag	MouseClickDrag	yes	value	covered	v2 surface: MouseClickDrag command value
+mouse	MouseGetPos	MouseGetPos	yes	value	covered	v2 surface: MouseGetPos command value
+mouse	MouseMove	MouseMove	yes	value	covered	v2 surface: MouseMove command value
+mouse	SetMouseDelay	SetMouseDelay	yes	value	covered	v2 surface: SetMouseDelay command value
+mouse	ControlClick	ControlClick	yes	refusal	GAP-controls	refusal: name of Windows
+windows	WinGetTitle	WinGetTitle	yes	value	covered	measured on the box (Wayland toplevel listing)
+windows	IfWinExist / IfWinNotExist	WinExist	yes	value	covered	measured on the box
+windows	IfWinActive / IfWinNotActive	WinActive	yes	value	covered	measured on the box
+windows	WinActivate	WinActivate	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinActivateBottom	WinActivateBottom	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinClose	WinClose	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinKill	WinKill	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinGetPos	WinGetPos/WinGetClientPos	yes	value	covered	DONE round 4 (2026-11-09): the geometry event of zcosmic_toplevel_info_v1, which needs wl_output bound; verified on the box (214,181 1280x468)
+windows	-	WinGetMinMax	yes	value	covered	DONE round 5 (2026-11-09): the maximized/minimized entries of the same state array; 0 measured on the box, the 1 and -1 paths unit-tested against the protocol enum
+windows	WinGetText	WinGetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
+windows	WinGetClass	WinGetClass	yes	value	covered	DONE round 3 (2026-11-09): the class of the window is the application id of the toplevel; verified on the box (chromium)
+windows	WinGet	WinGetList/WinGetID/WinGetCount	yes	value	covered	DONE round 3 (2026-11-09): WinGetList/WinGetID/WinGetCount read the toplevel listing; verified on the box (2 windows, Array with Length). WinGetPID still refuses
+windows	WinMaximize	WinMaximize	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinMinimize	WinMinimize	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinMinimizeAll	WinMinimizeAll	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinMinimizeAllUndo	WinMinimizeAllUndo	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinMove	WinMove	yes	refusal	GAP-wayland-no-grab	refusal: name of Windows (Wayland forbids client-driven move)
+windows	WinRestore	WinRestore	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinSetTitle	WinSetTitle	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinWait	WinWait	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinWaitActive	WinWaitActive	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinWaitClose	WinWaitClose	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinWaitNotActive	WinWaitNotActive	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinHide/WinShow	WinHide/WinShow	yes	refusal	GAP-windows-act	refusal: name of Windows
+controls	ControlGetText	ControlGetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
+controls	ControlSetText	ControlSetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
+controls	ControlGetPos	ControlGetPos	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
+controls	ControlGetFocus	ControlGetFocus	yes	refusal	GAP-accessibility	refusal: name of Windows
+controls	ControlFocus	ControlFocus	yes	refusal	GAP-accessibility	refusal: name of Windows
+controls	Control	Control* (29 names)	yes	refusal	GAP-accessibility	refusal: name of Windows
+gui	MsgBox	MsgBox	yes	value	covered	answer goes to the report output
+gui	InputBox	InputBox	yes	value	covered	zenity present on the box
+gui	FileSelectFile	FileSelect	yes	value	covered	zenity present on the box
+gui	FileSelectFolder	DirSelect	yes	value	covered	zenity present on the box
+gui	Gui	Gui (class)	yes	refusal-at-use	GAP-gui-toolkit	Gui() constructs; Show has no toolkit
+gui	GuiControl	Gui methods	yes	refusal-at-use	GAP-gui-toolkit	no toolkit
+gui	Menu	Menu (class)	yes	refusal-at-use	GAP-gui-toolkit	no tray in a Wayland session
+gui	ToolTip	ToolTip	yes	refusal	GAP-gui-toolkit	refusal: name of Windows (needs an overlay layer)
+gui	TrayTip	TrayTip	yes	value	covered	DONE round 2 (2026-11-09): the Dialogs capability gained notify(); notify-send on the box, verified
+files	FileAppend	FileAppend	yes	value	covered	v2 surface value
+files	FileCopy	FileCopy	yes	value	covered	v2 surface value
+files	FileCreateDir	DirCreate	yes	value	covered	v2 surface value
+files	FileDelete	FileDelete	yes	value	covered	v2 surface value
+files	FileReadLine	-	no	-	not-a-gap-v2-removed	v2 reads a file through FileRead/FileOpen
+files	FileRead	FileRead	yes	value	covered	v2 surface value
+files	FileGetSize	FileGetSize	yes	value	covered	v2 surface value
+files	FileSetAttrib	FileSetAttrib	yes	value	covered	v2 surface value
+files	FileSetTime	FileSetTime	yes	value	covered	v2 surface value
+files	FileGetAttrib	FileGetAttrib	yes	value	covered	v2 surface value
+files	FileCreateShortcut	FileCreateShortcut	yes	refusal	GAP-desktop-integration	refusal: name of Windows (.desktop is the Linux form)
+files	FileRecycle	FileRecycle	yes	refusal	GAP-desktop-integration	refusal: name of Windows (freedesktop trash exists)
+files	FileRecycleEmpty	FileRecycleEmpty	yes	refusal	GAP-desktop-integration	refusal: name of Windows
+files	FileGetVersion	FileGetVersion	yes	refusal	GAP-desktop-integration	refusal: name of Windows
+files	IniRead	IniRead	yes	value	covered	v2 surface value
+files	IniWrite	IniWrite	yes	value	covered	v2 surface value
+files	IniDelete	IniDelete	yes	value	covered	v2 surface value
+files	SplitPath	SplitPath	yes	value	covered	v2 surface value
+files	SetWorkingDir	SetWorkingDir	yes	value	covered	v2 surface value
+files	DriveSpaceFree	DriveGetSpaceFree	yes	refusal	GAP-machine-metrics	refusal: name of Windows (statvfs is the Linux route)
+files	FileCopyDir/FileMoveDir/FileRemoveDir	DirCopy/DirMove/DirDelete	yes	value	covered	(TODO in AHK_X11; ours already answers)
+sound	SoundPlay	SoundPlay	yes	value	covered	ffplay/paplay/aplay present on the box
+sound	SoundGet	SoundGetVolume/SoundGetMute	yes	value	covered	v2 surface value
+sound	SoundSet	SoundSetVolume/SoundSetMute	yes	value	covered	v2 surface value
+processes	Run	Run	yes	value	covered	v2 surface value
+processes	RunWait	RunWait	yes	value	covered	v2 surface value
+processes	RunAs	RunAs	yes	refusal	GAP-processes	refusal: name of Windows (sudo -u is the Linux route)
+processes	Shutdown	Shutdown	yes	refusal	GAP-machine-metrics	refusal: name of Windows (systemctl is the Linux route)
+processes	Process	ProcessExist/ProcessGetName/ProcessGetPath/ProcessGetParent/ProcessClose/ProcessSetPriority/ProcessWait/ProcessWaitClose	yes	value	covered	DONE rounds 1-2 (2026-11-09): /proc + kill/setpriority, and the waits measured against v2.0.19. All 8 verified on the box
+native	DllCall	DllCall	yes	value	covered	dlopen/dlsym + trampoline
+memory	NumGet	NumGet	yes	value	covered	v2 surface value
+memory	NumPut	NumPut	yes	value	covered	v2 surface value
+memory	VarSetCapacity	VarSetStrCapacity	yes	value	covered	v2 surface value
+clipboard	(clipboard via GTK)	Clipboard / A_Clipboard	yes	value	covered	wl-copy/wl-paste present on the box
+clipboard	ClipWait	ClipWait	yes	value	covered	v2 surface value
+clipboard	-	OnClipboardChange	yes	refusal	GAP-events	refusal: name of Windows (needs a clipboard watch)
+hotkeys	Hotkey	Hotkey	yes	value-platform	covered	carried; the backend is Linux-only
+hotkeys	#Hotstring / Hotstring	Hotstring	yes	value-platform	covered	carried
+hotkeys	Suspend	Suspend	yes	refusal	lifecycle	refusal: script that ends when it ends
+hotkeys	Pause	Pause	yes	refusal	lifecycle	refusal: script that ends when it ends
+hotkeys	Reload	Reload	yes	refusal	lifecycle	refusal: script that runs once
+screen	PixelGetColor	PixelGetColor	yes	value	covered	grim present on the box
+screen	PixelSearch	PixelSearch	yes	value	covered	grim present on the box
+screen	CoordMode	CoordMode	yes	value	covered	v2 surface value
+screen	-	ImageSearch	yes	value	covered	(beyond AHK_X11)
+screen	-	Screenshot	no	value	extra-beyond-both	NOT a v2 name: the tree's one deliberate invention (builtins.rs:665, allowlisted tests/surface.rs:38); --surface does not print it, so the 833 count omits it
+machine	-	SysGet	yes	refusal	GAP-machine-metrics	refusal: name of Windows; A_ScreenWidth already works
+machine	-	MonitorGet/MonitorGetCount/...	yes	refusal	GAP-machine-metrics	refusal: name of Windows (wl_output is the Linux route)
+machine	-	Edit	yes	refusal	GAP-desktop-integration	refusal: name of Windows ($EDITOR is the Linux route)
+events	-	OnMessage	yes	refusal	windows-only	Win32 message loop; correct refusal
+events	-	OutputDebug	yes	refusal	GAP-events	refusal: name of Windows (stderr/DebugView substitute)
+events	-	CallbackCreate	yes	refusal	GAP-native	refusal: name of Windows (needed for DllCall callbacks)
+env	EnvSet	EnvSet	yes	value	covered	v2 surface value
+env	EnvGet	EnvGet	yes	value	covered	v2 surface value
+env	EnvAdd/EnvSub/EnvMult/EnvDiv	(operators)	yes	value	covered	v2 uses += -= *= /=
