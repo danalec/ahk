@@ -5,3 +5,18 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 target/
+
+# the review artefacts of the EGM protocol are not part of the tree
+egm-review/
+
+# a run that finds no cache directory of its own used to leave this behind
+.cache/
+
+# the helper of the raven is built on the box, and the build is not in the tree
+crates/ahk-box/helper/helper.exe
+crates/ahk-box/helper/helper32.exe
+crates/ahk-box/helper/libkernel32.a
+crates/ahk-box/helper/libkernel32_32.a
+
+# the review artefacts of the second pass are not part of the tree
+egm-review-doc-language/

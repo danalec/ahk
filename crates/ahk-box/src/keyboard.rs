@@ -1,6 +1,6 @@
 //! A keyboard of our own, for the keys `ydotool type` cannot express.
 //!
-//! A port of `src/yoko_mcp/keyboard.py` from the Python `yoko-mcp`.
+//! A port of `src/ahk/keyboard.py` from the archived Python implementation.
 //!
 //! `ydotool type` is exact, and it is enough for text: it types every
 //! character once, in order. It cannot press Return, Backspace, Tab,
@@ -90,9 +90,10 @@ pub const KEY_HOLD: Duration = Duration::from_millis(20);
 /// How long the gap between one key and the next is.
 ///
 /// A client coalesces a burst of key events: a hundred backspaces that
-/// arrive back to back are counted as a few. Measured on the lab box, a
-/// composer lost most of a burst of 320 backspaces; with this gap between
-/// the release and the next press, every one of them counts.
+/// arrive back to back are counted as a handful, not as a hundred.
+/// Measured on the lab box on 2026-10-25, a client lost most of a burst of
+/// 320 backspaces; with this gap between the release and the next press,
+/// every one of them counts.
 pub const KEY_GAP: Duration = Duration::from_millis(20);
 
 /// How long the compositor needs to notice a freshly created device.
@@ -172,7 +173,11 @@ impl Keyboard {
     /// The modifiers go down first and up last, which is the order a
     /// keyboard delivers them in, and the whole thing is shorter than the
     /// auto-repeat delay so nothing repeats.
-    pub fn tap_with_modifiers(&mut self, code: u16, modifiers: &[u16]) -> Result<(), KeyboardError> {
+    pub fn tap_with_modifiers(
+        &mut self,
+        code: u16,
+        modifiers: &[u16],
+    ) -> Result<(), KeyboardError> {
         for modifier in modifiers {
             self.down(*modifier)?;
         }
@@ -251,11 +256,13 @@ impl Keyboard {
         setup[2..4].copy_from_slice(&0x2333u16.to_ne_bytes()); // the ydotool vendor
         setup[4..6].copy_from_slice(&0x6666u16.to_ne_bytes()); // the ydotool product
         setup[6..8].copy_from_slice(&0x0001u16.to_ne_bytes());
-        let name = b"yoko keyboard rust";
+        let name = b"ahk keyboard";
         setup[8..8 + name.len()].copy_from_slice(name);
         let result = unsafe { libc::ioctl(fd, UI_DEV_SETUP, setup.as_ptr()) };
         if result < 0 {
-            return Err(KeyboardError::Setup(std::io::Error::last_os_error().to_string()));
+            return Err(KeyboardError::Setup(
+                std::io::Error::last_os_error().to_string(),
+            ));
         }
         self.ioctl(UI_DEV_CREATE, 0)?;
         Ok(())
@@ -266,7 +273,10 @@ impl Keyboard {
         let fd = self.file.as_raw_fd();
         let result = unsafe { libc::ioctl(fd, request, argument) };
         if result < 0 {
-            return Err(KeyboardError::Ioctl(request, std::io::Error::last_os_error().to_string()));
+            return Err(KeyboardError::Ioctl(
+                request,
+                std::io::Error::last_os_error().to_string(),
+            ));
         }
         Ok(())
     }

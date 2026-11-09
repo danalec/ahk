@@ -4,8 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-repository.workspace = true
-description = "Run a yoko-ahk script on this machine: the script on stdin, the report on stdout"
+description = "Run an ahk script on this machine: the script on stdin, the report on stdout"
 
 [[bin]]
 name = "ahk"
