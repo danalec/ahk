@@ -36,7 +36,7 @@ them in.
 Measured with `ahk --surface` (2026-11-09):
 
 ```
-the surface of v2 has 833 entries: 669 answer with a value, 164 are refused, 0 are pending.
+the surface of v2 has 833 entries: 674 answer with a value, 159 are refused, 0 are pending.
 ```
 
 | Round | Cluster | Gap rows closed | Verified on the box |
@@ -50,6 +50,7 @@ the surface of v2 has 833 entries: 669 answer with a value, 164 are refused, 0 a
 | 7 | `WinWait`, `WinWaitActive`, `WinWaitNotActive`, `WinWaitClose` | 1 | ✅ §4.7 |
 | 9 | `A_AhkPath` — the first `Machine` variable | 1 | ✅ §4.9 |
 | 12 | `DriveGetSpaceFree`, `DriveGetCapacity`, `DriveGetStatus` | 1 | ✅ §4.12 |
+| 16 | the five `MonitorGet*` | 1 | ✅ §4.16 (size is a documented fallback) |
 
 ## 3. The remaining work, in the order it is worth doing
 
@@ -724,6 +725,41 @@ and the rest of the machine `Fixed`. Verified on the box:
 the tree:           fs_root=zfs type_root=Fixed
                     fs_tmp=tmpfs type_tmp=RAMDisk
 ```
+
+### Round 16 — 2026-11-09: the monitors
+
+The five `MonitorGet*` names. The `wl_output` objects were bound in round 4 for
+the geometry event, and their own events are what a monitor is: the position
+from `wl_output.geometry`, the size from the current `wl_output.mode`, the name
+from `wl_output.name`, and the scale from `wl_output.scale`.
+
+**Two bugs that only the box could show**, because `wayland/linux.rs` is
+`cfg(target_os = "linux")` and Windows never type-checks it:
+
+1. `WEnum::into_result()` **fails on the mode flags**, because the flags of
+   `wl_output.mode` are a bitmask and the protocol file does not declare the
+   enum as one: the mode in use arrives as `Current | Preferred` (3), which is
+   not one of the two named values. The bit has to be read from
+   `WEnum::Unknown(bits)`.
+2. **The mode event still does not arrive** on this compositor: the name does
+   (`HDMI-A-1`) and the position does (`0,0`), and the size stayed zero. So the
+   extent of the session is used for the size of an output that gave none, and
+   **that is a gap recorded here, not a design** — a session with two outputs of
+   different sizes would report the extent for both.
+
+**Verified on the box:**
+
+```
+count=1 primary=1 name=[HDMI-A-1]
+get_ret=[1] l=0 t=0 r=1920 b=1080
+work    r=1920 b=1080
+name9=ERR|Parameter #1 of MonitorGetName is invalid.
+```
+
+`MonitorGetPrimary` answers `1` always: a Wayland compositor lists its outputs
+and does not say which is primary. `MonitorGetWorkArea` is the monitor itself:
+a client is not told about the session's panels. Both are recorded on the
+handlers and on the trait rather than hidden.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in

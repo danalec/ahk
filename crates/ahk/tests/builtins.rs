@@ -8,7 +8,7 @@ use ahk::desktop::{
     Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network, PictureOptions,
     Pictures, Pointer, Processes, Screen, Sound, Timers, WaitFor, WindowGeometry, WindowRef,
-    Windows, DriveSpace,
+    Windows, DriveSpace, Monitor,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -381,6 +381,18 @@ impl Pointer for Fake {
 }
 
 impl Screen for Fake {
+    fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
+        self.calls.push(("monitors".into(), String::new()));
+        // One monitor, and it is the one the bounds of every case are.
+        Ok(vec![Monitor {
+            name: "MON1".to_string(),
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+            scale: 1,
+        }])
+    }
     fn capture(
         &mut self,
         _x: i64,
@@ -4051,4 +4063,64 @@ fn drive_get_type_of_a_drive_that_is_not_there_is_empty() {
     let report = run("x := DriveGetType(\"/nowhere\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+// -- the monitors ------------------------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-09: the monitors are numbered
+// from one, a number that names none is "Parameter #1 of MonitorGetName is
+// invalid.", and `MonitorGet` answers 1 and writes the four bounds.
+
+#[test]
+fn monitor_get_count_answers_the_number_of_monitors() {
+    let report = run("x := MonitorGetCount()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn monitor_get_name_answers_the_name_of_the_monitor() {
+    let report = run("x := MonitorGetName(1)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("MON1".into())));
+}
+
+#[test]
+fn monitor_get_name_of_a_monitor_that_is_not_there_fails() {
+    let report = run("x := MonitorGetName(9)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of MonitorGetName is invalid."
+    );
+}
+
+#[test]
+fn monitor_get_writes_the_four_bounds() {
+    let report = run("l := t := r := b := 0\nMonitorGet(1, &l, &t, &r, &b)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "l"), 0);
+    assert_eq!(int_of(&report, "t"), 0);
+    assert_eq!(int_of(&report, "r"), 1920);
+    assert_eq!(int_of(&report, "b"), 1080);
+}
+
+#[test]
+fn monitor_get_answers_one() {
+    let report = run("l := t := r := b := 0\nx := MonitorGet(1, &l, &t, &r, &b)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn monitor_get_primary_answers_the_first_monitor() {
+    let report = run("x := MonitorGetPrimary()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn the_work_area_is_the_monitor_when_the_panels_are_not_known() {
+    let report = run("l := t := r := b := 0\nMonitorGetWorkArea(1, &l, &t, &r, &b)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "r"), 1920);
 }

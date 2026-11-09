@@ -56,6 +56,26 @@ pub struct Window {
     pub geometry: Option<Geometry>,
 }
 
+/// A monitor: an output of the compositor, and the rectangle of it.
+///
+/// The rectangle is in the space of the compositor, which is the space that the
+/// windows are placed in, and it is the one that `MonitorGet` answers.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Monitor {
+    /// The name of the output, when the compositor gives one: "HDMI-A-1".
+    pub name: String,
+    /// The left of the monitor.
+    pub left: i32,
+    /// The top of the monitor.
+    pub top: i32,
+    /// The right of the monitor: the left plus the width.
+    pub right: i32,
+    /// The bottom of the monitor: the top plus the height.
+    pub bottom: i32,
+    /// The scale of the monitor: 1 is the ordinary one.
+    pub scale: i32,
+}
+
 /// The geometry of a window, in the coordinates of the screen.
 ///
 /// The x and the y are the upper-left corner and not the center, and the

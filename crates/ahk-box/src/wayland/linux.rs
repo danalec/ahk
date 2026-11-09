@@ -29,7 +29,7 @@ use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
     ext_foreign_toplevel_list_v1::{self, Event as ListEvent, ExtForeignToplevelListV1},
 };
 
-use super::{Geometry, Window};
+use super::{Geometry, Monitor, Window};
 use super::protocols::client::{
     zcosmic_toplevel_handle_v1::{Event as CosmicEvent, ZcosmicToplevelHandleV1},
     zcosmic_toplevel_info_v1::{self, Event as CosmicInfoEvent, ZcosmicToplevelInfoV1},
@@ -96,6 +96,12 @@ impl Client {
             return Err(reason);
         }
         Ok(self.state.windows())
+    }
+
+    /// The monitors of the compositor, in the order it lists them.
+    pub fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
+        self.refresh()?;
+        Ok(self.state.monitors())
     }
 
     /// The window that has the focus.
@@ -177,7 +183,7 @@ impl Client {
             .collect();
         for (name, version) in outputs {
             let output: WlOutput = globals.registry().bind(name, version, &handle, ());
-            self.state.outputs.push(output);
+            self.state.outputs.push((output, Monitor::default()));
         }
 
         self.state.globals = Some(globals);
@@ -230,14 +236,15 @@ struct State {
     cosmic: BTreeMap<u32, u32>,
     /// The handles of COSMIC, kept alive for the same reason.
     cosmic_handles: Vec<ZcosmicToplevelHandleV1>,
-    /// The outputs of the compositor.
+    /// The outputs of the compositor, and what they said about themselves.
     ///
     /// The geometry of a window is said relative to an output, and a
     /// compositor does not send that event to a client that has bound no
     /// output -- the event carries the output as an object. The outputs are
     /// bound for that reason, and kept alive because a proxy that is dropped
-    /// takes the object with it.
-    outputs: Vec<WlOutput>,
+    /// takes the object with it. The monitor of each one is what its own
+    /// events said.
+    outputs: Vec<(WlOutput, Monitor)>,
     /// The object of the listing.
     list: Option<ExtForeignToplevelListV1>,
     /// The object of the information of COSMIC.
@@ -249,9 +256,16 @@ struct State {
 }
 
 impl State {
+    /// The monitors of the compositor.
+    fn monitors(&self) -> Vec<Monitor> {
+        self.outputs
+            .iter()
+            .map(|(_, monitor)| monitor.clone())
+            .collect()
+    }
+
     /// The windows, in the order of their handles.
-    fn windows(&self) -> Vec<Window> {
-        self.toplevels.values().map(Toplevel::window).collect()
+    fn windows(&self) -> Vec<Window> {        self.toplevels.values().map(Toplevel::window).collect()
     }
 
     /// The window that has the focus.
@@ -366,13 +380,58 @@ impl Dispatch<WlRegistry, GlobalListContents> for State {
 /// them another way.
 impl Dispatch<WlOutput, ()> for State {
     fn event(
-        _state: &mut Self,
-        _proxy: &WlOutput,
-        _event: wl_output::Event,
+        state: &mut Self,
+        proxy: &WlOutput,
+        event: wl_output::Event,
         _data: &(),
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
+        let id = proxy.id().protocol_id();
+        let Some((_, monitor)) = state
+            .outputs
+            .iter_mut()
+            .find(|(output, _)| output.id().protocol_id() == id)
+        else {
+            return;
+        };
+        match event {
+            // The position of the output in the space of the compositor. The
+            // physical size of the event is in millimetres, and the pixels are
+            // in the mode.
+            wl_output::Event::Geometry { x, y, .. } => {
+                monitor.left = x;
+                monitor.top = y;
+            }
+            // The size of the output is the one of its current mode. The flags
+            // of the event are a **bitmask** and not one value: the mode that is
+            // in use is usually `Current | Preferred`, and asking the enum for a
+            // single value fails on it. The bit of the current mode is the one
+            // that is asked for.
+            wl_output::Event::Mode {
+                flags,
+                width,
+                height,
+                ..
+            } => {
+                let current = match flags {
+                    wayland_client::WEnum::Value(wl_output::Mode::Current) => true,
+                    wayland_client::WEnum::Value(_) => false,
+                    // A combination of the two flags is a value that the
+                    // protocol file does not name, because the flags are a
+                    // bitmask and the file does not say so. The bit of the
+                    // current mode is the lowest one.
+                    wayland_client::WEnum::Unknown(bits) => bits & 1 != 0,
+                };
+                if current {
+                    monitor.right = monitor.left + width;
+                    monitor.bottom = monitor.top + height;
+                }
+            }
+            wl_output::Event::Scale { factor } => monitor.scale = factor,
+            wl_output::Event::Name { name } => monitor.name = name,
+            _ => {}
+        }
     }
 }
 

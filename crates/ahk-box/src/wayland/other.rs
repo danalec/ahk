@@ -20,6 +20,11 @@ impl Client {
         Err(not_linux())
     }
 
+    /// The monitors of the compositor.
+    pub fn monitors(&mut self) -> Result<Vec<super::Monitor>, String> {
+        Err(not_linux())
+    }
+
     /// The window that has the focus.
     pub fn active(&mut self) -> Result<Option<Window>, String> {
         Err(not_linux())

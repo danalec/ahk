@@ -1753,45 +1753,45 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: monitor_get,
     },
     Builtin {
         name: "MonitorGetCount",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: monitor_get_count,
     },
     Builtin {
         name: "MonitorGetName",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: monitor_get_name,
     },
     Builtin {
         name: "MonitorGetPrimary",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: monitor_get_primary,
     },
     Builtin {
         name: "MonitorGetWorkArea",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: monitor_get_work_area,
     },
     Builtin {
         name: "ObjAddRef",
@@ -8077,6 +8077,138 @@ pub(crate) fn win_get_client_pos(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     window_geometry_into(rt, values, line, "WinGetClientPos")
+}
+
+// -- the monitors ------------------------------------------------------------------
+
+/// The monitor that a number names, or the failure of v2 for a number that
+/// names none.
+///
+/// The monitors of v2 are numbered from one. Measured on the binary of
+/// v2.0.19 on 2026-11-09: `MonitorGetName(9)` fails with "Parameter #1 of
+/// MonitorGetName is invalid.".
+fn the_monitor_at(
+    rt: &mut Runtime<'_>,
+    number: i64,
+    line: u32,
+    name: &str,
+) -> Result<crate::desktop::Monitor, RuntimeError> {
+    let monitors = rt
+        .desktop()
+        .monitors()
+        .map_err(|e| desktop_failure(e, line))?;
+    if number < 1 || number as usize > monitors.len() {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, name),
+            line,
+        });
+    }
+    Ok(monitors[number as usize - 1].clone())
+}
+
+/// The number of the monitor that a call asks about, and one when it asks about
+/// none.
+fn the_monitor_number(values: &[Value]) -> i64 {
+    match values.first() {
+        None => 1,
+        Some(value) => value.to_number().unwrap_or(1.0) as i64,
+    }
+}
+
+/// `MonitorGetCount`: how many monitors the desktop has.
+pub(crate) fn monitor_get_count(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let monitors = rt
+        .desktop()
+        .monitors()
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(monitors.len() as i64))
+}
+
+/// `MonitorGetName`: the name of a monitor.
+pub(crate) fn monitor_get_name(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_monitor_number(values);
+    let monitor = the_monitor_at(rt, number, line, "MonitorGetName")?;
+    Ok(Value::Text(monitor.name))
+}
+
+/// `MonitorGetPrimary`: the number of the primary monitor.
+///
+/// A Wayland compositor lists its outputs and does not say which one is the
+/// primary, so the first one is the answer. That is a difference of the
+/// platform and it is recorded on the trait, not hidden here.
+pub(crate) fn monitor_get_primary(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(1))
+}
+
+/// The four bounds of a monitor, written into the references of the call.
+fn the_monitor_bounds_into(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    // The bounds are the parameters after the number, and they are given by
+    // reference: the second parameter of the call is the first of them.
+    for index in 0..4 {
+        let Some(value) = values.get(index + 1) else {
+            continue;
+        };
+        if !matches!(value, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(index + 2, name, "a VarRef", value),
+                line,
+            });
+        }
+    }
+    let number = the_monitor_number(values);
+    let monitor = the_monitor_at(rt, number, line, name)?;
+    let places = [monitor.left, monitor.top, monitor.right, monitor.bottom];
+    for (index, place) in places.iter().enumerate() {
+        if values.get(index + 1).is_some() {
+            rt.write_reference(&values[index + 1], Value::Int(*place));
+        }
+    }
+    Ok(Value::Int(1))
+}
+
+/// `MonitorGet`: the bounds of a monitor.
+pub(crate) fn monitor_get(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_monitor_bounds_into(rt, values, line, "MonitorGet")
+}
+
+/// `MonitorGetWorkArea`: the bounds of a monitor without the panels of the
+/// session.
+///
+/// A Wayland client is not told about the panels, so the work area of a monitor
+/// is the monitor itself here. That is a difference of the platform and it is
+/// recorded on the trait, not hidden here.
+pub(crate) fn monitor_get_work_area(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_monitor_bounds_into(rt, values, line, "MonitorGetWorkArea")
 }
 
 // -- the drives --------------------------------------------------------------------

@@ -140,6 +140,16 @@ pub trait Screen {
         Err("this desktop cannot tell how big the screen is".to_string())
     }
 
+    /// The monitors of the desktop, in the order it lists them.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `MonitorGetCount`
+    /// answers a whole number, `MonitorGetName(1)` answers the name of the
+    /// first output, and a monitor that is not there is refused with
+    /// "Parameter #1 of MonitorGetName is invalid.".
+    fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
+        Err("this desktop cannot list the monitors".to_string())
+    }
+
     /// The first pixel of a colour inside a region, if there is one.
     fn pixel_search(
         &mut self,
@@ -275,6 +285,26 @@ pub struct DriveSpace {
     /// The kind of the drive, in the word of v2: "Fixed", "Network",
     /// "Removable", "CDROM", "RAMDisk" or "Unknown".
     pub kind: String,
+}
+
+/// A monitor: an output of the desktop, and the rectangle of it.
+///
+/// The rectangle is in the space of the desktop, which is the space the windows
+/// are placed in. It is what `MonitorGet` answers.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Monitor {
+    /// The name of the output, when the desktop gives one.
+    pub name: String,
+    /// The left of the monitor.
+    pub left: i64,
+    /// The top of the monitor.
+    pub top: i64,
+    /// The right of the monitor.
+    pub right: i64,
+    /// The bottom of the monitor.
+    pub bottom: i64,
+    /// The scale of the monitor: 1 is the ordinary one.
+    pub scale: i64,
 }
 
 /// The windows of the desktop.

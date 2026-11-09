@@ -742,6 +742,17 @@ impl ahk::desktop::Screen for LabDesktop {
     fn screen_size(&mut self) -> Result<(i64, i64), String> {
         LabDesktop::screen_size(self).map_err(|error| error.to_string())
     }
+    fn monitors(&mut self) -> Result<Vec<ahk::desktop::Monitor>, String> {
+        // The monitors are the outputs of the compositor, and the compositor of
+        // a Wayland session is the one that knows them. The X server beside it
+        // is the rootless Xwayland of gamescope, and it reports one screen.
+        if wayland_session() {
+            return self.wayland_monitors();
+        }
+        Err("this desktop lists the monitors of a Wayland session, and this session is not \
+             Wayland"
+            .to_string())
+    }
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
         let path = self.capture(x, y, 1, 1, &format!("ahk-pixel-{}.png", millis()))?;
         let colour = read_pixel(&path)?;
@@ -2121,6 +2132,44 @@ impl LabDesktop {
     /// The two states are entries of the state array of the COSMIC protocol,
     /// the same array that says which window is the active one, so the answer
     /// is already in what the client refreshes.
+    /// The monitors of the compositor, by Wayland.
+    ///
+    /// The compositor names its outputs and places them, and the name of one is
+    /// the name of `MonitorGetName`. The **size** of one is what its mode says,
+    /// and the mode event of this compositor is not arriving: measured on the
+    /// box on 2026-11-09, `/` answered `HDMI-A-1` for the name and a rectangle
+    /// of zeros for the bounds. So the extent of the session is used for the
+    /// size of an output that did not give one, and the plan records that this
+    /// is a gap and not a design.
+    #[cfg(target_os = "linux")]
+    fn wayland_monitors(&mut self) -> Result<Vec<ahk::desktop::Monitor>, String> {
+        let reported = self.wayland()?.monitors()?;
+        let (width, height) = LabDesktop::screen_size(self).map_err(|error| error.to_string())?;
+        Ok(reported
+            .into_iter()
+            .map(|monitor| {
+                let mut left = i64::from(monitor.left);
+                let mut top = i64::from(monitor.top);
+                let mut right = i64::from(monitor.right);
+                let mut bottom = i64::from(monitor.bottom);
+                if right <= left || bottom <= top {
+                    left = 0;
+                    top = 0;
+                    right = width;
+                    bottom = height;
+                }
+                ahk::desktop::Monitor {
+                    name: monitor.name,
+                    left,
+                    top,
+                    right,
+                    bottom,
+                    scale: i64::from(monitor.scale),
+                }
+            })
+            .collect())
+    }
+
     #[cfg(target_os = "linux")]
     fn wayland_min_max(
         &mut self,
@@ -2195,6 +2244,11 @@ impl LabDesktop {
         _title: &str,
         _mode: ahk::desktop::TitleMatch,
     ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        Err(not_linux())
+    }
+
+    /// The monitors, on a platform that has no Wayland.
+    fn wayland_monitors(&mut self) -> Result<Vec<ahk::desktop::Monitor>, String> {
         Err(not_linux())
     }
 
