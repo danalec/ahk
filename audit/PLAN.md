@@ -811,6 +811,46 @@ that names a platform it cannot know is a guess, and this one was wrong.
 Eleven places carried the old wording — seven reasons, the module doc, and
 three assertions — and `tests/class_gui.rs` asserted the literal message.
 
+### Round 19 — 2026-11-09: `#Requires` learns to compare versions
+
+The audit's highest-severity defect, and the one most likely to stop a real v2
+script at its first line. `the_requires` compared the argument with the *word*
+`v2`, so the version the mainline binary writes -- `v2.0`, `v2.0.19` -- never
+matched, and a script that carried a normal `#Requires` line refused to load.
+
+**Measured on `AutoHotkey64.exe` 2.0.19**, each form as its own file:
+
+| line | the binary |
+|---|---|
+| `#Requires AutoHotkey v2.0` | runs |
+| `#Requires AutoHotkey v2.0.19` | runs |
+| `#Requires AutoHotkey v2.0.20` | **refused** — later than the running version |
+| `#Requires AutoHotkey >=2.0 <2.1` | runs |
+| `#Requires AutoHotkey v9` | refused |
+| `#Requires AutoHotkey v1` | refused |
+| `#Requires v2.0` | **refused** — the first word is the interpreter's name |
+
+The tree had a `VerCompare` and a `compare_versions` whose own doc said "the
+rule is the one of `#Requires`" -- and `#Requires` was not using them. It does
+now: a requirement is a version or a range of constraints, a bare version is
+**the least one that runs**, and it has to be the dialect of this run, so `v1`
+under a v2 runtime is still refused.
+
+The comparison is **dialect-aware**: the v1 dialect has its own major and its
+own version (`1.1.37.02`), and a hard-coded `major == 2` broke four v1 cases --
+which is how the omission was caught.
+
+The bare form stays the tree's own: `#Requires v2` runs, and `#Requires v2.0`
+does not, which is the same answer the binary gives and for the same reason.
+
+**Verified: all seven forms now answer exactly what the reference answers.**
+Both suites green, `clippy` clean.
+
+One test had to be **rewritten rather than repaired**: `a_sub_version_is_not_a_dialect`
+asserted that `#Requires AutoHotkey v2.0` is refused. That was the bug, written
+down as a requirement. It is now three cases: the sub-version is met, a later
+version is refused, and a range is met.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

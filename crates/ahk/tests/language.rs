@@ -351,14 +351,46 @@ fn the_v2_dialect_is_refused_under_the_v1_dialect() {
 }
 
 #[test]
-fn a_sub_version_is_not_a_dialect() {
-    // The dialects are v1 and v2. A script that names a sub-version -- the
-    // way the mainline binary spells its own -- asks for something this tree
-    // does not have, and it is refused with the whole argument in the reason.
-    let (report, _) = run("#Requires AutoHotkey v2.0");
+fn a_sub_version_is_met_when_it_is_the_least_one_that_runs() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `#Requires AutoHotkey
+    // v2.0` and `#Requires AutoHotkey v2.0.19` both run, because the version
+    // of the requirement is the least one that runs the script. The tree
+    // refused both of them until this was fixed.
+    let (report, _) = run("#Requires AutoHotkey v2.0\nFileAppend \"ok\", \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ok"]);
+    let (report, _) = run("#Requires AutoHotkey v2.0.19\nFileAppend \"ok\", \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_version_later_than_this_runtime_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `#Requires AutoHotkey
+    // v2.0.20` does not run, because that version is later than the one that
+    // is running.
+    let (report, _) = run("#Requires AutoHotkey v2.0.20");
     assert!(!report.ok);
     let error = report.error.as_deref().unwrap_or("");
-    assert!(error.contains("This script requires AutoHotkey v2.0."), "{error}");
+    assert!(error.contains("This script requires AutoHotkey v2.0.20."), "{error}");
+}
+
+#[test]
+fn a_range_of_versions_is_met_when_the_runtime_is_inside_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `#Requires AutoHotkey
+    // >=2.0 <2.1` runs.
+    let (report, _) = run("#Requires AutoHotkey >=2.0 <2.1\nFileAppend \"ok\", \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    let (report, _) = run("#Requires AutoHotkey >=2.1");
+    assert!(!report.ok, "a version after this one was met");
+}
+
+#[test]
+fn a_sub_version_with_no_interpreter_named_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `#Requires v2.0` does
+    // not run there, because the first word is read as the name of the
+    // interpreter and `v2.0` is not one.
+    let (report, _) = run("#Requires v2.0");
+    assert!(!report.ok);
 }
 
 #[test]

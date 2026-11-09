@@ -8281,43 +8281,109 @@ impl<'a> Runtime<'a> {
                 line,
             }));
         }
-        // Two forms: the dialect alone, and the name of the interpreter before
-        // it. The name is the mainline one and nothing else -- there is no
-        // second name of this tree to write here.
+        // The requirement is the name of the interpreter and then what it has
+        // to be. Measured on the binary of v2.0.19 on 2026-11-09: `AutoHotkey
+        // v2.0`, `AutoHotkey v2.0.19` and `AutoHotkey >=2.0 <2.1` all run;
+        // `AutoHotkey v2.0.20` and `AutoHotkey v9` do not; and a bare
+        // `#Requires v2.0` does not either, because the first word is read as
+        // the name of the interpreter. `#Requires v2` alone is the form of
+        // this tree, and it stays: the dialect, with no name in front of it.
+        let dialect = self.dialect.name();
         let mut words = argument.split_whitespace();
         let first = words.next().unwrap_or("");
-        let second = words.next();
-        let spare = words.next();
-        let meets = spare.is_none() && {
-            match second {
-                // `#Requires v2` and `#Requires v1`.
-                None => first.eq_ignore_ascii_case(self.dialect.name())
-                    // `#Requires AutoHotkey` asks for the interpreter and not
-                    // for a dialect, and the mainline binary accepts it.
-                    || first.eq_ignore_ascii_case("autohotkey"),
-                // `#Requires AutoHotkey v2`, which runs in both.
-                Some(dialect) => {
-                    first.eq_ignore_ascii_case("autohotkey")
-                        && dialect.eq_ignore_ascii_case(self.dialect.name())
-                }
+        let meets = if first.eq_ignore_ascii_case("autohotkey") {
+            let rest: Vec<&str> = words.collect();
+            if rest.is_empty() {
+                // `#Requires AutoHotkey` asks for the interpreter alone, and
+                // the mainline binary accepts it.
+                true
+            } else {
+                Self::meets_the_requirement(&rest.join(" "), dialect)
             }
+        } else {
+            // The dialect alone is the form of this tree. Anything else with
+            // no interpreter named is not a name of one: measured on the
+            // binary of v2.0.19 on 2026-11-09, `#Requires v2.0` does not run
+            // there, because the first word is read as the interpreter.
+            argument.eq_ignore_ascii_case(dialect)
         };
         if meets {
             return Ok(format!(
-                "this runtime is the {} dialect, and it meets {argument}",
-                self.dialect.name()
+                "this runtime is the {dialect} dialect, and it meets {argument}"
             ));
         }
         Err(RuntimeFailure::Error(RuntimeError {
-            message: format!(
-                "This script requires {argument}. This interpreter is {}.",
-                self.dialect.name()
-            ),
+            message: format!("This script requires {argument}. This interpreter is {dialect}."),
             line,
         }))
     }
 
-    /// The result of an assignment: the value that is stored.
+    /// Whether the version of this runtime meets what a `#Requires` asks for.
+///
+/// The requirement is one constraint or a range of two, `>=2.0 <2.1`, and every
+/// constraint of it has to hold.
+fn meets_the_requirement(requirement: &str, dialect: &str) -> bool {
+    let mut any = false;
+    for constraint in requirement.split_whitespace() {
+        any = true;
+        if !Self::meets_the_constraint(constraint, dialect) {
+            return false;
+        }
+    }
+    any
+}
+
+/// Whether one constraint of a `#Requires` holds for the version of this
+/// runtime.
+fn meets_the_constraint(constraint: &str, dialect: &str) -> bool {
+    let (operator, wanted) = Self::split_the_version_operator(constraint);
+    let wanted = wanted.trim().trim_start_matches(['v', 'V']);
+    let (major, version) = Self::the_version_of(dialect);
+    let order = crate::builtins::compare_versions(version, wanted);
+    match operator {
+        "<" => order < 0,
+        "<=" => order <= 0,
+        ">" => order > 0,
+        ">=" => order >= 0,
+        "=" => order == 0,
+        // A version with no operator is the least one that runs the script,
+        // and it has to be the dialect of this runtime: `v1` asks for another
+        // dialect, and no version of this one will do.
+        _ => {
+            let wanted_major = wanted
+                .split('.')
+                .next()
+                .and_then(|part| part.parse::<u64>().ok())
+                .unwrap_or(0);
+            wanted_major == major && order >= 0
+        }
+    }
+}
+
+/// The major number of the dialect this run speaks, and its version.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `#Requires AutoHotkey v2.0`
+/// and `AutoHotkey v2.0.19` both run, and `AutoHotkey v2.0.20` does not,
+/// because the requirement is the least version that runs the script.
+fn the_version_of(dialect: &str) -> (u64, &'static str) {
+    if dialect.eq_ignore_ascii_case("v1") {
+        (1, "1.1.37.02")
+    } else {
+        (2, crate::variables::AHK_VERSION)
+    }
+}
+
+/// The operator of a constraint of a `#Requires`, and the version after it.
+fn split_the_version_operator(constraint: &str) -> (&'static str, &str) {
+    for operator in [">=", "<=", ">", "<", "="] {
+        if let Some(rest) = constraint.strip_prefix(operator) {
+            return (operator, rest);
+        }
+    }
+    ("", constraint)
+}
+
+/// The result of an assignment: the value that is stored.
     ///
     /// The compound operators read what is there before they write, so a
     /// variable that has no value yet is an error and not a zero. The

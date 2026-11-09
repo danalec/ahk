@@ -81,7 +81,7 @@ pub const THE_RUNTIME_OWNS: &[&str] = &[
 ];
 
 /// The version of the dialect this runtime carries.
-const AHK_VERSION: &str = "2.0.19";
+pub const AHK_VERSION: &str = "2.0.19";
 
 /// The reason the names of Windows are not answered.
 ///

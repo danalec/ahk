@@ -405,7 +405,7 @@ Ordered by severity. All **MEASURED**.
 
 | # | Defect | Reproduce | Impact |
 |---|---|---|---|
-| 1 | **`#Requires` rejects its own version** | `#Requires AutoHotkey v2.0` + `MsgBox "ok"` → error *"This script requires AutoHotkey v2.0. This interpreter is v2."*, exit 1 | **High** — breaks the first line of most real v2 scripts. `v2.0`, `v2.0.19`, `>=2.0 <2.1` all fail |
+| 1 | **`#Requires` rejects its own version** | `#Requires AutoHotkey v2.0` + `MsgBox "ok"` → error *"This script requires AutoHotkey v2.0. This interpreter is v2."*, exit 1 | **High** — it broke the first line of most real v2 scripts. **Fixed in round 19**: the directive now compares versions, so `AutoHotkey v2.0`, `v2.0.19` and `>=2.0 <2.1` run and `v2.0.20`, `v9`, `v1` and a bare `v2.0` do not — the same seven answers the reference binary gives |
 | 2 | **`ImageSearch` fails with an empty message** | any failing `ImageSearch` → `Error`, `What "ImageSearch"`, `Extra ""`, `Message ""` | **High** — indistinguishable from a caller bug |
 | 3 | **`DateAdd`/`DateDiff` reject documented units** | `DateAdd(ts, 11, "Days")` → *"Parameter #3 of DateAdd is invalid."* | **High** — only `s m h d` accepted; the reference answers `20260112030405` |
 | 4 | **Errors lose their cause** | `FileCopy` of a missing file → `Error`, `What "FileCopy"`, `Extra "1"`, `Message "Failed"`; `DirDelete` of a non-empty folder → `Message "Failed"` | **Medium** — `FileDelete`/`FileRead` in the same run carry the real `(2) The system cannot find the file specified.` |

@@ -7590,7 +7590,7 @@ fn split_operator(version: &str) -> Option<(&'static str, &str)> {
 ///
 /// The known limitation of v2 is carried: a component that is bigger
 /// than 2147483647 is the same as 2147483647.
-fn compare_versions(first: &str, second: &str) -> i32 {
+pub(crate) fn compare_versions(first: &str, second: &str) -> i32 {
     let (first_numbers, first_pre) = split_version(first);
     let (second_numbers, second_pre) = split_version(second);
     let order = compare_numbers(&first_numbers, &second_numbers);
