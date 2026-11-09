@@ -14,6 +14,14 @@ the contract: the test suite asks the tree about every name in them.
 
 ## Quick start
 
+The runner is on crates.io:
+
+```sh
+cargo install ahk-cli
+```
+
+Or build it from this tree:
+
 ```sh
 cargo build --workspace
 cargo build --release -p ahk-cli      # the runner: ./target/release/ahk
@@ -53,9 +61,9 @@ Exit codes: `0` the script finished, `1` it failed, `2` it did not parse.
 
 | Crate | What it is |
 |---|---|
-| `crates/ahk/` | The language. Lexer, AST, parser, runtime, built-in table, class library, variables, regex, dates, files, settings, hotkeys, and the fifteen `Desktop` capability traits. **No I/O of its own**, and it builds without the standard library. |
-| `crates/ahk-box/` | The desktop backend: a uinput keyboard, an absolute pointer, `grim` captures, Wayland toplevel enumeration, an X11 path, files, native calls, and a Windows-library helper. Linux syscalls are behind `#[cfg(target_os = "linux")]`; on other targets the devices answer `NotLinux`. |
-| `crates/ahk-cli/` | The `ahk` runner. A script on stdin, a report on stdout. |
+| [`ahk`](https://crates.io/crates/ahk) | The language. Lexer, AST, parser, runtime, built-in table, class library, variables, regex, dates, files, settings, hotkeys, and the fifteen `Desktop` capability traits. **No I/O of its own**, and it builds without the standard library. |
+| [`ahk-box`](https://crates.io/crates/ahk-box) | The desktop backend: a uinput keyboard, an absolute pointer, `grim` captures, Wayland toplevel enumeration, an X11 path, files, native calls, and a Windows-library helper. Linux syscalls are behind `#[cfg(target_os = "linux")]`; on other targets the devices answer `NotLinux`. |
+| [`ahk-cli`](https://crates.io/crates/ahk-cli) | The `ahk` runner. A script on stdin, a report on stdout. |
 
 The dependency runs one way: `ahk-cli` -> `ahk-box` -> `ahk`. The language
 crate knows nothing about the box: it is handed a `Desktop` implementation.
