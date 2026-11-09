@@ -28,7 +28,7 @@
 
 use std::fs::File;
 use std::io::Write;
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 use std::os::unix::io::AsRawFd;
 use std::time::Duration;
 

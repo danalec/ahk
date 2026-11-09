@@ -31,6 +31,18 @@ use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue}
 // -- the machine ---------------------------------------------------------------
 
 /// One argument of a native call, in the shape the machine wants.
+///
+/// The shape is the one of the x64 call, and it is compiled on every target
+/// so that the fallback of a machine that has no trampoline still names the
+/// same types. On such a machine the fields are read by nobody, and that is
+/// the point of the `allow`. 
+#[cfg_attr(
+    not(any(
+        all(target_arch = "x86_64", target_os = "windows"),
+        all(target_arch = "x86_64", target_os = "linux")
+    )),
+    allow(dead_code)
+)]
 enum Slot {
     /// An integer or a pointer.
     Integer(u64),
@@ -43,6 +55,13 @@ enum Slot {
 }
 
 /// The call, prepared for the machine.
+#[cfg_attr(
+    not(any(
+        all(target_arch = "x86_64", target_os = "windows"),
+        all(target_arch = "x86_64", target_os = "linux")
+    )),
+    allow(dead_code)
+)]
 struct Call {
     /// The address of the function.
     target: u64,
@@ -51,6 +70,13 @@ struct Call {
 }
 
 /// The answer of a native call.
+#[cfg_attr(
+    not(any(
+        all(target_arch = "x86_64", target_os = "windows"),
+        all(target_arch = "x86_64", target_os = "linux")
+    )),
+    allow(dead_code)
+)]
 struct Answer {
     /// The bits the function left in the integer register.
     bits: u64,
