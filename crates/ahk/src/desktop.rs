@@ -256,6 +256,22 @@ pub enum WaitFor {
     Close,
 }
 
+/// The space of the drive that a path is on, in megabytes.
+///
+/// v2 answers the two numbers of a drive in megabytes, measured on the binary
+/// of v2.0.19 on 2026-11-09: `DriveGetSpaceFree("C:\")` answered `836675` and
+/// `DriveGetCapacity("C:\")` answered `3905969`, both whole numbers.
+///
+/// A drive of this tree is the filesystem that a path is on, because a Linux
+/// box has mount points and not the letters of a drive.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DriveSpace {
+    /// The space that is free, in megabytes.
+    pub free: i64,
+    /// The capacity of the drive, in megabytes.
+    pub capacity: i64,
+}
+
 /// The windows of the desktop.
 pub trait Windows {
     /// Whether the window with this title is the active one.
@@ -989,6 +1005,14 @@ pub trait Machine {
     /// reads the path of the interpreter must be told that it is not known.
     fn executable(&mut self) -> Result<String, String> {
         Err("this desktop cannot tell the path of the interpreter".to_string())
+    }
+
+    /// The space of the drive that a path is on.
+    ///
+    /// `None` is a path whose drive is not there. A path that is there and a
+    /// drive whose space cannot be read is a failure with the reason.
+    fn drive_space(&mut self, _path: &str) -> Result<Option<DriveSpace>, String> {
+        Err("this desktop cannot tell the space of a drive".to_string())
     }
 
     fn idle_times(&mut self) -> Result<Idle, String> {

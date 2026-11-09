@@ -8,7 +8,7 @@ use ahk::desktop::{
     Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network, PictureOptions,
     Pictures, Pointer, Processes, Screen, Sound, Timers, WaitFor, WindowGeometry, WindowRef,
-    Windows,
+    Windows, DriveSpace,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -95,7 +95,20 @@ impl Sound for Fake {
         Ok("beeped".to_string())
     }
 }
-impl Machine for Fake {}
+impl Machine for Fake {
+    fn drive_space(&mut self, path: &str) -> Result<Option<DriveSpace>, String> {
+        self.calls.push(("drive-space".into(), path.to_string()));
+        // One drive at `/`, and every other path is a drive that is not there.
+        Ok(if path == "/" {
+            Some(DriveSpace {
+                free: 1000,
+                capacity: 4000,
+            })
+        } else {
+            None
+        })
+    }
+}
 impl Dialogs for Fake {
     fn input_box(
         &mut self,
@@ -3971,4 +3984,46 @@ fn win_wait_without_seconds_waits_the_cap_and_not_forever() {
         desktop.calls,
         vec![("wait-window".to_string(), "first|Present|60000".to_string())]
     );
+}
+
+// -- the drives --------------------------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-09: `DriveGetSpaceFree` and
+// `DriveGetCapacity` answer whole megabytes, a drive that is there is "Ready",
+// and a drive that is not there is a failure for the space and the empty text
+// for the status.
+
+#[test]
+fn drive_get_space_free_answers_the_free_megabytes() {
+    let report = run("x := DriveGetSpaceFree(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1000);
+}
+
+#[test]
+fn drive_get_capacity_answers_the_capacity_in_megabytes() {
+    let report = run("x := DriveGetCapacity(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 4000);
+}
+
+#[test]
+fn drive_get_space_free_of_a_drive_that_is_not_there_fails() {
+    let report = run("x := DriveGetSpaceFree(\"/nowhere\")");
+    assert!(!report.ok, "the script was expected to fail");
+    assert!(failure_of(&report).contains("is not there"));
+}
+
+#[test]
+fn drive_get_status_answers_ready_for_a_drive_that_is_there() {
+    let report = run("x := DriveGetStatus(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Ready".into())));
+}
+
+#[test]
+fn drive_get_status_of_a_drive_that_is_not_there_is_empty() {
+    let report = run("x := DriveGetStatus(\"/nowhere\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
 }

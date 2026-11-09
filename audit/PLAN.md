@@ -36,7 +36,7 @@ them in.
 Measured with `ahk --surface` (2026-11-09):
 
 ```
-the surface of v2 has 833 entries: 663 answer with a value, 170 are refused, 0 are pending.
+the surface of v2 has 833 entries: 667 answer with a value, 166 are refused, 0 are pending.
 ```
 
 | Round | Cluster | Gap rows closed | Verified on the box |
@@ -48,6 +48,8 @@ the surface of v2 has 833 entries: 663 answer with a value, 170 are refused, 0 a
 | 5 | `WinGetMinMax` — maximized / minimized | 1 | ✅ §4.5 |
 | 6 | `WinClose` — attempted, **reverted** | 0 | ✅ (the correction is the deliverable) §4.6 |
 | 7 | `WinWait`, `WinWaitActive`, `WinWaitNotActive`, `WinWaitClose` | 1 | ✅ §4.7 |
+| 9 | `A_AhkPath` — the first `Machine` variable | 1 | ✅ §4.9 |
+| 12 | `DriveGetSpaceFree`, `DriveGetCapacity`, `DriveGetStatus` | 1 | ✅ §4.12 |
 
 ## 3. The remaining work, in the order it is worth doing
 
@@ -660,6 +662,55 @@ box:     /home/danalec/ahk/target/release/ahk
    remembering for the rest of the `A_*` family.
 
 The surface of the v2 moved **663 → 664 values, 170 → 169 refusals**.
+
+### Round 12 — 2026-11-09: the drives
+
+**`Group*` was dropped before it was started, by the rule this plan wrote for
+itself.** The plan said to size the seam first. `GroupActivate` and
+`GroupDeactivate` need a window to be *activated*, and `GroupClose` needs one to
+be *closed* -- and the client has no activation request at all (round 6 already
+proved there is no close), so three of the four cannot work. Only `GroupAdd`
+would land, and a group that nothing can activate is a list with no reader.
+
+**The drive cluster instead** — 14 refusals, pure machine queries, no protocol
+risk.
+
+**Measured on `AutoHotkey64.exe` 2.0.19**, all wrapped in `try` (an uncaught
+runtime error opens a dialog and hangs the probe):
+
+| call | answered |
+|---|---|
+| `DriveGetList()` | a **String**, not an array — it has no `Length` |
+| `DriveGetType("C:\")` | `Fixed` |
+| `DriveGetStatus("C:\")` | `Ready` |
+| `DriveGetSpaceFree("C:\")` | `836675` — whole megabytes |
+| `DriveGetCapacity("C:\")` | `3905969` |
+| `DriveGetType("Z:\")` — missing | the **empty text**, not a failure |
+| `DriveGetSpaceFree("Z:\")` — missing | a **failure**, `(3) The system cannot find the path specified.` |
+
+The last two disagree about the same missing drive, and that disagreement is in
+the handlers.
+
+Three names landed: `DriveGetSpaceFree`, `DriveGetCapacity`, `DriveGetStatus`.
+The drive of a path is **the filesystem the path is on** — a Linux box has mount
+points, not drive letters — and the box answers it with `df -Pk`, which is the
+POSIX form: one line per drive, a thousand-byte block, a fixed column order.
+`DriveGetList` was **not** taken: its contract is a string of drive letters, and
+there is no honest mapping from mount points to that.
+
+**Verified on the box, against `df` itself:**
+
+```
+df -Pk /      ->  28774016 21747712 7026304 76% /
+the tree      ->  free=6859 cap=28097 status=[Ready]
+```
+
+(df said 7026304/28774016 KiB, about 6862/28100 MB; the tool ran its own `df`
+a moment later, and a few megabytes of live drift is the difference.)
+
+`DriveGetStatus` of a drive that is not there answers the empty text — **and
+that was not measured**, only inferred from `DriveGetType`, which is recorded on
+the handler.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in

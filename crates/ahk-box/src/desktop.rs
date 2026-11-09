@@ -1362,6 +1362,40 @@ impl ahk::desktop::Machine for LabDesktop {
             .map(|path| path.to_string_lossy().into_owned())
             .map_err(|error| format!("the machine did not say the path of the interpreter: {error}"))
     }
+    fn drive_space(&mut self, path: &str) -> Result<Option<ahk::desktop::DriveSpace>, String> {
+        box_tools_are_near()?;
+        // The drive of a path is the filesystem that the path is on, and `df`
+        // is the tool that says it. `-P` is the POSIX form, which is one line
+        // per drive and a fixed order of the columns, and `-k` counts the
+        // blocks in a thousand bytes, which is the unit the answer is in.
+        let output = Command::new("df")
+            .arg("-Pk")
+            .arg(path)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            // A path whose drive cannot be read is a drive that is not there:
+            // the command that asked decides what that means, because v2 does
+            // not answer the same thing for every one of them.
+            return Ok(None);
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let fields: Vec<&str> = text
+            .lines()
+            .nth(1)
+            .unwrap_or_default()
+            .split_whitespace()
+            .collect();
+        if fields.len() < 4 {
+            return Err(format!("the machine did not describe the drive of {path}"));
+        }
+        let blocks: i64 = fields[1].parse().unwrap_or(0);
+        let available: i64 = fields[3].parse().unwrap_or(0);
+        Ok(Some(ahk::desktop::DriveSpace {
+            free: available / 1024,
+            capacity: blocks / 1024,
+        }))
+    }
     fn user_name(&mut self) -> Result<String, String> {
         crate::machine::user_name()
     }

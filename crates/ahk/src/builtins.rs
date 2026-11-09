@@ -1420,9 +1420,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_capacity,
     },
     Builtin {
         name: "DriveGetFilesystem",
@@ -1465,18 +1465,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_space_free,
     },
     Builtin {
         name: "DriveGetStatus",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_status,
     },
     Builtin {
         name: "DriveGetStatusCD",
@@ -8077,6 +8077,79 @@ pub(crate) fn win_get_client_pos(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     window_geometry_into(rt, values, line, "WinGetClientPos")
+}
+
+// -- the drives --------------------------------------------------------------------
+
+/// The drive that a path is on, and the failure v2 gives when it is not there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `DriveGetSpaceFree` of a
+/// drive that is not there is a failure, while `DriveGetType` of one answers
+/// the empty text -- the two commands disagree about the same question.
+fn the_drive_of(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<crate::desktop::DriveSpace, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_space(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(space) => Ok(space),
+        None => Err(RuntimeError {
+            message: format!("{name}: the drive of {path} is not there."),
+            line,
+        }),
+    }
+}
+
+/// `DriveGetSpaceFree`: the free space of a drive, in megabytes.
+pub(crate) fn drive_get_space_free(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(
+        the_drive_of(rt, values, line, "DriveGetSpaceFree")?.free,
+    ))
+}
+
+/// `DriveGetCapacity`: the capacity of a drive, in megabytes.
+pub(crate) fn drive_get_capacity(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(
+        the_drive_of(rt, values, line, "DriveGetCapacity")?.capacity,
+    ))
+}
+
+/// `DriveGetStatus`: whether the drive is ready.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a drive that is there is
+/// "Ready". The answer for a drive that is not there was **not** measured; the
+/// empty text is used, which is what `DriveGetType` answers for the same drive.
+pub(crate) fn drive_get_status(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_space(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(_) => Ok(Value::Text("Ready".to_string())),
+        None => Ok(Value::Text(String::new())),
+    }
 }
 
 // -- waiting for a window ----------------------------------------------------------
