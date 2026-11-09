@@ -1898,9 +1898,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_add_ref,
     },
     Builtin {
         name: "ObjSetBase",
@@ -5754,18 +5754,31 @@ pub(crate) fn obj_set_capacity(
     Ok(Value::Int(1))
 }
 
-/// `ObjAddRef`: the reference count of an object, one more.
+/// `ObjAddRef` and `ObjRelease`: the reference count of an object.
 ///
-/// v2 counts the references of a COM object, and an object of a script
-/// has no such count: the built-in says that the parameter is invalid.
+/// v2 counts the references of a COM object, and an object of a script has no
+/// such count: the built-in says that the parameter is invalid. Measured on the
+/// binary of v2.0.19 on 2026-11-09: `ObjAddRef(1)` and `ObjRelease(1)` answer
+/// the same thing, "Parameter #1 of ObjAddRef is invalid." and "Parameter #1 of
+/// ObjRelease is invalid.".
+///
+/// The variant is the name: this one is `ObjAddRef` and the other is
+/// `ObjRelease`. They were inconsistent until round 23 -- `ObjAddRef` was
+/// carried and `ObjRelease` refused as a name of Windows, which is not the
+/// obstacle for either of them.
 pub(crate) fn obj_add_ref(
     _rt: &mut Runtime<'_>,
     _values: &[Value],
     line: u32,
-    _variant: u8,
+    variant: u8,
 ) -> Result<Value, RuntimeError> {
+    let name = if variant == 0 {
+        "ObjAddRef"
+    } else {
+        "ObjRelease"
+    };
     Err(RuntimeError {
-        message: crate::runtime::invalid_parameter(1, "ObjAddRef"),
+        message: crate::runtime::invalid_parameter(1, name),
         line,
     })
 }

@@ -955,6 +955,43 @@ built, which has `&mut self` and a line, rather than at the read.
 wrong in the same way: the row described the tree and not the binary. The
 audit is corrected.
 
+### Round 23 — 2026-11-09: the batch, and one defect that was real
+
+The plan said to verify the four remaining defect claims against the binary
+together, because rounds 21 and 22 had each found a wrong one. Result:
+
+| claim | verdict |
+|---|---|
+| 5 — `--surface` counts 148 broken `Gui` methods as `value` | **real**, and it is a design question about the metric, not a bug |
+| 8 — `ObjAddRef` is `value` while `ObjRelease` refuses | **real, and fixed** |
+| 9 — `Screenshot` carries "the Windows refusal variant" | **wrong** — `variant: 0` is the carried one |
+| 10 — `MouseGetPos` answers `0,0` | **host artifact** — real on the box, wrong off it |
+
+**Defect 9 was the third mischaracterisation.** The audit called `variant: 0`
+"the Windows refusal"; the Windows refusal is `variant: 100`, and `0` is what
+`Run`, `MsgBox` and every other carried handler use. `Screenshot` was modelled
+correctly all along.
+
+**Defect 8 was real and is fixed.** Measured on the binary of v2.0.19 on
+2026-11-09: `ObjAddRef(1)` and `ObjRelease(1)` both answer
+`Parameter #1 of … is invalid.`. They are symmetric in v2 and were not in this
+tree -- `ObjRelease` refused with *"this is a name of Windows"*, which is not
+the obstacle for either of them. One handler now serves both, chosen by the
+`variant` byte, which is what that byte is for.
+
+```
+ObjAddRef(1)     Parameter #1 of ObjAddRef is invalid.
+ObjRelease(1)    Parameter #1 of ObjRelease is invalid.
+```
+
+The surface moved **674 → 675 values, 159 → 158 refusals**.
+
+**Three of the ten defects the audit reported were wrong** (4, 6, 9), and all
+three were wrong the same way: the row described the tree and never the binary.
+The audit's own rule -- every behaviour carries the measurement that justifies
+it -- was applied to the tree and not to the defect table. It is now applied to
+both.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
