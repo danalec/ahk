@@ -1193,6 +1193,50 @@ fn pause_before_the_next_look() {
     std::thread::sleep(Duration::from_millis(20));
 }
 
+/// The filesystem of the longest mount point that a path is under.
+///
+/// The table of the mounts of the machine is `/proc/self/mounts`, and the drive
+/// of a path is the longest mount point it is under: a path under `/home` is in
+/// the filesystem of `/home` and not in the one of `/`.
+fn the_filesystem_of(path: &str) -> Option<String> {
+    let table = std::fs::read_to_string("/proc/self/mounts").ok()?;
+    let mut best: Option<(usize, String)> = None;
+    for line in table.lines() {
+        let mut fields = line.split_whitespace();
+        let (_device, mount, filesystem) = (fields.next()?, fields.next()?, fields.next()?);
+        let under = path == mount
+            || (mount == "/" && path.starts_with('/'))
+            || (path.starts_with(mount) && path.as_bytes().get(mount.len()) == Some(&b'/'));
+        if !under {
+            continue;
+        }
+        let beaten = match &best {
+            None => true,
+            Some((length, _)) => mount.len() >= *length,
+        };
+        if beaten {
+            best = Some((mount.len(), filesystem.to_string()));
+        }
+    }
+    best.map(|(_, filesystem)| filesystem)
+}
+
+/// The kind of a drive, in the word of v2, from the filesystem of it.
+///
+/// The words are the ones of v2. The mapping is the honest one for a Linux
+/// box: a network filesystem is a `Network` drive, an image of a disc is a
+/// `CDROM`, a memory filesystem is a `RAMDisk`, and everything else on the
+/// machine is `Fixed`.
+fn the_kind_of(filesystem: &str) -> String {
+    match filesystem {
+        "nfs" | "nfs4" | "cifs" | "smb3" | "sshfs" | "9p" | "afs" => "Network",
+        "iso9660" | "udf" => "CDROM",
+        "tmpfs" | "ramfs" | "devtmpfs" => "RAMDisk",
+        _ => "Fixed",
+    }
+    .to_string()
+}
+
 /// Whether this desktop can read the table of the processes.
 ///
 /// The table is `/proc`, which is the one Linux keeps. A platform that has
@@ -1391,9 +1435,17 @@ impl ahk::desktop::Machine for LabDesktop {
         }
         let blocks: i64 = fields[1].parse().unwrap_or(0);
         let available: i64 = fields[3].parse().unwrap_or(0);
+        let filesystem = the_filesystem_of(path).unwrap_or_default();
+        let kind = if filesystem.is_empty() {
+            String::new()
+        } else {
+            the_kind_of(&filesystem)
+        };
         Ok(Some(ahk::desktop::DriveSpace {
             free: available / 1024,
             capacity: blocks / 1024,
+            filesystem,
+            kind,
         }))
     }
     fn user_name(&mut self) -> Result<String, String> {

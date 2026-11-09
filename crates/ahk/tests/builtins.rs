@@ -103,6 +103,8 @@ impl Machine for Fake {
             Some(DriveSpace {
                 free: 1000,
                 capacity: 4000,
+                filesystem: "ext4".to_string(),
+                kind: "Fixed".to_string(),
             })
         } else {
             None
@@ -4024,6 +4026,29 @@ fn drive_get_status_answers_ready_for_a_drive_that_is_there() {
 #[test]
 fn drive_get_status_of_a_drive_that_is_not_there_is_empty() {
     let report = run("x := DriveGetStatus(\"/nowhere\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn drive_get_filesystem_answers_the_filesystem_of_the_machine() {
+    let report = run("x := DriveGetFilesystem(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("ext4".into())));
+}
+
+#[test]
+fn drive_get_type_answers_the_kind_in_the_word_of_v2() {
+    let report = run("x := DriveGetType(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Fixed".into())));
+}
+
+#[test]
+fn drive_get_type_of_a_drive_that_is_not_there_is_empty() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `DriveGetType` of a
+    // drive that is not there is the empty text, and not a failure.
+    let report = run("x := DriveGetType(\"/nowhere\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
 }

@@ -1429,9 +1429,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_filesystem,
     },
     Builtin {
         name: "DriveGetLabel",
@@ -1492,9 +1492,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_type,
     },
     Builtin {
         name: "DriveLock",
@@ -8148,6 +8148,46 @@ pub(crate) fn drive_get_status(
         .map_err(|e| desktop_failure(e, line))?
     {
         Some(_) => Ok(Value::Text("Ready".to_string())),
+        None => Ok(Value::Text(String::new())),
+    }
+}
+
+/// `DriveGetFilesystem`: the filesystem of a drive, as the machine names it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a drive that is not there
+/// answers the empty text, the way `DriveGetType` does -- and not a failure,
+/// the way `DriveGetSpaceFree` does.
+pub(crate) fn drive_get_filesystem(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_space(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(space) => Ok(Value::Text(space.filesystem)),
+        None => Ok(Value::Text(String::new())),
+    }
+}
+
+/// `DriveGetType`: the kind of a drive, in the word of v2.
+pub(crate) fn drive_get_type(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_space(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(space) => Ok(Value::Text(space.kind)),
         None => Ok(Value::Text(String::new())),
     }
 }

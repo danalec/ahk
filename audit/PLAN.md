@@ -36,7 +36,7 @@ them in.
 Measured with `ahk --surface` (2026-11-09):
 
 ```
-the surface of v2 has 833 entries: 667 answer with a value, 166 are refused, 0 are pending.
+the surface of v2 has 833 entries: 669 answer with a value, 164 are refused, 0 are pending.
 ```
 
 | Round | Cluster | Gap rows closed | Verified on the box |
@@ -711,6 +711,19 @@ a moment later, and a few megabytes of live drift is the difference.)
 `DriveGetStatus` of a drive that is not there answers the empty text — **and
 that was not measured**, only inferred from `DriveGetType`, which is recorded on
 the handler.
+
+**Two more rode the same seam: `DriveGetFilesystem` and `DriveGetType`.** The
+filesystem of a path is the one of the **longest mount point it is under**
+(`/proc/self/mounts`), so a path under `/home` is in the `/home` filesystem and
+not the `/` one. `DriveGetType` maps that to the word of v2: network
+filesystems are `Network`, disc images `CDROM`, memory filesystems `RAMDisk`,
+and the rest of the machine `Fixed`. Verified on the box:
+
+```
+/proc/self/mounts:  zpcachyos/ROOT/cos/root / zfs ...
+the tree:           fs_root=zfs type_root=Fixed
+                    fs_tmp=tmpfs type_tmp=RAMDisk
+```
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in

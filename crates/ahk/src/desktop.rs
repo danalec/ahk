@@ -264,12 +264,17 @@ pub enum WaitFor {
 ///
 /// A drive of this tree is the filesystem that a path is on, because a Linux
 /// box has mount points and not the letters of a drive.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DriveSpace {
     /// The space that is free, in megabytes.
     pub free: i64,
     /// The capacity of the drive, in megabytes.
     pub capacity: i64,
+    /// The filesystem of the drive, as the machine names it: "ext4", "zfs".
+    pub filesystem: String,
+    /// The kind of the drive, in the word of v2: "Fixed", "Network",
+    /// "Removable", "CDROM", "RAMDisk" or "Unknown".
+    pub kind: String,
 }
 
 /// The windows of the desktop.
