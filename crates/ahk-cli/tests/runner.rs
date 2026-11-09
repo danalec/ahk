@@ -253,8 +253,14 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 643);
-    assert_eq!(report.number("refusals"), 190);
+    // The `Process*` family answers with a value since 2026-11-09: the eight
+    // names of it moved from the refusal to the value, six of them with the
+    // table of the processes and two with the wait for one. `TrayTip` followed
+    // it, through the notification of the session, then the four `WinGet*`
+    // that read the listing of the windows, then the two that read where
+    // a window is, and the one that reads whether it is maximized.
+    assert_eq!(report.number("values"), 664);
+    assert_eq!(report.number("refusals"), 169);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -282,8 +288,10 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(report.text("dialect"), "v1");
     assert_eq!(report.number("total"), 408);
     // The names that the v1 has and the v2 does not are carried, and none of
-    // them is pending: the surface of the v1 is complete.
-    assert_eq!(report.number("values"), 301);
+    // them is pending: the surface of the v1 is complete. `A_AhkPath` answers
+    // with a value since round 9, in both dialects, so the count of the values
+    // moved with the one of the v2.
+    assert_eq!(report.number("values"), 302);
     assert_eq!(report.number("pending"), 0);
     let entries = report.array("entries");
     let is_set = entries

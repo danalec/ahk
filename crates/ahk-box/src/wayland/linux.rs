@@ -21,6 +21,7 @@ use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 use wayland_client::globals::{BindError, GlobalList, GlobalListContents, registry_queue_init};
+use wayland_client::protocol::wl_output::{self, WlOutput};
 use wayland_client::protocol::wl_registry::{self, WlRegistry};
 use wayland_client::{Connection, Dispatch, EventQueue, Proxy, QueueHandle, event_created_child};
 use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
@@ -28,7 +29,7 @@ use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
     ext_foreign_toplevel_list_v1::{self, Event as ListEvent, ExtForeignToplevelListV1},
 };
 
-use super::Window;
+use super::{Geometry, Window};
 use super::protocols::client::{
     zcosmic_toplevel_handle_v1::{Event as CosmicEvent, ZcosmicToplevelHandleV1},
     zcosmic_toplevel_info_v1::{self, Event as CosmicInfoEvent, ZcosmicToplevelInfoV1},
@@ -39,6 +40,12 @@ use super::protocols::client::{
 /// The states are the ones of `xdg-toplevel`: maximized, minimized,
 /// activated, fullscreen and sticky.
 const ACTIVATED: u32 = 2;
+
+/// The value of the state that says the window is maximized.
+const MAXIMIZED: u32 = 0;
+
+/// The value of the state that says the window is minimized.
+const MINIMIZED: u32 = 1;
 
 /// How long the client waits for the state of the windows.
 ///
@@ -157,6 +164,22 @@ impl Client {
             }
         }
 
+        // The outputs: the geometry of a window is said relative to one of
+        // them, and the event that says it carries the output as an object,
+        // so a client that has bound no output is never told. Every output is
+        // bound, because the compositor picks the one the window is on.
+        let outputs: Vec<(u32, u32)> = globals
+            .contents()
+            .clone_list()
+            .into_iter()
+            .filter(|global| global.interface == WlOutput::interface().name)
+            .map(|global| (global.name, global.version.min(4)))
+            .collect();
+        for (name, version) in outputs {
+            let output: WlOutput = globals.registry().bind(name, version, &handle, ());
+            self.state.outputs.push(output);
+        }
+
         self.state.globals = Some(globals);
     }
 
@@ -207,6 +230,14 @@ struct State {
     cosmic: BTreeMap<u32, u32>,
     /// The handles of COSMIC, kept alive for the same reason.
     cosmic_handles: Vec<ZcosmicToplevelHandleV1>,
+    /// The outputs of the compositor.
+    ///
+    /// The geometry of a window is said relative to an output, and a
+    /// compositor does not send that event to a client that has bound no
+    /// output -- the event carries the output as an object. The outputs are
+    /// bound for that reason, and kept alive because a proxy that is dropped
+    /// takes the object with it.
+    outputs: Vec<WlOutput>,
     /// The object of the listing.
     list: Option<ExtForeignToplevelListV1>,
     /// The object of the information of COSMIC.
@@ -232,8 +263,7 @@ impl State {
     }
 
     /// Whether the compositor still has to say the state of a window.
-    fn has_pending_states(&self) -> bool {
-        self.toplevels.values().any(|toplevel| !toplevel.state_seen)
+    fn has_pending_states(&self) -> bool {        self.toplevels.values().any(|toplevel| !toplevel.state_seen)
     }
 
     /// Why the state of a window is not known.
@@ -268,8 +298,18 @@ struct Toplevel {
     pending_app_id: Option<String>,
     /// Whether the window is the active one.
     active: bool,
+    /// Whether the window is maximized.
+    maximized: bool,
+    /// Whether the window is minimized.
+    minimized: bool,
     /// Whether the compositor has said the state of the window.
     state_seen: bool,
+    /// Where the window is and how big it is, when the compositor said it.
+    ///
+    /// The `geometry` event of `zcosmic_toplevel_info_v1` carries it, and the
+    /// event arrives since the version 2 of that protocol -- which is the
+    /// version this client asks for.
+    geometry: Option<Geometry>,
 }
 
 impl Toplevel {
@@ -280,6 +320,9 @@ impl Toplevel {
             title: self.title.clone(),
             app_id: self.app_id.clone(),
             active: self.active,
+            maximized: self.maximized,
+            minimized: self.minimized,
+            geometry: self.geometry,
         }
     }
 }
@@ -311,6 +354,25 @@ impl Dispatch<WlRegistry, GlobalListContents> for State {
         }
         let list: ExtForeignToplevelListV1 = proxy.bind(name, version.min(1), qh, ());
         state.list = Some(list);
+    }
+}
+
+/// An output of the compositor.
+///
+/// Nothing of it is read yet. The object is bound because the geometry of a
+/// window is said relative to an output, and a compositor does not send that
+/// event to a client that has bound no output. The width and the height of
+/// the outputs are a question for another time -- `A_ScreenWidth` answers
+/// them another way.
+impl Dispatch<WlOutput, ()> for State {
+    fn event(
+        _state: &mut Self,
+        _proxy: &WlOutput,
+        _event: wl_output::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
     }
 }
 
@@ -444,14 +506,39 @@ impl Dispatch<ZcosmicToplevelHandleV1, ()> for State {
             return;
         };
 
-        if let CosmicEvent::State { state: states } = event {
+        if let CosmicEvent::State { state: states } = &event {
             // The states are numbers, four bytes each, and the array
             // carries its length in bytes.
-            toplevel.active = states.chunks_exact(4).any(|state| {
-                u32::from_ne_bytes([state[0], state[1], state[2], state[3]]) == ACTIVATED
-            });
+            let mut active = false;
+            let mut maximized = false;
+            let mut minimized = false;
+            for chunk in states.chunks_exact(4) {
+                match u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]) {
+                    ACTIVATED => active = true,
+                    MAXIMIZED => maximized = true,
+                    MINIMIZED => minimized = true,
+                    _ => {}
+                }
+            }
+            toplevel.active = active;
+            toplevel.maximized = maximized;
+            toplevel.minimized = minimized;
             // The compositor has said the state of this window.
             toplevel.state_seen = true;
+        }
+
+        // The geometry of the window is the event of the version 2 of the
+        // protocol, and the client asks for that version or a later one.
+        if let CosmicEvent::Geometry {
+            x, y, width, height, ..
+        } = event
+        {
+            toplevel.geometry = Some(Geometry {
+                x,
+                y,
+                width,
+                height,
+            });
         }
     }
 }

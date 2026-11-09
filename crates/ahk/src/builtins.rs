@@ -25,7 +25,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 pub(crate) use crate::date::{date_add, date_diff, format_time};
-pub(crate) use crate::dialogs::{dir_select, file_select, input_box};
+pub(crate) use crate::dialogs::{dir_select, file_select, input_box, tray_tip};
 use crate::dll::{Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue};
 pub(crate) use crate::files::{
     dir_copy, dir_move, download, file_append, file_copy, file_encoding, file_get_attrib,
@@ -1961,72 +1961,72 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_close,
     },
     Builtin {
         name: "ProcessExist",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_exist,
     },
     Builtin {
         name: "ProcessGetName",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_get_name,
     },
     Builtin {
         name: "ProcessGetParent",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_get_parent,
     },
     Builtin {
         name: "ProcessGetPath",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_get_path,
     },
     Builtin {
         name: "ProcessSetPriority",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_set_priority,
     },
     Builtin {
         name: "ProcessWait",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_wait,
     },
     Builtin {
         name: "ProcessWaitClose",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_wait_close,
     },
     Builtin {
         name: "RegCreateKey",
@@ -2321,9 +2321,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tray_tip,
     },
     Builtin {
         name: "WinActivate",
@@ -2357,18 +2357,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
-    },
-    Builtin {
-        name: "WinGetClientPos",
-        kind: BuiltinKind::Command,
-        min: 0,
-        max: 8,
-        variant: 100,
-        parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_class,
     },
     Builtin {
         name: "WinGetControls",
@@ -2393,9 +2384,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_count,
     },
     Builtin {
         name: "WinGetExStyle",
@@ -2411,9 +2402,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_id,
     },
     Builtin {
         name: "WinGetIDLast",
@@ -2429,18 +2420,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_list,
     },
     Builtin {
         name: "WinGetMinMax",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_min_max,
     },
     Builtin {
         name: "WinGetPID",
@@ -2456,9 +2447,36 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
-        parameters: &[Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: win_get_pos,
+    },
+    Builtin {
+        name: "WinGetClientPos",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 8,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: win_get_client_pos,
     },
     Builtin {
         name: "WinGetProcessName",
@@ -2699,36 +2717,36 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait,
     },
     Builtin {
         name: "WinWaitActive",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_active,
     },
     Builtin {
         name: "WinWaitClose",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_close,
     },
     Builtin {
         name: "WinWaitNotActive",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_not_active,
     },
     // -- the hotkeys --------------------------------------------------------
     Builtin {
@@ -7924,6 +7942,330 @@ pub(crate) fn win_get_title(
     Ok(Value::Text(title.unwrap_or_default()))
 }
 
+/// The failure v2 gives when a window is looked for and is not there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetID` and
+/// `WinGetClass` fail with it, while `WinGetList` answers an empty array and
+/// `WinGetCount` answers the zero.
+const TARGET_WINDOW: &str = "Target window not found.";
+
+/// The window that a `WinGet*` command asks about.
+///
+/// The parameters after the first are the text of the window and the two
+/// exclusions, and the desktop of the box has none of them.
+fn window_target(
+    values: &[Value],
+    line: u32,
+) -> Result<(String, crate::desktop::TitleMatch), RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    Ok((text_of(values, 0), crate::settings::title_match_mode()))
+}
+
+/// `WinGetID`: the identifier of the first window that matches.
+pub(crate) fn win_get_id(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    match windows.first() {
+        Some(window) => Ok(Value::Text(window.id.clone())),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetClass`: the class of the first window that matches.
+pub(crate) fn win_get_class(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    match windows.first() {
+        Some(window) => Ok(Value::Text(window.class.clone())),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetList`: the identifiers of every window that matches.
+///
+/// A title that matches nothing is an empty array, and not a failure: measured
+/// on the binary of v2.0.19 on 2026-11-09.
+///
+/// The answer is an array of v2 and not a bare list of values, because a
+/// script reads the `Length` of it and the places of it, and a list carries
+/// neither.
+pub(crate) fn win_get_list(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    let ids: Vec<Value> = windows
+        .iter()
+        .map(|window| Value::Text(window.id.clone()))
+        .collect();
+    match crate::classes::construct("array", &ids, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(ids)),
+    }
+}
+
+/// `WinGetCount`: how many windows match.
+pub(crate) fn win_get_count(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(windows.len() as i64))
+}
+
+/// `WinGetPos`: where the window is and how big it is.
+pub(crate) fn win_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    window_geometry_into(rt, values, line, "WinGetPos")
+}
+
+/// `WinGetClientPos`: the same place, of the part of the window that the
+/// program draws in.
+///
+/// A Wayland client does not draw its own frame -- the compositor does -- so
+/// the geometry that the compositor reports is the window the user sees, and
+/// it is the answer of both commands here. On Windows the two differ by the
+/// frame: measured on the binary of v2.0.19 on 2026-11-09, the frame was
+/// 819,479 1787x1262 and the client area 827,479 1771x1254.
+pub(crate) fn win_get_client_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    window_geometry_into(rt, values, line, "WinGetClientPos")
+}
+
+// -- waiting for a window ----------------------------------------------------------
+
+/// The longest a wait for a window may block.
+///
+/// It is the cap of `Sleep`, and it is there for the same reason: the runner's
+/// timeout is checked between two statements, so a call that blocked forever
+/// could not be stopped by it. The binary of v2.0.19 waits for a long time when
+/// the seconds are left out of a `WinWait`, measured on 2026-11-09; this
+/// runtime bounds it.
+const MAX_WINDOW_WAIT_MS: u64 = 60_000;
+
+/// The seconds of a wait, in milliseconds.
+///
+/// The third parameter of v2 is the seconds. A call without it, or with a
+/// number that is not positive, waits the cap.
+fn window_wait_timeout(values: &[Value]) -> u64 {
+    let seconds = number_of(values, 2);
+    if seconds <= 0.0 {
+        return MAX_WINDOW_WAIT_MS;
+    }
+    (seconds * 1000.0).min(MAX_WINDOW_WAIT_MS as f64) as u64
+}
+
+/// Wait for the condition of a `WinWait` family command.
+fn window_wait_into(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    what: crate::desktop::WaitFor,
+) -> Result<Option<String>, RuntimeError> {
+    // The parameters after the seconds are the two exclusions, and they are
+    // not carried yet.
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the two exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    let mode = crate::settings::title_match_mode();
+    let timeout = window_wait_timeout(values);
+    rt.desktop()
+        .window_wait(&title, mode, what, timeout)
+        .map_err(|e| desktop_failure(e, line))
+}
+
+/// `WinWait`: wait for a window that matches to exist.
+///
+/// The answer of v2 is the identifier of the window, or the zero when the
+/// timeout ran out -- measured on the binary of v2.0.19 on 2026-11-09. The
+/// identifier of a Wayland window is a token, so it is text here.
+pub(crate) fn win_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match window_wait_into(rt, values, line, crate::desktop::WaitFor::Present)? {
+        Some(id) => Ok(Value::Text(id)),
+        None => Ok(Value::Int(0)),
+    }
+}
+
+/// `WinWaitActive`: wait for a window that matches to have the focus.
+pub(crate) fn win_wait_active(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match window_wait_into(rt, values, line, crate::desktop::WaitFor::Active)? {
+        Some(id) => Ok(Value::Text(id)),
+        None => Ok(Value::Int(0)),
+    }
+}
+
+/// `WinWaitNotActive`: wait for no matching window to have the focus.
+///
+/// v2 answers `1` and `0` for this one, and not the identifier -- measured on
+/// the binary of v2.0.19 on 2026-11-09.
+pub(crate) fn win_wait_not_active(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let met = window_wait_into(rt, values, line, crate::desktop::WaitFor::NotActive)?.is_some();
+    Ok(Value::Int(if met { 1 } else { 0 }))
+}
+
+/// `WinWaitClose`: wait for a matching window to be gone.
+pub(crate) fn win_wait_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let met = window_wait_into(rt, values, line, crate::desktop::WaitFor::Close)?.is_some();
+    Ok(Value::Int(if met { 1 } else { 0 }))
+}
+
+/// `WinGetMinMax`: whether the window is maximized, minimized, or neither.
+///
+/// The answer is the number of v2: `1`, `-1` or `0`. A window that is not
+/// there is the failure of v2, measured on the binary of v2.0.19 on
+/// 2026-11-09.
+pub(crate) fn win_get_min_max(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    // The no-window call of v2 falls back to the last found window, and this
+    // runtime keeps none: it is the same failure v2 gives with nothing to
+    // fall back to.
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .window_min_max(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(answer) => Ok(Value::Int(answer)),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+/// The four places of a `WinGetPos`, written into the references of the call.
+fn window_geometry_into(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    // The four places of v2 are given by reference, and a value where a
+    // variable is wanted is refused the way v2 refuses it.
+    for index in 0..4 {
+        let Some(value) = values.get(index) else {
+            continue;
+        };
+        if !matches!(value, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(index + 1, name, "a VarRef", value),
+                line,
+            });
+        }
+    }
+    let title = text_of(values, 4);
+    // v2 falls back to the last found window when the window is left out, and
+    // this runtime keeps none: a call with no window is the failure that v2
+    // gives when it has nothing to fall back to, measured on the binary of
+    // v2.0.19 on 2026-11-09.
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    let mode = crate::settings::title_match_mode();
+    let geometry = rt
+        .desktop()
+        .window_geometry(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    let Some(geometry) = geometry else {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    };
+    let places = [geometry.x, geometry.y, geometry.width, geometry.height];
+    for (index, place) in places.iter().enumerate() {
+        if values.get(index).is_some() {
+            rt.write_reference(&values[index], Value::Int(*place));
+        }
+    }
+    // The answer of v2 is the empty text.
+    Ok(Value::Text(String::new()))
+}
+
 // -- the rest -------------------------------------------------------------------
 
 /// `MsgBox`: a message for the person watching.
@@ -7981,6 +8323,189 @@ pub(crate) fn run(
         rt.push_output(stderr.trim_end().to_string());
     }
     Ok(Value::Int(code as i64))
+}
+
+// -- the processes -----------------------------------------------------------------
+
+/// The target of a `Process*` call: the pid or the name the script wrote.
+///
+/// A call without the argument acts on the process of the script itself, and
+/// the desktop names that process with the empty text.
+fn process_target(values: &[Value]) -> String {
+    if values.is_empty() {
+        String::new()
+    } else {
+        text_of(values, 0)
+    }
+}
+
+/// The failure v2 gives when a process is looked for and is not there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09.
+const NO_TARGET: &str = "Target process not found.";
+
+/// `ProcessExist`: the id of the process, or zero.
+pub(crate) fn process_exist(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = process_target(values);
+    let pid = rt
+        .desktop()
+        .process_exist(&target)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(i64::from(pid)))
+}
+
+/// `ProcessGetName`: the name of the image of a process.
+pub(crate) fn process_get_name(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = process_target(values);
+    let name = rt
+        .desktop()
+        .process_name(&target)
+        .map_err(|e| desktop_failure(e, line))?;
+    match name {
+        Some(name) => Ok(Value::Text(name)),
+        None => Err(RuntimeError {
+            message: NO_TARGET.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `ProcessGetPath`: the full path of the image of a process.
+pub(crate) fn process_get_path(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = process_target(values);
+    let path = rt
+        .desktop()
+        .process_path(&target)
+        .map_err(|e| desktop_failure(e, line))?;
+    match path {
+        Some(path) => Ok(Value::Text(path)),
+        None => Err(RuntimeError {
+            message: NO_TARGET.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `ProcessGetParent`: the id of the process that started a process.
+pub(crate) fn process_get_parent(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = process_target(values);
+    let pid = rt
+        .desktop()
+        .process_parent(&target)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(i64::from(pid)))
+}
+
+/// `ProcessClose`: stop a process, and answer the id of the one that was
+/// stopped.
+pub(crate) fn process_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = process_target(values);
+    let pid = rt
+        .desktop()
+        .process_close(&target)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(i64::from(pid)))
+}
+
+/// `ProcessSetPriority`: set the priority of a process, and answer its id.
+pub(crate) fn process_set_priority(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let priority = text_of(values, 0);
+    let target = if values.len() > 1 {
+        text_of(values, 1)
+    } else {
+        String::new()
+    };
+    let pid = rt
+        .desktop()
+        .process_set_priority(&priority, &target)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(i64::from(pid)))
+}
+
+/// The longest a wait for a process may block.
+///
+/// The number is the cap of `Sleep`, and it is there for the same reason: the
+/// runner's own timeout is checked between two statements, so a call that
+/// blocks forever would not be stopped by it, and a script would have to be
+/// killed. The binary of v2.0.19 waits forever when the timeout is left out
+/// of a `ProcessWait`; this runtime does not.
+const MAX_PROCESS_WAIT_MS: u64 = 60_000;
+
+/// The timeout of a wait, in milliseconds.
+///
+/// The second parameter of v2 is seconds, and it may carry a point. A call
+/// without it waits the cap, because the runtime does not wait forever.
+fn process_wait_timeout(values: &[Value]) -> u64 {
+    if values.len() < 2 {
+        return MAX_PROCESS_WAIT_MS;
+    }
+    let seconds = number_of(values, 1);
+    if seconds <= 0.0 {
+        return 0;
+    }
+    (seconds * 1000.0).min(MAX_PROCESS_WAIT_MS as f64) as u64
+}
+
+/// `ProcessWait`: wait for a process to be there.
+pub(crate) fn process_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = process_target(values);
+    let timeout = process_wait_timeout(values);
+    let pid = rt
+        .desktop()
+        .process_wait(&target, timeout)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(i64::from(pid)))
+}
+
+/// `ProcessWaitClose`: wait for a process to close.
+pub(crate) fn process_wait_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = process_target(values);
+    let timeout = process_wait_timeout(values);
+    let pid = rt
+        .desktop()
+        .process_wait_close(&target, timeout)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(i64::from(pid)))
 }
 
 /// `Send`: text and keys, the way AutoHotkey writes them.

@@ -40,7 +40,7 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ahk::desktop::{
     FileAnswer, FileOptions, Folders, Idle, InputAnswer, InputOptions, Processes, WindowAnswer,
@@ -850,6 +850,60 @@ impl ahk::desktop::Windows for LabDesktop {
             "the X server lists {windows:?}, which this runtime does not parse yet"
         )))
     }
+    fn matching_windows(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        // The compositor of a Wayland session is the one that knows the
+        // windows, and the listing of them is the protocol it publishes. The
+        // X server beside it is the rootless Xwayland of gamescope, and it
+        // reports an empty client list, so there is nothing to read there.
+        if wayland_session() {
+            return self.wayland_matching(title, mode);
+        }
+        Err("this desktop lists the windows of a Wayland session, and this session is not \
+             Wayland"
+            .to_string())
+    }
+    fn window_geometry(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        if wayland_session() {
+            return self.wayland_geometry(title, mode);
+        }
+        Err("this desktop tells where the windows of a Wayland session are, and this session \
+             is not Wayland"
+            .to_string())
+    }
+    fn window_min_max(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        if wayland_session() {
+            return self.wayland_min_max(title, mode);
+        }
+        Err("this desktop tells whether a window of a Wayland session is maximized, and this \
+             session is not Wayland"
+            .to_string())
+    }
+    fn window_wait(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+        timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        if wayland_session() {
+            return self.wayland_wait(title, mode, what, timeout_ms);
+        }
+        Err("this desktop waits for the windows of a Wayland session, and this session is not \
+             Wayland"
+            .to_string())
+    }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.
@@ -1032,6 +1086,256 @@ impl ahk::desktop::Processes for LabDesktop {
             String::from_utf8_lossy(&output.stderr).to_string(),
         ))
     }
+
+    fn process_exist(&mut self, pid_or_name: &str) -> Result<u32, String> {
+        processes_are_readable()?;
+        Ok(process_of(pid_or_name).unwrap_or(0))
+    }
+
+    fn process_name(&mut self, pid_or_name: &str) -> Result<Option<String>, String> {
+        processes_are_readable()?;
+        Ok(process_of(pid_or_name).and_then(process_name_of))
+    }
+
+    fn process_path(&mut self, pid_or_name: &str) -> Result<Option<String>, String> {
+        processes_are_readable()?;
+        Ok(process_of(pid_or_name).and_then(process_path_of))
+    }
+
+    fn process_parent(&mut self, pid_or_name: &str) -> Result<u32, String> {
+        processes_are_readable()?;
+        Ok(process_of(pid_or_name)
+            .and_then(process_parent_of)
+            .unwrap_or(0))
+    }
+
+    fn process_close(&mut self, pid_or_name: &str) -> Result<u32, String> {
+        processes_are_readable()?;
+        // A process that is not there is the zero of v2, and it is not a
+        // failure: measured on the binary of v2.0.19 on 2026-11-09.
+        let Some(pid) = process_of(pid_or_name) else {
+            return Ok(0);
+        };
+        // The signal asks the process to end and does not wait for it: the
+        // `ProcessClose` of v2 does not wait either, and the script may go
+        // on before the process is gone.
+        crate::sys::kill(pid, crate::sys::SIGTERM);
+        Ok(pid)
+    }
+
+    fn process_set_priority(&mut self, priority: &str, pid_or_name: &str) -> Result<u32, String> {
+        processes_are_readable()?;
+        // A process that is not there is a failure here, which is the one
+        // v2 gives: "Target process not found." (measured 2026-11-09).
+        let Some(pid) = process_of(pid_or_name) else {
+            return Err("Target process not found.".to_string());
+        };
+        // The machine refuses a priority above the ordinary one to a user who
+        // does not own the process, and the call says so with the minus one.
+        // The failure is answered and not swallowed: a setting that was not
+        // taken must not be reported as taken.
+        if crate::sys::setpriority(pid, nice_of(priority)) != 0 {
+            return Err(format!(
+                "the machine did not let the priority of the process {pid} be changed"
+            ));
+        }
+        Ok(pid)
+    }
+
+    fn process_wait(&mut self, pid_or_name: &str, timeout_ms: u64) -> Result<u32, String> {
+        processes_are_readable()?;
+        // The target that is there already answers at once, which is what the
+        // binary of v2.0.19 does.
+        if let Some(pid) = process_of(pid_or_name) {
+            return Ok(pid);
+        }
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        loop {
+            // The name may belong to a process that has not started yet, so
+            // the table of the machine is read again until the timeout.
+            if let Some(pid) = process_of(pid_or_name) {
+                return Ok(pid);
+            }
+            if Instant::now() >= deadline {
+                return Ok(0);
+            }
+            pause_before_the_next_look();
+        }
+    }
+
+    fn process_wait_close(&mut self, pid_or_name: &str, timeout_ms: u64) -> Result<u32, String> {
+        processes_are_readable()?;
+        // The answer is the one measured on the binary of v2.0.19 on
+        // 2026-11-09: a process that is not there answers zero, one that
+        // closes inside the timeout answers zero, and one that outlives the
+        // timeout answers its own id.
+        let Some(pid) = process_of(pid_or_name) else {
+            return Ok(0);
+        };
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        loop {
+            if process_of(pid_or_name).is_none() {
+                return Ok(0);
+            }
+            if Instant::now() >= deadline {
+                return Ok(pid);
+            }
+            pause_before_the_next_look();
+        }
+    }
+}
+
+/// The pause between two readings of the table of the processes.
+///
+/// The table is read twenty times a second: a change is seen quickly, and the
+/// loop costs the machine almost nothing while it waits.
+fn pause_before_the_next_look() {
+    std::thread::sleep(Duration::from_millis(20));
+}
+
+/// Whether this desktop can read the table of the processes.
+///
+/// The table is `/proc`, which is the one Linux keeps. A platform that has
+/// no such table says that it cannot look, and not that the process is not
+/// there: the zero of v2 means "no such process", and a platform that cannot
+/// answer must not be mistaken for one that answered the zero.
+#[cfg(target_os = "linux")]
+fn processes_are_readable() -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn processes_are_readable() -> Result<(), String> {
+    Err("this desktop cannot look at the processes".to_string())
+}
+
+/// The number of the process that a target names, or nothing.
+///
+/// The target is a pid or the name of an image, and the empty text is the
+/// process of the script itself. A name is matched whole, the extension
+/// included, which is the rule measured on the binary of v2.0.19 on
+/// 2026-11-09: `ProcessExist("AutoHotkey64.exe")` answered the id and
+/// `ProcessExist("AutoHotkey64")` answered the zero.
+#[cfg(target_os = "linux")]
+fn process_of(target: &str) -> Option<u32> {
+    if target.is_empty() {
+        return Some(std::process::id());
+    }
+    if let Ok(pid) = target.parse::<u32>() {
+        return process_alive(pid).then_some(pid);
+    }
+    let entries = std::fs::read_dir("/proc").ok()?;
+    for entry in entries.flatten() {
+        let Some(pid) = entry
+            .file_name()
+            .to_str()
+            .and_then(|name| name.parse::<u32>().ok())
+        else {
+            continue;
+        };
+        if process_name_of(pid).as_deref() == Some(target) {
+            return Some(pid);
+        }
+    }
+    None
+}
+
+/// Whether the process is on the machine.
+#[cfg(target_os = "linux")]
+fn process_alive(pid: u32) -> bool {
+    std::path::Path::new(&format!("/proc/{pid}")).exists()
+}
+
+/// The name of the image of a process.
+///
+/// `/proc/<pid>/exe` is a link to the image, and the name of it is the name
+/// v2 would give: the name of the file, the extension included. A kernel
+/// thread has no image, and the name in `/proc/<pid>/comm` is the one to
+/// answer then.
+#[cfg(target_os = "linux")]
+fn process_name_of(pid: u32) -> Option<String> {
+    if let Ok(image) = std::fs::read_link(format!("/proc/{pid}/exe")) {
+        if let Some(name) = image.file_name() {
+            return Some(name.to_string_lossy().into_owned());
+        }
+    }
+    std::fs::read_to_string(format!("/proc/{pid}/comm"))
+        .ok()
+        .map(|name| name.trim_end().to_string())
+}
+
+/// The path of the image of a process.
+#[cfg(target_os = "linux")]
+fn process_path_of(pid: u32) -> Option<String> {
+    std::fs::read_link(format!("/proc/{pid}/exe"))
+        .ok()
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+/// The process that started a process.
+///
+/// The `stat` of a process carries the name of its image between the first
+/// `(` and the last `)`, and that name may itself carry a bracket or a space,
+/// so the numbers are read after the last `)`. The first field there is the
+/// state of the process, and the one after it is the parent.
+#[cfg(target_os = "linux")]
+fn process_parent_of(pid: u32) -> Option<u32> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let rest = &stat[stat.rfind(')')? + 1..];
+    let mut fields = rest.split_whitespace();
+    fields.next()?;
+    fields.next()?.parse().ok()
+}
+
+/// The number of the process that a target names, on a platform that keeps
+/// no table of the processes.
+///
+/// Nothing reads it there: `processes_are_readable` has already answered that
+/// this desktop cannot look, and the answer of it is the failure the script
+/// sees.
+#[cfg(not(target_os = "linux"))]
+fn process_of(_target: &str) -> Option<u32> {
+    None
+}
+
+/// The name of the image of a process, on a platform that keeps no table of
+/// the processes. Nothing reads it there.
+#[cfg(not(target_os = "linux"))]
+fn process_name_of(_pid: u32) -> Option<String> {
+    None
+}
+
+/// The path of the image of a process, on a platform that keeps no table of
+/// the processes. Nothing reads it there.
+#[cfg(not(target_os = "linux"))]
+fn process_path_of(_pid: u32) -> Option<String> {
+    None
+}
+
+/// The parent of a process, on a platform that keeps no table of the
+/// processes. Nothing reads it there.
+#[cfg(not(target_os = "linux"))]
+fn process_parent_of(_pid: u32) -> Option<u32> {
+    None
+}
+
+/// The niceness that a priority of v2 names.
+///
+/// The words of v2 are the niceness the machine names them by. A word that
+/// v2 does not know is not a failure there -- measured on the binary of
+/// v2.0.19 on 2026-11-09, `ProcessSetPriority("Bogus", PID)` answered the id
+/// -- so it is the ordinary niceness here as well, and a number is the
+/// niceness itself.
+fn nice_of(priority: &str) -> std::ffi::c_int {
+    match priority.to_ascii_lowercase().as_str() {
+        "low" => 19,
+        "belownormal" => 10,
+        "normal" => 0,
+        "abovenormal" => -5,
+        "high" => -10,
+        "realtime" => -20,
+        other => other.trim().parse().unwrap_or(0),
+    }
 }
 
 /// The program that the `Run` of the v1 starts.
@@ -1051,6 +1355,13 @@ fn the_program(command: &str, working_dir: &str) -> Command {
 }
 
 impl ahk::desktop::Machine for LabDesktop {
+    fn executable(&mut self) -> Result<String, String> {
+        // The path of the running interpreter, which is the binary of the
+        // runner. It is the answer of `A_AhkPath`.
+        std::env::current_exe()
+            .map(|path| path.to_string_lossy().into_owned())
+            .map_err(|error| format!("the machine did not say the path of the interpreter: {error}"))
+    }
     fn user_name(&mut self) -> Result<String, String> {
         crate::machine::user_name()
     }
@@ -1193,6 +1504,64 @@ impl ahk::desktop::Dialogs for LabDesktop {
             _ => Ok(String::new()),
         }
     }
+
+    fn notify(&mut self, title: &str, text: &str) -> Result<(), String> {
+        // The tool is `notify-send`, which is a tool of a Linux desktop. A
+        // host that has none of them says so, and does not let the shell
+        // answer "not found": the failure of the desktop is the failure the
+        // script sees.
+        box_tools_are_near()?;
+        // A notification of the session is what a `TrayTip` is on a Linux
+        // desktop: the same words, to the same person, in the corner of the
+        // same screen. The timeout is left to the session, which knows how
+        // long its own notifications stay.
+        let mut args: Vec<String> = Vec::new();
+        if !title.is_empty() {
+            args.push(format!("--app-name={title}"));
+        }
+        if !text.is_empty() {
+            args.push(text.to_string());
+        }
+        let command = format!(
+            "notify-send {}",
+            args.iter()
+                .map(|argument| shell_quote(argument))
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            let reason = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(if reason.is_empty() {
+                "the notification could not be shown: notify-send failed".to_string()
+            } else {
+                format!("the notification could not be shown: {reason}")
+            });
+        }
+        Ok(())
+    }
+}
+
+/// Whether the tools of the Linux desktop that the box shells out to are on
+/// this platform.
+///
+/// The box drives the desktop by running the tools of it -- `notify-send` for
+/// a notification, and the same family for the capture, the clipboard and the
+/// sound. A host that is not Linux has none of them, and it says that instead
+/// of letting the shell answer "not found": a failure that names a missing
+/// program of another platform tells the script nothing it can act on.
+#[cfg(target_os = "linux")]
+fn box_tools_are_near() -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn box_tools_are_near() -> Result<(), String> {
+    Err("this desktop drives the tools of a Linux box, and this is not Linux".to_string())
 }
 
 /// The dialog of zenity, and how it ended.
@@ -1534,6 +1903,165 @@ impl LabDesktop {
         }
         Ok(WindowAnswer::Absent)
     }
+
+    /// The windows whose title matches, by Wayland.
+    ///
+    /// The listing carries the identifier of a window and its application id,
+    /// and those are the id and the class that the `WinGet*` commands read.
+    #[cfg(target_os = "linux")]
+    fn wayland_matching(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        let windows = self.wayland()?.windows()?;
+        let mut matched = Vec::new();
+        for window in &windows {
+            // The empty title is every window: measured on the binary of
+            // v2.0.19 on 2026-11-09, `WinGetList()` answered the whole list.
+            if !title.is_empty() && !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            matched.push(ahk::desktop::WindowRef {
+                id: window.identifier.clone().unwrap_or_default(),
+                class: window.app_id.clone(),
+            });
+        }
+        Ok(matched)
+    }
+
+    /// Where the window is and how big it is, by Wayland.
+    ///
+    /// The geometry is the event of the version 2 of the COSMIC protocol, and
+    /// the client asks for that version or a later one. A window whose
+    /// geometry the compositor did not send is a failure with the reason: a
+    /// place that is not known is not a window at the origin.
+    #[cfg(target_os = "linux")]
+    fn wayland_geometry(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        if title.is_empty() {
+            return Ok(None);
+        }
+        let windows = self.wayland()?.windows()?;
+        for window in &windows {
+            if !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            let Some(geometry) = window.geometry else {
+                return Err("the compositor did not say where this window is, so its place is \
+                            not known"
+                    .to_string());
+            };
+            return Ok(Some(ahk::desktop::WindowGeometry {
+                x: i64::from(geometry.x),
+                y: i64::from(geometry.y),
+                width: i64::from(geometry.width),
+                height: i64::from(geometry.height),
+            }));
+        }
+        Ok(None)
+    }
+
+    /// Whether the condition that a wait is about holds now.
+    ///
+    /// `Some` is the condition met, and the answer of the conditions about the
+    /// absence of a window is the empty text, because there is no window to
+    /// identify.
+    #[cfg(target_os = "linux")]
+    fn the_window_condition(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+    ) -> Result<Option<String>, String> {
+        use ahk::desktop::WaitFor;
+        // The empty title is no window at all: v2 falls back to the last found
+        // window, and this runtime keeps none.
+        if title.is_empty() {
+            return Ok(match what {
+                WaitFor::NotActive | WaitFor::Close => Some(String::new()),
+                WaitFor::Present | WaitFor::Active => None,
+            });
+        }
+        let windows = self.wayland()?.windows()?;
+        let mut found = None;
+        for window in &windows {
+            if title_matches(&window.title, title, mode)? {
+                found = Some(window.clone());
+                break;
+            }
+        }
+        Ok(match what {
+            WaitFor::Present => found.map(|window| window.identifier.unwrap_or_default()),
+            WaitFor::Active => found
+                .filter(|window| window.active)
+                .map(|window| window.identifier.unwrap_or_default()),
+            WaitFor::NotActive => match found {
+                Some(window) if window.active => None,
+                _ => Some(String::new()),
+            },
+            WaitFor::Close => match found {
+                Some(_) => None,
+                None => Some(String::new()),
+            },
+        })
+    }
+
+    /// Wait for a condition about a window, by Wayland.
+    #[cfg(target_os = "linux")]
+    fn wayland_wait(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+        timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        loop {
+            if let Some(answer) = self.the_window_condition(title, mode, what)? {
+                return Ok(Some(answer));
+            }
+            if Instant::now() >= deadline {
+                return Ok(None);
+            }
+            pause_before_the_next_look();
+        }
+    }
+
+    /// Whether the window is maximized or minimized, by Wayland.    ///
+    /// The two states are entries of the state array of the COSMIC protocol,
+    /// the same array that says which window is the active one, so the answer
+    /// is already in what the client refreshes.
+    #[cfg(target_os = "linux")]
+    fn wayland_min_max(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        if title.is_empty() {
+            return Ok(None);
+        }
+        let windows = self.wayland()?.windows()?;
+        for window in &windows {
+            if !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            // A window that is both is answered as maximized: the maximized
+            // window is the one the user sees, and the minimized state of it
+            // is not what the screen shows.
+            if window.maximized {
+                return Ok(Some(1));
+            }
+            if window.minimized {
+                return Ok(Some(-1));
+            }
+            return Ok(Some(0));
+        }
+        Ok(None)
+    }
 }
 
 /// The windows of a Wayland session, on a platform that has no Wayland.
@@ -1563,6 +2091,44 @@ impl LabDesktop {
         _title: &str,
         _mode: ahk::desktop::TitleMatch,
     ) -> Result<WindowAnswer, String> {
+        Err(not_linux())
+    }
+
+    /// The windows whose title matches, on a platform that has no Wayland.
+    fn wayland_matching(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        Err(not_linux())
+    }
+
+    /// Where the window is, on a platform that has no Wayland.
+    fn wayland_geometry(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        Err(not_linux())
+    }
+
+    /// Whether the window is maximized, on a platform that has no Wayland.
+    fn wayland_min_max(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        Err(not_linux())
+    }
+
+    /// Wait for a window, on a platform that has no Wayland.
+    fn wayland_wait(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+        _what: ahk::desktop::WaitFor,
+        _timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
         Err(not_linux())
     }
 }

@@ -183,6 +183,70 @@ unsafe extern "C" {
     /// The declaration of `ioctl` the C library gives.
     #[link_name = "ioctl"]
     fn ioctl_(fd: c_int, request: u64, argument: *mut std::ffi::c_void) -> c_int;
+
+    /// The declaration of `kill` the C library gives.
+    #[link_name = "kill"]
+    fn kill_(pid: c_int, signal: c_int) -> c_int;
+
+    /// The declaration of `setpriority` the C library gives.
+    ///
+    /// The `which` is the process, which is the zero of `PRIO_PROCESS`, and
+    /// the `who` is the id of the process.
+    #[link_name = "setpriority"]
+    fn setpriority_(which: c_int, who: u32, priority: c_int) -> c_int;
+}
+
+/// The signal that asks a process to end.
+///
+/// The number is the one Linux fixes for `SIGTERM`, and it is the same on
+/// every architecture the tree is built for.
+#[cfg(unix)]
+pub const SIGTERM: c_int = 15;
+
+/// Ask a process to end, and answer what the call answered.
+///
+/// The call answers the zero when the signal was delivered to a process that
+/// is there, and the minus one when it was not -- a process that is not
+/// there, or one that belongs to another user.
+#[cfg(unix)]
+pub fn kill(pid: u32, signal: c_int) -> c_int {
+    // The pid of a process is the whole number the C library takes, and the
+    // caller has already checked that it is a process of this machine.
+    unsafe { kill_(pid as c_int, signal) }
+}
+
+/// Ask a process to end, on a platform that has no such call.
+#[cfg(not(unix))]
+pub fn kill(_pid: u32, _signal: c_int) -> c_int {
+    -1
+}
+
+/// The signal that asks a process to end.
+///
+/// The number is the one Linux fixes for `SIGTERM`, and it is the same on
+/// every architecture the tree is built for. A platform that has no such
+/// call has no signal either, and nothing reads it there: the process path
+/// answers that it cannot look before the signal is reached.
+#[cfg(not(unix))]
+pub const SIGTERM: c_int = 15;
+
+/// Set the niceness of a process.
+///
+/// The lower the number, the more of the processor the process is given. The
+/// call answers the zero when the setting was taken, and the minus one when
+/// it was not -- raising the priority above the ordinary one is the business
+/// of the user who owns the process, and the machine refuses it to everyone
+/// else.
+#[cfg(unix)]
+pub fn setpriority(pid: u32, priority: c_int) -> c_int {
+    // `PRIO_PROCESS` is the zero, and it says that the `who` is a pid.
+    unsafe { setpriority_(0, pid, priority) }
+}
+
+/// Set the niceness of a process, on a platform that has no such call.
+#[cfg(not(unix))]
+pub fn setpriority(_pid: u32, _priority: c_int) -> c_int {
+    -1
 }
 
 #[cfg(test)]

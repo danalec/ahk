@@ -377,7 +377,6 @@ fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
         "A_WinDir",
         "A_ProgramFiles",
         "A_Cursor",
-        "A_AhkPath",
         "A_ScriptHwnd",
         "A_IconFile",
     ] {

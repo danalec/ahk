@@ -207,6 +207,55 @@ impl TitleMatch {
     }
 }
 
+/// A window of the desktop, as the listing of the windows describes it.
+///
+/// The two things that v2 reads of a window are the ones here: the identifier,
+/// which is what `WinGetID` answers and what the entries of `WinGetList` are,
+/// and the class, which is what `WinGetClass` answers.
+///
+/// The identifier of a Wayland window is a token that the compositor gives it,
+/// and not a number, so it is text here. Measured on the binary of v2.0.19 on
+/// 2026-11-09: the id of a window of Windows is a whole number, and a script
+/// that does arithmetic on it would not have the same thing on Wayland.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WindowRef {
+    /// The identifier the compositor gives the window, or the empty text when
+    /// it did not give one.
+    pub id: String,
+    /// The class of the window: the application id of it on Wayland, and the
+    /// class of the window on X11.
+    pub class: String,
+}
+
+/// Where a window is and how big it is.
+///
+/// The x and the y are the upper-left corner of the window, and not its
+/// center; the width and the height are of the window that the user sees.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WindowGeometry {
+    /// The left of the window.
+    pub x: i64,
+    /// The top of the window.
+    pub y: i64,
+    /// How wide the window is.
+    pub width: i64,
+    /// How tall the window is.
+    pub height: i64,
+}
+
+/// What a command of the `WinWait` family waits for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WaitFor {
+    /// A window that matches exists.
+    Present,
+    /// A window that matches exists and has the focus.
+    Active,
+    /// No window that matches has the focus.
+    NotActive,
+    /// No window that matches exists.
+    Close,
+}
+
 /// The windows of the desktop.
 pub trait Windows {
     /// Whether the window with this title is the active one.
@@ -230,6 +279,82 @@ pub trait Windows {
     /// The title of the active window.
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         Err("this desktop cannot tell which window is active".to_string())
+    }
+
+    /// The windows whose title matches, in the order the desktop lists them.
+    ///
+    /// The empty title matches every window. Measured on the binary of
+    /// v2.0.19 on 2026-11-09: `WinGetList()` and `WinGetList("")` both
+    /// answered every window of the desktop, and `WinGetCount()` with no
+    /// argument answered the number of them -- so an empty title is not "no
+    /// window", and it is not "the last found window" either, because this
+    /// runtime keeps none.
+    fn matching_windows(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+    ) -> Result<Vec<WindowRef>, String> {
+        Err("this desktop cannot list the windows".to_string())
+    }
+
+    /// Where the window is and how big it is.
+    ///
+    /// `None` is a window that is not there. A window that **is** there but
+    /// whose geometry the compositor did not describe is a failure with the
+    /// reason, and not a geometry of zeros: a script must be told that the
+    /// place is not known, and not be given a window at the origin.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetPos` writes
+    /// its four answers into four variables given by reference, and it
+    /// answers the empty text. A window that is not there is a failure --
+    /// "Target window not found." -- and a call with no window at all is the
+    /// same failure, because there is no last found window to fall back to.
+    fn window_geometry(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+    ) -> Result<Option<WindowGeometry>, String> {
+        Err("this desktop cannot tell where a window is".to_string())
+    }
+
+    /// Whether a window is maximized, minimized, or neither.
+    ///
+    /// The answer is the number of v2: `1` for maximized, `-1` for minimized
+    /// and `0` for neither. `None` is a window that is not there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09, on a window of its
+    /// own: `0` before, `1` after `WinMaximize`, `0` after `WinRestore`, and
+    /// `-1` after `WinMinimize`.
+    fn window_min_max(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        Err("this desktop cannot tell whether a window is maximized".to_string())
+    }
+
+    /// Wait until a condition about a window holds.
+    ///
+    /// `Some` is the condition met, and the empty text is the answer of the
+    /// conditions that are about the absence of a window -- `NotActive` and
+    /// `Close` -- because there is no window to identify. `None` is the
+    /// timeout.
+    ///
+    /// The empty title is no window at all: v2 falls back to the last found
+    /// window, and this runtime keeps none, so the conditions that talk about
+    /// the absence of a window hold at once and the ones that talk about its
+    /// presence never do. Measured on the binary of v2.0.19 on 2026-11-09:
+    /// `WinWaitNotActive("no-such")` and `WinWaitClose("no-such")` answered
+    /// `1` at once, and `WinWait`/`WinWaitActive` answered `0` when the
+    /// timeout ran out.
+    fn window_wait(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+        _what: WaitFor,
+        _timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        Err("this desktop cannot wait for a window".to_string())
     }
 }
 
@@ -278,6 +403,111 @@ pub trait Processes {
     /// Set an environment variable; answer what it was set to.
     fn env_set(&mut self, _name: &str, _value: &str) -> Result<String, String> {
         Err("this desktop cannot write the environment".to_string())
+    }
+
+    /// The id of a process, or zero when there is no such process.
+    ///
+    /// The target is a pid or the name of the image. The empty text names the
+    /// process of the script itself, which is what `ProcessExist()` with no
+    /// argument means.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `ProcessExist()` with
+    /// no argument answers the id of the script's own process; a pid that is
+    /// not there answers zero; a name that is not there answers zero. A name
+    /// is matched whole, the extension included:
+    /// `ProcessExist("AutoHotkey64.exe")` answered the id, and
+    /// `ProcessExist("AutoHotkey64")` answered zero.
+    fn process_exist(&mut self, _pid_or_name: &str) -> Result<u32, String> {
+        Err("this desktop cannot look at the processes".to_string())
+    }
+
+    /// The name of a process, or nothing when there is no such process.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the name of a process
+    /// that is not there is a failure -- "Target process not found." -- and
+    /// not an empty text. The name is the name of the image, extension
+    /// included, and it may be given as the target as well.
+    fn process_name(&mut self, _pid_or_name: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot look at the processes".to_string())
+    }
+
+    /// The full path of the image of a process, or nothing when there is no
+    /// such process.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the path of a process
+    /// that is not there is a failure, the same one the name gives.
+    fn process_path(&mut self, _pid_or_name: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot look at the processes".to_string())
+    }
+
+    /// The id of the process that started a process, or zero.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the parent of a
+    /// process that is not there answers zero, and it is not a failure --
+    /// unlike the name and the path.
+    fn process_parent(&mut self, _pid_or_name: &str) -> Result<u32, String> {
+        Err("this desktop cannot look at the processes".to_string())
+    }
+
+    /// Stop a process, and answer the id of the one that was stopped.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a process that is not
+    /// there answers zero, and it is not a failure.
+    fn process_close(&mut self, _pid_or_name: &str) -> Result<u32, String> {
+        Err("this desktop cannot look at the processes".to_string())
+    }
+
+    /// Set the priority of a process, and answer the id of the one that was
+    /// set.
+    ///
+    /// The priority is the word of v2 -- "Low", "BelowNormal", "Normal",
+    /// "AboveNormal", "High", "Realtime" -- or a number. Measured on the
+    /// binary of v2.0.19 on 2026-11-09: a process that is not there is a
+    /// failure -- "Target process not found." -- and a priority that v2 does
+    /// not know is *not* a failure: `ProcessSetPriority("Bogus", PID)`
+    /// answered the id, so the word is not checked here either.
+    fn process_set_priority(
+        &mut self,
+        _priority: &str,
+        _pid_or_name: &str,
+    ) -> Result<u32, String> {
+        Err("this desktop cannot look at the processes".to_string())
+    }
+
+    /// Wait for a process to be there, and answer its id, or zero if the
+    /// timeout came first.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a process that is
+    /// there answers its id at once, and a target that never appears answers
+    /// the zero when the timeout runs out.
+    ///
+    /// The binary of v2.0.19 waits **forever** when the timeout is left out:
+    /// `ProcessWait("a-name-that-never-appears")` with no second argument was
+    /// still waiting after fifteen seconds. This runtime does not wait
+    /// forever -- a script must be stoppable, and the runner's own timeout is
+    /// checked between two statements, so a wait that never returns would not
+    /// be stopped by it. The cap is the one of `Sleep`, 60 000 ms.
+    fn process_wait(&mut self, _pid_or_name: &str, _timeout_ms: u64) -> Result<u32, String> {
+        Err("this desktop cannot look at the processes".to_string())
+    }
+
+    /// Wait for a process to close, and answer the id of the one that is
+    /// still there, or zero when it closed.
+    ///
+    /// The answer is the one measured on the binary of v2.0.19 on 2026-11-09,
+    /// and it is not the one a reader expects:
+    ///
+    /// | the target | the answer | the time taken |
+    /// |---|---|---|
+    /// | not there | `0` | at once |
+    /// | there, and closes inside the timeout | `0` | until it closed |
+    /// | there, and still there when the timeout runs out | **its id** | the timeout |
+    ///
+    /// So the process that closed and the process that was never there answer
+    /// the same thing, and the id is the answer for the one that is still
+    /// running. The same cap on the timeout as `process_wait` applies.
+    fn process_wait_close(&mut self, _pid_or_name: &str, _timeout_ms: u64) -> Result<u32, String> {
+        Err("this desktop cannot look at the processes".to_string())
     }
 }
 
@@ -752,6 +982,15 @@ pub trait Machine {
     }
 
     /// How long the session has been idle, in milliseconds.
+    /// The path of the executable that is running the script.
+    ///
+    /// It is what `A_AhkPath` answers. A desktop that cannot tell says so, and
+    /// the variable is then a refusal and not an empty text: a script that
+    /// reads the path of the interpreter must be told that it is not known.
+    fn executable(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the path of the interpreter".to_string())
+    }
+
     fn idle_times(&mut self) -> Result<Idle, String> {
         Err("this desktop cannot say how long the session has been idle".to_string())
     }
@@ -808,6 +1047,20 @@ pub trait Dialogs {
         _prompt: &str,
     ) -> Result<String, String> {
         Err("this desktop cannot ask the user for a folder".to_string())
+    }
+
+    /// Tell the user something, without asking anything back.
+    ///
+    /// The title is the first line of it and the text is the body. A desktop
+    /// that has no way to tell the user anything says so, and not `false`.
+    ///
+    /// The `TrayTip` of v2 is the name of this: on Windows it is a balloon in
+    /// the tray, and on a Linux desktop it is a notification of the session,
+    /// which is the same thing said to the same person. The refusal of the
+    /// tree used to call it a name of Windows, which was false: the box has
+    /// `notify-send` on it.
+    fn notify(&mut self, _title: &str, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot show a notification".to_string())
     }
 }
 

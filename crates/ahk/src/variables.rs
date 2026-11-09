@@ -704,6 +704,11 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         "lasterror" => Ok(Value::Int(0)),
         // There is no tray icon, so the icon of the script is not hidden.
         "iconhidden" => Ok(Value::Int(1)),
+        "ahkpath" => rt
+            .desktop()
+            .executable()
+            .map(Value::Text)
+            .map_err(|_| reason(NO_AHK_PATH)),
         _ => Err(reason(NO_SUCH_MACHINE_NAME)),
     }
 }
@@ -716,7 +721,6 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
 fn machine_refusal(name: &str) -> Option<&'static str> {
     Some(match name {
         "windir" | "programfiles" => NOT_WINDOWS,
-        "ahkpath" => NO_AHK_PATH,
         "scripthwnd" => NO_SCRIPT_HWND,
         "screendpi" => NO_SCREEN_DPI,
         "iconfile" | "iconnumber" | "traymenu" => NO_TRAY_ICON,

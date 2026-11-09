@@ -7,7 +7,8 @@
 use ahk::desktop::{
     Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network, PictureOptions,
-    Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
+    Pictures, Pointer, Processes, Screen, Sound, Timers, WaitFor, WindowGeometry, WindowRef,
+    Windows,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -139,10 +140,107 @@ impl Dialogs for Fake {
         ));
         Ok("/tmp/chosen".into())
     }
+
+    fn notify(&mut self, title: &str, text: &str) -> Result<(), String> {
+        self.calls
+            .push(("notify".into(), format!("{title}|{text}")));
+        Ok(())
+    }
 }
 
-impl Windows for Fake {}
+impl Windows for Fake {
+    fn matching_windows(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<WindowRef>, String> {
+        self.calls.push(("windows".into(), title.to_string()));
+        // Two windows, and a title that names one of them. The empty title is
+        // both of them, which is the answer v2 gives.
+        let first = WindowRef {
+            id: "0x1".to_string(),
+            class: "first".to_string(),
+        };
+        let second = WindowRef {
+            id: "0x2".to_string(),
+            class: "second".to_string(),
+        };
+        Ok(match title {
+            "" => vec![first, second],
+            "first" => vec![first],
+            "second" => vec![second],
+            _ => Vec::new(),
+        })
+    }
 
+    fn window_geometry(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<WindowGeometry>, String> {
+        self.calls.push(("geometry".into(), title.to_string()));
+        Ok(match title {
+            "first" => Some(WindowGeometry {
+                x: 10,
+                y: 20,
+                width: 100,
+                height: 200,
+            }),
+            "second" => Some(WindowGeometry {
+                x: 30,
+                y: 40,
+                width: 300,
+                height: 400,
+            }),
+            _ => None,
+        })
+    }
+
+    fn window_min_max(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        self.calls.push(("min-max".into(), title.to_string()));
+        Ok(match title {
+            "first" => Some(0),
+            "second" => Some(1),
+            "minimized" => Some(-1),
+            _ => None,
+        })
+    }
+
+    fn window_wait(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+        what: WaitFor,
+        timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        self.calls.push((
+            "wait-window".into(),
+            format!("{title}|{what:?}|{timeout_ms}"),
+        ));
+        let present = title == "first" || title == "second";
+        Ok(match what {
+            WaitFor::Present => present.then(|| "0x1".to_string()),
+            WaitFor::Active => present.then(|| "0x1".to_string()),
+            // `first` has the focus, `second` and a window that is not there
+            // do not.
+            WaitFor::NotActive => match title {
+                "first" => None,
+                _ => Some(String::new()),
+            },
+            WaitFor::Close => {
+                if present {
+                    None
+                } else {
+                    Some(String::new())
+                }
+            }
+        })
+    }
+}
 impl Files for Fake {
     fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
         self.calls.push(("working-dir".into(), directory.into()));
@@ -292,6 +390,92 @@ impl Processes for Fake {
     }
     fn env_set(&mut self, _name: &str, value: &str) -> Result<String, String> {
         Ok(value.to_string())
+    }
+    /// The process 42 is the one the fake knows; the name of it is `ahk`, and
+    /// `ahk` names it too. Everything else is a process that is not there,
+    /// which is what each of the six cases is written from.
+    fn process_exist(&mut self, pid_or_name: &str) -> Result<u32, String> {
+        self.calls
+            .push(("process-exist".into(), pid_or_name.to_string()));
+        if pid_or_name.is_empty() {
+            // The process of the script itself.
+            return Ok(7);
+        }
+        Ok(if pid_or_name == "42" || pid_or_name == "ahk" {
+            42
+        } else {
+            0
+        })
+    }
+    fn process_name(&mut self, pid_or_name: &str) -> Result<Option<String>, String> {
+        self.calls
+            .push(("process-name".into(), pid_or_name.to_string()));
+        Ok(if pid_or_name == "42" || pid_or_name == "ahk" {
+            Some("ahk".to_string())
+        } else {
+            None
+        })
+    }
+    fn process_path(&mut self, pid_or_name: &str) -> Result<Option<String>, String> {
+        self.calls
+            .push(("process-path".into(), pid_or_name.to_string()));
+        Ok(if pid_or_name == "42" {
+            Some("/bin/ahk".to_string())
+        } else {
+            None
+        })
+    }
+    fn process_parent(&mut self, pid_or_name: &str) -> Result<u32, String> {
+        self.calls
+            .push(("process-parent".into(), pid_or_name.to_string()));
+        Ok(if pid_or_name == "42" { 1 } else { 0 })
+    }
+    fn process_close(&mut self, pid_or_name: &str) -> Result<u32, String> {
+        self.calls
+            .push(("process-close".into(), pid_or_name.to_string()));
+        Ok(if pid_or_name == "42" || pid_or_name == "ahk" {
+            42
+        } else {
+            0
+        })
+    }
+    fn process_set_priority(
+        &mut self,
+        priority: &str,
+        pid_or_name: &str,
+    ) -> Result<u32, String> {
+        self.calls
+            .push(("process-priority".into(), format!("{priority}|{pid_or_name}")));
+        // The process that is not there is the failure of v2; the word of the
+        // priority is not checked, which is what the binary of v2.0.19 does.
+        if pid_or_name == "42" {
+            Ok(42)
+        } else {
+            Err("Target process not found.".to_string())
+        }
+    }
+    fn process_wait(&mut self, pid_or_name: &str, timeout_ms: u64) -> Result<u32, String> {
+        self.calls
+            .push(("process-wait".into(), format!("{pid_or_name}|{timeout_ms}")));
+        Ok(if pid_or_name == "42" || pid_or_name == "ahk" {
+            42
+        } else {
+            0
+        })
+    }
+    fn process_wait_close(&mut self, pid_or_name: &str, timeout_ms: u64) -> Result<u32, String> {
+        self.calls.push((
+            "process-wait-close".into(),
+            format!("{pid_or_name}|{timeout_ms}"),
+        ));
+        // The measured table: the process that is not there and the one that
+        // closed both answer the zero, and the one that outlived the timeout
+        // answers its own id.
+        Ok(if pid_or_name == "42" || pid_or_name == "ahk" {
+            42
+        } else {
+            0
+        })
     }
 }
 
@@ -3357,4 +3541,434 @@ fn the_obj_bind_method_binds_the_method_of_a_class_type() {
         run("m := Map()\nm[\"a\"] := 1\nf := ObjBindMethod(m, \"Clear\")\nf()\nn := m.Count");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "n"), 0);
+}
+
+// -- the processes -----------------------------------------------------------------
+//
+// The wording of v2 was measured on the binary of v2.0.19 on 2026-11-09: a
+// process that is not there answers the zero to `ProcessExist`,
+// `ProcessGetParent` and `ProcessClose`, and the failure "Target process not
+// found." to `ProcessGetName`, `ProcessGetPath` and `ProcessSetPriority`.
+
+#[test]
+fn process_exist_answers_the_id_of_a_process() {
+    let report = run("x := ProcessExist(42)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 42);
+}
+
+#[test]
+fn process_exist_with_no_argument_asks_about_the_script_itself() {
+    let mut desktop = Fake::default();
+    let report = run_on("x := ProcessExist()", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 7);
+    assert_eq!(
+        desktop.calls,
+        vec![("process-exist".to_string(), String::new())]
+    );
+}
+
+#[test]
+fn process_exist_answers_zero_when_the_process_is_not_there() {
+    let report = run("x := ProcessExist(999)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_names_may_be_given_where_a_pid_is() {
+    let report = run("x := ProcessExist(\"ahk\")\ny := ProcessGetName(\"ahk\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 42);
+    assert_eq!(report.variables.get("y"), Some(&Value::Text("ahk".into())));
+}
+
+#[test]
+fn process_get_name_answers_the_name_of_the_image() {
+    let report = run("x := ProcessGetName(42)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("ahk".into())));
+}
+
+#[test]
+fn process_get_name_of_a_process_that_is_not_there_fails() {
+    let report = run("x := ProcessGetName(999)");
+    assert_eq!(failure_of(&report), "Target process not found.");
+}
+
+#[test]
+fn process_get_path_answers_the_path_of_the_image() {
+    let report = run("x := ProcessGetPath(42)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("/bin/ahk".into()))
+    );
+}
+
+#[test]
+fn process_get_path_of_a_process_that_is_not_there_fails() {
+    let report = run("x := ProcessGetPath(999)");
+    assert_eq!(failure_of(&report), "Target process not found.");
+}
+
+#[test]
+fn process_get_parent_answers_the_parent() {
+    let report = run("x := ProcessGetParent(42)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn process_get_parent_of_a_process_that_is_not_there_is_zero() {
+    let report = run("x := ProcessGetParent(999)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_close_answers_the_id_of_the_process_it_stopped() {
+    let report = run("x := ProcessClose(\"ahk\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 42);
+}
+
+#[test]
+fn process_close_of_a_process_that_is_not_there_is_zero() {
+    let report = run("x := ProcessClose(999)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_set_priority_answers_the_id_of_the_process() {
+    let mut desktop = Fake::default();
+    let report = run_on("x := ProcessSetPriority(\"Low\", 42)", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 42);
+    assert_eq!(
+        desktop.calls,
+        vec![("process-priority".to_string(), "Low|42".to_string())]
+    );
+}
+
+#[test]
+fn a_priority_that_v2_does_not_know_is_not_a_failure() {
+    // Measured on the binary of v2.0.19 on 2026-11-09:
+    // `ProcessSetPriority("Bogus", PID)` answered the id, so the word is not
+    // checked.
+    let report = run("x := ProcessSetPriority(\"Bogus\", 42)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 42);
+}
+
+#[test]
+fn process_set_priority_of_a_process_that_is_not_there_fails() {
+    let report = run("x := ProcessSetPriority(\"Low\", 999)");
+    assert_eq!(failure_of(&report), "Target process not found.");
+}
+
+#[test]
+fn process_wait_answers_the_id_when_the_process_is_there() {
+    let report = run("x := ProcessWait(42)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 42);
+}
+
+#[test]
+fn process_wait_answers_zero_when_the_timeout_runs_out() {
+    let report = run("x := ProcessWait(999, 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_wait_converts_the_seconds_of_v2_into_milliseconds() {
+    let mut desktop = Fake::default();
+    let report = run_on("x := ProcessWait(42, 0.5)", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("process-wait".to_string(), "42|500".to_string())]
+    );
+}
+
+#[test]
+fn process_wait_without_a_timeout_waits_the_cap_and_not_forever() {
+    // The binary of v2.0.19 waits forever here; this runtime does not,
+    // because a script has to be stoppable. The cap is the one of `Sleep`.
+    let mut desktop = Fake::default();
+    let report = run_on("x := ProcessWait(42)", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("process-wait".to_string(), "42|60000".to_string())]
+    );
+}
+
+#[test]
+fn process_wait_close_answers_zero_for_a_process_that_closed() {
+    let report = run("x := ProcessWaitClose(999, 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_wait_close_answers_the_id_of_one_that_outlived_the_timeout() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the process that is
+    // still there when the timeout runs out is the one the id answers.
+    let report = run("x := ProcessWaitClose(42, 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 42);
+}
+
+// -- the notification --------------------------------------------------------------
+
+#[test]
+fn the_tray_tip_tells_the_user_something() {
+    let mut desktop = Fake::default();
+    let report = run_on("TrayTip(\"the text\", \"the title\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("notify".to_string(), "the title|the text".to_string())]
+    );
+}
+
+#[test]
+fn the_tray_tip_answers_nothing_the_script_reads() {
+    let report = run("x := TrayTip(\"the text\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+// -- the listing of the windows ----------------------------------------------------
+//
+// The wording of v2 was measured on the binary of v2.0.19 on 2026-11-09:
+// `WinGetID` and `WinGetClass` fail with "Target window not found." while
+// `WinGetList` answers an empty array and `WinGetCount` answers the zero, and
+// a call with no title at all asks about every window of the desktop.
+
+#[test]
+fn win_get_id_answers_the_identifier_of_the_window() {
+    let report = run("x := WinGetID(\"first\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0x1".into())));
+}
+
+#[test]
+fn win_get_id_of_a_window_that_is_not_there_fails() {
+    let report = run("x := WinGetID(\"nothing\")");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_class_answers_the_class_of_the_window() {
+    let report = run("x := WinGetClass(\"second\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("second".into()))
+    );
+}
+
+#[test]
+fn win_get_class_of_a_window_that_is_not_there_fails() {
+    let report = run("x := WinGetClass(\"nothing\")");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_count_counts_the_windows_that_match() {
+    let report =
+        run("a := WinGetCount()\nb := WinGetCount(\"first\")\nc := WinGetCount(\"nothing\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 2);
+    assert_eq!(int_of(&report, "b"), 1);
+    assert_eq!(int_of(&report, "c"), 0);
+}
+
+#[test]
+fn win_get_list_of_a_title_that_matches_nothing_is_empty() {
+    // The answer is an array of v2 and not a bare list: the `Length` of it is
+    // the number of the windows, which is what a script reads.
+    let report = run("x := WinGetList(\"nothing\")\nn := x.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "n"), 0);
+}
+
+#[test]
+fn win_get_list_answers_every_window_with_an_empty_title() {
+    let report = run("x := WinGetList()\nn := x.Length\nfirst := x[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "n"), 2);
+    assert_eq!(
+        report.variables.get("first"),
+        Some(&Value::Text("0x1".into()))
+    );
+}
+
+// -- where a window is -------------------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetPos` writes its four
+// answers into four variables given by reference and answers the empty text, a
+// window that is not there is the failure "Target window not found.", and a
+// value where a variable is wanted is refused with the `VarRef` message.
+
+#[test]
+fn win_get_pos_writes_the_four_places_into_the_references() {
+    let report = run("x := y := w := h := 0\nWinGetPos(&x, &y, &w, &h, \"first\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 10);
+    assert_eq!(int_of(&report, "y"), 20);
+    assert_eq!(int_of(&report, "w"), 100);
+    assert_eq!(int_of(&report, "h"), 200);
+}
+
+#[test]
+fn win_get_pos_answers_the_empty_text() {
+    let report = run("x := y := w := h := 0\nr := WinGetPos(&x, &y, &w, &h, \"first\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("r"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn win_get_pos_of_a_window_that_is_not_there_fails() {
+    let report = run("x := y := w := h := 0\nWinGetPos(&x, &y, &w, &h, \"nothing\")");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_pos_with_no_window_fails_like_v2_with_no_last_found_window() {
+    let report = run("x := y := w := h := 0\nWinGetPos(&x, &y, &w, &h)");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_pos_needs_a_variable_and_not_a_value() {
+    let report = run("WinGetPos(1, &y, &w, &h, \"first\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of WinGetPos requires a VarRef, but received an Integer."
+    );
+}
+
+#[test]
+fn win_get_client_pos_writes_the_four_places_too() {
+    let report = run("x := y := w := h := 0\nWinGetClientPos(&x, &y, &w, &h, \"second\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 30);
+    assert_eq!(int_of(&report, "w"), 300);
+    assert_eq!(int_of(&report, "h"), 400);
+}
+
+// -- whether a window is maximized -------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-09, on a window of its own:
+// `0` before, `1` after `WinMaximize`, `0` after `WinRestore`, `-1` after
+// `WinMinimize`.
+
+#[test]
+fn win_get_min_max_answers_zero_for_an_ordinary_window() {
+    let report = run("x := WinGetMinMax(\"first\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn win_get_min_max_answers_one_for_a_maximized_window() {
+    let report = run("x := WinGetMinMax(\"second\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn win_get_min_max_answers_minus_one_for_a_minimized_window() {
+    let report = run("x := WinGetMinMax(\"minimized\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), -1);
+}
+
+#[test]
+fn win_get_min_max_of_a_window_that_is_not_there_fails() {
+    let report = run("x := WinGetMinMax(\"nothing\")");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_min_max_with_no_window_fails() {
+    let report = run("x := WinGetMinMax()");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+// -- waiting for a window ----------------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-09: `WinWait` and
+// `WinWaitActive` answer the identifier or the zero; `WinWaitClose` and
+// `WinWaitNotActive` answer `1` and `0`; and the conditions about the absence
+// of a window hold at once when no window matches.
+
+#[test]
+fn win_wait_answers_the_identifier_of_the_window() {
+    let report = run("x := WinWait(\"first\", , 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0x1".into())));
+}
+
+#[test]
+fn win_wait_answers_zero_when_the_timeout_runs_out() {
+    let report = run("x := WinWait(\"nothing\", , 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn win_wait_active_answers_zero_when_no_window_has_the_focus() {
+    let report = run("x := WinWaitActive(\"nothing\", , 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn win_wait_not_active_answers_one_at_once_when_no_window_matches() {
+    let report = run("x := WinWaitNotActive(\"nothing\", , 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn win_wait_close_answers_one_when_the_window_is_gone() {
+    let report = run("x := WinWaitClose(\"nothing\", , 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn win_wait_close_answers_zero_while_the_window_is_there() {
+    let report = run("x := WinWaitClose(\"first\", , 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn win_wait_converts_the_seconds_of_v2_into_milliseconds() {
+    let mut desktop = Fake::default();
+    let report = run_on("WinWait(\"first\", , 0.5)", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("wait-window".to_string(), "first|Present|500".to_string())]
+    );
+}
+
+#[test]
+fn win_wait_without_seconds_waits_the_cap_and_not_forever() {
+    let mut desktop = Fake::default();
+    let report = run_on("WinWait(\"first\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("wait-window".to_string(), "first|Present|60000".to_string())]
+    );
 }
