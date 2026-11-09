@@ -216,7 +216,16 @@ impl ahk::desktop::Pictures for LabDesktop {
                 if !Path::new(name).exists() {
                     return Ok(ImageSearch::NotLoadable);
                 }
-                read(name).map_err(|_| String::new())?
+                // A file that is there but is not a picture is refused the way
+                // v2 refuses it. Measured on the binary of v2.0.19 on
+                // 2026-11-09: a file that is not there and one that is not a
+                // picture both answer "Parameter #7 of ImageSearch is
+                // invalid.". The reason of the decoder was thrown away here,
+                // and the failure arrived with an empty message.
+                match read(name) {
+                    Ok(picture) => picture,
+                    Err(_) => return Ok(ImageSearch::NotLoadable),
+                }
             }
             Image::Loaded(handle) => {
                 let handle = *handle as usize;

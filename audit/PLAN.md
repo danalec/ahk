@@ -851,6 +851,43 @@ asserted that `#Requires AutoHotkey v2.0` is refused. That was the bug, written
 down as a requirement. It is now three cases: the sub-version is met, a later
 version is refused, and a range is met.
 
+### Round 20 — 2026-11-09: two defects, and two tests that asserted them
+
+**Defect 2 — `ImageSearch` failed with an empty message.** The box discarded the
+decoder's reason:
+
+```rust
+read(name).map_err(|_| String::new())?
+```
+
+A file that existed but was not a picture therefore failed with
+`Message ""` — indistinguishable from a bug in the caller. Measured on the
+binary of v2.0.19 on 2026-11-09: a corrupt picture and a missing one **both**
+answer *"Parameter #7 of ImageSearch is invalid."*, so the tree now answers that
+for both, which is also the message it already gave for a missing file.
+
+**Defect 3 — `DateAdd`/`DateDiff` refused the documented units.** The tree
+matched the argument as a whole word, `"d" | "D"`, and so refused `"Days"`. v2
+reads the unit by its **first letter**. Measured, all eight:
+
+| `DateAdd(ts, 11, …)` | the binary | the tree now |
+|---|---|---|
+| `"Seconds"` / `"s"` | `…000011` | the same |
+| `"Minutes"` / `"m"` | `…001100` | the same |
+| `"Hours"` / `"h"` | `…110000` | the same |
+| `"Days"` / `"d"` | `20260112000000` | the same |
+| `"Months"` | `…001100` — read as **minutes** | the same |
+| `"Years"`, `"Weeks"` | refused | refused |
+
+**Two tests asserted the defects.** `a_unit_that_v2_does_not_have_fails_with_the_reason_of_v2`
+used `"days"` and expected it to be **refused** — it was the defect, pinned. It
+now uses `"years"`, and a new case pins the first-letter rule. This is the
+second time in two rounds that a test was the bug's alibi (round 19 had
+`a_sub_version_is_not_a_dialect`); worth watching for.
+
+Also checked: no other place in the tree discards a reason with
+`map_err(|_| String::new())`.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

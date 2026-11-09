@@ -641,20 +641,28 @@ fn the_number(values: &[Value], index: usize, name: &str, line: u32) -> Result<f
 }
 
 /// The unit of an argument, the way v2 reads it.
+///
+/// v2 reads the unit by its **first letter** and not by the whole word.
+/// Measured on the binary of v2.0.19 on 2026-11-09: `"Days"`, `"Hours"`,
+/// `"Minutes"` and `"Seconds"` all work, `"Months"` is read as minutes
+/// because its first letter is the one of minutes, and `"Years"` and `"Weeks"`
+/// are refused. The tree read the letter alone, so the words that the
+/// documentation of v2 itself uses were refused.
 fn the_unit(values: &[Value], index: usize, name: &str, line: u32) -> Result<Unit, RuntimeError> {
     let text = values
         .get(index)
         .map(|value| value.to_text())
         .unwrap_or_default();
-    match text.as_str() {
-        "d" | "D" => Ok(Unit::Day),
-        "h" | "H" => Ok(Unit::Hour),
-        "m" | "M" => Ok(Unit::Minute),
-        "s" | "S" => Ok(Unit::Second),
-        _ => Err(RuntimeError {
-            message: invalid_parameter(index + 1, name),
-            line,
-        }),
+    let invalid = || RuntimeError {
+        message: invalid_parameter(index + 1, name),
+        line,
+    };
+    match text.trim().chars().next() {
+        Some(first) if first.eq_ignore_ascii_case(&'d') => Ok(Unit::Day),
+        Some(first) if first.eq_ignore_ascii_case(&'h') => Ok(Unit::Hour),
+        Some(first) if first.eq_ignore_ascii_case(&'m') => Ok(Unit::Minute),
+        Some(first) if first.eq_ignore_ascii_case(&'s') => Ok(Unit::Second),
+        _ => Err(invalid()),
     }
 }
 

@@ -898,8 +898,36 @@ fn the_date_is_answered_the_way_v2_answers_it() {
 
 #[test]
 fn a_unit_that_v2_does_not_have_fails_with_the_reason_of_v2() {
-    let report = run("DateAdd(\"20260101\", 1, \"days\")");
+    // Measured on the binary of v2.0.19 on 2026-11-09: the unit is read by its
+    // first letter, so "days" works, and "years" and "weeks" are refused. The
+    // old case used "days" and expected it to be refused: that was the defect.
+    let report = run("DateAdd(\"20260101\", 1, \"years\")");
     assert_eq!(failure_of(&report), "Parameter #3 of DateAdd is invalid.");
+}
+
+#[test]
+fn the_unit_of_a_date_is_read_by_its_first_letter() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: "Days" and "d" answer
+    // the same thing, and "Months" is read as minutes because its first letter
+    // is the one of minutes.
+    let report = run(
+        "a := DateAdd(\"20260101000000\", 11, \"Days\")\n\
+         b := DateAdd(\"20260101000000\", 11, \"d\")\n\
+         c := DateAdd(\"20260101000000\", 11, \"Months\")",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "a"),
+        Value::Text("20260112000000".into())
+    );
+    assert_eq!(
+        value_of(&report, "b"),
+        Value::Text("20260112000000".into())
+    );
+    assert_eq!(
+        value_of(&report, "c"),
+        Value::Text("20260101001100".into())
+    );
 }
 
 #[test]
