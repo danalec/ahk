@@ -761,6 +761,33 @@ and does not say which is primary. `MonitorGetWorkArea` is the monitor itself:
 a client is not told about the session's panels. Both are recorded on the
 handlers and on the trait rather than hidden.
 
+### Round 17 — 2026-11-09: the shell-outs learn to refuse
+
+No new name; a defect fixed. The audit's defect #7 said that the tools the box
+shells out to were invoked on **every** platform, so a Windows host got
+`sh: line 0: grim: not found` instead of a reason. `notify-send` and `df` were
+already behind `box_tools_are_near()`; the rest were not.
+
+Gated now: `grim` (the capture and the pixel), `pactl`, `paplay`, `zenity`, and
+the clipboard read and write (`wl-paste`/`wl-copy`, `xclip`/`xsel`). On Windows
+they all answer *"this desktop drives the tools of a Linux box, and this is not
+Linux"*.
+
+**The risk of this change is the opposite direction**, so it was checked that
+way: `box_tools_are_near()` answers `Ok` on Linux, and the box still does
+everything it did.
+
+```
+clip=[probe-42]   screen=1920x1080   pixel=#12101b   volume=99.0   traytip=ok
+```
+
+`#12101b` is the same pixel the Python implementation and the archive record for
+that wallaper, so the capture path is unchanged.
+
+Still wrong on Windows: `Gui.Show()` says *"this desktop is a Wayland session"*,
+which is a message of the `ahk` crate and not of the box. That is the rest of
+defect #7.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

@@ -213,6 +213,7 @@ impl LabDesktop {
         if let Some(size) = self.screen {
             return Ok(size);
         }
+        box_tools_are_near().map_err(BoxError::Failed)?;
         let path = PathBuf::from(format!("/tmp/ahk-size-{}.png", millis()));
         let command = format!("grim {}", shell_quote(&path.to_string_lossy()));
         let output = Command::new("sh")
@@ -366,6 +367,10 @@ const X11_CLIPBOARD_WRITE: &str = "if command -v xclip > /dev/null 2>&1; then xc
 
 impl ahk::desktop::Clipboard for LabDesktop {
     fn clipboard_read(&mut self) -> Result<String, String> {
+        // The clipboard of a Linux desktop is read by a tool of it -- `wl-paste`
+        // or `xclip` -- and a host that is not Linux says so instead of letting
+        // the shell answer "not found".
+        box_tools_are_near()?;
         // The session of the box is Wayland, and the compositor holds the
         // clipboard.
         if wayland_session() {
@@ -375,6 +380,7 @@ impl ahk::desktop::Clipboard for LabDesktop {
     }
 
     fn clipboard_write(&mut self, text: &str) -> Result<String, String> {
+        box_tools_are_near()?;
         if wayland_session() {
             return self.wayland_clipboard_write(text);
         }
@@ -714,6 +720,7 @@ impl ahk::desktop::Screen for LabDesktop {
         height: i64,
         filename: &str,
     ) -> Result<String, String> {
+        box_tools_are_near()?;
         let name = if filename.is_empty() {
             format!("ahk-{}.png", millis())
         } else {
@@ -993,6 +1000,7 @@ impl ahk::desktop::Sound for LabDesktop {
     }
 
     fn sound_play(&mut self, path: &str) -> Result<String, String> {
+        box_tools_are_near()?;
         let command = format!("paplay {}", shell_quote(path));
         let output = Command::new("sh")
             .arg("-c")
@@ -1666,6 +1674,7 @@ fn box_tools_are_near() -> Result<(), String> {
 /// The text of the answer is what zenity wrote on its standard output,
 /// and the code is what it exited with.
 fn zenity(args: &[String]) -> Result<(String, i32), String> {
+    box_tools_are_near()?;
     let output = Command::new("zenity")
         .args(args)
         .output()
@@ -1852,6 +1861,7 @@ impl LabDesktop {
 
     /// Ask the mixer of the session.
     fn pactl(&mut self, args: &[&str]) -> Result<String, String> {
+        box_tools_are_near()?;
         let command = format!("pactl {}", args.join(" "));
         let output = Command::new("sh")
             .arg("-c")
