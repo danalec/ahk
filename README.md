@@ -5,9 +5,8 @@ a Linux machine: a lexer, an AST, a parser, a runtime, the built-in names and
 the class library, plus a keyboard, a pointer, screen captures, files, windows
 and hotkeys.
 
-**The default dialect is AutoHotkey v2.0.19.** A second dialect, **AutoHotkey
-v1.1.37.02**, lives behind a flag and is described in detail below. One binary
-serves both.
+**The default dialect is AutoHotkey v2.** A second dialect, **AutoHotkey v1**,
+lives behind a flag and is described in detail below. One binary serves both.
 
 The names, the classes, the directives and the operators are read out of the
 reference binaries into tables under `crates/ahk/reference/`. Those tables are
@@ -40,8 +39,8 @@ Other flags:
 
 | Flag | What it does |
 |---|---|
-| `--dialect=v2` | v2.0.19 (default; may be omitted) |
-| `--dialect=v1` | v1.1.37.02 |
+| `--dialect=v2` | v2 (default; may be omitted) |
+| `--dialect=v1` | v1 |
 | `--timeout=N` | Stop after N seconds (default 60) |
 | `--surface` | Print the state of every name of the surface, one line each |
 | `--surface --json` | The same, as JSON, for CI |
@@ -74,7 +73,7 @@ the crate-level docs in `crates/ahk/src/lib.rs` for a worked example.
 
 ## v2: the default dialect
 
-This is AutoHotkey v2.0.19. Write a v2 script and hand it to the runner with
+This is AutoHotkey v2. Write a v2 script and hand it to the runner with
 no flag at all.
 
 ```ahk
@@ -141,8 +140,7 @@ echo 'x := StrLen("abc")' | ahk
 printf 'StringLen, n, abc\nFileAppend, %n%, *\n' | ahk --dialect=v1
 ```
 
-The v1 dialect is **AutoHotkey v1.1.37.02 as measured on the reference
-binary**, not the archived Python implementation (see "The archive" below).
+The v1 dialect is **AutoHotkey v1 as measured on the reference binary**.
 It has its own surface table, its own built-in table, its own grammar and its
 own built-in variables. Its surface is complete: every name of the v1 either
 answers with a value or is refused with a reason, and the pending table of the
@@ -343,14 +341,6 @@ is in `docs/`; start at [docs/README.md](docs/README.md), which indexes the
 language guide, the two reference chapters, the runner and report chapter, the
 desktop backend, the errors and the dialect differences. `docs/` also keeps the
 design and measurement records of the port.
-
-## The archive
-
-`../archived/ahk-python` is the Python implementation this tree was ported
-from. It is frozen and kept to be read, not to be run, and it speaks an older
-dialect of its own -- it is **not** the v1 of AutoHotkey. The real v1 is the
-measured v1.1.37.02 dialect described above. Nothing new lands in the archive;
-new cases and features go into the Rust tree.
 
 ## License
 
