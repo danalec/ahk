@@ -8253,21 +8253,26 @@ impl<'a> Runtime<'a> {
     /// the case, and the dialect has to be the one this run speaks.
     ///
     /// An empty argument is refused with "Parameter #1 required", which is
-    /// the wording of the binary, and a name or a dialect the interpreter
-    /// does not answer is refused with the whole argument in the message and
-    /// the interpreter named after it: "This script requires AutoHotkey v1.
-    /// Current interpreter: RustAhk v2.".
+    /// the wording of the binary, and a dialect the run does not speak is
+    /// refused with the whole argument in the message and the dialect it is:
+    /// "This script requires v1. This interpreter is v2.".
     ///
-    /// # The two names
+    /// # The line names the dialect and not the implementation
     ///
-    /// The tree answers to **both** names of the interpreter, and that is the
-    /// point of the directive here. A script written for this tree carries
-    /// `#Requires RustAhk v2` and the mainline binary refuses it -- the name
-    /// does not match, and it says so -- so the line is what keeps a script
-    /// from running in the wrong implementation. A script that is meant to
-    /// run in both carries `#Requires AutoHotkey v2` and runs in both, which
-    /// is what its author asked for. The suggestion to name the tree that way
-    /// came from g.ahk on Discord.
+    /// The line is `#Requires v2`. It names the dialect, which is the fact a
+    /// script actually depends on, and it needs no invented name for this
+    /// tree: the project is called `ahk`, and a name made up for the directive
+    /// would be a second name to keep in step with the first.
+    ///
+    /// The line still tells the two implementations apart, because mainline
+    /// AutoHotkey reads the first word as the name of the interpreter:
+    /// measured on the binary of v2.0.31, `#Requires v2` is refused with
+    /// "This script requires v2. Current interpreter: AutoHotkey v2.0.31
+    /// 64-bit.". A script that carries the line therefore runs here and not
+    /// there.
+    ///
+    /// `#Requires AutoHotkey v2` is accepted as well, for a script that is
+    /// meant to run in both: the mainline binary accepts that line too.
     fn the_requires(&self, argument: &str, line: u32) -> Result<String, RuntimeFailure> {
         let argument = argument.trim();
         if argument.is_empty() {
@@ -8276,21 +8281,28 @@ impl<'a> Runtime<'a> {
                 line,
             }));
         }
-        // The name of the interpreter, and the dialect when there is one. The
-        // dialects are names -- v1 and v2 -- and not versions of a product:
-        // this tree has no sub-version to compare against. A script that does
-        // not name a dialect is satisfied by the interpreter alone.
+        // Two forms: the dialect alone, and the name of the interpreter before
+        // it. The name is the mainline one and nothing else -- there is no
+        // second name of this tree to write here.
         let mut words = argument.split_whitespace();
-        let program = words.next().unwrap_or("");
-        let wanted = words.next();
+        let first = words.next().unwrap_or("");
+        let second = words.next();
         let spare = words.next();
-        let names_the_tree = program.eq_ignore_ascii_case("autohotkey")
-            || program.eq_ignore_ascii_case("rustahk");
-        let the_dialect_is_met = match wanted {
-            None => spare.is_none(),
-            Some(wanted) => spare.is_none() && wanted.eq_ignore_ascii_case(self.dialect.name()),
+        let meets = spare.is_none() && {
+            match second {
+                // `#Requires v2` and `#Requires v1`.
+                None => first.eq_ignore_ascii_case(self.dialect.name())
+                    // `#Requires AutoHotkey` asks for the interpreter and not
+                    // for a dialect, and the mainline binary accepts it.
+                    || first.eq_ignore_ascii_case("autohotkey"),
+                // `#Requires AutoHotkey v2`, which runs in both.
+                Some(dialect) => {
+                    first.eq_ignore_ascii_case("autohotkey")
+                        && dialect.eq_ignore_ascii_case(self.dialect.name())
+                }
+            }
         };
-        if names_the_tree && the_dialect_is_met {
+        if meets {
             return Ok(format!(
                 "this runtime is the {} dialect, and it meets {argument}",
                 self.dialect.name()
@@ -8298,7 +8310,7 @@ impl<'a> Runtime<'a> {
         }
         Err(RuntimeFailure::Error(RuntimeError {
             message: format!(
-                "This script requires {argument}. Current interpreter: RustAhk {}.",
+                "This script requires {argument}. This interpreter is {}.",
                 self.dialect.name()
             ),
             line,

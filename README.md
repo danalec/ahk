@@ -8,15 +8,16 @@ and hotkeys.
 **The default dialect is AutoHotkey v2.** A second dialect, **AutoHotkey v1**,
 lives behind a flag and is described in detail below. One binary serves both.
 
-A script written for this tree can say so, and should:
+A script written for this tree says which dialect it needs, and that is the
+whole of it:
 
 ```ahk
-#Requires RustAhk v2
+#Requires v2
 ```
 
-Mainline AutoHotkey refuses that line; this interpreter runs it. A script meant
-to run in both writes `#Requires AutoHotkey v2` instead. The whole of the rule
-is in [#Requires](#requires-telling-this-interpreter-apart).
+Mainline AutoHotkey refuses that line; this interpreter runs it. A script
+meant to run in both writes `#Requires AutoHotkey v2` instead. The whole of
+the rule is in [#Requires](#requires-telling-this-interpreter-apart).
 
 The names, the classes, the directives and the operators are read out of the
 reference binaries into tables under `crates/ahk/reference/`. Those tables are
@@ -55,31 +56,39 @@ printf 'MsgBox, hello\n' | ahk --dialect=v1
 
 ## #Requires: telling this interpreter apart
 
-A script says which implementation it needs, on a line of its own, before
-anything else:
+A script says which dialect it needs, on a line of its own, before anything
+else:
 
 ```ahk
-#Requires RustAhk v2
+#Requires v2
 ```
 
-The dialects are **v2** and **v1** -- names, not sub-versions. The tree
-answers to `RustAhk` and to `AutoHotkey`, so:
+The dialects are **v1** and **v2** -- names, not sub-versions. The line names
+the dialect, which is the fact the script actually depends on:
 
-- `#Requires RustAhk v2` runs here and mainline AutoHotkey **refuses** it.
-  That is the point: a script written for this tree does not run by accident
-  in the other implementation.
-- `#Requires AutoHotkey v2` runs in both, for a script meant to be portable.
-- `#Requires RustAhk v1` runs here only with `--dialect=v1`.
+- `#Requires v2` runs in the v2 dialect and is refused under `--dialect=v1`.
+- `#Requires v1` is the other way round, and it runs only with `--dialect=v1`.
+- `#Requires AutoHotkey v2` is accepted as well, for a script meant to be
+  portable: the mainline binary accepts that line too.
+- `#Requires AutoHotkey` alone asks for the interpreter and not for a dialect.
 
-The name of the interpreter is compared without regard to case, and an
-argument that names a dialect this run does not speak is refused with the
-whole line and the interpreter it is:
+The line tells the two implementations apart without naming this one.
+Mainline AutoHotkey reads the first word as the name of the interpreter, so
+it refuses the line:
 
 ```
-This script requires RustAhk v1. Current interpreter: RustAhk v2.
+This script requires v2. Current interpreter: AutoHotkey v2.0.31 64-bit.
 ```
 
-The suggestion for the line came from g.ahk on Discord.
+This interpreter reads the word as the dialect, and answers with the dialect
+it speaks when the requirement is not met:
+
+```
+This script requires v1. This interpreter is v2.
+```
+
+The line carries no second name of the project, because the project already
+has one: it is `ahk`.
 
 Other flags:
 
