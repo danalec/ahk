@@ -43,6 +43,28 @@ A v1 script needs `--dialect=v1`:
 printf 'MsgBox, hello\n' | ahk --dialect=v1
 ```
 
+## Telling this interpreter apart
+
+A script can say which implementation it needs, at the top:
+
+```ahk
+#Requires RustAhk v2
+```
+
+The dialects are **v2** and **v1** -- names, not sub-versions. The tree
+answers to `RustAhk` and to `AutoHotkey`, so:
+
+- `#Requires RustAhk v2` runs here and mainline AutoHotkey **refuses** it.
+  That is the point: a script written for this tree does not run by accident
+  in the other implementation.
+- `#Requires AutoHotkey v2` runs in both, for a script meant to be portable.
+- `#Requires RustAhk v1` runs here only with `--dialect=v1`.
+
+The name of the interpreter is compared without regard to case, and an
+argument that names a dialect this run does not speak is refused with the
+whole line and the interpreter it is. The suggestion for the line came from
+g.ahk on Discord.
+
 Other flags:
 
 | Flag | What it does |

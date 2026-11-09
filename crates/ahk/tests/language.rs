@@ -247,6 +247,99 @@ fn run_with_timeout(source: &str, timeout: Duration) -> (Report, Fake) {
     (report, desktop)
 }
 
+/// The same, but speaking the dialect the caller names.
+fn run_in(source: &str, dialect: &'static dyn ahk::dialect::Dialect) -> (Report, Fake) {
+    let mut desktop = Fake::default();
+    let statements = ahk::parse_with(source, dialect).expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10))
+        .with_dialect(dialect)
+        .with_source(source)
+        .run(&statements);
+    (report, desktop)
+}
+
+// -- #Requires ---------------------------------------------------------------
+//
+// Measured on the binaries of both dialects, and on the tree after the
+// change: the argument names the interpreter and, when the script wants to
+// be exact, the dialect it needs. The dialects are v1 and v2 -- names, not
+// sub-versions -- and the tree answers to two names of the interpreter.
+// `#Requires RustAhk v2` runs here and the mainline binary refuses it, which
+// is the differentiation the directive is for. The suggestion to name the
+// tree that way came from g.ahk on Discord.
+
+#[test]
+fn the_tree_answers_to_its_own_name() {
+    let (report, _) = run("#Requires RustAhk v2\nFileAppend \"ok\", \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ok"]);
+}
+
+#[test]
+fn the_tree_answers_to_the_mainline_name() {
+    let (report, _) = run("#Requires AutoHotkey v2\nFileAppend \"ok\", \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ok"]);
+}
+
+#[test]
+fn the_other_dialect_is_refused() {
+    let (report, _) = run("#Requires RustAhk v1");
+    assert!(!report.ok);
+    let error = report.error.as_deref().unwrap_or("");
+    assert!(error.contains("Current interpreter: RustAhk v2."), "{error}");
+}
+
+#[test]
+fn a_name_that_is_not_an_interpreter_is_refused() {
+    let (report, _) = run("#Requires Anything v2");
+    assert!(!report.ok);
+    let error = report.error.as_deref().unwrap_or("");
+    assert!(error.contains("This script requires Anything v2."), "{error}");
+}
+
+#[test]
+fn an_empty_requires_says_the_parameter_is_required() {
+    let (report, _) = run("#Requires");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Parameter #1 required"));
+}
+
+#[test]
+fn a_requires_with_a_third_word_is_refused() {
+    let (report, _) = run("#Requires RustAhk v2 extra");
+    assert!(!report.ok);
+}
+
+#[test]
+fn the_name_of_the_v1_dialect_runs_under_the_v1_dialect() {
+    let (report, _) = run_in(
+        "#Requires RustAhk v1\nFileAppend, ok, *",
+        ahk::dialect::v1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ok"]);
+}
+
+#[test]
+fn the_v2_dialect_is_refused_under_the_v1_dialect() {
+    let (report, _) = run_in("#Requires RustAhk v2", ahk::dialect::v1());
+    assert!(!report.ok);
+    let error = report.error.as_deref().unwrap_or("");
+    assert!(error.contains("Current interpreter: RustAhk v1."), "{error}");
+}
+
+#[test]
+fn a_sub_version_is_not_a_dialect() {
+    // The dialects are v1 and v2. A script that names a sub-version -- the
+    // way the mainline binary spells its own -- asks for something this tree
+    // does not have, and it is refused with the whole argument in the reason.
+    let (report, _) = run("#Requires AutoHotkey v2.0");
+    assert!(!report.ok);
+    let error = report.error.as_deref().unwrap_or("");
+    assert!(error.contains("This script requires AutoHotkey v2.0."), "{error}");
+}
+
 #[test]
 fn a_send_types_the_text() {
     let (report, desktop) = run("Send \"hello\"");
@@ -389,8 +482,16 @@ fn a_directive_that_is_already_the_case_is_accepted() {
 
 #[test]
 fn a_requires_that_is_met_is_accepted() {
-    let (report, _desktop) = run("#Requires AutoHotkey v2.0.19\nMsgBox \"ok\"");
+    let (report, _desktop) = run("#Requires AutoHotkey v2\nMsgBox \"ok\"");
     assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ok"]);
+}
+
+#[test]
+fn a_requires_for_the_name_of_the_tree_is_accepted() {
+    let (report, _desktop) = run("#Requires RustAhk v2\nMsgBox \"ok\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ok"]);
 }
 
 #[test]

@@ -89,6 +89,11 @@ pub enum TheLabelOfACommand {
 /// anything. The rules are the ones that were measured on the binaries.
 pub trait Dialect: Sync {
     /// The name of the dialect, for the report of the runner.
+    ///
+    /// The dialects of this tree are `v2` and `v1`. They are names, not
+    /// versions of a product: the `#Requires` directive compares against
+    /// them, and a script that needs `v2` runs in the v2 dialect and is
+    /// refused in the v1 one.
     fn name(&self) -> &'static str;
 
     /// The built-ins that the dialect carries.

@@ -8228,18 +8228,7 @@ impl<'a> Runtime<'a> {
             // `#Warn` of the v2 takes the type of the warning and the mode of
             // it, and the warnings go to the report: the tree has no dialog.
             "warn" => Ok("the warnings are in the report".into()),
-            "requires" => {
-                let words: Vec<&str> = argument.split_whitespace().collect();
-                let wanted = words.get(1).copied().unwrap_or("");
-                if wanted.starts_with("v2") {
-                    Ok(format!("this runtime is {wanted}"))
-                } else {
-                    Err(RuntimeFailure::Error(RuntimeError {
-                        message: format!("This script requires {wanted}, and this runtime is v2."),
-                        line,
-                    }))
-                }
-            }
+            "requires" => self.the_requires(argument, line),
             // The rest is what the table of the directives says: the reason
             // is the one of the category of the directive, and the table and
             // the run are the same truth.
@@ -8254,6 +8243,66 @@ impl<'a> Runtime<'a> {
                 })),
             },
         }
+    }
+
+    /// The `#Requires` directive: what the script says it needs to run.
+    ///
+    /// Measured on the binaries of both dialects: the argument names the
+    /// interpreter and, when the script wants to be exact, the dialect it
+    /// needs -- `v2` or `v1`. The name of the interpreter is compared without
+    /// the case, and the dialect has to be the one this run speaks.
+    ///
+    /// An empty argument is refused with "Parameter #1 required", which is
+    /// the wording of the binary, and a name or a dialect the interpreter
+    /// does not answer is refused with the whole argument in the message and
+    /// the interpreter named after it: "This script requires AutoHotkey v1.
+    /// Current interpreter: RustAhk v2.".
+    ///
+    /// # The two names
+    ///
+    /// The tree answers to **both** names of the interpreter, and that is the
+    /// point of the directive here. A script written for this tree carries
+    /// `#Requires RustAhk v2` and the mainline binary refuses it -- the name
+    /// does not match, and it says so -- so the line is what keeps a script
+    /// from running in the wrong implementation. A script that is meant to
+    /// run in both carries `#Requires AutoHotkey v2` and runs in both, which
+    /// is what its author asked for. The suggestion to name the tree that way
+    /// came from g.ahk on Discord.
+    fn the_requires(&self, argument: &str, line: u32) -> Result<String, RuntimeFailure> {
+        let argument = argument.trim();
+        if argument.is_empty() {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "Parameter #1 required".into(),
+                line,
+            }));
+        }
+        // The name of the interpreter, and the dialect when there is one. The
+        // dialects are names -- v1 and v2 -- and not versions of a product:
+        // this tree has no sub-version to compare against. A script that does
+        // not name a dialect is satisfied by the interpreter alone.
+        let mut words = argument.split_whitespace();
+        let program = words.next().unwrap_or("");
+        let wanted = words.next();
+        let spare = words.next();
+        let names_the_tree = program.eq_ignore_ascii_case("autohotkey")
+            || program.eq_ignore_ascii_case("rustahk");
+        let the_dialect_is_met = match wanted {
+            None => spare.is_none(),
+            Some(wanted) => spare.is_none() && wanted.eq_ignore_ascii_case(self.dialect.name()),
+        };
+        if names_the_tree && the_dialect_is_met {
+            return Ok(format!(
+                "this runtime is the {} dialect, and it meets {argument}",
+                self.dialect.name()
+            ));
+        }
+        Err(RuntimeFailure::Error(RuntimeError {
+            message: format!(
+                "This script requires {argument}. Current interpreter: RustAhk {}.",
+                self.dialect.name()
+            ),
+            line,
+        }))
     }
 
     /// The result of an assignment: the value that is stored.
