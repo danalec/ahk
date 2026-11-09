@@ -1,0 +1,23 @@
+# The names of AutoHotkey v2.0.19 that this tree does not carry yet.
+#
+# A name that the tree carries is not listed here, even when v2 spells
+# it in two shapes: a name of a class and a name of a function are two
+# places, and the tree has to have both.
+#
+# A name is carried when the tree answers it. The answer may be a value
+# or the reason the tree cannot give one, so a name that is shaped for
+# Windows is carried and is not listed here.
+#
+# kind      command, function, variable or method
+# class     the class a method belongs to, empty otherwise
+# name      the name, as v2 spells it
+# reason    why the tree does not carry it yet
+#
+# The reasons:
+#
+# windows   the name is about a Windows API that a Linux desktop does
+#           not have.
+# hotkey    the name is about the hotkey system.
+# class     the name is a method of a class type that is not here yet.
+# variable  the name is a built-in variable that is not here yet.
+# not-yet   the name is here, and it is still to do.

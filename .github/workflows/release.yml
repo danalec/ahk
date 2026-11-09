@@ -1,0 +1,196 @@
+---
+name: Release
+
+# The binary of the runner, built for every platform the tree is written to
+# build on, attached to the GitHub release of the pushed tag.
+#
+#   git tag v0.1.0 && git push origin v0.1.0     # builds and publishes
+#
+# Each asset is one archive, named after the platform it carries, and it holds
+# the runner and the licence. The name is the one of the conventions of the
+# tree: `ahk-v<version>-<asset>.<zip|tar.gz>`.
+
+on:
+  push:
+    tags: ["v*"]
+  # A dispatch builds the assets and publishes nothing: it is for the run that
+  # has to see whether a platform still builds, without moving a tag.
+  workflow_dispatch:
+
+# The release is written, and nothing else. A build job reads the tree; the
+# publish job writes the release of the tag that asked for it.
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY: ahk
+
+jobs:
+  build:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- Windows ---
+          - asset: x86_64-windows
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
+            archive: zip
+            binary: ahk.exe
+
+          # --- Linux ---
+          # The Linux binary is built inside the bullseye image and not on the
+          # runner: glibc 2.31 is the floor the release notes promise, and the
+          # runner's own image (ubuntu-24.04, glibc 2.39) would make a binary
+          # that does not run on the older systems. The `build_image` field is
+          # what marks an entry as one of these.
+          - asset: x86_64-linux-gnu
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            binary: ahk
+            build_image: rust:1.98-slim-bullseye
+          - asset: aarch64-linux-gnu
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+            binary: ahk
+            build_image: rust:1.98-slim-bullseye
+
+          # --- macOS ---
+          - asset: x86_64-macos
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            archive: tar.gz
+            binary: ahk
+          - asset: aarch64-macos
+            os: macos-15
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            binary: ahk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: The version of the tag
+        id: version
+        shell: bash
+        run: |
+          # A tag names the version: `v0.1.0` is `0.1.0`, and a dispatch with
+          # no tag reads it from the manifest.
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo ">> version $version"
+
+      - name: Build inside the image (Linux)
+        if: matrix.build_image
+        shell: bash
+        run: |
+          docker run --rm \
+            -v "$PWD":/w -w /w \
+            -e CARGO_TERM_COLOR=always \
+            "${{ matrix.build_image }}" \
+            cargo build --release --locked -p ahk-cli --target "${{ matrix.target }}"
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
+
+      - name: Install Rust toolchain
+        if: ${{ !matrix.build_image }}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        if: ${{ !matrix.build_image }}
+        uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build
+        if: ${{ !matrix.build_image }}
+        shell: bash
+        run: cargo build --release --locked -p ahk-cli --target "${{ matrix.target }}"
+
+      - name: Pack
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ASSET: ${{ matrix.asset }}
+          ARCHIVE: ${{ matrix.archive }}
+          BINARY: ${{ matrix.binary }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -eu
+          name="ahk-v${VERSION}-${ASSET}"
+          mkdir -p "dist/$name"
+          cp "target/${TARGET}/release/${BINARY}" "dist/$name/${BINARY}"
+          cp LICENSE "dist/$name/LICENSE"
+          # The notes of the runner travel with it: a binary with no document
+          # that says what the flags are is a binary a reader has to guess at.
+          cp README.md "dist/$name/README.md"
+          cd dist
+          if [ "$ARCHIVE" = "zip" ]; then
+            # The archive of Windows is made by the shell of Windows, which is
+            # on the runner and is one program fewer to depend on. The path is
+            # relative, so the same command works from the folder the step is
+            # already in.
+            powershell -NoProfile -Command \
+              "Compress-Archive -Path '${name}' -DestinationPath '${name}.zip'"
+          else
+            tar -czf "${name}.tar.gz" "$name"
+          fi
+          # The checksum is what a user checks the download against, so it is
+          # made here, beside the file it describes.
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${name}.${ARCHIVE}" > "${name}.${ARCHIVE}.sha256"
+          else
+            shasum -a 256 "${name}.${ARCHIVE}" > "${name}.${ARCHIVE}.sha256"
+          fi
+          ls -la
+
+      - name: Smoke test (Linux)
+        if: matrix.archive == 'tar.gz' && runner.os == 'Linux'
+        shell: bash
+        run: |
+          # The binary that was just built answers with a report, and it says
+          # which surfaces it carries: a release that does not run is not a
+          # release, and this step is what says so before it is attached.
+          set -eu
+          "./target/${{ matrix.target }}/release/ahk" --surface | tail -n 1
+          echo 'FileAppend "release", "*"' | "./target/${{ matrix.target }}/release/ahk" | grep -q '"output":\["release"\]'
+          echo ">> the binary runs"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    # A tag publishes. A dispatch builds the assets and stops: it is for the
+    # run that wants to see whether a platform still builds.
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: .dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: .dist/*
+          fail_on_unmatched_files: true

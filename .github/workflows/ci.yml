@@ -1,0 +1,119 @@
+---
+name: CI
+
+# Gate every push and every pull request the way the repository is meant to be
+# gated: the workspace stays warning-free, the suite passes on the three
+# systems it is written to build on, and the crate that does no I/O still
+# builds without the standard library.
+#
+# The workflow is the one of the sibling `rgx` tree, cut to the jobs this
+# workspace has.
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+
+# The least the workflow needs, and nothing more. The checkout reads the
+# tree; no job here writes a release, a package or a comment. A step that
+# wanted to push, tag or publish would fail here rather than do it by
+# accident -- which is the point of the line.
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: ${{ matrix.os }}
+    # The gate runs for the owner and for the collaborators, and for nobody
+    # else. The repository is public, so the pull requests come from
+    # strangers, and this job is three operating systems: every one of them
+    # would spend the owner's minutes on code the owner never asked for. The
+    # repository's settings hold such a pull request for approval; this is
+    # the half that survives an approval given by accident.
+    #
+    # `author_association` says who opened the pull request. OWNER, MEMBER
+    # and COLLABORATOR are the ones with a key to the tree; CONTRIBUTOR,
+    # FIRST_TIME_CONTRIBUTOR and NONE are the strangers. A push is not
+    # gated: only someone with write access can push, and that someone is a
+    # collaborator by definition.
+    #
+    # The expression is on one line on purpose: a YAML folded scalar does not
+    # fold a line that is indented further than the first, and a newline
+    # inside an expression is not an expression the runner reads.
+    if: github.event_name != 'pull_request' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # `rustfmt` is not part of the gate: the tree is written compactly,
+          # the formatter would rewrite it, and there is no `rustfmt.toml` to
+          # say so. Only clippy is asked for here.
+          components: clippy
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: test
+        run: cargo test --workspace
+
+      # The surface of both dialects is what the tree promises, and the
+      # parity test reads it. This step is the number a reader of a release
+      # can compare against, and it fails the gate if the tree stops
+      # answering a name it carried.
+      - name: surface (v2 and v1)
+        shell: bash
+        run: |
+          set -eu
+          build=target/debug/ahk
+          [ -f "$build" ] || build=target/debug/ahk.exe
+          "$build" --surface | tail -n 1
+          "$build" --surface --dialect=v1 | tail -n 1
+          "$build" --surface --json > /dev/null
+          "$build" --surface --dialect=v1 --json > /dev/null
+
+  # The language crate does no I/O of its own, and it must keep building for
+  # a host that has no operating system at all. The build is the proof: a
+  # dependency that reaches for `std` -- directly, or through a feature
+  # someone forgot was on -- has nothing to link on that target and fails
+  # here and nowhere else.
+  no-std:
+    name: no-std (${{ matrix.target }})
+    # The same gate as the job above: the owner and the collaborators, and
+    # nobody else.
+    if: github.event_name != 'pull_request' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # The target of the notes is the one the manual names; the one with
+        # no architecture under it is the strictest of them and catches a
+        # `std` that the other one would still find a way to link.
+        target: [thumbv7em-none-eabihf, x86_64-unknown-none]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+
+      - name: build (no-std)
+        run: cargo build -p ahk --no-default-features --target ${{ matrix.target }}
