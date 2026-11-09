@@ -826,6 +826,10 @@ mod tests {
         assert_eq!(number, 8);
     }
 
+    // The loader is the one of the platform, and a platform with no
+    // trampoline has none: the call is refused before a library is asked for,
+    // which is the answer of the machine and not of a missing file.
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     #[test]
     fn a_library_that_is_not_there_fails() {
         let error = run(
@@ -837,6 +841,25 @@ mod tests {
         .expect_err("it fails");
         assert_eq!(error.reason, "Failed to load DLL.");
         assert_eq!(error.kind, ahk::dll::NativeFailureKind::NoLibrary);
+    }
+
+    /// A machine that has no trampoline says so, and not that a file is
+    /// missing: the answer is the reason of the machine.
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    #[test]
+    fn a_machine_that_cannot_make_a_native_call_says_so() {
+        let error = run(
+            "ahk-no-such-library",
+            "anything",
+            NativeType::Int,
+            Vec::new(),
+        )
+        .expect_err("it fails");
+        assert!(
+            error.reason.contains("cannot make a native call"),
+            "the reason is {:?}",
+            error.reason
+        );
     }
 
     #[cfg(any(target_os = "windows", target_os = "linux"))]
