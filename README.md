@@ -345,3 +345,13 @@ design and measurement records of the port.
 ## License
 
 Apache 2.0. The text is in `LICENSE`, and every crate manifest says the same.
+
+## Star history
+
+<a href="https://star-history.com/#danalec/ahk&Date">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=danalec/ahk&type=Date&theme=dark">
+<source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=danalec/ahk&type=Date">
+<img alt="Star History Chart" src="https://api.star-history.com/svg?repos=danalec/ahk&type=Date">
+</picture>
+</a>
