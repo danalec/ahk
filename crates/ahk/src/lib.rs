@@ -114,6 +114,7 @@ pub mod files;
 pub mod hotkeys;
 pub mod keys;
 pub mod lexer;
+pub mod math;
 pub mod parser;
 pub mod pictures;
 pub mod regex;

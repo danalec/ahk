@@ -626,7 +626,7 @@ fn open_device(path: &Path) -> Result<File, String> {
         .read(true)
         // The device is not blocking: the watcher asks it for the events
         // that are there and comes back.
-        .custom_flags(libc::O_NONBLOCK)
+        .custom_flags(crate::sys::O_NONBLOCK)
         .open(path)
         .map_err(|error| format!("the keyboard of this box cannot be read: {error}"))
 }

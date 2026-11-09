@@ -165,19 +165,38 @@ fn step_of(from: i64, to: i64, index: usize, steps: usize) -> i64 {
 }
 
 /// The pointer device could not be created or driven.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum PointerError {
-    #[error("the absolute pointer is a Linux uinput device; this is not Linux")]
     NotLinux,
-    #[error("cannot open /dev/uinput: {0}. The user needs to be in the `input` group.")]
     CannotOpen(String),
-    #[error("ioctl 0x{0:x} failed: {1}")]
     Ioctl(u64, String),
-    #[error("UI_DEV_SETUP failed: {0}")]
     Setup(String),
-    #[error("the pointer is not open")]
     Closed,
 }
+
+impl std::fmt::Display for PointerError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PointerError::NotLinux => {
+                write!(
+                    formatter,
+                    "the absolute pointer is a Linux uinput device; this is not Linux"
+                )
+            }
+            PointerError::CannotOpen(reason) => write!(
+                formatter,
+                "cannot open /dev/uinput: {reason}. The user needs to be in the `input` group."
+            ),
+            PointerError::Ioctl(request, reason) => {
+                write!(formatter, "ioctl 0x{request:x} failed: {reason}")
+            }
+            PointerError::Setup(reason) => write!(formatter, "UI_DEV_SETUP failed: {reason}"),
+            PointerError::Closed => write!(formatter, "the pointer is not open"),
+        }
+    }
+}
+
+impl std::error::Error for PointerError {}
 
 /// A pointer that reports screen pixels.
 pub struct Pointer {
@@ -393,17 +412,17 @@ impl Pointer {
         use std::os::unix::io::AsRawFd;
 
         let fd = self.file.as_raw_fd();
-        self.ioctl(abi::UI_SET_EVBIT, abi::EV_KEY as libc::c_int)?;
-        self.ioctl(abi::UI_SET_EVBIT, abi::EV_ABS as libc::c_int)?;
-        self.ioctl(abi::UI_SET_EVBIT, abi::EV_SYN as libc::c_int)?;
+        self.ioctl(abi::UI_SET_EVBIT, abi::EV_KEY as crate::sys::Int)?;
+        self.ioctl(abi::UI_SET_EVBIT, abi::EV_ABS as crate::sys::Int)?;
+        self.ioctl(abi::UI_SET_EVBIT, abi::EV_SYN as crate::sys::Int)?;
         for code in [abi::BTN_LEFT, abi::BTN_RIGHT, abi::BTN_MIDDLE] {
-            self.ioctl(abi::UI_SET_KEYBIT, code as libc::c_int)?;
+            self.ioctl(abi::UI_SET_KEYBIT, code as crate::sys::Int)?;
         }
         for code in [abi::ABS_X, abi::ABS_Y] {
-            self.ioctl(abi::UI_SET_ABSBIT, code as libc::c_int)?;
+            self.ioctl(abi::UI_SET_ABSBIT, code as crate::sys::Int)?;
         }
         // This is the bit that makes libinput treat the node as a pointer.
-        self.ioctl(abi::UI_SET_PROPBIT, abi::INPUT_PROP_DIRECT as libc::c_int)?;
+        self.ioctl(abi::UI_SET_PROPBIT, abi::INPUT_PROP_DIRECT as crate::sys::Int)?;
 
         // struct uinput_setup { struct input_id id; char name[80]; __u32 ff_effects_max; }
         let mut setup = [0u8; abi::UINPUT_SETUP_SIZE];
@@ -413,7 +432,7 @@ impl Pointer {
         setup[6..8].copy_from_slice(&0x0001u16.to_ne_bytes());
         let name = DEVICE_NAME.as_bytes();
         setup[8..8 + name.len()].copy_from_slice(name);
-        let result = unsafe { libc::ioctl(fd, abi::UI_DEV_SETUP, setup.as_ptr()) };
+        let result = unsafe { crate::sys::ioctl(fd, abi::UI_DEV_SETUP, setup.as_ptr() as *mut _) };
         if result < 0 {
             return Err(PointerError::Setup(
                 std::io::Error::last_os_error().to_string(),
@@ -431,7 +450,7 @@ impl Pointer {
             abs_setup[4..8].copy_from_slice(&0i32.to_ne_bytes());
             abs_setup[8..12].copy_from_slice(&0i32.to_ne_bytes());
             abs_setup[12..16].copy_from_slice(&maximum.to_ne_bytes());
-            unsafe { libc::ioctl(fd, abi::UI_ABS_SETUP, abs_setup.as_ptr()) };
+            unsafe { crate::sys::ioctl(fd, abi::UI_ABS_SETUP, abs_setup.as_ptr() as *mut _) };
         }
 
         self.ioctl(abi::UI_DEV_CREATE, 0)?;
@@ -439,9 +458,9 @@ impl Pointer {
     }
 
     #[cfg(target_os = "linux")]
-    fn ioctl(&self, request: u64, argument: libc::c_int) -> Result<(), PointerError> {
+    fn ioctl(&self, request: u64, argument: crate::sys::Int) -> Result<(), PointerError> {
         let fd = self.file.as_raw_fd();
-        let result = unsafe { libc::ioctl(fd, request, argument) };
+        let result = unsafe { crate::sys::ioctl_number(fd, request, argument) };
         if result < 0 {
             return Err(PointerError::Ioctl(
                 request,
@@ -495,10 +514,10 @@ fn button_code(button: &str) -> u16 {
 
 /// Read one absolute axis, through `EVIOCGABS`.
 #[cfg(target_os = "linux")]
-fn read_axis(fd: libc::c_int, request: u64) -> Result<i64, PointerError> {
+fn read_axis(fd: crate::sys::Int, request: u64) -> Result<i64, PointerError> {
     // struct input_absinfo { __s32 value; __s32 minimum; __s32 maximum; __s32 fuzz; __s32 flat; __s32 resolution; }
     let mut info = [0i32; 6];
-    let result = unsafe { libc::ioctl(fd, request, info.as_mut_ptr()) };
+    let result = unsafe { crate::sys::ioctl(fd, request, info.as_mut_ptr() as *mut _) };
     if result < 0 {
         return Err(PointerError::Ioctl(
             request,
@@ -513,7 +532,7 @@ fn open_uinput() -> Result<File, PointerError> {
     use std::os::unix::fs::OpenOptionsExt;
     std::fs::OpenOptions::new()
         .write(true)
-        .custom_flags(libc::O_NONBLOCK)
+        .custom_flags(crate::sys::O_NONBLOCK)
         .open("/dev/uinput")
         .map_err(|error| PointerError::CannotOpen(error.to_string()))
 }

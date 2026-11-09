@@ -661,7 +661,12 @@ mod tests {
     //! libraries of the machine, and they are the ones that say whether
     //! the shape of the call is right.
 
-    use super::{Libraries, NativeType, NativeValue, call};
+    use super::{Libraries, NativeType, call};
+    // The cases below make real calls through the trampoline of x64, and a
+    // machine that has no trampoline has no cases to compile: the value of
+    // the answer is named only where an answer is asked for.
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    use super::NativeValue;
     use ahk::dll::{Convention, NativeArg, NativeCall, NativeFailure, NativeResult};
 
     /// A library that is on the machine, whatever the machine is.

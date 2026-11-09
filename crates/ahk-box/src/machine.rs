@@ -46,8 +46,7 @@ pub fn computer_name() -> Result<String, String> {
 #[cfg(target_os = "linux")]
 fn the_name_of_the_machine() -> Option<String> {
     let mut buffer = [0u8; 256];
-    let asked =
-        unsafe { libc::gethostname(buffer.as_mut_ptr() as *mut libc::c_char, buffer.len()) };
+    let asked = crate::sys::gethostname(&mut buffer);
     if asked != 0 {
         return None;
     }
@@ -148,7 +147,7 @@ fn the_locale_of_the_system() -> Option<String> {
 pub fn is_admin() -> Result<bool, String> {
     #[cfg(target_os = "linux")]
     {
-        Ok(unsafe { libc::geteuid() == 0 })
+        Ok(crate::sys::geteuid() == 0)
     }
     #[cfg(not(target_os = "linux"))]
     {

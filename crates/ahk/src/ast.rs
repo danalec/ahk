@@ -5,10 +5,9 @@ use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use serde::Serialize;
 
 /// A value written in the script.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LiteralValue {
     /// A whole number: `42`, `0x1F`.
     ///
@@ -37,7 +36,7 @@ pub enum LiteralValue {
 }
 
 /// The operators with one side.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
     /// `!`, the logical not.
     Not,
@@ -72,7 +71,7 @@ pub enum UnaryOp {
 }
 
 /// The operators with two sides.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
     /// `+`.
     Add,
@@ -129,7 +128,7 @@ pub enum BinaryOp {
 }
 
 /// The kind of a declaration of v2.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeclareKind {
     /// `global`: the name lives in the scope of the script.
     Global,
@@ -156,7 +155,7 @@ impl DeclareKind {
 }
 
 /// A name of a declaration, and the value it starts with.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Declared {
     /// The name of the variable.
     pub name: String,
@@ -171,7 +170,7 @@ pub struct Declared {
 /// v2 reads them when the script is read: a declaration inside a block
 /// takes effect for the whole function, and only the value of the
 /// declaration waits for the statement that carries it.
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Declarations {
     /// The names that live in the scope of the script.
     pub globals: BTreeSet<String>,
@@ -185,7 +184,7 @@ pub struct Declarations {
 }
 
 /// The definition of a method.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MethodDef {
     /// The name of the method.
     pub name: String,
@@ -208,7 +207,7 @@ pub struct MethodDef {
 }
 
 /// The definition of a property.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PropertyDef {
     /// The name of the property.
     pub name: String,
@@ -221,7 +220,7 @@ pub struct PropertyDef {
 }
 
 /// The body of a getter or of a setter.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AccessBody {
     /// What the body does.
     pub body: Vec<Node>,
@@ -240,7 +239,7 @@ pub struct AccessBody {
 /// Measured on the binary of v2.0.19 on 2026-10-31: a class may declare a
 /// property with a getter and a setter, and the property is a member of the
 /// prototype of the class.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AccessDef {
     /// The name of the property.
     pub name: String,
@@ -261,7 +260,7 @@ pub struct AccessDef {
 /// The plain loop counts; the others walk something: the files of a
 /// directory, the lines of a file, the pieces of a text, the keys of a
 /// registry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoopKind {
     /// `Loop 3 { }`: the body runs the number of times that is asked for.
     Count,
@@ -276,7 +275,7 @@ pub enum LoopKind {
 }
 
 /// The assignment operators.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssignOp {
     /// `:=`.
     Set,
@@ -314,7 +313,7 @@ pub enum AssignOp {
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-01: the branch of an `if` is
 /// written with two words, and the `elseif` is a name like any other.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Branch {
     /// The condition.
     pub condition: Node,
@@ -332,7 +331,7 @@ pub struct Branch {
 }
 
 /// One `Case` of a `Switch`.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Case {
     /// The values to match; an empty list is the `Default`, which matches
     /// whatever no other case matched.
@@ -348,7 +347,7 @@ pub struct Case {
 ///
 /// The class says what the catch takes: the class of the errors of the
 /// runtime when the catch names none, and `any` takes everything.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Catch {
     /// The class of the value that the catch takes.
     pub class: String,
@@ -363,7 +362,7 @@ pub struct Catch {
 /// Measured on the binary of v2.0.19 on 2026-10-31: the name of the dynamic
 /// variable reference is the text that is written and the values of the
 /// expressions, joined without a space between them.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DynamicPiece {
     /// The text that is written.
     Text(String),
@@ -376,7 +375,7 @@ pub enum DynamicPiece {
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: `m.%x%` is the member
 /// whose name is the value of `x`.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MemberName {
     /// The name that is written.
     Text(String),
@@ -400,7 +399,7 @@ impl PartialEq<str> for MemberName {
 /// be even: the key of a property and its value are two, and a parameter
 /// that is in blank is one. A parameter that has no name is a value that is
 /// evaluated, and it is dropped: the `{, 1}` is an object of no property.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ObjectItem {
     /// A property: the name of it and the value.
     Property(MemberName, Node),
@@ -419,8 +418,7 @@ pub enum ObjectItem {
 }
 
 /// One node of the tree.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Node {
     /// A value.
     Literal { value: LiteralValue, line: u32 },
@@ -876,7 +874,7 @@ pub enum Node {
 /// `Name(a, rest*)` -- and it may carry the ByRef marker of v2 --
 /// `Name(a, &b)` -- which says that the caller must pass a reference and
 /// that the parameter is an alias of the variable of the caller.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
     /// The name of the parameter.
     pub name: String,
@@ -954,7 +952,7 @@ impl Node {
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
 /// `between` carries the two bounds, and the `in` and the `contains` carry
 /// the items of the list.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LegacyForm {
     /// `between`: the texts are the low bound and the high bound.
     Between,
@@ -969,8 +967,7 @@ pub enum LegacyForm {
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter that
 /// wants a number is an expression -- the `Sleep, 100+50` waits for a
 /// hundred and fifty milliseconds -- and the others are texts.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LegacyParameter {
     /// The text of the parameter, with the substitution of the v1.
     Text(String),

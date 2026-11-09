@@ -18,6 +18,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use ahk_cli::{json, report};
+
 use ahk::dialect::{self, Dialect};
 use ahk::parse_with;
 use ahk::runtime::Runtime;
@@ -107,15 +109,7 @@ fn main() -> std::process::ExitCode {
     let source = match resolve_includes(&source, Path::new("."), &mut Vec::new()) {
         Ok(source) => source,
         Err(error) => {
-            let report = serde_json::json!({
-                "ok": false,
-                "error": error,
-                "error_line": 0,
-                "column": 0,
-                "steps": [],
-                "output": [],
-                "notes": [],
-            });
+            let report = report::the_failure_of_the_load(&error, 0, 0);
             println!("{report}");
             return std::process::ExitCode::from(2);
         }
@@ -124,15 +118,7 @@ fn main() -> std::process::ExitCode {
     let statements = match parse_with(&source, dialect) {
         Ok(statements) => statements,
         Err(error) => {
-            let report = serde_json::json!({
-                "ok": false,
-                "error": error.message,
-                "error_line": error.line,
-                "column": error.column,
-                "steps": [],
-                "output": [],
-                "notes": [],
-            });
+            let report = report::the_failure_of_the_load(&error.message, error.line, error.column);
             println!("{report}");
             return std::process::ExitCode::from(2);
         }
@@ -174,16 +160,10 @@ fn main() -> std::process::ExitCode {
                 .with_source(&source)
                 .with_dialect(dialect)
                 .run(&statements);
-            let mut payload = serde_json::to_value(&report).expect("the report serialises");
-            if let Some(map) = payload.as_object_mut() {
-                // The notes of the runtime come first, and the notes of the
-                // box are added to them: a host that wrote a note of its own
-                // keeps it. The X11 desktop keeps its own notes too.
-                let mut notes = report.notes.clone();
+            let mut notes = report.notes.clone();
                 notes.extend(lab_desktop.notes().iter().cloned());
-                map.insert("notes".to_string(), serde_json::json!(notes));
-            }
-            (payload.to_string(), report.ok)
+                let payload = report::the_report(&report, &notes);
+                (payload, report.ok)
         })
         .expect("the thread of the run starts");
     let (payload, ok) = match handle.join() {
@@ -251,40 +231,40 @@ fn print_surface(dialect: &'static dyn Dialect) {
 fn print_surface_json(dialect: &'static dyn Dialect) {
     let entries = surface::entries_of(dialect);
     let summary = surface::summary_of(&entries, dialect);
-    let names: Vec<serde_json::Value> = entries
-        .iter()
-        .map(|entry| {
-            let mut row = serde_json::json!({
-                "name": entry.name,
-                "kind": entry.kind.as_str(),
-                "state": match entry.state {
+    let mut report = json::Object::new(64 * 1024);
+    report.text("dialect", summary.dialect);
+    report.number("total", summary.total as i64);
+    report.number("values", summary.values as i64);
+    report.number("refusals", summary.refusals as i64);
+    report.number("pending", summary.pending as i64);
+    report.field("entries", |out| {
+        out.push('[');
+        for (index, entry) in entries.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            let mut row = json::Object::new(96);
+            row.text("name", entry.name);
+            row.text("kind", entry.kind.as_str());
+            row.text(
+                "state",
+                match entry.state {
                     surface::State::Value => "value",
                     surface::State::Refusal(_) => "refusal",
                     surface::State::Pending(_) => "pending",
                 },
-            });
+            );
             if !entry.class.is_empty() {
-                row["class"] = serde_json::json!(entry.class);
+                row.text("class", entry.class);
             }
-            let reason = match entry.state {
-                surface::State::Value => None,
-                surface::State::Refusal(reason) | surface::State::Pending(reason) => Some(reason),
-            };
-            if let Some(reason) = reason {
-                row["reason"] = serde_json::json!(reason);
+            if let surface::State::Refusal(reason) | surface::State::Pending(reason) = entry.state {
+                row.text("reason", reason);
             }
-            row
-        })
-        .collect();
-    let report = serde_json::json!({
-        "dialect": summary.dialect,
-        "total": summary.total,
-        "values": summary.values,
-        "refusals": summary.refusals,
-        "pending": summary.pending,
-        "entries": names,
+            out.push_str(&row.finish());
+        }
+        out.push(']');
     });
-    println!("{report}");
+    println!("{}", report.finish());
 }
 
 /// The source with the includes put in place of the lines that ask for

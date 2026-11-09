@@ -39,7 +39,6 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::time::Duration;
 
-use serde::Serialize;
 
 use alloc::rc::Rc;
 use core::cell::RefCell;
@@ -559,7 +558,7 @@ pub(crate) const CLASS_NAME: &str = "class name";
 /// closure is seen by the scope it closes over.
 type ScopeTable = Rc<RefCell<BTreeMap<String, Value>>>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scope {
     /// The global scope of the script.
     Global,
@@ -570,7 +569,7 @@ pub enum Scope {
 /// A reference to a variable: `&x`.
 ///
 /// The reference is a value of its own kind, and v2 names it a VarRef.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Reference {
     /// The name of the variable.
     pub name: String,
@@ -591,8 +590,7 @@ pub struct Reference {
 /// AutoHotkey v2 has no boolean: `true` is the integer 1 and `false` is
 /// the integer 0. The tree keeps no boolean either, so that the tag on
 /// the value is one of the kinds v2 has.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     /// A whole number.
     Int(i64),
@@ -616,7 +614,7 @@ pub enum Value {
 }
 
 /// An object: an instance of a class.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Object {
     /// The name of the class the object is an instance of.
     pub class: String,
@@ -629,7 +627,7 @@ pub struct Object {
 }
 
 /// A property of an object: the name as the script wrote it, and the value.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Property {
     /// The name of the property, as the script wrote it.
     pub name: String,
@@ -851,19 +849,35 @@ impl Value {
 }
 
 /// A statement failed.
-#[derive(Debug, thiserror::Error)]
-#[error("{message} (line {line})")]
+#[derive(Debug)]
 pub struct RuntimeError {
     pub message: String,
     pub line: u32,
 }
 
+impl core::fmt::Display for RuntimeError {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(formatter, "{} (line {})", self.message, self.line)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for RuntimeError {}
+
 /// The script ran for longer than the caller allowed.
-#[derive(Debug, thiserror::Error)]
-#[error("the script ran for more than {seconds}s")]
+#[derive(Debug)]
 pub struct Timeout {
     pub seconds: f64,
 }
+
+impl core::fmt::Display for Timeout {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(formatter, "the script ran for more than {}s", self.seconds)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for Timeout {}
 
 /// The clock the runtime measures itself with, and waits on.
 ///
@@ -964,7 +978,7 @@ impl ClockSource<'_> {
 }
 
 /// What one statement did.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Step {
     pub line: u32,
     pub op: String,
@@ -974,7 +988,7 @@ pub struct Step {
 }
 
 /// The whole run: the steps, the output, and whether it finished.
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default)]
 pub struct Report {
     pub ok: bool,
     pub steps: Vec<Step>,
@@ -12693,8 +12707,8 @@ impl<'a> Runtime<'a> {
 // -- the arithmetic -------------------------------------------------------------
 //
 // `f64::sqrt` and its neighbours live in `std`: they call the platform's
-// libm. A target with no `std` gets the same numbers from `libm`, a
-// pure-Rust implementation, so the language answers the same on both.
+// library. A target with no `std` takes the same numbers from `math`, the
+// same maths in this crate, so the language answers the same on both.
 
 /// The square root of `value`.
 #[cfg(feature = "std")]
@@ -12705,7 +12719,7 @@ pub(crate) fn sqrt(value: f64) -> f64 {
 /// The square root of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn sqrt(value: f64) -> f64 {
-    libm::sqrt(value)
+    crate::math::sqrt(value)
 }
 
 /// The largest whole number that is not greater than `value`.
@@ -12717,7 +12731,7 @@ pub(crate) fn floor(value: f64) -> f64 {
 /// The largest whole number that is not greater than `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn floor(value: f64) -> f64 {
-    libm::floor(value)
+    crate::math::floor(value)
 }
 
 /// The smallest whole number that is not less than `value`.
@@ -12729,7 +12743,7 @@ pub(crate) fn ceil(value: f64) -> f64 {
 /// The smallest whole number that is not less than `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn ceil(value: f64) -> f64 {
-    libm::ceil(value)
+    crate::math::ceil(value)
 }
 
 /// `value` rounded to the nearest whole number, halves away from zero.
@@ -12741,12 +12755,12 @@ pub(crate) fn round(value: f64) -> f64 {
 /// `value` rounded to the nearest whole number, halves away from zero.
 #[cfg(not(feature = "std"))]
 pub(crate) fn round(value: f64) -> f64 {
-    libm::round(value)
+    crate::math::round(value)
 }
 
 /// The power of two numbers.
 ///
-/// The same shape as the square root: `std` has it, and `libm` has it
+/// The same shape as the square root: `std` has it, and `math` has it
 /// for a target that has no `std`.
 #[cfg(feature = "std")]
 pub(crate) fn powf(base: f64, exponent: f64) -> f64 {
@@ -12756,7 +12770,7 @@ pub(crate) fn powf(base: f64, exponent: f64) -> f64 {
 /// The power of two numbers.
 #[cfg(not(feature = "std"))]
 pub(crate) fn powf(base: f64, exponent: f64) -> f64 {
-    libm::pow(base, exponent)
+    crate::math::pow(base, exponent)
 }
 
 /// The arc cosine of `value`.
@@ -12768,7 +12782,7 @@ pub(crate) fn acos(value: f64) -> f64 {
 /// The arc cosine of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn acos(value: f64) -> f64 {
-    libm::acos(value)
+    crate::math::acos(value)
 }
 
 /// The arc sine of `value`.
@@ -12780,7 +12794,7 @@ pub(crate) fn asin(value: f64) -> f64 {
 /// The arc sine of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn asin(value: f64) -> f64 {
-    libm::asin(value)
+    crate::math::asin(value)
 }
 
 /// The arc tangent of `value`.
@@ -12792,7 +12806,7 @@ pub(crate) fn atan(value: f64) -> f64 {
 /// The arc tangent of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn atan(value: f64) -> f64 {
-    libm::atan(value)
+    crate::math::atan(value)
 }
 
 /// The cosine of `value`.
@@ -12804,7 +12818,7 @@ pub(crate) fn cos(value: f64) -> f64 {
 /// The cosine of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn cos(value: f64) -> f64 {
-    libm::cos(value)
+    crate::math::cos(value)
 }
 
 /// The sine of `value`.
@@ -12816,7 +12830,7 @@ pub(crate) fn sin(value: f64) -> f64 {
 /// The sine of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn sin(value: f64) -> f64 {
-    libm::sin(value)
+    crate::math::sin(value)
 }
 
 /// The tangent of `value`.
@@ -12828,7 +12842,7 @@ pub(crate) fn tan(value: f64) -> f64 {
 /// The tangent of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn tan(value: f64) -> f64 {
-    libm::tan(value)
+    crate::math::tan(value)
 }
 
 /// The exponential of `value`.
@@ -12840,7 +12854,7 @@ pub(crate) fn exp(value: f64) -> f64 {
 /// The exponential of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn exp(value: f64) -> f64 {
-    libm::exp(value)
+    crate::math::exp(value)
 }
 
 /// The natural logarithm of `value`.
@@ -12852,7 +12866,7 @@ pub(crate) fn ln(value: f64) -> f64 {
 /// The natural logarithm of `value`.
 #[cfg(not(feature = "std"))]
 pub(crate) fn ln(value: f64) -> f64 {
-    libm::log(value)
+    crate::math::ln(value)
 }
 
 /// The logarithm of `value` in base ten.
@@ -12864,7 +12878,7 @@ pub(crate) fn log10(value: f64) -> f64 {
 /// The logarithm of `value` in base ten.
 #[cfg(not(feature = "std"))]
 pub(crate) fn log10(value: f64) -> f64 {
-    libm::log10(value)
+    crate::math::log10(value)
 }
 
 /// The fractional part of `value`: it keeps the sign of the value.
@@ -12876,7 +12890,7 @@ pub(crate) fn fract(value: f64) -> f64 {
 /// The fractional part of `value`: it keeps the sign of the value.
 #[cfg(not(feature = "std"))]
 pub(crate) fn fract(value: f64) -> f64 {
-    value - libm::trunc(value)
+    value - crate::math::trunc(value)
 }
 
 /// The whole part of `value`: the number without its fraction.
@@ -12888,7 +12902,7 @@ fn trunc(value: f64) -> f64 {
 /// The whole part of `value`: the number without its fraction.
 #[cfg(not(feature = "std"))]
 fn trunc(value: f64) -> f64 {
-    libm::trunc(value)
+    crate::math::trunc(value)
 }
 
 /// `value` raised to a whole power.

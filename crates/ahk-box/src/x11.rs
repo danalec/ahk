@@ -1207,17 +1207,15 @@ impl Screen for X11Desktop {
         } else {
             filename.to_string()
         };
-        let file = std::fs::File::create(&path)
+        let mut file = std::fs::File::create(&path)
             .map_err(|error| format!("the capture {path:?} cannot be written: {error}"))?;
-        let mut encoder = png::Encoder::new(file, w, h);
-        encoder.set_color(png::ColorType::Rgb);
-        encoder.set_depth(png::BitDepth::Eight);
-        let mut writer = encoder
-            .write_header()
-            .map_err(|error| format!("the PNG header of {path:?} cannot be written: {error}"))?;
-        writer
-            .write_image_data(&rgb)
-            .map_err(|error| format!("the pixels of {path:?} cannot be written: {error}"))?;
+        // The reader of the box writes the file too: one implementation of
+        // the format, and the same CRC that a capture written here is read
+        // with by the other backend.
+        let picture = crate::picture::write_rgb(w as usize, h as usize, &rgb)
+            .map_err(|reason| format!("the capture {path:?} cannot be written: {reason}"))?;
+        std::io::Write::write_all(&mut file, &picture)
+            .map_err(|error| format!("the capture {path:?} cannot be written: {error}"))?;
         Ok(path)
     }
 

@@ -20,7 +20,6 @@ use alloc::vec::Vec;
 
 use crate::ast::Node;
 use crate::dialect::Dialect;
-use serde::Serialize;
 
 /// The type of a warning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -190,7 +189,7 @@ pub fn the_name_of_the_type(kind: WarningType) -> &'static str {
 }
 
 /// A warning of the script.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Warning {
     /// The line of the script that the warning names.
     pub line: u32,

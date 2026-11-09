@@ -53,14 +53,43 @@ use crate::native::Libraries;
 use crate::pointer::{PRESS_SETTLE, Pointer, PointerError};
 
 /// A primitive could not be carried out.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum BoxError {
-    #[error("{0}")]
     Failed(String),
-    #[error("the keyboard: {0}")]
-    Keyboard(#[from] KeyboardError),
-    #[error("the pointer: {0}")]
-    Pointer(#[from] PointerError),
+    Keyboard(KeyboardError),
+    Pointer(PointerError),
+}
+
+impl std::fmt::Display for BoxError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BoxError::Failed(reason) => write!(formatter, "{reason}"),
+            BoxError::Keyboard(reason) => write!(formatter, "the keyboard: {reason}"),
+            BoxError::Pointer(reason) => write!(formatter, "the pointer: {reason}"),
+        }
+    }
+}
+
+impl std::error::Error for BoxError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            BoxError::Failed(_) => None,
+            BoxError::Keyboard(reason) => Some(reason),
+            BoxError::Pointer(reason) => Some(reason),
+        }
+    }
+}
+
+impl From<KeyboardError> for BoxError {
+    fn from(reason: KeyboardError) -> BoxError {
+        BoxError::Keyboard(reason)
+    }
+}
+
+impl From<PointerError> for BoxError {
+    fn from(reason: PointerError) -> BoxError {
+        BoxError::Pointer(reason)
+    }
 }
 
 /// The lab box, as the runtime sees it.
@@ -298,7 +327,7 @@ fn announced_codes() -> Vec<u16> {
 fn uid() -> Option<u32> {
     #[cfg(unix)]
     {
-        Some(unsafe { libc::getuid() })
+        Some(crate::sys::getuid())
     }
     #[cfg(not(unix))]
     {
@@ -1627,66 +1656,23 @@ fn image_size(path: &Path) -> Option<(i64, i64)> {
 
 /// Read the colour of the first pixel of a PNG, as `#rrggbb`.
 fn read_pixel(path: &str) -> Result<String, String> {
-    let file = std::fs::File::open(Path::new(path)).map_err(|error| error.to_string())?;
-    let decoder = png::Decoder::new(std::io::BufReader::new(file));
-    let mut reader = decoder.read_info().map_err(|error| error.to_string())?;
-    let mut buffer = vec![0u8; reader.output_buffer_size()];
-    let info = reader
-        .next_frame(&mut buffer)
-        .map_err(|error| error.to_string())?;
-    if info.width == 0 || info.height == 0 {
-        return Err("the capture is empty".to_string());
-    }
-    let bytes = &buffer[..info.buffer_size()];
-    let (red, green, blue) = match info.color_type {
-        png::ColorType::Rgb => (bytes[0], bytes[1], bytes[2]),
-        png::ColorType::Rgba => (bytes[0], bytes[1], bytes[2]),
-        png::ColorType::Grayscale => (bytes[0], bytes[0], bytes[0]),
-        png::ColorType::GrayscaleAlpha => (bytes[0], bytes[0], bytes[0]),
-        png::ColorType::Indexed => {
-            let palette = reader.info().palette.as_ref().ok_or("no palette")?;
-            let index = bytes[0] as usize * 3;
-            (palette[index], palette[index + 1], palette[index + 2])
-        }
-    };
+    let bytes = std::fs::read(Path::new(path)).map_err(|error| error.to_string())?;
+    let image = crate::picture::read(&bytes)?;
+    let (red, green, blue) = image
+        .colour_at(0, 0)
+        .ok_or_else(|| "the capture is empty".to_string())?;
     Ok(format!("#{red:02x}{green:02x}{blue:02x}"))
 }
 
 /// Find a colour in an image; the position is relative to the image.
 fn search_pixel(path: &str, target: [u8; 3]) -> Option<(i64, i64)> {
-    let file = std::fs::File::open(Path::new(path)).ok()?;
-    let decoder = png::Decoder::new(std::io::BufReader::new(file));
-    let mut reader = decoder.read_info().ok()?;
-    let mut buffer = vec![0u8; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut buffer).ok()?;
-    let width = info.width as usize;
-    let height = info.height as usize;
-    let bytes = &buffer[..info.buffer_size()];
-    let channels = match info.color_type {
-        png::ColorType::Rgb => 3,
-        png::ColorType::Rgba => 4,
-        png::ColorType::Grayscale => 1,
-        png::ColorType::GrayscaleAlpha => 2,
-        png::ColorType::Indexed => 1,
-    };
-    for y in 0..height {
-        for x in 0..width {
-            let offset = (y * width + x) * channels;
-            if offset + channels > bytes.len() {
-                return None;
-            }
-            let (red, green, blue) = match info.color_type {
-                png::ColorType::Rgb => (bytes[offset], bytes[offset + 1], bytes[offset + 2]),
-                png::ColorType::Rgba => (bytes[offset], bytes[offset + 1], bytes[offset + 2]),
-                png::ColorType::Grayscale => (bytes[offset], bytes[offset], bytes[offset]),
-                png::ColorType::GrayscaleAlpha => (bytes[offset], bytes[offset], bytes[offset]),
-                png::ColorType::Indexed => {
-                    let palette = reader.info().palette.as_ref()?;
-                    let index = bytes[offset] as usize * 3;
-                    (palette[index], palette[index + 1], palette[index + 2])
-                }
-            };
-            if (red, green, blue) == (target[0], target[1], target[2]) {
+    let bytes = std::fs::read(Path::new(path)).ok()?;
+    let image = crate::picture::read(&bytes).ok()?;
+    let (want_red, want_green, want_blue) = (target[0], target[1], target[2]);
+    for y in 0..image.height {
+        for x in 0..image.width {
+            let (red, green, blue) = image.colour_at(x, y)?;
+            if red == want_red && green == want_green && blue == want_blue {
                 return Some((x as i64, y as i64));
             }
         }

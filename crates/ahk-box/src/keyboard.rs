@@ -103,17 +103,36 @@ pub const KEY_GAP: Duration = Duration::from_millis(20);
 pub const ENUMERATION_WAIT: Duration = Duration::from_secs(4);
 
 /// The device could not be created or driven.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum KeyboardError {
-    #[error("the keyboard is a Linux uinput device; this is not Linux")]
     NotLinux,
-    #[error("cannot open /dev/uinput: {0}. The user needs to be in the `input` group.")]
     CannotOpen(String),
-    #[error("ioctl 0x{0:x} failed: {1}")]
     Ioctl(u64, String),
-    #[error("UI_DEV_SETUP failed: {0}")]
     Setup(String),
 }
+
+impl std::fmt::Display for KeyboardError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeyboardError::NotLinux => {
+                write!(
+                    formatter,
+                    "the keyboard is a Linux uinput device; this is not Linux"
+                )
+            }
+            KeyboardError::CannotOpen(reason) => write!(
+                formatter,
+                "cannot open /dev/uinput: {reason}. The user needs to be in the `input` group."
+            ),
+            KeyboardError::Ioctl(request, reason) => {
+                write!(formatter, "ioctl 0x{request:x} failed: {reason}")
+            }
+            KeyboardError::Setup(reason) => write!(formatter, "UI_DEV_SETUP failed: {reason}"),
+        }
+    }
+}
+
+impl std::error::Error for KeyboardError {}
 
 /// A keyboard that presses what it is told, once.
 ///
@@ -230,12 +249,12 @@ impl Keyboard {
     #[cfg(target_os = "linux")]
     fn configure(&self) -> Result<(), KeyboardError> {
         let fd = self.file.as_raw_fd();
-        self.ioctl(UI_SET_EVBIT, EV_KEY as libc::c_int)?;
-        self.ioctl(UI_SET_EVBIT, EV_REL as libc::c_int)?;
-        self.ioctl(UI_SET_EVBIT, EV_MSC as libc::c_int)?;
-        self.ioctl(UI_SET_EVBIT, EV_SYN as libc::c_int)?;
+        self.ioctl(UI_SET_EVBIT, EV_KEY as crate::sys::Int)?;
+        self.ioctl(UI_SET_EVBIT, EV_REL as crate::sys::Int)?;
+        self.ioctl(UI_SET_EVBIT, EV_MSC as crate::sys::Int)?;
+        self.ioctl(UI_SET_EVBIT, EV_SYN as crate::sys::Int)?;
         for code in &self.codes {
-            self.ioctl(UI_SET_KEYBIT, *code as libc::c_int)?;
+            self.ioctl(UI_SET_KEYBIT, *code as crate::sys::Int)?;
         }
         // The relative axes and the scan codes are what the working
         // `ydotool` device on this box announces. They are announced for
@@ -245,10 +264,10 @@ impl Keyboard {
         // keys it cannot map -- the key events arrive and are reported
         // with the key code -1, which a client cannot use.
         for code in [REL_X, REL_Y, REL_RY, REL_DIAL] {
-            self.ioctl(UI_SET_RELBIT, code as libc::c_int)?;
+            self.ioctl(UI_SET_RELBIT, code as crate::sys::Int)?;
         }
         for code in [MSC_SCAN, MSC_TIMESTAMP] {
-            self.ioctl(UI_SET_MSCBIT, code as libc::c_int)?;
+            self.ioctl(UI_SET_MSCBIT, code as crate::sys::Int)?;
         }
         // struct uinput_setup { struct input_id id; char name[80]; __u32 ff_effects_max; }
         let mut setup = [0u8; 92];
@@ -258,7 +277,7 @@ impl Keyboard {
         setup[6..8].copy_from_slice(&0x0001u16.to_ne_bytes());
         let name = b"ahk keyboard";
         setup[8..8 + name.len()].copy_from_slice(name);
-        let result = unsafe { libc::ioctl(fd, UI_DEV_SETUP, setup.as_ptr()) };
+        let result = unsafe { crate::sys::ioctl(fd, UI_DEV_SETUP, setup.as_ptr() as *mut _) };
         if result < 0 {
             return Err(KeyboardError::Setup(
                 std::io::Error::last_os_error().to_string(),
@@ -269,9 +288,9 @@ impl Keyboard {
     }
 
     #[cfg(target_os = "linux")]
-    fn ioctl(&self, request: u64, argument: libc::c_int) -> Result<(), KeyboardError> {
+    fn ioctl(&self, request: u64, argument: crate::sys::Int) -> Result<(), KeyboardError> {
         let fd = self.file.as_raw_fd();
-        let result = unsafe { libc::ioctl(fd, request, argument) };
+        let result = unsafe { crate::sys::ioctl_number(fd, request, argument) };
         if result < 0 {
             return Err(KeyboardError::Ioctl(
                 request,
@@ -288,7 +307,7 @@ fn open_uinput() -> Result<File, KeyboardError> {
     use std::os::unix::fs::OpenOptionsExt;
     std::fs::OpenOptions::new()
         .write(true)
-        .custom_flags(libc::O_NONBLOCK)
+        .custom_flags(crate::sys::O_NONBLOCK)
         .open("/dev/uinput")
         .map_err(|error| KeyboardError::CannotOpen(error.to_string()))
 }

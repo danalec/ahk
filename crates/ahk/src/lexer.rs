@@ -10,10 +10,9 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
-use serde::Serialize;
 
 /// What a token is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     /// A name: `Send`, `x`, `invoice`.
     Name,
@@ -43,7 +42,7 @@ pub enum TokenKind {
 }
 
 /// One token, with the place it came from.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     pub value: String,
@@ -265,13 +264,25 @@ fn the_operators_of(dialect: &'static dyn crate::dialect::Dialect) -> Vec<&'stat
 }
 
 /// The script does not parse.
-#[derive(Clone, Debug, thiserror::Error)]
-#[error("{message} (line {line}, column {column})")]
+#[derive(Clone, Debug)]
 pub struct SyntaxError {
     pub message: String,
     pub line: u32,
     pub column: u32,
 }
+
+impl core::fmt::Display for SyntaxError {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            formatter,
+            "{} (line {}, column {})",
+            self.message, self.line, self.column
+        )
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for SyntaxError {}
 
 impl SyntaxError {
     fn new(message: impl Into<String>, line: u32, column: u32) -> Self {

@@ -8,11 +8,6 @@ description = "The lab box as a script target: a uinput keyboard of our own, gri
 
 [dependencies]
 ahk = { workspace = true }
-libc = "0.2"
-png = "0.17"
-serde = { workspace = true }
-serde_json = { workspace = true }
-thiserror = { workspace = true }
 
 # The X11 backend (`src/x11.rs`, Linux and FreeBSD only) adds NO dependency:
 # it declares `dlopen`/`dlsym` by hand in `unsafe extern "C"`, resolves

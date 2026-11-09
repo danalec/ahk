@@ -443,9 +443,17 @@ pub const MODIFIERS: &[(&str, &str)] = &[
 ];
 
 /// A key name that could not be understood.
-#[derive(Debug, thiserror::Error)]
-#[error("unknown key name: {0:?}")]
+#[derive(Debug)]
 pub struct UnknownKey(pub String);
+
+impl core::fmt::Display for UnknownKey {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(formatter, "unknown key name: {:?}", self.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for UnknownKey {}
 
 /// The evdev code for a key name.
 ///

@@ -10,6 +10,10 @@
 //! The `--surface` flag is the other way round: the report is the table
 //! of the names of v2, and there is no script.
 
+mod json_doc;
+
+use json_doc::{Json, field_text};
+
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
@@ -22,7 +26,7 @@ const RUNNER: &str = env!("CARGO_BIN_EXE_ahk");
 const SURFACE: &str = include_str!("../../ahk/reference/ahk-v2.0.19.surface.tsv");
 
 /// Run a script and answer with the exit code and the report.
-fn run(source: &str) -> (i32, serde_json::Value) {
+fn run(source: &str) -> (i32, Json) {
     let mut child = Command::new(RUNNER)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -37,7 +41,7 @@ fn run(source: &str) -> (i32, serde_json::Value) {
         .expect("the script goes in");
     let output = child.wait_with_output().expect("the runner finishes");
     let text = String::from_utf8(output.stdout).expect("the report is utf-8");
-    let report: serde_json::Value = serde_json::from_str(text.trim()).expect("the report is json");
+    let report = Json::parse(text.trim());
     (output.status.code().unwrap_or(-1), report)
 }
 
@@ -45,37 +49,32 @@ fn run(source: &str) -> (i32, serde_json::Value) {
 fn a_script_answers_with_a_report() {
     let (code, report) = run("MsgBox \"hello from the box\"\n");
     assert_eq!(code, 0);
-    assert_eq!(report["ok"], true);
-    assert_eq!(report["output"][0], "hello from the box");
+    assert!(report.boolean("ok"));
+    assert_eq!(report.array("output")[0].as_str(), Some("hello from the box"));
 }
 
 #[test]
 fn a_script_that_does_not_parse_answers_with_the_line() {
     let (code, report) = run("MsgBox \"unterminated\n");
     assert_eq!(code, 2);
-    assert_eq!(report["ok"], false);
-    assert_eq!(report["error_line"], 1);
-    assert!(report["column"].is_number());
+    assert!(!report.boolean("ok"));
+    assert_eq!(report.number("error_line"), 1);
+    assert!(report.get("column").is_number());
 }
 
 #[test]
 fn a_failing_script_answers_with_a_non_zero_exit() {
     let (code, report) = run("x := 1 / 0\n");
     assert_eq!(code, 1);
-    assert_eq!(report["ok"], false);
-    assert_eq!(report["error"], "Divide by zero.");
-    assert_eq!(report["error_line"], 1);
+    assert!(!report.boolean("ok"));
+    assert_eq!(report.text("error"), "Divide by zero.");
+    assert_eq!(report.number("error_line"), 1);
 }
 
 #[test]
 fn the_report_carries_the_fields_the_client_reads() {
     let (_code, report) = run("MsgBox \"hello\"\n");
-    let fields: Vec<&str> = report
-        .as_object()
-        .expect("the report is an object")
-        .keys()
-        .map(String::as_str)
-        .collect();
+    let fields: Vec<&str> = report.names();
     for field in [
         "ok",
         "steps",
@@ -95,7 +94,7 @@ fn the_report_carries_the_fields_the_client_reads() {
 fn the_exit_app_code_is_in_the_report_and_not_in_the_exit_code() {
     let (code, report) = run("ExitApp 3\n");
     assert_eq!(code, 0);
-    assert_eq!(report["exit_code"], 3);
+    assert_eq!(report.number("exit_code"), 3);
 }
 
 #[test]
@@ -217,7 +216,7 @@ fn surface() -> (i32, String) {
 ///
 /// The JSON is for the CI, and it carries the numbers of the summary and
 /// the state of every name.
-fn surface_json(dialect: &str) -> (i32, serde_json::Value) {
+fn surface_json(dialect: &str) -> (i32, Json) {
     let mut child = Command::new(RUNNER)
         .arg("--surface")
         .arg("--json")
@@ -244,7 +243,7 @@ fn surface_json(dialect: &str) -> (i32, serde_json::Value) {
         }
     };
     let status = child.wait().expect("the runner finishes");
-    let report: serde_json::Value = serde_json::from_str(text.trim()).expect("the surface is json");
+    let report = Json::parse(text.trim());
     (status.code().unwrap_or(-1), report)
 }
 
@@ -252,122 +251,118 @@ fn surface_json(dialect: &str) -> (i32, serde_json::Value) {
 fn the_surface_flag_answers_with_json() {
     let (code, report) = surface_json("v2");
     assert_eq!(code, 0);
-    assert_eq!(report["dialect"], "v2");
-    assert_eq!(report["total"], 833);
-    assert_eq!(report["values"], 643);
-    assert_eq!(report["refusals"], 190);
-    assert_eq!(report["pending"], 0);
+    assert_eq!(report.text("dialect"), "v2");
+    assert_eq!(report.number("total"), 833);
+    assert_eq!(report.number("values"), 643);
+    assert_eq!(report.number("refusals"), 190);
+    assert_eq!(report.number("pending"), 0);
 
-    let entries = report["entries"]
-        .as_array()
-        .expect("the entries are a list");
+    let entries = report.array("entries");
     assert_eq!(entries.len(), 833);
     // A name that the tree answers is a value, and a name that the tree
     // refuses carries the reason of the refusal.
     let abs = entries
         .iter()
-        .find(|entry| entry["name"] == "Abs")
+        .find(|entry| field_text(entry, "name") == "Abs")
         .expect("the name is in the report");
-    assert_eq!(abs["kind"], "function");
-    assert_eq!(abs["state"], "value");
+    assert_eq!(field_text(abs, "kind"), "function");
+    assert_eq!(field_text(abs, "state"), "value");
     let windows = entries
         .iter()
-        .find(|entry| entry["name"] == "ControlSendText")
+        .find(|entry| field_text(entry, "name") == "ControlSendText")
         .expect("the name is in the report");
-    assert_eq!(windows["state"], "refusal");
-    assert!(windows["reason"].is_string());
+    assert_eq!(field_text(windows, "state"), "refusal");
+    assert!(windows.get("reason").map(|v| v.is_string()).unwrap_or(false));
 }
 
 #[test]
 fn the_surface_flag_answers_with_the_json_of_the_v1() {
     let (code, report) = surface_json("v1");
     assert_eq!(code, 0);
-    assert_eq!(report["dialect"], "v1");
-    assert_eq!(report["total"], 408);
+    assert_eq!(report.text("dialect"), "v1");
+    assert_eq!(report.number("total"), 408);
     // The names that the v1 has and the v2 does not are carried, and none of
     // them is pending: the surface of the v1 is complete.
-    assert_eq!(report["values"], 301);
-    assert_eq!(report["pending"], 0);
-    let entries = report["entries"]
-        .as_array()
-        .expect("the entries are a list");
+    assert_eq!(report.number("values"), 301);
+    assert_eq!(report.number("pending"), 0);
+    let entries = report.array("entries");
     let is_set = entries
         .iter()
-        .find(|entry| entry["name"] == "IsSet")
+        .find(|entry| field_text(entry, "name") == "IsSet")
         .expect("the name is in the report");
-    assert_eq!(is_set["state"], "value");
+    assert_eq!(field_text(is_set, "state"), "value");
     // The `AutoTrim` is carried: the command turns the trim of the text of a
     // legacy assignment on and off.
     let auto_trim = entries
         .iter()
-        .find(|entry| entry["name"] == "AutoTrim")
+        .find(|entry| field_text(entry, "name") == "AutoTrim")
         .expect("the name is in the report");
-    assert_eq!(auto_trim["state"], "value");
+    assert_eq!(field_text(auto_trim, "state"), "value");
     // The `SetFormat` is carried: the command turns the format of the
     // numbers of the v1.
     let set_format = entries
         .iter()
-        .find(|entry| entry["name"] == "SetFormat")
+        .find(|entry| field_text(entry, "name") == "SetFormat")
         .expect("the name is in the report");
-    assert_eq!(set_format["state"], "value");
+    assert_eq!(field_text(set_format, "state"), "value");
     // The `StringCaseSense` is carried: the command turns the sense of the
     // case of the comparisons on and off.
     let string_case_sense = entries
         .iter()
-        .find(|entry| entry["name"] == "StringCaseSense")
+        .find(|entry| field_text(entry, "name") == "StringCaseSense")
         .expect("the name is in the report");
-    assert_eq!(string_case_sense["state"], "value");
+    assert_eq!(field_text(string_case_sense, "state"), "value");
     // The `Transform` is carried: the command answers the math of the v1.
     let transform = entries
         .iter()
-        .find(|entry| entry["name"] == "Transform")
+        .find(|entry| field_text(entry, "name") == "Transform")
         .expect("the name is in the report");
-    assert_eq!(transform["state"], "value");
+    assert_eq!(field_text(transform, "state"), "value");
     // The `VarSetCapacity` is carried: the function empties the variable of
     // the caller.
     let var_set_capacity = entries
         .iter()
-        .find(|entry| entry["name"] == "VarSetCapacity")
+        .find(|entry| field_text(entry, "name") == "VarSetCapacity")
         .expect("the name is in the report");
-    assert_eq!(var_set_capacity["state"], "value");
+    assert_eq!(field_text(var_set_capacity, "state"), "value");
     // The `IfInString` is carried: the command of the v1 that has a body runs
     // its action when the text of the needle is in the variable.
     let if_in_string = entries
         .iter()
-        .find(|entry| entry["name"] == "IfInString")
+        .find(|entry| field_text(entry, "name") == "IfInString")
         .expect("the name is in the report");
-    assert_eq!(if_in_string["state"], "value");
+    assert_eq!(field_text(if_in_string, "state"), "value");
     // The `IfNotInString` is carried: it is the other side of the
     // `IfInString`.
     let if_not_in_string = entries
         .iter()
-        .find(|entry| entry["name"] == "IfNotInString")
+        .find(|entry| field_text(entry, "name") == "IfNotInString")
         .expect("the name is in the report");
-    assert_eq!(if_not_in_string["state"], "value");
+    assert_eq!(field_text(if_not_in_string, "state"), "value");
     // The `IfMsgBox` is carried: the command holds when the person pressed
     // the button that is named.
     let if_msg_box = entries
         .iter()
-        .find(|entry| entry["name"] == "IfMsgBox")
+        .find(|entry| field_text(entry, "name") == "IfMsgBox")
         .expect("the name is in the report");
-    assert_eq!(if_msg_box["state"], "value");
+    assert_eq!(field_text(if_msg_box, "state"), "value");
     // The `Else` is carried: it is the action of the other side of the `if`
     // that comes before it.
     let else_of_the_v1 = entries
         .iter()
-        .find(|entry| entry["name"] == "Else")
+        .find(|entry| field_text(entry, "name") == "Else")
         .expect("the name is in the report");
-    assert_eq!(else_of_the_v1["state"], "value");
+    assert_eq!(field_text(else_of_the_v1, "state"), "value");
     // The `SetBatchLines` is carried: it is the command that turns the lines
     // of the script on and off, and the v1 wants a number and not a flag.
     let set_batch_lines = entries
         .iter()
-        .find(|entry| entry["name"] == "SetBatchLines")
+        .find(|entry| field_text(entry, "name") == "SetBatchLines")
         .expect("the name is in the report");
-    assert_eq!(set_batch_lines["state"], "value");
+    assert_eq!(field_text(set_batch_lines, "state"), "value");
     // No name of the v1 is pending.
     assert!(
-        entries.iter().all(|entry| entry["state"] != "pending"),
+        entries.iter().all(|entry| field_text(entry, "state") != "pending"),
         "the surface of the v1 has a name that is pending"
     );
 }

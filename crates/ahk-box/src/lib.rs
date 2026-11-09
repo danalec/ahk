@@ -12,9 +12,11 @@ pub mod keyboard;
 pub mod machine;
 pub mod native;
 pub mod network;
+pub mod picture;
 pub mod pictures;
 pub mod pointer;
 pub mod raven;
+pub mod sys;
 pub mod wayland;
 
 /// The X11 desktop, on the two hosts whose display servers speak X11.

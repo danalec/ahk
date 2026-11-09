@@ -27,47 +27,16 @@ pub struct Picture {
 
 /// Read the pixels of a picture of a file.
 pub fn read(path: &str) -> Result<Picture, String> {
-    let file = std::fs::File::open(Path::new(path)).map_err(|error| error.to_string())?;
-    let decoder = png::Decoder::new(std::io::BufReader::new(file));
-    let mut reader = decoder.read_info().map_err(|error| error.to_string())?;
-    let mut buffer = vec![0u8; reader.output_buffer_size()];
-    let info = reader
-        .next_frame(&mut buffer)
-        .map_err(|error| error.to_string())?;
-    let width = info.width as usize;
-    let height = info.height as usize;
-    let bytes = &buffer[..info.buffer_size()];
-    let channels = match info.color_type {
-        png::ColorType::Rgb => 3,
-        png::ColorType::Rgba => 4,
-        png::ColorType::Grayscale => 1,
-        png::ColorType::GrayscaleAlpha => 2,
-        png::ColorType::Indexed => 1,
-    };
-    let palette = reader.info().palette.clone();
+    let bytes = std::fs::read(Path::new(path)).map_err(|error| error.to_string())?;
+    let image = crate::picture::read(&bytes)?;
+    let width = image.width;
+    let height = image.height;
     let mut pixels = Vec::with_capacity(width * height * 3);
     for y in 0..height {
         for x in 0..width {
-            let offset = (y * width + x) * channels;
-            if offset + channels > bytes.len() {
-                break;
-            }
-            let (red, green, blue) = match info.color_type {
-                png::ColorType::Rgb => (bytes[offset], bytes[offset + 1], bytes[offset + 2]),
-                png::ColorType::Rgba => (bytes[offset], bytes[offset + 1], bytes[offset + 2]),
-                png::ColorType::Grayscale => (bytes[offset], bytes[offset], bytes[offset]),
-                png::ColorType::GrayscaleAlpha => (bytes[offset], bytes[offset], bytes[offset]),
-                png::ColorType::Indexed => {
-                    let Some(palette) = palette.as_ref() else {
-                        break;
-                    };
-                    let at = bytes[offset] as usize * 3;
-                    if at + 2 >= palette.len() {
-                        break;
-                    }
-                    (palette[at], palette[at + 1], palette[at + 2])
-                }
-            };
+            let (red, green, blue) = image
+                .colour_at(x, y)
+                .ok_or_else(|| "the picture is shorter than its size".to_string())?;
             pixels.push(red);
             pixels.push(green);
             pixels.push(blue);
