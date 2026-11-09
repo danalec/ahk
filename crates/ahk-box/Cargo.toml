@@ -5,6 +5,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "The lab box as a script target: a uinput keyboard of our own, grim captures, and exact text"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/ahk-box"
+keywords = ["autohotkey", "uinput", "wayland", "desktop", "automation"]
+categories = ["api-bindings"]
+# The contracts of the review loop are working documents, not source.
+exclude = ["EGM.md", "src/EGM.md"]
 
 [dependencies]
 ahk = { workspace = true }

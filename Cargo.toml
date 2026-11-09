@@ -7,7 +7,14 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
+repository = "https://github.com/danalec/ahk"
+homepage = "https://github.com/danalec/ahk"
 
 [workspace.dependencies]
-ahk = { path = "crates/ahk" }
-ahk-box = { path = "crates/ahk-box" }
+# The crates of this workspace are published, so the dependency of one on
+# another names the version as well as the path: `cargo publish` drops the
+# path and keeps the version, and a crate that can only be built from the
+# folder beside it is a crate nobody else can use.
+ahk = { path = "crates/ahk", version = "0.1.0" }
+ahk-box = { path = "crates/ahk-box", version = "0.1.0" }
+ahk-cli = { path = "crates/ahk-cli", version = "0.1.0" }

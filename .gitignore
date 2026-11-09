@@ -20,3 +20,6 @@ crates/ahk-box/helper/libkernel32_32.a
 
 # the review artefacts of the second pass are not part of the tree
 egm-review-doc-language/
+
+# a release that was built here is not in the tree
+dist/

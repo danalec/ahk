@@ -5,6 +5,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "The ahk language: a lexer, an AST, a parser and an interpreter for AutoHotkey-style scripts"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/ahk"
+keywords = ["autohotkey", "ahk", "scripting", "interpreter", "language"]
+categories = ["parser-implementations"]
+# The contracts of the review loop are working documents, not source.
+exclude = ["EGM.md", "src/EGM.md"]
 
 [features]
 default = ["std"]
