@@ -678,6 +678,11 @@ fn the_token_is_an_operator(token: &Token) -> bool {
                 | "&&"
                 | "||"
                 | "??"
+                // Measured on the binary of v2.0.19 on 2026-11-09: the line
+                // that begins with the question or with the concat continues
+                // the line above.
+                | "?"
+                | "."
         );
     }
     if token.kind == TokenKind::Keyword {
@@ -1525,8 +1530,18 @@ pub struct Parser {
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the `break` and the
     /// `continue` need a loop around them, and the script is refused at the
-    /// load when there is none.
+    /// load when there is none. Measured on 2026-11-09: the number of the
+    /// loops is also the level that a `break N` or a `continue N` may name,
+    /// and a level above it is refused at the load.
     loops: usize,
+    /// Whether the `*` that follows an argument spreads the value of it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the last argument
+    /// of a call may carry a star -- `f(arr*)` calls `f` with every item of
+    /// `arr` -- and the star of a multiplication is not one. The parser
+    /// knows the two apart by what follows the star: only a star with a
+    /// comma or a closing parenthesis after it is a spread.
+    the_star_spreads_the_argument: bool,
     /// The dialect that the parser speaks.
     ///
     /// The v2 is the dialect of the tree, and it is the one of every script
@@ -1648,6 +1663,7 @@ impl Parser {
             expected_bracket: None,
             the_comma_ends_the_value: false,
             loops: 0,
+            the_star_spreads_the_argument: false,
             lines: source.split('\n').map(|line| line.to_string()).collect(),
             dialect,
         }
@@ -1786,6 +1802,13 @@ impl Parser {
     /// inside it: `x := f(1,` is a "Missing ")" and not a "Missing
     /// operand.". A brace that closes a block is named before the bracket.
     fn the_error_of_the_bracket(&self, error: SyntaxError, closing: &str) -> SyntaxError {
+        // The spread that is not the last argument is refused with its own
+        // wording, and the missing bracket is not the reason: the text that
+        // it names begins at the star, and the refusal keeps it inside the
+        // list of another call too.
+        if error.message.contains("\n     Specifically: *") {
+            return error;
+        }
         let (message, line) = if error.message.starts_with("Missing operand.") {
             (format!("Missing {closing:?}"), error.line)
         } else if error.message.starts_with("Unexpected \"}\"") {
@@ -3433,20 +3456,28 @@ impl Parser {
                 "for" => return Ok(vec![self.parse_for()?]),
                 "break" => {
                     self.next();
+                    let level = self.the_level_of_the_break_or_the_continue();
                     // Measured on the binary of v2.0.19 on 2026-11-01: the v2
                     // takes the parenthesis of a break and of a continue, and
                     // it ignores what is inside it.
                     self.the_parenthesis_that_is_ignored();
                     self.end_of_statement()?;
-                    self.the_loop_of_the_break_or_the_continue(token.line, token.column)?;
-                    return Ok(vec![Node::Break { line: token.line }]);
+                    self.the_loop_of_the_break_or_the_continue(token.line, token.column, level)?;
+                    return Ok(vec![Node::Break {
+                        line: token.line,
+                        level,
+                    }]);
                 }
                 "continue" => {
                     self.next();
+                    let level = self.the_level_of_the_break_or_the_continue();
                     self.the_parenthesis_that_is_ignored();
                     self.end_of_statement()?;
-                    self.the_loop_of_the_break_or_the_continue(token.line, token.column)?;
-                    return Ok(vec![Node::Continue { line: token.line }]);
+                    self.the_loop_of_the_break_or_the_continue(token.line, token.column, level)?;
+                    return Ok(vec![Node::Continue {
+                        line: token.line,
+                        level,
+                    }]);
                 }
                 "class" => {
                     // Measured on the binary of v2.0.19 on 2026-11-01: the
@@ -4042,7 +4073,13 @@ impl Parser {
             // definition are not the expressions of a call: a parameter may
             // carry a default, and it may be the one that takes the rest of
             // the arguments.
-            if self.a_definition_follows() {
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-09: the
+            // parenthesis of the list is handed over and not the token that
+            // follows it -- a call whose first argument is an empty arrow
+            // function, `f(() => 1)`, is a call, and the arrow must not end
+            // the list of the parameters in the lookahead.
+            if self.a_definition_follows_at(self.position - 1) {
                 // The default of a parameter is an expression, and the
                 // expression that holds the operator of a literal text is
                 // the list of the parameters.
@@ -5863,10 +5900,58 @@ impl Parser {
             }
             // The bracket that is not closed is the failure, and not the
             // operand that is not there inside it.
-            let argument = match self.parse_expression() {
+            //
+            // The star that ends an argument is the spread of it, and not a
+            // multiplication: the parser is told to stop there, and the
+            // argument that it read is the value that is spread.
+            let outer_spread = self.the_star_spreads_the_argument;
+            self.the_star_spreads_the_argument = !self.dialect.legacy_commands();
+            let parsed = self.parse_expression();
+            self.the_star_spreads_the_argument = outer_spread;
+            let mut argument = match parsed {
                 Ok(argument) => argument,
                 Err(error) => return Err(self.the_error_of_the_bracket(error, ")")),
             };
+            if self.at_op(&["*"]) {
+                let at = self.position;
+                // The token after the star is the one that says whether the
+                // star spreads the argument: a comma or the parenthesis that
+                // closes the list says that it does, and the test is made
+                // before the star is taken.
+                let after = self.the_token_after_the_newlines();
+                let after_ends_the_argument = matches!(
+                    after,
+                    Some(token)
+                        if token.kind == TokenKind::Op
+                            && (token.value == ")" || token.value == ",")
+                );
+                let after_is_a_comma = after
+                    .map(|token| token.kind == TokenKind::Op && token.value == ",")
+                    .unwrap_or(false);
+                let star = self.next();
+                // Measured on the binary of v2.0.19 on 2026-11-09: only the
+                // last argument of a call may carry the star. A comma after
+                // it -- the middle spread and the comma at the end of the
+                // list -- is refused with "Missing operand.", and the text
+                // that is named begins at the star. The refusal is not the
+                // one of the bracket that is missing, so it keeps its own
+                // wording inside the list of another call.
+                let ends_the_argument = after_ends_the_argument;
+                if !ends_the_argument || after_is_a_comma {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Missing operand.\n     Specifically: {}",
+                            the_source_of_the_rest_of_the_line(self, at)
+                        ),
+                        line: star.line,
+                        column: star.column,
+                    });
+                }
+                argument = Node::Spread {
+                    value: Box::new(argument),
+                    line: star.line,
+                };
+            }
             arguments.push(argument);
             // The list may be written in more than one line.
             self.skip_newlines();
@@ -5892,6 +5977,30 @@ impl Parser {
         // The arguments may be written in more than one line.
         self.skip_newlines();
         Ok(arguments)
+    }
+
+    /// Whether the `*` that is there ends the argument of a call.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a star that is
+    /// followed by a comma or by the parenthesis that closes the list is the
+    /// spread of the argument; a star that is followed by a value is a
+    /// multiplication.
+    fn the_star_ends_this_argument(&self) -> bool {
+        matches!(
+            self.the_token_after_the_newlines(),
+            Some(token)
+                if token.kind == TokenKind::Op
+                    && (token.value == ")" || token.value == ",")
+        )
+    }
+
+    /// The token that comes after the newlines that are there.
+    fn the_token_after_the_newlines(&self) -> Option<&Token> {
+        let mut at = self.position + 1;
+        while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline {
+            at += 1;
+        }
+        self.tokens.get(at)
     }
 
     /// Whether the parameter that is not there is the last one of the list.
@@ -6012,6 +6121,31 @@ impl Parser {
                 self.position += 1;
                 variadic = true;
             }
+            // Measured on the binary of v2.0.19 on 2026-11-09: the question mark
+            // after the name marks the parameter optional -- `f(a, b?)` --
+            // and a call that leaves it out leaves the variable of it unset.
+            // The optional one may not carry a default: `f(a, b? := 2)` is
+            // refused with "Missing comma".
+            let mut optional = false;
+            if self.at_op(&["?"]) {
+                self.position += 1;
+                optional = true;
+                if self.at_op(&[":="])
+                    || (self
+                        .dialect
+                        .the_default_of_a_parameter_may_be_written_with_the_equal_sign()
+                        && self.at_op(&["="]))
+                {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Missing comma\n     Specifically: {}",
+                            the_source_of_the_line(self, name_token.line)
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+            }
             let mut default = None;
             // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
             // writes the default value of a parameter with the equal sign as
@@ -6025,11 +6159,31 @@ impl Parser {
                 self.position += 1;
                 default = Some(Box::new(self.parse_expression()?));
             }
+            // Measured on the binary of v2.0.19 on 2026-11-09: a required
+            // parameter may not come after an optional one -- `f(a?, b)` is
+            // refused with "Parameter default required.", named after the
+            // required parameter. The v1 has no optional parameter, and the
+            // question mark is not a name of it: the rule is asked of the v2
+            // alone.
+            if !optional
+                && !variadic
+                && default.is_none()
+                && parameters
+                    .iter()
+                    .any(|parameter| parameter.optional)
+            {
+                return Err(SyntaxError {
+                    message: format!("Parameter default required.\n     Specifically: {name}"),
+                    line,
+                    column,
+                });
+            }
             parameters.push(Parameter {
                 name,
                 default,
                 variadic,
                 by_ref,
+                optional,
             });
             if self.at_op(&[","]) {
                 self.position += 1;
@@ -6091,19 +6245,6 @@ impl Parser {
     fn the_name_is_a_function(&self, name: &str) -> bool {
         self.the_name_is_a_builtin_function(name)
             || self.functions_of_the_script.contains(&name.to_lowercase())
-    }
-
-    /// Whether a definition follows the parenthesis.
-    ///
-    /// A definition is `Name(a, b) { }`, and the brace is what tells it
-    /// from a call. The list is scanned to its end, and the token after it
-    /// is looked at.
-    ///
-    /// Measured on the binary of v2.0.19 on 2026-11-01: the fat arrow tells
-    /// a definition from a call as well: `Name(a) => a + 1` is a function
-    /// and not a call.
-    fn a_definition_follows(&self) -> bool {
-        self.a_definition_follows_at(self.position)
     }
 
     /// Whether a definition follows the parenthesis that is at `open`.
@@ -7816,20 +7957,61 @@ impl Parser {
     /// The failure of a `break` or a `continue` that has no loop around it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the message is the
-    /// one of the dialect, and it names no text.
+    /// one of the dialect, and it names no text. Measured on 2026-11-09: the
+    /// number that follows the statement is the level of the loop that it
+    /// leaves, and the level that is not one of the loops around it is
+    /// refused with "Parameter #1 invalid." -- the zero and the number above
+    /// the count of the loops are both of them. The parenthesis is not a
+    /// level: the real binary reads it as a label, and that is left for the
+    /// label work.
     fn the_loop_of_the_break_or_the_continue(
         &self,
         line: u32,
         column: u32,
+        level: u32,
     ) -> Result<(), SyntaxError> {
-        if self.loops > 0 {
-            return Ok(());
+        if self.loops == 0 {
+            return Err(SyntaxError {
+                message: "Break/Continue must be enclosed by a Loop.".to_string(),
+                line,
+                column,
+            });
         }
-        Err(SyntaxError {
-            message: "Break/Continue must be enclosed by a Loop.".to_string(),
-            line,
-            column,
-        })
+        if level == 0 || level as usize > self.loops {
+            return Err(SyntaxError {
+                message: "Parameter #1 invalid.".to_string(),
+                line,
+                column,
+            });
+        }
+        Ok(())
+    }
+
+    /// The level of a `break` or of a `continue`: the integer that follows.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the level is an
+    /// integer literal, and a statement without one is the level one. The
+    /// token is only taken when it is one: a name, a parenthesis or an
+    /// expression is not a level, and the rest of the statement is read the
+    /// way it was.
+    fn the_level_of_the_break_or_the_continue(&mut self) -> u32 {
+        // The v1 has no level: its `break` names a label, and that is not
+        // carried here. The number stays a statement of its own in the v1,
+        // and the parser refuses it the way it did.
+        if self.dialect.legacy_commands() {
+            return 1;
+        }
+        let token = self.peek();
+        if token.kind != TokenKind::Number {
+            return 1;
+        }
+        match token.value.parse::<u32>() {
+            Ok(level) => {
+                self.next();
+                level
+            }
+            Err(_) => 1,
+        }
     }
 
     /// The body of a block that is not the body of a loop.
@@ -8697,6 +8879,72 @@ impl Parser {
                 accessors.push(self.parse_the_accessor(name_token, is_static)?);
                 continue;
             }
+            // A property whose getter is the expression after an arrow:
+            // `value => 1` and `static Value => 42`.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-09: the arrow of
+            // the property is a getter of one statement, and the v1 has no
+            // static member of that shape.
+            if self.at_op(&["=>"]) {
+                if is_static && self.dialect.the_static_method_is_refused() {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Invalid class variable declaration.\n     Specifically: {}",
+                            self.the_text_of_a_static_member(name_at)
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+                let key = name_token.value.to_lowercase();
+                let taken = if is_static {
+                    &mut class_accessors
+                } else {
+                    &mut instance_accessors
+                };
+                if taken.contains(&key) {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Duplicate declaration.\n     Specifically: {}",
+                            name_token.value
+                        ),
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
+                }
+                taken.push(key.clone());
+                if one_set {
+                    if the_names.contains(&key) {
+                        return Err(SyntaxError {
+                            message: format!(
+                                "Duplicate declaration.\n     Specifically: {}",
+                                name_token.value
+                            ),
+                            line: name_token.line,
+                            column: name_token.column,
+                        });
+                    }
+                    the_names.push(key);
+                }
+                let arrow = self.next();
+                let value = self.the_expression_of_a_statement()?;
+                accessors.push(AccessDef {
+                    name: name_token.value,
+                    parameters: Vec::new(),
+                    getter: Some(AccessBody {
+                        body: vec![Node::Return {
+                            value: Some(Box::new(value)),
+                            line: arrow.line,
+                        }],
+                        declarations: Declarations::default(),
+                        line: arrow.line,
+                    }),
+                    setter: None,
+                    is_static,
+                    line: name_token.line,
+                });
+                continue;
+            }
             // A property: `Name := value`.
             let operator = self.next();
             if operator.kind != TokenKind::Op || !matches!(operator.value.as_str(), "=" | ":=") {
@@ -8770,6 +9018,43 @@ impl Parser {
                 is_static,
                 line: name_token.line,
             });
+            // Measured on the binary of v2.0.19 on 2026-11-09: one line of
+            // the class may declare more than one property -- `a := 1, b := 2`
+            // -- and every one of them is a property of the class.
+            while self.at_op(&[","]) {
+                self.next();
+                let name = self.next();
+                if name.kind != TokenKind::Name && name.kind != TokenKind::Keyword {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Not a valid method, class or property definition.\n     Specifically: {}",
+                            the_source_of_the_line(self, name.line)
+                        ),
+                        line: name.line,
+                        column: name.column,
+                    });
+                }
+                let operator = self.next();
+                if operator.kind != TokenKind::Op
+                    || !matches!(operator.value.as_str(), "=" | ":=")
+                {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "Not a valid method, class or property definition.\n     Specifically: {}",
+                            the_source_of_the_line(self, name.line)
+                        ),
+                        line: name.line,
+                        column: name.column,
+                    });
+                }
+                let value = self.the_expression_of_a_statement()?;
+                properties.push(PropertyDef {
+                    name: name.value,
+                    value: Some(Box::new(value)),
+                    is_static,
+                    line: name.line,
+                });
+            }
         }
         self.in_class = was_in_a_class;
         self.statement_start = statement_start;
@@ -9243,6 +9528,16 @@ impl Parser {
 
     /// The `until` that is the condition of the loop.
     ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the `until` of the
+    /// v2 follows the body of the loop and is the condition that ends it.
+    /// It may be written on the line of the closing brace or on the line
+    /// that comes next -- with blank lines and comments between them -- and
+    /// it is read after every turn of the body, a turn that used `continue`
+    /// included. The `while` refuses it with "Unexpected \"Until\"", and
+    /// the `for` takes it; the until of the loop of this tree is the field
+    /// of the `Loop` node, so `for` is not carried here. The probes are in
+    /// `egm-review/keysharp-audit/wp1/`.
+    ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
     /// `until` of the v1 is the statement that comes right after the body of
     /// a loop, and it is the condition that ends it: the body runs, and the
@@ -9250,16 +9545,13 @@ impl Parser {
     /// of a variable is not the condition, and the one that is not right
     /// after a body is not one either: the v1 refuses it with "UNTIL with no
     /// matching LOOP" when the load is over.
-    ///
-    /// The v2 has no such statement, and the loop has no condition.
     fn the_until_of_the_loop(&mut self) -> Result<Option<Box<Node>>, SyntaxError> {
-        if self
+        // The v1 leaves an `until` that no loop takes to the statement of
+        // its own, which records it and refuses it at the end of the load.
+        let legacy = self
             .dialect
             .the_refusal_of_the_until_that_has_no_loop()
-            .is_none()
-        {
-            return Ok(None);
-        }
+            .is_some();
         // The word that comes next, past the newlines.
         let mut at = self.position;
         while self
@@ -9276,20 +9568,39 @@ impl Parser {
         if token.kind != TokenKind::Keyword || !token.value.eq_ignore_ascii_case("until") {
             return Ok(None);
         }
-        // The word that is the name of a variable is not the condition: the
-        // `until := 2` writes the variable "until".
-        let is_a_name = self
-            .tokens
-            .get(at + 1)
-            .map(|next| {
-                next.kind == TokenKind::Op && the_assignment_operator(&next.value).is_some()
-            })
-            .unwrap_or(false);
-        if is_a_name {
-            return Ok(None);
+        if legacy {
+            // The word that is the name of a variable is not the condition:
+            // the `until := 2` writes the variable "until". Measured on the
+            // binary of v2.0.19 on 2026-11-09: the v2 reserves the name, and
+            // the word there is a refusal of its own.
+            let is_a_name = self
+                .tokens
+                .get(at + 1)
+                .map(|next| {
+                    next.kind == TokenKind::Op && the_assignment_operator(&next.value).is_some()
+                })
+                .unwrap_or(false);
+            if is_a_name {
+                return Ok(None);
+            }
         }
         self.position = at;
-        self.next();
+        let word = self.next();
+        // The condition of the until of v2 is required. Measured on the
+        // binary of v2.0.19 on 2026-11-09: the `Until` that has no
+        // condition after the body of the loop is refused with this
+        // message, and the text that it names is the word as the script
+        // wrote it -- the `until` is named "until".
+        if !legacy && self.at_end_of_statement() {
+            return Err(SyntaxError {
+                message: format!(
+                    "\"Until\" requires at least 1 parameter.\n     Specifically: {}",
+                    word.value
+                ),
+                line: word.line,
+                column: word.column,
+            });
+        }
         let condition = self.the_expression_of_a_statement()?;
         Ok(Some(Box::new(condition)))
     }
@@ -9676,10 +9987,15 @@ impl Parser {
         }
         self.end_of_block()?;
         let body = self.the_body_of_a_loop("For", token.line)?;
+        // Measured on the binary of v2.0.19 on 2026-11-09: the `for` of v2
+        // takes the `Until` of the other loops, and its condition is read
+        // after every turn.
+        let until = self.the_until_of_the_loop()?;
         Ok(Node::For {
             variables,
             source: Box::new(source),
             body,
+            until,
             line: token.line,
         })
     }
@@ -9783,6 +10099,24 @@ impl Parser {
                 let at = self.position;
                 let token = self.next();
                 let then = self.parse_binary(precedence::COALESCE)?;
+                // Measured on the binary of v2.0.19 on 2026-11-09: the line
+                // that begins with the colon of the other arm continues the
+                // line above, so the colon may be on the line that comes.
+                if self.peek().kind == TokenKind::Newline {
+                    let mut at = self.position;
+                    while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline
+                    {
+                        at += 1;
+                    }
+                    let the_colon_is_there = self
+                        .tokens
+                        .get(at)
+                        .map(|token| token.kind == TokenKind::Op && token.value == ":")
+                        .unwrap_or(false);
+                    if the_colon_is_there {
+                        self.skip_newlines();
+                    }
+                }
                 // Measured on the binary of v2.0.19 on 2026-11-01: the
                 // question that has no colon says so, and the text that is
                 // named begins at the question mark.
@@ -9822,14 +10156,15 @@ impl Parser {
                 // are one value. It binds like the dot, and the dot is
                 // looser than the arithmetic.
                 if precedence::CONCAT < min || !self.starts_a_concatenation() {
-                    // Measured on the binary of v2.0.19 on 2026-10-31: a
-                    // line that begins with an operator continues the one
-                    // before it.
-                    //
-                    // Measured on the binary of AutoHotkey v1.1.37.02 on
-                    // 2026-11-03: the line of a hotkey of the v1 is not the
-                    // continuation of the expression that comes before it.
-                    if self.the_next_line_begins_with_an_operator()
+                    // Measured on the binary of v2.0.19 on 2026-11-09: the line that
+                    // begins with an operator continues the one before it, and
+                    // the rule is only about a line that ends: the question of
+                    // the ternary that stops the list of the parameters of v2
+                    // is not a continuation, and asking the line below for it
+                    // walked the parser forever (measured on 2026-11-09, the
+                    // `x := 1 + 1 ? 2 : 3`).
+                    if self.peek().kind == TokenKind::Newline
+                        && self.the_next_line_begins_with_an_operator()
                         && !self.the_next_line_carries_a_hotkey()
                     {
                         self.skip_newlines();
@@ -9860,6 +10195,17 @@ impl Parser {
                 };
                 continue;
             };
+            // Measured on the binary of v2.0.19 on 2026-11-09: the star that
+            // ends the argument of a call is the spread of the argument, and
+            // not a multiplication: the value that was read is the whole
+            // argument, and the parser leaves the star to the list of the
+            // arguments.
+            if matches!(op, BinaryOp::Multiply)
+                && self.the_star_spreads_the_argument
+                && self.the_star_ends_this_argument()
+            {
+                return Ok(left);
+            }
             if prec < min {
                 return Ok(left);
             }
@@ -9933,8 +10279,25 @@ impl Parser {
             // The dot that reaches into a value is not the operator that
             // joins two values, and the operator wants a space on both
             // sides: `a . b` joins two values, and `a. b` is an error.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-09: a dot that
+            // begins the line that continues the one above is the operator
+            // even when it is not indented -- `x := "a"` and `. "b"` on the
+            // next line join the two texts.
             if token.value == "." && !(token.spaced && self.the_space_after_is_there()) {
-                return None;
+                let begins_a_line = self.position > 0
+                    && self.tokens[self.position - 1].kind == TokenKind::Newline;
+                // Measured on the binary of v2.0.19 on 2026-11-09: the dot
+                // that ends the line continues it, so the operand of it is
+                // on the line below.
+                let ends_the_line = self
+                    .tokens
+                    .get(self.position + 1)
+                    .map(|token| token.kind == TokenKind::Newline)
+                    .unwrap_or(false);
+                if !((begins_a_line && self.the_space_after_is_there()) || ends_the_line) {
+                    return None;
+                }
             }
             let (op, prec, right) = match token.value.as_str() {
                 "**" => (BinaryOp::Power, precedence::POWER, true),
@@ -10116,6 +10479,11 @@ impl Parser {
                     | "?"
                     | ":"
                     | "=>"
+                    // Measured on the binary of v2.0.19 on 2026-11-09: the
+                    // line that ends with the dot of the concat continues on
+                    // the next one, the way the one that ends with the other
+                    // operators does.
+                    | "."
                     | "!"
                     | "~"
                     | "+"
@@ -10157,7 +10525,14 @@ impl Parser {
                     | ">>>="
             ),
             TokenKind::Keyword => {
-                matches!(token.value.to_lowercase().as_str(), "and" | "or" | "is")
+                // Measured on the binary of v2.0.19 on 2026-11-09: the line
+                // that ends with the word of the negation continues as well:
+                // `c := NOT` and the name of the operand on the line below is
+                // the negation of it.
+                matches!(
+                    token.value.to_lowercase().as_str(),
+                    "and" | "or" | "is" | "not"
+                )
             }
             _ => false,
         }
@@ -11151,10 +11526,32 @@ impl Parser {
                     let at_the_name = self.position - 1;
                     let pieces =
                         self.the_pieces_of_a_dynamic_name(name, at_the_name, token.line)?;
-                    return Ok(Node::DynamicName {
+                    let dynamic = Node::DynamicName {
                         pieces,
                         line: token.line,
-                    });
+                    };
+                    // Measured on the binary of v2.0.19 on 2026-11-09: the
+                    // increment after a name that the script builds is the
+                    // increment of that variable -- `y%x%++` answers the old
+                    // value and writes the new one -- and it binds the same
+                    // way the increment of a plain name does.
+                    if self.at_op(&["++", "--"])
+                        && (!self.dialect.the_space_separates_the_increment()
+                            || !self.peek().spaced)
+                    {
+                        let operator = self.next();
+                        let op = if operator.value == "++" {
+                            UnaryOp::PostIncrement
+                        } else {
+                            UnaryOp::PostDecrement
+                        };
+                        return Ok(Node::Unary {
+                            op,
+                            operand: Box::new(dynamic),
+                            line: token.line,
+                        });
+                    }
+                    return Ok(dynamic);
                 }
                 // The arrow function of v2 with one parameter: `a => a + 1`.
                 if self.at_op(&["=>"]) {
@@ -11165,6 +11562,7 @@ impl Parser {
                         default: None,
                         variadic: false,
                         by_ref: false,
+                        optional: false,
                     }];
                     return Ok(Node::Lambda {
                         parameters,

@@ -307,7 +307,7 @@ BlockInput command refusal: this is a name of Windows, and this desktop is not W
 CallbackCreate command refusal: this is a name of Windows, and this desktop is not Windows.
 ...
 ClipboardAll.Size method value
-the surface of v2 has 828 entries: 638 answer with a value, 190 are refused, 0 are pending.
+the surface of v2 has 833 entries: 661 answer with a value, 172 are refused, 0 are pending.
 ```
 
 A line is `name kind state`, and a name that is not answered with a
@@ -323,6 +323,29 @@ The three states are:
 | `refusal: <reason>` | The tree carries the name and refuses it, with the reason of the handler. |
 | `pending: <reason>` | The tree does not carry the name at all. The pending table says why. |
 
+**The state is not the behaviour.** A name can answer with a value and its
+call can still fail -- the audit of the dialect found ten such names, the
+`RegExMatch` that cannot write its output variables and the `Sort` that
+refuses its options among them. `--behavior` runs a probe of the names that
+have one and prints the answer of the call beside the state:
+
+```sh
+ahk --surface --behavior
+```
+
+```
+Format function value	behaviour=value
+RegExMatch function value	behaviour=error: the matches of the pattern are not carried into a variable yet.
+Sort function value	behaviour=error: the options of the sort are not carried yet.
+```
+
+The probe is a small script of the dialect that calls the name the way a
+script does, run against a desktop that does nothing. A name whose probe is
+not written yet carries no `behaviour=`, and the table of the probes is
+`crates/ahk/src/behavior.rs`. The JSON of `--json --behavior` carries the
+same answer in a `behavior` member of the row. A class-qualified name is
+probed under its class: `Array.Length` and `File.Length` are two probes.
+
 Of the 190 refusals of the v2, 169 are one reason --
 `this is a name of Windows, and this desktop is not Windows.` -- and the
 rest are the names a runtime that is a script and not a desktop cannot
@@ -337,10 +360,10 @@ The JSON is for the CI, and it carries the numbers of the summary and
 the state of every name:
 
 ```json
-{"dialect":"v2","total":828,"values":638,"refusals":190,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
+{"dialect":"v2","total":833,"values":661,"refusals":172,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
 ```
 
-(The `entries` array above is cut to four of its 828 members, and the
+(The `entries` array above is cut to four of its 833 members, and the
 four are not adjacent in the real output.)
 
 A row of the JSON is an object with `name`, `kind` and `state`, with
@@ -375,9 +398,15 @@ Before the script is parsed, every line that starts with `#Include` or
 - **The path may be between double quotes or be the rest of the line.**
   `#Include "lib.ahk"` and `#Include lib.ahk` are the same line.
 - **An include that is already in the tree is not put in twice.** The
-  second time the file is read it is skipped, which is what
-  `#IncludeAgain` says in v2. The path is canonicalised before it is
-  compared, so two spellings of the same file are one file.
+  second time the file is read it is skipped. The path is canonicalised
+  before it is compared, so two spellings of the same file are one file.
+- **`#IncludeAgain` puts the file in every time it is asked for,** even
+  when the file is already in the tree. That is the difference between the
+  two lines, and the two are matched by their whole name: `#Include` is a
+  prefix of `#IncludeAgain` and it is not the same line.
+- **The nesting of the includes is bounded.** A file that includes itself,
+  or a group of files that include one another, is refused with the reason
+  rather than making the runner recurse until the stack is gone.
 - **A line that is not an include is copied as it is,** with its own line
   ending. The lines of the script that the report names are the lines of
   the source after the includes went in, so a line inside an included file

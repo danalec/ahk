@@ -2,9 +2,9 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **828 entries** : **638 answer with a value** , **190 are refused** and **none is pending**.
+The surface of the v2.0.19 has **833 entries** : **661 answer with a value** , **172 are refused** and **none is pending**.
 
-The table has **828 entries and 780 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them and the `InputHook` has twelve --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
+The table has **833 entries and 785 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them and the `InputHook` has twelve --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
 ## The areas
 
@@ -13,22 +13,22 @@ The table has **828 entries and 780 distinct names** : a property with a setter 
 | Parser and script execution | 56 | 49 | 7 |
 | File and directory operations | 97 | 78 | 19 |
 | Hotkeys, hotstrings, and input | 138 | 131 | 7 |
-| GUI windows and window automation | 288 | 172 | 116 |
+| GUI windows and window automation | 288 | 177 | 111 |
 | Screen capture and pixel functions | 7 | 6 | 1 |
 | Native function calls (DllCall) | 10 | 10 | 0 |
 | Registry APIs | 11 | 6 | 5 |
 | COM automation (ComObject) | 18 | 4 | 14 |
-| The core of the language: text, math and patterns | 64 | 61 | 3 |
+| The core of the language: text, math and patterns | 69 | 69 | 0 |
 | The objects of the language: Array, Map and Func | 68 | 68 | 0 |
 | Dates and times | 23 | 23 | 0 |
-| The machine, the processes and the environment | 35 | 20 | 15 |
+| The machine, the processes and the environment | 35 | 30 | 5 |
 | The clipboard | 5 | 4 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **828** | **638** | **190** |
+| **The whole of it** | **833** | **661** | **172** |
 
 ## What the numbers do not say
 
-Three things, all measured on the binary of the v2.0.19.
+Three things, all measured on the binary of the v2.0.19 on 2026-10-29.
 
 **The classes of the windows are carried, and every call of them fails.**
 The names of `Gui` , of `Gui.Control` , of `Gui.ListView` , of
@@ -44,7 +44,7 @@ The table carries the thirty-two class types of v2.0.19 --- `Any` ,
 `ComObject` , `ComValue` , `Enumerator` , `Error` , `File` , `Func` ,
 `Gui` , `InputHook` , `Map` , `Menu` , `Object` , `RegExMatchInfo` and
 the thirteen classes of the failures --- measured on the binary of
-v2.0.19, where a script reads every one of them as the
+v2.0.19 on 2026-10-31, where a script reads every one of them as the
 class. The `Hotkey` is the exception: the name is a function of v2, and
 the class of a hotkey is the class of the object that the function makes.
 
@@ -67,7 +67,7 @@ come first: the number of the arguments and the kind of them are the
 dialect's, and the reason of the machine comes after them.
 
 **The area of the parser is about the surface, not about the grammar.**
-What a script may write is the work of the wave
+What a script may write is the work of the wave of 2026-10-29
 (`docs/ahk-v1-dialect.md` says what the plan is) . This report is about the
 names that the tree answers.
 
@@ -110,13 +110,13 @@ names that the tree answers.
 
 ## 4. GUI windows and window automation
 
-**288 names: 172 answer with a value, 116 are refused.**
+**288 names: 177 answer with a value, 111 are refused.**
 
-**The ones that answer** (172): `ControlDelay`, `CoordModeCaret`, `CoordModeMenu`, `CoordModeToolTip`, `DetectHiddenText`, `DetectHiddenText`, `DetectHiddenWindows`, `DetectHiddenWindows`, `Gui`, `Gui.Add`, `Gui.AddActiveX`, `Gui.AddButton`, `Gui.AddCheckBox`, `Gui.AddComboBox`, `Gui.AddCustom`, `Gui.AddDDL`, `Gui.AddDateTime`, `Gui.AddDropDownList`, `Gui.AddEdit`, `Gui.AddGroupBox`, `Gui.AddHotkey`, `Gui.AddLink`, `Gui.AddListBox`, `Gui.AddListView`, `Gui.AddMonthCal`, `Gui.AddPic`, `Gui.AddPicture`, `Gui.AddProgress`, `Gui.AddRadio`, `Gui.AddSlider`, `Gui.AddStatusBar`, `Gui.AddTab`, `Gui.AddTab2`, `Gui.AddTab3`, `Gui.AddText`, `Gui.AddTreeView`, `Gui.AddUpDown`, `Gui.BackColor`, `Gui.BackColor`, `Gui.Control.Add`, `Gui.Control.Choose`, `Gui.Control.ClassNN`, `Gui.Control.Delete`, `Gui.Control.Enabled`, `Gui.Control.Enabled`, `Gui.Control.Focus`, `Gui.Control.Focused`, `Gui.Control.GetPos`, `Gui.Control.Gui`, `Gui.Control.Hwnd`, `Gui.Control.Move`, `Gui.Control.Name`, `Gui.Control.Name`, `Gui.Control.OnCommand`, `Gui.Control.OnEvent`, `Gui.Control.OnNotify`, `Gui.Control.Opt`, `Gui.Control.Redraw`, `Gui.Control.SetFont`, `Gui.Control.SetFormat`, `Gui.Control.Text`, `Gui.Control.Text`, `Gui.Control.Type`, `Gui.Control.UseTab`, `Gui.Control.Value`, `Gui.Control.Value`, `Gui.Control.Visible`, `Gui.Control.Visible`, `Gui.Destroy`, `Gui.Flash`, `Gui.FocusedCtrl`, `Gui.GetClientPos`, `Gui.GetPos`, `Gui.Hide`, `Gui.Hwnd`, `Gui.ListView.Add`, `Gui.ListView.Delete`, `Gui.ListView.Get`, `Gui.ListView.GetChild`, `Gui.ListView.GetCount`, `Gui.ListView.GetNext`, `Gui.ListView.GetParent`, `Gui.ListView.GetPrev`, `Gui.ListView.GetSelection`, `Gui.ListView.GetText`, `Gui.ListView.Modify`, `Gui.ListView.SetIcon`, `Gui.ListView.SetImageList`, `Gui.ListView.SetParts`, `Gui.ListView.SetText`, `Gui.MarginX`, `Gui.MarginX`, `Gui.MarginY`, `Gui.MarginY`, `Gui.Maximize`, `Gui.Menu.Add`, `Gui.Menu.AddStandard`, `Gui.Menu.Check`, `Gui.Menu.ClickCount`, `Gui.Menu.ClickCount`, `Gui.Menu.Default`, `Gui.Menu.Default`, `Gui.Menu.Delete`, `Gui.Menu.Disable`, `Gui.Menu.Enable`, `Gui.Menu.Handle`, `Gui.Menu.Insert`, `Gui.Menu.Rename`, `Gui.Menu.SetColor`, `Gui.Menu.SetIcon`, `Gui.Menu.Show`, `Gui.Menu.ToggleCheck`, `Gui.Menu.ToggleEnable`, `Gui.Menu.Uncheck`, `Gui.MenuBar`, `Gui.MenuBar`, `Gui.Minimize`, `Gui.Move`, `Gui.Name`, `Gui.Name`, `Gui.OnEvent`, `Gui.Opt`, `Gui.Restore`, `Gui.SetFont`, `Gui.Show`, `Gui.StatusBar.Add`, `Gui.StatusBar.Delete`, `Gui.StatusBar.DeleteCol`, `Gui.StatusBar.GetCount`, `Gui.StatusBar.GetNext`, `Gui.StatusBar.GetText`, `Gui.StatusBar.Insert`, `Gui.StatusBar.InsertCol`, `Gui.StatusBar.Modify`, `Gui.StatusBar.ModifyCol`, `Gui.StatusBar.SetImageList`, `Gui.Submit`, `Gui.Title`, `Gui.Title`, `Gui.TreeView.Add`, `Gui.TreeView.Delete`, `Gui.TreeView.Get`, `Gui.TreeView.GetChild`, `Gui.TreeView.GetCount`, `Gui.TreeView.GetNext`, `Gui.TreeView.GetParent`, `Gui.TreeView.GetPrev`, `Gui.TreeView.GetSelection`, `Gui.TreeView.GetText`, `Gui.TreeView.Modify`, `Gui.TreeView.SetIcon`, `Gui.TreeView.SetImageList`, `Gui.TreeView.SetParts`, `Gui.TreeView.SetText`, `Gui.__Enum`, `Gui.__Item`, `Gui.__New`, `IconHidden`, `IconTip`, `InputBox`, `ListLines`, `Menu`, `MsgBox`, `SetControlDelay`, `SetTitleMatchMode`, `SetWinDelay`, `TitleMatchMode`, `TitleMatchModeSpeed`, `WinActive`, `WinDelay`, `WinExist`, `WinGetTitle`
+**The ones that answer** (177): `ControlDelay`, `CoordModeCaret`, `CoordModeMenu`, `CoordModeToolTip`, `DetectHiddenText`, `DetectHiddenText`, `DetectHiddenWindows`, `DetectHiddenWindows`, `Gui`, `Gui.Add`, `Gui.AddActiveX`, `Gui.AddButton`, `Gui.AddCheckBox`, `Gui.AddComboBox`, `Gui.AddCustom`, `Gui.AddDDL`, `Gui.AddDateTime`, `Gui.AddDropDownList`, `Gui.AddEdit`, `Gui.AddGroupBox`, `Gui.AddHotkey`, `Gui.AddLink`, `Gui.AddListBox`, `Gui.AddListView`, `Gui.AddMonthCal`, `Gui.AddPic`, `Gui.AddPicture`, `Gui.AddProgress`, `Gui.AddRadio`, `Gui.AddSlider`, `Gui.AddStatusBar`, `Gui.AddTab`, `Gui.AddTab2`, `Gui.AddTab3`, `Gui.AddText`, `Gui.AddTreeView`, `Gui.AddUpDown`, `Gui.BackColor`, `Gui.BackColor`, `Gui.Control.Add`, `Gui.Control.Choose`, `Gui.Control.ClassNN`, `Gui.Control.Delete`, `Gui.Control.Enabled`, `Gui.Control.Enabled`, `Gui.Control.Focus`, `Gui.Control.Focused`, `Gui.Control.GetPos`, `Gui.Control.Gui`, `Gui.Control.Hwnd`, `Gui.Control.Move`, `Gui.Control.Name`, `Gui.Control.Name`, `Gui.Control.OnCommand`, `Gui.Control.OnEvent`, `Gui.Control.OnNotify`, `Gui.Control.Opt`, `Gui.Control.Redraw`, `Gui.Control.SetFont`, `Gui.Control.SetFormat`, `Gui.Control.Text`, `Gui.Control.Text`, `Gui.Control.Type`, `Gui.Control.UseTab`, `Gui.Control.Value`, `Gui.Control.Value`, `Gui.Control.Visible`, `Gui.Control.Visible`, `Gui.Destroy`, `Gui.Flash`, `Gui.FocusedCtrl`, `Gui.GetClientPos`, `Gui.GetPos`, `Gui.Hide`, `Gui.Hwnd`, `Gui.ListView.Add`, `Gui.ListView.Delete`, `Gui.ListView.Get`, `Gui.ListView.GetChild`, `Gui.ListView.GetCount`, `Gui.ListView.GetNext`, `Gui.ListView.GetParent`, `Gui.ListView.GetPrev`, `Gui.ListView.GetSelection`, `Gui.ListView.GetText`, `Gui.ListView.Modify`, `Gui.ListView.SetIcon`, `Gui.ListView.SetImageList`, `Gui.ListView.SetParts`, `Gui.ListView.SetText`, `Gui.MarginX`, `Gui.MarginX`, `Gui.MarginY`, `Gui.MarginY`, `Gui.Maximize`, `Gui.Menu.Add`, `Gui.Menu.AddStandard`, `Gui.Menu.Check`, `Gui.Menu.ClickCount`, `Gui.Menu.ClickCount`, `Gui.Menu.Default`, `Gui.Menu.Default`, `Gui.Menu.Delete`, `Gui.Menu.Disable`, `Gui.Menu.Enable`, `Gui.Menu.Handle`, `Gui.Menu.Insert`, `Gui.Menu.Rename`, `Gui.Menu.SetColor`, `Gui.Menu.SetIcon`, `Gui.Menu.Show`, `Gui.Menu.ToggleCheck`, `Gui.Menu.ToggleEnable`, `Gui.Menu.Uncheck`, `Gui.MenuBar`, `Gui.MenuBar`, `Gui.Minimize`, `Gui.Move`, `Gui.Name`, `Gui.Name`, `Gui.OnEvent`, `Gui.Opt`, `Gui.Restore`, `Gui.SetFont`, `Gui.Show`, `Gui.StatusBar.Add`, `Gui.StatusBar.Delete`, `Gui.StatusBar.DeleteCol`, `Gui.StatusBar.GetCount`, `Gui.StatusBar.GetNext`, `Gui.StatusBar.GetText`, `Gui.StatusBar.Insert`, `Gui.StatusBar.InsertCol`, `Gui.StatusBar.Modify`, `Gui.StatusBar.ModifyCol`, `Gui.StatusBar.SetImageList`, `Gui.Submit`, `Gui.Title`, `Gui.Title`, `Gui.TreeView.Add`, `Gui.TreeView.Delete`, `Gui.TreeView.Get`, `Gui.TreeView.GetChild`, `Gui.TreeView.GetCount`, `Gui.TreeView.GetNext`, `Gui.TreeView.GetParent`, `Gui.TreeView.GetPrev`, `Gui.TreeView.GetSelection`, `Gui.TreeView.GetText`, `Gui.TreeView.Modify`, `Gui.TreeView.SetIcon`, `Gui.TreeView.SetImageList`, `Gui.TreeView.SetParts`, `Gui.TreeView.SetText`, `Gui.__Enum`, `Gui.__Item`, `Gui.__New`, `IconHidden`, `IconTip`, `InputBox`, `ListLines`, `Menu`, `MonitorGet`, `MonitorGetCount`, `MonitorGetName`, `MonitorGetPrimary`, `MonitorGetWorkArea`, `MsgBox`, `SetControlDelay`, `SetTitleMatchMode`, `SetWinDelay`, `TitleMatchMode`, `TitleMatchModeSpeed`, `WinActive`, `WinDelay`, `WinExist`, `WinGetTitle`
 
-**The ones that are refused** (116), by the reason:
+**The ones that are refused** (111), by the reason:
 
-- *this is a name of Windows, and this desktop is not Windows.* (109): `CaretGetPos`, `ControlAddItem`, `ControlChooseIndex`, `ControlChooseString`, `ControlClick`, `ControlDeleteItem`, `ControlFindItem`, `ControlFocus`, `ControlGetChecked`, `ControlGetChoice`, `ControlGetClassNN`, `ControlGetEnabled`, `ControlGetExStyle`, `ControlGetFocus`, `ControlGetHwnd`, `ControlGetIndex`, `ControlGetItems`, `ControlGetPos`, `ControlGetStyle`, `ControlGetText`, `ControlGetVisible`, `ControlHide`, `ControlHideDropDown`, `ControlMove`, `ControlSend`, `ControlSendText`, `ControlSetChecked`, `ControlSetEnabled`, `ControlSetExStyle`, `ControlSetStyle`, `ControlSetText`, `ControlShow`, `ControlShowDropDown`, `Edit`, `EditGetCurrentCol`, `EditGetCurrentLine`, `EditGetLine`, `EditGetLineCount`, `EditGetSelectedText`, `EditPaste`, `GroupActivate`, `GroupAdd`, `GroupClose`, `GroupDeactivate`, `GuiCtrlFromHwnd`, `GuiFromHwnd`, `IL_Add`, `IL_Create`, `IL_Destroy`, `ListViewGetContent`, `MenuFromHandle`, `MenuSelect`, `MonitorGet`, `MonitorGetCount`, `MonitorGetName`, `MonitorGetPrimary`, `MonitorGetWorkArea`, `PostMessage`, `SendMessage`, `StatusBarGetText`, `StatusBarWait`, `ToolTip`, `TraySetIcon`, `TrayTip`, `WinActivate`, `WinActivateBottom`, `WinClose`, `WinDir`, `WinGetClass`, `WinGetClientPos`, `WinGetControls`, `WinGetControlsHwnd`, `WinGetCount`, `WinGetExStyle`, `WinGetID`, `WinGetIDLast`, `WinGetList`, `WinGetMinMax`, `WinGetPID`, `WinGetPos`, `WinGetProcessName`, `WinGetProcessPath`, `WinGetStyle`, `WinGetTransColor`, `WinGetTransparent`, `WinHide`, `WinKill`, `WinMaximize`, `WinMinimize`, `WinMinimizeAll`, `WinMinimizeAllUndo`, `WinMove`, `WinMoveBottom`, `WinMoveTop`, `WinRedraw`, `WinRestore`, `WinSetAlwaysOnTop`, `WinSetEnabled`, `WinSetExStyle`, `WinSetRegion`, `WinSetStyle`, `WinSetTitle`, `WinSetTransColor`, `WinSetTransparent`, `WinShow`, `WinWait`, `WinWaitActive`, `WinWaitClose`, `WinWaitNotActive`
+- *this is a name of Windows, and this desktop is not Windows.* (104): `CaretGetPos`, `ControlAddItem`, `ControlChooseIndex`, `ControlChooseString`, `ControlClick`, `ControlDeleteItem`, `ControlFindItem`, `ControlFocus`, `ControlGetChecked`, `ControlGetChoice`, `ControlGetClassNN`, `ControlGetEnabled`, `ControlGetExStyle`, `ControlGetFocus`, `ControlGetHwnd`, `ControlGetIndex`, `ControlGetItems`, `ControlGetPos`, `ControlGetStyle`, `ControlGetText`, `ControlGetVisible`, `ControlHide`, `ControlHideDropDown`, `ControlMove`, `ControlSend`, `ControlSendText`, `ControlSetChecked`, `ControlSetEnabled`, `ControlSetExStyle`, `ControlSetStyle`, `ControlSetText`, `ControlShow`, `ControlShowDropDown`, `Edit`, `EditGetCurrentCol`, `EditGetCurrentLine`, `EditGetLine`, `EditGetLineCount`, `EditGetSelectedText`, `EditPaste`, `GroupActivate`, `GroupAdd`, `GroupClose`, `GroupDeactivate`, `GuiCtrlFromHwnd`, `GuiFromHwnd`, `IL_Add`, `IL_Create`, `IL_Destroy`, `ListViewGetContent`, `MenuFromHandle`, `MenuSelect`, `PostMessage`, `SendMessage`, `StatusBarGetText`, `StatusBarWait`, `ToolTip`, `TraySetIcon`, `TrayTip`, `WinActivate`, `WinActivateBottom`, `WinClose`, `WinDir`, `WinGetClass`, `WinGetClientPos`, `WinGetControls`, `WinGetControlsHwnd`, `WinGetCount`, `WinGetExStyle`, `WinGetID`, `WinGetIDLast`, `WinGetList`, `WinGetMinMax`, `WinGetPID`, `WinGetPos`, `WinGetProcessName`, `WinGetProcessPath`, `WinGetStyle`, `WinGetTransColor`, `WinGetTransparent`, `WinHide`, `WinKill`, `WinMaximize`, `WinMinimize`, `WinMinimizeAll`, `WinMinimizeAllUndo`, `WinMove`, `WinMoveBottom`, `WinMoveTop`, `WinRedraw`, `WinRestore`, `WinSetAlwaysOnTop`, `WinSetEnabled`, `WinSetExStyle`, `WinSetRegion`, `WinSetStyle`, `WinSetTitle`, `WinSetTransColor`, `WinSetTransparent`, `WinShow`, `WinWait`, `WinWaitActive`, `WinWaitClose`, `WinWaitNotActive`
 - *this runtime has no tray icon.* (3): `IconFile`, `IconNumber`, `TrayMenu`
 - *the lines are listed in a window of v2, and this runtime has no window to show them in.* (1): `ListLines`
 - *the variables are listed in a window of v2, and this runtime has no window to show them in.* (1): `ListVars`
@@ -161,13 +161,9 @@ names that the tree answers.
 
 ## 9. The core of the language: text, math and patterns
 
-**64 names: 61 answer with a value, 3 are refused.**
+**69 names: 69 answer with a value, 0 are refused.**
 
-**The ones that answer** (61): `ACos`, `ASin`, `ATan`, `Abs`, `Any`, `Ceil`, `Chr`, `Class`, `Class.Base`, `Class.Call`, `Class.Prototype`, `Class.__Init`, `Cos`, `Exp`, `Floor`, `Format`, `GetMethod`, `HasBase`, `HasMethod`, `HasProp`, `InStr`, `IsAlnum`, `IsAlpha`, `IsDigit`, `IsFloat`, `IsInteger`, `IsLower`, `IsNumber`, `IsObject`, `IsSetRef`, `IsSpace`, `IsTime`, `IsUpper`, `IsXDigit`, `LTrim`, `Ln`, `Log`, `Max`, `Min`, `Mod`, `Ord`, `RTrim`, `Random`, `RegExMatch`, `RegExReplace`, `Round`, `Sin`, `Sort`, `Sqrt`, `StrCompare`, `StrLen`, `StrLower`, `StrReplace`, `StrSplit`, `StrTitle`, `StrUpper`, `SubStr`, `Tan`, `Trim`, `Type`, `VerCompare`
-
-**The ones that are refused** (3), by the reason:
-
-- *this is a name of Windows, and this desktop is not Windows.* (3): `StrGet`, `StrPtr`, `StrPut`
+**The ones that answer** (69): `ACos`, `ASin`, `ATan`, `Abs`, `Any`, `Ceil`, `Chr`, `Class`, `Class.Base`, `Class.Call`, `Class.Prototype`, `Class.__Init`, `Cos`, `Exp`, `Float`, `Floor`, `Format`, `GetMethod`, `HasBase`, `HasMethod`, `HasProp`, `InStr`, `Integer`, `IsAlnum`, `IsAlpha`, `IsDigit`, `IsFloat`, `IsInteger`, `IsLower`, `IsNumber`, `IsObject`, `IsSetRef`, `IsSpace`, `IsTime`, `IsUpper`, `IsXDigit`, `LTrim`, `Ln`, `Log`, `Max`, `Min`, `Mod`, `Number`, `Ord`, `Primitive`, `RTrim`, `Random`, `RegExMatch`, `RegExReplace`, `Round`, `Sin`, `Sort`, `Sqrt`, `StrCompare`, `StrGet`, `StrLen`, `StrLower`, `StrPtr`, `StrPut`, `StrReplace`, `StrSplit`, `StrTitle`, `StrUpper`, `String`, `SubStr`, `Tan`, `Trim`, `Type`, `VerCompare`
 
 ## 10. The objects of the language: Array, Map and Func
 
@@ -183,13 +179,13 @@ names that the tree answers.
 
 ## 12. The machine, the processes and the environment
 
-**35 names: 20 answer with a value, 15 are refused.**
+**35 names: 30 answer with a value, 5 are refused.**
 
-**The ones that answer** (20): `AhkVersion`, `AppData`, `AppDataCommon`, `ComSpec`, `ComputerName`, `Desktop`, `DesktopCommon`, `Language`, `MyDocuments`, `OSVersion`, `Programs`, `ProgramsCommon`, `Run`, `RunWait`, `StartMenu`, `StartMenuCommon`, `Startup`, `StartupCommon`, `Temp`, `UserName`
+**The ones that answer** (30): `AhkVersion`, `AppData`, `AppDataCommon`, `ComSpec`, `ComputerName`, `Desktop`, `DesktopCommon`, `Language`, `MyDocuments`, `OSVersion`, `ProcessClose`, `ProcessExist`, `ProcessGetName`, `ProcessGetParent`, `ProcessGetPath`, `ProcessSetPriority`, `ProcessWait`, `ProcessWaitClose`, `Programs`, `ProgramsCommon`, `Run`, `RunWait`, `StartMenu`, `StartMenuCommon`, `Startup`, `StartupCommon`, `SysGet`, `SysGetIPAddresses`, `Temp`, `UserName`
 
-**The ones that are refused** (15), by the reason:
+**The ones that are refused** (5), by the reason:
 
-- *this is a name of Windows, and this desktop is not Windows.* (14): `OutputDebug`, `ProcessClose`, `ProcessExist`, `ProcessGetName`, `ProcessGetParent`, `ProcessGetPath`, `ProcessSetPriority`, `ProcessWait`, `ProcessWaitClose`, `ProgramFiles`, `RunAs`, `Shutdown`, `SysGet`, `SysGetIPAddresses`
+- *this is a name of Windows, and this desktop is not Windows.* (4): `OutputDebug`, `ProgramFiles`, `RunAs`, `Shutdown`
 - *this runtime is not AutoHotkey, and it has no path of an executable.* (1): `AhkPath`
 
 ## 13. The clipboard

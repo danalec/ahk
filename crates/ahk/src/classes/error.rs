@@ -85,6 +85,14 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
     if message.starts_with('(') {
         return "OSError";
     }
+    // Measured on the binary of v2.0.19 on 2026-11-09: a process of the
+    // process family that is not there is a failure of the class
+    // `TargetError` -- `ProcessGetName(999999)` answers it -- and the family
+    // asks the desktop for the process, so the message is the one the
+    // built-in gives.
+    if message == "Target process not found." {
+        return "TargetError";
+    }
     if message.contains("has no property named") {
         return "PropertyError";
     }

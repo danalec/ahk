@@ -39,6 +39,7 @@ pub(crate) mod gui;
 pub(crate) mod hotkey;
 pub(crate) mod inputhook;
 pub(crate) mod map;
+pub(crate) mod regexmatchinfo;
 
 /// The methods of the class types, with the name v2 spells them and
 /// the number of the arguments they take.
@@ -47,7 +48,7 @@ pub(crate) mod map;
 /// measured on it on 2026-10-29. The first argument of every one of them
 /// is the object itself: the reference is the method, and the object is
 /// one of the arguments of the call.
-const METHODS: [(&str, &str, &str, i64, i64); 54] = [
+const METHODS: [(&str, &str, &str, i64, i64); 59] = [
     ("map", "set", "Set", 1, 1),
     ("map", "get", "Get", 2, 3),
     ("map", "has", "Has", 2, 2),
@@ -106,6 +107,14 @@ const METHODS: [(&str, &str, &str, i64, i64); 54] = [
     ("file", "rawwrite", "RawWrite", 2, 3),
     ("file", "seek", "Seek", 2, 3),
     ("file", "close", "Close", 1, 1),
+    // The members of a match are read with the object as the first
+    // argument, and `Len`, `Pos` and `Name` take the place of a group as
+    // well.
+    ("regexmatchinfo", "__enum", "__Enum", 1, 2),
+    ("regexmatchinfo", "__get", "__Get", 3, 3),
+    ("regexmatchinfo", "len", "Len", 1, 2),
+    ("regexmatchinfo", "name", "Name", 2, 2),
+    ("regexmatchinfo", "pos", "Pos", 1, 2),
 ];
 
 /// The number of the arguments of the calls of the members.
@@ -118,7 +127,7 @@ const METHODS: [(&str, &str, &str, i64, i64); 54] = [
 ///
 /// The methods of the base object are the ones every object has, and the
 /// class of them is `object`.
-const CALLS: [(&str, &str, i64, i64); 60] = [
+const CALLS: [(&str, &str, i64, i64); 65] = [
     ("object", "ownprops", 0, 0),
     ("object", "clone", 0, 0),
     ("object", "hasownprop", 1, 1),
@@ -182,6 +191,13 @@ const CALLS: [(&str, &str, i64, i64); 60] = [
     ("file", "rawwrite", 1, 2),
     ("file", "seek", 1, 2),
     ("file", "close", 0, 0),
+    // The members of a match: the call the script writes does not pass the
+    // object, and `Name` needs the place of a group.
+    ("regexmatchinfo", "__enum", 0, 1),
+    ("regexmatchinfo", "__get", 2, 2),
+    ("regexmatchinfo", "len", 0, 1),
+    ("regexmatchinfo", "name", 1, 1),
+    ("regexmatchinfo", "pos", 0, 1),
 ];
 
 /// The class types that v2 makes with a call of their own.
@@ -197,7 +213,7 @@ const CALLS: [(&str, &str, i64, i64); 60] = [
 /// base object -- the `Class`, the `Object` and the classes of the
 /// failures -- carry the name of the base in the `What`, and the `Menu`
 /// carries its own.
-const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 11] = [
+const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 15] = [
     ("array", 0, -1, "Array.Call", "Array.Prototype.__New"),
     ("buffer", 0, 2, "Buffer.Call", "Buffer.Prototype.__New"),
     ("class", 0, 0, "Object.Call", ""),
@@ -211,6 +227,7 @@ const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 11] = [
     ("comobject", 1, 2, "", "ComObject.Call"),
     ("comvalue", 2, 3, "", "ComValue.Call"),
     ("error", 0, 3, "Object.Call", "Error.Prototype.__New"),
+    ("float", 1, 1, "", "Float.Call"),
     ("gui", 0, 3, "Gui.Call", "Gui.Prototype.__New"),
     (
         "inputhook",
@@ -219,8 +236,11 @@ const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 11] = [
         "InputHook.Call",
         "InputHook.Prototype.__New",
     ),
+    ("integer", 1, 1, "", "Integer.Call"),
     ("menu", 0, 0, "Menu.Call", ""),
+    ("number", 1, 1, "", "Number.Call"),
     ("object", 0, 0, "Object.Call", ""),
+    ("string", 1, 1, "", "String.Call"),
 ];
 
 /// The class types that v2 does not make.
@@ -1432,6 +1452,12 @@ pub(crate) fn construct(
                 .map_err(|failure| named(failure, &the_name_of(class, "__New"))),
         );
     }
+    // The classes of the numbers and of the text are the conversions of the
+    // dialect: the call of one converts its argument, and what the class
+    // itself is does not change.
+    if let Some(converted) = the_conversion(class, arguments, rt, line) {
+        return Some(converted);
+    }
     let made = match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
         "buffer" => Some(buffer::construct(arguments, rt, line)),
@@ -1444,6 +1470,115 @@ pub(crate) fn construct(
         _ => None,
     };
     made.map(|result| result.map_err(|failure| named(failure, &the_name_of(class, "__New"))))
+}
+
+/// The object a class of a number or of the text makes: a conversion.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `Integer("0x1F")` is 31,
+/// `Integer(3.9)` is 3, `Float("1.5")` is 1.5, `Number("0x10")` is 16,
+/// `Number("1.5")` is 1.5 and `String(42)` is "42". The classes themselves
+/// stay what they are -- `Type(Integer)` is "Class" and `Integer is Class` is
+/// 1 -- and only the call of one is the conversion.
+///
+/// A value of the wrong kind is refused with the name of the call in the
+/// `What` and the value in the `Extra`, and `String` of an object asks its
+/// `ToString` method.
+fn the_conversion(
+    class: &str,
+    arguments: &[Value],
+    rt: &mut Runtime,
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    let what = match class.to_lowercase().as_str() {
+        "integer" => "Integer.Call",
+        "float" => "Float.Call",
+        "number" => "Number.Call",
+        "string" => "String.Call",
+        _ => return None,
+    };
+    let value = arguments
+        .first()
+        .cloned()
+        .unwrap_or_else(|| Value::Text(String::new()));
+    // The value that is not a number is refused with the kind it got, and
+    // the value itself goes in the `Extra` of the failure.
+    let wants_a_number = || -> Option<RuntimeFailure> {
+        if crate::builtins::is_numeric_value(&value) {
+            return None;
+        }
+        Some(RuntimeFailure::Detailed(
+            RuntimeError {
+                message: crate::runtime::requires(1, what, TypeName::Number, &value),
+                line,
+            },
+            Detail {
+                what: what.to_string(),
+                extra: value.to_text(),
+            },
+        ))
+    };
+    match class.to_lowercase().as_str() {
+        "integer" => match wants_a_number() {
+            Some(failure) => Some(Err(failure)),
+            None => Some(Ok(Value::Int(crate::builtins::token_to_int64(&value)))),
+        },
+        "float" => match wants_a_number() {
+            Some(failure) => Some(Err(failure)),
+            None => Some(Ok(Value::Float(crate::builtins::token_to_double(
+                &value,
+            )))),
+        },
+        "number" => match wants_a_number() {
+            Some(failure) => Some(Err(failure)),
+            None => Some(Ok(match &value {
+                Value::Int(number) => Value::Int(*number),
+                Value::Float(number) => Value::Float(*number),
+                // The number a text holds keeps the shape it was written
+                // with: `"0x10"` is the integer 16 and `"1.5"` the float.
+                Value::Text(text) if crate::builtins::text_holds_an_integer(text) => {
+                    Value::Int(crate::builtins::text_to_int64(text))
+                }
+                Value::Text(text) => Value::Float(crate::builtins::text_to_double(text)),
+                other => other.clone(),
+            })),
+        },
+        _ => Some(the_string_conversion(&value, rt, line, what)),
+    }
+}
+
+/// `String(Value)`: the text of a value.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: an object is asked for
+/// its `ToString` method, and one that has none answers "This value of type
+/// `Map` has no method named `ToString`.".
+fn the_string_conversion(
+    value: &Value,
+    rt: &mut Runtime,
+    line: u32,
+    what: &str,
+) -> Result<Value, RuntimeFailure> {
+    match value {
+        Value::Int(number) => Ok(Value::Text(number.to_string())),
+        Value::Float(number) => Ok(Value::Text(crate::float_text::the_text_of(*number))),
+        Value::Text(text) => Ok(Value::Text(text.clone())),
+        Value::Object(_) => {
+            let arguments = Vec::new();
+            match rt.call_a_method_of_an_object(value, "ToString", &arguments, line) {
+                Ok(answer) => Ok(Value::Text(answer.to_text())),
+                Err(failure) => Err(named(failure, what)),
+            }
+        }
+        other => Err(named(
+            RuntimeFailure::Error(RuntimeError {
+                message: format!(
+                    "This value of type \"{}\" has no method named \"ToString\".",
+                    other.the_kind()
+                ),
+                line,
+            }),
+            what,
+        )),
+    }
 }
 
 /// A method of a class type.
@@ -1507,6 +1642,7 @@ fn call_once(
         "func" | "boundfunc" => func::call(method, this, arguments, rt, line),
         "hotkey" => hotkey::call(method, this, arguments, rt, line),
         "map" => map::call(method, this, arguments, rt, line),
+        "regexmatchinfo" => regexmatchinfo::call(method, this, arguments, rt, line),
         // The methods of the base object are the methods of every object,
         // and they are answered by the runtime.
         "object" => rt.base_method(this, method, arguments, line),
@@ -1557,9 +1693,31 @@ pub(crate) fn property(
         "func" => func::property(name, this, rt, line),
         "hotkey" => hotkey::property(name, this, rt, line),
         "map" => map::property(name, this, rt, line),
+        "regexmatchinfo" => regexmatchinfo::property(name, this, rt, line),
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::property(class, name, this, rt, line)
         }
+        _ => None,
+    }
+}
+
+/// A property of a class type that is read with the parameters of the
+/// access: `m.Len[2]`.
+///
+/// `None` means the class does not own the name with parameters: the
+/// runtime then reads the value of the property and indexes it, which is
+/// what the members of the other classes do. `Some` means the member
+/// answered the whole access, brackets and all.
+pub(crate) fn property_with_params(
+    class: &str,
+    name: &str,
+    params: &[Value],
+    this: &Value,
+    rt: &mut Runtime,
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    match class.to_lowercase().as_str() {
+        "regexmatchinfo" => regexmatchinfo::property_with_params(name, params, this, rt, line),
         _ => None,
     }
 }
@@ -1610,6 +1768,7 @@ pub(crate) fn item(
         "array" => array::item(key, this, rt, line),
         "file" => file::item(key, this, rt, line),
         "map" => map::item(key, this, rt, line),
+        "regexmatchinfo" => regexmatchinfo::item(key, this, rt, line),
         _ => None,
     };
     let what = the_name_of(class, "__Item.Get");
@@ -1663,6 +1822,7 @@ pub fn names(class: &str) -> Vec<&'static str> {
         "gui.statusbar" => gui::names("gui.statusbar"),
         "gui.treeview" => gui::names("gui.treeview"),
         "inputhook" => inputhook::NAMES.to_vec(),
+        "regexmatchinfo" => regexmatchinfo::names(),
         "class" => THE_CLASS_VALUE.to_vec(),
         "object" => THE_BASE_OBJECT
             .iter()

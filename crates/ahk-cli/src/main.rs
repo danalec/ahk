@@ -77,14 +77,19 @@ fn main() -> std::process::ExitCode {
         .skip(1)
         .any(|argument| argument == "--surface")
     {
+        // The behaviour is the call of every name that has a probe: the
+        // state says what a name is, and the probe says whether it works.
+        let behaviour = std::env::args()
+            .skip(1)
+            .any(|argument| argument == "--behavior" || argument == "--behaviour");
         // The JSON is for the CI, and the text is for a human.
         if std::env::args()
             .skip(1)
             .any(|argument| argument == "--json")
         {
-            print_surface_json(dialect);
+            print_surface_json(dialect, behaviour);
         } else {
-            print_surface(dialect);
+            print_surface(dialect, behaviour);
         }
         return std::process::ExitCode::from(0);
     }
@@ -208,11 +213,17 @@ fn the_dialect() -> &'static dyn Dialect {
 /// The report is a line for every name of the surface and a summary at
 /// the end: the number is the point of the command, and it is what makes
 /// "what is missing" a measurement and not an opinion.
-fn print_surface(dialect: &'static dyn Dialect) {
+fn print_surface(dialect: &'static dyn Dialect, behaviour: bool) {
     let entries = surface::entries_of(dialect);
     let mut out = String::new();
     for entry in &entries {
         out.push_str(&entry.line());
+        if behaviour {
+            if let Some(answer) = ahk::behavior::behaviour_of(dialect, &entry.full_name()) {
+                out.push_str("\tbehaviour=");
+                out.push_str(&answer);
+            }
+        }
         out.push('\n');
     }
     out.push_str(&surface::summary_of(&entries, dialect).text());
@@ -228,7 +239,7 @@ fn print_surface(dialect: &'static dyn Dialect) {
 ///
 /// The plan of the v1 dialect asks for this shape: "the JSON, for the CI,
 /// is a piece of F5".
-fn print_surface_json(dialect: &'static dyn Dialect) {
+fn print_surface_json(dialect: &'static dyn Dialect, behaviour: bool) {
     let entries = surface::entries_of(dialect);
     let summary = surface::summary_of(&entries, dialect);
     let mut report = json::Object::new(64 * 1024);
@@ -260,6 +271,11 @@ fn print_surface_json(dialect: &'static dyn Dialect) {
             if let surface::State::Refusal(reason) | surface::State::Pending(reason) = entry.state {
                 row.text("reason", reason);
             }
+            if behaviour {
+                if let Some(answer) = ahk::behavior::behaviour_of(dialect, &entry.full_name()) {
+                    row.text("behavior", &answer);
+                }
+            }
             out.push_str(&row.finish());
         }
         out.push(']');
@@ -272,21 +288,39 @@ fn print_surface_json(dialect: &'static dyn Dialect) {
 ///
 /// A `#Include "path"` line is replaced by the text of the file, and the
 /// path is taken from the directory of the file that asks for it. An
-/// include that is already in the tree is not put in twice: the second
-/// time it is read it is skipped, the way `#IncludeAgain` says.
+/// include that is already in the tree is not put in twice; the
+/// `#IncludeAgain` line puts its file in every time it asks for it, which
+/// is the difference between the two directives.
+///
+/// The nesting is counted: a file that includes itself, or a group of files
+/// that include one another, is refused with the reason instead of making
+/// the runner recurse until the stack is gone.
 fn resolve_includes(source: &str, base: &Path, seen: &mut Vec<PathBuf>) -> Result<String, String> {
+    resolve_includes_at(source, base, seen, 0)
+}
+
+/// How deep the includes may nest.
+const MAX_INCLUDE_DEPTH: usize = 64;
+
+/// `resolve_includes`, with the depth of the nesting the tree is in.
+fn resolve_includes_at(
+    source: &str,
+    base: &Path,
+    seen: &mut Vec<PathBuf>,
+    depth: usize,
+) -> Result<String, String> {
+    if depth > MAX_INCLUDE_DEPTH {
+        return Err(format!(
+            "the includes nest more than {MAX_INCLUDE_DEPTH} deep: a file includes itself, or a group of them includes one another."
+        ));
+    }
     let mut out = String::with_capacity(source.len());
     for line in source.lines() {
-        let trimmed = line.trim();
-        let Some(argument) = trimmed
-            .strip_prefix("#Include")
-            .or_else(|| trimmed.strip_prefix("#include"))
-        else {
+        let Some((again, argument)) = the_include_of(line) else {
             out.push_str(line);
             out.push('\n');
             continue;
         };
-        let argument = argument.trim();
         // The path is in quotes, or it is the rest of the line.
         let path = argument
             .strip_prefix('"')
@@ -301,19 +335,48 @@ fn resolve_includes(source: &str, base: &Path, seen: &mut Vec<PathBuf>) -> Resul
             Ok(path) => path,
             Err(_) => return Err(format!("the include \"{path:?}\" cannot be found.")),
         };
-        if seen.contains(&path) {
-            // The file is already in the tree: it is not put in twice.
+        if !again && seen.contains(&path) {
+            // The file is already in the tree, and `#Include` puts it in
+            // once: the line becomes nothing.
             out.push('\n');
             continue;
         }
         let text = std::fs::read_to_string(&path)
             .map_err(|error| format!("the include \"{path:?}\" cannot be read: {error}"))?;
         let directory = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-        seen.push(path);
-        out.push_str(&resolve_includes(&text, &directory, seen)?);
+        // The file is in the tree now, and a later `#Include` of it is
+        // skipped. `#IncludeAgain` ignores this list and asks again.
+        if !seen.contains(&path) {
+            seen.push(path);
+        }
+        out.push_str(&resolve_includes_at(&text, &directory, seen, depth + 1)?);
         out.push('\n');
     }
     Ok(out)
+}
+
+/// The include that the line asks for: whether it is `#IncludeAgain`, and
+/// its argument.
+///
+/// The directive is matched by its whole name, because `#Include` is a
+/// prefix of `#IncludeAgain` and the two are not the same line. A line
+/// whose directive is neither is a line of the script, and it is left as it
+/// is.
+fn the_include_of(line: &str) -> Option<(bool, &str)> {
+    let trimmed = line.trim();
+    let rest = trimmed.strip_prefix('#')?;
+    let end = rest
+        .find(|character: char| character.is_whitespace())
+        .unwrap_or(rest.len());
+    let (name, argument) = rest.split_at(end);
+    let again = if name.eq_ignore_ascii_case("include") {
+        false
+    } else if name.eq_ignore_ascii_case("includeagain") {
+        true
+    } else {
+        return None;
+    };
+    Some((again, argument.trim()))
 }
 
 /// Removes the pid file when the run ends, however it ends.

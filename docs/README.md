@@ -45,6 +45,17 @@ measurement is an opinion.
 | [wayland-toplevel-enumeration.md](wayland-toplevel-enumeration.md) | how a Wayland compositor lists its windows -- the `ext_foreign_toplevel_list_v1` and `zcosmic_toplevel_info_v1` protocols -- with the Rust that does it, compiled and run on the box | a contributor to the windows: read it before touching `WinExist` or `WinActive` |
 | [ahk-x11-comparison.md](ahk-x11-comparison.md) | the AHK_X11 (the AHK v1.0.24 for X11, in Crystal) against this tree: what it does, what the tree does, and what is worth porting. Its code is GPL-2.0 and this tree is Apache 2.0: the behaviour may be ported, the code may not | a contributor to the hotkeys, the clipboard, the sound or the windows |
 
+The numbers of `v2-capability-report.md` and `ahk-gaps-report.md` are checked
+`../scripts/README.md` describes the instruments of the tree:
+`check-surface-docs.py` (the numbers of the documents against the runner),
+`differential.py` (the same script in the real binary, in Keysharp and in this
+runner) and the corpus triage under `../egm-review/keysharp-audit/`.
+
+against the runner by `../scripts/check-surface-docs.py`
+(`python scripts/check-surface-docs.py`, and `--fix` writes the numbers of the
+tree into the documents): it exits non-zero when the two disagree, and it is
+meant to run in CI, which this tree does not have yet.
+
 ---
 
 ## Reading paths

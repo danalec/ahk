@@ -23,3 +23,7 @@ egm-review-doc-language/
 
 # a release that was built here is not in the tree
 dist/
+
+# the answers of the engines that differential.py writes are not part of the tree
+scripts/differential/raw/
+scripts/differential/_subset/

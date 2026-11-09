@@ -1,11 +1,12 @@
 # What is missing in the v1 and in the v2
 
-> **Measured.** The state of the tree is the one of the commit
-> `d41dec5` (the branch `port/v2-dialect`). The numbers come from the tree
-> itself: `ahk --surface --dialect=v1` and `ahk --surface --dialect=v2`, and
-> the comparisons are `egm-review/run_all_comparisons.py`, which runs the
-> script in the binary of the dialect and in the tree, and puts the two
-> answers side by side.
+> **Measured.** The state of the tree is the one of 2026-11-09, on top of
+> the commit `f47cbd6` of the branch `master`, with the runner built by
+> `cargo build --release -p ahk-cli` (`target/release/ahk.exe`). The numbers
+> come from the tree itself: `ahk --surface --dialect=v1` and
+> `ahk --surface --dialect=v2`, and the comparisons are
+> `egm-review/run_all_comparisons.py`, which runs the script in the binary of
+> the dialect and in the tree, and puts the two answers side by side.
 
 This report has two parts: the **names** (what the surface of each dialect
 carries) and the **behaviour** (what the tree does with the scripts that the
@@ -16,9 +17,9 @@ against the binaries — the v1.1.37.02 and the v2.0.19.
 
 | | The v2 | The v1 |
 |---|---|---|
-| The names of the surface | 828 | 405 |
-| Answer with a value | 638 | 299 |
-| Refused with a reason | 190 | 106 |
+| The names of the surface | 833 | 408 |
+| Answer with a value | 661 | 301 |
+| Refused with a reason | 172 | 107 |
 | Pending (not carried yet) | 0 | 0 |
 | The refusals that are not the machine's | 0 | 0 |
 | The behaviour that differs from the binary | 0 measured | 0 measured, 1 known |
@@ -46,7 +47,7 @@ Every other refusal is the machine's, not the tree's:
 
 | The reason | The v2 | The v1 |
 |---|---|---|
-| *this is a name of Windows, and this desktop is not Windows.* | 169 | 96 |
+| *this is a name of Windows, and this desktop is not Windows.* | 169 | 97 |
 | *the registry is a thing of Windows, and this runtime does not carry it.* | 5 | — |
 | *this runtime has no tray icon.* | 3 | 2 |
 | *this runtime runs one script in one thread, and it cannot start another.* (`Thread`) | 1 | 1 |
@@ -270,7 +271,7 @@ and gave the files and the folders, and the v2 refuses it with a dialog.
 
 ### 2.4 What is not a hole
 
-- The **names of Windows**: 169 of the v2 and 96 of the v1. The box is a
+- The **names of Windows**: 169 of the v2 and 97 of the v1. The box is a
   Wayland session on Linux, and the refusal is the right answer for it.
 - The **groups** (`GroupActivate`, `GroupClose`, `GroupDeactivate`), the
   **`KeyHistory`**, the **`MouseClickDrag`** (the `grim` of the box), the

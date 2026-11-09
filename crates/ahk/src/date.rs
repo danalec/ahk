@@ -641,21 +641,28 @@ fn the_number(values: &[Value], index: usize, name: &str, line: u32) -> Result<f
 }
 
 /// The unit of an argument, the way v2 reads it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: v2 reads the unit by its
+/// first letter and does not care about the rest -- `DateAdd(20200131, 1,
+/// "Days")` is the day, `"Dogs"` is the day and `"Saturday"` is the second --
+/// and the letter is read without the case. A text whose first letter is
+/// none of the four, and an empty text, are an invalid parameter.
 fn the_unit(values: &[Value], index: usize, name: &str, line: u32) -> Result<Unit, RuntimeError> {
     let text = values
         .get(index)
         .map(|value| value.to_text())
         .unwrap_or_default();
-    match text.as_str() {
-        "d" | "D" => Ok(Unit::Day),
-        "h" | "H" => Ok(Unit::Hour),
-        "m" | "M" => Ok(Unit::Minute),
-        "s" | "S" => Ok(Unit::Second),
-        _ => Err(RuntimeError {
-            message: invalid_parameter(index + 1, name),
-            line,
-        }),
-    }
+    let unit = match text.chars().next().map(|first| first.to_ascii_lowercase()) {
+        Some('d') => Some(Unit::Day),
+        Some('h') => Some(Unit::Hour),
+        Some('m') => Some(Unit::Minute),
+        Some('s') => Some(Unit::Second),
+        _ => None,
+    };
+    unit.ok_or_else(|| RuntimeError {
+        message: invalid_parameter(index + 1, name),
+        line,
+    })
 }
 
 /// The date and the time of the machine, in the local time.
@@ -1448,6 +1455,52 @@ mod tests {
             answer.unwrap_err().message,
             "Parameter #1 of DateAdd is invalid.".to_string()
         );
+    }
+
+    #[test]
+    fn the_unit_is_read_by_its_first_letter() {
+        // Measured on the binary of v2.0.19 on 2026-11-09: the unit is the
+        // first letter of the text, without the case. `"Days"` is the day and
+        // `"Saturday"` is the second.
+        let answer = with_clock(|rt| {
+            date_add(
+                rt,
+                &[
+                    Value::Int(20200131),
+                    Value::Int(1),
+                    Value::Text("Days".into()),
+                ],
+                1,
+                0,
+            )
+        });
+        assert_eq!(answer.unwrap(), Value::Text("20200201000000".into()));
+        let answer = with_clock(|rt| {
+            date_add(
+                rt,
+                &[
+                    Value::Int(20200131),
+                    Value::Int(1),
+                    Value::Text("Saturday".into()),
+                ],
+                1,
+                0,
+            )
+        });
+        assert_eq!(answer.unwrap(), Value::Text("20200131000001".into()));
+        let answer = with_clock(|rt| {
+            date_diff(
+                rt,
+                &[
+                    Value::Int(20200110),
+                    Value::Int(20200101),
+                    Value::Text("Days".into()),
+                ],
+                1,
+                0,
+            )
+        });
+        assert_eq!(answer.unwrap(), Value::Int(9));
     }
 
     #[test]

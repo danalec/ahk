@@ -21,6 +21,7 @@ use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 use wayland_client::globals::{BindError, GlobalList, GlobalListContents, registry_queue_init};
+use wayland_client::protocol::wl_output::{Event as OutputEvent, WlOutput};
 use wayland_client::protocol::wl_registry::{self, WlRegistry};
 use wayland_client::{Connection, Dispatch, EventQueue, Proxy, QueueHandle, event_created_child};
 use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
@@ -28,6 +29,7 @@ use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
     ext_foreign_toplevel_list_v1::{self, Event as ListEvent, ExtForeignToplevelListV1},
 };
 
+use ahk::desktop::Monitor;
 use super::Window;
 use super::protocols::client::{
     zcosmic_toplevel_handle_v1::{Event as CosmicEvent, ZcosmicToplevelHandleV1},
@@ -80,6 +82,24 @@ impl Client {
         client.bind();
         client.refresh()?;
         Ok(client)
+    }
+
+    /// The monitors the compositor has.
+    ///
+    /// The compositor publishes one `wl_output` for each monitor, and the
+    /// events of it say where the monitor is and how many pixels it has. The
+    /// name of the output is the name the compositor gives it -- "HDMI-A-1"
+    /// on the box -- and it is the name that `MonitorGetName` answers in the
+    /// place of the "\\.\DISPLAY1" of the binary.
+    ///
+    /// Measured on the box on 2026-11-09: the compositor published one
+    /// output, `HDMI-A-1`, at 0,0, with the mode 1920x1080.
+    pub fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
+        self.refresh()?;
+        if let Some(reason) = self.state.outputs_reason.clone() {
+            return Err(reason);
+        }
+        Ok(self.state.monitors())
     }
 
     /// The windows the compositor has.
@@ -157,6 +177,33 @@ impl Client {
             }
         }
 
+        // The monitors of the compositor: one `wl_output` for each of them.
+        // The listing of the globals is walked, because a bind by type takes
+        // only the first output of a compositor that has two.
+        let outputs: Vec<(u32, u32)> = globals
+            .contents()
+            .clone_list()
+            .into_iter()
+            .filter(|global| global.interface == WlOutput::interface().name)
+            .map(|global| (global.name, global.version))
+            .collect();
+        if outputs.is_empty() {
+            self.state.outputs_reason = Some(
+                "the compositor does not publish wl_output, so its monitors cannot be read."
+                    .to_string(),
+            );
+        }
+        for (name, version) in outputs {
+            // The name and the description of an output are the version 4
+            // of the protocol: a compositor that speaks an older one has the
+            // geometry and the mode, and no name.
+            let output: WlOutput = globals.registry().bind(name, version.min(4), &handle, ());
+            self.state
+                .outputs
+                .insert(output.id().protocol_id(), OutputState::default());
+            self.state.output_proxies.push(output);
+        }
+
         self.state.globals = Some(globals);
     }
 
@@ -215,6 +262,14 @@ struct State {
     listing: Option<String>,
     /// Why the active window cannot be told.
     focus: Option<String>,
+    /// The monitors the compositor published, by the id of their output.
+    outputs: BTreeMap<u32, OutputState>,
+    /// The outputs themselves, kept alive on purpose: a proxy that is
+    /// dropped destroys the object on the server, and a monitor that is
+    /// destroyed never tells its name.
+    output_proxies: Vec<WlOutput>,
+    /// Why the monitors cannot be read.
+    outputs_reason: Option<String>,
 }
 
 impl State {
@@ -229,6 +284,19 @@ impl State {
             .values()
             .find(|toplevel| toplevel.active)
             .map(Toplevel::window)
+    }
+
+    /// The monitors, in the order the compositor published them.
+    ///
+    /// A monitor with no mode yet -- the compositor has not said how many
+    /// pixels it has -- is not a rectangle, and it is not answered: a monitor
+    /// of zero pixels is a wrong answer, and not a monitor.
+    fn monitors(&self) -> Vec<Monitor> {
+        self.outputs
+            .values()
+            .filter(|output| output.width > 0 && output.height > 0)
+            .map(OutputState::monitor)
+            .collect()
     }
 
     /// Whether the compositor still has to say the state of a window.
@@ -280,6 +348,101 @@ impl Toplevel {
             title: self.title.clone(),
             app_id: self.app_id.clone(),
             active: self.active,
+        }
+    }
+}
+
+/// What is known about one monitor of the compositor.
+#[derive(Debug, Default)]
+struct OutputState {
+    /// The name the compositor gives the output: "HDMI-A-1".
+    name: String,
+    /// The description of the output: the make and the model of it.
+    description: String,
+    /// The left edge of the monitor, in the coordinates of the session.
+    x: i64,
+    /// The top edge of the monitor, in the coordinates of the session.
+    y: i64,
+    /// The number of the columns of the current mode.
+    width: i64,
+    /// The number of the rows of the current mode.
+    height: i64,
+    /// Whether the mode the compositor has said is the current one.
+    current: bool,
+}
+
+impl OutputState {
+    /// The monitor, as the rest of the crate sees it.
+    ///
+    /// The rectangle of the monitor is the geometry of the output and the size
+    /// of its current mode. The right and the bottom are one past the last
+    /// column and the last row, which is the rectangle the binary of v2
+    /// answers: measured on it on 2026-11-09, the monitor of a screen of 3840
+    /// by 2160 answered 0, 0, 3840, 2160.
+    fn monitor(&self) -> Monitor {
+        Monitor {
+            name: if self.name.is_empty() {
+                self.description.clone()
+            } else {
+                self.name.clone()
+            },
+            left: self.x,
+            top: self.y,
+            right: self.x + self.width,
+            bottom: self.y + self.height,
+        }
+    }
+
+    /// Take a mode of the compositor.
+    ///
+    /// The compositor says the modes of the output, and the flags say which
+    /// one is the current one. A mode that arrives before the current one is
+    /// kept until the current one comes: a compositor that never says which
+    /// one is current is answered with the last mode it said, which is its
+    /// own order.
+    fn take_mode(&mut self, flags: u32, width: i32, height: i32) {
+        // The flag of `wl_output.mode` that says the mode is the current one.
+        const CURRENT: u32 = 1;
+        if flags & CURRENT != 0 {
+            self.width = width as i64;
+            self.height = height as i64;
+            self.current = true;
+        } else if !self.current {
+            self.width = width as i64;
+            self.height = height as i64;
+        }
+    }
+}
+
+/// One monitor: where it is, how many pixels it has, and its name.
+impl Dispatch<WlOutput, ()> for State {
+    fn event(
+        state: &mut Self,
+        proxy: &WlOutput,
+        event: OutputEvent,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        let Some(output) = state.outputs.get_mut(&proxy.id().protocol_id()) else {
+            return;
+        };
+        match event {
+            OutputEvent::Geometry { x, y, .. } => {
+                output.x = x as i64;
+                output.y = y as i64;
+            }
+            OutputEvent::Mode {
+                flags,
+                width,
+                height,
+                ..
+            } => output.take_mode(flags.into(), width, height),
+            OutputEvent::Name { name } => output.name = name,
+            OutputEvent::Description { description } => output.description = description,
+            // The scale and the transform of the output are not the
+            // rectangle of the monitor in the coordinates of the session.
+            _ => {}
         }
     }
 }

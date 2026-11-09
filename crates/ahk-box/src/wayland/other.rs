@@ -4,6 +4,8 @@
 //! client is Unix-only. The client therefore says so, instead of
 //! pretending that the windows are not there.
 
+use ahk::desktop::Monitor;
+
 use super::Window;
 
 /// The client of the compositor.
@@ -12,6 +14,11 @@ pub struct Client;
 impl Client {
     /// Open the connection to the compositor.
     pub fn open() -> Result<Self, String> {
+        Err(not_linux())
+    }
+
+    /// The monitors the compositor has.
+    pub fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
         Err(not_linux())
     }
 

@@ -15,6 +15,7 @@ pub mod network;
 pub mod picture;
 pub mod pictures;
 pub mod pointer;
+pub mod process;
 pub mod raven;
 pub mod sys;
 pub mod wayland;

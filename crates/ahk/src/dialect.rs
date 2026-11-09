@@ -96,6 +96,22 @@ pub trait Dialect: Sync {
     /// refused in the v1 one.
     fn name(&self) -> &'static str;
 
+    /// The version of the interpreter that the dialect stands for.
+    ///
+    /// The `#Requires` directive of mainline AutoHotkey names a version and
+    /// not a dialect -- `#Requires AutoHotkey v2.0.19` -- and the comparison
+    /// is numeric. The numbers here are the versions of the binaries whose
+    /// tables this tree carries: the surface of the v2 is the one of 2.0.19,
+    /// and the surface of the v1 is the one of 1.1.37.02.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `v2.0.0` and `v2` are
+    /// met, `v2.0.20` and `v2.1` are not, and a requirement of another major
+    /// version is not met by the v2 -- `#Requires AutoHotkey v1.1` is refused
+    /// by 2.0.19 even though 2.0.19 is the later version.
+    fn version(&self) -> (u16, u16, u16, u16) {
+        (0, 0, 0, 0)
+    }
+
     /// The built-ins that the dialect carries.
     fn builtins(&self) -> &'static [Builtin];
 
@@ -1950,6 +1966,10 @@ impl Dialect for V2 {
         "v2"
     }
 
+    fn version(&self) -> (u16, u16, u16, u16) {
+        (2, 0, 19, 0)
+    }
+
     fn builtins(&self) -> &'static [Builtin] {
         crate::builtins::BUILTINS
     }
@@ -1981,6 +2001,20 @@ impl Dialect for V2 {
     }
 
     fn the_place_of_the_argument_that_wants_the_name(&self, _name: &str) -> Option<usize> {
+        None
+    }
+
+    /// The argument of `IsSet` that asks for the variable itself.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `IsSet(Var)` asks
+    /// whether the variable has a value, and the argument is a variable and
+    /// not an expression -- `IsSet(1)` is refused with "IsSet requires a
+    /// variable.". The value of the name is not read: a variable that has
+    /// no value is the answer zero, and not a failure.
+    fn the_place_of_the_argument_that_wants_the_variable(&self, name: &str) -> Option<usize> {
+        if name.eq_ignore_ascii_case("IsSet") {
+            return Some(0);
+        }
         None
     }
 
@@ -2086,6 +2120,10 @@ impl Dialect for V2 {
 impl Dialect for V1 {
     fn name(&self) -> &'static str {
         "v1"
+    }
+
+    fn version(&self) -> (u16, u16, u16, u16) {
+        (1, 1, 37, 2)
     }
 
     fn builtins(&self) -> &'static [Builtin] {

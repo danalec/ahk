@@ -72,6 +72,14 @@ const THE_LOOP_VARIABLES: &[&str] = &[
     "loopregtimemodified",
 ];
 
+/// The name of the variable that a spread argument enumerates into.
+///
+/// The name carries the null character, and a name of a variable of a
+/// script cannot: the enumeration of a spread is not one that the script
+/// can read or write. Measured on the binary of v2.0.19 on 2026-11-09: the
+/// spread enumerates its value the way a `for` loop does.
+const SPREAD_VARIABLE: &str = "\u{0}spread";
+
 /// The type of a value.
 ///
 /// AutoHotkey v2 has four of them, and every value carries the tag of
@@ -254,6 +262,52 @@ fn the_number_of_the_text(text: &str) -> f64 {
         }
     }
     text[..end].parse::<f64>().unwrap_or(0.0)
+}
+
+/// The base of the addresses the runtime keeps for the texts of a script.
+///
+/// A text of the tree lives in the machine of Rust, and a script that asks
+/// for the address of one is given an address of the runtime: the value is
+/// above the heap of the machine and below the addresses of the pointers,
+/// so that a script may add to it and compare it.
+const STRING_MEMORY_BASE: i64 = 0x0000_5A00_0000_0000;
+
+/// The distance between two of the addresses of the texts of a script.
+const STRING_MEMORY_STRIDE: i64 = 16;
+
+/// The capacity of a text, the way the allocator of the binary answers.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the capacity of the
+/// string of a variable is a number of the allocator -- 3, 7, 63, and the
+/// length of the text itself for a longer one.
+fn the_capacity_of_a_text(text: &str) -> i64 {
+    let length = text.chars().count() as i64;
+    if length == 0 {
+        0
+    } else if length <= 3 {
+        3
+    } else if length <= 7 {
+        7
+    } else if length <= 63 {
+        63
+    } else {
+        length + 1
+    }
+}
+
+/// Whether a node is the `unset` keyword.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `u := unset` takes the
+/// value of the variable away. The lexer of the tree has no token for the
+/// keyword yet, so the name arrives as a variable of the script; the name
+/// is the keyword here, because a script of v2 cannot have a variable of
+/// that name: it is a keyword of the dialect.
+fn the_node_is_unset(node: &Node) -> bool {
+    match node {
+        Node::Unset { .. } => true,
+        Node::Var { name, .. } => name.eq_ignore_ascii_case("unset"),
+        _ => false,
+    }
 }
 
 /// The message v2 gives when a maths operation gets something that is
@@ -539,6 +593,29 @@ pub(crate) const BOUND_TARGET: &str = "bound target";
 /// under is not one a script can reach.
 pub(crate) const CLOSURE: &str = "function closure";
 
+/// The flags of the parameters of a function, for the `IsOptional` and the
+/// `IsByRef` of v2.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `f.IsOptional(2)` is one
+/// for the `b?` of `f(a, b?)` and zero for the `a`; a parameter that carries
+/// a default is optional too, and `IsByRef(1)` is one for the `&x` of the
+/// definition. The flags of a method start with the `this` that the
+/// reference takes as its first parameter. The value is a list of numbers:
+/// the bit 0 is the ByRef marker and the bit 1 the optional one.
+pub(crate) const PARAMETERS: &str = "parameter flags";
+
+/// The flags of the parameters of a function, as the list the `Func` keeps.
+fn the_flags_of_the_parameters(parameters: &[crate::ast::Parameter], this: bool) -> Value {
+    let mut flags: Vec<Value> = Vec::new();
+    if this {
+        flags.push(Value::Int(0));
+    }
+    flags.extend(parameters.iter().map(|parameter| {
+        Value::Int((parameter.by_ref as i64) | (((!parameter.is_required()) as i64) << 1))
+    }));
+    Value::List(flags)
+}
+
 /// The key the name of a class lives under.
 ///
 /// v2 does not show the name of a class: a class value has no property
@@ -717,14 +794,10 @@ impl Value {
         match self {
             Value::Int(number) => number.to_string(),
             // A float keeps its point: `2.0` is not `2` in v2, and a
-            // script that prints one wants to see it.
-            Value::Float(number) => {
-                if fract(*number) == 0.0 && number.abs() < 9.0e15 {
-                    format!("{number:.1}")
-                } else {
-                    number.to_string()
-                }
-            }
+            // script that prints one wants to see it. The digits are the
+            // ones of v2, not the shortest text that reads back as the
+            // same number; the rule is in `float_text`.
+            Value::Float(number) => crate::float_text::the_text_of(*number),
             Value::Text(text) => text.clone(),
             Value::List(items) => items
                 .iter()
@@ -1005,8 +1078,14 @@ pub struct Report {
 
 /// The way a script left a block.
 pub(crate) enum Flow {
-    Break,
-    Continue,
+    /// The `break` of a loop, with the level of the loop it leaves.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `break 2` leaves
+    /// the two loops it is inside, and every loop that the flow crosses
+    /// takes one level away from it. A plain `break` is the level one.
+    Break(u32),
+    /// The `continue` of a loop, with the level of the loop it continues.
+    Continue(u32),
     Return(Option<Value>),
     Exit(i32),
     /// The jump of a `Goto`: the name of the label, as the script wrote
@@ -1019,6 +1098,46 @@ pub(crate) enum Flow {
         name: String,
         line: u32,
     },
+}
+
+/// What the body of a loop did, as the loop that ran it reads it.
+///
+/// A `break N` or a `continue N` leaves the loops it names, and the loop
+/// that catches the flow is the one that the level names: every loop takes
+/// one level away and passes the rest on. Measured on the binary of
+/// v2.0.19 on 2026-11-09.
+pub(crate) enum TheFlowOfALoop {
+    /// The body ran to its end, or an inner loop took the flow.
+    Next,
+    /// This loop ends.
+    Break,
+    /// The next turn of this loop begins.
+    Continue,
+    /// The flow is not this loop's: it goes on out of the loop.
+    Out(RuntimeFailure),
+}
+
+/// What the body of a loop did, with one level taken away by the loop that
+/// reads it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the loop of the level
+/// catches the flow, and the loops that the flow crosses hand the next
+/// level on.
+fn the_flow_of_a_loop_body(outcome: Result<(), RuntimeFailure>) -> TheFlowOfALoop {
+    match outcome {
+        Ok(()) => TheFlowOfALoop::Next,
+        Err(RuntimeFailure::Flow(Flow::Break(level))) if level <= 1 => TheFlowOfALoop::Break,
+        Err(RuntimeFailure::Flow(Flow::Continue(level))) if level <= 1 => {
+            TheFlowOfALoop::Continue
+        }
+        Err(RuntimeFailure::Flow(Flow::Break(level))) => {
+            TheFlowOfALoop::Out(RuntimeFailure::Flow(Flow::Break(level - 1)))
+        }
+        Err(RuntimeFailure::Flow(Flow::Continue(level))) => {
+            TheFlowOfALoop::Out(RuntimeFailure::Flow(Flow::Continue(level - 1)))
+        }
+        Err(other) => TheFlowOfALoop::Out(other),
+    }
 }
 
 /// What the functions of the error said about a failure.
@@ -1146,6 +1265,20 @@ pub struct Runtime<'a> {
     batch_lines: alloc::string::String,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
+    /// The capacities of the strings of the variables of the script.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a variable keeps
+    /// the capacity that `VarSetStrCapacity` gave it, the number is the
+    /// characters the buffer holds besides the terminator, and the key of
+    /// the variable is the scope of it and its name.
+    string_capacities: BTreeMap<(u8, String), i64>,
+    /// The texts whose address a script asked for with `StrPtr`.
+    ///
+    /// The strings of a script live in the machine of Rust and have no
+    /// address of their own: the runtime keeps one for them, the same text
+    /// answering the same address, so that `StrPtr` and `StrGet` agree and
+    /// two reads of the same text answer one pointer.
+    string_memory: RefCell<Vec<String>>,
     /// The directory where the run started.
     ///
     /// The runtime asks the desktop for it when it is made, and it keeps
@@ -1338,6 +1471,8 @@ impl<'a> Runtime<'a> {
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
+            string_capacities: BTreeMap::new(),
+            string_memory: RefCell::new(Vec::new()),
             scopes: Vec::new(),
             label_scopes: Vec::new(),
             in_the_body_of_a_hotkey: false,
@@ -1402,6 +1537,8 @@ impl<'a> Runtime<'a> {
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
+            string_capacities: BTreeMap::new(),
+            string_memory: RefCell::new(Vec::new()),
             scopes: Vec::new(),
             label_scopes: Vec::new(),
             in_the_body_of_a_hotkey: false,
@@ -1689,8 +1826,8 @@ impl<'a> Runtime<'a> {
         match registered {
             Ok(()) => match self.run_block(statements) {
                 Ok(()) => {}
-                Err(RuntimeFailure::Flow(Flow::Break))
-                | Err(RuntimeFailure::Flow(Flow::Continue)) => {}
+                Err(RuntimeFailure::Flow(Flow::Break(_)))
+                | Err(RuntimeFailure::Flow(Flow::Continue(_))) => {}
                 Err(RuntimeFailure::Flow(Flow::Return(_))) => {}
                 Err(RuntimeFailure::Flow(Flow::Exit(code))) => exit_code = Some(code),
                 // The jump of a `Goto` that leaves the script: the label is not
@@ -2607,9 +2744,19 @@ impl<'a> Runtime<'a> {
                 value,
                 line,
             } => {
-                let value = self.evaluate(value)?;
-                let stored = self.write_a_variable(name, *op, value, *line)?;
-                detail = format!("{name} = {}", stored.to_text());
+                // Measured on the binary of v2.0.19 on 2026-11-09: the
+                // `x := unset` takes the value of the variable away, and the
+                // reading of it after that is the failure of a variable that
+                // has no value. A value that is not `unset` is written the
+                // way the operator says.
+                if *op == AssignOp::Set && the_node_is_unset(value) {
+                    self.unset_variable(name);
+                    detail = format!("{name} = ");
+                } else {
+                    let value = self.evaluate(value)?;
+                    let stored = self.write_a_variable(name, *op, value, *line)?;
+                    detail = format!("{name} = {}", stored.to_text());
+                }
             }
             Node::LegacyAssign { name, text, line } => {
                 // Measured on the binary of v1.1.37.02 on 2026-11-02: the
@@ -2667,9 +2814,10 @@ impl<'a> Runtime<'a> {
                 variables,
                 source,
                 body,
+                until,
                 line,
             } => {
-                self.for_loop(variables, source, body, *line)?;
+                self.for_loop(variables, source, body, until, *line)?;
             }
             Node::MethodCall {
                 target,
@@ -2846,11 +2994,14 @@ impl<'a> Runtime<'a> {
                     }
                     self.set_global("A_Index", Value::Int(turn));
                     turn += 1;
-                    match self.run_block(body) {
-                        Ok(()) => {}
-                        Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                        Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                        Err(other) => return Err(other),
+                    match the_flow_of_a_loop_body(self.run_block(body)) {
+                        TheFlowOfALoop::Next => {}
+                        TheFlowOfALoop::Break => break,
+                        TheFlowOfALoop::Continue => continue,
+                        TheFlowOfALoop::Out(failure) => {
+                            self.the_index_is_given_back(saved);
+                            return Err(failure);
+                        }
                     }
                 }
                 self.the_index_is_given_back(saved);
@@ -2953,14 +3104,13 @@ impl<'a> Runtime<'a> {
                                 let mut turn = 1i64;
                                 while turn <= count.max(0) {
                                     self.set_global("A_Index", Value::Int(turn));
-                                    let broken = match self.run_block(body) {
-                                        Ok(()) => false,
-                                        Err(RuntimeFailure::Flow(Flow::Break)) => true,
-                                        Err(RuntimeFailure::Flow(Flow::Continue)) => false,
-                                        Err(other) => return Err(other),
-                                    };
-                                    if broken {
+                                    let flow = the_flow_of_a_loop_body(self.run_block(body));
+                                    if matches!(flow, TheFlowOfALoop::Break) {
                                         break;
+                                    }
+                                    if let TheFlowOfALoop::Out(failure) = flow {
+                                        self.the_index_is_given_back(saved);
+                                        return Err(failure);
                                     }
                                     // Measured on the binary of AutoHotkey
                                     // v1.1.37.02 on 2026-11-04: the `until` of
@@ -3007,11 +3157,14 @@ impl<'a> Runtime<'a> {
                                     }
                                     self.set_global("A_Index", Value::Int(turn));
                                     turn += 1;
-                                    match self.run_block(body) {
-                                        Ok(()) => {}
-                                        Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                                        Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                                        Err(other) => return Err(other),
+                                    match the_flow_of_a_loop_body(self.run_block(body)) {
+                                        TheFlowOfALoop::Next => {}
+                                        TheFlowOfALoop::Break => break,
+                                        TheFlowOfALoop::Continue => continue,
+                                        TheFlowOfALoop::Out(failure) => {
+                                            self.the_index_is_given_back(saved);
+                                            return Err(failure);
+                                        }
                                     }
                                     // Measured on the binary of AutoHotkey
                                     // v1.1.37.02 on 2026-11-04: the `until` of
@@ -3068,11 +3221,14 @@ impl<'a> Runtime<'a> {
                         for (index, piece) in pieces.iter().enumerate() {
                             self.set_global("A_Index", Value::Int(index as i64 + 1));
                             self.set_global("A_LoopField", Value::Text(piece.clone()));
-                            match self.run_block(body) {
-                                Ok(()) => {}
-                                Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                                Err(other) => return Err(other),
+                            match the_flow_of_a_loop_body(self.run_block(body)) {
+                                TheFlowOfALoop::Next => {}
+                                TheFlowOfALoop::Break => break,
+                                TheFlowOfALoop::Continue => continue,
+                                TheFlowOfALoop::Out(failure) => {
+                                    self.the_index_is_given_back(saved);
+                                    return Err(failure);
+                                }
                             }
                         }
                     }
@@ -3150,11 +3306,14 @@ impl<'a> Runtime<'a> {
                             // The short names of the files are a thing of
                             // Windows, and this box has none.
                             self.the_short_names_of_the_files_are_refused = true;
-                            match self.run_block(body) {
-                                Ok(()) => {}
-                                Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                                Err(other) => return Err(other),
+                            match the_flow_of_a_loop_body(self.run_block(body)) {
+                                TheFlowOfALoop::Next => {}
+                                TheFlowOfALoop::Break => break,
+                                TheFlowOfALoop::Continue => continue,
+                                TheFlowOfALoop::Out(failure) => {
+                                    self.the_index_is_given_back(saved);
+                                    return Err(failure);
+                                }
                             }
                         }
                     }
@@ -3195,11 +3354,11 @@ impl<'a> Runtime<'a> {
                             // `A_LoopReadLine`, and `A_LoopField` is the
                             // field of the loop that parses.
                             self.set_global("A_LoopReadLine", Value::Text(line_text.clone()));
-                            match self.run_block(body) {
-                                Ok(()) => {}
-                                Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                                Err(other) => {
+                            match the_flow_of_a_loop_body(self.run_block(body)) {
+                                TheFlowOfALoop::Next => {}
+                                TheFlowOfALoop::Break => break,
+                                TheFlowOfALoop::Continue => continue,
+                                TheFlowOfALoop::Out(other) => {
                                     failure = Some(other);
                                     break;
                                 }
@@ -3207,6 +3366,7 @@ impl<'a> Runtime<'a> {
                         }
                         self.loop_output_files.pop();
                         if let Some(other) = failure {
+                            self.the_index_is_given_back(saved);
                             return Err(other);
                         }
                     }
@@ -3261,8 +3421,21 @@ impl<'a> Runtime<'a> {
                     self.run_block(body)?;
                 }
             }
-            Node::Break { .. } => return Err(RuntimeFailure::Flow(Flow::Break)),
-            Node::Continue { .. } => return Err(RuntimeFailure::Flow(Flow::Continue)),
+            Node::Break { level, .. } => return Err(RuntimeFailure::Flow(Flow::Break(*level))),
+            Node::Continue { level, .. } => {
+                return Err(RuntimeFailure::Flow(Flow::Continue(*level)))
+            }
+            // The spread is not a value: it is an argument of a call, and
+            // every call that reads its arguments takes it apart. Reaching
+            // this one means a call read its arguments one by one without
+            // asking for them, and the spread is refused rather than
+            // dropped.
+            Node::Spread { line, .. } => {
+                return Err(RuntimeFailure::Error(RuntimeError {
+                    message: "Missing operand.".into(),
+                    line: *line,
+                }))
+            }
             Node::Return { value, .. } => {
                 let value = match value {
                     Some(node) => Some(self.evaluate(node)?),
@@ -3358,6 +3531,7 @@ impl<'a> Runtime<'a> {
         variables: &[String],
         source: &Node,
         body: &[Node],
+        until: &Option<Box<Node>>,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
         // v2 gives the loop two variables at most: the key and the
@@ -3433,14 +3607,19 @@ impl<'a> Runtime<'a> {
                 break;
             }
             self.set_global("A_Index", Value::Int(turns as i64));
-            match self.run_block(body) {
-                Ok(()) => {}
-                Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                Err(other) => {
-                    outcome = Err(other);
+            // Measured on the binary of v2.0.19 on 2026-11-09: the `until`
+            // of a `for` is read after every turn, and after a `continue`
+            // too, the way the other loops read it.
+            match the_flow_of_a_loop_body(self.run_block(body)) {
+                TheFlowOfALoop::Next | TheFlowOfALoop::Continue => {}
+                TheFlowOfALoop::Break => break,
+                TheFlowOfALoop::Out(failure) => {
+                    outcome = Err(failure);
                     break;
                 }
+            }
+            if self.the_until_ends_the_loop(until)? {
+                break;
             }
         }
         for (name, value) in saved {
@@ -4346,10 +4525,126 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The number of the scope of a variable, for the tables that are keyed
+    /// by the variable and not by the value of it.
+    fn the_scope_number(scope: Scope) -> u8 {
+        match scope {
+            Scope::Global => 0,
+            // The scopes of a run nest a hundred deep at most: the number is
+            // the place of the scope, and a depth that cannot be numbered is
+            // the last one that can.
+            Scope::Local(depth) => (depth.saturating_add(1)).min(255) as u8,
+        }
+    }
+
+    /// The capacity of the string of a variable.
+    ///
+    /// The capacity is the number of the characters the buffer of the
+    /// string holds besides the terminator. Measured on the binary of
+    /// v2.0.19 on 2026-11-09: the capacity of a variable is the one that
+    /// `VarSetStrCapacity` gave it, and a variable that was never asked
+    /// for one answers the size class of the text it holds -- 3 for up to
+    /// three characters, 7 up to seven, 63 up to sixty-three, and the
+    /// length of the text itself after that. The size classes are the
+    /// allocator of the binary, and a script that reads one is reading the
+    /// machine; the tree keeps the classes and not the addresses.
+    pub(crate) fn string_capacity(&self, reference: &Reference) -> i64 {
+        let key = (
+            Self::the_scope_number(reference.scope),
+            the_key_of(&reference.name),
+        );
+        if let Some(capacity) = self.string_capacities.get(&key) {
+            return *capacity;
+        }
+        match self.read_reference(reference) {
+            Some(Value::Text(text)) => the_capacity_of_a_text(&text),
+            Some(_) => 0,
+            None => 0,
+        }
+    }
+
+    /// Keep the capacity of the string of a variable.
+    pub(crate) fn set_string_capacity(&mut self, reference: &Reference, capacity: i64) {
+        let key = (
+            Self::the_scope_number(reference.scope),
+            the_key_of(&reference.name),
+        );
+        self.string_capacities.insert(key, capacity);
+    }
+
+    /// Whether the capacity of the string of a variable was asked for.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a capacity that was
+    /// given to a variable is freed by a call that asks for zero, and the
+    /// capacity of a text that was never asked for is the size class of
+    /// it, which the free of the binary does not give back.
+    pub(crate) fn keeps_a_string_capacity(&self, reference: &Reference) -> bool {
+        let key = (
+            Self::the_scope_number(reference.scope),
+            the_key_of(&reference.name),
+        );
+        self.string_capacities.contains_key(&key)
+    }
+
+    /// Forget the capacity of the string of a variable.
+    pub(crate) fn forget_a_string_capacity(&mut self, reference: &Reference) {
+        let key = (
+            Self::the_scope_number(reference.scope),
+            the_key_of(&reference.name),
+        );
+        self.string_capacities.remove(&key);
+    }
+
+    /// Forget the capacities of the variables of the scopes that have ended.
+    ///
+    /// A local variable lives as long as the call it belongs to: the
+    /// capacity of it goes away with the call, so that a second call of the
+    /// same function does not find the capacity of the first one.
+    fn forget_the_capacities_beyond_the_stack(&mut self) {
+        let deepest = if self.scopes.is_empty() {
+            0
+        } else {
+            Self::the_scope_number(Scope::Local(self.scopes.len() - 1))
+        };
+        self.string_capacities
+            .retain(|(scope, _), _| *scope <= deepest);
+    }
+
+    /// The address of the text of a string, for `StrPtr`.
+    ///
+    /// A string of the tree lives in the machine of Rust and has no address
+    /// that a script may use. The runtime keeps one for each text that a
+    /// script asks for, and the same text answers the same address: two
+    /// reads of a variable answer one pointer, the way the buffer of the
+    /// variable does in the binary.
+    pub(crate) fn the_address_of_a_text(&mut self, text: &str) -> i64 {
+        let mut memory = self.string_memory.borrow_mut();
+        let place = match memory.iter().position(|candidate| candidate == text) {
+            Some(place) => place,
+            None => {
+                memory.push(text.to_string());
+                memory.len() - 1
+            }
+        };
+        STRING_MEMORY_BASE + place as i64 * STRING_MEMORY_STRIDE
+    }
+
+    /// The text at an address that the runtime keeps for one.
+    ///
+    /// `None` means the address is not one of the texts of a script: it is
+    /// the address of the machine, and the tree cannot read it.
+    pub(crate) fn the_text_at_an_address(&self, address: i64) -> Option<String> {
+        let place = address.checked_sub(STRING_MEMORY_BASE)?;
+        if place < 0 || place % STRING_MEMORY_STRIDE != 0 {
+            return None;
+        }
+        let place = (place / STRING_MEMORY_STRIDE) as usize;
+        self.string_memory.borrow().get(place).cloned()
+    }
+
     /// Set a variable: in the innermost scope when there is one, in the
     /// global one otherwise. A function that assigns a name creates a local
     /// one, the way AutoHotkey v2 does.
-    ///
     /// A parameter that is an alias of a variable of the caller writes
     /// there: the alias and the variable are the same thing.
     fn assign(&mut self, name: &str, value: Value) {
@@ -4877,6 +5172,31 @@ impl<'a> Runtime<'a> {
         let Value::Object(cell) = object else {
             return Ok(());
         };
+        // Measured on the binary of v2.0.19 on 2026-11-09: the initialiser of
+        // a variable of an instance runs with `this` bound to the instance --
+        // the `x := 123` and the `y := this.x` of one class answer 123 and
+        // 123 -- and the variables that were assigned before the one that
+        // runs are there for it to read.
+        self.scopes.push(Rc::new(RefCell::new({
+            let mut scope = BTreeMap::new();
+            scope.insert("this".to_string(), object.clone());
+            scope
+        })));
+        let outcome = self.assign_the_variables_of_the_instance(&definition, object, cell);
+        self.scopes.pop();
+        outcome
+    }
+
+    /// The variables of one class, assigned to the object of the instance.
+    ///
+    /// The scope of the `this` of the instance is the one of the caller, and
+    /// the failure of an initialiser leaves it to be popped.
+    fn assign_the_variables_of_the_instance(
+        &mut self,
+        definition: &Class,
+        object: &Value,
+        cell: &Rc<RefCell<Object>>,
+    ) -> Result<(), RuntimeFailure> {
         for property in &definition.properties {
             // A variable that belongs to the class is not one of the
             // instance: it is the class that has it.
@@ -4903,12 +5223,61 @@ impl<'a> Runtime<'a> {
     }
 
     /// The values of a list of arguments.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the argument that
+    /// carries the star is the items of the value it names, spread into the
+    /// arguments in their place.
     fn evaluate_all(&mut self, arguments: &[Node]) -> Result<Vec<Value>, RuntimeFailure> {
+        Ok(self.evaluate_the_arguments(arguments)?.0)
+    }
+
+    /// The values of a list of arguments, and which of them are missing.
+    ///
+    /// A missing value is a hole that the call was written with: it keeps
+    /// its place, and the parameter it lands on has no value. The values of
+    /// a spread are never missing: they are the items of a value.
+    fn evaluate_the_arguments(
+        &mut self,
+        arguments: &[Node],
+    ) -> Result<(Vec<Value>, Vec<bool>), RuntimeFailure> {
         let mut values = Vec::with_capacity(arguments.len());
+        let mut missing = Vec::with_capacity(arguments.len());
         for argument in arguments {
+            if let Node::Spread { value, line } = argument {
+                let spread = self.evaluate(value)?;
+                let items = self.the_items_of_a_spread(&spread, *line)?;
+                missing.extend(items.iter().map(|_| false));
+                values.extend(items);
+                continue;
+            }
             values.push(self.evaluate(argument)?);
+            missing.push(matches!(argument, Node::Empty { .. }));
         }
-        Ok(values)
+        Ok((values, missing))
+    }
+
+    /// The items of the value that a spread argument names.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a spread enumerates
+    /// its value the way a `for` loop does -- an array gives its items, a
+    /// map its keys -- and a value that cannot be enumerated is refused
+    /// with "Value not enumerable.".
+    fn the_items_of_a_spread(
+        &mut self,
+        value: &Value,
+        line: u32,
+    ) -> Result<Vec<Value>, RuntimeFailure> {
+        let enumerator = self.the_enumerator(value, 1, line)?;
+        self.check_the_enumerator(&enumerator, line)?;
+        // The variables of the enumeration are not the script's: the name
+        // cannot be written, because a name of a variable cannot carry the
+        // null character.
+        let variables = [SPREAD_VARIABLE.to_string()];
+        let mut items = Vec::new();
+        while let Some(item) = self.the_next_item(&enumerator, &variables, 1, line)? {
+            items.push(item);
+        }
+        Ok(items)
     }
 
     /// The base of the class where the method that runs was defined.
@@ -5264,6 +5633,18 @@ impl<'a> Runtime<'a> {
         // arguments is checked before the arguments are evaluated: v2
         // refuses the script when it loads, and the refusal of the arity
         // comes before the failure of an argument.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-09: a call that
+        // carries a spread is read first, because the number of the
+        // arguments is the number the spread gives.
+        if arguments
+            .iter()
+            .any(|argument| matches!(argument, Node::Spread { .. }))
+        {
+            let (values, missing) = self.evaluate_the_arguments(arguments)?;
+            self.the_arity_of_a_method_at(class, method, values.len(), &missing, line)?;
+            return self.call_method_with_missing(class, method, this, &values, line, &missing);
+        }
         self.the_arity_of_a_method(class, method, arguments, line)?;
         let mut values: Vec<Value> = Vec::with_capacity(arguments.len());
         for argument in arguments {
@@ -5291,6 +5672,28 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<(), RuntimeFailure> {
+        let missing: Vec<bool> = arguments
+            .iter()
+            .map(|argument| matches!(argument, Node::Empty { .. }))
+            .collect();
+        self.the_arity_of_a_method_at(class, method, arguments.len(), &missing, line)
+    }
+
+    /// The number of the arguments of a method, with the count and the
+    /// places that are missing already read.
+    ///
+    /// The count of a call that carries a spread is only known when the
+    /// spread is read, and the check is the same one: a call that gives a
+    /// method more arguments than it has parameters is refused, and a
+    /// parameter that has no default is required.
+    fn the_arity_of_a_method_at(
+        &self,
+        class: &str,
+        method: &MethodDef,
+        count: usize,
+        missing: &[bool],
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
         // not check the number of the arguments of a method, and the
         // parameters that the call does not give a value to are empty.
@@ -5300,7 +5703,7 @@ impl<'a> Runtime<'a> {
         // The rest of the arguments may be any number of them, and a
         // method that has one has no maximum.
         let variadic = method.parameters.iter().any(|parameter| parameter.variadic);
-        if !variadic && arguments.len() > method.parameters.len() {
+        if !variadic && count > method.parameters.len() {
             let extra = self.the_name_of_the_method(class, method);
             return Err(RuntimeFailure::Detailed(
                 RuntimeError {
@@ -5316,11 +5719,8 @@ impl<'a> Runtime<'a> {
         // A parameter that has no default is required: v2 refuses the call
         // and says that the parameter is missing.
         for (index, parameter) in method.parameters.iter().enumerate() {
-            let is_missing = matches!(arguments.get(index), Some(Node::Empty { .. }));
-            if (is_missing || arguments.get(index).is_none())
-                && parameter.default.is_none()
-                && !parameter.variadic
-            {
+            let is_missing = missing.get(index).copied().unwrap_or(false);
+            if (is_missing || index >= count) && parameter.is_required() {
                 return Err(RuntimeFailure::Detailed(
                     RuntimeError {
                         message: "Missing a required parameter.".into(),
@@ -5393,8 +5793,7 @@ impl<'a> Runtime<'a> {
             for (index, parameter) in method.parameters.iter().enumerate() {
                 let is_missing = missing.get(index).copied().unwrap_or(false);
                 if (is_missing || values.get(index).is_none())
-                    && parameter.default.is_none()
-                    && !parameter.variadic
+                    && parameter.is_required()
                 {
                     return Err(RuntimeFailure::Detailed(
                         RuntimeError {
@@ -5416,8 +5815,7 @@ impl<'a> Runtime<'a> {
             for (index, parameter) in method.parameters.iter().enumerate() {
                 let is_missing = missing.get(index).copied().unwrap_or(false);
                 if (is_missing || values.get(index).is_none())
-                    && parameter.default.is_none()
-                    && !parameter.variadic
+                    && parameter.is_required()
                 {
                     return Ok(Value::Text(String::new()));
                 }
@@ -5434,6 +5832,13 @@ impl<'a> Runtime<'a> {
             // missing one: the default of it is taken, and one that has no
             // default at all was refused above.
             let is_missing = missing.get(index).copied().unwrap_or(false);
+            // Measured on the binary of v2.0.19 on 2026-11-09: an optional
+            // parameter that the call leaves out is unset -- the name is not
+            // in the scope of the call at all, so a read of it fails the way
+            // an unset variable fails and `IsSet` answers zero.
+            if parameter.optional && (is_missing || given.is_none()) {
+                continue;
+            }
             let value = match given {
                 Some(value) if !is_missing => value.clone(),
                 // A parameter that the call does not give a value to takes
@@ -5498,6 +5903,7 @@ impl<'a> Runtime<'a> {
         self.current_classes.pop();
         self.declarations.pop();
         self.scopes.pop();
+        self.forget_the_capacities_beyond_the_stack();
         self.leave_call();
         match outcome {
             Ok(()) => Ok(Value::Text(String::new())),
@@ -6069,7 +6475,7 @@ impl<'a> Runtime<'a> {
         let required = method
             .parameters
             .iter()
-            .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+            .filter(|parameter| parameter.is_required())
             .count();
         put(
             &mut properties,
@@ -6083,6 +6489,11 @@ impl<'a> Runtime<'a> {
         );
         put(&mut properties, "isbuiltin", Value::Int(0));
         put(&mut properties, "isvariadic", Value::Int(0));
+        put(
+            &mut properties,
+            PARAMETERS,
+            the_flags_of_the_parameters(&method.parameters, true),
+        );
         // The class and the name of the method: the reference calls them.
         put(
             &mut properties,
@@ -7184,7 +7595,7 @@ impl<'a> Runtime<'a> {
         let required = method
             .parameters
             .iter()
-            .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+            .filter(|parameter| parameter.is_required())
             .count();
         put(
             &mut properties,
@@ -7198,6 +7609,11 @@ impl<'a> Runtime<'a> {
         );
         put(&mut properties, "isbuiltin", Value::Int(0));
         put(&mut properties, "isvariadic", Value::Int(0));
+        put(
+            &mut properties,
+            PARAMETERS,
+            the_flags_of_the_parameters(&method.parameters, true),
+        );
         // The class and the name of the method: the reference calls them.
         put(
             &mut properties,
@@ -7520,6 +7936,17 @@ impl<'a> Runtime<'a> {
         // refused with 'This value of type "Class" has no property named
         // "Count".'
         if self.class_name_of(target).is_none() {
+            // A member that is read with the parameters of the access --
+            // `m.Len[2]` -- is answered by the class itself: the brackets
+            // are the parameters of the getter, and not an index of the
+            // value of the property.
+            if !params.is_empty() {
+                if let Some(result) =
+                    crate::classes::property_with_params(&class, &name, params, target, self, line)
+                {
+                    return result.map(|value| (value, true));
+                }
+            }
             if let Some(result) = crate::classes::property(&class, &name, target, self, line) {
                 return result.map(|value| (value, false));
             }
@@ -8095,6 +8522,7 @@ impl<'a> Runtime<'a> {
                 default: None,
                 variadic: false,
                 by_ref: false,
+                optional: false,
             });
             values.push(written.clone());
         }
@@ -8281,28 +8709,18 @@ impl<'a> Runtime<'a> {
                 line,
             }));
         }
-        // Two forms: the dialect alone, and the name of the interpreter before
-        // it. The name is the mainline one and nothing else -- there is no
-        // second name of this tree to write here.
-        let mut words = argument.split_whitespace();
-        let first = words.next().unwrap_or("");
-        let second = words.next();
-        let spare = words.next();
-        let meets = spare.is_none() && {
-            match second {
-                // `#Requires v2` and `#Requires v1`.
-                None => first.eq_ignore_ascii_case(self.dialect.name())
-                    // `#Requires AutoHotkey` asks for the interpreter and not
-                    // for a dialect, and the mainline binary accepts it.
-                    || first.eq_ignore_ascii_case("autohotkey"),
-                // `#Requires AutoHotkey v2`, which runs in both.
-                Some(dialect) => {
-                    first.eq_ignore_ascii_case("autohotkey")
-                        && dialect.eq_ignore_ascii_case(self.dialect.name())
-                }
-            }
-        };
-        if meets {
+        // Two forms: the dialect alone, and the name of the interpreter with
+        // the version of it. The name is the mainline one and nothing else --
+        // there is no second name of this tree to write here.
+        //
+        // The version form is the one of mainline AutoHotkey, and the
+        // comparison against it was measured on the binary of v2.0.19 on
+        // 2026-11-09. The forms that are met are `AutoHotkey`, `AutoHotkey
+        // v2`, `v2.0`, `v2.0.19`, `v2.0.19+`, `>=2.0`, `>2.0`, `<2.1`,
+        // `=2.0.19` and `2.0.19`; the forms that are not are `v2.1` (a later
+        // version), `v1.1` (another major version), `=2.0` (not equal),
+        // `<>2.0.19`, `xyz` and a third word.
+        if the_requirement::met(self.dialect, argument) {
             return Ok(format!(
                 "this runtime is the {} dialect, and it meets {argument}",
                 self.dialect.name()
@@ -9277,6 +9695,29 @@ impl<'a> Runtime<'a> {
             Node::Literal { .. } if self.dialect.the_increment_of_a_literal_is_blank() => {
                 Ok(Value::Text(String::new()))
             }
+            // Measured on the binary of v2.0.19 on 2026-11-09: the increment
+            // of a name that the script builds writes the variable the name
+            // points at -- `y%x%++` answers the old value and stores the new
+            // one -- and a name that has no variable is the unset one.
+            Node::DynamicName {
+                pieces,
+                line: name_line,
+            } => {
+                let name = self.the_name_of_the_pieces(pieces, *name_line)?;
+                let current = match self.the_variable_of_the_name(&name, *name_line)? {
+                    Some(current) => current,
+                    None if self.dialect.unset_is_blank() => {
+                        self.the_value_of_an_unset_variable(&name)
+                    }
+                    None => return Err(self.the_unassigned_failure(&name, line)),
+                };
+                let stored = self.the_number_after(&current, step, line)?;
+                self.write_a_dynamic_name(&name, AssignOp::Set, stored.clone(), line)?;
+                Ok(match op {
+                    UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
+                    _ => current,
+                })
+            }
             _ => Err(RuntimeFailure::Error(RuntimeError {
                 message: "the operator needs a variable to work on".into(),
                 line,
@@ -9424,6 +9865,19 @@ impl<'a> Runtime<'a> {
         // arguments is checked before the arguments are evaluated: v2
         // refuses the script when it loads, and the refusal of the arity
         // comes before the failure of an argument.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-09: a call that
+        // carries a spread is read first, because the number of the
+        // arguments is the number the spread gives, and the failure of the
+        // number is the one of a call that is read at the run.
+        if arguments
+            .iter()
+            .any(|argument| matches!(argument, Node::Spread { .. }))
+        {
+            let values = self.evaluate_all(arguments)?;
+            self.the_arity_of_a_builtin(builtin, values.len(), line, Route::ThroughValue)?;
+            return self.call_builtin(name, &values, line, Route::ThroughValue);
+        }
         self.the_arity_of_a_builtin(builtin, arguments.len(), line, Route::Written)?;
         let mut values = Vec::with_capacity(arguments.len());
         // The v1 has functions that ask for the name of a variable and not
@@ -9507,6 +9961,21 @@ impl<'a> Runtime<'a> {
         // arguments is checked before the arguments are evaluated: v2
         // refuses the script when it loads, and the refusal of the arity
         // comes before the failure of an argument.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-09: the number of a
+        // call that carries a spread is not known until the spread is read,
+        // and the failure of it is the one of a call through a value -- it
+        // says "Missing a required parameter." for a parameter that is not
+        // there, and "Too many parameters passed to function." for one that
+        // is one too many.
+        if arguments
+            .iter()
+            .any(|argument| matches!(argument, Node::Spread { .. }))
+        {
+            let (values, missing) = self.evaluate_the_arguments(arguments)?;
+            self.the_arity_of_a_call(function, values.len(), line, Route::ThroughValue)?;
+            return self.call_function_with(function, &values, line, Route::ThroughValue, &missing);
+        }
         self.the_arity_of_a_call(function, arguments.len(), line, route)?;
         let values = self.evaluate_all(arguments)?;
         // The parameters that the command does not give a value to are the
@@ -9540,7 +10009,7 @@ impl<'a> Runtime<'a> {
         let needed = function
             .parameters
             .iter()
-            .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+            .filter(|parameter| parameter.is_required())
             .count();
         if count < needed {
             // A call that the script wrote is checked when the script
@@ -9558,7 +10027,7 @@ impl<'a> Runtime<'a> {
             let missing = function
                 .parameters
                 .iter()
-                .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+                .filter(|parameter| parameter.is_required())
                 .nth(count)
                 .map(|parameter| parameter.name.clone())
                 .unwrap_or_default();
@@ -9597,8 +10066,7 @@ impl<'a> Runtime<'a> {
         // is checked before it.
         for (index, parameter) in function.parameters.iter().enumerate() {
             if missing.get(index).copied().unwrap_or(false)
-                && parameter.default.is_none()
-                && !parameter.variadic
+                && parameter.is_required()
             {
                 return Err(self.the_missing_parameter(&parameter.name, line));
             }
@@ -9610,6 +10078,13 @@ impl<'a> Runtime<'a> {
             // missing one: the default of it is taken, and one that has no
             // default at all was refused above.
             let is_missing = missing.get(index).copied().unwrap_or(false);
+            // Measured on the binary of v2.0.19 on 2026-11-09: an optional
+            // parameter that the call leaves out is unset -- the name is not
+            // in the scope of the call at all, so a read of it fails the way
+            // an unset variable fails and `IsSet` answers zero.
+            if parameter.optional && (is_missing || given.is_none()) {
+                continue;
+            }
             let value = match given {
                 Some(value) if !is_missing => value.clone(),
                 // A parameter that the call does not give a value to takes
@@ -9683,6 +10158,7 @@ impl<'a> Runtime<'a> {
         for _ in &function.closure {
             self.scopes.pop();
         }
+        self.forget_the_capacities_beyond_the_stack();
         self.leave_call();
         match outcome {
             Ok(()) => Ok(Value::Text(String::new())),
@@ -10383,11 +10859,13 @@ impl<'a> Runtime<'a> {
                     Value::Text(crate::files::stamp_of(times.2, offset)),
                 );
             }
-            match self.run_block(body) {
-                Ok(()) => {}
-                Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                Err(RuntimeFailure::Flow(Flow::Continue)) => {}
-                Err(other) => return Err(other),
+            match the_flow_of_a_loop_body(self.run_block(body)) {
+                TheFlowOfALoop::Next => {}
+                TheFlowOfALoop::Break => break,
+                // The v1 does not read the `until` of the loop after a
+                // `continue`: the next turn begins at once.
+                TheFlowOfALoop::Continue => {}
+                TheFlowOfALoop::Out(failure) => return Err(failure),
             }
             // The `until` of the v1 is the condition of the loop, and it is
             // read after every turn of the body.
@@ -10429,11 +10907,11 @@ impl<'a> Runtime<'a> {
         for (index, line_text) in lines.iter().enumerate() {
             self.set_global("A_Index", Value::Int(index as i64 + 1));
             self.set_global("A_LoopReadLine", Value::Text(line_text.clone()));
-            match self.run_block(body) {
-                Ok(()) => {}
-                Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                Err(other) => {
+            match the_flow_of_a_loop_body(self.run_block(body)) {
+                TheFlowOfALoop::Next => {}
+                TheFlowOfALoop::Break => break,
+                TheFlowOfALoop::Continue => continue,
+                TheFlowOfALoop::Out(other) => {
                     failure = Some(other);
                     break;
                 }
@@ -10544,11 +11022,11 @@ impl<'a> Runtime<'a> {
         for (index, piece) in pieces.iter().enumerate() {
             self.set_global("A_Index", Value::Int(index as i64 + 1));
             self.set_global("A_LoopField", Value::Text(piece.clone()));
-            match self.run_block(body) {
-                Ok(()) => {}
-                Err(RuntimeFailure::Flow(Flow::Break)) => break,
-                Err(RuntimeFailure::Flow(Flow::Continue)) => continue,
-                Err(other) => return Err(other),
+            match the_flow_of_a_loop_body(self.run_block(body)) {
+                TheFlowOfALoop::Next => {}
+                TheFlowOfALoop::Break => break,
+                TheFlowOfALoop::Continue => continue,
+                TheFlowOfALoop::Out(failure) => return Err(failure),
             }
             // The `until` of the v1 is the condition of the loop, and it is
             // read after every turn of the body.
@@ -10934,10 +11412,20 @@ impl<'a> Runtime<'a> {
             // v2 carries the value that arrived in the `Extra`: the
             // text of it, and nothing for an object, an array or a
             // function.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-09: the failure
+            // of a parameter that wants a variable reference carries no
+            // name of the built-in -- the caller's check makes it -- and
+            // the failure of a parameter that wants a kind of value carries
+            // the name of the built-in in the `What`.
+            let what = match crate::builtins::wants(builtin.name, index) {
+                crate::builtins::Wants::Reference(_) => String::new(),
+                _ => builtin.name.to_string(),
+            };
             return Err(RuntimeFailure::Detailed(
                 RuntimeError { message, line },
                 Detail {
-                    what: builtin.name.to_string(),
+                    what,
                     extra: the_extra_of_the_value(value),
                 },
             ));
@@ -11221,7 +11709,7 @@ impl<'a> Runtime<'a> {
                 let fewest = function
                     .parameters
                     .iter()
-                    .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+                    .filter(|parameter| parameter.is_required())
                     .count();
                 let variadic = function
                     .parameters
@@ -11431,6 +11919,13 @@ impl<'a> Runtime<'a> {
                 value,
                 line,
             } => {
+                // Measured on the binary of v2.0.19 on 2026-11-09: the
+                // `x := unset` takes the value of the variable away, and the
+                // value of the assignment is the empty text.
+                if *op == AssignOp::Set && the_node_is_unset(value) {
+                    self.unset_variable(name);
+                    return Ok(Value::Text(String::new()));
+                }
                 // The assignment of v2 is an expression, and the value of
                 // it is the value that was written.
                 let value = self.evaluate(value)?;
@@ -12325,6 +12820,7 @@ impl<'a> Runtime<'a> {
             | Node::Loop { .. }
             | Node::Break { .. }
             | Node::Continue { .. }
+            | Node::Spread { .. }
             | Node::Label { .. }
             | Node::Goto { .. }
             | Node::HotkeyDefinition { .. }
@@ -12453,6 +12949,26 @@ impl<'a> Runtime<'a> {
             let stored = self.apply_assign(op, &name, current, value, line)?;
             self.write_property(target, &name, stored.clone(), line)?;
             return Ok(stored);
+        }
+        // The item of an object of a class of the script is the property
+        // `__Item` of it, and the setter of it takes the index and the value.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-09: `s[1] := "one"`
+        // runs the setter of the `__Item` with the index and the value, and a
+        // class whose `__Item` has a getter but no setter does not write it.
+        if let Some(access) = self.the_accessor_of(target, "__Item") {
+            let Some(setter) = &access.setter else {
+                return Err(self.no_item(target, line));
+            };
+            self.call_the_body_of_an_accessor(
+                target,
+                &access,
+                setter,
+                line,
+                core::slice::from_ref(key),
+                Some(&value),
+            )?;
+            return Ok(value);
         }
         Err(self.no_item(target, line))
     }
@@ -12993,7 +13509,7 @@ fn func_value(name: &str, function: &Function) -> Value {
     let fewest = function
         .parameters
         .iter()
-        .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
+        .filter(|parameter| parameter.is_required())
         .count();
     let mut properties: BTreeMap<String, Property> = BTreeMap::new();
     put(&mut properties, "name", Value::Text(name.to_string()));
@@ -13005,6 +13521,11 @@ fn func_value(name: &str, function: &Function) -> Value {
     );
     put(&mut properties, "isbuiltin", Value::Int(0));
     put(&mut properties, "isvariadic", Value::Int(0));
+    put(
+        &mut properties,
+        PARAMETERS,
+        the_flags_of_the_parameters(&function.parameters, false),
+    );
     Value::Object(Rc::new(RefCell::new(Object {
         class: "func".to_string(),
         properties,
@@ -13787,6 +14308,9 @@ pub fn op_name_in<'a>(
         Node::Directive { name, .. } => name,
         Node::Break { .. } => "Break",
         Node::Continue { .. } => "Continue",
+        // The spread is an argument of a call and not a statement, and the
+        // report names one when it is read outside a list of arguments.
+        Node::Spread { .. } => "Spread",
         Node::Label { .. } => "Label",
         Node::Goto { .. } => "Goto",
         Node::HotkeyDefinition { .. } => "HotkeyDefinition",
@@ -13908,5 +14432,165 @@ impl From<Flow> for RuntimeFailure {
 impl From<String> for RuntimeFailure {
     fn from(message: String) -> Self {
         RuntimeFailure::Error(RuntimeError { message, line: 0 })
+    }
+}
+/// The requirement of a `#Requires` line that names a version.
+///
+/// The line of mainline AutoHotkey is `#Requires AutoHotkey v2.0.19`, and the
+/// version may be written with an operator before it or a `+` after it. The
+/// rules here were measured on the binary of v2.0.19 on 2026-11-09 and are
+/// listed at the call site in `Runtime::the_requires`.
+mod the_requirement {
+    use crate::dialect::Dialect;
+    use alloc::vec::Vec;
+    use core::cmp::Ordering;
+
+    /// The range of versions that the requirement names.
+    #[derive(Clone, Copy)]
+    enum Range {
+        /// A version and every later one, whatever the major version is.
+        AtLeast,
+        /// A version and every later one of the same major version.
+        ///
+        /// This is the range of the requirement that names no operator: the
+        /// `v2.0.19` and the `v2.0.19+` forms. Measured on the binary of
+        /// v2.0.19 on 2026-11-09: the v2 is not met by `v1.1` even though it
+        /// is the later version, and it is not met by `v2.1` either.
+        SameMajorAtLeast,
+        /// A version that is later, and not the version itself.
+        Greater,
+        /// A version that is earlier.
+        Less,
+        /// A version that is earlier, and the version itself.
+        AtMost,
+        /// Exactly the version.
+        Equal,
+        /// Anything but the version.
+        NotEqual,
+    }
+
+    /// Whether the requirement is met by the dialect.
+    pub fn met(dialect: &'static dyn Dialect, argument: &str) -> bool {
+        let fields: Vec<&str> = argument.split_whitespace().collect();
+        // The dialect alone is the form of this tree, and the name of the
+        // interpreter without a version asks for the interpreter itself.
+        if fields.len() == 1 {
+            let word = fields[0];
+            if word.eq_ignore_ascii_case(dialect.name()) || word.eq_ignore_ascii_case("autohotkey")
+            {
+                return true;
+            }
+        }
+        // The mainline form: the name of the interpreter and then the version.
+        if fields.is_empty() || !fields[0].eq_ignore_ascii_case("autohotkey") {
+            return false;
+        }
+        let Some(requirement) = fields.get(1) else {
+            return true;
+        };
+        // A third word is not a requirement: `#Requires AutoHotkey v2 extra`.
+        if fields.len() > 2 {
+            return false;
+        }
+        let Some((range, required)) = parse(requirement) else {
+            return false;
+        };
+        range.met_by(&required, &dialect.version())
+    }
+
+    impl Range {
+        /// Whether the version of the interpreter is in the range.
+        fn met_by(self, required: &[u32], current: &(u16, u16, u16, u16)) -> bool {
+            let current = [
+                current.0 as u32,
+                current.1 as u32,
+                current.2 as u32,
+                current.3 as u32,
+            ];
+            let order = compare_versions(&current, required);
+            match self {
+                Range::AtLeast => order.is_ge(),
+                Range::SameMajorAtLeast => {
+                    required.first().copied().unwrap_or(0) == current[0] && order.is_ge()
+                }
+                Range::Greater => order.is_gt(),
+                Range::Less => order.is_lt(),
+                Range::AtMost => order.is_le(),
+                Range::Equal => order.is_eq(),
+                Range::NotEqual => !order.is_eq(),
+            }
+        }
+    }
+
+    /// The range and the version of a requirement such as `>=2.0`, `v2.0.19+`
+    /// or `2.0.19`.
+    fn parse(requirement: &str) -> Option<(Range, Vec<u32>)> {
+        let mut text = requirement;
+        let mut range = Range::SameMajorAtLeast;
+        // The two-character operators are tried first: `>=` is not `>` and `=`.
+        let operators: [(&str, Range); 6] = [
+            ("<=", Range::AtMost),
+            (">=", Range::AtLeast),
+            ("<>", Range::NotEqual),
+            ("<", Range::Less),
+            (">", Range::Greater),
+            ("=", Range::Equal),
+        ];
+        for (prefix, kind) in operators {
+            if let Some(rest) = text.strip_prefix(prefix) {
+                range = kind;
+                text = rest;
+                break;
+            }
+        }
+        // A leading `+` is the same requirement as a trailing one.
+        if let Some(rest) = text.strip_prefix('+') {
+            range = Range::SameMajorAtLeast;
+            text = rest;
+        }
+        if let Some(rest) = text.strip_suffix('+') {
+            range = Range::SameMajorAtLeast;
+            text = rest;
+        }
+        // The `v` of the version, and the dash of a pre-release marker that
+        // mainline AutoHotkey accepts and ignores: `v2.0.19-` is met by
+        // 2.0.19, measured on the binary on 2026-11-09.
+        if let Some(rest) = text.strip_prefix('v').or_else(|| text.strip_prefix('V')) {
+            text = rest;
+        }
+        if let Some(rest) = text.strip_suffix('-') {
+            text = rest;
+        }
+        let mut parts = Vec::new();
+        for part in text.split('.') {
+            if part.is_empty() || !part.bytes().all(|byte| byte.is_ascii_digit()) {
+                return None;
+            }
+            parts.push(part.parse::<u32>().ok()?);
+        }
+        // The version of a requirement is written with up to four parts; a
+        // fifth is accepted by the binary when it is a zero. Nothing longer
+        // is a version.
+        if parts.is_empty() || parts.len() > 5 {
+            return None;
+        }
+        Some((range, parts))
+    }
+
+    /// The order of two versions, compared part by part.
+    ///
+    /// A part that is not written is a zero: `2.0` and `2.0.0` are the same
+    /// version, and `v2` is the version `2.0.0.0`.
+    fn compare_versions(current: &[u32], required: &[u32]) -> Ordering {
+        let length = current.len().max(required.len());
+        for index in 0..length {
+            let here = current.get(index).copied().unwrap_or(0);
+            let there = required.get(index).copied().unwrap_or(0);
+            match here.cmp(&there) {
+                Ordering::Equal => {}
+                other => return other,
+            }
+        }
+        Ordering::Equal
     }
 }

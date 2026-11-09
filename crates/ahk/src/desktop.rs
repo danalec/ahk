@@ -61,6 +61,24 @@ pub trait Keyboard {
     fn keys_down(&mut self) -> Result<Vec<String>, String> {
         Err("this desktop cannot tell which keys are down".to_string())
     }
+
+    /// Whether a lock key is on: "CapsLock", "NumLock" or "ScrollLock".
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a lock key is a key
+    /// whose state is a switch, and not a key that is held: `SetCapsLockState`
+    /// turns the switch, and the state of it is what `GetKeyState` answers for
+    /// the mode "T".
+    fn lock_is_on(&mut self, _lock: &str) -> Result<bool, String> {
+        Err("this desktop cannot read the state of the lock keys".to_string())
+    }
+
+    /// Turn a lock key on or off.
+    ///
+    /// The desktop that can read the state of a lock key but not change it
+    /// says so, and the state of the key is not touched.
+    fn set_lock(&mut self, _lock: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot change the state of the lock keys".to_string())
+    }
 }
 
 /// The pointer of the desktop.
@@ -150,6 +168,68 @@ pub trait Screen {
         _colour: &str,
     ) -> Result<Option<(i64, i64)>, String> {
         Err("this desktop cannot search the screen for a colour".to_string())
+    }
+
+    /// The monitors of the desktop.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a monitor is a
+    /// rectangle of the screen -- the right and the bottom are one past the
+    /// last column and row, the way the rectangles of the system are -- and
+    /// the monitors are counted from one, the way `MonitorGet` numbers them.
+    /// A desktop that has one screen answers the one monitor of it; a
+    /// desktop that cannot say says why.
+    fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
+        Err("this desktop cannot say what monitors it has".to_string())
+    }
+
+    /// The place of the primary monitor, counted from one, among the
+    /// monitors of the desktop.
+    fn primary_monitor(&mut self) -> Result<usize, String> {
+        Err("this desktop cannot say which monitor is the primary one".to_string())
+    }
+
+    /// The work area of a monitor: left, top, right and bottom.
+    ///
+    /// The work area is the part of the monitor that the panels and the
+    /// taskbars leave. `None` is a monitor that is not there.
+    fn monitor_work_area(&mut self, _monitor: usize) -> Result<Option<(i64, i64, i64, i64)>, String> {
+        Err("this desktop cannot say the work area of its monitors".to_string())
+    }
+}
+
+/// A monitor of the desktop: a rectangle of the screen, and the name of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the rectangle of
+/// `MonitorGet` is left, top, right and bottom, and the right and the bottom
+/// are one past the last column and the last row -- the rectangle of the
+/// system, and not the inclusive corners a person counts. The name is the
+/// name the system gives the monitor: "\\.\DISPLAY1" on the binary, and the
+/// name of the output of a compositor on a Wayland session.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Monitor {
+    /// The name of the monitor.
+    ///
+    /// The empty text is a monitor whose name the desktop cannot say.
+    pub name: String,
+    /// The left edge, in pixels.
+    pub left: i64,
+    /// The top edge, in pixels.
+    pub top: i64,
+    /// The right edge: one past the last column.
+    pub right: i64,
+    /// The bottom edge: one past the last row.
+    pub bottom: i64,
+}
+
+impl Monitor {
+    /// The number of the columns of the monitor.
+    pub fn width(&self) -> i64 {
+        self.right - self.left
+    }
+
+    /// The number of the rows of the monitor.
+    pub fn height(&self) -> i64 {
+        self.bottom - self.top
     }
 }
 
@@ -278,6 +358,89 @@ pub trait Processes {
     /// Set an environment variable; answer what it was set to.
     fn env_set(&mut self, _name: &str, _value: &str) -> Result<String, String> {
         Err("this desktop cannot write the environment".to_string())
+    }
+
+    // -- the processes -----------------------------------------------------------
+    //
+    // The process family of v2.0.19 asks about a process by the pid of it or
+    // by the name of it, and `None` means the process of the script itself.
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-09: the name of a call is
+    // the text of it, and a text that is a number is a pid -- a pid that is
+    // not there answers zero, and it is not a failure. The methods below are
+    // the ones of the capability: a desktop that has no processes says so
+    // with the reason, and never answers zero for a question it cannot ask.
+    //
+    // The shape of each answer is the one of the binary of v2.0.19, measured
+    // on the same day; the Linux reading behind them is in `ahk-box`, over
+    // `/proc`.
+
+    /// The pid of a process, and zero when there is no such process.
+    fn process_exist(&mut self, _which: Option<&str>) -> Result<u32, String> {
+        Err("this desktop cannot read the processes of the machine".to_string())
+    }
+
+    /// The name of the executable of a process.
+    ///
+    /// The name is the file name of the executable, and not the whole path
+    /// of it. `None` is a process that is not there, which the caller says
+    /// with the words of the dialect: "Target process not found.", of the
+    /// class `TargetError`.
+    fn process_name(&mut self, _which: Option<&str>) -> Result<Option<String>, String> {
+        Err("this desktop cannot read the processes of the machine".to_string())
+    }
+
+    /// The full path of the executable of a process.
+    ///
+    /// `None` is a process that is not there, which the caller says with the
+    /// words of the dialect.
+    fn process_path(&mut self, _which: Option<&str>) -> Result<Option<String>, String> {
+        Err("this desktop cannot read the processes of the machine".to_string())
+    }
+
+    /// The pid of the parent of a process, and zero when there is no such
+    /// process.
+    fn process_parent(&mut self, _which: Option<&str>) -> Result<u32, String> {
+        Err("this desktop cannot read the processes of the machine".to_string())
+    }
+
+    /// Close a process: answer the pid that was closed, and zero when the
+    /// process was not there or could not be closed.
+    fn process_close(&mut self, _which: &str) -> Result<u32, String> {
+        Err("this desktop cannot close a process of the machine".to_string())
+    }
+
+    /// Wait for a process to exist: answer the pid of it, and zero at the
+    /// timeout.
+    ///
+    /// A timeout of `None` waits forever, which is what the omitted timeout
+    /// of the binary does.
+    fn process_wait(&mut self, _which: &str, _timeout: Option<f64>) -> Result<u32, String> {
+        Err("this desktop cannot wait for a process of the machine".to_string())
+    }
+
+    /// Wait for a process that is there to close.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the answer is zero
+    /// when the process is not there any more -- a process that never existed
+    /// included -- and the pid of the process that is still there at the
+    /// timeout.
+    fn process_wait_close(&mut self, _which: &str, _timeout: Option<f64>) -> Result<u32, String> {
+        Err("this desktop cannot wait for a process of the machine".to_string())
+    }
+
+    /// Set the priority of a process: answer the pid of it.
+    ///
+    /// The priority is the word of v2 -- "Low", "BelowNormal", "Normal",
+    /// "AboveNormal", "High" or "Realtime", and the binary reads the first
+    /// letter of it -- and `None` is a process that is not there, which the
+    /// caller says with the words of the dialect.
+    fn process_set_priority(
+        &mut self,
+        _priority: &str,
+        _which: Option<&str>,
+    ) -> Result<Option<u32>, String> {
+        Err("this desktop cannot set the priority of a process".to_string())
     }
 }
 
@@ -754,6 +917,16 @@ pub trait Machine {
     /// How long the session has been idle, in milliseconds.
     fn idle_times(&mut self) -> Result<Idle, String> {
         Err("this desktop cannot say how long the session has been idle".to_string())
+    }
+
+    /// The IPv4 addresses of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `SysGetIPAddresses`
+    /// answers an array of the addresses of the machine, one for each of
+    /// them, and the address of the loopback is not one of them: the binary
+    /// answered three addresses and none of them was 127.0.0.1.
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        Err("this desktop cannot say the addresses of the machine".to_string())
     }
 }
 

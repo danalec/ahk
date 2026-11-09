@@ -667,10 +667,18 @@ pub enum Node {
         argument: String,
         line: u32,
     },
-    /// `Break`.
-    Break { line: u32 },
-    /// `Continue`.
-    Continue { line: u32 },
+    /// `Break [N]`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the number is the
+    /// level of the loop that the break leaves, and it is an integer
+    /// literal. A break without a number is the level one.
+    Break { line: u32, level: u32 },
+    /// `Continue [N]`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the number is the
+    /// level of the loop that the continue continues, and it is an integer
+    /// literal. A continue without a number is the level one.
+    Continue { line: u32, level: u32 },
     /// `Return` or `Return value`.
     Return { value: Option<Box<Node>>, line: u32 },
     /// `ExitApp` or `ExitApp 1`.
@@ -771,6 +779,16 @@ pub enum Node {
     /// is kept, and the parameter has no value: one that has a default
     /// takes it, and one that has none is a missing parameter.
     Empty { line: u32 },
+    /// `expr*`: the argument of a call that is every item of the value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the star spreads
+    /// the value of the argument into the arguments of the call, and only
+    /// the last argument of a call may carry it: the middle one is refused
+    /// at the load. A spread argument is a value of the call and not a
+    /// variable reference, and the value it spreads is enumerated the way a
+    /// `for` loop enumerates it: an array gives its items, a map its keys,
+    /// and a value that cannot be enumerated is refused.
+    Spread { value: Box<Node>, line: u32 },
     /// The list of v1 that may follow an expression: `x := 1, 2`.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the expression
@@ -830,6 +848,9 @@ pub enum Node {
         variables: Vec<String>,
         source: Box<Node>,
         body: Vec<Node>,
+        /// The condition of the `Until` that follows the body, when there is
+        /// one: `for x in items { } until x > 2`.
+        until: Option<Box<Node>>,
         line: u32,
     },
     /// A label: `name:`.
@@ -887,6 +908,24 @@ pub struct Parameter {
     /// v2 calls it the ByRef marker: the caller must pass a reference,
     /// and the parameter is an alias of the variable of the caller.
     pub by_ref: bool,
+    /// Whether the parameter may be left out of the call.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `f(a, b?)` marks
+    /// `b` optional, and a call that leaves it out leaves the variable of
+    /// it unset -- `IsSet(b)` answers zero inside the function.
+    pub optional: bool,
+}
+
+impl Parameter {
+    /// Whether the call must give the parameter a value.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the parameter that
+    /// carries a default, the one that takes the rest of the arguments and
+    /// the one marked with the question mark may all be left out. Every
+    /// other one is refused when the call does not give it a value.
+    pub fn is_required(&self) -> bool {
+        self.default.is_none() && !self.variadic && !self.optional
+    }
 }
 
 impl Node {
@@ -920,8 +959,8 @@ impl Node {
             | Node::While { line, .. }
             | Node::Loop { line, .. }
             | Node::Directive { line, .. }
-            | Node::Break { line }
-            | Node::Continue { line }
+            | Node::Break { line, .. }
+            | Node::Continue { line, .. }
             | Node::Return { line, .. }
             | Node::ExitApp { line, .. }
             | Node::FunctionDef { line, .. }
@@ -932,6 +971,7 @@ impl Node {
             | Node::ArrayLiteral { line, .. }
             | Node::Group { line, .. }
             | Node::Empty { line }
+            | Node::Spread { line, .. }
             | Node::Legacy { line, .. }
             | Node::ObjectLiteral { line, .. }
             | Node::Lambda { line, .. }

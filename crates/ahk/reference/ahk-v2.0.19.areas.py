@@ -157,6 +157,13 @@ AREAS = [
 # and they are in the area of the thing they are.
 CLASS_AREA = {
     "Any": "core",
+    # The classes of the values of the language: a number is the core of
+    # the language, and it is a class the script reads as a value.
+    "Primitive": "core",
+    "Number": "core",
+    "Integer": "core",
+    "Float": "core",
+    "String": "core",
     "Array": "objects",
     "BoundFunc": "objects",
     "Buffer": "native",

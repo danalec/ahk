@@ -742,6 +742,49 @@ impl ahk::desktop::Screen for LabDesktop {
     fn screen_size(&mut self) -> Result<(i64, i64), String> {
         LabDesktop::screen_size(self).map_err(|error| error.to_string())
     }
+    fn monitors(&mut self) -> Result<Vec<ahk::desktop::Monitor>, String> {
+        // The box is a Wayland session, and its compositor publishes one
+        // output for each monitor. Measured on the box on 2026-11-09: the
+        // compositor of COSMIC published the output HDMI-A-1 at 0,0 with the
+        // mode 1920x1080.
+        #[cfg(target_os = "linux")]
+        {
+            self.ensure_session_env();
+            self.wayland()?.monitors()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            Err("the monitors of this desktop are the outputs of a Wayland compositor, and this \
+                 machine has none."
+                .to_string())
+        }
+    }
+    fn primary_monitor(&mut self) -> Result<usize, String> {
+        // A Wayland compositor does not say which of its outputs is the
+        // primary one. A desktop with one output has no choice, and the one
+        // monitor of it is the primary one; a desktop with several says that
+        // it does not know instead of guessing which one the panel is on.
+        #[cfg(target_os = "linux")]
+        {
+            self.ensure_session_env();
+            let monitors = self.wayland()?.monitors()?;
+            match monitors.len() {
+                0 => Err("the compositor published no monitor, so there is no primary one."
+                    .to_string()),
+                1 => Ok(1),
+                count => Err(format!(
+                    "the compositor published {count} monitors, and it does not say which one is \
+                     the primary one."
+                )),
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            Err("the primary monitor of this desktop is one of the outputs of a Wayland \
+                 compositor, and this machine has none."
+                .to_string())
+        }
+    }
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
         let path = self.capture(x, y, 1, 1, &format!("ahk-pixel-{}.png", millis()))?;
         let colour = read_pixel(&path)?;
@@ -1032,6 +1075,47 @@ impl ahk::desktop::Processes for LabDesktop {
             String::from_utf8_lossy(&output.stderr).to_string(),
         ))
     }
+
+    // -- the processes -----------------------------------------------------------
+    //
+    // The shape of each answer is the one of the binary of v2.0.19, measured
+    // on 2026-11-09; the reading of `/proc` behind it is in `crate::process`.
+
+    fn process_exist(&mut self, which: Option<&str>) -> Result<u32, String> {
+        crate::process::exist(which)
+    }
+
+    fn process_name(&mut self, which: Option<&str>) -> Result<Option<String>, String> {
+        crate::process::name(which)
+    }
+
+    fn process_path(&mut self, which: Option<&str>) -> Result<Option<String>, String> {
+        crate::process::path(which)
+    }
+
+    fn process_parent(&mut self, which: Option<&str>) -> Result<u32, String> {
+        crate::process::parent(which)
+    }
+
+    fn process_close(&mut self, which: &str) -> Result<u32, String> {
+        crate::process::close(which)
+    }
+
+    fn process_wait(&mut self, which: &str, timeout: Option<f64>) -> Result<u32, String> {
+        crate::process::wait(which, timeout)
+    }
+
+    fn process_wait_close(&mut self, which: &str, timeout: Option<f64>) -> Result<u32, String> {
+        crate::process::wait_close(which, timeout)
+    }
+
+    fn process_set_priority(
+        &mut self,
+        priority: &str,
+        which: Option<&str>,
+    ) -> Result<Option<u32>, String> {
+        crate::process::set_priority(priority, which)
+    }
 }
 
 /// The program that the `Run` of the v1 starts.
@@ -1074,6 +1158,9 @@ impl ahk::desktop::Machine for LabDesktop {
     }
     fn idle_times(&mut self) -> Result<Idle, String> {
         crate::machine::idle_times()
+    }
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        crate::network::ip_addresses()
     }
 }
 

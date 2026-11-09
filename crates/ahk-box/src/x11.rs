@@ -1385,6 +1385,46 @@ impl Processes for X11Desktop {
             String::from_utf8_lossy(&output.stderr).to_string(),
         ))
     }
+
+    // The processes of the machine are the same ones whatever the display
+    // server is: the reading is the `/proc` one of `crate::process`, and the
+    // shape of the answers is the one of the binary, measured on 2026-11-09.
+
+    fn process_exist(&mut self, which: Option<&str>) -> Result<u32, String> {
+        crate::process::exist(which)
+    }
+
+    fn process_name(&mut self, which: Option<&str>) -> Result<Option<String>, String> {
+        crate::process::name(which)
+    }
+
+    fn process_path(&mut self, which: Option<&str>) -> Result<Option<String>, String> {
+        crate::process::path(which)
+    }
+
+    fn process_parent(&mut self, which: Option<&str>) -> Result<u32, String> {
+        crate::process::parent(which)
+    }
+
+    fn process_close(&mut self, which: &str) -> Result<u32, String> {
+        crate::process::close(which)
+    }
+
+    fn process_wait(&mut self, which: &str, timeout: Option<f64>) -> Result<u32, String> {
+        crate::process::wait(which, timeout)
+    }
+
+    fn process_wait_close(&mut self, which: &str, timeout: Option<f64>) -> Result<u32, String> {
+        crate::process::wait_close(which, timeout)
+    }
+
+    fn process_set_priority(
+        &mut self,
+        priority: &str,
+        which: Option<&str>,
+    ) -> Result<Option<u32>, String> {
+        crate::process::set_priority(priority, which)
+    }
 }
 impl Files for X11Desktop {}
 impl Clipboard for X11Desktop {}
@@ -1392,7 +1432,11 @@ impl Timers for X11Desktop {}
 impl Hotkeys for X11Desktop {}
 impl Native for X11Desktop {}
 impl Sound for X11Desktop {}
-impl Machine for X11Desktop {}
+impl Machine for X11Desktop {
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        crate::network::ip_addresses()
+    }
+}
 impl Dialogs for X11Desktop {}
 impl Network for X11Desktop {}
 impl Pictures for X11Desktop {}

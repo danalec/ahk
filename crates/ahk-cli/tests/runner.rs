@@ -253,8 +253,8 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 643);
-    assert_eq!(report.number("refusals"), 190);
+    assert_eq!(report.number("values"), 661);
+    assert_eq!(report.number("refusals"), 172);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -428,4 +428,98 @@ fn a_name_that_the_tree_carries_is_reported_as_a_value() {
         Some(reason) => assert_eq!(line, format!("ControlSendText command refusal: {reason}")),
         None => assert_eq!(line, "ControlSendText command value"),
     }
+}
+
+// -- #Include and #IncludeAgain ----------------------------------------------
+
+/// A directory of the test, made under the temporary directory.
+fn a_test_directory(name: &str) -> std::path::PathBuf {
+    let directory = std::env::temp_dir().join(format!("ahk-runner-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).expect("the test directory is made");
+    directory
+}
+
+#[test]
+fn an_include_is_put_in_once() {
+    let directory = a_test_directory("include-once");
+    let included = directory.join("included.ahk");
+    std::fs::write(&included, "MsgBox \"included\"\n").expect("the included file is written");
+    let script = format!(
+        "#Include \"{}\"\n#Include \"{}\"\nMsgBox \"main\"\n",
+        included.display(),
+        included.display()
+    );
+    let (code, report) = run(&script);
+    assert_eq!(code, 0);
+    let output = report.array("output");
+    assert_eq!(output.len(), 2, "the file is put in once");
+    assert_eq!(output[0].as_str(), Some("included"));
+    assert_eq!(output[1].as_str(), Some("main"));
+    let _ = std::fs::remove_dir_all(&directory);
+}
+
+#[test]
+fn an_include_again_is_put_in_every_time() {
+    let directory = a_test_directory("include-again");
+    let included = directory.join("included.ahk");
+    std::fs::write(&included, "MsgBox \"included\"\n").expect("the included file is written");
+    let script = format!(
+        "#IncludeAgain \"{}\"\n#IncludeAgain \"{}\"\nMsgBox \"main\"\n",
+        included.display(),
+        included.display()
+    );
+    let (code, report) = run(&script);
+    assert_eq!(code, 0);
+    let output = report.array("output");
+    assert_eq!(output.len(), 3, "the file is put in every time it is asked for");
+    assert_eq!(output[0].as_str(), Some("included"));
+    assert_eq!(output[1].as_str(), Some("included"));
+    assert_eq!(output[2].as_str(), Some("main"));
+    let _ = std::fs::remove_dir_all(&directory);
+}
+
+#[test]
+fn an_include_again_after_an_include_puts_the_file_in_again() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the `#IncludeAgain`
+    // puts the file in even when the file is already in the tree.
+    let directory = a_test_directory("include-again-after");
+    let included = directory.join("included.ahk");
+    std::fs::write(&included, "MsgBox \"included\"\n").expect("the included file is written");
+    let script = format!(
+        "#Include \"{path}\"\n#IncludeAgain \"{path}\"\nMsgBox \"main\"\n",
+        path = included.display()
+    );
+    let (code, report) = run(&script);
+    assert_eq!(code, 0);
+    assert_eq!(report.array("output").len(), 3);
+    let _ = std::fs::remove_dir_all(&directory);
+}
+
+#[test]
+fn an_include_that_includes_itself_is_refused() {
+    let directory = a_test_directory("include-itself");
+    let file = directory.join("itself.ahk");
+    std::fs::write(
+        &file,
+        format!("#IncludeAgain \"{}\"\n", file.display()),
+    )
+    .expect("the file is written");
+    let script = format!("#IncludeAgain \"{}\"\n", file.display());
+    let (code, report) = run(&script);
+    assert_eq!(code, 2);
+    assert!(!report.boolean("ok"));
+    assert!(
+        report.text("error").contains("nest more than"),
+        "{:?}",
+        report.text("error")
+    );
+    let _ = std::fs::remove_dir_all(&directory);
+}
+
+#[test]
+fn an_include_again_without_a_path_is_refused() {
+    let (code, report) = run("#IncludeAgain\n");
+    assert_eq!(code, 2);
+    assert!(report.text("error").contains("an include needs a path"));
 }

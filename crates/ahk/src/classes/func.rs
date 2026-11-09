@@ -4,11 +4,13 @@
 //! wants, and whether it is built in. `Func` is the class of it, and
 //! the methods of the class are the ones that answer about a function.
 
+use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::runtime::{
-    BOUND, BOUND_TARGET, CLOSURE, METHOD_CLASS, METHOD_NAME, Route, Runtime, RuntimeFailure, Value,
+    BOUND, BOUND_TARGET, CLOSURE, METHOD_CLASS, METHOD_NAME, PARAMETERS, Route, Runtime,
+    RuntimeError, RuntimeFailure, Value,
 };
 
 /// The properties a function owns.
@@ -43,9 +45,18 @@ pub(crate) fn call(
         // class of the script is a reference to the method: the first
         // argument of the call is `this`.
         "call" => call_the_function(this, arguments, rt, line, Route::ThroughTheCall),
-        // The values of the class that the function carries.
-        "isoptional" => Some(Ok(Value::Int(0))),
-        "isbyref" => Some(Ok(Value::Int(0))),
+        // The values of the class that the function carries: whether the
+        // parameter at the place that is asked for is optional or written
+        // with the ByRef marker.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-09: `f(a, b?)` answers
+        // `IsOptional(2)` one and `IsOptional(1)` zero; the parameter that
+        // carries a default is optional too; a method counts its `this` as
+        // the first parameter; and a place that the function does not have is
+        // refused with "Parameter #1 of Func.Prototype.IsOptional is
+        // invalid.".
+        "isoptional" => Some(the_flag_of_the_parameter(this, arguments, true, line)),
+        "isbyref" => Some(the_flag_of_the_parameter(this, arguments, false, line)),
         // The binding of a function to an object is a value of the class
         // `BoundFunc`, and the call of it calls the function with the object
         // as its first argument.
@@ -63,6 +74,47 @@ pub(crate) fn call(
         }
         _ => None,
     }
+}
+
+/// Whether the parameter at the place the call asks for answers the flag.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the place counts from
+/// one, and a place that the function does not have is refused with
+/// "Parameter #1 of Func.Prototype.IsOptional is invalid." -- the name of
+/// the method that was asked is the one of the failure.
+fn the_flag_of_the_parameter(
+    this: &Value,
+    arguments: &[Value],
+    optional: bool,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
+    let Value::Object(object) = this else {
+        return Ok(Value::Int(0));
+    };
+    let flags = object.borrow().value_of(PARAMETERS);
+    let place = arguments
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let Ok(place) = place.trim().parse::<usize>() else {
+        return Ok(Value::Int(0));
+    };
+    let Some(Value::List(values)) = flags else {
+        return Ok(Value::Int(0));
+    };
+    let Some(Value::Int(bits)) = values.get(place.saturating_sub(1)) else {
+        let name = if optional { "IsOptional" } else { "IsByRef" };
+        return Err(RuntimeFailure::Error(RuntimeError {
+            message: format!("Parameter #1 of Func.Prototype.{name} is invalid."),
+            line,
+        }));
+    };
+    let answer = if optional {
+        (bits & 2) != 0
+    } else {
+        (bits & 1) != 0
+    };
+    Ok(Value::Int(answer as i64))
 }
 
 /// The call of a value of a function.

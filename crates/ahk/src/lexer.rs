@@ -654,6 +654,11 @@ fn the_section_at(
         ));
     }
     if the_join_is_there {
+        // Measured on the binary of v2.0.19 on 2026-11-09: the string of the
+        // option `Join` is at most fifteen characters long, and the rest of
+        // it is not a part of the string. `(Join0123456789abcdefGHI` joins
+        // with "0123456789abcde".
+        let the_join: String = the_join.chars().take(15).collect();
         options.join = Some(the_escapes_of_a_text(&the_join, options.accent, dialect));
     }
     // The lines of the section, until the line that closes it.
@@ -699,20 +704,31 @@ fn the_section_at(
 
 /// The text of the lines of a section.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the lines are joined
-/// with a linefeed, the trailing whitespace is removed, and the leading
-/// whitespace is removed as the indentation of the first line says -- unless
-/// the option `LTrim` takes it all away or the option `LTrim0` keeps it.
+/// Measured on the binary of v2.0.19 on 2026-11-09: the lines are joined with
+/// the string of the option `Join` (a linefeed when there is none), the
+/// trailing whitespace is removed, and the leading whitespace is removed as
+/// the indentation of the first content line says -- unless the option
+/// `LTrim` takes it all away or the option `LTrim0` keeps it. A line that
+/// carries only a comment is not a line of the section at all: it
+/// contributes nothing, not even the linefeed before it.
 fn the_content_of_the_section(section: &TheSection) -> String {
     let mut lines: Vec<String> = Vec::new();
     for line in &section.lines {
         let mut text = line.clone();
+        let mut a_comment_is_the_whole_line = false;
         if section.options.comments {
             // The comment of the line, and the whitespace before it, are of
             // no account.
             if let Some(at) = text.find(';') {
                 text.truncate(at);
+                while text.ends_with([' ', '\t']) {
+                    text.pop();
+                }
+                a_comment_is_the_whole_line = text.trim().is_empty();
             }
+        }
+        if a_comment_is_the_whole_line {
+            continue;
         }
         if !section.options.rtrim0 {
             while text.ends_with([' ', '\t', '\r']) {
@@ -792,12 +808,22 @@ fn the_escapes_of_a_text(
     result
 }
 
-/// The tokens of the text of a continuation section.
+/// The tokens of a line that a continuation section is merged with.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the newlines of a
-/// section are spaces in an expression.
-fn the_tokens_of_the_content(content: &str) -> Result<Vec<Token>, SyntaxError> {
-    let mut tokens = tokenize(content)?;
+/// Measured on the binary of v2.0.19 on 2026-11-09: the newlines of the
+/// section are spaces in the merged line, a string of it may run from one
+/// of its lines to the next, and the tokens of the whole line are the ones
+/// of the text that was merged -- so an operator may be split across the
+/// boundary.
+fn the_tokens_of_a_merged_line(
+    text: &str,
+    dialect: &'static dyn crate::dialect::Dialect,
+    line: u32,
+) -> Result<Vec<Token>, SyntaxError> {
+    let mut tokens = tokenize_the_source(text, dialect, true).map_err(|mut error| {
+        error.line = line;
+        error
+    })?;
     // The end of the text is not a token of the script.
     if tokens
         .last()
@@ -806,71 +832,120 @@ fn the_tokens_of_the_content(content: &str) -> Result<Vec<Token>, SyntaxError> {
     {
         tokens.pop();
     }
-    let mut a_newline_was_there = false;
-    let mut the_tokens: Vec<Token> = Vec::new();
-    for mut token in tokens {
-        if token.kind == TokenKind::Newline {
-            a_newline_was_there = true;
+    for token in tokens.iter_mut() {
+        token.line = line;
+    }
+    Ok(tokens)
+}
+
+/// The section that opens at the line that comes after `from`, when the
+/// blank lines and the comments between are of no account.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the section joins the
+/// last line that has code, and the blank lines and the comment lines
+/// between the two are not a part of it. The number of the lines that were
+/// skipped is answered with the section: the lines of the script that the
+/// section moved are the ones of the count.
+fn the_section_after_the_line(
+    chars: &[char],
+    from: usize,
+    line: u32,
+    dialect: &'static dyn crate::dialect::Dialect,
+) -> Result<Option<(TheSection, u32)>, SyntaxError> {
+    let mut at = from;
+    let mut skipped = 0u32;
+    loop {
+        let mut end_of_the_line = at;
+        while end_of_the_line < chars.len() && chars[end_of_the_line] != '\n' {
+            end_of_the_line += 1;
+        }
+        let text: String = chars[at..end_of_the_line].iter().collect();
+        let trimmed = text.trim_matches([' ', '\t', '\r']);
+        if trimmed.is_empty() || trimmed.starts_with(';') {
+            if end_of_the_line >= chars.len() {
+                return Ok(None);
+            }
+            skipped += 1;
+            at = end_of_the_line + 1;
             continue;
         }
-        if a_newline_was_there {
-            token.spaced = true;
-            a_newline_was_there = false;
-        }
-        the_tokens.push(token);
+        let section = the_section_at(chars, at, line + skipped, dialect)?;
+        return Ok(section.map(|section| (section, skipped)));
     }
-    Ok(the_tokens)
 }
 
-/// The code of a line of the script: the text without its comment.
+/// The text of a line without the comment that ends it.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the section continues the
-/// last line that has code, and the name that ends that line is separated
-/// from the contents of the section by a space.
-fn the_code_of_a_line(text: &str) -> &str {
-    match text.find(';') {
-        Some(at) => &text[..at],
-        None => text,
+/// Measured on the binary of v2.0.19 on 2026-11-09: the comment of the line
+/// that a section joins is of no account, and it is taken away with the
+/// whitespace to its left. The comment begins at a semicolon that is at the
+/// start of the line or that has a whitespace before it -- the quote that
+/// the line carries does not protect the semicolon, which is why the text of
+/// the line `Var := "a ; b"` is `Var := "a` when a section joins it.
+fn the_text_without_the_comment(text: &str) -> &str {
+    let mut previous = None;
+    for (at, character) in text.char_indices() {
+        if character == ';' && (at == 0 || matches!(previous, Some(' ') | Some('\t'))) {
+            let mut end = at;
+            while end > 0 && matches!(text.as_bytes().get(end - 1), Some(b' ') | Some(b'\t')) {
+                end -= 1;
+            }
+            return &text[..end];
+        }
+        previous = Some(character);
     }
+    text.trim_end_matches([' ', '\t', '\r'])
 }
 
-/// Whether the last character of a line of code is a name.
+/// Whether the last character of a text is a name.
 ///
 /// A name is a letter, a digit or an underscore: the text of a string ends
 /// with a quote, and the quote is not a name.
 fn the_last_character_is_a_name(text: &str) -> bool {
-    // The section is a thing of the v2, and the marks of the name are a
-    // thing of the v1: the line that a section joins is read without them.
-    match the_code_of_a_line(text).trim_end().chars().last() {
+    match text.trim_end().chars().last() {
         Some(last) => the_character_is_of_a_name(last, false),
         None => false,
     }
 }
 
-/// The line that a section is joined with.
+/// Whether the first character of a text is a name.
+fn the_first_character_is_a_name(text: &str) -> bool {
+    match text.chars().next() {
+        Some(first) => the_character_is_of_a_name(first, false),
+        None => false,
+    }
+}
+
+/// Whether the text of a line ends inside a quoted text.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the section continues the
-/// last line that has code -- the blank lines and the comments between are of
-/// no account.
-fn the_line_the_section_joins(
-    chars: &[char],
-    the_starts_of_the_lines: &[usize],
-    the_line: u32,
-) -> Option<(u32, usize, usize)> {
-    let mut number = the_line as usize;
-    while number > 1 {
-        number -= 1;
-        let start = the_starts_of_the_lines[number - 1];
-        let end = the_starts_of_the_lines
-            .get(number)
-            .copied()
-            .unwrap_or(chars.len());
-        let text: String = chars[start..end].iter().collect();
-        if !the_code_of_a_line(&text).trim().is_empty() {
-            return Some((number as u32, start, end));
+/// Measured on the binary of v2.0.19 on 2026-11-09: a line that ends inside
+/// a quoted text takes the section as a part of that text, and the quotes
+/// that the line carries are read again the way the text is read -- a quote
+/// that is not closed is not the end of the text.
+fn the_line_above_ends_inside_a_text(text: &str) -> bool {
+    let mut quote: Option<char> = None;
+    let mut characters = text.chars();
+    while let Some(character) = characters.next() {
+        if character == '`' {
+            // The escape of the dialect is the backtick: the character that
+            // follows it is a part of the text and not a quote of it.
+            characters.next();
+            continue;
+        }
+        match quote {
+            Some(open) => {
+                if character == open {
+                    quote = None;
+                }
+            }
+            None => {
+                if character == '"' || character == '\'' {
+                    quote = Some(character);
+                }
+            }
         }
     }
-    None
+    quote.is_some()
 }
 
 /// Turn the source into tokens.
@@ -890,6 +965,22 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SyntaxError> {
 pub fn tokenize_with(
     source: &str,
     dialect: &'static dyn crate::dialect::Dialect,
+) -> Result<Vec<Token>, SyntaxError> {
+    tokenize_the_source(source, dialect, false)
+}
+
+/// The tokens of a source, with the newlines being spaces when the flag is
+/// set.
+///
+/// The text of a continuation section is merged with the line above it and
+/// read again as one line: the newlines of the section are spaces in that
+/// line, and a string of it may run from one of its lines to the next. The
+/// flag is what tells the two readings apart, and the reading of a whole
+/// script never sets it.
+fn tokenize_the_source(
+    source: &str,
+    dialect: &'static dyn crate::dialect::Dialect,
+    the_newlines_join_the_line: bool,
 ) -> Result<Vec<Token>, SyntaxError> {
     // Measured on the binary of v2.0.19 on 2026-10-31: the script may begin
     // with the byte order mark, and the mark is not a character of it. Only
@@ -913,6 +1004,21 @@ pub fn tokenize_with(
     // The place where every line begins: the section that follows is joined
     // with the line that has code above it.
     let mut the_starts_of_the_lines: Vec<usize> = vec![0];
+    // The line that has code, with its text as merged so far: a
+    // continuation section joins it, and the text is the one that is read
+    // again. The line above a section may be several lines above it -- the
+    // blank lines and the comments between are of no account -- so the last
+    // line that has code is the one that is kept, and not the line that
+    // happens to come before the section.
+    let mut the_line_with_code: Option<(u32, String)> = None;
+    // Where the tokens of that line begin, and where the physical line that
+    // is being read begins.
+    let mut the_token_start_of_the_line_with_code = 0usize;
+    let mut the_start_of_the_current_line = 0usize;
+    let mut the_start_of_the_current_line_tokens = 0usize;
+    // Whether a section was merged into the current line: the line is the
+    // one of the section, and its text was merged and read again.
+    let mut a_section_was_merged = false;
     while index < chars.len() {
         let current = chars[index];
         // The space belongs to the token that comes next, and to that one
@@ -920,30 +1026,120 @@ pub fn tokenize_with(
         let before = spaced;
         spaced = false;
         if current == '\n' {
+            // The text of a line that a section joined is one line: its
+            // newlines are spaces, and the newline does not end a
+            // statement.
+            if the_newlines_join_the_line {
+                index += 1;
+                line += 1;
+                column = 1;
+                spaced = true;
+                continue;
+            }
+            // The line that ends here is the line that a section joins when
+            // it has code: the text is kept before the section is looked
+            // for.
+            if tokens.len() > the_start_of_the_current_line_tokens && !a_section_was_merged {
+                let mut text: String = chars[the_start_of_the_current_line..index].iter().collect();
+                while text.ends_with(['\r', ' ', '\t']) {
+                    text.pop();
+                }
+                the_line_with_code = Some((line, text));
+                the_token_start_of_the_line_with_code = the_start_of_the_current_line_tokens;
+            }
             // The line that comes may open a continuation section: the
             // section continues the line above, and the newline is not a
             // separator of statements.
-            if let Some(section) = the_section_at(&chars, index + 1, line + 1, dialect)? {
-                // The lines of the section are lines of the script too.
-                let mut cursor = index + 1;
-                while cursor < section.end {
-                    the_starts_of_the_lines.push(cursor);
-                    match chars[cursor..section.end].iter().position(|c| *c == '\n') {
-                        Some(at) => cursor += at + 1,
-                        None => break,
+            if let Some((section, the_skipped_lines)) =
+                the_section_after_the_line(&chars, index + 1, line + 1, dialect)?
+            {
+                let the_line_above = the_line_with_code.clone();
+                if let Some((the_number, text_of_the_line)) = &the_line_above {
+                    let the_number = *the_number;
+                    // A directive takes the rest of its line: the section
+                    // is a part of its argument.
+                    let the_directive_is_the_line_above = tokens
+                        .iter()
+                        .skip(the_token_start_of_the_line_with_code)
+                        .any(|token| token.kind == TokenKind::Directive);
+                    if the_directive_is_the_line_above {
+                        let content = the_content_of_the_section(&section);
+                        let mut argument = String::new();
+                        if tokens
+                            .last()
+                            .map(|token| {
+                                token.kind == TokenKind::String && token.line == the_number
+                            })
+                            .unwrap_or(false)
+                        {
+                            argument = tokens.pop().map(|token| token.value).unwrap_or_default();
+                        }
+                        argument.push_str(&content);
+                        argument.push_str(&section.rest);
+                        tokens.push(Token {
+                            kind: TokenKind::String,
+                            value: argument,
+                            line: the_number,
+                            column: 1,
+                            spaced: false,
+                            quote: None,
+                        });
+                        index = section.end;
+                        line += the_skipped_lines + section.lines.len() as u32 + 2;
+                        column = 1;
+                        a_section_was_merged = true;
+                        continue;
                     }
+                    // The text of the section is merged with the line above
+                    // as text, and the line is read again: measured on the
+                    // binary of v2.0.19 on 2026-11-09, the merge is textual,
+                    // so an operator may be split across the boundary and
+                    // the `Join` string of a section may be part of a name.
+                    let text_of_the_line = the_text_without_the_comment(text_of_the_line).to_string();
+                    let content = the_content_of_the_section(&section);
+                    let mut merged = text_of_the_line;
+                    // The space that keeps two names apart is a thing of the
+                    // text of an expression: the text of a line that ends
+                    // inside a quoted text is the text of that text, and the
+                    // section is a part of it. Measured on the binary of
+                    // v2.0.19 on 2026-11-09: the text of the line
+                    // `Var := "a ; b"` is `Var := "a`, and the section `c`
+                    // makes it `"ac"`.
+                    let a_space = !content.is_empty()
+                        && !the_line_above_ends_inside_a_text(&merged)
+                        && the_last_character_is_a_name(&merged)
+                        && the_first_character_is_a_name(&content);
+                    if a_space {
+                        merged.push(' ');
+                    }
+                    if !section.closed {
+                        // Measured on the binary of v2.0.19 on 2026-11-09:
+                        // the section that is not closed is named, and the
+                        // text of the line above and of the section is named
+                        // with it.
+                        let mut text = merged;
+                        let rest: String = chars[section.after..].iter().collect();
+                        text.push_str(rest.trim_end_matches(['\r', '\n']));
+                        return Err(SyntaxError::new(
+                            format!("Missing \")\"\n     Specifically: {text}"),
+                            the_number,
+                            1,
+                        ));
+                    }
+                    merged.push_str(&content);
+                    merged.push_str(&section.rest);
+                    tokens.truncate(the_token_start_of_the_line_with_code);
+                    let the_merged_tokens =
+                        the_tokens_of_a_merged_line(&merged, dialect, the_number)?;
+                    tokens.extend(the_merged_tokens);
+                    the_line_with_code = Some((the_number, merged));
+                    the_start_of_the_current_line_tokens = the_token_start_of_the_line_with_code;
+                    a_section_was_merged = true;
+                    index = section.end;
+                    line += the_skipped_lines + section.lines.len() as u32 + 2;
+                    column = 1;
+                    continue;
                 }
-                the_section_joins_the_line_above(
-                    &mut tokens,
-                    &chars,
-                    &section,
-                    &the_starts_of_the_lines,
-                    line,
-                )?;
-                index = section.end;
-                line += section.lines.len() as u32 + 2;
-                column = 1;
-                continue;
             }
             tokens.push(Token {
                 kind: TokenKind::Newline,
@@ -957,6 +1153,9 @@ pub fn tokenize_with(
             line += 1;
             column = 1;
             the_starts_of_the_lines.push(index);
+            the_start_of_the_current_line = index;
+            the_start_of_the_current_line_tokens = tokens.len();
+            a_section_was_merged = false;
             continue;
         }
         if current == ' ' || current == '\t' || current == '\r' {
@@ -1067,6 +1266,34 @@ pub fn tokenize_with(
             }
             continue;
         }
+        if current == '/' && chars.get(index + 1) == Some(&'*') {
+            // Measured on the binary of v2.0.19 on 2026-11-09: a block
+            // comment begins with `/*` and ends with the first `*/`, and
+            // the newlines inside it are lines of the script. A section may
+            // follow a block comment, and the comment is of no account.
+            index += 2;
+            column += 2;
+            while index < chars.len() {
+                if chars[index] == '*' && chars.get(index + 1) == Some(&'/') {
+                    index += 2;
+                    column += 2;
+                    break;
+                }
+                if chars[index] == '\n' {
+                    index += 1;
+                    line += 1;
+                    column = 1;
+                    the_starts_of_the_lines.push(index);
+                    continue;
+                }
+                index += 1;
+                column += 1;
+            }
+            // The comment separates the tokens around it, the way a space
+            // does.
+            spaced = true;
+            continue;
+        }
         if current == ';' {
             // Measured on the binary of v2.0.19 on 2026-11-01: the
             // semicolon is the beginning of a comment when it is at the
@@ -1173,9 +1400,23 @@ pub fn tokenize_with(
                 if index >= chars.len() || chars[index] != '\n' {
                     break;
                 }
+                // The newlines of a merged line are spaces, and a string of
+                // it may run from one line of the section to the next: the
+                // newline is a character of the text.
+                if the_newlines_join_the_line {
+                    buffer.push('\n');
+                    index += 1;
+                    line += 1;
+                    column = 1;
+                    continue;
+                }
                 // The line that comes may open a continuation section: the
-                // section is inside the text, and its lines are text.
-                let Some(section) = the_section_at(&chars, index + 1, line + 1, dialect)? else {
+                // section is inside the text, and its lines are text. The
+                // blank lines and the comments between the text and the
+                // section are of no account.
+                let Some((section, the_skipped_lines)) =
+                    the_section_after_the_line(&chars, index + 1, line + 1, dialect)?
+                else {
                     break;
                 };
                 if !section.closed {
@@ -1184,12 +1425,20 @@ pub fn tokenize_with(
                     let start_of_the_line = quote_index - (start_column as usize - 1);
                     let mut text: String = chars[start_of_the_line..index].iter().collect();
                     let rest: String = chars[section.after..].iter().collect();
-                    text.push_str(&rest);
+                    text.push_str(rest.trim_end_matches(['\r', '\n']));
                     return Err(SyntaxError::new(
                         format!("Missing \")\"\n     Specifically: {text}"),
                         start_line,
                         start_column,
                     ));
+                }
+                // The comment of the line that the section joins is not a
+                // part of the text: measured on the binary of v2.0.19 on
+                // 2026-11-09, the `;` of that line is stripped with the
+                // whitespace to its left, even when the text is not closed.
+                if the_text_of_the_section.is_empty() {
+                    let without_the_comment = the_text_without_the_comment(&buffer).to_string();
+                    buffer = without_the_comment;
                 }
                 // The lines of the section are text: the quotes in them are
                 // literal and the newlines are kept.
@@ -1202,8 +1451,23 @@ pub fn tokenize_with(
                 ));
                 // The text that follows the closing parenthesis is the text
                 // that is being read: the quote that closes it is there.
+                let section_start = index + 1;
                 index = section.rest_at;
-                line += section.lines.len() as u32 + 2;
+                // The lines of the section are lines of the script too, and
+                // the place where each of them begins is kept: the section
+                // that comes after them joins the line that has code above
+                // it, and that line is found by its place. The section of a
+                // string that is not closed is the other place where a
+                // section is read, and it counts its lines the same way.
+                let mut cursor = section_start;
+                while cursor < section.end {
+                    the_starts_of_the_lines.push(cursor);
+                    match chars[cursor..section.end].iter().position(|c| *c == '\n') {
+                        Some(at) => cursor += at + 1,
+                        None => break,
+                    }
+                }
+                line += the_skipped_lines + section.lines.len() as u32 + 2;
                 column = 1;
             }
             if index >= chars.len() || chars[index] == '\n' {
@@ -1570,117 +1834,6 @@ pub fn tokenize_with(
         quote: None,
     });
     Ok(tokens)
-}
-
-/// The section that follows is joined with the line above it.
-///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the section continues
-/// the last line that has code -- the blank lines and the comments between
-/// are of no account -- and the name that ends that line is separated from
-/// the contents of the section by a space.
-fn the_section_joins_the_line_above(
-    tokens: &mut Vec<Token>,
-    chars: &[char],
-    section: &TheSection,
-    the_starts_of_the_lines: &[usize],
-    line: u32,
-) -> Result<(), SyntaxError> {
-    // The section continues the last line that has code.
-    while tokens
-        .last()
-        .map(|token| token.kind == TokenKind::Newline)
-        .unwrap_or(false)
-    {
-        tokens.pop();
-    }
-    let (the_number, the_start, the_end) =
-        match the_line_the_section_joins(chars, the_starts_of_the_lines, line + 1) {
-            Some(above) => above,
-            None => (line + 1, line as usize, line as usize),
-        };
-    let text_of_the_line: String = chars[the_start..the_end].iter().collect();
-    // The space that separates the name from the contents of the section.
-    let a_space = the_number != line + 1 && the_last_character_is_a_name(&text_of_the_line);
-    let content = the_content_of_the_section(section);
-    if !section.closed {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the section that is
-        // not closed is named, and the text it merged with the line above is
-        // named with it. The text is a line of the script, and the newline
-        // that ends it is not part of it.
-        let mut text = text_of_the_line.trim_end().to_string();
-        if a_space {
-            text.push(' ');
-        }
-        let mut rest: String = chars[section.after..].iter().collect();
-        if rest.ends_with("\r\n") {
-            rest.truncate(rest.len() - 2);
-        } else if rest.ends_with('\n') {
-            rest.pop();
-        }
-        text.push_str(&rest);
-        return Err(SyntaxError::new(
-            format!("Missing \")\"\n     Specifically: {text}"),
-            the_number,
-            1,
-        ));
-    }
-    // The directive takes the rest of its line: the section is part of its
-    // argument.
-    let the_directive_is_the_line_above = tokens
-        .iter()
-        .rev()
-        .take_while(|token| token.line == the_number)
-        .any(|token| token.kind == TokenKind::Directive);
-    if the_directive_is_the_line_above {
-        let mut argument = String::new();
-        if tokens
-            .last()
-            .map(|token| token.kind == TokenKind::String)
-            .unwrap_or(false)
-        {
-            argument = tokens.pop().map(|token| token.value).unwrap_or_default();
-        }
-        if a_space {
-            argument.push(' ');
-        }
-        argument.push_str(&content);
-        argument.push_str(&section.rest);
-        tokens.push(Token {
-            kind: TokenKind::String,
-            value: argument,
-            line: the_number,
-            column: 1,
-            spaced: false,
-            quote: None,
-        });
-        return Ok(());
-    }
-    // The tokens of the contents: the newlines of a section are spaces in an
-    // expression.
-    let mut the_tokens = the_tokens_of_the_content(&content).map_err(|mut error| {
-        error.line = the_number;
-        error
-    })?;
-    for token in the_tokens.iter_mut() {
-        token.line = the_number;
-    }
-    if let Some(first) = the_tokens.first_mut() {
-        first.spaced = first.spaced || a_space;
-    }
-    tokens.extend(the_tokens);
-    // The text that follows the closing parenthesis is joined with the lines
-    // of the section, and there is no delimiter between them.
-    if !section.rest.is_empty() {
-        let mut the_tokens = the_tokens_of_the_content(&section.rest).map_err(|mut error| {
-            error.line = the_number;
-            error
-        })?;
-        for token in the_tokens.iter_mut() {
-            token.line = the_number;
-        }
-        tokens.extend(the_tokens);
-    }
-    Ok(())
 }
 
 /// Whether the point at the place begins a number.
@@ -2074,5 +2227,235 @@ mod tests {
         let tokens = tokenize("x := 1 === 1").expect("parses");
         assert_eq!(tokens[3].value, "==");
         assert_eq!(tokens[4].value, "=");
+    }
+
+    // -- the continuation sections ----------------------------------------
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-09, with the probes under
+    // `egm-review/keysharp-audit/wp2/`.
+
+    /// The values of the tokens of a script, without the newlines and the
+    /// end of the source.
+    fn values(source: &str) -> Vec<String> {
+        tokenize(source)
+            .expect("parses")
+            .into_iter()
+            .filter(|token| token.kind != TokenKind::Newline && token.kind != TokenKind::Eof)
+            .map(|token| token.value)
+            .collect()
+    }
+
+    /// The value of the first text of a script.
+    fn text(source: &str) -> String {
+        tokenize(source)
+            .expect("parses")
+            .into_iter()
+            .find(|token| token.kind == TokenKind::String)
+            .map(|token| token.value)
+            .expect("a text")
+    }
+
+    #[test]
+    fn a_section_outside_a_text_is_the_source_text_of_the_line() {
+        // p12: the content of the section is spliced into the expression,
+        // and the names are the concatenation of it.
+        assert_eq!(values("Var :=\n(\na\nb\n)"), ["Var", ":=", "a", "b"]);
+        // p14: the line above is a statement of its own, and the section
+        // continues the expression of it.
+        assert_eq!(values("n :=\n(\n1\n+ 2\n)"), ["n", ":=", "1", "+", "2"]);
+        // p13: the merge is textual, and the operator is split across the
+        // boundary.
+        assert_eq!(values("op :\n(Join\n= 5\n)"), ["op", ":=", "5"]);
+    }
+
+    #[test]
+    fn a_section_that_follows_a_text_is_a_part_of_that_text() {
+        // p03: the newlines of the section are the text, and the text of the
+        // string goes on to the line that closes it.
+        let source = "Var := \"\n(\nA line.\nBy default.\n)\"";
+        assert_eq!(values(source).len(), 3);
+        assert_eq!(text(source), "A line.\nBy default.");
+        // p10: the text that is opened on one content line and closed on a
+        // later one is one text.
+        let source = "Var :=\n(\n\"A line.\nA line of text.\"\n)";
+        assert_eq!(text(source), "A line.\nA line of text.");
+    }
+
+    #[test]
+    fn the_comment_of_the_line_above_a_section_is_of_no_account() {
+        // p01: the line above ends with a text and a comment, and the text
+        // of the line is the one before the comment. r01: the quote after
+        // the comment is a part of the comment.
+        assert_eq!(
+            text("Var := \"This is a string, ; Comment.\"\n(\n    followed by a comment.\n)\""),
+            "This is a string,followed by a comment."
+        );
+        // p02: the same when the text of the line above is not closed.
+        assert_eq!(
+            text("Var := \"This is a string, ; Comment.\n(\n    followed by a comment.\n)\""),
+            "This is a string,followed by a comment."
+        );
+        // q01: the comment of the line above is stripped even when the text
+        // of the line is closed, and the space that keeps two names apart
+        // is not added inside a text.
+        assert_eq!(text("Var := \"a ; b\"\n(\nc\n)\""), "ac");
+        // q03: the comment of a line of source text is stripped, and the
+        // section is spliced into the code.
+        assert_eq!(values("x := 1 ; comment\n(Join\n+ 2\n)"), ["x", ":=", "1", "+", "2"]);
+    }
+
+    #[test]
+    fn the_blank_lines_and_the_comments_before_a_section_are_of_no_account() {
+        // p15: the blank lines and the comment lines between the line that
+        // has code and the section are not a part of the merge.
+        let source = "gap := \"   ; Comment.\n; Comment.\n\n( LTrim Join    ; Comment.\n   ; This is not a comment; it is literal.\n)\"";
+        assert_eq!(text(source), "; This is not a comment; it is literal.");
+        // p04: the section after a block comment joins the line above it.
+        assert_eq!(
+            values("Var :=\n(\n obj\n)\n/* Comment is ignored */\n(\n  .prop\n)"),
+            ["Var", ":=", "obj", ".", "prop"]
+        );
+    }
+
+    #[test]
+    fn a_block_comment_is_not_a_token() {
+        // Measured on the binary of v2.0.19 on 2026-11-09: the block comment
+        // is of no account, and the code around it is one line.
+        assert_eq!(values("x := 1 /* a comment */ + 2"), ["x", ":=", "1", "+", "2"]);
+        // The newlines of a block comment are lines of the script too.
+        let tokens = tokenize("x := 1 /* a\ncomment */ + 2").expect("parses");
+        assert_eq!(tokens.last().map(|token| token.line), Some(2));
+    }
+
+    #[test]
+    fn the_options_of_a_section_are_read() {
+        // p08: LTrim takes the leading whitespace of every line away.
+        assert_eq!(text("Var := \"\n( LTrim\n    One.\n    Two.\n)\""), "One.\nTwo.");
+        // p08: LTrim0 keeps the leading whitespace of every line.
+        assert_eq!(
+            text("Var := \"\n( LTrim0\n    One.\n  Two.\n)\""),
+            "    One.\n  Two."
+        );
+        // p08: RTrim0 keeps the trailing whitespace of every line.
+        assert_eq!(text("Var := \"\n( RTrim0\none   \ntwo   \n)\""), "one   \ntwo   ");
+        // p08: the indentation of the first content line is what is taken
+        // away by default.
+        assert_eq!(
+            text("Var := \"\n(\n    One.\n    Two.\n  Three.\n)\""),
+            "One.\nTwo.\n  Three."
+        );
+        // q05: a blank line is a line of the section.
+        assert_eq!(text("Var := \"\n(\none\n\ntwo\n)\""), "one\n\ntwo");
+    }
+
+    #[test]
+    fn the_option_comments_takes_the_comments_of_the_lines_away() {
+        // q07 and p10: a line that carries only a comment is not a line of
+        // the section at all -- it contributes nothing, not even a newline --
+        // and the comment of a line takes the whitespace to its left away.
+        assert_eq!(
+            text("Var := \"\n(c\none   ; trailing comment\n; only a comment\ntwo\n)\""),
+            "one\ntwo"
+        );
+        // q09: `C` is a spelling of the option.
+        assert_eq!(text("Var := \"\n(C\none ; c\ntwo\n)\""), "one\ntwo");
+        // p10: with RTrim0 the whitespace to the left of the comment is
+        // still taken away, and the whitespace at the end of a line that
+        // has no comment is kept.
+        assert_eq!(
+            text("Var := \"\n(Comments RTrim0\none   ; cmt\ntwo   \n)\""),
+            "one\ntwo   "
+        );
+    }
+
+    #[test]
+    fn the_string_of_the_option_join_is_the_delimiter() {
+        // p07: the string of the option joins the lines, and the option is
+        // read in any case.
+        assert_eq!(text("Var := \"\n( Join|\none\ntwo\n)\""), "one|two");
+        assert_eq!(text("Var := \"\n(Join##\none\ntwo\n)\""), "one##two");
+        assert_eq!(text("Var := \"\n(Join%\none\ntwo\n)\""), "one%two");
+        // p07: the string is at most fifteen characters long.
+        assert_eq!(
+            text("Var := \"\n(Join0123456789abcdefGHI\none\ntwo\n)\""),
+            "one0123456789abcdetwo"
+        );
+        // p09: the string of the option is source text as well: it is a
+        // part of a name when the section is spliced into an expression.
+        assert_eq!(
+            values("name :=\n(JoinrL\nSt\nen(\"abcde\")\n)"),
+            ["name", ":=", "StrLen", "(", "abcde", ")"]
+        );
+    }
+
+    #[test]
+    fn the_accent_of_a_section_makes_the_backtick_a_literal() {
+        // p11: the accent option turns the escapes off.
+        assert_eq!(text("Var := \"\n(`\nesc`ttab\n)\""), "esc`ttab");
+        // The same text without the option translates the escapes.
+        assert_eq!(text("Var := \"\n(\nesc`ttab\n)\""), "esc\ttab");
+        // p09: the escaped closing parenthesis is a part of the text.
+        assert_eq!(
+            text("Var := \"\n(\n`)Escaped closing paren.\n)\""),
+            ")Escaped closing paren."
+        );
+    }
+
+    #[test]
+    fn a_section_may_follow_a_section_on_the_same_logical_line() {
+        // p12: the second section joins the line that the first one made,
+        // and the name that ends that line is kept apart from the content of
+        // the second one by a space.
+        let tokens = tokenize("arr := Array(\n(Join,\na\nb\n)\n(Join,\nc\nd\n)\n)")
+            .expect("parses");
+        let values: Vec<String> = tokens
+            .iter()
+            .filter(|token| token.kind != TokenKind::Newline && token.kind != TokenKind::Eof)
+            .map(|token| token.value.clone())
+            .collect();
+        assert_eq!(values, ["arr", ":=", "Array", "(", "a", ",", "b", "c", ",", "d", ")"]);
+        // The space before the content of the second section is there.
+        let b = tokens
+            .iter()
+            .position(|token| token.value == "b")
+            .expect("the name");
+        assert_eq!(tokens[b + 1].value, "c");
+        assert!(tokens[b + 1].spaced);
+    }
+
+    #[test]
+    fn the_lines_of_a_text_that_hold_sections_are_counted() {
+        // The section of a text counts its lines, and the next section that
+        // follows it finds the line of the script where it belongs: a line
+        // that is not there is answered with a line that joins nothing and
+        // not with a panic.
+        assert_eq!(
+            values("Var := \"\n(\na\n)\n(Join\nb\n)\"\nVar2 :=\n(\n1\n+ 2\n)"),
+            ["Var", ":=", "ab", "Var2", ":=", "1", "+", "2"]
+        );
+    }
+
+    #[test]
+    fn a_section_that_is_not_closed_names_the_text_that_it_merged() {
+        // p16: the text section is named with the line that was read.
+        let error = tokenize("Var := \"\n(\nA line of text.\n").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Missing \")\"\n     Specifically: Var := \"A line of text."
+        );
+        // p18: the source section is named with the line and the lines of
+        // the section.
+        let error = tokenize("Var :=\n(\nA line of text.\nAnother line.").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Missing \")\"\n     Specifically: Var :=A line of text.\nAnother line."
+        );
+    }
+
+    #[test]
+    fn the_option_that_v2_does_not_know_is_refused() {
+        // p17: the option that is not one of the options is named.
+        let error = tokenize("Var := \"\n(Bogus\nA line.\n)\"").expect_err("does not parse");
+        assert_eq!(error.message, "Invalid option.\n     Specifically: Bogus");
     }
 }

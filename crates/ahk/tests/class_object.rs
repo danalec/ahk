@@ -1419,6 +1419,37 @@ fn a_static_property_of_a_class_may_have_a_getter() {
 }
 
 #[test]
+fn the_initialiser_of_a_variable_of_an_instance_has_this() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the initialiser of a
+    // variable of an instance runs with `this` bound to the instance, and the
+    // variables that were assigned before it are there for it to read: the
+    // `x := 123` and the `y := this.x` of one class answer 123 and 123.
+    let report = run(concat!(
+        "class C {\n",
+        "    x := 123\n",
+        "    y := this.x\n",
+        "}\n",
+        "o := C()\n",
+        "MsgBox o.x \"|\" o.y\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["123|123"]);
+}
+
+#[test]
+fn the_item_of_a_class_is_written_through_its_setter() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `obj[1] := "ONE"`
+    // runs the setter of the `__Item` with the index and the value, and the
+    // getter answers the value that the setter wrote.
+    assert_eq!(
+        the_answer_of(
+            "class C {\n    __New() {\n        this.inner := [\"zero\", \"one\"]\n    }\n    __Item[key] {\n        get {\n            return this.inner[key]\n        }\n        set {\n            this.inner[key] := value\n        }\n    }\n}\nobj := C()\nobj[1] := \"ONE\"\nMsgBox obj[1] \"|\" obj[2]"
+        ),
+        "ONE|one"
+    );
+}
+
+#[test]
 fn the_item_of_a_class_is_the_property_that_is_named_item() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the item of an
     // object of a class of the script is the property `__Item` of it, and

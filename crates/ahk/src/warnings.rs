@@ -807,6 +807,7 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
             }
         }
         Node::Empty { .. } => {}
+        Node::Spread { value, .. } => the_reads_of_a_node(value, reads),
         Node::Legacy { items, .. } => {
             for item in items {
                 the_reads_of_a_node(item, reads);
@@ -836,7 +837,12 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
         }
         Node::Declare { .. } => {}
         Node::Super { .. } => {}
-        Node::For { source, .. } => the_reads_of_a_node(source, reads),
+        Node::For { source, until, .. } => {
+            the_reads_of_a_node(source, reads);
+            if let Some(until) = until {
+                the_reads_of_a_node(until, reads);
+            }
+        }
         Node::Label { .. } => {}
         Node::Goto { .. } => {}
         Node::HotkeyDefinition { .. } => {}
@@ -936,6 +942,16 @@ fn the_warnings_of_the_reads_of_the_script(
     for (name, _) in writes {
         globals.insert(name.to_lowercase());
     }
+    // The function and the class of the script are names and not variables:
+    // `OnError(Backstop)` hands the function over, and `Store()` calls the
+    // class. The read of one is not the read of a variable that has no
+    // value.
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-09: a script that defines
+    // `Backstop` and passes it to `OnError` is not warned about, and the same
+    // script without the definition is warned about `Backstop`. The tree
+    // warned about both.
+    the_function_and_class_names(statements, globals);
     let empty = BTreeSet::new();
     for statement in statements {
         match statement {
@@ -1230,6 +1246,21 @@ fn the_writes_of_a_level(statements: &[Node], writes: &mut Vec<(String, u32)>, d
                     }
                 }
             }
+            // The variable of a catch is written by the catch, and it is not
+            // a variable that the script reads and never writes.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-09: a script that
+            // reads the value a `catch as error` holds is not warned about.
+            // The tree warned about it.
+            Node::Try {
+                catches, line, ..
+            } => {
+                for catch in catches {
+                    if let Some(variable) = &catch.variable {
+                        writes.push((variable.clone(), *line));
+                    }
+                }
+            }
             _ => {}
         }
         let bodies = if deep {
@@ -1282,5 +1313,30 @@ fn the_bodies_of_the_level(statement: &Node) -> Vec<&[Node]> {
         } => vec![body, otherwise],
         Node::HotkeyDefinition { body, .. } => vec![body],
         _ => Vec::new(),
+    }
+}
+
+/// The names of the functions and of the classes that the script defines.
+///
+/// A function and a class are names that a script reads as values --
+/// `OnError(Handler)` hands the function over, and `Handler()` and
+/// `Store()` are the call of one -- and they are not variables, so the read
+/// of one is not the read of a variable that has no value.
+///
+/// The names are collected before the reads are checked, and the walk goes
+/// into the bodies of the functions and of the classes, because a function
+/// that a scope holds is a name of that scope. A name that is collected here
+/// only stops a warning; it never makes one.
+fn the_function_and_class_names(statements: &[Node], names: &mut TheNames) {
+    for statement in statements {
+        match statement {
+            Node::FunctionDef { name, .. } | Node::ClassDef { name, .. } => {
+                names.insert(name.to_lowercase());
+            }
+            _ => {}
+        }
+        for body in the_bodies_of(statement) {
+            the_function_and_class_names(body, names);
+        }
     }
 }

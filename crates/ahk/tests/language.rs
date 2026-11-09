@@ -351,14 +351,51 @@ fn the_v2_dialect_is_refused_under_the_v1_dialect() {
 }
 
 #[test]
-fn a_sub_version_is_not_a_dialect() {
-    // The dialects are v1 and v2. A script that names a sub-version -- the
-    // way the mainline binary spells its own -- asks for something this tree
-    // does not have, and it is refused with the whole argument in the reason.
-    let (report, _) = run("#Requires AutoHotkey v2.0");
+fn the_version_of_the_interpreter_is_met() {
+    // The line of mainline AutoHotkey names the version and not the dialect.
+    // Measured on the binary of v2.0.19 on 2026-11-09: all the forms below
+    // are met by the 2.0.19, and a version that is written without the `v`
+    // is the same version as the one with it.
+    for requirement in [
+        "#Requires AutoHotkey v2.0",
+        "#Requires AutoHotkey v2.0.19",
+        "#Requires AutoHotkey v2.0.19+",
+        "#Requires AutoHotkey 2.0.19",
+        "#Requires AutoHotkey >=2.0",
+        "#Requires AutoHotkey >2.0",
+        "#Requires AutoHotkey <2.1",
+        "#Requires AutoHotkey <=2.0.19",
+        "#Requires AutoHotkey =2.0.19",
+    ] {
+        let (report, _) = run(&format!("{requirement}\nFileAppend \"ok\", \"*\""));
+        assert!(report.ok, "{requirement}: {:?}", report.error);
+        assert_eq!(report.output, vec!["ok"]);
+    }
+}
+
+#[test]
+fn a_later_version_is_refused() {
+    for requirement in [
+        "#Requires AutoHotkey v2.0.20",
+        "#Requires AutoHotkey v2.1",
+        "#Requires AutoHotkey >=2.1",
+        "#Requires AutoHotkey <>2.0.19",
+        "#Requires AutoHotkey =2.0",
+    ] {
+        let (report, _) = run(requirement);
+        assert!(!report.ok, "{requirement} is met, and it is not a version of this tree");
+    }
+}
+
+#[test]
+fn a_requirement_of_another_major_version_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the v2 does not meet a
+    // requirement of the v1, although 2.0.19 is the later version. The
+    // dialects are not versions of one another.
+    let (report, _) = run("#Requires AutoHotkey v1.1");
     assert!(!report.ok);
     let error = report.error.as_deref().unwrap_or("");
-    assert!(error.contains("This script requires AutoHotkey v2.0."), "{error}");
+    assert!(error.contains("This script requires AutoHotkey v1.1."), "{error}");
 }
 
 #[test]
@@ -1695,7 +1732,10 @@ fn the_numbers_have_their_functions() {
     assert_eq!(report.variables.get("c"), Some(&Value::Int(1)));
     assert_eq!(report.variables.get("d"), Some(&Value::Int(2)));
     assert_eq!(report.variables.get("e"), Some(&Value::Int(3)));
-    assert_eq!(report.variables.get("f"), Some(&Value::Float(2.35)));
+    // Measured on the binary of v2.0.19 on 2026-11-09: the `Round` that
+    // takes a number of decimals answers a String of exactly that many
+    // digits, and not a Float.
+    assert_eq!(report.variables.get("f"), Some(&Value::Text("2.35".into())));
     assert_eq!(report.variables.get("g"), Some(&Value::Int(1)));
     assert_eq!(report.variables.get("h"), Some(&Value::Int(3)));
 }
@@ -1758,7 +1798,10 @@ fn the_text_has_its_functions() {
         report.variables.get("f"),
         Some(&Value::Text("2 of 3".into()))
     );
-    assert_eq!(report.variables.get("g"), Some(&Value::Text("2.35".into())));
+    // Measured on the binary of v2.0.19 on 2026-11-09: the type of the
+    // format is `s` when it is not written, and the precision of a String is
+    // its length, so `{1:.2}` of 2.345 is the first two characters.
+    assert_eq!(report.variables.get("g"), Some(&Value::Text("2.".into())));
 }
 
 #[test]
@@ -5049,6 +5092,232 @@ fn a_loop_that_runs_away_is_stopped_by_the_guard_rail() {
     assert_eq!(report.error_line, Some(1));
 }
 
+// -- the `until` of the loop of v2 -------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-09, with the probes under
+// `egm-review/keysharp-audit/wp1/`: the `until` follows the body of the
+// loop -- on the line of the closing brace or on the line that comes next,
+// with blank lines and comments between them -- and the condition is read
+// after every turn of the body. The loop ends when the condition is true,
+// and the count of the loop is the other end of it.
+
+#[test]
+fn the_until_of_the_loop_ends_it_after_the_body() {
+    // `accept_basic.ahk` A1: the loop without a count ends on the third
+    // turn.
+    let (report, _desktop) = run("i := 0\nLoop {\n  i += 1\n} Until i >= 3\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+    // A3: the word does not know its case.
+    let (report, _desktop) = run("i := 0\nLoop {\n  i += 1\n} UNTIL i >= 3\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+    // A7: the space between the closing brace and the word is not needed.
+    let (report, _desktop) = run("i := 0\nLoop {\n  i += 1\n}Until i >= 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_until_of_the_loop_is_a_condition_of_v2() {
+    // A4: the `=` of v2 is a comparison and not an assignment.
+    let (report, _desktop) = run("i := 0\nLoop {\n  i += 1\n} until i = 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    // A5: the condition is a call of a function of the script.
+    let (report, _desktop) =
+        run("f() {\n  return true\n}\ni := 0\nLoop {\n  i += 1\n} until f()\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    // A6: the condition reads A_Index.
+    let (report, _desktop) = run("i := 0\nLoop {\n  i += 1\n} until A_Index >= 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    // A14 and A15: the condition is an expression of two operands, and the
+    // function of the script may be one of them.
+    let (report, _desktop) = run("i := 0\nLoop {\n  i += 1\n} until (i >= 2 and i < 10)\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    let (report, _desktop) = run(
+        "f() {\n  return true\n}\ni := 0\nLoop {\n  i += 1\n} until (i > 5 or f())\nMsgBox i",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+    // P7: the condition may write a variable.
+    let (report, _desktop) = run(
+        "x := 0\ny := 0\nLoop {\n  x += 1\n} until (y := x) >= 2\nMsgBox y",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_count_of_the_loop_is_the_other_end_of_the_until() {
+    // A2 and A9: the until ends the loop before the count does.
+    let (report, _desktop) = run("i := 0\nLoop 10 {\n  i += 1\n} Until i > 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+    // A9b: the count ends the loop before the until does.
+    let (report, _desktop) = run("i := 0\nLoop 2 {\n  i += 1\n} Until i > 5\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_until_of_the_loop_may_be_on_the_line_after_the_closing_brace() {
+    // `accept_nextline.ahk` B1: the word on the line after the brace.
+    let (report, _desktop) = run("i := 0\nLoop 3\n{\n  i += 1\n}\nUntil i >= 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    // B2: a blank line between them.
+    let (report, _desktop) = run("i := 0\nLoop 3\n{\n  i += 1\n}\n\nUntil i >= 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    // B3: a comment on the line of the closing brace.
+    let (report, _desktop) =
+        run("i := 0\nLoop 3\n{\n  i += 1\n} ; the body is done\nUntil i >= 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    // B4: a comment after the condition.
+    let (report, _desktop) =
+        run("i := 0\nLoop 3\n{\n  i += 1\n}\nUntil i >= 2 ; the condition\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    // B5 and N2: the content of the block on the line of the brace that
+    // opens it, and the until on the line of the closing brace.
+    let (report, _desktop) = run("i := 0\nLoop 3\n{ i += 1\n} Until i >= 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn the_until_of_the_loop_follows_a_body_that_has_no_braces() {
+    // F1 and F2: the body is one statement on the line after the loop.
+    let (report, _desktop) = run("i := 0\nLoop 10\n  i += 1\nUntil i > 2\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+    let (report, _desktop) = run("i := 0\nLoop 10\n  i += 2\nUntil i >= 4\nMsgBox i");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["4"]);
+}
+
+#[test]
+fn the_until_of_the_loop_is_read_after_a_turn_that_used_continue() {
+    // A10: the count of the loop and the turn that continued, and the
+    // condition that is read after it. The loop without a count is the
+    // same rule in v2 (A11 answers 2), and the runtime does not read the
+    // until after a `continue` there yet.
+    let (report, _desktop) = run(
+        "i := 0\nLoop 10 {\n  i += 1\n  if (i = 2) {\n    continue\n  }\n} Until i = 2\nMsgBox i",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+}
+
+#[test]
+fn a_break_leaves_the_loop_before_the_until_is_read() {
+    // A13: the `break` leaves the loop, and the condition is not read.
+    let (report, _desktop) =
+        run("x := 0\ni := 0\nLoop {\n  i += 1\n  break\n} Until (x := 1)\nMsgBox i \"|\" x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1|0"]);
+}
+
+#[test]
+fn a_loop_of_zero_turns_does_not_read_the_until() {
+    // A12: the loop whose count is zero never reads the condition.
+    let (report, _desktop) = run("x := 0\nLoop 0 {\n} Until (x := 1)\nMsgBox x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn the_until_of_the_loop_binds_the_loop_that_it_follows() {
+    // E1: the until of the inner loop is the one read there, and the
+    // until of the outer loop is read after each turn of the outer body.
+    let (report, _desktop) = run(
+        "outer := 0\ninner := 0\nLoop 3 {\n  Loop 2 {\n    inner += 1\n  } Until true\n  outer += 1\n} Until outer >= 2\nMsgBox outer \"|\" inner",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2|2"]);
+    // E2: the outer loop has no until, and it counts its turns.
+    let (report, _desktop) = run(
+        "outer := 0\ninner := 0\nLoop 3 {\n  Loop 2 {\n    inner += 1\n  } Until true\n  outer += 1\n}\nMsgBox outer \"|\" inner",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3|3"]);
+}
+
+#[test]
+fn the_until_of_the_loop_needs_a_condition_and_names_the_word_as_written() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the word with no
+    // condition is refused with this message, and the text that it names
+    // is the word as the script wrote it.
+    let error = parse("Loop 1\n{\n} Until").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Until\" requires at least 1 parameter.\n     Specifically: Until"
+    );
+    assert_eq!(error.line, 3);
+    let error = parse("Loop 1\n{\n} until").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Until\" requires at least 1 parameter.\n     Specifically: until"
+    );
+}
+
+#[test]
+fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the `while` refuses
+    // the word with "Unexpected \"Until\"", and the line that it names is
+    // the line of the word. The `for` takes it, and the node of the `for`
+    // of this tree has no field for it yet.
+    let error = parse("i := 0\nWhile i < 5 {\n  i += 1\n}\nUntil i >= 3").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Until\"");
+    assert_eq!(error.line, 5);
+}
+
+#[test]
+fn the_word_until_is_reserved_in_v2_and_not_in_a_property() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the word is not the
+    // name of a variable, and it is the name of a property.
+    let error = parse("until := 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a variable name:\n\"until\""
+    );
+    let (report, _desktop) = run("o := {until: 5}\nMsgBox o.until");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5"]);
+}
+
+#[test]
+fn the_until_of_the_loop_of_a_kind_is_parsed() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the loops of a kind
+    // take the until as well -- `Loop Parse "a,b,c", "," { } Until i >= 2`
+    // ends on the second field. The parser attaches it; the runtime does
+    // not read it for the kinds yet.
+    assert!(parse("Loop Parse \"a,b,c\", \",\" {\n  i += 1\n} Until i >= 2").is_ok());
+    assert!(parse("Loop Files \"*.txt\" {\n} Until true").is_ok());
+}
+
+#[test]
+fn the_until_of_the_v1_is_still_the_statement_after_the_loop() {
+    // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
+    // `until` of the v1 is the condition of the loop, and the v1 reads it
+    // from the statement after the body. The v2 change does not touch it.
+    let (report, _desktop) = run_in(
+        "i := 0\nLoop 3 {\ni := i + 1\n}\nUntil i == 2\nFileAppend, [%i%], *",
+        ahk::dialect::v1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["[2]".to_string()]);
+    // The `until` that no loop takes is still refused when the load is
+    // over.
+    let error = ahk::parse_with("Until 1", ahk::dialect::v1()).expect_err("does not parse");
+    assert_eq!(error.message, "UNTIL with no matching LOOP");
+}
+
 #[test]
 fn the_fields_of_the_loop_that_parses_are_the_characters_of_the_text() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the delimiters
@@ -5088,11 +5357,13 @@ fn the_capacity_of_a_string_that_has_no_value_is_the_one_that_was_asked_for() {
     let (report, _desktop) = run("MsgBox VarSetStrCapacity(&x, 100)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["100"]);
-    // The tree keeps no capacity of its own: the text of the tree has no
-    // room to spare, and its capacity is its length.
+    // Measured on the binary of v2.0.19 on 2026-11-09: the capacity of a
+    // text is the size class AHK keeps for it, and the "hello" of five
+    // characters is of the class of seven. The tree keeps the class as
+    // well since the block of the string memory.
     let (report, _desktop) = run("x := \"hello\"\nMsgBox VarSetStrCapacity(&x)");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["5"]);
+    assert_eq!(report.output, vec!["7"]);
 }
 
 #[test]
@@ -5737,6 +6008,95 @@ fn the_parameter_that_is_not_there_is_a_missing_one() {
         Some("Missing a required parameter.")
     );
     assert_eq!(report.error_line, Some(4));
+}
+
+#[test]
+fn the_name_that_the_script_builds_is_incremented_the_way_a_variable_is() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `y%x%++` answers the
+    // old value and stores the new one, and `++y%x%` answers the new one.
+    let (report, _desktop) = run(concat!(
+        "x := 1\n",
+        "y1 := 5\n",
+        "a := y%x%++\n",
+        "b := ++y%x%\n",
+        "FileAppend(a \"|\" b \"|\" y1, \"*\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5|7|7"]);
+}
+
+#[test]
+fn the_optional_parameter_may_be_left_out() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `f(a, b?)` marks `b`
+    // optional, and a call that leaves it out leaves it unset -- `IsSet(b)`
+    // is zero -- while a call that gives it a value sets it. The method of a
+    // class takes the optional parameter the same way.
+    let (report, _desktop) = run(concat!(
+        "f(a, b?) {\n",
+        "    return IsSet(b) ? \"set:\" b : \"unset\"\n",
+        "}\n",
+        "class C {\n",
+        "    m(a?, b?) {\n",
+        "        return IsSet(a) \"|\" IsSet(b)\n",
+        "    }\n",
+        "}\n",
+        "FileAppend(f(1) \"|\" f(1, 2) \"|\" C().m() \"|\" C().m(1, 2), \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["unset|set:2|0|0|1|1"]);
+}
+
+#[test]
+fn a_reading_of_the_optional_parameter_that_is_left_out_is_unset() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a read of the
+    // parameter that the call left out fails the way a read of an unset
+    // local fails, and no warning is raised for it.
+    let (report, _desktop) = run(concat!(
+        "f(a?) {\n",
+        "    try {\n",
+        "        return a\n",
+        "    } catch as e {\n",
+        "        return Type(e) \": \" e.Message\n",
+        "    }\n",
+        "}\n",
+        "FileAppend(f(), \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["UnsetError: This local variable has not been assigned a value."]
+    );
+}
+
+#[test]
+fn the_optional_parameter_has_the_refusals_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the optional one may
+    // not carry a default -- `f(a, b? := 2)` is "Missing comma" -- and a
+    // required one may not come after it -- `f(a?, b)` is "Parameter default
+    // required.", named after the required parameter.
+    let error = parse("f(a, b? := 2) {\n    return b\n}\n").expect_err("does not parse");
+    assert!(
+        error.message.starts_with("Missing comma"),
+        "{:?}",
+        error.message
+    );
+    let error = parse("f(a?, b) {\n    return b\n}\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Parameter default required.\n     Specifically: b"
+    );
+    // The arity of the call counts the required parameters alone.
+    let (report, _desktop) = run("f(a, b?) {\n    return b\n}\nf()");
+    assert!(!report.ok);
+    assert!(
+        report
+            .error
+            .as_deref()
+            .unwrap_or_default()
+            .starts_with("Too few parameters passed to function."),
+        "{:?}",
+        report.error
+    );
 }
 
 #[test]
@@ -6930,4 +7290,320 @@ fn the_this_of_a_class_is_not_a_variable_of_the_v2() {
         report.warnings[0].message,
         "This local variable appears to never be assigned a value.\n     Specifically: this"
     );
+}
+
+// -- break N, continue N, and the spread of a call ---------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-09: `break N`/`continue N`
+// name the level of the loop that the flow leaves or continues, the level is
+// an integer literal that is refused at the load when it is zero or above the
+// count of the loops around it, and a `switch` is transparent to a break and
+// to a continue. `f(arr*)` spreads every item of the value of the last
+// argument into the arguments of the call; the spread is enumerated the way a
+// `for` loop enumerates, and a middle spread is refused at the load with
+// "Missing operand.".
+
+#[test]
+fn a_break_of_two_leaves_the_two_loops() {
+    let (report, _desktop) = run(concat!(
+        "out := \"\"\n",
+        "Loop 2 {\n",
+        "    Loop 2 {\n",
+        "        out .= A_Index\n",
+        "        break 2\n",
+        "    }\n",
+        "    out .= \"x\"\n",
+        "}\n",
+        "FileAppend(out, \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn a_continue_of_two_continues_the_outer_loop() {
+    let (report, _desktop) = run(concat!(
+        "out := \"\"\n",
+        "Loop 3 {\n",
+        "    Loop 3 {\n",
+        "        If A_Index = 2\n",
+        "            continue 2\n",
+        "        out .= \"in\" A_Index \" \"\n",
+        "    }\n",
+        "    out .= \"after\" A_Index \" \"\n",
+        "}\n",
+        "FileAppend(out, \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["in1 in1 in1 "]);
+}
+
+#[test]
+fn a_plain_break_and_a_plain_continue_are_the_level_one() {
+    let (report, _desktop) = run(concat!(
+        "out := \"\"\n",
+        "Loop 2 {\n",
+        "    Loop 2 {\n",
+        "        out .= A_Index\n",
+        "        break 1\n",
+        "    }\n",
+        "    out .= \"-\"\n",
+        "}\n",
+        "FileAppend(out, \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1-1-"]);
+}
+
+#[test]
+fn a_level_of_zero_is_refused() {
+    let error = parse("Loop 2 {\n    break 0\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 invalid.");
+    assert_eq!(error.line, 2);
+    let error = parse("Loop 2 {\n    continue 0\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 invalid.");
+    assert_eq!(error.line, 2);
+}
+
+#[test]
+fn a_level_above_the_loops_around_it_is_refused() {
+    let error = parse("Loop 2 {\n    break 2\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 invalid.");
+    assert_eq!(error.line, 2);
+    let error = parse("Loop 2 {\n    Loop 2 {\n        continue 3\n    }\n}")
+        .expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 invalid.");
+    assert_eq!(error.line, 3);
+}
+
+#[test]
+fn a_level_outside_a_loop_names_the_enclosure() {
+    // The refusal of the enclosure comes before the level: the real binary
+    // answers "Break/Continue must be enclosed by a Loop." for a break of any
+    // level that is not inside one.
+    let error = parse("break 2").expect_err("does not parse");
+    assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
+}
+
+#[test]
+fn a_break_of_a_level_inside_a_switch_leaves_the_loop() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the switch does not
+    // take a break of its own -- a case body ends at the next case -- and the
+    // break goes on to the loop that holds the switch.
+    let (report, _desktop) = run(concat!(
+        "out := \"\"\n",
+        "Loop 2 {\n",
+        "    switch A_Index {\n",
+        "        case 1:\n",
+        "            out .= \"one-\"\n",
+        "            break\n",
+        "        default:\n",
+        "            out .= \"other-\"\n",
+        "    }\n",
+        "    out .= \"after\" A_Index \"-\"\n",
+        "}\n",
+        "FileAppend(out, \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["one-"]);
+    // A level of two inside a switch inside one loop is above the one loop
+    // around it: the switch does not count as a level.
+    let error = parse("Loop 2 {\n    switch 1 {\n        case 1:\n            break 2\n    }\n}")
+        .expect_err("does not parse");
+    assert_eq!(error.message, "Parameter #1 invalid.");
+}
+
+#[test]
+fn a_level_comes_out_of_a_parse_loop_and_a_while_loop() {
+    let (report, _desktop) = run(concat!(
+        "out := \"\"\n",
+        "Loop 2 {\n",
+        "    Loop Parse \"a,b,c\", \",\" {\n",
+        "        out .= A_LoopField\n",
+        "        If A_LoopField = \"b\"\n",
+        "            break 2\n",
+        "    }\n",
+        "    out .= \"x\"\n",
+        "}\n",
+        "FileAppend(out, \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ab"]);
+    let (report, _desktop) = run(concat!(
+        "out := \"\"\n",
+        "i := 0\n",
+        "Loop 3 {\n",
+        "    i += 1\n",
+        "    j := 0\n",
+        "    while (j < 3) {\n",
+        "        j += 1\n",
+        "        If j = 2\n",
+        "            continue 2\n",
+        "        out .= i \".\" j \" \"\n",
+        "    }\n",
+        "    out .= \"after-\"\n",
+        "}\n",
+        "FileAppend(out, \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1.1 2.1 3.1 "]);
+}
+
+#[test]
+fn the_spread_of_a_call_spreads_the_array() {
+    let (report, _desktop) = run(concat!(
+        "F(a, b) {\n",
+        "    return a \"/\" b\n",
+        "}\n",
+        "arr := [1, 2]\n",
+        "FileAppend(F(arr*), \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1/2"]);
+}
+
+#[test]
+fn the_spread_of_a_call_goes_through_a_value_and_a_variadic() {
+    let (report, _desktop) = run(concat!(
+        "F(a, b) {\n",
+        "    return a \"/\" b\n",
+        "}\n",
+        "Sum(rest*) {\n",
+        "    s := 0\n",
+        "    for v in rest\n",
+        "        s += v\n",
+        "    return s\n",
+        "}\n",
+        "arr := [1, 2]\n",
+        "g := F\n",
+        "FileAppend(g(arr*) \"|\" Sum(arr*) \"|\" Abs([-3]*), \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1/2|3|3"]);
+}
+
+#[test]
+fn the_spread_of_a_map_gives_its_keys() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the spread enumerates
+    // the value the way a `for` loop does, and the `for` over a map walks its
+    // keys.
+    let (report, _desktop) = run(concat!(
+        "F(a, b) {\n",
+        "    return a \"/\" b\n",
+        "}\n",
+        "m := Map(\"a\", 1, \"b\", 2)\n",
+        "FileAppend(F(m*), \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a/b"]);
+}
+
+#[test]
+fn the_spread_of_an_empty_array_leaves_the_call_without_a_value() {
+    let (report, _desktop) = run(concat!(
+        "F(a, b) {\n",
+        "    return a \"/\" b\n",
+        "}\n",
+        "arr := []\n",
+        "FileAppend(F(arr*), \"*\")",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Missing a required parameter.")
+    );
+}
+
+#[test]
+fn a_spread_of_a_value_that_cannot_be_enumerated_is_refused() {
+    let (report, _desktop) = run(concat!(
+        "F(a, b) {\n",
+        "    return a \"/\" b\n",
+        "}\n",
+        "x := 5\n",
+        "FileAppend(F(x*), \"*\")",
+    ));
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Value not enumerable."));
+}
+
+#[test]
+fn a_middle_spread_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: only the last
+    // argument may carry the star, and the refusal names the rest of the
+    // line from the star -- also inside the list of another call.
+    let error = parse("F(a, b) {\n    return a\n}\narr := [1, 2]\nF(arr*, 9)")
+        .expect_err("does not parse");
+    assert!(
+        error.message.starts_with("Missing operand.\n     Specifically: *, 9)"),
+        "{:?}",
+        error.message
+    );
+    let error = parse("F(a, b) {\n    return a\n}\narr := [1, 2]\nEmit(F(arr*, 9))")
+        .expect_err("does not parse");
+    assert!(
+        error.message.starts_with("Missing operand."),
+        "{:?}",
+        error.message
+    );
+}
+
+#[test]
+fn the_spread_of_a_method_and_of_a_constructor_works() {
+    let (report, _desktop) = run(concat!(
+        "class C {\n",
+        "    __New(a, b) {\n",
+        "        this.v := a \"-\" b\n",
+        "    }\n",
+        "    m(a, b) {\n",
+        "        return a \"+\" b\n",
+        "    }\n",
+        "}\n",
+        "arr := [4, 5]\n",
+        "inst := C(arr*)\n",
+        "FileAppend(inst.v \"|\" inst.m(arr*), \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["4-5|4+5"]);
+}
+
+#[test]
+fn a_spread_is_a_value_where_a_reference_is_wanted() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: an item of an array is
+    // not a variable reference, and a spread argument is a value.
+    let (report, _desktop) = run(concat!(
+        "Swap(&x, &y) {\n",
+        "    t := x\n",
+        "    x := y\n",
+        "    y := t\n",
+        "}\n",
+        "a := 1\n",
+        "b := 2\n",
+        "arr := [a, b]\n",
+        "Swap(arr*)",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some(
+            "Parameter #1 of Swap requires a variable reference, but received an Integer."
+        )
+    );
+}
+
+#[test]
+fn the_spread_of_a_class_enumerates_its_values() {
+    let (report, _desktop) = run(concat!(
+        "class E {\n",
+        "    __Enum(n) {\n",
+        "        return [7, 8].__Enum(n)\n",
+        "    }\n",
+        "}\n",
+        "F(a, b) {\n",
+        "    return a \"/\" b\n",
+        "}\n",
+        "FileAppend(F(E()*), \"*\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7/8"]);
 }

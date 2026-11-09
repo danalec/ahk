@@ -103,6 +103,7 @@
 extern crate alloc;
 
 pub mod ast;
+pub mod behavior;
 pub mod builtins;
 pub mod classes;
 pub mod date;
@@ -111,6 +112,7 @@ pub mod dialect;
 pub mod dialogs;
 pub mod dll;
 pub mod files;
+pub mod float_text;
 pub mod hotkeys;
 pub mod keys;
 pub mod lexer;

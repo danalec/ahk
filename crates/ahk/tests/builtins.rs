@@ -6,8 +6,8 @@
 
 use ahk::desktop::{
     Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
-    ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network, PictureOptions,
-    Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
+    ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native, Network,
+    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -94,7 +94,14 @@ impl Sound for Fake {
         Ok("beeped".to_string())
     }
 }
-impl Machine for Fake {}
+impl Machine for Fake {
+    // The addresses of the fake: the shape the binary answers, measured on
+    // 2026-11-09 -- the texts of the addresses of the machine, and not the
+    // address of the loopback.
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        Ok(vec!["172.26.48.1".into(), "192.168.0.45".into()])
+    }
+}
 impl Dialogs for Fake {
     fn input_box(
         &mut self,
@@ -281,6 +288,43 @@ impl Screen for Fake {
     fn pixel(&mut self, _x: i64, _y: i64) -> Result<String, String> {
         Ok("#000000".into())
     }
+    // The monitors of the fake: two of them, side by side on a screen of
+    // 3840 by 2160, and the second one is the primary one. The shapes are
+    // the ones measured on the binary of v2.0.19 on 2026-11-09: the right
+    // and the bottom are one past the last column and the last row, and a
+    // monitor has a name.
+    fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
+        Ok(vec![
+            Monitor {
+                name: "\\\\.\\DISPLAY1".into(),
+                left: 0,
+                top: 0,
+                right: 1920,
+                bottom: 2160,
+            },
+            Monitor {
+                name: "\\\\.\\DISPLAY2".into(),
+                left: 1920,
+                top: 0,
+                right: 3840,
+                bottom: 2160,
+            },
+        ])
+    }
+    fn primary_monitor(&mut self) -> Result<usize, String> {
+        Ok(2)
+    }
+    fn monitor_work_area(
+        &mut self,
+        monitor: usize,
+    ) -> Result<Option<(i64, i64, i64, i64)>, String> {
+        // The bar of the taskbar is at the bottom of the primary monitor.
+        Ok(match monitor {
+            1 => Some((0, 0, 1920, 2160)),
+            2 => Some((1920, 0, 3840, 2112)),
+            _ => None,
+        })
+    }
 }
 
 impl Processes for Fake {
@@ -292,6 +336,79 @@ impl Processes for Fake {
     }
     fn env_set(&mut self, _name: &str, value: &str) -> Result<String, String> {
         Ok(value.to_string())
+    }
+    // The processes of the fake: the pid 4242 is "bash", the pid 4243 is
+    // "stays" -- a process that is still there at every timeout -- and
+    // anything else is not there. The process of the script itself is 99.
+    //
+    // The answers are the shapes measured on the binary of v2.0.19 on
+    // 2026-11-09: a process that is not there is zero for the questions that
+    // answer a pid, and a failure the caller turns into "Target process not
+    // found." for the two that answer a text.
+    fn process_exist(&mut self, which: Option<&str>) -> Result<u32, String> {
+        Ok(match which {
+            None => 99,
+            Some("4242") | Some("bash") => 4242,
+            Some("4243") | Some("stays") => 4243,
+            _ => 0,
+        })
+    }
+    fn process_name(&mut self, which: Option<&str>) -> Result<Option<String>, String> {
+        Ok(match which {
+            None => Some("ahk".to_string()),
+            Some("4242") | Some("bash") => Some("bash".to_string()),
+            Some("4243") | Some("stays") => Some("stays".to_string()),
+            _ => None,
+        })
+    }
+    fn process_path(&mut self, which: Option<&str>) -> Result<Option<String>, String> {
+        Ok(match which {
+            None => Some("/usr/bin/ahk".to_string()),
+            Some("4242") | Some("bash") => Some("/usr/bin/bash".to_string()),
+            Some("4243") | Some("stays") => Some("/usr/bin/stays".to_string()),
+            _ => None,
+        })
+    }
+    fn process_parent(&mut self, which: Option<&str>) -> Result<u32, String> {
+        Ok(match which {
+            None => 1,
+            Some("4242") | Some("bash") => 1,
+            Some("4243") | Some("stays") => 2,
+            _ => 0,
+        })
+    }
+    fn process_close(&mut self, which: &str) -> Result<u32, String> {
+        Ok(match which {
+            "4242" | "bash" => 4242,
+            "4243" | "stays" => 4243,
+            _ => 0,
+        })
+    }
+    fn process_wait(&mut self, which: &str, _timeout: Option<f64>) -> Result<u32, String> {
+        Ok(match which {
+            "4242" | "bash" => 4242,
+            "4243" | "stays" => 4243,
+            _ => 0,
+        })
+    }
+    fn process_wait_close(&mut self, which: &str, _timeout: Option<f64>) -> Result<u32, String> {
+        // The process that stays is still there at the timeout; the others
+        // are gone, and a process that never existed is gone too.
+        Ok(match which {
+            "4243" | "stays" => 4243,
+            _ => 0,
+        })
+    }
+    fn process_set_priority(
+        &mut self,
+        _priority: &str,
+        which: Option<&str>,
+    ) -> Result<Option<u32>, String> {
+        Ok(match which {
+            None => Some(99),
+            Some("4242") | Some("bash") => Some(4242),
+            _ => None,
+        })
     }
 }
 
@@ -660,7 +777,7 @@ fn a_drag_goes_down_in_one_place_and_comes_up_in_another() {
 
 #[test]
 fn a_name_of_windows_fails_with_the_reason() {
-    let report = run("StrGet(\"a\")");
+    let report = run("ControlGetText(\"x\")");
     assert_eq!(
         failure_of(&report),
         "this is a name of Windows, and this desktop is not Windows."
@@ -687,8 +804,24 @@ fn the_date_is_answered_the_way_v2_answers_it() {
 
 #[test]
 fn a_unit_that_v2_does_not_have_fails_with_the_reason_of_v2() {
-    let report = run("DateAdd(\"20260101\", 1, \"days\")");
+    // Measured on the binary of v2.0.19 on 2026-11-09: the unit is read by
+    // its first letter and the case does not matter, so "days" is days and
+    // only a letter that names no unit is refused.
+    let report = run("DateAdd(\"20260101\", 1, \"weeks\")");
     assert_eq!(failure_of(&report), "Parameter #3 of DateAdd is invalid.");
+}
+
+#[test]
+fn the_unit_of_a_date_is_read_by_its_first_letter() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: "days" is read the
+    // way "d" is, and the case of the name does not matter.
+    let report = run(concat!(
+        "a := DateAdd(\"20260101\", 1, \"days\")",
+        "\nb := DateDiff(\"20260102\", \"20260101\", \"Days\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("20260102000000".into()));
+    assert_eq!(value_of(&report, "b"), Value::Int(1));
 }
 
 #[test]
@@ -700,6 +833,247 @@ fn the_environment_is_asked_of_the_desktop() {
         Value::Text("the value of HOME".into())
     );
     assert_eq!(value_of(&report, "b"), Value::Text("there".into()));
+}
+
+#[test]
+fn the_process_family_is_asked_of_the_desktop() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the answer of each
+    // question of the family, with the fake of the tests in the place of the
+    // machine -- the pid 4242 is "bash", the pid 4243 is "stays", and a
+    // process that is not there is zero.
+    let report = run(concat!(
+        "a := ProcessExist()\n",
+        "b := ProcessExist(\"bash\")\n",
+        "c := ProcessExist(4242)\n",
+        "d := ProcessExist(\"nosuch\")\n",
+        "e := ProcessExist(999999)\n",
+        "f := ProcessGetName(\"bash\")\n",
+        "g := ProcessGetPath(4242)\n",
+        "h := ProcessGetParent(\"bash\")\n",
+        "i := ProcessGetParent(\"nosuch\")\n",
+        "j := ProcessClose(\"bash\")\n",
+        "k := ProcessClose(\"nosuch\")\n",
+        "l := ProcessWait(\"bash\", 1)\n",
+        "m := ProcessWait(\"nosuch\", 0.01)\n",
+        "n := ProcessWaitClose(\"bash\", 1)\n",
+        "o := ProcessWaitClose(\"stays\", 1)\n",
+        "p := ProcessSetPriority(\"High\", \"bash\")\n",
+        "q := ProcessSetPriority(\"Normal\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 99);
+    assert_eq!(int_of(&report, "b"), 4242);
+    assert_eq!(int_of(&report, "c"), 4242);
+    assert_eq!(int_of(&report, "d"), 0);
+    assert_eq!(int_of(&report, "e"), 0);
+    assert_eq!(value_of(&report, "f"), Value::Text("bash".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("/usr/bin/bash".into()));
+    assert_eq!(int_of(&report, "h"), 1);
+    assert_eq!(int_of(&report, "i"), 0);
+    assert_eq!(int_of(&report, "j"), 4242);
+    assert_eq!(int_of(&report, "k"), 0);
+    assert_eq!(int_of(&report, "l"), 4242);
+    assert_eq!(int_of(&report, "m"), 0);
+    // A process that closes is zero, and a process that is still there at
+    // the timeout is its pid.
+    assert_eq!(int_of(&report, "n"), 0);
+    assert_eq!(int_of(&report, "o"), 4243);
+    assert_eq!(int_of(&report, "p"), 4242);
+    assert_eq!(int_of(&report, "q"), 99);
+}
+
+#[test]
+fn a_process_that_is_not_there_is_the_failure_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the name and the path
+    // of a process that is not there are the failure "Target process not
+    // found.", which the class of is `TargetError`.
+    let report = run(concat!(
+        "try {\n",
+        "    a := ProcessGetName(999999)\n",
+        "} catch as e {\n",
+        "    MsgBox Type(e) \"|\" e.Message\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["TargetError|Target process not found."]
+    );
+    let report = run("a := ProcessGetPath(999999)");
+    assert_eq!(failure_of(&report), "Target process not found.");
+    let report = run("a := ProcessSetPriority(\"Normal\", 999999)");
+    assert_eq!(failure_of(&report), "Target process not found.");
+}
+
+#[test]
+fn the_process_family_refuses_what_v2_refuses() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: every parameter of the
+    // family is a text, the timeout is a number, and the priority is one of
+    // the six words -- the first letter of it is what is read.
+    let report = run("a := ProcessExist(Map())");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of ProcessExist requires a String, but received a Map."
+    );
+    let report = run("a := ProcessWait(\"bash\", Map())");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of ProcessWait requires a Number, but received a Map."
+    );
+    let report = run("a := ProcessSetPriority(3)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of ProcessSetPriority is invalid."
+    );
+    // The binary reads the first letter of the word only, so a word that
+    // starts with a letter of the six is a call of that class.
+    let report = run("a := ProcessSetPriority(\"Bogus\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 99);
+}
+
+#[test]
+fn the_screen_is_asked_of_the_desktop() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the number of SysGet
+    // is a metric of GetSystemMetrics, and the ones about the screen are the
+    // ones this desktop can answer. The fake has two monitors, side by side,
+    // and the second one is the primary one.
+    let report = run(concat!(
+        "a := SysGet(0)\n",
+        "b := SysGet(1)\n",
+        "c := SysGet(16)\n",
+        "d := SysGet(76)\n",
+        "e := SysGet(77)\n",
+        "f := SysGet(78)\n",
+        "g := SysGet(79)\n",
+        "h := SysGet(80)\n",
+        "i := SysGet(81)\n",
+        "j := SysGet(1000)\n",
+        "k := SysGet(-1)\n",
+        "l := SysGet(\"1\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    // The width and the height of the primary monitor.
+    assert_eq!(int_of(&report, "a"), 1920);
+    assert_eq!(int_of(&report, "b"), 2160);
+    assert_eq!(int_of(&report, "c"), 1920);
+    // The virtual screen: the box around the two monitors.
+    assert_eq!(int_of(&report, "d"), 0);
+    assert_eq!(int_of(&report, "e"), 0);
+    assert_eq!(int_of(&report, "f"), 3840);
+    assert_eq!(int_of(&report, "g"), 2160);
+    // The number of the monitors, and the metric of the format.
+    assert_eq!(int_of(&report, "h"), 2);
+    assert_eq!(int_of(&report, "i"), 1);
+    // A number that is not a metric of the system is zero, the way the
+    // binary answers it, and a text that holds a number is a number.
+    assert_eq!(int_of(&report, "j"), 0);
+    assert_eq!(int_of(&report, "k"), 0);
+    assert_eq!(int_of(&report, "l"), 2160);
+}
+
+#[test]
+fn a_sysget_metric_of_windows_is_refused_with_the_reason() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the metric 4 of the
+    // binary is the height of the caption of a window, and this desktop has
+    // no window manager of that kind to ask: the answer is the reason, and
+    // not a wrong number.
+    let report = run("a := SysGet(4)");
+    assert_eq!(
+        failure_of(&report),
+        "SysGet(4) is a metric of the window manager of Windows, and this desktop does not have one."
+    );
+    let report = run("a := SysGet(Map())");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of SysGet requires a Number, but received a Map."
+    );
+}
+
+#[test]
+fn the_monitors_are_asked_of_the_desktop() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the rectangle of a
+    // monitor is left, top, right and bottom, and the right and the bottom
+    // are one past the last column and the last row; the monitors count from
+    // one, and the monitor that a call does not name is the primary one.
+    let report = run(concat!(
+        "count := MonitorGetCount()\n",
+        "primary := MonitorGetPrimary()\n",
+        "name0 := MonitorGetName()\n",
+        "name2 := MonitorGetName(2)\n",
+        "l1 := 0, t1 := 0, r1 := 0, b1 := 0\n",
+        "ok1 := MonitorGet(1, &l1, &t1, &r1, &b1)\n",
+        "rect1 := l1 \"|\" t1 \"|\" r1 \"|\" b1\n",
+        "l2 := 0, t2 := 0, r2 := 0, b2 := 0\n",
+        "ok2 := MonitorGet(2, &l2, &t2, &r2, &b2)\n",
+        "rect2 := l2 \"|\" t2 \"|\" r2 \"|\" b2\n",
+        "wl := 0, wt := 0, wr := 0, wb := 0\n",
+        "okw := MonitorGetWorkArea(2, &wl, &wt, &wr, &wb)\n",
+        "work := wl \"|\" wt \"|\" wr \"|\" wb\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "count"), 2);
+    assert_eq!(int_of(&report, "primary"), 2);
+    // The monitor that a call does not name is the primary one.
+    assert_eq!(value_of(&report, "name0"), Value::Text("\\\\.\\DISPLAY2".into()));
+    assert_eq!(value_of(&report, "name2"), Value::Text("\\\\.\\DISPLAY2".into()));
+    assert_eq!(int_of(&report, "ok1"), 1);
+    assert_eq!(value_of(&report, "rect1"), Value::Text("0|0|1920|2160".into()));
+    assert_eq!(int_of(&report, "ok2"), 1);
+    assert_eq!(
+        value_of(&report, "rect2"),
+        Value::Text("1920|0|3840|2160".into())
+    );
+    assert_eq!(int_of(&report, "okw"), 1);
+    assert_eq!(
+        value_of(&report, "work"),
+        Value::Text("1920|0|3840|2112".into())
+    );
+}
+
+#[test]
+fn a_monitor_that_is_not_there_is_refused_with_the_parameter() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a monitor that is not
+    // there is "Parameter #1 of MonitorGet is invalid." with the number in
+    // the `Extra`, a value where a variable is wanted is refused with the
+    // kind it got, and a monitor number that is not a number is refused with
+    // the parameter that wants one.
+    let report = run("a := MonitorGet(3)");
+    assert_eq!(failure_of(&report), "Parameter #1 of MonitorGet is invalid.");
+    let report = run("a := MonitorGet(1, 5)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of MonitorGet requires a VarRef, but received an Integer."
+    );
+    let report = run("a := MonitorGet(Map())");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of MonitorGet requires a Number, but received a Map."
+    );
+    let report = run("a := MonitorGetName(Map())");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of MonitorGetName requires a Number, but received a Map."
+    );
+}
+
+#[test]
+fn the_addresses_of_the_machine_are_asked_of_the_desktop() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the answer is an
+    // array of texts, one for each address of the machine, and the address of
+    // the loopback is not one of them.
+    let report = run(concat!(
+        "a := SysGetIPAddresses()\n",
+        "b := Type(a)\n",
+        "c := a.Length\n",
+        "d := a[1]\n",
+        "e := a[2]\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "b"), Value::Text("Array".into()));
+    assert_eq!(int_of(&report, "c"), 2);
+    assert_eq!(value_of(&report, "d"), Value::Text("172.26.48.1".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("192.168.0.45".into()));
 }
 
 #[test]
@@ -989,6 +1363,43 @@ fn is_set_ref_wants_a_reference() {
 }
 
 #[test]
+fn is_set_says_whether_the_variable_has_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `u := unset` takes
+    // the value of the variable away, a variable that was never written has
+    // none either, and a variable with a value is one -- in a function too,
+    // through the `global` declaration.
+    let report = run(concat!(
+        "u := unset\n",
+        "w := 5\n",
+        "Probe() {\n",
+        "    global w\n",
+        "    return IsSet(w)\n",
+        "}\n",
+        "a := IsSet(u)\n",
+        "b := IsSet(w)\n",
+        "c := IsSet(never_written)\n",
+        "d := Probe()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 0);
+    assert_eq!(int_of(&report, "b"), 1);
+    assert_eq!(int_of(&report, "c"), 0);
+    assert_eq!(int_of(&report, "d"), 1);
+}
+
+#[test]
+fn is_set_refuses_a_value_that_is_not_a_variable() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the argument of
+    // `IsSet` is a variable, and a value that is not one is refused with
+    // "IsSet requires a variable." -- at the load in the binary, and at the
+    // run in the tree, which checks the call when it runs.
+    let report = run("a := IsSet(1)");
+    assert_eq!(failure_of(&report), "IsSet requires a variable.");
+    let report = run("x := 1\na := IsSet(&x)");
+    assert_eq!(failure_of(&report), "IsSet requires a variable.");
+}
+
+#[test]
 fn the_commands_of_the_settings_answer_with_the_value_that_was_there() {
     // Measured on the binary of v2.0.19 on 2026-10-31: every one of them
     // answers the value that was there before. The script sets the mode of
@@ -1260,6 +1671,94 @@ fn the_digits_of_a_round_are_a_number_too() {
 }
 
 #[test]
+fn round_with_decimals_answers_the_text_of_them() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: with a positive
+    // number of decimals the answer is a text of exactly that many digits
+    // after the point, the zeros kept.
+    let report = run(concat!(
+        "a := Round(2.567, 2)",
+        "\nb := Round(1.005, 2)",
+        "\nc := Round(2.345, 2)",
+        "\nd := Round(2.567, 3)",
+        "\ne := Round(2, 2)",
+        "\nf := Round(-2.567, 2)",
+        "\ng := Round(2.5, 2)",
+        "\nh := Round(0.0005, 2)",
+        "\ni := Round(-1.005, 2)",
+        "\nj := Round(123.456, 2)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("2.57".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("1.00".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("2.35".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("2.567".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("2.00".into()));
+    assert_eq!(value_of(&report, "f"), Value::Text("-2.57".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("2.50".into()));
+    assert_eq!(value_of(&report, "h"), Value::Text("0.00".into()));
+    assert_eq!(value_of(&report, "i"), Value::Text("-1.00".into()));
+    assert_eq!(value_of(&report, "j"), Value::Text("123.46".into()));
+}
+
+#[test]
+fn a_round_of_decimals_is_a_text_of_the_length_of_the_decimals() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the answer of a
+    // round with decimals is a String, and its length is the digits of the
+    // number, the point and the decimals.
+    let report = run(concat!(
+        "a := Type(Round(2.567, 2))",
+        "\nb := StrLen(Round(2.567, 2))",
+        "\nc := StrLen(Round(1.005, 2))",
+        "\nd := Type(Round(2.5))",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("String".into()));
+    assert_eq!(value_of(&report, "b"), Value::Int(4));
+    assert_eq!(value_of(&report, "c"), Value::Int(4));
+    assert_eq!(value_of(&report, "d"), Value::Text("Integer".into()));
+}
+
+#[test]
+fn a_round_without_decimals_is_a_whole_number() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the number is
+    // rounded away from zero on the half, and the answer is an Integer when
+    // the decimals are omitted, zero or negative.
+    let report = run(concat!(
+        "a := Round(2.4)",
+        "\nb := Round(2.5)",
+        "\nc := Round(-2.5)",
+        "\nd := Round(2.5, 0)",
+        "\ne := Round(1043.22, -1)",
+        "\nf := Round(-0.5)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(2));
+    assert_eq!(value_of(&report, "b"), Value::Int(3));
+    assert_eq!(value_of(&report, "c"), Value::Int(-3));
+    assert_eq!(value_of(&report, "d"), Value::Int(3));
+    assert_eq!(value_of(&report, "e"), Value::Int(1040));
+    assert_eq!(value_of(&report, "f"), Value::Int(-1));
+}
+
+#[test]
+fn a_round_reads_a_number_the_way_the_binary_reads_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a text that holds a
+    // number is one, and the number of the decimals is a whole number.
+    let report = run(concat!(
+        "a := Round(\"2.567\", 2)",
+        "\nb := Round(2.567, \"2\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("2.57".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("2.57".into()));
+    let report = run("a := Round(\"x\", 2)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of Round requires a Number, but received a String."
+    );
+}
+
+#[test]
 fn the_modulus_says_that_the_parameters_are_invalid() {
     let report = run("a := Mod(\"x\", 2)");
     assert_eq!(failure_of(&report), "Invalid parameter(s).");
@@ -1505,33 +2004,160 @@ fn sort_puts_the_lines_in_order() {
 
 #[test]
 fn sort_puts_a_list_in_order() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the parameter of a
+    // `Sort` is a text, and an array is refused with the reason of v2.
     let mut desktop = Fake::default();
     let mut runtime = Runtime::new(&mut desktop, Duration::from_secs(10));
     let sort = ahk::builtins::find("Sort").expect("the tree carries Sort");
     let numbers = Value::List(vec![Value::Int(3), Value::Int(1), Value::Int(2)]);
-    let sorted = (sort.handler)(&mut runtime, &[numbers], 1, 0).expect("the list is sorted");
+    let failure = (sort.handler)(&mut runtime, &[numbers], 1, 0)
+        .expect_err("an array is not a text");
     assert_eq!(
-        sorted,
-        Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
-    );
-    let words = Value::List(vec![
-        Value::Text("pear".into()),
-        Value::Text("apple".into()),
-    ]);
-    let sorted = (sort.handler)(&mut runtime, &[words], 1, 0).expect("the list is sorted");
-    assert_eq!(
-        sorted,
-        Value::List(vec![
-            Value::Text("apple".into()),
-            Value::Text("pear".into())
-        ])
+        failure.message,
+        "Parameter #1 of Sort requires a String, but received an Array."
     );
 }
 
 #[test]
+fn sort_of_a_number_sorts_its_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a number is turned
+    // into its text and the text is what is sorted, so `Sort(5)` is "5".
+    let report = run(concat!(
+        "a := Sort(5)",
+        "\nb := Sort(2.5)",
+        "\nc := Sort(true)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("5".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("2.5".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("1".into()));
+}
+
+#[test]
 fn sort_of_something_that_is_not_a_list_fails() {
-    let report = run("a := Sort(5)");
-    assert_eq!(failure_of(&report), "Parameter #1 of Sort is invalid.");
+    // Measured on the binary of v2.0.19 on 2026-11-09: a map is not a text.
+    let report = run("a := Sort(Map())");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of Sort requires a String, but received a Map."
+    );
+}
+
+#[test]
+fn sort_reads_the_options_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-11-09.
+    let report = run(concat!(
+        "a := Sort(\"233`n40\", \"N\")",
+        "\nb := Sort(\"b`na\")",
+        "\nc := Sort(\"b`na\", \"R\")",
+        "\nd := Sort(\"b`na`nB`nA\", \"C\")",
+        "\ne := Sort(\"b`na`nB`nA\", \"CL\")",
+        "\nf := Sort(\"b`na`nb\", \"U\")",
+        "\ng := Sort(\"b`na`nB`nA\", \"UC\")",
+        "\nh := Sort(\"5,3,7,1\", \"N D,\")",
+        "\ni := Sort(\"b`na`n\", \"Z\")",
+        "\nj := Sort(\"abcd`nabcf`nabce\", \"P3\")",
+        "\nk := Sort(\"zab`nbac`nxaa\", \"P2\")",
+        "\nl := Sort(\"dir\\b`ndir\\a\", \"\\\")",
+        "\nm := Sort(\"A2`nA10`nA1\", \"CLogical\")",
+        "\nn := Sort(\"B`na\", \"C1\")",
+        "\no := Sort(\"B`na\", \"COn\")",
+        "\np := Sort(\"B`na\", \"C0\")",
+        "\nq := Sort(\"B`na\", \"COff\")",
+        "\nr := Sort(\"B`na\", \"CLocale\")",
+        "\ns := Sort(\"b`na\", \"XY\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("40\n233".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("a\nb".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("b\na".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("A\nB\na\nb".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("a\nA\nb\nB".into()));
+    assert_eq!(value_of(&report, "f"), Value::Text("a\nb".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("A\nB\na\nb".into()));
+    assert_eq!(value_of(&report, "h"), Value::Text("1,3,5,7".into()));
+    assert_eq!(value_of(&report, "i"), Value::Text("\na\nb".into()));
+    assert_eq!(value_of(&report, "j"), Value::Text("abcd\nabce\nabcf".into()));
+    assert_eq!(value_of(&report, "k"), Value::Text("xaa\nzab\nbac".into()));
+    assert_eq!(value_of(&report, "l"), Value::Text("dir\\a\ndir\\b".into()));
+    assert_eq!(value_of(&report, "m"), Value::Text("A1\nA2\nA10".into()));
+    assert_eq!(value_of(&report, "n"), Value::Text("B\na".into()));
+    assert_eq!(value_of(&report, "o"), Value::Text("B\na".into()));
+    assert_eq!(value_of(&report, "p"), Value::Text("a\nB".into()));
+    assert_eq!(value_of(&report, "q"), Value::Text("a\nB".into()));
+    assert_eq!(value_of(&report, "r"), Value::Text("a\nB".into()));
+    assert_eq!(value_of(&report, "s"), Value::Text("a\nb".into()));
+}
+
+#[test]
+fn sort_numbers_the_items_the_way_the_binary_does() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: an item that is not
+    // a number counts as zero, and the ties keep the order they came in.
+    let report = run(concat!(
+        "a := Sort(\"3`n10`n2\", \"N\")",
+        "\nb := Sort(\"x`n10`nabc`n2\", \"N\")",
+        "\nc := Sort(\"1.5`n1.10`n1.9\", \"N\")",
+        "\nd := Sort(\"10`n9`n1\", \"NR\")",
+        "\ne := Sort(\"10`n9`n1\", \"NRU\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("2\n3\n10".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("x\nabc\n2\n10".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("1.10\n1.5\n1.9".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("10\n9\n1".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("10\n9\n1".into()));
+}
+
+#[test]
+fn sort_keeps_the_shape_of_the_text_it_was_given() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the trailing
+    // delimiter of the list is kept, the carriage return of an item stays
+    // where it was, and a list of CRLF lines keeps them.
+    let report = run(concat!(
+        "a := Sort(\"b`na`n\")",
+        "\nb := Sort(\"b`na`r`n\")",
+        "\nc := Sort(\"`n\")",
+        "\nd := Sort(\"\")",
+        "\ne := Sort(\"b`n`na\")",
+        "\nf := Sort(\"b`r`na\")",
+        "\ng := Sort(\"b`r`na`r`n\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("a\nb\n".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("a\r\nb\n".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("\n".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("\na\nb".into()));
+    assert_eq!(value_of(&report, "f"), Value::Text("a\r\nb".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("a\r\nb\r\n".into()));
+}
+
+#[test]
+fn sort_calls_the_callback_with_the_two_items_and_the_distance_between_them() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the third parameter
+    // is a comparison function of three parameters, and the sign of the
+    // number it answers is the order of the two items.
+    let report = run(concat!(
+        "ByLength(a, b, offset) {\n",
+        "    return StrLen(a) - StrLen(b)\n",
+        "}\n",
+        "a := Sort(\"ccc`na`nbb\", \"\", ByLength)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("a\nbb\nccc".into()));
+}
+
+#[test]
+fn sort_refuses_a_third_parameter_that_is_not_a_function() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a value that is not
+    // an object is refused, and an object is asked for its `Call` method.
+    let report = run("a := Sort(\"b`na\", \"\", 5)");
+    assert_eq!(failure_of(&report), "Parameter #3 of Sort is invalid.");
+    let report = run("a := Sort(\"b`na\", \"\", [1])");
+    assert_eq!(
+        failure_of(&report),
+        "This value of type \"Array\" has no method named \"Call\"."
+    );
 }
 
 #[test]
@@ -1568,22 +2194,27 @@ fn str_compare_says_which_text_comes_first() {
 }
 
 #[test]
-fn the_case_sense_wants_a_boolean() {
-    // Measured on the binary of v2.0.19 on 2026-10-31: the sense of the case
-    // is a boolean, and a text is not a value that the parameter can take.
+fn the_case_sense_is_a_number_or_a_name() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the sense of the case
+    // is a whole number -- 1 takes the case into the compare and 0 leaves it
+    // out -- or one of the names "On", "Off", "Locale" and "Logical", and a
+    // float or another number is not a value that the parameter can take.
+    let report = run(concat!(
+        "a := StrCompare(\"a\", \"A\", \"On\")",
+        "\nb := StrReplace(\"aA\", \"a\", \"b\", \"On\")",
+        "\nc := InStr(\"a\", \"a\", \"On\")",
+        "\nd := StrCompare(\"A\", \"a\", \"Off\")",
+        "\ne := InStr(\"A\", \"a\", \"0\")",
+        "\nf := StrCompare(\"a\", \"A\", \"Logical\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(1));
+    assert_eq!(value_of(&report, "b"), Value::Text("bA".into()));
+    assert_eq!(value_of(&report, "c"), Value::Int(1));
+    assert_eq!(value_of(&report, "d"), Value::Int(0));
+    assert_eq!(value_of(&report, "e"), Value::Int(1));
+    assert_eq!(value_of(&report, "f"), Value::Int(0));
     for (source, message) in [
-        (
-            "a := StrCompare(\"a\", \"A\", \"On\")",
-            "Parameter #3 of StrCompare is invalid.",
-        ),
-        (
-            "a := StrReplace(\"a\", \"a\", \"b\", \"On\")",
-            "Parameter #4 of StrReplace is invalid.",
-        ),
-        (
-            "a := InStr(\"a\", \"a\", \"On\")",
-            "Parameter #3 of InStr is invalid.",
-        ),
         (
             "a := StrCompare(\"a\", \"A\", 3)",
             "Parameter #3 of StrCompare is invalid.",
@@ -1595,6 +2226,14 @@ fn the_case_sense_wants_a_boolean() {
         (
             "a := InStr(\"a\", \"a\", 1.0)",
             "Parameter #3 of InStr is invalid.",
+        ),
+        (
+            "a := InStr(\"a\", \"a\", \"Logical\")",
+            "Parameter #3 of InStr is invalid.",
+        ),
+        (
+            "a := StrReplace(\"a\", \"a\", \"b\", \"Logical\")",
+            "Parameter #4 of StrReplace is invalid.",
         ),
     ] {
         let report = run(source);
@@ -1612,8 +2251,13 @@ fn format_puts_the_values_in_the_pattern() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "a"), Value::Text("2 of 3".into()));
-    assert_eq!(value_of(&report, "b"), Value::Text("{1}".into()));
-    assert_eq!(value_of(&report, "c"), Value::Text("2.35".into()));
+    // Measured on the binary of v2.0.19 on 2026-11-09: `{{` is a literal
+    // brace only when a `}` follows it, so "{{1}}" is the literal brace, the
+    // number one and the closing brace, and the placeholder of the second
+    // argument is what is filled.
+    assert_eq!(value_of(&report, "b"), Value::Text("{2}".into()));
+    // The default is the text of the value, and the precision cuts it.
+    assert_eq!(value_of(&report, "c"), Value::Text("2.".into()));
     assert_eq!(value_of(&report, "d"), Value::Text("2.5".into()));
 }
 
@@ -1623,6 +2267,234 @@ fn format_without_a_pattern_fails() {
     assert_eq!(
         failure_of(&report),
         "Too few parameters passed to function.\n     Specifically: Format"
+    );
+}
+
+#[test]
+fn format_reads_the_specifier_the_way_the_binary_reads_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09. The specifier is the
+    // one of the C library of the binary: the flags `-+0 #`, a width, a
+    // point with a precision, and one type character.
+    let report = run(concat!(
+        "a := Format(\"{:05d}\", 42)",
+        "\nb := Format(\"{:x}\", 255)",
+        "\nc := Format(\"{:X}\", 255)",
+        "\nd := Format(\"{:o}\", 8)",
+        "\ne := Format(\"{:#x}\", 255)",
+        "\nf := Format(\"{:#o}\", 8)",
+        "\ng := Format(\"{:+d}\", 42)",
+        "\nh := Format(\"{: d}\", 42)",
+        "\ni := Format(\"{:08d}\", -42)",
+        "\nj := Format(\"{:x}\", -1)",
+        "\nk := Format(\"{:u}\", -1)",
+        "\nl := Format(\"{:.5d}\", 42)",
+        "\nm := Format(\"{:.0d}\", 0)",
+        "\nn := Format(\"{:-6d}\", 42)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("00042".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("ff".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("FF".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("10".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("0xff".into()));
+    assert_eq!(value_of(&report, "f"), Value::Text("010".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("+42".into()));
+    assert_eq!(value_of(&report, "h"), Value::Text(" 42".into()));
+    assert_eq!(value_of(&report, "i"), Value::Text("-0000042".into()));
+    assert_eq!(
+        value_of(&report, "j"),
+        Value::Text("ffffffffffffffff".into())
+    );
+    assert_eq!(
+        value_of(&report, "k"),
+        Value::Text("18446744073709551615".into())
+    );
+    assert_eq!(value_of(&report, "l"), Value::Text("00042".into()));
+    assert_eq!(value_of(&report, "m"), Value::Text("".into()));
+    assert_eq!(value_of(&report, "n"), Value::Text("42    ".into()));
+}
+
+#[test]
+fn format_reads_the_specifier_of_a_float_the_way_the_binary_reads_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09.
+    let report = run(concat!(
+        "a := Format(\"{:.2f}\", 2.345)",
+        "\nb := Format(\"{:8.2f}\", 3.14159)",
+        "\nc := Format(\"{:05.2f}\", 3.14159)",
+        "\nd := Format(\"{:e}\", 1234.5)",
+        "\ne := Format(\"{:E}\", 1234.5)",
+        "\nf := Format(\"{:.2e}\", 1234.5)",
+        "\ng := Format(\"{:g}\", 1234.5)",
+        "\nh := Format(\"{:g}\", 0.00001234)",
+        "\ni := Format(\"{:g}\", 1000000)",
+        "\nj := Format(\"{:g}\", 0)",
+        "\nk := Format(\"{:#g}\", 1.5)",
+        "\nl := Format(\"{:a}\", 1.5)",
+        "\nm := Format(\"{:A}\", 1.5)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("2.35".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("    3.14".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("03.14".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("1.234500e+03".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("1.234500E+03".into()));
+    assert_eq!(value_of(&report, "f"), Value::Text("1.23e+03".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("1234.5".into()));
+    assert_eq!(value_of(&report, "h"), Value::Text("1.234e-05".into()));
+    assert_eq!(value_of(&report, "i"), Value::Text("1e+06".into()));
+    assert_eq!(value_of(&report, "j"), Value::Text("0".into()));
+    assert_eq!(value_of(&report, "k"), Value::Text("1.50000".into()));
+    assert_eq!(
+        value_of(&report, "l"),
+        Value::Text("0x1.8000000000000p+0".into())
+    );
+    assert_eq!(
+        value_of(&report, "m"),
+        Value::Text("0X1.8000000000000P+0".into())
+    );
+}
+
+#[test]
+fn format_reads_the_default_and_the_text_specifiers() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the default is the
+    // text of the value, and its precision cuts the text.
+    let report = run(concat!(
+        "a := Format(\"{}\", 42)",
+        "\nb := Format(\"{}\", 2.5)",
+        "\nc := Format(\"{}\", 1/3)",
+        "\nd := Format(\"{:s}\", 42)",
+        "\ne := Format(\"{:5s}\", \"ab\")",
+        "\nf := Format(\"{:05s}\", \"ab\")",
+        "\ng := Format(\"{:.2}\", 2.345)",
+        "\nh := Format(\"{:c}\", 65)",
+        "\ni := Format(\"{:p}\", 255)",
+        "\nj := Format(\"{:U}\", \"abc\")",
+        "\nk := Format(\"{:L}\", \"ABC\")",
+        "\nl := Format(\"{:T}\", \"hello world\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("42".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("2.5".into()));
+    assert_eq!(
+        value_of(&report, "c"),
+        Value::Text("0.33333333333333331".into())
+    );
+    assert_eq!(value_of(&report, "d"), Value::Text("42".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("   ab".into()));
+    assert_eq!(value_of(&report, "f"), Value::Text("000ab".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("2.".into()));
+    assert_eq!(value_of(&report, "h"), Value::Text("A".into()));
+    assert_eq!(value_of(&report, "i"), Value::Text("00000000000000FF".into()));
+    assert_eq!(value_of(&report, "j"), Value::Text("ABC".into()));
+    assert_eq!(value_of(&report, "k"), Value::Text("abc".into()));
+    assert_eq!(value_of(&report, "l"), Value::Text("Hello World".into()));
+}
+
+#[test]
+fn format_reads_the_number_of_the_argument_of_the_binary() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the number of a
+    // placeholder is one for the first argument, a placeholder with no
+    // number takes the one after the last one named, and a placeholder that
+    // names an argument that is not there is literal text.
+    let report = run(concat!(
+        "a := Format(\"{1}\", \"a\")",
+        "\nb := Format(\"{} {1}\", \"a\", \"b\")",
+        "\nc := Format(\"{2}\", \"a\", \"b\")",
+        "\nd := Format(\"{0}\", \"a\")",
+        "\ne := Format(\"{3}\", \"a\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("a".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("a a".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("b".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("{0}".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("{3}".into()));
+}
+
+#[test]
+fn format_leaves_a_placeholder_it_does_not_read_as_it_was_written() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a spec that is not
+    // one of the C library makes the whole placeholder literal text.
+    let report = run(concat!(
+        "a := Format(\"{:b}\", 5)",
+        "\nb := Format(\"{:<6d}\", 42)",
+        "\nc := Format(\"{:z}\", 5)",
+        "\nd := Format(\"{1.5}\", 5)",
+        "\ne := Format(\"a{b\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("{:b}".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("{:<6d}".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("{:z}".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("{1.5}".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("a{b".into()));
+}
+
+#[test]
+fn format_escapes_a_brace_the_way_the_binary_does() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `{{` is one brace
+    // only when a `}` follows it, and `}}` is one brace too.
+    let report = run(concat!(
+        "a := Format(\"{{}}\", 5)",
+        "\nb := Format(\"a{{b}}c\", 5)",
+        "\nc := Format(\"{}}\", 5)",
+        "\nd := Format(\"{{}\", 5)",
+        "\ne := Format(\"}}\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("{}".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("a{{b}}c".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("}".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("{".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("}}".into()));
+}
+
+#[test]
+fn format_refuses_a_value_of_the_wrong_kind() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a specifier that
+    // wants a number refuses a text that does not hold one, and the default
+    // refuses an object. The number of the parameter is the one of the call,
+    // the pattern included.
+    let report = run("a := Format(\"{:d}\", \"abc\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of Format requires a Number, but received a String."
+    );
+    let report = run("a := Format(\"{2:d}\", 1, \"abc\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #3 of Format requires a Number, but received a String."
+    );
+    let report = run("a := Format(\"{}\", Map())");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of Format requires a String, but received a Map."
+    );
+}
+
+#[test]
+fn format_takes_the_number_a_text_holds_the_way_the_binary_reads_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a text that holds a
+    // whole number, a hex number, a fraction or an exponent is that number.
+    let report = run(concat!(
+        "a := Format(\"{:d}\", \"0x10\")",
+        "\nb := Format(\"{:d}\", \"1e3\")",
+        "\nc := Format(\"{:d}\", \"1.9\")",
+        "\nd := Format(\"{:d}\", \"010\")",
+        "\ne := Format(\"{:f}\", \"0x10\")",
+        "\nf := Format(\"{:d}\", 1e30)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("16".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("1000".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("1".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("10".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("16.000000".into()));
+    // The cast of the machine answers the smallest 64-bit integer for a
+    // number that is out of its range.
+    assert_eq!(
+        value_of(&report, "f"),
+        Value::Text("-9223372036854775808".into())
     );
 }
 
@@ -1669,6 +2541,86 @@ fn the_occurrence_of_the_needle_wants_a_number() {
         failure_of(&report),
         "Parameter #5 of InStr requires a Number, but received a String."
     );
+}
+
+#[test]
+fn in_str_reads_a_sense_of_the_case_by_its_name() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: "On" and "Off" are
+    // taken as they are written, whatever the case of the letters, and
+    // "Locale" looks at the letters through the locale.
+    let report = run(concat!(
+        "a := InStr(\"hello world\", \"o\", \"Off\", 6)",
+        "\nb := InStr(\"hello world\", \"O\", \"On\")",
+        "\nc := InStr(\"hello world\", \"O\", \"Off\")",
+        "\nd := InStr(\"hello world\", \"O\", \"Locale\")",
+        "\ne := InStr(\"hello\", \"l\", \"ON\")",
+        "\nf := InStr(\"hello\", \"l\", \"oFf\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(8));
+    assert_eq!(value_of(&report, "b"), Value::Int(0));
+    assert_eq!(value_of(&report, "c"), Value::Int(5));
+    assert_eq!(value_of(&report, "d"), Value::Int(5));
+    assert_eq!(value_of(&report, "e"), Value::Int(3));
+    assert_eq!(value_of(&report, "f"), Value::Int(3));
+}
+
+#[test]
+fn in_str_reads_a_place_from_the_right() {
+    // Measured on the binary of v2.0.19 on 2026-11-09, and read out of the
+    // `BIF_InStr` of the source: a negative place is `len + 1 + place` and
+    // the search runs from the right; when the occurrence is not given with
+    // it, the search from the right is the default.
+    let report = run(concat!(
+        "a := InStr(\"hello\", \"l\", \"On\", -1)",
+        "\nb := InStr(\"hello\", \"l\", \"On\", -2)",
+        "\nc := InStr(\"hello\", \"h\", \"On\", -5)",
+        "\nd := InStr(\"hello\", \"l\", \"On\", -6)",
+        "\ne := InStr(\"abcabc\", \"b\", \"On\", -1, -2)",
+        "\nf := InStr(\"abcabc\", \"b\", \"On\", 1, -1)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(4));
+    assert_eq!(value_of(&report, "b"), Value::Int(4));
+    assert_eq!(value_of(&report, "c"), Value::Int(1));
+    assert_eq!(value_of(&report, "d"), Value::Int(0));
+    assert_eq!(value_of(&report, "e"), Value::Int(2));
+    assert_eq!(value_of(&report, "f"), Value::Int(0));
+}
+
+#[test]
+fn in_str_counts_the_matches_without_overlapping_them() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: after a match the
+    // search from the left goes on after it, so the matches do not overlap.
+    let report = run(concat!(
+        "a := InStr(\"aaaa\", \"aa\", \"On\", 1, 1)",
+        "\nb := InStr(\"aaaa\", \"aa\", \"On\", 1, 2)",
+        "\nc := InStr(\"aaaa\", \"aa\", \"On\", 1, 3)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(1));
+    assert_eq!(value_of(&report, "b"), Value::Int(3));
+    assert_eq!(value_of(&report, "c"), Value::Int(0));
+}
+
+#[test]
+fn the_place_of_the_search_wants_a_number_and_is_not_zero() {
+    // Measured on the binary of v2.0.19 on 2026-11-09.
+    let report = run("a := InStr(\"hello\", \"l\", \"On\", 0)");
+    assert_eq!(failure_of(&report), "Parameter #4 of InStr is invalid.");
+    let report = run("a := InStr(\"hello\", \"l\", \"On\", \"x\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #4 of InStr requires a Number, but received a String."
+    );
+    // A number written as a text is a number, and a float is cut.
+    let report = run(concat!(
+        "a := InStr(\"hello\", \"l\", \"On\", \"4\")",
+        "\nb := InStr(\"hello\", \"l\", \"On\", 4.9)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(4));
+    assert_eq!(value_of(&report, "b"), Value::Int(4));
 }
 
 #[test]
@@ -1721,20 +2673,134 @@ fn str_replace_wants_a_reference_where_it_writes_the_count() {
 
 #[test]
 fn var_set_str_capacity_answers_the_capacity() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a capacity empties
+    // the string and answers the capacity the variable has, and a variable
+    // that is never asked for one answers the size class of its text --
+    // three for "abc", sixty-three for ten characters.
     let report = run(concat!(
         "x := \"abc\"",
         "\na := VarSetStrCapacity(&x, 100)",
         "\ny := \"abc\"",
         "\nb := VarSetStrCapacity(&y)",
+        "\nz := \"abcdefghij\"",
+        "\nc := VarSetStrCapacity(&z)",
+        "\nw := \"hello\"",
+        "\nd := VarSetStrCapacity(&w, 0)",
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "a"), 100);
     // The string is emptied when a capacity is given.
     assert_eq!(value_of(&report, "x"), Value::Text(String::new()));
-    // Without a capacity the length of the string is the answer, and the
+    // Without a capacity the capacity of the text is the answer, and the
     // string is left alone.
     assert_eq!(int_of(&report, "b"), 3);
     assert_eq!(value_of(&report, "y"), Value::Text("abc".into()));
+    assert_eq!(int_of(&report, "c"), 63);
+    // A zero empties the string, and the capacity of a text that was never
+    // asked for is not given back: it is the size class of the text.
+    assert_eq!(int_of(&report, "d"), 7);
+    assert_eq!(value_of(&report, "w"), Value::Text(String::new()));
+}
+
+#[test]
+fn var_set_str_capacity_reads_the_capacity_the_way_the_binary_reads_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: minus one answers
+    // the length of the text and leaves the text alone; a negative
+    // capacity that is not minus one is an invalid parameter; a capacity
+    // that was given is given back by a zero.
+    let report = run(concat!(
+        "v := \"hello\"",
+        "\na := VarSetStrCapacity(&v, -1)",
+        "\nb := VarSetStrCapacity(&v, 64)",
+        "\nc := VarSetStrCapacity(&v, 0)",
+        "\nd := VarSetStrCapacity(&v)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 5);
+    assert_eq!(value_of(&report, "v"), Value::Text(String::new()));
+    assert_eq!(int_of(&report, "b"), 64);
+    assert_eq!(int_of(&report, "c"), 0);
+    assert_eq!(int_of(&report, "d"), 0);
+    let report = run("a := VarSetStrCapacity(&v, -5)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of VarSetStrCapacity is invalid."
+    );
+}
+
+#[test]
+fn str_ptr_answers_an_address_of_a_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the address of a
+    // text is a number above zero, the same text answers the same address,
+    // and a number, an object and a reference are refused with their kind.
+    let report = run(concat!(
+        "v := \"hello\"",
+        "\na := StrPtr(v)",
+        "\nb := StrPtr(v)",
+        "\nc := StrPtr(\"hello\")",
+        "\nd := Type(StrPtr(\"\"))",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert!(int_of(&report, "a") > 0);
+    assert_eq!(int_of(&report, "a"), int_of(&report, "b"));
+    assert_eq!(value_of(&report, "d"), Value::Text("Integer".into()));
+    let report = run("a := StrPtr(5)");
+    assert_eq!(
+        failure_of(&report),
+        "Expected a String but got an Integer."
+    );
+    let report = run("v := 1\na := StrPtr(&v)");
+    assert_eq!(failure_of(&report), "Expected a String but got a VarRef.");
+}
+
+#[test]
+fn str_put_writes_the_text_of_a_buffer_and_str_get_reads_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the bytes of the
+    // text and the terminator are the answer of a write, the encoding of a
+    // call that does not name one is UTF-16, and a target that cannot hold
+    // the text is refused.
+    let report = run(concat!(
+        "buf := Buffer(32)",
+        "\na := StrPut(\"abc\", buf, \"UTF-8\")",
+        "\nb := StrGet(buf, \"UTF-8\")",
+        "\nc := StrPut(\"abc\", \"UTF-8\")",
+        "\nd := StrPut(\"abc\")",
+        "\ne := StrPut(\"abc\", buf, \"UTF-16\")",
+        "\nf := StrGet(buf, \"UTF-16\")",
+        "\ng := StrGet(buf)",
+        "\nh := StrGet(buf, 2, \"UTF-16\")",
+        "\ni := StrGet(buf, \"utf-8\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 4);
+    assert_eq!(value_of(&report, "b"), Value::Text("abc".into()));
+    assert_eq!(int_of(&report, "c"), 4);
+    assert_eq!(int_of(&report, "d"), 8);
+    assert_eq!(int_of(&report, "e"), 8);
+    assert_eq!(value_of(&report, "f"), Value::Text("abc".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("abc".into()));
+    assert_eq!(value_of(&report, "h"), Value::Text("ab".into()));
+    // The bytes of a UTF-16 text read as UTF-8 end at the zero of the
+    // first unit: the "a" and nothing else.
+    assert_eq!(value_of(&report, "i"), Value::Text("a".into()));
+}
+
+#[test]
+fn the_string_functions_refuse_what_v2_refuses() {
+    // Measured on the binary of v2.0.19 on 2026-11-09.
+    let report = run("buf := Buffer(16)\na := StrPut(\"abc\", buf, \"UTF-99\")");
+    assert_eq!(failure_of(&report), "Invalid Encoding.");
+    let report = run("a := StrGet(123)");
+    assert_eq!(failure_of(&report), "Parameter #1 of StrGet is invalid.");
+    let report = run("a := StrGet(\"abc\")");
+    assert_eq!(failure_of(&report), "Parameter #1 invalid.");
+    let report = run("a := StrPut(\"abc\", 123)");
+    assert_eq!(failure_of(&report), "Parameter #2 of StrPut is invalid.");
+    let report = run("buf := Buffer(2)\na := StrPut(\"abcdef\", buf, \"UTF-8\")");
+    assert_eq!(failure_of(&report), "Parameter #2 of StrPut is invalid.");
+    let report = run("buf := Buffer(16)\na := StrPut(\"abc\", buf, 3)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 6);
 }
 
 #[test]
@@ -1845,6 +2911,130 @@ fn type_says_the_name_of_the_type() {
 }
 
 #[test]
+fn the_class_of_a_number_converts_its_argument() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the classes of the
+    // numbers and of the text are the conversions of the dialect, and the
+    // classes themselves stay what they are.
+    let report = run(concat!(
+        "a := Integer(\"0x1F\")",
+        "\nb := Integer(3.9)",
+        "\nc := Integer(-3.9)",
+        "\nd := Integer(\" 5 \")",
+        "\ne := Integer(\"1e3\")",
+        "\nf := Integer(\"010\")",
+        "\ng := Integer(true)",
+        "\nh := Float(\"1.5\")",
+        "\ni := Float(2)",
+        "\nj := Float(\"0x10\")",
+        "\nk := Float(\"1e3\")",
+        "\nl := String(42)",
+        "\nm := String(1.5)",
+        "\nn := String(true)",
+        "\no := String(\"x\")",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(31));
+    assert_eq!(value_of(&report, "b"), Value::Int(3));
+    assert_eq!(value_of(&report, "c"), Value::Int(-3));
+    assert_eq!(value_of(&report, "d"), Value::Int(5));
+    assert_eq!(value_of(&report, "e"), Value::Int(1000));
+    assert_eq!(value_of(&report, "f"), Value::Int(10));
+    assert_eq!(value_of(&report, "g"), Value::Int(1));
+    assert_eq!(value_of(&report, "h"), Value::Float(1.5));
+    assert_eq!(value_of(&report, "i"), Value::Float(2.0));
+    assert_eq!(value_of(&report, "j"), Value::Float(16.0));
+    assert_eq!(value_of(&report, "k"), Value::Float(1000.0));
+    assert_eq!(value_of(&report, "l"), Value::Text("42".into()));
+    assert_eq!(value_of(&report, "m"), Value::Text("1.5".into()));
+    assert_eq!(value_of(&report, "n"), Value::Text("1".into()));
+    assert_eq!(value_of(&report, "o"), Value::Text("x".into()));
+}
+
+#[test]
+fn the_class_of_a_number_is_still_a_class() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the conversion lives
+    // in the call of the class, and the value of the name is the class.
+    let report = run(concat!(
+        "a := Type(Integer)",
+        "\nb := Type(Float)",
+        "\nc := Type(String)",
+        "\nd := Type(Integer.Prototype)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("Class".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("Class".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("Class".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("Prototype".into()));
+}
+
+#[test]
+fn a_conversion_refuses_a_value_of_the_wrong_kind() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the name of the call
+    // is "Integer.Call" and the value goes in the `Extra` of the failure.
+    let report = run("a := Integer(\"abc\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of Integer.Call requires a Number, but received a String."
+    );
+    let report = run("a := Float(\"abc\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of Float.Call requires a Number, but received a String."
+    );
+    // The number of the arguments is the one of the class: one.
+    let report = run("a := Integer()");
+    assert_eq!(
+        failure_of(&report),
+        "Too few parameters passed to function."
+    );
+    let report = run("a := Integer(1, 2)");
+    assert_eq!(
+        failure_of(&report),
+        "Too many parameters passed to function."
+    );
+}
+
+#[test]
+fn the_text_of_an_object_asks_for_its_to_string() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `String` of an
+    // object calls its `ToString` method, and one that has none says so.
+    let report = run("a := String(Map())");
+    assert_eq!(
+        failure_of(&report),
+        "This value of type \"Map\" has no method named \"ToString\"."
+    );
+    let report = run(concat!(
+        "class WithStr {\n",
+        "    ToString() {\n",
+        "        return \"made\"\n",
+        "    }\n",
+        "}\n",
+        "a := String(WithStr())",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("made".into()));
+}
+
+#[test]
+fn number_keeps_the_shape_the_number_was_written_with() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `Number("0x10")` is
+    // the integer 16 and `Number("1.5")` the float 1.5.
+    let report = run(concat!(
+        "a := Number(\"0x10\")",
+        "\nb := Number(\"1.5\")",
+        "\nc := Number(3.9)",
+        "\nd := Type(Number(\"0x10\"))",
+        "\ne := Type(Number(\"1.5\"))",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Int(16));
+    assert_eq!(value_of(&report, "b"), Value::Float(1.5));
+    assert_eq!(value_of(&report, "c"), Value::Float(3.9));
+    assert_eq!(value_of(&report, "d"), Value::Text("Integer".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("Float".into()));
+}
+
+#[test]
 fn the_type_of_an_object_is_the_name_of_its_class() {
     let report = run("class Box {\n}\nb := Box()\n\
          a := Type(b)\nc := Type(Box)\nd := Type(Map())\ne := Type(Box.Prototype)");
@@ -1917,11 +3107,131 @@ fn regex_match_says_where_the_pattern_is() {
 }
 
 #[test]
-fn regex_match_with_an_output_variable_fails() {
-    let report = run("a := RegExMatch(\"hello\", \"l\", \"out\")");
+fn regex_match_writes_the_matches_into_the_output_variable() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the third parameter
+    // is the variable that takes the `RegExMatchInfo`, and the number of the
+    // groups, the text of the groups and their places are read from it with
+    // `Count`, the item and `Len`/`Pos`.
+    let report = run(concat!(
+        "p := RegExMatch(\"abc123def\", \"(\\d+)\", &m)\n",
+        "q := RegExMatch(\"abc123def\", \"(?<year>\\d+)\", &named)\n",
+        "r := RegExMatch(\"zzz\", \"(\\d+)\", &miss)\n",
+        "FileAppend(p \"|\" m[0] \"|\" m[1] \"|\" m.Count \"|\" m.Len[0] \"|\" m.Pos[0] \"|\" ",
+        "named[\"year\"] \"|\" named.Name[1] \"|\" r \"|\" Type(miss), \"*\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    // The output variable of the miss is the empty string, not unset.
+    assert_eq!(report.output, vec!["4|123|123|1|3|4|123|year|0|String"]);
+}
+
+#[test]
+fn the_members_of_a_match_answer_the_way_v2_answers_them() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `Len`, `Pos` and
+    // `Name` take the place or the name of a group between the brackets and
+    // answer the whole match without one, `Mark` is the mark of the pattern
+    // -- which the engine of the tree does not carry, so it is empty -- and
+    // a group that took no part is the empty text at the place zero.
+    let report = run(concat!(
+        "m := \"\"\n",
+        "RegExMatch(\"b\", \"(a)?(b)\", &m)\n",
+        "n := \"\"\n",
+        "RegExMatch(\"abc123def\", \"(?<year>\\d+)(?<word>def)\", &n)\n",
+        "a := m.Count\n",
+        "b := m[1] \"|\" m[2] \"|\" m.Len[1] \"|\" m.Pos[1]\n",
+        "c := n.Len[\"year\"] \"|\" n.Pos[\"year\"] \"|\" n.Name[1] \"|\" n.Name[2] \"|\" n.Name[0]\n",
+        "d := n.Len \"|\" n.Pos \"|\" n.Mark\n",
+        "e := n.Len() \"|\" n.Pos(0)\n",
+        "f := Type(n) \"|\" n.__Class\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 2);
+    assert_eq!(value_of(&report, "b"), Value::Text("|b|0|0".into()));
+    assert_eq!(
+        value_of(&report, "c"),
+        Value::Text("3|4|year|word|".into())
+    );
+    assert_eq!(value_of(&report, "d"), Value::Text("6|4|".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("6|4".into()));
+    assert_eq!("RegExMatchInfo|RegExMatchInfo", value_of(&report, "f").to_text());
+}
+
+#[test]
+fn the_members_of_a_match_refuse_what_v2_refuses() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the name of a group
+    // that is not there is the invalid first parameter of the member that
+    // was read, and a place that is not one is the same failure.
+    let report = run(concat!(
+        "m := \"\"\n",
+        "RegExMatch(\"abc123\", \"(?<year>\\d+)\", &m)\n",
+        "a := m.Len[\"nope\"]\n",
+    ));
     assert_eq!(
         failure_of(&report),
-        "the matches of the pattern are not carried into a variable yet."
+        "Parameter #1 of RegExMatchInfo.Prototype.Len.Get is invalid."
+    );
+    let report = run(concat!(
+        "m := \"\"\n",
+        "RegExMatch(\"abc123\", \"(\\d+)\", &m)\n",
+        "a := m[5]\n",
+    ));
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of RegExMatchInfo.Prototype.__Item.Get is invalid."
+    );
+    let report = run("a := RegExMatch(\"a\", \"a\", 5)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #3 of RegExMatch requires a variable reference, but received an Integer."
+    );
+}
+
+#[test]
+fn a_match_is_walked_by_the_groups_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the keys of the walk
+    // are the places of the groups, the named ones under their names, and
+    // the values are the texts -- a group that took no part is empty.
+    let report = run(concat!(
+        "m := \"\"\n",
+        "RegExMatch(\"a1\", \"(?<d>\\d+)(x)?\", &m)\n",
+        "pairs := \"\"\n",
+        "for k, v in m\n",
+        "    pairs .= \"[\" k \"=\" v \"]\"\n",
+        "values := \"\"\n",
+        "for v in m\n",
+        "    values .= v\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "pairs"), Value::Text("[0=1][d=1][2=]".into()));
+    assert_eq!(value_of(&report, "values"), Value::Text("11".into()));
+}
+
+#[test]
+fn a_match_is_searched_from_the_place_the_caller_names() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the place counts
+    // from one, a place that is zero or negative counts from the end of the
+    // text, and a place past the end finds nothing.
+    let report = run(concat!(
+        "a := 0\n",
+        "p1 := RegExMatch(\"abc123\", \"(\\d+)\", &a, 3)\n",
+        "v1 := a[0]\n",
+        "b := 0\n",
+        "p2 := RegExMatch(\"abcabc\", \"b\", &b, -3)\n",
+        "v2 := b[0]\n",
+        "p3 := RegExMatch(\"abcabc\", \"b\", &c, 0)\n",
+        "p4 := RegExMatch(\"abcabc\", \"b\", &d, 100)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "p1"), 4);
+    assert_eq!(value_of(&report, "v1"), Value::Text("123".into()));
+    assert_eq!(int_of(&report, "p2"), 5);
+    assert_eq!(value_of(&report, "v2"), Value::Text("b".into()));
+    assert_eq!(int_of(&report, "p3"), 0);
+    assert_eq!(int_of(&report, "p4"), 0);
+    // A place that is not a number is refused with the parameter.
+    let report = run("a := RegExMatch(\"a\", \"a\", &m, \"x\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #4 of RegExMatch requires a Number, but received a String."
     );
 }
 
@@ -3088,7 +4398,7 @@ fn an_empty_text_is_named_in_the_message_of_the_check() {
 
 #[test]
 fn a_name_that_the_tree_does_not_carry_says_the_reason_of_the_machine_when_the_kind_fits() {
-    let report = run("a := StrPut(\"x\", \"y\")");
+    let report = run("a := StatusBarGetText(1)");
     assert_eq!(
         failure_of(&report),
         "this is a name of Windows, and this desktop is not Windows."

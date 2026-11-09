@@ -8,10 +8,11 @@
 //! wrong answer instead.
 //!
 //! The subset is: the literals, the dot, the character classes with
-//! their ranges and the named classes, the groups and the alternation,
-//! the repetition with the counts, the anchors and the word boundary.
-//! The look-around, the backreferences and the possessive quantifiers
-//! are not carried.
+//! their ranges and the named classes, the groups -- plain, non-capturing,
+//! and named, in the three spellings of PCRE: `(?<name>...)`, `(?'name'...)`
+//! and `(?P<name>...)` -- and the alternation, the repetition with the
+//! counts, the anchors and the word boundary. The look-around, the
+//! backreferences and the possessive quantifiers are not carried.
 
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -103,6 +104,9 @@ pub struct Regex {
     program: Vec<Inst>,
     /// The number of the groups, the whole one not included.
     groups: usize,
+    /// The name of each group, by the number of it; the whole match has
+    /// none.
+    names: Vec<Option<String>>,
     /// Whether the letters are not to be taken as they are.
     ///
     /// v2 spells the option `(?i)` at the front of the pattern.
@@ -117,7 +121,7 @@ impl Regex {
     /// pattern that is out of the subset.
     pub fn new(pattern: &str) -> Result<Regex, String> {
         let (pattern, ignore_case) = split_the_options(pattern);
-        let mut compiler = Compiler::new(pattern.chars().collect(), 0, 0);
+        let mut compiler = Compiler::new(pattern.chars().collect(), 0, 0, vec![None]);
         compiler.compile()?;
         // The whole match is a group too, and it is the first one.
         let groups = compiler.groups + 1;
@@ -130,6 +134,7 @@ impl Regex {
         Ok(Regex {
             program,
             groups,
+            names: compiler.names,
             ignore_case,
         })
     }
@@ -137,6 +142,30 @@ impl Regex {
     /// The number of the groups, the whole one included.
     pub fn group_count(&self) -> usize {
         self.groups
+    }
+
+    /// The name of a group, by the number of it.
+    ///
+    /// The whole match has no name, and neither has a group that the
+    /// pattern did not name.
+    pub fn name_of(&self, group: usize) -> Option<&str> {
+        self.names.get(group)?.as_deref()
+    }
+
+    /// The number of the group a name belongs to.
+    ///
+    /// The name is matched the way PCRE matches it: without regard to the
+    /// case. A pattern with two groups of the same name answers the first
+    /// one, which is the one PCRE numbers first.
+    pub fn group_number(&self, name: &str) -> Option<usize> {
+        self.names
+            .iter()
+            .position(|candidate| {
+                candidate
+                    .as_deref()
+                    .map(|candidate| candidate.eq_ignore_ascii_case(name))
+                    .unwrap_or(false)
+            })
     }
 
     /// The first match in the text, and where it is.
@@ -288,6 +317,16 @@ impl Match {
         (self.caps[0].unwrap_or(0), self.caps[1].unwrap_or(0))
     }
 
+    /// Where one group starts and ends, counting from zero.
+    ///
+    /// `None` means the group took no part in the match: the alternative
+    /// that holds it did not run, or the optional group was not there.
+    pub fn span_of(&self, group: usize) -> Option<(usize, usize)> {
+        let start = (*self.caps.get(group * 2)?)?;
+        let end = (*self.caps.get(group * 2 + 1)?)?;
+        Some((start, end))
+    }
+
     /// The text of the whole match.
     pub fn text(&self, chars: &[char]) -> String {
         let (start, end) = self.span();
@@ -298,8 +337,7 @@ impl Match {
 
     /// The text of one group, when the group took part in the match.
     pub fn group(&self, index: usize, chars: &[char]) -> Option<String> {
-        let start = (*self.caps.get(index * 2)?)?;
-        let end = (*self.caps.get(index * 2 + 1)?)?;
+        let (start, end) = self.span_of(index)?;
         Some(chars[start..end].iter().collect())
     }
 }
@@ -354,16 +392,19 @@ struct Compiler {
     program: Vec<Inst>,
     /// The number of the groups, the whole one included.
     groups: usize,
+    /// The name of each group, by the number of it.
+    names: Vec<Option<String>>,
 }
 
 impl Compiler {
     /// A compiler over a pattern.
-    fn new(chars: Vec<char>, index: usize, groups: usize) -> Self {
+    fn new(chars: Vec<char>, index: usize, groups: usize, names: Vec<Option<String>>) -> Self {
         Self {
             chars,
             index,
             program: Vec::new(),
             groups,
+            names,
         }
     }
 }
@@ -399,11 +440,13 @@ impl Compiler {
     fn alternation(&mut self) -> Result<(), String> {
         let mut branches: Vec<Vec<Inst>> = Vec::new();
         loop {
-            let mut branch = Compiler::new(self.chars.clone(), self.index, self.groups);
+            let mut branch =
+                Compiler::new(self.chars.clone(), self.index, self.groups, self.names.clone());
             branch.concat()?;
             branches.push(branch.program);
             self.index = branch.index;
             self.groups = branch.groups;
+            self.names = branch.names;
             if self.peek() == Some('|') {
                 self.index += 1;
                 continue;
@@ -537,20 +580,41 @@ impl Compiler {
             '(' => {
                 // The groups that do not capture are carried, because the
                 // groups that do not capture are the ones a pattern
-                // usually has.
+                // usually has. A group may be named, and PCRE spells the
+                // name in three ways: `(?<name>`, `(?'name'` and
+                // `(?P<name>`.
+                let mut name: Option<String> = None;
                 if self.peek() == Some('?') {
-                    if self.peek_next() == Some(':') {
-                        self.index += 2;
-                    } else {
-                        return Err("the engine carries the plain groups and the ones with a colon, and not the others."
-                            .into());
+                    match self.peek_next() {
+                        Some(':') => self.index += 2,
+                        Some('<') => {
+                            self.index += 2;
+                            name = Some(self.group_name('>')?);
+                        }
+                        Some('\'') => {
+                            self.index += 2;
+                            name = Some(self.group_name('\'')?);
+                        }
+                        Some('P') if self.chars.get(self.index + 2) == Some(&'<') => {
+                            self.index += 3;
+                            name = Some(self.group_name('>')?);
+                        }
+                        _ => {
+                            return Err("the engine carries the plain groups, the ones with a colon and the named ones, and not the others."
+                                .into())
+                        }
                     }
                 }
                 self.groups += 1;
                 let group = self.groups;
+                if self.names.len() <= group {
+                    self.names.resize(group + 1, None);
+                }
+                self.names[group] = name;
                 // The branch of the group is compiled on its own, so that
                 // the jumps inside it are counted from its own start.
-                let mut branch = Compiler::new(self.chars.clone(), self.index, self.groups);
+                let mut branch =
+                    Compiler::new(self.chars.clone(), self.index, self.groups, self.names.clone());
                 branch.alternation()?;
                 if branch.peek() != Some(')') {
                     return Err("a group is missing its closing parenthesis.".into());
@@ -558,6 +622,7 @@ impl Compiler {
                 branch.index += 1;
                 self.index = branch.index;
                 self.groups = branch.groups;
+                self.names = branch.names;
                 // The block of the group: the save that opens it, the
                 // branch, and the save that closes it. The save is one
                 // place before the branch, so the jumps move by one.
@@ -584,6 +649,28 @@ impl Compiler {
             ')' => Err("a closing parenthesis without an opening one.".into()),
             other => Ok(vec![Inst::Char(other)]),
         }
+    }
+
+    /// The name of a named group, up to the character that closes it.
+    ///
+    /// A name has to have at least one character in it: `(?<>...)` is not
+    /// a named group.
+    fn group_name(&mut self, close: char) -> Result<String, String> {
+        let mut name = String::new();
+        loop {
+            let Some(character) = self.peek() else {
+                return Err("a named group is missing its closing delimiter.".into());
+            };
+            self.index += 1;
+            if character == close {
+                break;
+            }
+            name.push(character);
+        }
+        if name.is_empty() {
+            return Err("a named group has no name.".into());
+        }
+        Ok(name)
     }
 
     /// The escape of a pattern.

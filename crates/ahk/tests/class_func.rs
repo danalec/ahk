@@ -101,6 +101,40 @@ fn a_function_has_no_address_to_call() {
 }
 
 #[test]
+fn the_flags_of_the_parameters_are_the_ones_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `f(a, b?)` answers
+    // `IsOptional(2)` one and `IsOptional(1)` zero; a parameter that carries
+    // a default is optional too; a method counts its `this` as the first
+    // parameter; and a place that the function does not have is refused with
+    // "Parameter #1 of Func.Prototype.IsOptional is invalid.".
+    let report = run(concat!(
+        "f(a, b?) {\n",
+        "    return 1\n",
+        "}\n",
+        "g(&x, y := 2) {\n",
+        "    return 1\n",
+        "}\n",
+        "class C {\n",
+        "    m(a, b?) {\n",
+        "        return 1\n",
+        "    }\n",
+        "}\n",
+        "t := C()\n",
+        "MsgBox f.IsOptional(1) \"|\" f.IsOptional(2) \"|\" g.IsByRef(1) \"|\" g.IsOptional(2) \"|\" t.m.IsOptional(3)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0|1|1|1|1"]);
+    let report = run(
+        "f(a) {\n    return 1\n}\ntry {\n    x := f.IsOptional(2)\n} catch Any as e {\n    MsgBox e.Message\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of Func.Prototype.IsOptional is invalid."]
+    );
+}
+
+#[test]
 fn a_function_is_not_made_again() {
     let report = run("f := Abs\nx := f.__New()");
     assert!(!report.ok);

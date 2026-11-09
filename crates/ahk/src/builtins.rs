@@ -74,6 +74,16 @@ pub enum Parameter {
     /// The parameter is a reference that the caller passes, written with
     /// the `&` of the v2.
     Reference,
+    /// The parameter is a reference the caller passes, and v2 declares it as
+    /// a value of the kind `VarRef`: a value of another kind is refused with
+    /// "requires a VarRef, but received ...", and the name of the built-in is
+    /// in the `What` of the failure.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `MonitorGet(1, 9)` is
+    /// "Parameter #2 of MonitorGet requires a VarRef, but received an
+    /// Integer." with "MonitorGet" in the `What`, while the output variable of
+    /// `RegExMatch` answers "a variable reference" with the empty `What`.
+    VarRef,
     /// The parameter is the name of a variable of the script, and the value
     /// of that variable reaches the handler. The commands of the v1 read
     /// their input this way.
@@ -452,6 +462,18 @@ pub const BUILTINS: &[Builtin] = &[
         handler: trim,
     },
     // -- the predicates --------------------------------------------------------------
+    // The one name of the predicates that asks for a variable itself: the
+    // argument is the name of a variable of the script, and the answer is
+    // whether that variable has a value.
+    Builtin {
+        name: "IsSet",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Reference],
+        handler: is_set,
+    },
     Builtin {
         name: "IsAlnum",
         kind: BuiltinKind::Function,
@@ -1753,45 +1775,57 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
-        parameters: &[Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[
+            Parameter::Value,
+            Parameter::VarRef,
+            Parameter::VarRef,
+            Parameter::VarRef,
+            Parameter::VarRef,
+        ],
+        handler: monitor_get,
     },
     Builtin {
         name: "MonitorGetCount",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: monitor_get_count,
     },
     Builtin {
         name: "MonitorGetName",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: monitor_get_name,
     },
     Builtin {
         name: "MonitorGetPrimary",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: monitor_get_primary,
     },
     Builtin {
         name: "MonitorGetWorkArea",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
-        parameters: &[Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[
+            Parameter::Value,
+            Parameter::VarRef,
+            Parameter::VarRef,
+            Parameter::VarRef,
+            Parameter::VarRef,
+        ],
+        handler: monitor_get_work_area,
     },
     Builtin {
         name: "ObjAddRef",
@@ -1961,72 +1995,72 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_close,
     },
     Builtin {
         name: "ProcessExist",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_exist,
     },
     Builtin {
         name: "ProcessGetName",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_get_name,
     },
     Builtin {
         name: "ProcessGetParent",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_get_parent,
     },
     Builtin {
         name: "ProcessGetPath",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_get_path,
     },
     Builtin {
         name: "ProcessSetPriority",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_set_priority,
     },
     Builtin {
         name: "ProcessWait",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_wait,
     },
     Builtin {
         name: "ProcessWaitClose",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: process_wait_close,
     },
     Builtin {
         name: "RegCreateKey",
@@ -2258,45 +2292,45 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: str_get,
     },
     Builtin {
         name: "StrPtr",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: str_ptr,
     },
     Builtin {
         name: "StrPut",
         kind: BuiltinKind::Function,
         min: 1,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: str_put,
     },
     Builtin {
         name: "SysGet",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sys_get,
     },
     Builtin {
         name: "SysGetIPAddresses",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sys_get_ip_addresses,
     },
     Builtin {
         name: "ToolTip",
@@ -3438,6 +3472,17 @@ pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<Strin
     // is 1.
     if matches!(name, "FileCopy" | "FileMove") && message == "Failed" {
         return Some("1".to_string());
+    }
+    // The target of a `StrPut` is a buffer, and a buffer that cannot hold
+    // the text is refused with the kind of the value in the `Extra`: the
+    // name of the class, and not the text of the object.
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-09.
+    if name == "StrPut"
+        && message == "Parameter #2 of StrPut is invalid."
+        && matches!(values.get(1), Some(Value::Object(_)))
+    {
+        return Some("Buffer".to_string());
     }
     if message != "Invalid option." {
         return None;
@@ -4981,6 +5026,7 @@ const THE_TEXTS: &[(&str, &[u8])] = &[
     ("DirMove", &[0, 1]),
     ("DirSelect", &[0, 2]),
     ("Download", &[0, 1]),
+
     ("EnvGet", &[0]),
     ("EnvSet", &[0, 1]),
     ("FileAppend", &[1, 2]),
@@ -5073,6 +5119,7 @@ const THE_NUMBERS: &[(&str, &[u8])] = &[
     ("Abs", &[0]),
     ("Ceil", &[0]),
     ("Chr", &[0]),
+
     ("ClipWait", &[0, 1]),
     ("Cos", &[0]),
     ("DateAdd", &[1]),
@@ -5559,6 +5606,14 @@ const THE_REFUSED: &[(&str, usize, Wants)] = &[
     ("WinWaitNotActive", 2, Wants::Declared(TypeName::Number)),
     ("WinWaitNotActive", 3, Wants::Declared(TypeName::String)),
     ("WinWaitNotActive", 4, Wants::Declared(TypeName::String)),
+    // The parameters that the caller passes a variable reference to.
+    // Measured on the binary of v2.0.19 on 2026-11-09: a value that is not
+    // a reference is refused with "requires a variable reference, but
+    // received a ...", and the failure carries no name of the built-in in
+    // its `What` -- the caller's check makes it, and not the built-in.
+    ("RegExMatch", 2, Wants::Reference("a variable reference")),
+    ("RegExReplace", 3, Wants::Reference("a variable reference")),
+    ("VarSetStrCapacity", 0, Wants::Reference("a variable reference")),
 ];
 
 pub fn wants(name: &str, index: usize) -> Wants {
@@ -5588,6 +5643,10 @@ pub fn wants(name: &str, index: usize) -> Wants {
         ("ObjOwnProps" | "ObjOwnPropCount" | "ObjHasOwnProp" | "ObjSetBase", 0) => {
             Wants::Checked(TypeName::Object)
         }
+        // Measured on the binary of v2.0.19 on 2026-11-09: the last four
+        // parameters of the two monitor commands are values of the kind
+        // `VarRef`, and v2 names the kind in the failure of another one.
+        ("MonitorGet" | "MonitorGetWorkArea", 1..=4) => Wants::Checked(TypeName::VarRef),
         _ => Wants::Value,
     }
 }
@@ -5793,6 +5852,324 @@ fn number_value(value: &Value) -> Option<Value> {
     }
 }
 
+/// Whether a value is a number, the way a parameter that wants one is
+/// checked.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a value is a number when
+/// it is one, and a text is one when it holds a number and nothing else. The
+/// spaces and tabs at the two ends are allowed, the `0x` of a hex number is
+/// allowed, a fraction and an exponent are allowed, and a letter after the
+/// number is not.
+pub(crate) fn is_numeric_value(value: &Value) -> bool {
+    match value {
+        Value::Int(_) | Value::Float(_) => true,
+        Value::Text(text) => is_numeric_text(text),
+        _ => false,
+    }
+}
+
+/// Whether the text holds a number and nothing else.
+///
+/// The rule is the one of `IsNumeric` of the binary: the leading spaces and
+/// tabs are skipped, the sign is allowed, a `0x` prefix makes it hex, a
+/// fraction and an exponent are allowed for a decimal number, and only spaces
+/// and tabs may follow it.
+fn is_numeric_text(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut at = 0;
+    while at < bytes.len() && (bytes[at] == b' ' || bytes[at] == b'\t') {
+        at += 1;
+    }
+    if at >= bytes.len() {
+        return false;
+    }
+    if bytes[at] == b'-' || bytes[at] == b'+' {
+        at += 1;
+    }
+    let hex = is_hex_at(bytes, at);
+    if hex {
+        at += 2;
+    }
+    let mut point = false;
+    let mut exponent = false;
+    let mut digit = false;
+    while at < bytes.len() {
+        let character = bytes[at];
+        if character == b' ' || character == b'\t' {
+            // The number ends here when nothing but spaces or tabs follows.
+            let mut next = at;
+            while next < bytes.len() && (bytes[next] == b' ' || bytes[next] == b'\t') {
+                next += 1;
+            }
+            if next < bytes.len() {
+                return false;
+            }
+            break;
+        }
+        if character == b'.' {
+            if point || hex {
+                return false;
+            }
+            point = true;
+            at += 1;
+            continue;
+        }
+        let is_digit = if hex {
+            character.is_ascii_hexdigit()
+        } else {
+            character.is_ascii_digit()
+        };
+        if !is_digit {
+            // Only a decimal number may carry an exponent, and the exponent
+            // has to hold at least one digit.
+            if hex || (character != b'e' && character != b'E') || !digit || exponent {
+                return false;
+            }
+            let mut next = at + 1;
+            if next < bytes.len() && (bytes[next] == b'+' || bytes[next] == b'-') {
+                next += 1;
+            }
+            if next >= bytes.len() || !bytes[next].is_ascii_digit() {
+                return false;
+            }
+            exponent = true;
+            point = true;
+            at = next + 1;
+            continue;
+        }
+        digit = true;
+        at += 1;
+    }
+    digit
+}
+
+/// Whether a `0x` prefix of a hex number starts at this byte.
+fn is_hex_at(bytes: &[u8], at: usize) -> bool {
+    at + 2 < bytes.len()
+        && bytes[at] == b'0'
+        && (bytes[at + 1] == b'x' || bytes[at + 1] == b'X')
+        && bytes[at + 2].is_ascii_hexdigit()
+}
+
+/// The value of one hex digit.
+fn hex_digit(character: u8) -> u64 {
+    match character {
+        b'0'..=b'9' => (character - b'0') as u64,
+        b'a'..=b'f' => (character - b'a') as u64 + 10,
+        _ => (character - b'A') as u64 + 10,
+    }
+}
+
+/// The whole number a value holds, the way the conversion of the binary
+/// reads it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a float is cut toward
+/// zero, and a number that a 64-bit integer cannot hold answers the smallest
+/// one -- the cast of the machine, and not a saturation. A text is read by
+/// [`text_to_int64`].
+pub(crate) fn token_to_int64(value: &Value) -> i64 {
+    match value {
+        Value::Int(number) => *number,
+        Value::Float(number) => double_to_int64(*number),
+        Value::Text(text) => text_to_int64(text),
+        _ => 0,
+    }
+}
+
+/// The whole number of a float, the way the cast of the binary reads it.
+///
+/// The cast of the machine answers the smallest 64-bit integer for a number
+/// that is out of its range, and for a number that is not one at all.
+fn double_to_int64(number: f64) -> i64 {
+    if !(-9223372036854775808.0..9223372036854775808.0).contains(&number) {
+        return i64::MIN;
+    }
+    number as i64
+}
+
+/// The number a value holds, the way the conversion of the binary reads it.
+pub(crate) fn token_to_double(value: &Value) -> f64 {
+    match value {
+        Value::Int(number) => *number as f64,
+        Value::Float(number) => *number,
+        Value::Text(text) => text_to_double(text),
+        _ => 0.0,
+    }
+}
+
+/// The whole number at the front of a text.
+///
+/// The rule is the one of `nstrtoi64` of the binary, measured on 2026-11-09:
+/// a decimal number with a fraction and an exponent, or a hex number with the
+/// `0x` prefix; the leading spaces and tabs are skipped; a leading zero does
+/// not make it octal; and the overflow wraps the way the arithmetic of a
+/// script wraps. `"1e3"` is 1000, `"1.9"` is 1, `"010"` is 10 and `"0x1F"`
+/// is 31.
+pub(crate) fn text_to_int64(text: &str) -> i64 {
+    let bytes = text.as_bytes();
+    let mut at = 0;
+    while at < bytes.len() && (bytes[at] == b' ' || bytes[at] == b'\t') {
+        at += 1;
+    }
+    let negative = at < bytes.len() && bytes[at] == b'-';
+    if negative || (at < bytes.len() && bytes[at] == b'+') {
+        at += 1;
+    }
+    let mut value: u64;
+    if is_hex_at(bytes, at) {
+        at += 2;
+        value = 0;
+        while at < bytes.len() && bytes[at].is_ascii_hexdigit() {
+            value = value.wrapping_mul(16).wrapping_add(hex_digit(bytes[at]));
+            at += 1;
+        }
+    } else {
+        value = 0;
+        while at < bytes.len() && bytes[at].is_ascii_digit() {
+            value = value
+                .wrapping_mul(10)
+                .wrapping_add((bytes[at] - b'0') as u64);
+            at += 1;
+        }
+        let end_integer = at;
+        if at < bytes.len() && bytes[at] == b'.' {
+            at += 1;
+            while at < bytes.len() && bytes[at].is_ascii_digit() {
+                at += 1;
+            }
+        }
+        let end_fraction = at;
+        if at < bytes.len() && (bytes[at] == b'e' || bytes[at] == b'E') {
+            at += 1;
+            let exponent_negative = at < bytes.len() && bytes[at] == b'-';
+            if exponent_negative || (at < bytes.len() && bytes[at] == b'+') {
+                at += 1;
+            }
+            let digits_start = at;
+            let mut exponent: u64 = 0;
+            while at < bytes.len() && bytes[at].is_ascii_digit() {
+                exponent = exponent
+                    .wrapping_mul(10)
+                    .wrapping_add((bytes[at] - b'0') as u64);
+                at += 1;
+            }
+            if at > digits_start {
+                // The digits of the fraction that the exponent carries into
+                // the whole number are applied first.
+                if !exponent_negative && end_integer < end_fraction && bytes[end_integer] == b'.' {
+                    let mut next = end_integer + 1;
+                    while next < end_fraction && exponent > 0 {
+                        value = value
+                            .wrapping_mul(10)
+                            .wrapping_add((bytes[next] - b'0') as u64);
+                        next += 1;
+                        exponent -= 1;
+                    }
+                }
+                if exponent >= if exponent_negative { 20 } else { 64 } {
+                    value = 0;
+                } else if exponent != 0 {
+                    let mut multiplier: u64 = 1;
+                    let mut base: u64 = 10;
+                    let mut left = exponent;
+                    while left > 1 {
+                        if left & 1 == 1 {
+                            multiplier = multiplier.wrapping_mul(base);
+                        }
+                        left >>= 1;
+                        base = base.wrapping_mul(base);
+                    }
+                    multiplier = multiplier.wrapping_mul(base);
+                    if exponent_negative {
+                        value /= multiplier;
+                    } else {
+                        value = value.wrapping_mul(multiplier);
+                    }
+                }
+            }
+        }
+    }
+    if negative {
+        -(value as i64)
+    } else {
+        value as i64
+    }
+}
+
+/// The number at the front of a text.
+///
+/// The rule is the one of `ATOF` of the binary, measured on 2026-11-09: a hex
+/// number is read as a whole number, and a decimal number is the number at
+/// the front of the text -- `"1e3"` is 1000 and `"5abc"` is 5.
+pub(crate) fn text_to_double(text: &str) -> f64 {
+    let bytes = text.as_bytes();
+    let mut at = 0;
+    while at < bytes.len() && (bytes[at] == b' ' || bytes[at] == b'\t') {
+        at += 1;
+    }
+    let mut probe = at;
+    if probe < bytes.len() && (bytes[probe] == b'-' || bytes[probe] == b'+') {
+        probe += 1;
+    }
+    if is_hex_at(bytes, probe) {
+        return text_to_int64(text) as f64;
+    }
+    let start = at;
+    if at < bytes.len() && (bytes[at] == b'-' || bytes[at] == b'+') {
+        at += 1;
+    }
+    let mut digit = false;
+    while at < bytes.len() && bytes[at].is_ascii_digit() {
+        at += 1;
+        digit = true;
+    }
+    if at < bytes.len() && bytes[at] == b'.' {
+        at += 1;
+        while at < bytes.len() && bytes[at].is_ascii_digit() {
+            at += 1;
+            digit = true;
+        }
+    }
+    if digit && at < bytes.len() && (bytes[at] == b'e' || bytes[at] == b'E') {
+        let mut next = at + 1;
+        if next < bytes.len() && (bytes[next] == b'+' || bytes[next] == b'-') {
+            next += 1;
+        }
+        if next < bytes.len() && bytes[next].is_ascii_digit() {
+            while next < bytes.len() && bytes[next].is_ascii_digit() {
+                next += 1;
+            }
+            at = next;
+        }
+    }
+    if !digit {
+        return 0.0;
+    }
+    text[start..at].parse::<f64>().unwrap_or(0.0)
+}
+
+/// Whether the number a text holds is a whole number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `Number("0x10")` is the
+/// integer 16 and `Number("1.5")` is the float 1.5, so the shape the number
+/// was written with is the shape of the answer.
+pub(crate) fn text_holds_an_integer(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut at = 0;
+    while at < bytes.len() && (bytes[at] == b' ' || bytes[at] == b'\t') {
+        at += 1;
+    }
+    if at < bytes.len() && (bytes[at] == b'-' || bytes[at] == b'+') {
+        at += 1;
+    }
+    if is_hex_at(bytes, at) {
+        return true;
+    }
+    !bytes[at..]
+        .iter()
+        .any(|character| *character == b'.' || *character == b'e' || *character == b'E')
+}
+
 /// The number of the argument at this place, as the maths wants it.
 ///
 /// A string that holds a number is a number; a string that holds anything
@@ -5841,59 +6218,124 @@ fn integer_argument(values: &[Value], index: usize, line: u32) -> Result<i64, Ru
     }
 }
 
-/// Whether the case sense says that the letters are to be taken as they
-/// are.
+/// The sense of the case, the way v2 reads it.
 ///
-/// Measured on the binary of v2.0.19 on 2026-10-31: the parameter wants a
-/// boolean, and a boolean of AutoHotkey is a zero or a one. A number that
-/// is another one, a float and a text are not values that the parameter can
-/// take, and the name of the built-in says which one it is.
-fn case_sense(values: &[Value], index: usize, name: &str, line: u32) -> Result<bool, RuntimeError> {
+/// Measured on the binary of v2.0.19 on 2026-11-09: the parameter takes a
+/// whole number -- 1 is case-sensitive and 0 is not -- or a text. The text
+/// "On" or "1" is case-sensitive, "Off" or "0" is case-insensitive,
+/// "Locale" looks at the letters through the locale, and "Logical" is the
+/// logical order, which reads the run of digits of a name as a number
+/// ("A2" comes before "A10"). A float is not a value the parameter takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CaseSense {
+    Sensitive,
+    Insensitive,
+    Locale,
+    Logical,
+}
+
+/// The sense of the case of one parameter.
+fn case_sense(
+    values: &[Value],
+    index: usize,
+    name: &str,
+    line: u32,
+) -> Result<CaseSense, RuntimeError> {
+    let invalid = || RuntimeError {
+        message: crate::runtime::invalid_parameter(index + 1, name),
+        line,
+    };
     match values.get(index) {
-        Some(Value::Int(number)) if *number == 0 || *number == 1 => Ok(*number == 1),
-        None => Ok(false),
-        Some(_) => Err(RuntimeError {
-            message: crate::runtime::invalid_parameter(index + 1, name),
-            line,
-        }),
+        None => Ok(CaseSense::Insensitive),
+        Some(Value::Int(1)) => Ok(CaseSense::Sensitive),
+        Some(Value::Int(0)) => Ok(CaseSense::Insensitive),
+        Some(Value::Text(text)) => case_sense_of_a_text(text).ok_or_else(invalid),
+        Some(_) => Err(invalid()),
     }
 }
 
-/// How two texts stand to each other.
-fn compare_texts(left: &str, right: &str, case_sensitive: bool) -> Ordering {
-    if case_sensitive {
-        left.cmp(right)
+/// The sense of the case that a text names, when it names one.
+fn case_sense_of_a_text(text: &str) -> Option<CaseSense> {
+    if text.eq_ignore_ascii_case("On") || text == "1" {
+        Some(CaseSense::Sensitive)
+    } else if text.eq_ignore_ascii_case("Off") || text == "0" {
+        Some(CaseSense::Insensitive)
+    } else if text.eq_ignore_ascii_case("Locale") {
+        Some(CaseSense::Locale)
+    } else if text.eq_ignore_ascii_case("Logical") {
+        Some(CaseSense::Logical)
     } else {
-        left.to_lowercase().cmp(&right.to_lowercase())
+        None
     }
 }
 
-/// How two values stand to each other when a list is sorted.
-///
-/// The numbers go by their value and the text by its letters; a number
-/// and a text are compared as the text they are.
-fn compare_values(left: &Value, right: &Value) -> Ordering {
-    match (left, right) {
-        (Value::Int(left), Value::Int(right)) => left.cmp(right),
-        (Value::Float(left), Value::Float(right)) => {
-            left.partial_cmp(right).unwrap_or(Ordering::Equal)
-        }
-        (Value::Int(left), Value::Float(right)) => {
-            (*left as f64).partial_cmp(right).unwrap_or(Ordering::Equal)
-        }
-        (Value::Float(left), Value::Int(right)) => left
-            .partial_cmp(&(*right as f64))
-            .unwrap_or(Ordering::Equal),
-        _ => compare_texts(&left.to_text(), &right.to_text(), false),
+/// How two texts stand to each other, in this sense of the case.
+fn compare_texts(left: &str, right: &str, sense: CaseSense) -> Ordering {
+    match sense {
+        CaseSense::Sensitive => left.cmp(right),
+        CaseSense::Logical => compare_logically(left, right),
+        // The locale of the machine is not the tree's to look at, and the
+        // letters of the two texts are compared without the case, which is
+        // what the locale does for the letters a script sorts.
+        CaseSense::Insensitive | CaseSense::Locale => left.to_lowercase().cmp(&right.to_lowercase()),
     }
+}
+
+/// How two texts stand to each other in the logical order.
+///
+/// The run of digits of a name is a number there: "A2" comes before "A10".
+/// The letters themselves are compared without the case.
+fn compare_logically(left: &str, right: &str) -> Ordering {
+    let left: Vec<char> = left.chars().collect();
+    let right: Vec<char> = right.chars().collect();
+    let mut at = 0usize;
+    while at < left.len() && at < right.len() {
+        let a = left[at];
+        let b = right[at];
+        if a.is_ascii_digit() && b.is_ascii_digit() {
+            // The two runs of digits are the numbers they write, and the
+            // shorter run is the smaller one when the numbers are equal.
+            let mut end_a = at;
+            while end_a < left.len() && left[end_a].is_ascii_digit() {
+                end_a += 1;
+            }
+            let mut end_b = at;
+            while end_b < right.len() && right[end_b].is_ascii_digit() {
+                end_b += 1;
+            }
+            let number_a: &str = &left[at..end_a].iter().collect::<String>();
+            let number_b: &str = &right[at..end_b].iter().collect::<String>();
+            let trimmed_a = number_a.trim_start_matches('0');
+            let trimmed_b = number_b.trim_start_matches('0');
+            let order = trimmed_a
+                .len()
+                .cmp(&trimmed_b.len())
+                .then_with(|| trimmed_a.cmp(trimmed_b))
+                .then_with(|| number_a.len().cmp(&number_b.len()));
+            if order != Ordering::Equal {
+                return order;
+            }
+            at = end_a.min(end_b);
+            continue;
+        }
+        let folded_a = a.to_lowercase().next().unwrap_or(a);
+        let folded_b = b.to_lowercase().next().unwrap_or(b);
+        if folded_a != folded_b {
+            return folded_a.cmp(&folded_b);
+        }
+        at += 1;
+    }
+    left.len().cmp(&right.len())
 }
 
 /// Whether two letters are the same, with or without the case.
-fn same_letter(left: char, right: char, case_sensitive: bool) -> bool {
-    if case_sensitive {
-        left == right
-    } else {
-        left.eq_ignore_ascii_case(&right)
+fn same_letter(left: char, right: char, sense: CaseSense) -> bool {
+    match sense {
+        CaseSense::Sensitive => left == right,
+        // The locale is read as the case-insensitive compare of the tree.
+        CaseSense::Insensitive | CaseSense::Locale | CaseSense::Logical => {
+            left.to_lowercase().eq(right.to_lowercase())
+        }
     }
 }
 
@@ -5911,12 +6353,23 @@ fn find_ignoring_case(haystack: &str, needle: &str) -> Option<usize> {
         let same = hay[at..at + pin.len()]
             .iter()
             .zip(pin.iter())
-            .all(|(left, right)| same_letter(*left, *right, false));
+            .all(|(left, right)| same_letter(*left, *right, CaseSense::Insensitive));
         if same {
             return haystack.char_indices().nth(at).map(|(byte, _)| byte);
         }
     }
     None
+}
+
+/// Where the needle is in the text, in this sense of the case.
+fn find_in_sense(text: &str, needle: &str, sense: CaseSense) -> Option<usize> {
+    match sense {
+        CaseSense::Sensitive => text.find(needle),
+        // The locale is read as the case-insensitive compare of the tree.
+        CaseSense::Insensitive | CaseSense::Locale | CaseSense::Logical => {
+            find_ignoring_case(text, needle)
+        }
+    }
 }
 
 /// An error the desktop reported, with the line of the statement.
@@ -6022,19 +6475,82 @@ pub(crate) fn modulo(
     })
 }
 
-/// `Round`: the number, with the digits the caller asks for.
+/// `Round`: the number to the number of decimals the caller asks for.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: with a positive number of
+/// decimals the answer is a text of exactly that many digits after the point,
+/// zeros kept -- `Round(2.567, 2)` is "2.57", `Round(2, 2)` is "2.00" and
+/// `Round(1.005, 2)` is "1.00" -- and with the number omitted, zero or
+/// negative it is a whole number. The number is scaled by the power of ten
+/// and rounded away from zero on the half, and the two parameters are
+/// numbers: a text that does not hold one is refused.
 pub(crate) fn round_to_digits(
     _rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let number = number_argument(values, 0, line, "Round")?;
-    let digits = number_argument(values, 1, line, "Round")? as i32;
-    let factor = crate::runtime::powi(10.0, digits);
-    Ok(Value::from_number(
-        crate::runtime::round(number * factor) / factor,
-    ))
+    let decimals = match values.get(1) {
+        None => 0i32,
+        Some(value) => {
+            if !is_numeric_value(value) {
+                return Err(RuntimeError {
+                    message: crate::runtime::requires(2, "Round", TypeName::Number, value),
+                    line,
+                });
+            }
+            token_to_int64(value) as i32
+        }
+    };
+    let number = match values.first() {
+        None => 0.0,
+        Some(value) => {
+            if !is_numeric_value(value) {
+                return Err(RuntimeError {
+                    message: crate::runtime::requires(1, "Round", TypeName::Number, value),
+                    line,
+                });
+            }
+            token_to_double(value)
+        }
+    };
+    let multiplier = crate::runtime::powi(10.0, decimals);
+    let rounded = if number >= 0.0 {
+        crate::runtime::floor(number * multiplier + 0.5)
+    } else {
+        crate::runtime::ceil(number * multiplier - 0.5)
+    } / multiplier;
+    if decimals > 0 {
+        // The text is a text of the given number of decimals, and the shape
+        // of a text that large is not one a script writes: the answer is
+        // refused rather than allocated, and the reason says the parameter.
+        if decimals as usize > 100_000 {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(2, "Round"),
+                line,
+            });
+        }
+        let body = if rounded.is_nan() {
+            if rounded.is_sign_negative() {
+                "-nan(ind)".to_string()
+            } else {
+                "nan(ind)".to_string()
+            }
+        } else if rounded.is_infinite() {
+            if rounded < 0.0 {
+                "-inf".to_string()
+            } else {
+                "inf".to_string()
+            }
+        } else {
+            format!("{:.*}", decimals as usize, rounded)
+        };
+        return Ok(Value::Text(body));
+    }
+    // The whole number the rounded value is, with the nudge of the binary
+    // that keeps a value such as 1039.9999999999999 out of the answer.
+    let nudged = rounded + if rounded > 0.0 { 0.2 } else { -0.2 };
+    Ok(Value::Int(double_to_int64(nudged)))
 }
 
 /// `Sqrt`: the square root.
@@ -6355,23 +6871,71 @@ pub(crate) fn chr(
 }
 
 /// `Format`: a pattern with the values in it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the pattern is the one of
+/// the C library, with the placeholders of the dialect. A pattern that is one
+/// argument is answered as the text of it, and the arguments a placeholder
+/// names are read through their references, the way the binary reads them.
 pub(crate) fn format(
-    _rt: &mut Runtime<'_>,
+    rt: &mut Runtime<'_>,
     values: &[Value],
-    _line: u32,
+    line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Text(format_pattern(
-        &text_of(values, 0),
-        &values[1.min(values.len())..],
-    )))
+    let Some(first) = values.first() else {
+        return Ok(Value::Text(String::new()));
+    };
+    if matches!(first, Value::Object(_) | Value::List(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "Format", TypeName::String, first),
+            line,
+        });
+    }
+    // A reference reads through, the way the binary reads the variable it
+    // points at.
+    let mut arguments = Vec::with_capacity(values.len());
+    for value in values {
+        arguments.push(match value {
+            Value::Reference(reference) => rt
+                .read_reference(reference)
+                .unwrap_or_else(|| Value::Text(String::new())),
+            other => other.clone(),
+        });
+    }
+    let pattern = match arguments.first() {
+        Some(value @ (Value::Object(_) | Value::List(_))) => {
+            return Err(RuntimeError {
+                message: crate::runtime::requires(1, "Format", TypeName::String, value),
+                line,
+            })
+        }
+        Some(value) => value.to_text(),
+        None => String::new(),
+    };
+    Ok(Value::Text(format_pattern(&pattern, &arguments, line)?))
 }
 
 /// `InStr`: where the needle is in the haystack.
 ///
 /// The position counts from one, and it is zero when the needle is not
-/// there at all. The search may be limited to a part of the haystack, and
-/// the case sense says whether the letters are taken as they are.
+/// there at all. The third parameter is the sense of the case, the fourth is
+/// the place where the search begins and the fifth is the occurrence the
+/// caller wants.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09, and read out of the
+/// `BIF_InStr` of the source:
+///
+/// - a negative place is a place counted from the end -- `len + 1 + place`
+///   -- and the search runs from the right, so `InStr("hello", "l", "On",
+///   -2)` is 4; when the occurrence is not given with it, the search from
+///   the right is the default;
+/// - a negative occurrence is the search from the right, and the fourth
+///   parameter then limits the haystack to the place it names;
+/// - the matches of a search from the left do not overlap: after a match the
+///   search goes on after it, so `InStr("aaaa", "aa", "On", 1, 2)` is 3 and
+///   not 2;
+/// - the place zero and the occurrence zero are refused, and a place or an
+///   occurrence that is not a number is refused with the kind it got.
 pub(crate) fn in_str(
     _rt: &mut Runtime<'_>,
     values: &[Value],
@@ -6386,53 +6950,107 @@ pub(crate) fn in_str(
             line,
         });
     }
-    // Measured on the binary of v2.0.19 on 2026-10-31: the sense of the case
-    // is the third parameter, the place where the search begins is the
-    // fourth, and the occurrence that the caller wants is the fifth. The end
-    // of the search is not a parameter of v2.
-    let case_sensitive = case_sense(values, 2, "InStr", line)?;
-    let start = match values.get(3).and_then(|value| value.to_number()) {
-        Some(start) => (start.max(1.0) as usize - 1).min(haystack.len()),
-        None => 0,
-    };
-    let occurrence = match values.get(4) {
-        None => 1usize,
-        Some(value) => {
-            let Some(number) = value.to_number() else {
-                return Err(RuntimeError {
-                    message: crate::runtime::requires(
-                        5,
-                        "InStr",
-                        crate::runtime::TypeName::Number,
-                        value,
-                    ),
-                    line,
-                });
-            };
-            if number < 1.0 {
-                return Err(RuntimeError {
-                    message: crate::runtime::invalid_parameter(5, "InStr"),
-                    line,
-                });
-            }
-            number as usize
+    let sense = case_sense(values, 2, "InStr", line)?;
+    // The logical order is not a sense of the case that a search can use,
+    // and the binary refuses it here.
+    if sense == CaseSense::Logical {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(3, "InStr"),
+            line,
+        });
+    }
+    let start_given = values.get(3).is_some();
+    let mut offset: i64 = 1;
+    if let Some(value) = values.get(3) {
+        if !is_numeric_value(value) {
+            return Err(RuntimeError {
+                message: crate::runtime::requires(4, "InStr", TypeName::Number, value),
+                line,
+            });
         }
-    };
-    let end = haystack.len();
-    if end < start || end - start < needle.len() {
+        offset = token_to_int64(value);
+        if offset == 0 {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(4, "InStr"),
+                line,
+            });
+        }
+    }
+    let mut occurrence: i64 = 1;
+    if let Some(value) = values.get(4) {
+        if !is_numeric_value(value) {
+            return Err(RuntimeError {
+                message: crate::runtime::requires(5, "InStr", TypeName::Number, value),
+                line,
+            });
+        }
+        // The binary reads the occurrence through an `int`.
+        occurrence = token_to_int64(value) as i32 as i64;
+        if occurrence == 0 {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(5, "InStr"),
+                line,
+            });
+        }
+    }
+    let length = haystack.len() as i64;
+    if offset < 0 {
+        if values.get(4).is_none() {
+            // A place from the right with no occurrence is the search from
+            // the right.
+            occurrence = -1;
+        }
+        // A place at the very front of a 64-bit integer would run over the
+        // edge of it: the sum is taken to the edge, and the place is the
+        // first character after that.
+        offset = offset.saturating_add(length + 1);
+    }
+    if occurrence > 0 {
+        offset = offset.saturating_sub(1);
+    }
+    if offset < 0 {
+        offset = 0;
+    } else if offset > length {
+        offset = length;
+    }
+    if occurrence < 0 {
+        // The search from the right, over the part of the haystack that the
+        // fourth parameter leaves.
+        let end = if start_given { offset as usize } else { haystack.len() };
+        let wanted = (-occurrence) as u64;
+        let mut found = 0u64;
+        if needle.len() <= end {
+            for at in (0..=(end - needle.len())).rev() {
+                if haystack[at..at + needle.len()]
+                    .iter()
+                    .zip(needle.iter())
+                    .all(|(left, right)| same_letter(*left, *right, sense))
+                {
+                    found += 1;
+                    if found == wanted {
+                        return Ok(Value::Int(at as i64 + 1));
+                    }
+                }
+            }
+        }
         return Ok(Value::Int(0));
     }
-    let mut found = 0usize;
-    for at in start..=(end - needle.len()) {
-        let same = haystack[at..at + needle.len()]
+    // The search from the left: after a match it goes on after it.
+    let mut at = offset as usize;
+    let mut count: i64 = 1;
+    while at + needle.len() <= haystack.len() {
+        if haystack[at..at + needle.len()]
             .iter()
             .zip(needle.iter())
-            .all(|(left, right)| same_letter(*left, *right, case_sensitive));
-        if same {
-            found += 1;
-            if found == occurrence {
+            .all(|(left, right)| same_letter(*left, *right, sense))
+        {
+            if count == occurrence {
                 return Ok(Value::Int(at as i64 + 1));
             }
+            count += 1;
+            at += needle.len();
+        } else {
+            at += 1;
         }
     }
     Ok(Value::Int(0))
@@ -6456,39 +7074,419 @@ pub(crate) fn ord(
     Ok(Value::Int(code))
 }
 
-/// `Sort`: the values in order.
+/// The options of a `Sort`, read out of the second parameter.
+struct SortOptions {
+    /// The character that ends an item: a linefeed unless `Dx` says another.
+    delimiter: char,
+    /// How the letters are compared.
+    sense: CaseSense,
+    /// `N`: each item is read as a number.
+    numeric: bool,
+    /// `R`: the order is reversed.
+    reverse: bool,
+    /// `Pn`: the compare begins this many characters into each item.
+    column: usize,
+    /// `Z`: the blank item after a trailing delimiter is an item of its own.
+    blank_trailing: bool,
+    /// `\`: the name after the last backslash is what is compared.
+    naked_filename: bool,
+    /// `Random`: the items are shuffled.
+    random: bool,
+    /// `U`: the duplicates that end up next to each other are removed.
+    unique: bool,
+}
+
+/// The options of a `Sort`, read out of its second parameter.
 ///
-/// The list is sorted where it stands. The numbers go by their value and
-/// the text by its letters.
+/// Measured on the binary of v2.0.19 on 2026-11-09, and read out of the
+/// `BIF_Sort` of the source: the letters are read without the case, a letter
+/// the binary does not know is ignored, and the `Random` of `R` wins over
+/// the reverse order.
+fn sort_options(text: &str) -> SortOptions {
+    let chars: Vec<char> = text.chars().collect();
+    let mut options = SortOptions {
+        delimiter: '\n',
+        sense: CaseSense::Insensitive,
+        numeric: false,
+        reverse: false,
+        column: 0,
+        blank_trailing: false,
+        naked_filename: false,
+        random: false,
+        unique: false,
+    };
+    let mut at = 0usize;
+    while at < chars.len() {
+        match chars[at].to_ascii_uppercase() {
+            'C' => {
+                if chars.get(at + 1).map(|c| c.to_ascii_uppercase()) == Some('L') {
+                    let rest: String = chars[at + 2..].iter().take(6).collect();
+                    if rest.eq_ignore_ascii_case("ogical") {
+                        options.sense = CaseSense::Logical;
+                        at += 8;
+                    } else {
+                        let rest: String = chars[at + 2..].iter().take(5).collect();
+                        if rest.eq_ignore_ascii_case("ocale") {
+                            at += 7;
+                        } else {
+                            at += 2;
+                        }
+                        options.sense = CaseSense::Locale;
+                    }
+                } else {
+                    let rest: String = chars[at + 1..].iter().take(3).collect();
+                    if rest.eq_ignore_ascii_case("Off") {
+                        options.sense = CaseSense::Insensitive;
+                        at += 4;
+                    } else if chars.get(at + 1) == Some(&'0') {
+                        options.sense = CaseSense::Insensitive;
+                        at += 1;
+                    } else {
+                        let rest: String = chars[at + 1..].iter().take(2).collect();
+                        if rest.eq_ignore_ascii_case("On") {
+                            at += 3;
+                        } else {
+                            at += 1;
+                        }
+                        options.sense = CaseSense::Sensitive;
+                    }
+                }
+            }
+            'D' => {
+                // The character after the `D` is the delimiter itself.
+                if at + 1 < chars.len() {
+                    options.delimiter = chars[at + 1];
+                    at += 2;
+                } else {
+                    at += 1;
+                }
+            }
+            'N' => {
+                options.numeric = true;
+                at += 1;
+            }
+            'P' => {
+                // The number after the `P` is the column, and a number that
+                // is not one starts at the first character.
+                let mut next = at + 1;
+                while next < chars.len() && chars[next].is_ascii_whitespace() {
+                    next += 1;
+                }
+                let negative = next < chars.len() && chars[next] == '-';
+                if negative || (next < chars.len() && chars[next] == '+') {
+                    next += 1;
+                }
+                let mut value: i64 = 0;
+                while next < chars.len() && chars[next].is_ascii_digit() {
+                    value = value
+                        .saturating_mul(10)
+                        .saturating_add((chars[next] as u8 - b'0') as i64);
+                    next += 1;
+                }
+                if negative {
+                    value = -value;
+                }
+                options.column = if value < 1 { 1 } else { value as usize } - 1;
+                at += 1;
+            }
+            'R' => {
+                let rest: String = chars[at..].iter().take(6).collect();
+                if rest.eq_ignore_ascii_case("Random") {
+                    options.random = true;
+                    at += 6;
+                } else {
+                    options.reverse = true;
+                    at += 1;
+                }
+            }
+            'U' => {
+                options.unique = true;
+                at += 1;
+            }
+            'Z' => {
+                options.blank_trailing = true;
+                at += 1;
+            }
+            '\\' => {
+                options.naked_filename = true;
+                at += 1;
+            }
+            _ => at += 1,
+        }
+    }
+    options
+}
+
+/// The key of an item: the part of it that the options compare.
+fn sort_key(item: &str, options: &SortOptions) -> String {
+    if options.column == 0 {
+        return item.to_string();
+    }
+    item.chars().skip(options.column).collect()
+}
+
+/// The name of an item after the last backslash.
+fn naked_filename(item: &str) -> &str {
+    match item.rfind('\\') {
+        Some(at) => &item[at + 1..],
+        None => item,
+    }
+}
+
+/// `Sort`: the items of a text in order.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09, and read out of the
+/// `BIF_Sort` of the source:
+///
+/// - the second parameter is the options, read letter by letter: `C`, `C1`
+///   and `COn` take the case into the sort, `C0`, `COff` and the default
+///   leave it out, `CL`/`CLocale` look at the letters through the locale and
+///   `CLogical` reads a run of digits as a number; `Dx` sets the delimiter to
+///   the character after it; `N` reads each item as a number; `Pn` starts the
+///   compare at the nth character; `R` reverses the order; `Random` shuffles;
+///   `U` removes the adjacent duplicates; `Z` counts the blank item after a
+///   trailing delimiter; `\` compares the name after the last backslash. A
+///   letter the binary does not know is ignored.
+/// - the third parameter is a callback, called with the two items and the
+///   offset of the second from the first in the original text; the sign of
+///   the number it answers orders the two, and zero leaves them in place.
+/// - the first parameter is a text; an array is refused with the reason, and
+///   so is a value that is not a function when the third one is given.
 pub(crate) fn sort(
-    _rt: &mut Runtime<'_>,
+    rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    if values.len() > 1 {
-        // The options of AutoHotkey are not carried yet.
-        return Err(RuntimeError {
-            message: "the options of the sort are not carried yet.".into(),
+    let contents = sort_text(values, 0, line)?;
+    let options = sort_options(&sort_text(values, 1, line)?);
+    let callback = match values.get(2) {
+        None => None,
+        Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => Some(value.clone()),
+        Some(_) => {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(3, "Sort"),
+                line,
+            })
+        }
+    };
+    if contents.is_empty() {
+        return Ok(Value::Text(String::new()));
+    }
+    // A trailing delimiter is the terminator of the last item unless `Z`
+    // says that the blank item after it is an item of its own.
+    let mut working = contents.clone();
+    let mut terminate_last = false;
+    let mut trailing_crlf = false;
+    if !options.blank_trailing && working.ends_with(options.delimiter) {
+        terminate_last = true;
+    } else if options.delimiter == '\n' {
+        // The lines of a CRLF list are sorted as if the delimiter were the
+        // linefeed alone, and the carriage return stays at the end of the
+        // item: measured on 2026-11-09, "B`r`nA" sorts to "A`r`nB".
+        let chars: Vec<char> = working.chars().collect();
+        if let Some(at) = chars.iter().position(|c| *c == '\n') {
+            if at > 0 && chars[at - 1] == '\r' {
+                trailing_crlf = true;
+                terminate_last = true;
+                working.push_str("\r\n");
+            }
+        }
+    }
+    let mut items: Vec<String> = working
+        .split(options.delimiter)
+        .map(|item| item.to_string())
+        .collect();
+    if terminate_last {
+        // The blank item that the last delimiter makes is not an item.
+        items.pop();
+    }
+    if items.len() == 1 {
+        return Ok(Value::Text(contents));
+    }
+    // Where each item begins in the text being sorted: the callback is told
+    // the distance between the two items it compares.
+    let mut positions: Vec<usize> = Vec::with_capacity(items.len());
+    let mut position = 0usize;
+    for item in &items {
+        positions.push(position);
+        position += item.chars().count() + 1;
+    }
+    let keys: Vec<String> = items
+        .iter()
+        .map(|item| sort_key(item, &options))
+        .collect();
+    let mut order: Vec<usize> = (0..items.len()).collect();
+    let mut failure: Option<RuntimeError> = None;
+    if let Some(callback) = &callback {
+        // A function is called as a value, and any other object is asked for
+        // its `Call` method: measured on the binary of v2.0.19 on 2026-11-09,
+        // an array as the third parameter of a `Sort` answers "This value of
+        // type "Array" has no method named "Call".".
+        let is_a_function = match callback {
+            Value::Object(object) => {
+                let class = object.borrow().class.to_lowercase();
+                class == "func" || class == "boundfunc" || class == "closure"
+            }
+            _ => false,
+        };
+        let no_method = |value: &Value| RuntimeError {
+            message: format!(
+                "This value of type \"{}\" has no method named \"Call\".",
+                value.the_kind()
+            ),
             line,
+        };
+        // The callback is called with the two items and the distance
+        // between them, and a zero leaves them as they are.
+        order.sort_by(|&left, &right| {
+            if failure.is_some() {
+                return Ordering::Equal;
+            }
+            let offset = positions[right] as i64 - positions[left] as i64;
+            let arguments = [
+                Value::Text(items[left].clone()),
+                Value::Text(items[right].clone()),
+                Value::Int(offset),
+            ];
+            let called = if is_a_function {
+                match crate::classes::func::call_the_value(callback, &arguments, rt, line) {
+                    Some(Ok(value)) => Ok(value),
+                    Some(Err(error)) => Err(the_failure_in_one(error, line)),
+                    None => Err(no_method(callback)),
+                }
+            } else {
+                match rt.call_a_method_of_an_object(callback, "Call", &arguments, line) {
+                    Ok(value) => Ok(value),
+                    Err(error) => Err(the_failure_in_one(error, line)),
+                }
+            };
+            match called {
+                Ok(value) => match token_to_int64(&value) {
+                    number if number < 0 => Ordering::Less,
+                    number if number > 0 => Ordering::Greater,
+                    _ => Ordering::Equal,
+                },
+                Err(error) => {
+                    failure = Some(error);
+                    Ordering::Equal
+                }
+            }
+        });
+    } else if options.random {
+        // A shuffle: the items are put in a random order, and the options
+        // of `N`, `C` and `CL` are still what the duplicates are read by.
+        let now = rt.now_ms();
+        for at in (1..order.len()).rev() {
+            let pick = (unit_random(now) * (at as f64 + 1.0)) as usize;
+            order.swap(at, pick.min(at));
+        }
+    } else {
+        order.sort_by(|&left, &right| {
+            let order = if options.naked_filename {
+                compare_texts(
+                    naked_filename(&items[left]),
+                    naked_filename(&items[right]),
+                    options.sense,
+                )
+            } else if options.numeric {
+                let a = text_to_double(&keys[left]);
+                let b = text_to_double(&keys[right]);
+                // A tie keeps the two in the order they came in.
+                a.partial_cmp(&b).unwrap_or(Ordering::Equal)
+            } else {
+                compare_texts(&keys[left], &keys[right], options.sense)
+            };
+            // A value that compares equal keeps the place it had, and the
+            // reverse order turns that place around too.
+            let order = if order == Ordering::Equal {
+                left.cmp(&right)
+            } else {
+                order
+            };
+            if options.reverse {
+                order.reverse()
+            } else {
+                order
+            }
         });
     }
-    match values.first() {
-        Some(Value::List(items)) => {
-            let mut sorted = items.clone();
-            sorted.sort_by(compare_values);
-            Ok(Value::List(sorted))
+    if let Some(failure) = failure {
+        return Err(failure);
+    }
+    // The duplicates that ended up next to each other are removed, and the
+    // rule of a duplicate is the rule of the sort that made them adjacent.
+    let mut kept: Vec<usize> = Vec::with_capacity(order.len());
+    for &index in &order {
+        if options.unique {
+            if let Some(&previous) = kept.last() {
+                if sort_duplicates(&items[previous], &items[index], &options) {
+                    continue;
+                }
+            }
         }
-        Some(Value::Text(text)) => {
-            // A text is a list of lines, and the lines are what is sorted.
-            let mut lines: Vec<&str> = text.split('\n').collect();
-            lines.sort_by(|left, right| compare_texts(left, right, false));
-            Ok(Value::Text(lines.join("\n")))
+        kept.push(index);
+    }
+    let mut out = String::with_capacity(contents.len());
+    for (at, &index) in kept.iter().enumerate() {
+        out.push_str(&items[index]);
+        if at + 1 < kept.len() || terminate_last {
+            out.push(options.delimiter);
         }
-        _ => Err(RuntimeError {
-            message: crate::runtime::invalid_parameter(1, "Sort"),
+    }
+    if trailing_crlf && out.ends_with("\r\n") {
+        out.truncate(out.len() - 2);
+    }
+    Ok(Value::Text(out))
+}
+
+/// The text of one parameter of a `Sort`.
+fn sort_text(values: &[Value], index: usize, line: u32) -> Result<String, RuntimeError> {
+    match values.get(index) {
+        None => Ok(String::new()),
+        Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => {
+            Err(RuntimeError {
+                message: crate::runtime::requires(index + 1, "Sort", TypeName::String, value),
+                line,
+            })
+        }
+        Some(value) => Ok(value.to_text()),
+    }
+}
+
+/// Whether two items of a sort are a duplicate of each other.
+///
+/// The rule is the one of the binary: a numeric sort compares the numbers,
+/// the logical order compares the names in that order, and the other sorts
+/// compare the two items with their sense of the case.
+fn sort_duplicates(left: &str, right: &str, options: &SortOptions) -> bool {
+    if options.numeric && options.column == 0 {
+        text_to_double(left) == text_to_double(right)
+    } else if options.sense == CaseSense::Logical {
+        compare_logically(left, right) == Ordering::Equal
+    } else {
+        compare_texts(left, right, options.sense) == Ordering::Equal
+    }
+}
+
+/// The failure of a call, as the failure of the built-in that made it.
+///
+/// The details of the failure are not carried here: a built-in answers with
+/// the message and the line, and the runtime names the built-in in the
+/// `What`.
+fn the_failure_in_one(error: RuntimeFailure, line: u32) -> RuntimeError {
+    match error {
+        RuntimeFailure::Error(error)
+        | RuntimeFailure::Detailed(error, _)
+        | RuntimeFailure::Fatal(error) => error,
+        RuntimeFailure::Thrown(value) => RuntimeError {
+            message: value.to_text(),
             line,
-        }),
+        },
+        _ => RuntimeError {
+            message: "the sort stopped the run.".to_string(),
+            line,
+        },
     }
 }
 
@@ -6554,7 +7552,15 @@ pub(crate) fn str_replace(
     let haystack = text_argument("StrReplace", values, 0, line)?;
     let needle = text_argument("StrReplace", values, 1, line)?;
     let replacement = text_argument("StrReplace", values, 2, line)?;
-    let case_sensitive = case_sense(values, 3, "StrReplace", line)?;
+    let sense = case_sense(values, 3, "StrReplace", line)?;
+    // The logical order is not a sense of the case that a replacement can
+    // use, and the binary refuses it here.
+    if sense == CaseSense::Logical {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(4, "StrReplace"),
+            line,
+        });
+    }
     let limit = number_of(values, 5) as i64;
     let mut out = String::with_capacity(haystack.len());
     let mut rest = haystack.as_str();
@@ -6562,11 +7568,7 @@ pub(crate) fn str_replace(
     // Measured on the binary of v2.0.19 on 2026-10-31: a needle that is
     // empty changes nothing, and the text comes back as it is.
     while !needle.is_empty() {
-        let found = if case_sensitive {
-            rest.find(needle.as_str())
-        } else {
-            find_ignoring_case(rest, &needle)
-        };
+        let found = find_in_sense(rest, &needle, sense);
         let Some(at) = found else {
             break;
         };
@@ -6597,12 +7599,322 @@ pub(crate) fn str_replace(
     Ok(Value::Text(out))
 }
 
-/// `VarSetStrCapacity`: the capacity of a string.
+/// The encodings the string functions of v2 name.
 ///
-/// v2 empties the string when it is given a capacity, and it answers the
-/// capacity. Without a capacity it answers the length of the string and
-/// leaves the string alone. The tree keeps no capacity of its own: it
-/// answers the capacity it is given.
+/// Measured on the binary of v2.0.19 on 2026-11-09: `UTF-8`, `UTF-16` and
+/// `CP0` are the names it takes, the case does not matter, and the two
+/// names that are spelled without the hyphen -- `UTF8`, `UTF16` -- are not
+/// names. The encoding of a call that does not name one is `UTF-16`, the
+/// text of the machine.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TextEncoding {
+    Utf8,
+    Utf16,
+    /// The code page of the machine. The tree is UTF-8 everywhere, and the
+    /// code page of the box is not asked: the letters of ASCII are the
+    /// same bytes in both, and the others are the ones the tree can hold.
+    Cp0,
+}
+
+/// The encoding a string function was given.
+fn the_encoding_of(name: Option<&Value>) -> Result<TextEncoding, String> {
+    match name {
+        None => Ok(TextEncoding::Utf16),
+        Some(Value::Text(text)) => match text.to_ascii_lowercase().as_str() {
+            "utf-8" => Ok(TextEncoding::Utf8),
+            "utf-16" => Ok(TextEncoding::Utf16),
+            "cp0" => Ok(TextEncoding::Cp0),
+            _ => Err("Invalid Encoding.".to_string()),
+        },
+        Some(_) => Err("Invalid Encoding.".to_string()),
+    }
+}
+
+/// The bytes of a text, in an encoding.
+fn the_bytes_of(text: &str, encoding: TextEncoding) -> Vec<u8> {
+    match encoding {
+        TextEncoding::Utf8 | TextEncoding::Cp0 => text.as_bytes().to_vec(),
+        TextEncoding::Utf16 => {
+            let mut bytes: Vec<u8> = Vec::with_capacity(text.len() * 2);
+            for unit in text.encode_utf16() {
+                bytes.extend_from_slice(&unit.to_le_bytes());
+            }
+            bytes
+        }
+    }
+}
+
+/// The terminator of an encoding: the bytes that end a text in it.
+fn the_terminator_of(encoding: TextEncoding) -> Vec<u8> {
+    match encoding {
+        TextEncoding::Utf8 | TextEncoding::Cp0 => vec![0],
+        TextEncoding::Utf16 => vec![0, 0],
+    }
+}
+
+/// The text of some bytes, in an encoding, up to a terminator or a length.
+///
+/// The length is the number of the units of the encoding: the bytes of
+/// `UTF-8` and the sixteen-bit units of `UTF-16`. Measured on the binary of
+/// v2.0.19 on 2026-11-09: `StrGet(buf, 2, "UTF-8")` answers the first two
+/// characters of a text of ASCII.
+fn the_text_of(bytes: &[u8], encoding: TextEncoding, length: Option<usize>) -> String {
+    match encoding {
+        TextEncoding::Utf8 | TextEncoding::Cp0 => {
+            let end = bytes
+                .iter()
+                .position(|byte| *byte == 0)
+                .unwrap_or(bytes.len());
+            let end = length.map(|length| end.min(length)).unwrap_or(end);
+            String::from_utf8_lossy(&bytes[..end]).into_owned()
+        }
+        TextEncoding::Utf16 => {
+            let mut units: Vec<u16> = Vec::new();
+            let mut at = 0;
+            while at + 1 < bytes.len() {
+                let unit = u16::from_le_bytes([bytes[at], bytes[at + 1]]);
+                if unit == 0 {
+                    break;
+                }
+                units.push(unit);
+                at += 2;
+                if let Some(length) = length {
+                    if units.len() >= length {
+                        break;
+                    }
+                }
+            }
+            String::from_utf16_lossy(&units)
+        }
+    }
+}
+
+/// `StrPtr`: the address of the text of a string.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the parameter is a
+/// text, and nothing else -- a number and an object are refused with the
+/// kind they are -- and the answer is the address of the buffer of the
+/// text, which is a number above zero and the same number for the same
+/// variable read twice. The tree keeps the addresses of the texts that a
+/// script asks for; the same text answers the same address.
+pub(crate) fn str_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = match values.first() {
+        Some(Value::Text(text)) => text.clone(),
+        Some(value) => {
+            return Err(RuntimeError {
+                message: crate::runtime::expected_type(TypeName::String, value.type_name()),
+                line,
+            })
+        }
+        None => String::new(),
+    };
+    Ok(Value::Int(rt.the_address_of_a_text(&text)))
+}
+
+/// `StrGet`: the text at an address, or the text of a buffer.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the source is a buffer
+/// or an address, and a text there is refused with "Parameter #1 invalid.";
+/// the length and the encoding are the second and the third parameters,
+/// and a second parameter that is a text is the encoding, with the length
+/// left to the terminator. The encoding of a name the binary does not know
+/// is refused with "Invalid Encoding.".
+pub(crate) fn str_get(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(source) = values.first() else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "StrGet"),
+            line,
+        });
+    };
+    let bytes: Vec<u8> = match source {
+        // The bytes of a buffer are the bytes of the buffer.
+        Value::Object(_) => {
+            crate::classes::buffer::raw_bytes(source, line).map_err(|failure| RuntimeError { message: the_message_of(failure), line })?
+        }
+        // The address of a text of the script: the text is a UTF-16 text,
+        // and the reading of it with another encoding reads the bytes of
+        // it, the way the binary reads the buffer of the variable.
+        Value::Int(address) => match rt.the_text_at_an_address(*address) {
+            Some(text) => the_bytes_of(&text, TextEncoding::Utf16),
+            None => {
+                return Err(RuntimeError {
+                    message: crate::runtime::invalid_parameter(1, "StrGet"),
+                    line,
+                })
+            }
+        },
+        Value::Text(_) => {
+            return Err(RuntimeError {
+                message: "Parameter #1 invalid.".to_string(),
+                line,
+            })
+        }
+        _ => {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(1, "StrGet"),
+                line,
+            })
+        }
+    };
+    // The second parameter is the length when it is a number, and the
+    // encoding when it is a text; the third one is the encoding.
+    let (length, encoding_name) = match values.get(1) {
+        Some(value) if is_numeric_value(value) => (
+            Some(token_to_int64(value).max(0) as usize),
+            values.get(2),
+        ),
+        Some(value) => (None, Some(value)),
+        None => (None, None),
+    };
+    let encoding = the_encoding_of(encoding_name).map_err(|message| RuntimeError { message, line })?;
+    Ok(Value::Text(the_text_of(&bytes, encoding, length)))
+}
+
+/// `StrPut`: write a text into a buffer, or say how many bytes it needs.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the parameters are the
+/// text, the target, the encoding and the length; a second parameter that
+/// is a text is the encoding, with the target left out -- the order of the
+/// v1 -- and a target that is not a buffer is refused with "Parameter #2 of
+/// StrPut is invalid.". Without a target the answer is the number of the
+/// bytes the text needs, terminator included. The third parameter may be a
+/// number: it is the size the caller says the target has, in characters,
+/// and a text that does not fit in it is refused with "Invalid Length.".
+pub(crate) fn str_put(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let _ = &rt;
+    let text = match values.first() {
+        Some(Value::Text(text)) => text.clone(),
+        Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => {
+            return Err(RuntimeError {
+                message: crate::runtime::requires(1, "StrPut", TypeName::String, value),
+                line,
+            })
+        }
+        Some(value) => value.to_text(),
+        None => String::new(),
+    };
+    // The parameters, in the two orders that the binary takes.
+    let (target, encoding_name, length_name) = match values.get(1) {
+        None => (None, values.get(2), values.get(3)),
+        Some(value @ Value::Object(_)) => (Some(value), values.get(2), values.get(3)),
+        Some(value @ Value::Text(_)) => (None, Some(value), values.get(2)),
+        Some(_) => {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(2, "StrPut"),
+                line,
+            })
+        }
+    };
+    // A length with no target is not a use of v2.
+    if target.is_none() && length_name.is_some() {
+        return Err(RuntimeError {
+            message: "Invalid parameter(s).".to_string(),
+            line,
+        });
+    }
+    // The size the caller says the target has, when the third parameter is
+    // a number instead of the name of an encoding.
+    let mut capacity: Option<i64> = None;
+    let encoding = match encoding_name {
+        Some(value) if is_numeric_value(value) => {
+            capacity = Some(token_to_int64(value));
+            TextEncoding::Utf16
+        }
+        other => the_encoding_of(other).map_err(|message| RuntimeError { message, line })?,
+    };
+    let characters = text.chars().count() as i64;
+    let mut bytes = the_bytes_of(&text, encoding);
+    let mut terminator = true;
+    if let Some(capacity) = capacity {
+        if capacity < 0 || capacity < characters {
+            return Err(RuntimeError {
+                message: "Invalid Length.".to_string(),
+                line,
+            });
+        }
+        // A text that fits exactly fills the buffer it was told about, and
+        // there is no room for the terminator: that is the answer of the
+        // binary, which counts the bytes it wrote.
+        if capacity == characters {
+            terminator = false;
+        }
+    }
+    if terminator {
+        bytes.extend_from_slice(&the_terminator_of(encoding));
+    }
+    let Some(target) = target else {
+        return Ok(Value::Int(bytes.len() as i64));
+    };
+    // The target is a buffer, and it has to hold the text.
+    let size = match crate::classes::buffer::size_of(target, line) {
+        Ok(size) => size,
+        Err(_) => {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(2, "StrPut"),
+                line,
+            })
+        }
+    };
+    if bytes.len() as i64 > size {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(2, "StrPut"),
+            line,
+        });
+    }
+    match crate::classes::buffer::fill(target, &bytes, line) {
+        Ok(_) => Ok(Value::Int(bytes.len() as i64)),
+        Err(_) => Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(2, "StrPut"),
+            line,
+        }),
+    }
+}
+
+/// The message of a failure, for a handler that has no room for the whole
+/// of it.
+fn the_message_of(failure: crate::runtime::RuntimeFailure) -> String {
+    match failure {
+        crate::runtime::RuntimeFailure::Error(error) => error.message,
+        crate::runtime::RuntimeFailure::Detailed(error, _) => error.message,
+        _ => "the runtime cannot answer that.".to_string(),
+    }
+}
+
+/// `VarSetStrCapacity`: the room of the string of a variable.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09, with the source of the
+/// binary read beside the measurements:
+///
+/// - with a capacity the variable is emptied -- the buffer of it is made
+///   again, and the text in it is the text of nothing -- and the answer is
+///   the capacity of the variable, which is the one asked for when it is
+///   greater than the one the variable had;
+/// - with zero the buffer is freed and the text is emptied, and the answer
+///   is the capacity the variable had: a text of the tree has no buffer to
+///   give back, and the capacity of it stays the one of the size class;
+/// - with nothing the variable is not touched, and the answer is the
+///   capacity it has; a variable that holds a number or an object is
+///   refused with the kind it holds, because a capacity is a capacity of a
+///   text;
+/// - with minus one the answer is the length of the text, and not the
+///   capacity of it;
+/// - a capacity that is negative and not minus one is an invalid
+///   parameter, and so is one that can not be a number of characters.
 pub(crate) fn var_set_str_capacity(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -6626,28 +7938,50 @@ pub(crate) fn var_set_str_capacity(
             line,
         });
     };
-    // A variable that has no value is a text that is empty, and the
-    // capacity of it is nothing.
-    //
-    // Measured on the binary of v2.0.19 on 2026-10-31: the v2 takes the
-    // reference of a variable that has no value and answers the capacity
-    // that it was given.
-    let current = rt
-        .read_reference(reference)
-        .unwrap_or(Value::Text(String::new()));
     let Some(capacity) = values.get(1) else {
-        return Ok(Value::Int(current.to_text().chars().count() as i64));
-    };
-    let capacity = match capacity.to_number_strict() {
-        Ok(number) => number as i64,
-        Err(kind) => {
-            return Err(RuntimeError {
-                message: crate::runtime::expected_type(TypeName::Integer, kind),
+        // The capacity that the variable has, and the refusal of a value
+        // that is not a text at all.
+        return match rt.read_reference(reference) {
+            Some(Value::Text(_)) | None => Ok(Value::Int(rt.string_capacity(reference))),
+            Some(other) => Err(RuntimeError {
+                message: crate::runtime::expected_type(TypeName::String, other.type_name()),
                 line,
-            });
-        }
+            }),
+        };
     };
+    // The number is read the way the binary reads it: a value of any kind
+    // is a number, and the text of it is parsed.
+    let requested = token_to_int64(capacity);
+    if requested == -1 {
+        // The one capacity that answers the length of the text.
+        let length = rt
+            .read_reference(reference)
+            .map(|value| value.to_text().chars().count() as i64)
+            .unwrap_or(0);
+        return Ok(Value::Int(length));
+    }
+    if !(0..=i64::MAX / 2).contains(&requested) {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(2, "VarSetStrCapacity"),
+            line,
+        });
+    }
+    let current = rt.string_capacity(reference);
+    let asked_for = rt.keeps_a_string_capacity(reference);
+    // The variable is emptied by the call, whether the capacity grows or
+    // not: the buffer that holds it is made again.
     rt.write_reference(value, Value::Text(String::new()));
+    let capacity = if requested > 0 {
+        rt.set_string_capacity(reference, requested.max(current));
+        requested.max(current)
+    } else if asked_for {
+        // The free of the binary gives a buffer that was asked for back,
+        // and leaves the simple allocation of a text alone.
+        rt.forget_a_string_capacity(reference);
+        0
+    } else {
+        current
+    };
     Ok(Value::Int(capacity))
 }
 
@@ -6820,6 +8154,33 @@ pub(crate) fn type_of(
     Ok(Value::Text(name.into()))
 }
 
+/// `IsSet`: whether the variable of the caller has a value.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a variable that has no
+/// value is zero and not a failure, a name that was never written is zero,
+/// and an argument that is not a variable is refused with "IsSet requires a
+/// variable.".
+pub(crate) fn is_set(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match values.first() {
+        // The runtime hands the argument over as a reference only when the
+        // script wrote a variable: a reference of its own -- `&x` -- is a
+        // value, and v2 refuses it.
+        Some(Value::Reference(reference)) if reference.alias => {
+            let set = rt.read_reference(reference).is_some();
+            Ok(Value::Int(if set { 1 } else { 0 }))
+        }
+        _ => Err(RuntimeError {
+            message: "IsSet requires a variable.".to_string(),
+            line,
+        }),
+    }
+}
+
 /// The text of the value, when it is text.
 ///
 /// The questions that are about the letters of a value are not about
@@ -6975,33 +8336,114 @@ fn is_time(value: &Value) -> bool {
 /// `RegExMatch`: where the pattern is in the text.
 ///
 /// The position counts from one, and it is zero when the pattern is not
-/// there at all. v2 writes the matches of the pattern into a variable of
-/// the caller, and this tree does not carry that yet.
+/// there at all. The third parameter is the variable that the match is
+/// written into, and the fourth is the place where the search begins.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09, with the source of it
+/// read beside the measurements:
+///
+/// - the match is an object of the class `RegExMatchInfo`, and a text that
+///   does not match leaves the variable with the empty text in it -- set,
+///   and not unset;
+/// - the place counts from one, and a place that is zero or negative is a
+///   place from the end of the text: `len + place`, and zero when that is
+///   before the first character, so the place zero is the end of the text;
+/// - a value that is not a variable reference is refused with "Parameter
+///   #3 of RegExMatch requires a variable reference, but received a ...".
 pub(crate) fn regex_match(
-    _rt: &mut Runtime<'_>,
+    rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    if values.len() > 2 {
-        return Err(RuntimeError {
-            message: "the matches of the pattern are not carried into a variable yet.".into(),
-            line,
-        });
+    // The output variable, when the caller gives one.
+    let output = match values.get(2) {
+        None => None,
+        Some(value @ Value::Reference(_)) => Some(value.clone()),
+        Some(value) => {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(
+                    3,
+                    "RegExMatch",
+                    "a variable reference",
+                    value,
+                ),
+                line,
+            })
+        }
+    };
+    let text = regex_text(values, 0, "RegExMatch", line)?;
+    let pattern = regex_text(values, 1, "RegExMatch", line)?;
+    // The place where the search begins, the way `BIF_RegEx` reads it.
+    let mut starting = 0usize;
+    if let Some(value) = values.get(3) {
+        if !is_numeric_value(value) {
+            return Err(RuntimeError {
+                message: crate::runtime::requires(4, "RegExMatch", TypeName::Number, value),
+                line,
+            });
+        }
+        let length = text.chars().count() as i64;
+        let mut place = token_to_int64(value) as i32 as i64;
+        if place <= 0 {
+            place += length;
+            if place < 0 {
+                place = 0;
+            }
+        } else if place > length {
+            place = length;
+        } else {
+            place -= 1;
+        }
+        starting = place as usize;
     }
-    let text = text_of(values, 0);
-    let pattern = text_of(values, 1);
     let regex = crate::regex::Regex::new(&pattern).map_err(|reason| RuntimeError {
         message: reason,
         line,
     })?;
-    let found = regex.find(&text).map_err(|reason| RuntimeError {
-        message: reason,
-        line,
-    })?;
-    Ok(Value::Int(
-        found.map(|found| found.span().0 as i64 + 1).unwrap_or(0),
-    ))
+    let found = regex
+        .find_at(&text, starting)
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
+    let Some(found) = found else {
+        // The text that does not match leaves the variable with the empty
+        // text in it: the variable is set, and it holds nothing.
+        if let Some(output) = &output {
+            rt.write_reference(output, Value::Text(String::new()));
+        }
+        return Ok(Value::Int(0));
+    };
+    let place = found.span().0 as i64 + 1;
+    if let Some(output) = &output {
+        rt.write_reference(
+            output,
+            crate::classes::regexmatchinfo::of(&text, &regex, &found),
+        );
+    }
+    Ok(Value::Int(place))
+}
+
+/// The text of one pattern parameter of a `RegExMatch` or a `RegExReplace`.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: an object is refused
+/// with the kind it got, and a value that is not an object is written as
+/// its text.
+fn regex_text(
+    values: &[Value],
+    index: usize,
+    name: &str,
+    line: u32,
+) -> Result<String, RuntimeError> {
+    match values.get(index) {
+        None => Ok(String::new()),
+        Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => Err(RuntimeError {
+            message: crate::runtime::requires(index + 1, name, TypeName::String, value),
+            line,
+        }),
+        Some(value) => Ok(value.to_text()),
+    }
 }
 
 /// `RegExReplace`: the text with the matches of the pattern replaced.
@@ -7016,8 +8458,8 @@ pub(crate) fn regex_replace(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text = text_argument("RegExReplace", values, 0, line)?;
-    let pattern = text_argument("RegExReplace", values, 1, line)?;
+    let text = regex_text(values, 0, "RegExReplace", line)?;
+    let pattern = regex_text(values, 1, "RegExReplace", line)?;
     let replacement = text_argument("RegExReplace", values, 2, line)?;
     let limit = number_of(values, 4) as i64;
     // The place where the search starts counts from one, the way
@@ -7042,7 +8484,7 @@ pub(crate) fn regex_replace(
         };
         let (start, end) = found.span();
         out.extend(characters[at..start].iter());
-        out.push_str(&expand_replacement(&replacement, &found, &characters));
+        out.push_str(&expand_replacement(&replacement, &regex, &found, &characters));
         replaced += 1;
         if end == start {
             // A match of no characters: the search has to move on, or it
@@ -7084,6 +8526,7 @@ pub(crate) fn regex_replace(
 /// A group is named with `$1` or `\1`, and `$$` is a dollar of its own.
 fn expand_replacement(
     replacement: &str,
+    regex: &crate::regex::Regex,
     found: &crate::regex::Match,
     characters: &[char],
 ) -> String {
@@ -7117,10 +8560,19 @@ fn expand_replacement(
                 out.push_str(&found.group(group, characters).unwrap_or_default());
                 rest = after;
             }
-            Err(_) => {
-                out.push(marker);
-                rest = tail;
-            }
+            // A group that is named: `${year}`. Measured on the binary of
+            // v2.0.19 on 2026-11-09: the braced name is read, and the name
+            // that is not a group is left as the text it was written as.
+            Err(_) => match regex.group_number(name) {
+                Some(group) => {
+                    out.push_str(&found.group(group, characters).unwrap_or_default());
+                    rest = after;
+                }
+                None => {
+                    out.push(marker);
+                    rest = tail;
+                }
+            },
         }
     }
     out.push_str(rest);
@@ -7462,7 +8914,12 @@ pub(crate) fn str_title(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text = text_of(values, 0);
+    Ok(Value::Text(title_case(&text_of(values, 0))))
+}
+
+/// The text with the first letter of each word in the upper case and the
+/// rest of it in the lower case.
+fn title_case(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut first = true;
     for character in text.chars() {
@@ -7478,7 +8935,7 @@ pub(crate) fn str_title(
             first = true;
         }
     }
-    Ok(Value::Text(out))
+    out
 }
 
 /// `VerCompare`: two version strings, compared.
@@ -7924,6 +9381,536 @@ pub(crate) fn win_get_title(
     Ok(Value::Text(title.unwrap_or_default()))
 }
 
+// -- the processes ----------------------------------------------------------------
+
+/// The process a call names: the text of it, and nothing when the call names
+/// nothing.
+///
+/// The text is the pid or the name of a process, and the desktop reads it the
+/// way the binary reads it: a text that is a number is a pid, and the rest is
+/// a name. Nothing means the process of the script itself.
+fn the_process_of(values: &[Value], index: usize) -> Option<String> {
+    values.get(index).map(|value| value.to_text())
+}
+
+/// The timeout of a wait, in seconds, and nothing when the call gives none.
+///
+/// The timeout of the binary is a number of seconds and it may be a text that
+/// holds one; a call that gives none waits forever.
+fn the_timeout_of(
+    values: &[Value],
+    index: usize,
+    name: &str,
+    line: u32,
+) -> Result<Option<f64>, RuntimeError> {
+    if values.get(index).is_none() {
+        return Ok(None);
+    }
+    Ok(Some(number_argument(values, index, line, name)?))
+}
+
+/// The failure of a process that is not there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ProcessGetName` and
+/// `ProcessGetPath` of a pid that is not there answer "Target process not
+/// found.", of the class `TargetError`, and the name of the built-in is in
+/// the `What`.
+fn no_process(line: u32) -> RuntimeError {
+    RuntimeError {
+        message: "Target process not found.".to_string(),
+        line,
+    }
+}
+
+/// `ProcessExist`: whether a process is there, and the pid of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the pid of
+/// the process, and zero when there is none; a call with no parameter asks
+/// about the process of the script itself, and a pid that is not there is
+/// zero and not a failure.
+pub(crate) fn process_exist(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let which = the_process_of(values, 0);
+    let pid = rt
+        .desktop()
+        .process_exist(which.as_deref())
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(pid as i64))
+}
+
+/// `ProcessGetName`: the name of the executable of a process.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the name is the file name
+/// of the executable -- "AutoHotkey64.exe", and not the path -- and a process
+/// that is not there is the failure "Target process not found.".
+pub(crate) fn process_get_name(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let which = the_process_of(values, 0);
+    let answer = rt
+        .desktop()
+        .process_name(which.as_deref())
+        .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        Some(name) => Ok(Value::Text(name)),
+        None => Err(no_process(line)),
+    }
+}
+
+/// `ProcessGetPath`: the full path of the executable of a process.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the path is the whole
+/// path of the executable, and a process that is not there is the failure
+/// "Target process not found.".
+pub(crate) fn process_get_path(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let which = the_process_of(values, 0);
+    let answer = rt
+        .desktop()
+        .process_path(which.as_deref())
+        .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        Some(path) => Ok(Value::Text(path)),
+        None => Err(no_process(line)),
+    }
+}
+
+/// `ProcessGetParent`: the pid of the parent of a process.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the pid of
+/// the parent, and zero for a process that is not there -- the parent of a
+/// process that is not there is not a failure.
+pub(crate) fn process_get_parent(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let which = the_process_of(values, 0);
+    let pid = rt
+        .desktop()
+        .process_parent(which.as_deref())
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(pid as i64))
+}
+
+/// `ProcessClose`: close a process, and answer the pid of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the pid
+/// that was closed, and zero when the process was not there or could not be
+/// closed -- the binary answers zero for a process it could not open, too.
+pub(crate) fn process_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(which) = the_process_of(values, 0) else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "ProcessClose"),
+            line,
+        });
+    };
+    let pid = rt
+        .desktop()
+        .process_close(&which)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(pid as i64))
+}
+
+/// `ProcessWait`: wait for a process to be there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the pid of
+/// the process when it appears, and zero at the timeout; a call with no
+/// timeout waits forever.
+pub(crate) fn process_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(which) = the_process_of(values, 0) else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "ProcessWait"),
+            line,
+        });
+    };
+    let timeout = the_timeout_of(values, 1, "ProcessWait", line)?;
+    let pid = rt
+        .desktop()
+        .process_wait(&which, timeout)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(pid as i64))
+}
+
+/// `ProcessWaitClose`: wait for a process that is there to close.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is zero when
+/// the process is gone -- a process that never existed is gone -- and the pid
+/// of the process that is still there at the timeout.
+pub(crate) fn process_wait_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(which) = the_process_of(values, 0) else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "ProcessWaitClose"),
+            line,
+        });
+    };
+    let timeout = the_timeout_of(values, 1, "ProcessWaitClose", line)?;
+    let pid = rt
+        .desktop()
+        .process_wait_close(&which, timeout)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(pid as i64))
+}
+
+/// `ProcessSetPriority`: the priority of a process, and the pid of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the binary reads only the
+/// first letter of the priority word -- "Bogus" is the below-normal class,
+/// and a number is an invalid parameter -- the call answers the pid of the
+/// process, and a process that is not there is the failure "Target process
+/// not found.". A call with no process named is the process of the script
+/// itself, and an empty text there is the script itself too.
+pub(crate) fn process_set_priority(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let priority = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let letter = priority.chars().next().map(|letter| letter.to_ascii_uppercase());
+    if !matches!(letter, Some('L' | 'B' | 'N' | 'A' | 'H' | 'R')) {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "ProcessSetPriority"),
+            line,
+        });
+    }
+    let which = the_process_of(values, 1);
+    let answer = rt
+        .desktop()
+        .process_set_priority(&priority, which.as_deref())
+        .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        Some(pid) => Ok(Value::Int(pid as i64)),
+        None => Err(no_process(line)),
+    }
+}
+
+// -- the screen and the machine --------------------------------------------------
+
+/// The monitor a call of the monitor family names, and the monitors of the
+/// desktop.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: an omitted number and the
+/// number zero ask about the primary monitor; a number that is not a monitor
+/// of the desktop is "Parameter #1 of <name> is invalid." with the number in
+/// the `Extra`; a text that holds a number is a number, and the part of it
+/// after the point is cut.
+fn the_monitor_of(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    name: &str,
+    line: u32,
+) -> Result<(usize, Vec<crate::desktop::Monitor>), RuntimeError> {
+    let wanted = match values.first() {
+        None => 0,
+        Some(value) => token_to_int64(value) as i32 as i64,
+    };
+    let monitors = rt.desktop().monitors().map_err(|e| desktop_failure(e, line))?;
+    if wanted == 0 {
+        let primary = rt
+            .desktop()
+            .primary_monitor()
+            .map_err(|e| desktop_failure(e, line))?;
+        if primary == 0 || primary > monitors.len() {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(1, name),
+                line,
+            });
+        }
+        return Ok((primary, monitors));
+    }
+    if wanted < 0 || wanted as usize > monitors.len() {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, name),
+            line,
+        });
+    }
+    Ok((wanted as usize, monitors))
+}
+
+/// The monitor at a place, counted from one, when it is there.
+fn the_monitor_at(
+    monitors: &[crate::desktop::Monitor],
+    index: usize,
+) -> Option<crate::desktop::Monitor> {
+    monitors.get(index.checked_sub(1)?).cloned()
+}
+
+/// `MonitorGet`: where a monitor is, and the number of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the rectangle of the
+/// monitor goes into the variables that were given, the right and the bottom
+/// are one past the last column and the last row, a call may give any number
+/// of them -- the first one only, and the four -- and the answer is one when
+/// the monitor is there.
+pub(crate) fn monitor_get(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (index, monitors) = the_monitor_of(rt, values, "MonitorGet", line)?;
+    let Some(monitor) = the_monitor_at(&monitors, index) else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "MonitorGet"),
+            line,
+        });
+    };
+    for (place, number) in [
+        (1, monitor.left),
+        (2, monitor.top),
+        (3, monitor.right),
+        (4, monitor.bottom),
+    ] {
+        if let Some(value) = values.get(place) {
+            rt.write_reference(value, Value::Int(number));
+        }
+    }
+    Ok(Value::Int(1))
+}
+
+/// `MonitorGetCount`: how many monitors the desktop has.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the number
+/// of the monitors, and a desktop with one screen answers one.
+pub(crate) fn monitor_get_count(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let monitors = rt.desktop().monitors().map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(monitors.len() as i64))
+}
+
+/// `MonitorGetName`: the name of a monitor.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the name of the monitor
+/// of the binary is "\\.\DISPLAY1", the name the system gives it; the name of
+/// an output of a Wayland compositor is the name of the output. A desktop
+/// that does not say the name of its monitors is refused with the reason.
+pub(crate) fn monitor_get_name(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (index, monitors) = the_monitor_of(rt, values, "MonitorGetName", line)?;
+    let Some(monitor) = the_monitor_at(&monitors, index) else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "MonitorGetName"),
+            line,
+        });
+    };
+    if monitor.name.is_empty() {
+        return Err(RuntimeError {
+            message: "this desktop does not say the name of its monitors.".to_string(),
+            line,
+        });
+    }
+    Ok(Value::Text(monitor.name))
+}
+
+/// `MonitorGetPrimary`: the number of the primary monitor.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer counts from
+/// one, and it is the number that a call of `MonitorGet` with no monitor
+/// answers.
+pub(crate) fn monitor_get_primary(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let index = rt
+        .desktop()
+        .primary_monitor()
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(index as i64))
+}
+
+/// `MonitorGetWorkArea`: the part of a monitor that the panels leave.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the shape is the one of
+/// `MonitorGet`, and the work area of the monitor of the binary was the
+/// screen less the bar of the taskbar -- 0, 0, 3840, 2112 for a screen of
+/// 3840 by 2160. A desktop that does not say the work area of its monitors
+/// is refused with the reason.
+pub(crate) fn monitor_get_work_area(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (index, monitors) = the_monitor_of(rt, values, "MonitorGetWorkArea", line)?;
+    if the_monitor_at(&monitors, index).is_none() {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "MonitorGetWorkArea"),
+            line,
+        });
+    }
+    let Some((left, top, right, bottom)) = rt
+        .desktop()
+        .monitor_work_area(index)
+        .map_err(|e| desktop_failure(e, line))?
+    else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "MonitorGetWorkArea"),
+            line,
+        });
+    };
+    for (place, number) in [(1, left), (2, top), (3, right), (4, bottom)] {
+        if let Some(value) = values.get(place) {
+            rt.write_reference(value, Value::Int(number));
+        }
+    }
+    Ok(Value::Int(1))
+}
+
+/// `SysGet`: a metric of the system.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09, with the source of it
+/// read beside the measurements: the number of `SysGet` is the number of a
+/// metric of `GetSystemMetrics`, and the binary answers it as it is. The
+/// numbers that are about the screen are the ones this desktop can answer --
+/// 0 and 1 are the width and the height of the primary monitor, 16 the width
+/// of a full screen, 76 to 79 the virtual screen, 80 the number of monitors
+/// and 81 the one metric of the format of the displays. The other metrics are
+/// the ones of the window manager of Windows, and the number of one of them
+/// is refused with the reason; a number that is not a metric at all is zero,
+/// which is what the binary answers for one.
+pub(crate) fn sys_get(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(value) = values.first() else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "SysGet"),
+            line,
+        });
+    };
+    // The number is the one of `GetSystemMetrics`, read the way the binary
+    // reads it: the part of a float after the point is cut.
+    let metric = token_to_int64(value) as i32 as i64;
+    let monitors = rt.desktop().monitors().map_err(|e| desktop_failure(e, line))?;
+    if monitors.is_empty() && (0..=102).contains(&metric) && metric != 81 {
+        return Err(RuntimeError {
+            message: format!(
+                "the compositor published no monitor, so the metric {metric} of SysGet is not \
+                 known."
+            ),
+            line,
+        });
+    }
+    let answer = match metric {
+        0 | 16 => {
+            let index = rt
+                .desktop()
+                .primary_monitor()
+                .map_err(|e| desktop_failure(e, line))?;
+            match the_monitor_at(&monitors, index) {
+                Some(monitor) => monitor.width(),
+                None => 0,
+            }
+        }
+        1 => {
+            let index = rt
+                .desktop()
+                .primary_monitor()
+                .map_err(|e| desktop_failure(e, line))?;
+            match the_monitor_at(&monitors, index) {
+                Some(monitor) => monitor.height(),
+                None => 0,
+            }
+        }
+        // The virtual screen: the box around all of the monitors.
+        76 => monitors.iter().map(|monitor| monitor.left).min().unwrap_or(0),
+        77 => monitors.iter().map(|monitor| monitor.top).min().unwrap_or(0),
+        78 => {
+            let left = monitors.iter().map(|m| m.left).min().unwrap_or(0);
+            let right = monitors.iter().map(|m| m.right).max().unwrap_or(0);
+            right - left
+        }
+        79 => {
+            let top = monitors.iter().map(|m| m.top).min().unwrap_or(0);
+            let bottom = monitors.iter().map(|m| m.bottom).max().unwrap_or(0);
+            bottom - top
+        }
+        80 => monitors.len() as i64,
+        // The one metric of the format: every output of a compositor is the
+        // same format as far as a script can see, and the binary answers 1
+        // for the one screen of its machine.
+        81 => 1,
+        other if (0..=102).contains(&other) => {
+            return Err(RuntimeError {
+                message: format!(
+                    "SysGet({other}) is a metric of the window manager of Windows, and this \
+                     desktop does not have one."
+                ),
+                line,
+            })
+        }
+        // A number that is not a metric of the system is zero, which is what
+        // the binary answers for one: measured on it on 2026-11-09,
+        // `SysGet(-1)` and `SysGet(1000)` are zero.
+        _ => 0,
+    };
+    Ok(Value::Int(answer))
+}
+
+/// `SysGetIPAddresses`: the addresses of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is an array of
+/// texts, one for each address of the machine, and the address of the
+/// loopback is not one of them.
+pub(crate) fn sys_get_ip_addresses(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let addresses = rt
+        .desktop()
+        .ip_addresses()
+        .map_err(|e| desktop_failure(e, line))?;
+    // The answer of v2 is an `Array`, and not a list of the runtime: a script
+    // asks it for its `Length` and its items the way it asks an array.
+    let items: Vec<Value> = addresses.into_iter().map(Value::Text).collect();
+    crate::classes::array::construct(&items, rt, line).map_err(|failure| RuntimeError {
+        message: the_message_of(failure),
+        line,
+    })
+}
+
 // -- the rest -------------------------------------------------------------------
 
 /// `MsgBox`: a message for the person watching.
@@ -8085,103 +10072,645 @@ pub(crate) fn clip_wait(
 
 // -- the pattern of `Format` -----------------------------------------------------
 
+/// The largest width or precision a pattern may ask for.
+///
+/// The binary builds the spec in a buffer of `12 + MAX_INTEGER_LENGTH*2`
+/// characters and refuses a spec that does not fit, so a width longer than a
+/// few dozen digits is not one it takes. The same kind of limit keeps a
+/// pattern from asking for a text of no end here.
+const FORMAT_LIMIT: usize = 100_000;
+
+/// The flags of a C specifier: `-`, `+`, the space, `#` and `0`.
+#[derive(Clone, Copy, Default)]
+struct FormatFlags {
+    minus: bool,
+    plus: bool,
+    space: bool,
+    hash: bool,
+    zero: bool,
+}
+
+/// What a specifier converts its value to.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FormatKind {
+    /// `d`, `i`, `o`, `u`, `x` and `X`: a whole number.
+    Int,
+    /// `e`, `E`, `f`, `g`, `G`, `a` and `A`: a float.
+    Float,
+    /// `c` and `C`: one character.
+    Char,
+    /// `p`: an address, written as sixteen hex digits.
+    Pointer,
+    /// The default and `s`: the text of the value, with an optional custom
+    /// case -- `U`, `L` or `T`.
+    Str(Option<char>),
+}
+
+/// One C specifier, read out of a placeholder.
+struct FormatSpec {
+    flags: FormatFlags,
+    width: usize,
+    precision: Option<usize>,
+    kind: FormatKind,
+    /// The type character of the specifier, or `'s'` for the default.
+    letter: char,
+}
+
+/// One argument of a placeholder, converted to what the specifier wants.
+enum FormatValue {
+    Int(i64),
+    Float(f64),
+    Text(String),
+}
+
+/// The number of a specifier, or the whole number a specifier takes.
+///
+/// The binary refuses a spec that asks for a width or a precision that does
+/// not fit its own buffer, and a number too large for the limit of the tree
+/// is refused the same way: the placeholder stays literal text.
+fn parse_spec_number(chars: &[char]) -> Option<usize> {
+    let mut value = 0usize;
+    for character in chars {
+        if !character.is_ascii_digit() {
+            return None;
+        }
+        value = value.checked_mul(10)?.checked_add(character.to_digit(10)? as usize)?;
+        if value > FORMAT_LIMIT {
+            return None;
+        }
+    }
+    Some(value)
+}
+
+/// Read the spec of a placeholder, after the `:` of it.
+///
+/// The grammar is the one of the binary: the flags `-+0 #` in any order, a
+/// width, a point with a precision, and one type character. A spec that does
+/// not have that shape makes the whole placeholder literal text, which is
+/// what v2 does -- `{:<6d}`, `{:b}` and `{:.}` are left as they were written.
+fn parse_format_spec(chars: &[char], mut at: usize) -> Option<(FormatSpec, usize)> {
+    let start = at;
+    let mut spec = FormatSpec {
+        flags: FormatFlags::default(),
+        width: 0,
+        precision: None,
+        kind: FormatKind::Str(None),
+        letter: 's',
+    };
+    while at < chars.len() {
+        match chars[at] {
+            '-' => spec.flags.minus = true,
+            '+' => spec.flags.plus = true,
+            ' ' => spec.flags.space = true,
+            '#' => spec.flags.hash = true,
+            '0' => spec.flags.zero = true,
+            _ => break,
+        }
+        at += 1;
+    }
+    let width_start = at;
+    while at < chars.len() && chars[at].is_ascii_digit() {
+        at += 1;
+    }
+    if at > width_start {
+        spec.width = parse_spec_number(&chars[width_start..at])?;
+    }
+    if at < chars.len() && chars[at] == '.' {
+        at += 1;
+        let precision_start = at;
+        while at < chars.len() && chars[at].is_ascii_digit() {
+            at += 1;
+        }
+        spec.precision = Some(parse_spec_number(&chars[precision_start..at])?);
+    }
+    if at - start + 4 >= 52 {
+        return None;
+    }
+    let letter = *chars.get(at)?;
+    match letter {
+        'd' | 'i' | 'o' | 'u' | 'x' | 'X' => {
+            spec.kind = FormatKind::Int;
+            spec.letter = letter;
+            at += 1;
+        }
+        'e' | 'E' | 'f' | 'g' | 'G' | 'a' | 'A' => {
+            spec.kind = FormatKind::Float;
+            spec.letter = letter;
+            at += 1;
+        }
+        'c' | 'C' => {
+            spec.kind = FormatKind::Char;
+            spec.letter = letter;
+            at += 1;
+        }
+        'p' => {
+            spec.kind = FormatKind::Pointer;
+            spec.letter = letter;
+            at += 1;
+        }
+        _ => {
+            if "ULlTt".contains(letter) {
+                spec.kind = FormatKind::Str(Some(letter.to_ascii_uppercase()));
+                at += 1;
+            }
+            if chars.get(at) == Some(&'s') {
+                at += 1;
+            }
+            spec.letter = 's';
+        }
+    }
+    Some((spec, at))
+}
+
+/// The value a placeholder formats, or the failure of a parameter that is
+/// not the kind its specifier wants.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a specifier that takes a
+/// text takes a number and a text, and an object is refused with the kind it
+/// got; a specifier that takes a number takes a number and a text that holds
+/// one, and anything else is refused in the same way. The number of the
+/// parameter is the number of the call, the format string included.
+fn format_argument(
+    spec: &FormatSpec,
+    value: &Value,
+    parameter: usize,
+    line: u32,
+) -> Result<FormatValue, RuntimeError> {
+    match spec.kind {
+        FormatKind::Str(_) => match value {
+            Value::Int(number) => Ok(FormatValue::Text(number.to_string())),
+            Value::Float(number) => Ok(FormatValue::Text(crate::float_text::the_text_of(*number))),
+            Value::Text(text) => Ok(FormatValue::Text(text.clone())),
+            other => Err(RuntimeError {
+                message: crate::runtime::requires(parameter, "Format", TypeName::String, other),
+                line,
+            }),
+        },
+        FormatKind::Float => {
+            if !is_numeric_value(value) {
+                return Err(RuntimeError {
+                    message: crate::runtime::requires(parameter, "Format", TypeName::Number, value),
+                    line,
+                });
+            }
+            Ok(FormatValue::Float(token_to_double(value)))
+        }
+        _ => {
+            if !is_numeric_value(value) {
+                return Err(RuntimeError {
+                    message: crate::runtime::requires(parameter, "Format", TypeName::Number, value),
+                    line,
+                });
+            }
+            Ok(FormatValue::Int(token_to_int64(value)))
+        }
+    }
+}
+
 /// Put the arguments into a pattern.
 ///
-/// The pattern is AutoHotkey's: `{1}` is the first argument, `{2}` the
-/// second, and `{{` and `}}` are braces of their own. A placeholder that
-/// names no argument is left as it stands.
-fn format_pattern(pattern: &str, arguments: &[Value]) -> String {
-    let mut out = String::with_capacity(pattern.len());
+/// The pattern is the one of the binary, measured on 2026-11-09: `{1}` is the
+/// first argument and a placeholder with no number takes the next one; `{{`
+/// and `}}` are one brace of their own; and a placeholder that names an
+/// argument that is not there, or whose spec is not one the binary reads, is
+/// left exactly as it was written.
+fn format_pattern(
+    pattern: &str,
+    values: &[Value],
+    line: u32,
+) -> Result<String, RuntimeError> {
     let chars: Vec<char> = pattern.chars().collect();
-    let mut index = 0usize;
-    let mut next = 0usize;
-    while index < chars.len() {
-        match chars[index] {
-            '{' if chars.get(index + 1) == Some(&'{') => {
-                out.push('{');
-                index += 2;
-                continue;
-            }
-            '}' if chars.get(index + 1) == Some(&'}') => {
-                out.push('}');
-                index += 2;
-                continue;
-            }
-            '{' => {}
-            other => {
-                out.push(other);
-                index += 1;
-                continue;
-            }
+    let mut out = String::with_capacity(pattern.len() + 8);
+    let mut lit = 0usize;
+    let mut position = 0usize;
+    let mut last_parameter = 0usize;
+    loop {
+        // The literal text before the next placeholder.
+        let mut at = position;
+        while at < chars.len() && chars[at] != '{' {
+            at += 1;
         }
-        let Some(offset) = chars[index + 1..].iter().position(|c| *c == '}') else {
-            out.push(chars[index]);
-            index += 1;
+        if lit < at {
+            out.extend(chars[lit..at].iter());
+        }
+        lit = at;
+        if at >= chars.len() {
+            break;
+        }
+        let mut cursor = at + 1;
+        // `{{` and `}}` are a brace of their own; the other brace of the
+        // pair is the one that is written.
+        if cursor + 1 < chars.len()
+            && (chars[cursor] == '{' || chars[cursor] == '}')
+            && chars[cursor + 1] == '}'
+        {
+            out.push(chars[cursor]);
+            cursor += 2;
+            lit = cursor;
+            position = cursor;
+            continue;
+        }
+        // The number of the argument the placeholder names, or the one after
+        // the last one that a placeholder named.
+        let digits_start = cursor;
+        while cursor < chars.len() && chars[cursor].is_ascii_digit() {
+            cursor += 1;
+        }
+        let parameter = if cursor > digits_start {
+            match parse_spec_number(&chars[digits_start..cursor]) {
+                Some(number) => number,
+                None => usize::MAX,
+            }
+        } else {
+            last_parameter + 1
+        };
+        if parameter >= values.len() || parameter < 1 {
+            // The placeholder is not one: it stays as it was written.
+            position = cursor;
+            continue;
+        }
+        // The spec, when the placeholder has one.
+        let parsed = if cursor < chars.len() && chars[cursor] == ':' {
+            parse_format_spec(&chars, cursor + 1)
+        } else {
+            Some((
+                FormatSpec {
+                    flags: FormatFlags::default(),
+                    width: 0,
+                    precision: None,
+                    kind: FormatKind::Str(None),
+                    letter: 's',
+                },
+                cursor,
+            ))
+        };
+        let Some((spec, next)) = parsed else {
+            position = cursor;
             continue;
         };
-        let close = index + 1 + offset;
-        let inside: String = chars[index + 1..close].iter().collect();
-        let (position, spec) = match inside.split_once(':') {
-            Some((position, spec)) => (position.trim().to_string(), spec.trim().to_string()),
-            None => (inside.trim().to_string(), String::new()),
-        };
-        // A placeholder with no number takes the next argument.
-        let argument = if position.is_empty() {
-            let argument = arguments.get(next);
-            next += 1;
-            argument
-        } else {
-            position
-                .parse::<usize>()
-                .ok()
-                .and_then(|number| number.checked_sub(1))
-                .and_then(|number| arguments.get(number))
-        };
-        match argument {
-            Some(value) => out.push_str(&format_value(value, &spec)),
-            None => {
-                out.push('{');
-                out.push_str(&inside);
-                out.push('}');
+        // The kind of the value is checked before the closing brace, the way
+        // the binary checks it: a parameter of the wrong kind is a failure,
+        // and only a spec of the wrong shape is literal text.
+        let argument = format_argument(&spec, &values[parameter], parameter + 1, line)?;
+        if next >= chars.len() || chars[next] != '}' {
+            position = next;
+            continue;
+        }
+        out.push_str(&format_spec(&spec, &argument));
+        last_parameter = parameter;
+        lit = next + 1;
+        position = next + 1;
+    }
+    Ok(out)
+}
+
+/// The text of one value in its specifier.
+fn format_spec(spec: &FormatSpec, value: &FormatValue) -> String {
+    match spec.kind {
+        FormatKind::Str(custom) => {
+            let mut text = match value {
+                FormatValue::Text(text) => text.clone(),
+                _ => String::new(),
+            };
+            if let Some(precision) = spec.precision {
+                text = text.chars().take(precision).collect();
+            }
+            // The custom case is applied to the whole answer, padding and
+            // all; the padding of a text is spaces or zeros, which the
+            // cases leave alone.
+            let fill = if spec.flags.zero && !spec.flags.minus {
+                '0'
+            } else {
+                ' '
+            };
+            let text = pad_text(&text, spec.width, fill, spec.flags.minus);
+            match custom {
+                Some('U') => text.to_uppercase(),
+                Some('L') => text.to_lowercase(),
+                Some('T') => title_case(&text),
+                _ => text,
             }
         }
-        index = close + 1;
+        FormatKind::Int => format_integer(spec, match value {
+            FormatValue::Int(number) => *number,
+            _ => 0,
+        }),
+        FormatKind::Char => {
+            let number = match value {
+                FormatValue::Int(number) => *number,
+                _ => 0,
+            };
+            let text = character_text(spec.letter, number);
+            pad_text(&text, spec.width, ' ', spec.flags.minus)
+        }
+        FormatKind::Pointer => {
+            let number = match value {
+                FormatValue::Int(number) => *number,
+                _ => 0,
+            };
+            let text = format!("{:016X}", number as u64);
+            pad_text(&text, spec.width, ' ', spec.flags.minus)
+        }
+        FormatKind::Float => format_float(spec, match value {
+            FormatValue::Float(number) => *number,
+            _ => 0.0,
+        }),
+    }
+}
+
+/// The text of a value in a width, with the padding on the side it asks for.
+fn pad_text(text: &str, width: usize, fill: char, on_the_right: bool) -> String {
+    let length = text.chars().count();
+    if length >= width {
+        return text.to_string();
+    }
+    let mut out = String::with_capacity(width);
+    if on_the_right {
+        out.push_str(text);
+        for _ in length..width {
+            out.push(fill);
+        }
+    } else {
+        for _ in length..width {
+            out.push(fill);
+        }
+        out.push_str(text);
     }
     out
 }
 
-/// The value as the pattern asks for it.
+/// The text of a whole number in its specifier.
 ///
-/// The default is the way AutoHotkey writes a value: an integer as an
-/// integer, a float with its point, a text as it stands. A pattern that
-/// asks for a number of decimals gets them, and one that asks for an
-/// integer gets one.
-fn format_value(value: &Value, spec: &str) -> String {
-    let mut decimals: Option<usize> = None;
-    let mut integer = false;
-    for character in spec.chars() {
-        match character {
-            '.' => decimals = Some(0),
-            '0'..='9' => {
-                if let Some(count) = decimals {
-                    decimals = Some(count * 10 + character.to_digit(10).unwrap_or(0) as usize);
-                }
+/// The flags and the width are the ones of the C library: the sign and the
+/// `0x` of a hex number come before the zeros of the padding, a precision
+/// makes the digits at least that many and takes the `0` flag away, and a
+/// precision of zero with the number zero writes no digit at all.
+fn format_integer(spec: &FormatSpec, number: i64) -> String {
+    let unsigned = number as u64;
+    let mut sign = String::new();
+    let mut prefix = String::new();
+    let mut digits: String;
+    match spec.letter {
+        'd' | 'i' => {
+            if number < 0 {
+                sign.push('-');
+            } else if spec.flags.plus {
+                sign.push('+');
+            } else if spec.flags.space {
+                sign.push(' ');
             }
-            'd' | 'i' | 'u' => integer = true,
-            _ => {}
+            digits = number.unsigned_abs().to_string();
+        }
+        'u' => digits = unsigned.to_string(),
+        'o' => {
+            digits = format!("{unsigned:o}");
+            if spec.flags.hash && !digits.starts_with('0') {
+                prefix.push('0');
+            }
+        }
+        'x' | 'X' => {
+            digits = if spec.letter == 'X' {
+                format!("{unsigned:X}")
+            } else {
+                format!("{unsigned:x}")
+            };
+            if spec.flags.hash && number != 0 {
+                prefix.push_str(if spec.letter == 'X' { "0X" } else { "0x" });
+            }
+        }
+        _ => digits = number.to_string(),
+    }
+    if let Some(precision) = spec.precision {
+        if precision == 0 && number == 0 {
+            digits.clear();
+        } else if digits.chars().count() < precision {
+            digits = format!(
+                "{}{digits}",
+                "0".repeat(precision - digits.chars().count())
+            );
         }
     }
-    if integer {
-        let number = crate::runtime::round(value.to_number().unwrap_or(0.0));
-        return Value::Int(number as i64).to_text();
+    let body = format!("{sign}{prefix}{digits}");
+    let length = body.chars().count();
+    if length >= spec.width {
+        return body;
     }
-    match decimals {
-        Some(decimals) => {
-            let number = value.to_number().unwrap_or(0.0);
-            format!("{number:.decimals$}")
+    let count = spec.width - length;
+    if spec.flags.minus {
+        format!("{body}{}", " ".repeat(count))
+    } else if spec.flags.zero && spec.precision.is_none() {
+        format!("{sign}{prefix}{}{digits}", "0".repeat(count))
+    } else {
+        format!("{}{body}", " ".repeat(count))
+    }
+}
+
+/// One character from the number a `%c` or `%C` got.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `%c` writes the low
+/// sixteen bits of the number and `%C` the low eight. The binary writes the
+/// UTF-16 unit as it is, and a surrogate is not a character the tree can
+/// hold: it is written with the replacement character.
+fn character_text(letter: char, number: i64) -> String {
+    let code = if letter == 'C' {
+        (number as u64 & 0xff) as u32
+    } else {
+        (number as u64 & 0xffff) as u32
+    };
+    match char::from_u32(code) {
+        Some(character) => character.to_string(),
+        None => "\u{fffd}".to_string(),
+    }
+}
+
+/// The text of a float in its specifier.
+///
+/// The types are the ones of the C library of the binary: `f` is the plain
+/// form, `e` the exponent form, `g` the shorter of the two, and `a` the
+/// hexadecimal form. The two values that are not numbers are written the way
+/// the library writes them -- "inf", "-inf", "nan(ind)" and "-nan(ind)".
+fn format_float(spec: &FormatSpec, number: f64) -> String {
+    if number.is_nan() {
+        let text = if number.is_sign_negative() {
+            "-nan(ind)"
+        } else {
+            "nan(ind)"
+        };
+        return pad_text(text, spec.width, ' ', spec.flags.minus);
+    }
+    if number.is_infinite() {
+        let text = if number < 0.0 { "-inf" } else { "inf" };
+        return pad_text(text, spec.width, ' ', spec.flags.minus);
+    }
+    let negative = number.is_sign_negative();
+    let magnitude = number.abs();
+    let mut sign = String::new();
+    if negative {
+        sign.push('-');
+    } else if spec.flags.plus {
+        sign.push('+');
+    } else if spec.flags.space {
+        sign.push(' ');
+    }
+    let letter = spec.letter.to_ascii_lowercase();
+    let uppercase = spec.letter.is_ascii_uppercase();
+    let body = match letter {
+        'e' => exponent_text(magnitude, spec, uppercase),
+        'g' => general_text(magnitude, spec, uppercase),
+        'a' => hex_float_text(magnitude, spec, uppercase),
+        _ => fixed_text(magnitude, spec),
+    };
+    let text = format!("{sign}{body}");
+    let length = text.chars().count();
+    if length >= spec.width {
+        return text;
+    }
+    let count = spec.width - length;
+    if spec.flags.minus {
+        format!("{text}{}", " ".repeat(count))
+    } else if spec.flags.zero {
+        // The zeros of the padding go after the sign.
+        format!("{sign}{}{body}", "0".repeat(count))
+    } else {
+        format!("{}{text}", " ".repeat(count))
+    }
+}
+
+/// The plain form of a float: `%f`.
+fn fixed_text(magnitude: f64, spec: &FormatSpec) -> String {
+    let precision = spec.precision.unwrap_or(6);
+    let mut text = format!("{magnitude:.precision$}");
+    if spec.flags.hash && precision == 0 {
+        text.push('.');
+    }
+    text
+}
+
+/// The exponent form of a float: `%e` and `%E`.
+fn exponent_text(magnitude: f64, spec: &FormatSpec, uppercase: bool) -> String {
+    let precision = spec.precision.unwrap_or(6);
+    let text = format!("{magnitude:.precision$e}");
+    let (mantissa, exponent) = text
+        .split_once('e')
+        .expect("the exponential form of a number has an exponent");
+    let exponent: i32 = exponent.parse().expect("the exponent is a number");
+    let mut mantissa = mantissa.to_string();
+    if spec.flags.hash && precision == 0 {
+        mantissa.push('.');
+    }
+    format!(
+        "{mantissa}{}{}{:02}",
+        if uppercase { 'E' } else { 'e' },
+        if exponent < 0 { '-' } else { '+' },
+        exponent.abs()
+    )
+}
+
+/// The shorter of the two forms of a float: `%g` and `%G`.
+///
+/// The number is written with the precision as the number of the significant
+/// digits; the exponent form is used when the decimal exponent is less than
+/// -4 or not less than the precision, and the zeros at the end of the
+/// fraction are dropped -- unless the `#` flag asks for them.
+fn general_text(magnitude: f64, spec: &FormatSpec, uppercase: bool) -> String {
+    let precision = spec.precision.unwrap_or(6);
+    let precision = if precision == 0 { 1 } else { precision };
+    if magnitude == 0.0 {
+        return if spec.flags.hash {
+            format!("{:.*}", precision - 1, 0.0)
+        } else {
+            "0".to_string()
+        };
+    }
+    let scientific = format!("{:.*e}", precision - 1, magnitude);
+    let (mantissa, exponent) = scientific
+        .split_once('e')
+        .expect("the exponential form of a number has an exponent");
+    let exponent: i32 = exponent.parse().expect("the exponent is a number");
+    if exponent < -4 || exponent >= precision as i32 {
+        let mut mantissa = mantissa.to_string();
+        if !spec.flags.hash {
+            strip_trailing_zeros(&mut mantissa);
         }
-        None => value.to_text(),
+        return format!(
+            "{mantissa}{}{}{:02}",
+            if uppercase { 'E' } else { 'e' },
+            if exponent < 0 { '-' } else { '+' },
+            exponent.abs()
+        );
     }
+    let decimals = (precision as i32 - 1 - exponent).max(0) as usize;
+    let mut text = format!("{magnitude:.decimals$}");
+    if !spec.flags.hash {
+        strip_trailing_zeros(&mut text);
+    }
+    text
+}
+
+/// Drop the zeros at the end of the fraction of a text, and the point that
+/// is left with nothing after it.
+fn strip_trailing_zeros(text: &mut String) {
+    if !text.contains('.') {
+        return;
+    }
+    while text.ends_with('0') {
+        text.pop();
+    }
+    if text.ends_with('.') {
+        text.pop();
+    }
+}
+
+/// The hexadecimal form of a float: `%a` and `%A`.
+///
+/// The leading digit, the thirteen hex digits of the mantissa and the
+/// exponent are the ones of the machine, written the way the library of the
+/// binary writes them: `0x1.8000000000000p+0`.
+fn hex_float_text(magnitude: f64, spec: &FormatSpec, uppercase: bool) -> String {
+    let bits = magnitude.to_bits();
+    let exponent_field = ((bits >> 52) & 0x7ff) as i64;
+    let fraction = bits & 0x000f_ffff_ffff_ffff;
+    let (mut leading, exponent) = if magnitude == 0.0 {
+        // The zero of the library is written with the exponent zero, and
+        // not with the one of the sentence of the subnormal numbers.
+        (0u64, 0i64)
+    } else if exponent_field == 0 {
+        (0u64, -1022i64)
+    } else {
+        (1u64, exponent_field - 1023)
+    };
+    let asked = spec.precision.unwrap_or(13);
+    let precision = asked.min(13);
+    let shift = 52 - 4 * precision;
+    let mut kept = if shift > 0 {
+        (fraction + (1u64 << (shift - 1))) >> shift
+    } else {
+        fraction
+    };
+    if precision < 13 && kept == (1u64 << (4 * precision)) {
+        leading += 1;
+        kept = 0;
+    }
+    let mut digits = if precision == 0 {
+        String::new()
+    } else {
+        format!("{kept:0width$x}", width = precision)
+    };
+    if asked > 13 {
+        digits.push_str(&"0".repeat(asked - 13));
+    }
+    let mut text = format!("0x{leading}");
+    if !digits.is_empty() {
+        text.push('.');
+        text.push_str(&digits);
+    }
+    text.push(if uppercase { 'P' } else { 'p' });
+    text.push(if exponent < 0 { '-' } else { '+' });
+    text.push_str(&format!("{}", exponent.abs()));
+    if uppercase {
+        text = text.to_uppercase();
+    }
+    text
 }
 
 // -- the parts of a `Send` --------------------------------------------------------

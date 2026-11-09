@@ -9686,3 +9686,363 @@ The probes of the block are `egm-review/probe_accessor3.py`,
 
 The suite of the v1 has seven cases more (417). The suite of the v2 is the same
 (539), and the suite of the box is the same (84).
+## 243. The reports are true, and the surface says whether a name works
+
+A block that changed what the tree answers, and the documents that say what
+it answers.
+
+- **The text of a float is the text of v2.** A float is written with up to
+  seventeen significant digits, the shape of `%.17g`, and a whole number in
+  the plain form keeps one `.0`. Measured on the binary of v2.0.19 on
+  2026-11-09: `1/3` is `0.33333333333333331`, `1 - 0.9` is
+  `0.099999999999999978`, `2.0` is `2.0`, `1e16` is `10000000000000000.0`,
+  and `1e17` is `1e+17`. The tree wrote the shortest text that reads back as
+  the same number, which is one digit short; the rule is
+  `crates/ahk/src/float_text.rs`, and the cases of it are the tests of that
+  module. The differential case `nu03_float_render` was the measurement.
+- **`#Requires` compares a version.** The mainline forms are met by the
+  version of the dialect -- `#Requires AutoHotkey v2.0.19`, `v2.0`,
+  `v2.0.19+`, `>=2.0`, `>2.0`, `<2.1`, `=2.0.19`, `2.0.19` -- and a
+  requirement of another major version is not met by the v2, which is why
+  `#Requires AutoHotkey v1.1` is refused by 2.0.19 although 2.0.19 is the
+  later version. Measured on the binary of v2.0.19 on 2026-11-09; the rule
+  is `the_requirement` in `crates/ahk/src/runtime.rs`. The dialect alone
+  (`#Requires v2`) stays, and it is the form of this tree.
+- **`#IncludeAgain` is not `#Include`.** The runner matched the `#Include`
+  prefix, so a `#IncludeAgain` line became a path that started with
+  `Again`; the two lines are matched by their whole name now, the
+  `#IncludeAgain` puts the file in every time it is asked for, and the
+  nesting is bounded so that a file that includes itself is refused
+  (`crates/ahk-cli/src/main.rs`).
+- **The warning of a name that is never written names variables.**
+  Measured on the binary of v2.0.19 on 2026-11-09: `OnError(Handler)` with
+  `Handler` defined in the script is not warned about, and the variable of
+  a `catch as error` is not warned about either. The tree warned about
+  both, because the function name and the catch variable were reads that
+  nothing wrote; the function and the class of the script are names now,
+  and the catch writes its variable (`crates/ahk/src/warnings.rs`).
+- **`--surface --behavior` asks whether the call of a name works.** The
+  state of a name is what the tree carries, and ten names of the v2 answer
+  with a value while the call of them raises -- the `Format` that ignores
+  its specifiers, the `RegExMatch` that cannot write its output variables,
+  the `Sort` that refuses its options, the `DateAdd`/`DateDiff` that refuse
+  the long unit names, the `InStr` that refuses its third argument, the
+  `IsSet` on an unset variable, the `Integer("0x1F")` and the two classes of
+  the primitive values beside it. The probe of each is a small script, run
+  against a desktop that does nothing, and the answer is printed beside the
+  state (`crates/ahk/src/behavior.rs`, `docs/runner-and-report.md`). This is
+  the column that keeps the surface from over-claiming.
+- **The numbers of the documents are checked.** `scripts/check-surface-docs.py`
+  runs the two `--surface --json` commands and exits non-zero when
+  `docs/v2-capability-report.md`, `docs/ahk-gaps-report.md`,
+  `docs/dialects.md`, `docs/ahk-v1-dialect.md` or
+  `docs/runner-and-report.md` no longer carry the numbers of the tree. The
+  v2 is 833 entries, 643 values, 190 refusals; the v1 is 408, 301, 107.
+## 244. The block of the differential: loops, dates, the item of a class and the tools
+
+The audit of the dialect against the real binary found behaviours the tree answered
+and got wrong, and this is the block that closed the first of them. The three-engine
+harness and the corpus are the instruments; they live in `scripts/`.
+
+- **The `until` of a loop is a condition of v2, and every loop reads it.**
+  Measured on the binary of v2.0.19 on 2026-11-09: `Loop { } Until cond`,
+  `Loop N { } Until cond`, and the same clause after `Loop Parse`, `Loop Files`,
+  `Loop Read` and `for x in items` are all accepted, the word is
+  case-insensitive, the condition is any expression, and it is read after every
+  turn -- including a turn that used `continue` -- and skipped after a `break`
+  and when the count is zero. `while` refuses it, and an `until` with no loop is
+  a reserved word. The parser is `the_until_of_the_loop` (`crates/ahk/src/parser.rs`);
+  `Node::For` and `Node::Loop` carry `until`; the runtime reads it in every loop
+  kind. The probes are `egm-review/keysharp-audit/wp1/`.
+- **A date unit is its first letter.** Measured on the binary of v2.0.19 on
+  2026-11-09: `DateAdd(20200131, 1, "Days")` is the day, `"Dogs"` is the day,
+  `"Saturday"` is the second and `"Minutes"` is the minute; the case does not
+  matter. A unit whose first letter is none of D, H, M and S is
+  `Parameter #3 of DateX is invalid.` (`crates/ahk/src/date.rs`).
+- **A class writes its item through the `__Item` setter.** Measured on the
+  binary of v2.0.19 on 2026-11-09: `obj[k] := v` on a class of the script runs
+  the setter with the index and the value, and a `__Item` that has a getter and
+  no setter still refuses the write -- the real binary says
+  `Missing a required parameter.` with the first parameter in the `Extra`, and
+  the tree keeps its `PropertyError`, which is a known divergence
+  (`crates/ahk/src/runtime.rs`, `tests/class_object.rs`).
+- **A section that holds a string does not lose its line numbers.** A script of
+  the Keysharp corpus panicked the lexer: the section of an unclosed string
+  counted its lines in the token stream and not in the table of the places the
+  lines begin, so a later section asked for a line the table did not have
+  (`crates/ahk/src/lexer.rs`). The table is kept now, and the join of a section
+  answers that it joins no line rather than panicking. The sections that join a
+  line ending outside a string (`Var :=` followed by `(`) are still not read:
+  the corpus ran into that next, and it is the next block of the lexer.
+- **`Format`, `InStr`, `Sort`, `Round` and the classes of the primitive values
+  are the v2 ones.** Measured on the binary of v2.0.19 on 2026-11-09:
+  `Format("{:05d}", 42)` is `00042` and `Format("{:x}", 255)` is `ff`;
+  `InStr("hello world", "o", "Off", 6)` is `8` and a negative start reads from
+  the right; `Sort("233`n40", "N")` is `40|233`, with `C`, `CL`, `CLogical`,
+  `Dx`, `N`, `P`, `R`, `U`, `Z` and the callback; `Round(2.567, 2)` is the
+  **String** `"2.57"` and `Round(2.4)` is the Integer `2`; `Integer("0x1F")` is
+  `31`, `Float("1.5")` is `1.5` and `String(42)` is `"42"`
+  (`crates/ahk/src/builtins.rs`, `crates/ahk/src/classes/mod.rs`).
+- **The differential is a tool of the tree now.** `scripts/differential.py` runs
+  the same script in the real binary, in Keysharp and in the runner, normalises
+  only engine plumbing, and writes `results.tsv` and a report; the 93 cases of
+  the audit are `scripts/differential/cases/`. Measured at the end of the block:
+  **78 match, 3 the tree differs, 8 Keysharp differs, 4 both differ**; the three
+  that are left are the output variable of `RegExMatch`, the `IsSet` on an unset
+  name and the memory of a string (`StrPtr`/`StrGet`/`StrPut`/`VarSetStrCapacity`).
+- **The corpus is the acceptance test.** `egm-review/keysharp-audit/corpus/`
+  holds the 162 pure-language scripts of Keysharp's suite (BSD-3-Clause, the
+  attribution in each copy) and `triage.py` runs them through the runner. The
+  pass rate is a scoreboard and not a gate yet: the scripts of the suite that
+  need the v2.1 syntax and the module system of Keysharp are errors, and the
+  ones that run pass.
+- **The documents of the numbers are checked by `scripts/check-surface-docs.py`**,
+  and the surface itself now carries a behaviour: `ahk --surface --behavior`
+  runs a probe of every name that has one and prints whether the call works
+  (`crates/ahk/src/behavior.rs`). The pins of its tests were updated with this
+  block: `Sort`, `InStr`, `Integer`, `Float`, `String`, `DateAdd` and `DateDiff`
+  answer a value where the audit found a failure.
+## 245. The parser of the corpus: the line, the class, the arrow and what is left
+
+The Keysharp corpus (`egm-review/keysharp-audit/corpus/`, the pure-language scripts of
+its suite, BSD-3-Clause) is the acceptance test of the dialect, and the scripts it holds
+are v2.0.19 scripts: the real binary validates every one of the forms below, and the
+tree refused some of them. This block read them.
+
+- **A line that begins with an operator continues the one above.** Measured on the
+  binary of v2.0.19 on 2026-11-09: `?`, `:` and `.` are among them, and the rule is the
+  one of the other operators already in `the_token_is_an_operator`
+  (`crates/ahk/src/parser.rs`). The dot of the concat is the operator from the start of
+  a continued line even when it is not indented, and the dot that *ends* the line
+  continues it too (`z := x .` and `y` below).
+- **The colon of the ternary may be on the line below the other arm.** The parser skips
+  the newlines before it when the line begins with the colon, and only there: the `:`
+  was not put in the general list of the operators of a continued line because a parser
+  loop of the class and label handling walked it forever (a hang, measured on
+  2026-11-09, and the reason the fix is local to the ternary).
+- **A line that ends with the word `NOT` continues as well.** Measured on the binary of
+  v2.0.19 on 2026-11-09: `c := NOT` and `c` below is the negation of `c`.
+- **A definition and a call are told apart by the parenthesis of the list.** The
+  lookahead that decides it (`a_definition_follows_at`) was handed the token *after* the
+  opening parenthesis, so a call whose first argument was an empty arrow function --
+  `Throws(() => arr[3], ...)` -- ended the parameter list at the arrow's own `)` and was
+  read as the definition of `Throws`, and the failure was "Missing parameter name." The
+  parenthesis itself is handed over now, and every call site passes it.
+- **A class declares more than one property on a line.** Measured on the binary of
+  v2.0.19 on 2026-11-09: `a := 1, b := 2` is two properties of the class, and the block
+  reads the comma-separated names of the line.
+- **A property may be an arrow.** Measured on the binary of v2.0.19 on 2026-11-09:
+  `static Value => 42` and `value => 1` are properties whose getter is the expression
+  after the arrow; the block reads them as an accessor with a getter of one `return`.
+- **The continuation sections of a line are read where the line ends outside a
+  string.** The lexer keeps the text of the last line that has code and merges the
+  section into it; the section that joins a string that is not closed is the case that
+  was already read. The corpus scripts `assign-multiline.ahk` and
+  `string-continuation.ahk` now parse to their last third instead of failing at the
+  first section (`crates/ahk/src/lexer.rs`).
+
+**Measured and not carried yet** -- the next block of the parser, with the probe and the
+real binary as the evidence:
+
+- **Optional parameters.** `f(a, b?)` is the syntax of v2.0.19: the parameter that is
+  not given is unset, and `IsSet` is the way to ask. Measured on the binary of v2.0.19
+  on 2026-11-09: `f(a, b?)`, `f(a?, b?)` and `m(a?)` are accepted, `f(a, b? := 2)` and
+  `f(a?, b)` are refused (the optional one may not carry a default, and it may not come
+  before a required one). This is the message "Missing parameter name." of 27 corpus
+  scripts.
+- **`break N` and `continue N`.** `break 2` breaks out of two loops and `continue 2`
+  continues the second one out; measured on the binary of v2.0.19 on 2026-11-09.
+- **The spread of a call.** `f(arr*)` passes the items of the array as the arguments
+  (`f(a, b)` with `arr := [1, 2]` answers `1/2`); `f(0, arr*)` is too many parameters.
+- **A hotkey whose block opens on the line of the marker.** `F1::{` is accepted by the
+  real binary and refused by the tree with `Syntax error. Specifically: ::{)`.
+- **A class property with no value.** `a :=` followed by the next member is a property
+  that holds the unset value; the tree's class construction loses the property that
+  follows it.
+## 246. The three gaps of the differential, and the numbers
+
+The differential of the audit is 93 cases in `scripts/differential/cases/`, run
+into the real binary, into Keysharp and into the tree. It is now **81 MATCH,
+9 KEYS-DIFFERS, 0 RUST-DIFFERS, 3 BOTH-DIFFER, 0 ERROR**; the three cases the
+tree used to fail -- `st08_regex_match`, `va05_unset`, `mi05_str_capacity` --
+are MATCH, and the nine that differ are the Keysharp column.
+
+- **`RegExMatch` writes the matches into the variable of the caller.** The
+  class `RegExMatchInfo` is a class module of the runtime
+  (`crates/ahk/src/classes/regexmatchinfo.rs`): `Count`, `Mark`, `Len`, `Pos`,
+  `Name`, `__Item`, `__Get` and `__Enum`, with the state under the reserved
+  key the way the other class types keep it. Named groups are read in the
+  three spellings of PCRE. Measured on the binary of v2.0.19 on 2026-11-09:
+  a pattern that does not match writes the empty text into the variable, and
+  it is not unset.
+- **`IsSet(Var)` is a name of v2** and the extraction missed it. Measured on
+  the binary of v2.0.19 on 2026-11-09: `IsSet(unset)` is 0, `IsSet(set)` is
+  1, and a value that is not a variable is refused with "IsSet requires a
+  variable." The table of `tests/surface.rs` carries it in `DIALECT`, with the
+  reason, the way `Screenshot` is carried there.
+- **The memory of a string is kept by the runtime.** `StrPtr` answers an
+  address of the text (the same text answers the same address), `VarSetStrCapacity`
+  keeps the size class of AHK (measured: the capacity of `"hello"` is 7 and not
+  5), and `StrGet`/`StrPut` work over a `Buffer` and an address with the
+  encodings the tree knows. The addresses are the runtime's own and not the
+  addresses of v2's process; the differential asks the questions the script
+  can see (a zero or not, a round trip) and they are MATCH.
+- **The corpus of Keysharp, pure scripts: 55/162 pass (34.0 %)**, up from
+  47 (29.0 %) before this block, and 8 scripts more. The first errors that are
+  left name the next block: the spread of a call (`f(arr*)`, "Unexpected )"),
+  the optional parameters of v2.0.19 (`f(a, b?)`, "Missing parameter name."),
+  `break N`/`continue N`, the hotkey whose block opens on the marker line,
+  and the continuation sections whose line ends in a way the lexer does not
+  read yet.
+- **The `?` of the ternary is not a word of the line continuation in the
+  parser.** The block of the continuation asked the rule at the question mark
+  itself and looped forever on `x := 1 + 1 ? 2 : 3`; measured on 2026-11-09,
+  fixed by asking the rule only at a newline, and the differential case
+  `ex04_logical_ternary` pins it.
+## 247. The optional parameter of v2
+
+Measured on the binary of v2.0.19 on 2026-11-09: a parameter whose name is
+followed by a question mark -- `f(a, b?)`, `m(a?)` -- may be left out of the
+call, and the variable of it is then unset: `IsSet(b)` inside the function
+answers zero, and a read of it fails with "This local variable has not been
+assigned a value." A call that gives it a value sets it like any other
+parameter. The arity of the call counts the required parameters alone, so
+`f(1)` is a full call and `f()` is refused.
+
+- The syntax is in `parse_parameters` (`parser.rs`): the `?` after the name
+  sets `Parameter.optional`, and the two refusals are measured. The optional
+  parameter may not carry a default -- `f(a, b? := 2)` is "Missing comma" --
+  and a required one may not come after it -- `f(a?, b)` is "Parameter
+  default required.", named after the required parameter.
+- `Parameter::is_required` (`ast.rs`) is the one question the runtime asks:
+  a parameter is required when it has no default, does not take the rest of
+  the arguments and is not optional. Every arity check and every `minparams`
+  of the tree asks it now, instead of the old two-part test.
+- The binding of the call leaves the omitted optional out of the scope of
+  the call (`call_function_with` and `call_method_with_missing` in
+  `runtime.rs`): the name is not there at all, which is exactly what an
+  unset variable is, and the warning pass raises nothing for it.
+- The case of it is `pa01_optional_param` in the differential, and the
+  cases in `tests/language.rs` are `the_optional_parameter_may_be_left_out`,
+  `a_reading_of_the_optional_parameter_that_is_left_out_is_unset` and
+  `the_optional_parameter_has_the_refusals_of_v2`.
+
+**A call with too few arguments is still checked at the run and not at the
+load** (`AGENTS.md`, "The number of the arguments is checked in two
+places"): the real binary refuses `f()` when it loads the script, so a
+differential case that calls a function of the script with the wrong number
+of arguments cannot be MATCH -- the real one never runs. `pa01` keeps to the
+calls that are well-formed, and the load-time difference is recorded here.
+## 248. The process family is read from /proc
+
+Measured on the binary of v2.0.19 on 2026-11-09 and implemented over `/proc`;
+the box carries all of it, so no name of the family is a Windows refusal any
+more. The reader is `crates/ahk-box/src/process.rs`, the capability is
+`Processes` in `crates/ahk/src/desktop.rs`, and the handlers are the eight
+rows of `builtins.rs`.
+
+- `ProcessExist([which])` answers the pid or 0. No argument is the runtime
+  itself; a numeric text is a pid; a name is matched against the executive
+  file name, case-insensitively, over the scan of `/proc`; a missing process
+  is 0 and not a failure.
+- `ProcessGetName` and `ProcessGetPath` answer the file name and the full
+  path; a process that is not there is a failure of the class `TargetError`
+  with "Target process not found." -- the one rule that is in
+  `classes/error.rs` -- while `ProcessGetParent` answers 0 for the same
+  missing process. `/proc/<pid>/exe` may end with " (deleted)": that suffix
+  is cut, and `/proc/<pid>/comm` is the fallback for a kernel thread.
+- `ProcessClose` answers the pid it closed, or 0 when the process is missing
+  or cannot be opened; the signal is `SIGTERM`, the one v2 sends.
+- `ProcessWait` answers the pid when the process appears and 0 at the
+  timeout; `ProcessWaitClose` answers 0 when the process is gone -- a process
+  that never existed is gone -- and the still-live pid at the timeout. The
+  check is every 100 ms, the interval of the binary, and a timeout that is
+  not given waits forever.
+- `ProcessSetPriority` reads the first letter of the word only -- L, B, N, A,
+  H, R -- and answers the pid; the number is refused with "Parameter #1 ...
+  is invalid." and the value in the `Extra`, a missing process is a
+  `TargetError`. The six words are the nice values 19, 10, 0, -5, -10 and
+  -20.
+- The failures of the machine that are not about the process are honest:
+  reading the path of another user's process is an `OSError` "(13) Permission
+  denied", and raising the priority of one is "(1) Operation not permitted".
+## 249. Levels of break and continue, and the spread of a call
+
+Both measured on the binary of v2.0.19 on 2026-11-09.
+
+- **`break N` and `continue N`** take an integer literal and a level: `break 2`
+  inside two loops leaves both of them, `continue 2` continues the outer loop.
+  The level is validated when the script loads: `break 0`, and a level larger
+  than the number of the loops around it, are "Parameter #1 invalid."; a
+  `break` outside every loop keeps "Break/Continue must be enclosed by a
+  Loop.". A `switch` is transparent: a `break` inside a switch that is inside
+  a loop leaves the loop, and a switch is not a level. The level travels as
+  `Flow::Break(u32)`/`Flow::Continue(u32)`, and every loop construct consumes
+  one of them and passes the rest out (`while`, the counted `Loop`, the `Loop`
+  without a count, `Loop Parse`/`Files`/`Read`, and `for`). The v1 has no such
+  form -- its break names a label -- and the dialect refuses it.
+- **The spread of a call: `f(arr*)`.** The last argument of a call may carry
+  the star, and the items of the value are given as the arguments: with
+  `f(a, b) { return a "/" b }` and `arr := [1, 2]`, `f(arr*)` answers `1/2`.
+  The value is enumerated the way `for` enumerates it -- the items of an
+  `Array`, the keys of a `Map`, the `__Enum` of a class of the script -- and a
+  value that cannot be enumerated is "Value not enumerable.". An empty spread
+  leaves the required parameter missing, and `f(0, arr*)` is too many
+  parameters. The star is refused in the middle, twice, or after a trailing
+  comma, with "Missing operand.\n     Specifically: *, 9))" -- the wording of
+  the binary.
+## 250. The screen, the monitors and the machine
+
+Measured on the binary of v2.0.19 on 2026-11-09, implemented over the box; the
+seven names are `value` in `--surface` now.
+
+- **`SysGet(N)`** is `GetSystemMetrics(N)`: 0 and 1 are the width and the
+  height of the primary screen, 16 the fullscreen width, 76/77 the left and
+  top of the virtual screen, 78/79 its width and height, 80 the number of the
+  monitors and 81 the same-format flag. Every other number of 0..=102 is a
+  metric of the window manager of Windows, and this desktop has none: those
+  are refused with the reason. A number outside 0..=102 answers 0, the way the
+  binary does.
+- **`MonitorGet`, `MonitorGetCount`, `MonitorGetName`, `MonitorGetPrimary` and
+  `MonitorGetWorkArea`** are read from the `wl_output` objects of the
+  compositor: the Wayland client walks the registry and binds every output,
+  and keeps its geometry, its current mode and its v4 name/description. The
+  right and the bottom of a monitor are one past the last column and row, the
+  way v2 measures them (a 3840x2160 screen answers `0,0,3840,2160`). The work
+  area is refused: a Wayland compositor does not publish it, and a guessed
+  number would be worse than the reason. The primary monitor is the only one
+  when the compositor says there is one output; with several, the compositor
+  does not say which one is primary, and the tree says so.
+- **`SysGetIPAddresses()`** answers an `Array` of the IPv4 addresses of the
+  machine, without the loopback. The box reads them with a hand-declared
+  `getifaddrs` (`crates/ahk-box/src/network.rs`), and the array is the one of
+  the binary's shape.
+- **Open:** the wrong-kind failure of the output parameters of `MonitorGet`
+  and `MonitorGetWorkArea` carries the name of the built-in in the `What` in
+  the binary and the empty text in the tree. The binary declares those
+  parameters as `VarRef` values and the tree declares them as the written-back
+  reference; the fix is a column of the table in `builtins.rs` that says
+  which, and it is not done yet.
+
+## 251. The flags of a function, and the increment of a built name
+
+- **`Func.IsOptional(N)` and `Func.IsByRef(N)`** answer about the parameter at
+  the place N, counted from one. Measured on the binary of v2.0.19 on
+  2026-11-09: `f(a, b?)` answers one for 2 and zero for 1; a parameter that
+  carries a default is optional too; a method reference counts its `this` as
+  the first parameter (`t.m` of `m(a, b?)` answers one for 3); and a place the
+  function does not have is refused with "Parameter #1 of
+  Func.Prototype.IsOptional is invalid.", of the class `ValueError`. The flags
+  live under the reserved key `parameter flags` (`runtime::PARAMETERS`) as a
+  list of numbers: the bit 0 is the ByRef marker and the bit 1 the optional
+  one. The `const` is filled by the three constructors that have the
+  parameters at hand: the value of a function of the script, and the two
+  method references.
+- **The increment of a name that the script builds** -- `y%x%++` and
+  `++y%x%` -- is the increment of the variable the name points at. Measured on
+  the binary of v2.0.19 on 2026-11-09: `y1 := 5` with `x := 1` answers the old
+  value for `y%x%++` and stores the new one, and the pre-increment answers the
+  new one. The parser builds the same `Unary` node for the dynamic name, and
+  the runtime's `increment` has an arm for `Node::DynamicName` that reads and
+  writes through `the_name_of_the_pieces` and `write_a_dynamic_name`. The
+  differential case is `pa02_dynamic_name`.
