@@ -81,6 +81,7 @@ command		BlockInput	1	255	Value
 function		Ceil	1	1	Value
 function		Chr	1	1	Value
 command		Click	0	255	Value
+variable		Clipboard			
 command		ClipWait	0	255	Value,Value
 function		ComObjActive	0	3	Value
 function		ComObjArray	2	255	Value,Value,Value,Value
@@ -92,6 +93,7 @@ function		ComObjGet	1	1	Value
 function		ComObjQuery	2	3	Value,Value,Value
 function		ComObjType	1	2	Value,Value
 function		ComObjValue	1	1	Value
+variable		ComSpec			
 command		Control	1	255	Value,Value,Value,Value,Value,Value,Value
 command		ControlClick	0	255	Value,Value,Value,Value,Value,Value,Value,Value
 command		ControlFocus	0	255	Value,Value,Value,Value,Value
@@ -214,6 +216,7 @@ command		PixelGetColor	3	255	Output,Value,Value,Value
 command		PixelSearch	0	255	Output,Output,Value,Value,Value,Value,Value,Value,Value
 command		PostMessage	1	255	Value,Value,Value,Value,Value,Value,Value,Value
 command		Process	1	255	Value,Value,Value
+variable		ProgramFiles			
 command		Progress	0	255	Value,Value,Value,Value,Value
 command		Random	0	255	Output,Value,Value
 command		RegDelete	0	255	Value,Value,Value

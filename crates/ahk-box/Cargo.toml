@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-repository.workspace = true
 description = "The lab box as a script target: a uinput keyboard of our own, grim captures, and exact text"
 
 [dependencies]

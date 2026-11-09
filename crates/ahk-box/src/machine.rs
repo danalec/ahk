@@ -8,9 +8,9 @@
 //! The box is a Linux machine, and the answers are read where Linux keeps
 //! them: the environment of the session, the files of the XDG base
 //! directories and the release of the kernel. The values were measured on
-//! the box on 2026-10-29: the user is `danalec`, the computer is
-//! `pod158c`, the shell is `/usr/bin/zsh`, and the version of the
-//! operating system is the release of the kernel.
+//! the Linux box: the user is `<user>`, the computer is `<host>`, the shell
+//! is `/usr/bin/zsh`, and the version of the operating system is the
+//! release of the kernel.
 //!
 //! The two things that only Linux has -- the release of the kernel and the
 //! effective user id -- are behind a gate, and the other systems answer
@@ -31,9 +31,9 @@ pub fn user_name() -> Result<String, String> {
 /// The name of the computer, as the network sees it.
 ///
 /// The kernel knows it, and the kernel is the one that answers even when
-/// the session carries no `HOSTNAME`: measured on the box on 2026-10-29, a
-/// run that comes from `ssh` has no `HOSTNAME` in its environment, and the
-/// computer is `pod158c`.
+/// the session carries no `HOSTNAME`: measured on the Linux box, a run
+/// that comes over SSH has no `HOSTNAME` in its environment, and the
+/// computer is still named by the kernel.
 pub fn computer_name() -> Result<String, String> {
     #[cfg(target_os = "linux")]
     if let Some(name) = the_name_of_the_machine() {
@@ -102,7 +102,7 @@ pub fn os_version() -> Result<String, String> {
 ///
 /// The session carries it in `LC_ALL`, `LANG` or `LANGUAGE`, in that order
 /// of preference, and the file of the system is the last word:
-/// `/etc/locale.conf` has `LANG=en_US.UTF-8` on the box.
+/// `/etc/locale.conf` has `LANG=<locale>` on the box.
 pub fn language() -> Result<String, String> {
     for name in ["LC_ALL", "LANG", "LANGUAGE"] {
         if let Ok(value) = std::env::var(name) {
@@ -294,8 +294,8 @@ mod tests {
         let text =
             "# This file is written by xdg-user-dir-update\nXDG_DESKTOP_DIR=\"$HOME/Desktop\"\n";
         assert_eq!(
-            the_user_dir(text, Some("/home/danalec"), "XDG_DESKTOP_DIR").as_deref(),
-            Some("/home/danalec/Desktop")
+            the_user_dir(text, Some("/home/<user>"), "XDG_DESKTOP_DIR").as_deref(),
+            Some("/home/<user>/Desktop")
         );
     }
 
@@ -304,7 +304,7 @@ mod tests {
     fn a_key_that_is_not_there_is_not_a_folder() {
         let text = "XDG_DESKTOP_DIR=\"$HOME/Desktop\"\n";
         assert_eq!(
-            the_user_dir(text, Some("/home/danalec"), "XDG_DOCUMENTS_DIR"),
+            the_user_dir(text, Some("/home/<user>"), "XDG_DOCUMENTS_DIR"),
             None
         );
     }

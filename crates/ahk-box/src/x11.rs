@@ -1472,7 +1472,7 @@ mod tests {
     #[test]
     fn symbol_table_is_well_formed() {
         assert_eq!(ffi::SYMBOLS.len(), ffi::SYMBOL_COUNT);
-        assert!(ffi::LIBXTST_FROM < ffi::SYMBOL_COUNT);
+        const { assert!(ffi::LIBXTST_FROM < ffi::SYMBOL_COUNT) };
         for name in ffi::SYMBOLS {
             assert_eq!(name.last(), Some(&0), "a symbol name must end in NUL");
             assert!(!name[..name.len() - 1].contains(&0), "no interior NUL");

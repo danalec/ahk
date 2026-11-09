@@ -1,7 +1,7 @@
 # The v1 dialect beside the v2: the gate, the phases, and what stays out
 
 > The plan. The authority is the binary of the **AutoHotkey v1.1.37.02** and
-> the documentation of the v1 — measured on 2026-10-28. The tree speaks
+> the documentation of the v1 — measured. The tree speaks
 > **v2.0.19** today; this document is about putting the **v1** beside it,
 > without touching the v2.
 
@@ -22,7 +22,7 @@ The reason stays valid for the **v2** : the v2 is the main dialect and the
 competitive advantage. The change is that the v1 becomes an **option** — for
 the scripts that already exist and that nobody will rewrite.
 
-**The comparison is under review** — the wave of 2026-10-29 rewrites that
+**The comparison is under review** — the wave rewrites that
 document, and the numbers of its sections change with it. The decision is
 written in both places: the comparison says that the line is true of the v2
 and only of the v2, and points to this plan; this plan says the same and
@@ -34,7 +34,7 @@ the same table are also inverted — for the dialect of the v1, and only for it:
 | The "output var" convention (`StringLen, out, in`) | the return value, and the `&` when a write is needed | the convention is the one of the measured v1, and the table of the built-ins gains the column of the shape of the parameter (§3.2) |
 | `#NoEnv` as the default | the environment is explicit, `EnvGet` is there | the `#NoEnv` exists and turns the substitution off (§3) |
 
-### The coordination with the wave of 2026-10-29
+### The coordination with the wave
 
 Another session works in this tree at the same time, and its work is **other**
 : closing the gaps of the port into the **v2** — the clipboard, the sound, the
@@ -73,18 +73,18 @@ them is the `SetBatchLines` (§5).
 
 | Source | What it is | Where |
 |---|---|---|
-| `AutoHotkeyU64.exe` (v1.1.37.02) | the truth: the messages, the shapes, the names | downloaded from `autohotkey.com/download/1.1/` on 2026-10-28; portable, nothing installed |
+| `AutoHotkeyU64.exe` (v1.1.37.02) | the truth: the messages, the shapes, the names | downloaded from `autohotkey.com/download/1.1/`; portable, nothing installed |
 | `autohotkey.com/docs/v1/` | the list of the commands and the functions, and the grammar |same |
 | `docs/ahk-x11-comparison.md` | the names that changed from the v1 to the v2 (the section "The names that changed from the v1 to the v2") | in the repository, under review |
 | `AutoHotkey.chm` (in the zip of the v1.1) | the offline documentation | in the zip |
-| `AutoHotkey64.exe` (v2.0.19) | the truth of the **v2**: the messages of the run that are not on the console | `E:\autohotkey\AutoHotkey64.exe` on the workstation, and `%TEMP%\ahk-v2-measure\AutoHotkey64.exe` (the two are the same bytes); the package of scoop (`2.0.30`) is a junction without files, and the shims are dead |
+| `AutoHotkey64.exe` (v2.0.19) | the truth of the **v2**: the messages of the run that are not on the console | a local AutoHotkey v2.0.19 binary; the package of scoop (`2.0.30`) is a junction without files, and the shims are dead |
 | the source of the v1 (`script.cpp` and `script_expression.cpp`) | the mechanism of the dialect, when the measurement says what happens and the source says why | `raw.githubusercontent.com/Lexikos/AutoHotkey_L/master/source/`; it is GPL, so it is read and never copied, and it stays out of the repository |
 
 **The archive `../archived/ahk-python` is not a reference.** It is not an
 implementation of the v1: its own note says
 *"The dialect is the one of AutoHotkey v2. `:=` assigns, `=` compares"* (
 `archived/ahk-python/AGENTS.md:38-41` ), and its 9 commits are all of
-2026-10-25 — the first one was already v2. It is the record of the *yoko-ahk*
+the same batch — the first one was already v2. It is the record of the *yoko-ahk*
 dialect before the port, not of the v1.
 
 ### What the gate has to resolve
@@ -102,7 +102,7 @@ dialect before the port, not of the v1.
 
 ---
 
-## 1. What was measured on the v1.1.37.02 (2026-10-28)
+## 1. What was measured on the v1.1.37.02
 
 Everything that follows was measured on the binary, with `/ErrorStdOut` (the
 v1 opens a dialog when a script fails; with the option, the reason comes out
@@ -117,7 +117,7 @@ on stdout and the process ends).
 | Text parameter | `StringLen, n, %x%` → `n` = 0 (the `%…%` form is the *legacy* substitution) | there is none |
 | Expression parameter | `StringLen, n, (x)` → refused: *"The following variable name contains an illegal character: "(x)""* — the `(…)` form exists only in the parameters that are expressions | the whole expression |
 | Assignment | `x = 5` assigns (and `y := 7` as well) | `:=` assigns; `=` compares |
-| Comparison | `"ABC" = "abc"` → **true**; `"ABC" == "abc"` → false | the same as the v1: `=` does not distinguish the case and `==` does (`runtime.rs:2798-2809`, measured on the binary of v2.0.19 on 2026-11-01: `"ABC" = "abc"` is 1 and `"ABC" == "abc"` is 0) |
+| Comparison | `"ABC" = "abc"` → **true**; `"ABC" == "abc"` → false | the same as the v1: `=` does not distinguish the case and `==` does (`runtime.rs:2798-2809`, measured on the binary of v2.0.19: `"ABC" = "abc"` is 1 and `"ABC" == "abc"` is 0) |
 | `if` | `if (x > 1)` with **one** statement and `else` — without braces | `if` with an expression and a block `{ }` |
 | *Labels* | `MyLabel:` and `goto MyLabel2` work | they do not exist |
 | Hotstring | it is a **statement**: `::btw::by the way`, or `::btw::` followed by the lines and the `return` | `Hotstring(":btw:", Callback)` — a command |
@@ -160,7 +160,7 @@ when the script writes a name, and the table holds what is left.
 The documentation of the v2 lists **116** built-in variables and every
 one of them has the prefix -- `A_IsAdmin`, `A_AppData`, `A_ScreenWidth`,
 `A_Clipboard` -- and there is no variable named `Clipboard` at all
-(`autohotkey.com/docs/v2/Variables.htm`, read on 2026-10-29).
+(`autohotkey.com/docs/v2/Variables.htm`).
 
 Measured on the binary of the v2.0.19 on the same day (`A_AhkVersion`
 answers `2.0.19`): `x := A_IsAdmin` answers `0`, and `x := IsAdmin`
@@ -180,7 +180,7 @@ both. For the table of the v1 this matters: the names of the surface are
 the **spelled** ones, `A_Clipboard` and not `Clipboard`.
 
 The variables of the v1 are **137** names, and they were counted on the
-binary on 2026-10-29: 134 answer `1` to `IsSet` and three do not answer at
+binary: 134 answer `1` to `IsSet` and three do not answer at
 all — `A_Is64bitOS` , `A_IsUnicode` and `A_PtrSize` . They are variables
 all the same, and the reason the question does not answer is a detail of the
 v1 that the probing has to know: **the parameter of the `IsSet` of the v1 is
@@ -213,7 +213,7 @@ x := Upper("abc")      # it does not exist: "Call to nonexistent function."
 ```
 
 And the **kind** of each name comes out of three questions that the v1 asks
-in three different ways (measured on 2026-10-29):
+in three different ways (measured):
 
 | Question | What answers |
 |---|---|
@@ -225,7 +225,7 @@ It is with these three questions that F1 fills the column of the kind of the
 table of the v1. And it is for that reason that a probe by name is more than
 a yes or no: the same name answers differently according to its shape.
 
-**The whole surface of the v1 was measured on 2026-10-29: 421 names, in 22
+**The whole surface of the v1 was measured: 421 names, in 22
 seconds, on the workstation.** The box is not needed and was never needed: the
 v1 is a Windows binary, and the probing never runs anything — the two
 first questions are inside a dead branch, and the resolution of a name in the
@@ -279,7 +279,7 @@ Measured on the two binaries:
   either (measured:
   *"Call to nonexistent function. Specifically: ObjHasProp(o, "a")"* ).
 - `SetBatchLines` is the other way round: it is a name of the v1 that the v2
-  does not have (measured on 2026-10-29: `SetBatchLines, 10` runs, and
+  does not have (measured: `SetBatchLines, 10` runs, and
   `SetBatchLines(10)` gives *"Call to nonexistent function"*).
 - **The same name, another kind** — and this is where the gate hurts:
 
@@ -321,7 +321,7 @@ The v2 has eleven classes in the surface — `Map` , `Array` , `Buffer` , `File`
 does not extend them, and the methods are the ones the runtime answers.
 
 The v1 has none of those types. What it has are **objects** , and measured on
-the binary on 2026-10-29 their `.__Class` is **empty** : the `File` of
+the binary, their `.__Class` is **empty** : the `File` of
 `FileOpen` , the object of `Object()` , the literal `{a: 1}` and the object of
 the variable `ClipboardAll` all give an empty `.__Class` . The `Object` of the
 v1 is a **function** ( `Object()` runs), and the base object has no class
@@ -337,7 +337,7 @@ are objects with keys.
 
 ### 1.6 The surface of the v1, counted
 
-The whole surface of the v1 was measured on 2026-10-29 and it is **421
+The whole surface of the v1 was measured and it is **421
 names** : the 284 pages of the documentation of the v1 (the CHM of the zip) and
 the 137 built-in variables of the page of the variables. The kind of each one
 is the answer of the binary, and the table is in
@@ -369,7 +369,7 @@ of the binary that says what it is, and they are of two kinds:
 **A page that carries two names is a blind spot of the list.** The `Run` and
 the `RunWait` are documented together, in the same page of the CHM, and the
 list of the names took one of them and left the other out. The `RunWait` was
-measured on the binary on 2026-11-02 -- it is a command of the v1, with the
+measured on the binary -- it is a command of the v1, with the
 shape of the `Run` -- and the table carries it.
 
 And the last one is a **directive that the docs still carry and that the binary
@@ -456,7 +456,7 @@ table of the v1 follows that rule.
 ### 1.7 The errors of the v1, and how they are told apart
 
 The v1 tells an error in two ways, and the tree has to tell them the same way.
-Measured on 2026-10-29, on the two binaries.
+Measured on the two binaries.
 
 **A load-time error comes on stderr.** The script does not parse, the binary
 writes the complaint on stderr with the exit code 2, and the line of the
@@ -645,7 +645,7 @@ in the runner, and the table of the parameters in the table of the built-ins
 (filled with `Value` / `Variable` , which is what the v2 already does).
 
 **Result.** The suite stays green without a change of body — the 622 cases of
-the commit `6def58f` (the wave of 2026-10-29 changed them too, and the number
+the commit `6def58f` (the wave changed them too, and the number
 only goes up); the `--dialect=v1` still answers
 *"this runtime does not speak that dialect"* .
 
@@ -661,7 +661,7 @@ The variables of the v1 (§1.2). The classes of the v1: **none**
 script classes. The pending table of the v1, with the reason of each name that
 is not carried — and this is the first pending table that is not empty (§0).
 
-**Done (2026-10-29).** The list of the names and the kind of each one: **421
+**Done.** The list of the names and the kind of each one: **421
 names, 383 of them of the surface** , in
 `crates/ahk/reference/ahk-v1.1.37.02.surface.tsv` (§1.6). The 29 directives of
 the v1 are measured too, and the one that the documentation still carries and
@@ -679,7 +679,7 @@ error is *"The following variable name contains an illegal character"*) , and
 the documentation says whether that name is written into or read from ---
 `OutputVar` is written into, `Var` is read.
 
-**What the measurement showed, on 2026-10-29:**
+**What the measurement showed:**
 
 - **A command is checked at load time.** A parameter that wants a name refuses
   a quoted string, and the complaint is on stderr. The probe gives each
@@ -728,7 +728,7 @@ built-ins of the v1, and the `--dialect=v1` of the command that prints the
 surface (§5).
 
 **Result.** `ahk --surface --dialect=v1` prints the list with the state of
-each name — the command that the wave of 2026-10-29 built for the v2, with one
+each name — the command that the wave built for the v2, with one
 dialect more; the number of "really carried" ones is visible in each commit.
 
 **Risk.** Medium: it is mechanical work, but it is work. And it is the phase
@@ -752,7 +752,7 @@ that F2 depends on.
 **Result.** A v1 script from the documentation runs in the runner:
 `MsgBox, text` writes the message, `StringLen, n, s` fills `n` , `if (a = b)`
 compares without distinguishing case, `goto` jumps. (The `Msg` is not a
-command of the v1 — measured on 2026-10-29:
+command of the v1 — measured:
 *"This line does not contain a recognized action. Specifically: Msg, hello"* .
 The `MsgBox` is, and it opens a window.)
 
@@ -770,7 +770,11 @@ v1 uses the two in the same place ( `if (a = b)` compares; `a = b` assigns).
   **The tree today interpolates `%nome%` with the variable of the script** (
   `runtime.rs:3073` ) — it is the rule of the v1 with the sense of the v2, and
   the plan corrects it per dialect.
-- The variables of a function are **local** by default, in the v1 as in the v2 ( `runtime.rs:1648-1661` creates a local one): measured on the binary of v1.1.37.02 on 2026-11-01, a variable that a function writes is not seen outside of it, and the word `global` is what makes it so. The plan said the opposite, and the binary says otherwise.
+- The variables of a function are **local** by default, in the v1 as in the
+  v2 ( `runtime.rs:1648-1661` creates a local one): measured on the binary
+  of v1.1.37.02, a variable that a function writes is not seen outside of it,
+  and the word `global` is what makes it so. The plan said the opposite, and
+  the binary says otherwise.
 - The text is everything: the v1 has no integer and float apart, and the
   `Value` of the runtime has them ( `runtime.rs:57-82` ).
 - The classes of the v1: `Object` and the literal `{}` .
@@ -812,12 +816,12 @@ do almost all of this.
 - The suite of the v1 ( `crates/ahk/tests/v1/` ) mirroring the one of the v2.
 - The `--surface` per dialect, in text and in JSON.
 - The measurement on the box: the cases of the v1 through the runner, like the
-  35 of the v2 (2026-10-29).
+  35 of the v2.
 
 **Result.** `ahk --surface --dialect=v1` says what is missing, and the number
 does not get worse without being seen.
 
-### The state of the phases — 2026-11-02
+### The state of the phases
 
 | Phase | State | What is in the tree |
 |---|---|---|
@@ -825,30 +829,35 @@ does not get worse without being seen.
 | **F1 — the surface** | Done | The table of the v1 (`crates/ahk/src/v1/table.rs`), the call in the shape of the v1, and the pending table of the v1. Commit `48ef559`. |
 | **F2 — the grammar** | Done | The `=` that assigns, the line of a command that continues when the line that comes begins with an operator, the hotstring as a statement, and the directives of the v1. Commit `12331ab`, corrected by the block of the body of the action. |
 | **F3 — the semantics** | Done | A variable with no value is blank, a division by zero is blank, `%name%` is the variable of the script, and the `+` of a text is a concatenation. Commit `50710cd`. |
-| **F4 — the box** | Done | The runner with `--dialect=v1` on the box (192.168.0.40), with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
+| **F4 — the box** | Done | The runner with `--dialect=v1` on the box, with the `PixelGetColor`, the `MouseGetPos`, the `FileRead`, the `StrLen`, the `IsSet`, the `IsFunc` and the `Object` against the real machine. |
 | **F5 — the verification** | Done | The parity test per dialect (`tests/surface.rs`), the suite of the v1 (`tests/v1.rs`, 187 cases), and the `--surface --json` for the CI. |
 
 **What is left.** One name of the pending table of the v1: the
 `SetBatchLines`, and it is a decision of the plan (§5, the threads of the
 v1). The `IfInString`, the `IfNotInString`, the `IfMsgBox` and the `Else`
-were carried by the block of the body of the action (2026-11-02), the
+were carried by the block of the body of the action, the
 `StringGetPos`, the `StringReplace` and the `StrReplace` by the block of the
-searches (2026-11-02), the call of a function by the block of the call
-(2026-11-02), the `ErrorLevel` by the block of the `ErrorLevel`
-(2026-11-02), the name of a function by the block of the name of a
-function (2026-11-02), and the commands of the machine by the block of the
-machine commands (2026-11-02), and the objects by the block of the objects
-(2026-11-02), and the name of a class by the block of the name of a class
-(2026-11-02), and the grammar of a class by the block of the grammar of a
-class (2026-11-02), and the scope of a function by the block of the scope of
-a function (2026-11-02), and the name that begins with a number by the block
-of the name that begins with a number (2026-11-02), and the number that
-keeps the text that was written by the block of the number (2026-11-02), and
-the path of the class of the `new` by the block of the path (2026-11-02), and
-the parameter of a command by the block of the parameters (2026-11-02), and
-the pid of the process by the block of the pid (2026-11-02), and the code of
-the failure of a native call by the block of the code (2026-11-02), and the
-patterns of the files by the block of the patterns (2026-11-02), and the number of the parameters of a command by the block of the arity (2026-11-02), and the arithmetic of the v1 by the block of the arithmetic (2026-11-02), and the environment of the v1 by the block of the environment (2026-11-02), and the last parameter of a command by the block of the rest of the line (2026-11-02), and the name of a variable by the block of the name of a variable (2026-11-02), and the value of the parameter of a command by the block of the values (2026-11-02), and the marks of the name of a variable by the block of the marks (2026-11-02), and the sub-command of a command by the block of the sub-command (2026-11-02), and the label that a command names by the block of the label (2026-11-03), and the goto by the block of the goto (2026-11-03), and the `GetKeyState` by the block of the key state (2026-11-03).
+searches, the call of a function by the block of the call, the `ErrorLevel` by the block of the
+`ErrorLevel`, the name of a function by the block of the name of a
+function, and the commands of the machine by the block of the
+machine commands, and the objects by the block of the objects, and the name of a class by the block
+of the name of a class, and the grammar of a class by the block of the grammar of a
+class, and the scope of a function by the block of the scope of
+a function, and the name that begins with a number by the block
+of the name that begins with a number, and the number that
+keeps the text that was written by the block of the number, and
+the path of the class of the `new` by the block of the path, and
+the parameter of a command by the block of the parameters, and
+the pid of the process by the block of the pid, and the code of
+the failure of a native call by the block of the code, and the
+patterns of the files by the block of the patterns, and the number of the parameters of a command by
+the block of the arity, and the arithmetic of the v1 by the block of the arithmetic, and the
+environment of the v1 by the block of the environment, and the last parameter of a command by the
+block of the rest of the line, and the name of a variable by the block of the name of a variable,
+and the value of the parameter of a command by the block of the values, and the marks of the name of
+a variable by the block of the marks, and the sub-command of a command by the block of the
+sub-command, and the label that a command names by the block of the label, and the goto by the block
+of the goto, and the `GetKeyState` by the block of the key state.
 
 **The parameter of a command of the v1.** The v1 checks the value of the
 parameter when the script loads, and the script does not run at all: the
@@ -872,8 +881,7 @@ three families. The sub-command may carry the name of the window before it,
 and it may be a list of options that begins with a sign. The rules are in
 `crates/ahk/src/v1/sub_commands.rs`, and the parameter that may not be
 blank is another hook of the dialect
-(`the_parameter_may_not_be_blank`). The block of the sub-command
-(2026-11-02) carried it, and the differential sweep of the v1 went from
+(`the_parameter_may_not_be_blank`). The block of the sub-command carried it, and the differential sweep of the v1 went from
 88 divergences of the load to 2: the `GroupAdd`, whose label the parser
 does not know yet.
 
@@ -894,7 +902,7 @@ written twice and the call of a name that is not a function are refused
 before it. The rules are in `crates/ahk/src/v1/labels.rs`, the hook of the
 dialect is `the_label_of_the_command`, and the check is at the end of the
 parse, because the names of the labels of the script are known only then. The
-block of the label (2026-11-03) carried it, and the differential sweep of the
+block of the label carried it, and the differential sweep of the
 v1 has no divergence of the load any more.
 
 **The goto of the v1.** The goto names a label, and the label that is not
@@ -910,7 +918,7 @@ refusal that comes first in the script is the one that the v1 says. The
 rules are in `crates/ahk/src/v1/labels.rs`, the hook of the dialect is
 `the_goto_is_refused_with_the_labels`, and the complaint of the jump that
 the runtime refuses is the one of the dialect too
-(`the_refusal_of_a_jump_into_a_block`). The block of the goto (2026-11-03)
+(`the_refusal_of_a_jump_into_a_block`). The block of the goto
 carried it.
 
 **The `GetKeyState` of the v1.** The name is two things in the v1: the call of
@@ -926,9 +934,9 @@ or of a scan code, and the number of the code is the byte that it ends in.
 The function answers an empty text for a name that is not a key. The names
 are in `crates/ahk/src/v1/keys.rs`, the rule of the parameter is in
 `crates/ahk/src/v1/parameters.rs`, and the two forms of the name are two rows
-of the table of the v1. The block of the key state (2026-11-03) carried it.
+of the table of the v1. The block of the key state carried it.
 
-**The `if` of the v1** (2026-11-04). The `if` of the v1 is an expression,
+**The `if` of the v1**. The `if` of the v1 is an expression,
 and the condition of it is the expression of the line: the `if (1) x = 5`
 compares the text "1" with the number 5 -- the concatenation of the v1 is a
 part of the expression -- and the condition is false. The text that the
@@ -946,7 +954,7 @@ the body of an `if` is refused the same way. The text that comes after a comma
 is a parameter, and it is named: the `else, something` says "This line does
 not contain a recognized action.".
 
-**The legacy `if` of the v1** (2026-11-04). The legacy `if` is the one that
+**The legacy `if` of the v1**. The legacy `if` is the one that
 compares a variable with a value -- the `if x = 1`, the `if x != 1` and the
 `if x < 1` -- and the right side of it is the text of the rest of the line,
 and not an expression: the `if x = 1 + 1` compares the value of `x` with the
@@ -961,7 +969,7 @@ is refused with "Unexpected \"}\"". The block that comes on the line that
 comes is the body of it. The v1 knows the `<>`, which is the `!=` of the v2,
 and the v2 does not know it.
 
-**The forms of the legacy `if` and the tail of the `if`** (2026-11-04). The
+**The forms of the legacy `if` and the tail of the `if`**. The
 legacy `if` has three forms that are not the comparison of a variable with a
 value -- the `if x between low and high`, the `if x in a, b` and the `if x
 contains a` -- and the `not` may come before the word of the form. The texts
@@ -982,7 +990,7 @@ false. The `else` that comes right after the tail is the other side of the
 `else` that comes with a statement between it and the tail is refused with
 "ELSE with no matching IF".
 
-**The truth of the v1** (2026-11-04). The text of a condition of the v1 is a
+**The truth of the v1**. The text of a condition of the v1 is a
 number when the syntax of the v1 accepts it, and the condition is false when
 that number is zero: the "00" is false, and the "0.0" is false. The v2 keeps
 the text as it was written, and the "00" is true there.
@@ -993,7 +1001,7 @@ between quotes as a string, and a string is true when it is not empty: the
 the `!x` with `x` holding "00" is one. The `&&` and the `||` of the v1 answer
 one and zero, and not the operand: the `"a" && "b"` is 1.
 
-**The number on the left of the legacy `if`** (2026-11-04). The names of the
+**The number on the left of the legacy `if`**. The names of the
 v1 may begin with a number, and the number that comes first in the legacy
 `if` is the name of a variable: the `if 1 = 1` compares the variable "1"
 with the text "1", and the variable "1" has no value, and the condition is
@@ -1006,7 +1014,7 @@ the `if 0 = 0` is true because of it, and the `if 0 < 0` is false. The
 writing of it wins: the `0 := 9` turns the `if 0 = 0` into a false
 condition. The `%0%` of a command reads the same variable.
 
-**The `if` and the `while` inside the line of the condition** (2026-11-04).
+**The `if` and the `while` inside the line of the condition**.
 The v1 accepts the `if (0) if (1) x := 1`, and the construct that comes
 inside the line has no body of its own: its condition is a part of the
 condition that holds it, and the line that comes after is the body of the
@@ -1022,7 +1030,7 @@ The truth of the whole is the truth of the text of the line, because the
 the parts of it: the `if (0) if (0)` is false, because the text of it is
 "00", and the `if (0) if (1)` is true, because the text of it is "01".
 
-**The number that opens a statement** (2026-11-04). The names of the v1 may
+**The number that opens a statement**. The names of the v1 may
 begin with a number, and the number that opens a statement is the name of a
 variable: the `0 := 9` writes the variable "0", and the `0 = 9` writes it
 too, and the `0++` is the increment of it, and the `++0` is the increment of
@@ -1037,7 +1045,7 @@ the operators that write a variable read it: the text that is not a number
 is the number zero, and the `a++` of the "abc" is one, and the `a++` of a
 variable that has no value is one too.
 
-**The items that come after the comma** (2026-11-04). The line of the
+**The items that come after the comma**. The line of the
 condition of the `if` of the v1 is one expression, and the items that come
 after the comma are evaluated: the `if (0) x := 1, y := 3` writes the
 variable "y". They are evaluated whether the condition is true or false, and
@@ -1055,7 +1063,7 @@ The item takes the line that comes with it when the expression continues
 there: the `if (0) x := 1, y := 3` with a `+ 4` under it writes the variable
 "y" with the value 7.
 
-**The messages of the load** (2026-11-04). The v1 names the bracket that is
+**The messages of the load**. The v1 names the bracket that is
 not closed and nothing else: the `x := (1` is a "Missing \")\"" and the line
 of the script is not under it. The v2 names the line of the script under
 the name of the bracket. The bracket that closes nothing is an "Unexpected
@@ -1063,7 +1071,7 @@ the name of the bracket. The bracket that closes nothing is an "Unexpected
 "Missing close-quote" that names the text that was read -- the `"abc` -- and
 not the line of the script.
 
-**The assignment that has no value** (2026-11-04). The `y :=` of the v1
+**The assignment that has no value**. The `y :=` of the v1
 writes the empty text, and the line that comes is a statement of its own:
 the `y :=` with a `3 + 4` under it is a line that holds no action. The v2
 continues the assignment on the line that comes, and it writes the variable
@@ -1075,14 +1083,14 @@ the tail is an action: the `if (0) x := 1, FileAppend, A, *` with a `B`
 under it is a "This line does not contain a recognized action. Specifically:
 B".
 
-**The values that are side by side** (2026-11-04). The v1 does not ask for
+**The values that are side by side**. The v1 does not ask for
 the space that tells two values apart: the `x := "a"5` is the text `a5`, and
 the `x := 5 3` is the text `53`. The v2 asks for the space, and it refuses
 the line with "Missing space or operator before this.".
 
 The quote of the v1 escapes itself: the `x := "a""b"` is the text `a"b`.
 
-**The name that carries a quote** (2026-11-04). The name of a variable of the
+**The name that carries a quote**. The name of a variable of the
 v1 may not carry a quote. The `x := a"b"` is refused at the load with "The
 following variable name contains an illegal character:" and the name of it --
 the `"a"b""`. The name is the symbol that comes with the word: the `a"b"x`
@@ -1098,7 +1106,7 @@ is the symbol `5"a"`. The number with a point is a number and not the name of
 a variable, and the quote is not allowed there: the `x := 5.5"a"` is a "This
 character is not allowed here. Specifically: "a"".
 
-**The words that are names** (2026-11-04). The words of the v1 are not
+**The words that are names**. The words of the v1 are not
 reserved: the `while := 5` writes the variable "while", and the `x := while`
 reads it. The words that keep their meaning in the v1 are the operators
 (`and`, `or` and `not`), the values (`true` and `false`) and the `if`, that
@@ -1106,7 +1114,7 @@ is a command of the v1. The `true := 5` is refused with "Not allowed as an
 output variable. Specifically: true", and the `is`, the `as`, the `in`, the
 `contains` and the `super` are names of the v1.
 
-**The count of the `Loop`** (2026-11-04). The count of the `Loop` of the v1
+**The count of the `Loop`**. The count of the `Loop` of the v1
 is the text that the script wrote, and the loop is skipped when the text is
 not a number. The `loop n` is skipped, and so are the `loop 1+1` and the
 `loop 2.7`. The hex is a number: the `loop 0x3` is three turns. The `%` and
@@ -1114,7 +1122,7 @@ a space force the expression: the `loop % Count + 1`. And the `%name%` is the
 value of the variable of the script: the `loop %n%` is the value of `n`.
 
 
-**The illegal character of an expression** (2026-11-04). The v1 says "The
+**The illegal character of an expression**. The v1 says "The
 leftmost character above is illegal in an expression." and names the symbol
 that begins at the character -- the `;c` of the `x := 1;c`. The v2 says
 "Illegal character in expression." and names the rest of the expression.
@@ -1124,7 +1132,7 @@ y := 2` is the symbol, and the `;c` of the `x := 1;c,d` is one. The point, the
 semicolon and the percent sign are a part of it: the `;c.` of the `x := 1;c.`
 is the symbol, and the `;"a"` of the `x := 1;"a"` is one.
 
-**The single quote is not a text** (2026-11-04). The single quote is not a
+**The single quote is not a text**. The single quote is not a
 delimiter of a text in the v1: it begins a symbol, and the symbol that begins
 with it is refused where an expression wants an operand -- the `x := 'abc'` is
 refused with "The leftmost character above is illegal in an expression.
@@ -1141,7 +1149,7 @@ holds no action, and the name of a command of the v1 is a text: the
 `FileAppend, 'abc', *` runs and writes `'abc'`.
 
 
-**The `for`** (2026-11-04). The `for` of the v1 walks the keys of an array:
+**The `for`**. The `for` of the v1 walks the keys of an array:
 the `for i in [10,20]` gives 1 and 2 to the `i`, and the `for k, v in
 [10,20]` gives the key and the value. The name that gets the key is the
 first one that is not empty, and the rest of the line after the source is
@@ -1156,7 +1164,7 @@ The v1 reads the name as the symbol "(i" and refuses it with "The following
 variable name contains an illegal character:", and the tree reads the
 parenthesis and answers the loop.
 
-**The escape of the v1** (2026-11-04). The escape of the v1 is the backtick,
+**The escape of the v1**. The escape of the v1 is the backtick,
 and the character that follows it is what it stands for: the `a`b` is the text
 "a<backspace>". The set of the escapes is the one of the v1 and not the one of
 the v2: the `a is a bell and the `s is the letter itself, because the v1 has
@@ -1193,7 +1201,7 @@ contains a variable name missing its ending percent sign. Specifically:
 a%b%". The v1 checks the percent sign of every parameter of its commands,
 and not only the ones that want the name of a variable.
 
-**The `Until` of the v1** (2026-11-04). The `Until` of the v1 is the
+**The `Until` of the v1**. The `Until` of the v1 is the
 statement that comes right after the body of a loop, and it is the condition
 that ends it: the body runs, and the condition is read after every turn of
 it. The `Loop 3` / `i := i + 1` / `Until i == 2` leaves 2 in `i`, and the
@@ -1264,7 +1272,7 @@ And the `if` of the v1 with an assignment: the v1 takes the line as the
 command that it is, and the tree refuses the condition with "Syntax error.
 Specifically: := 2".
 
-**The hotkey of the v1** (2026-11-03). The v1 writes a hotkey in a line of
+**The hotkey of the v1**. The v1 writes a hotkey in a line of
 its own, and the two colons that separate the name from the action are what
 says so. The name is a set of prefixes -- the `$` of the hook, the `~` of the
 tilde and the `*` of the wildcard -- a set of modifiers -- the `^` of the
@@ -1312,8 +1320,7 @@ defaults of its dialect when it is made -- the rule is the hook
 `the_defaults_of_the_settings`. Three names of the v1 have another shape:
 the flags are the "On" and the "Off" and not the number one and zero, the
 encoding of the files is the empty text for the code page of the machine,
-and the key that closes a menu is the empty text. The block of the settings
-(2026-11-02) carried it.
+and the key that closes a menu is the empty text. The block of the settings carried it.
 
 **The `Run` of the v1.** The `Run` of the v1 starts the program and goes on,
 and the `RunWait` waits for it. The pid of the process goes into the fourth
@@ -1322,8 +1329,7 @@ The machine of the runtime gained two capabilities for it: `launch`, which
 starts a program and answers the pid of it without waiting for it, and
 `run_and_wait`, which starts a program, waits for it and answers the pid, the
 code and what the program wrote. The box starts the program through the
-shell of the machine, the way its `run` does. The block of the pid
-(2026-11-02) carried it.
+shell of the machine, the way its `run` does. The block of the pid carried it.
 
 **The `DllCall` of the v1.** The `ErrorLevel` of the `DllCall` of the v1 is
 zero when the call works, and the code of the failure when it does not: the
@@ -1332,7 +1338,7 @@ is not in it, and the minus two when the call itself is not valid. The
 failure of a native call carries the kind of it -- the call itself, the
 library or the function -- and the reason of the machine, in the words of the
 v2. The v1 turns the kind into the code; the v2 does not use the code, and
-it keeps the reason. The block of the code (2026-11-02) carried it.
+it keeps the reason. The block of the code carried it.
 
 **The patterns of the files of the v1.** The source of the `FileCopy`, of the
 `FileMove` and of the `FileDelete` may be a pattern, and the command does
@@ -1340,7 +1346,7 @@ the thing to every file that matches it -- the copy and the move into the
 folder of the destination, with the name of the file. The `ErrorLevel` is
 the number of the files that failed, and the v1 goes on: the `ErrorLevel` is
 the only report of it. A pattern that matches nothing is not a failure, and
-neither is a file that is not there. The block of the patterns (2026-11-02)
+neither is a file that is not there. The block of the patterns
 carried it.
 
 **The number of the parameters of a command of the v1.** Every command of the
@@ -1357,11 +1363,10 @@ The name of the `SetStoreCapsLockMode` is the one that the binary writes:
 (`the_refusal_of_the_arity_of_a_command`) and the rules of the v1 are in
 `crates/ahk/src/v1/parameters.rs`. A call that is a statement is a call too:
 the `MyFunc()` is refused at the load with "Call to nonexistent function." and
-the text of the call is named. The block of the arity (2026-11-02) carried it.
+the text of the call is named. The block of the arity carried it.
 
 **The family that the sweep found and that is not carried yet.** The
-differential sweep of the commands of the table against the binary
-(2026-11-02) found one more family: the v1 checks the *value* of a parameter
+differential sweep of the commands of the table against the binary found one more family: the v1 checks the *value* of a parameter
 of many of its commands when the script loads. The `Control`, the `WinGet`,
 the `Menu`, the `RegRead`, the `SysGet`, the `SoundGet`, the `GroupActivate`,
 the `Drive` and the others refuse with "Parameter #N invalid." at the load,
@@ -1382,7 +1387,7 @@ towards the zero. The division by zero is refused when the script loads
 not a zero. The units of the time are the third parameter of the `EnvAdd` and
 of the `EnvSub`, and the unit that is not one of the four is refused at the
 load; the date arithmetic itself is not carried yet, and the command says so
-when it runs. The block of the arithmetic (2026-11-02) carried it.
+when it runs. The block of the arithmetic carried it.
 
 **The environment of the v1.** The `EnvSet` writes the `ErrorLevel` of the
 v1 -- one when there was a problem and zero otherwise -- and the v1 goes on:
@@ -1394,7 +1399,7 @@ command, and it may not be blank. The `EnvGet` does not write the
 `ErrorLevel`, and the `EnvUpdate` has nothing to do -- the tree shares the
 environment of the process with the script -- and it is carried now: the
 surface of the v1 has one more name that answers with a value. The block of
-the environment (2026-11-02) carried it.
+the environment carried it.
 
 **The path of the class.** The `new` of the v1 takes the path of the class:
 the name that follows the word and the names of the classes that it holds.
@@ -1402,7 +1407,7 @@ The `new C.D` is an instance of D, and the `new o.D` is an instance of the
 class that the instance holds, and the `new this.D` is an instance of the
 class that the instance of the method holds. The class that a class holds is
 a member of the instance of it too, and the class of the v1 has no `Call`:
-the call of it makes nothing. The block of the path (2026-11-02) carried it,
+the call of it makes nothing. The block of the path carried it,
 with the path of the `new` (`crates/ahk/src/ast.rs`) and the walk of it
 (`crates/ahk/src/runtime.rs`).
 
@@ -1412,7 +1417,7 @@ the text that was written -- the `x := 0x10` is "0x10", and the
 it is the number that the text holds. The sign of it is part of the number,
 the number that does not fit is the one that fits, the whole numbers wrap
 the way the machine does, and the operators that write a variable read the
-number. The block of the number (2026-11-02) carried it, with the literal
+number. The block of the number carried it, with the literal
 of a number (`crates/ahk/src/ast.rs`), the coercion of a text
 (`crates/ahk/src/v1/numbers.rs`) and the format of the integers.
 
@@ -1423,15 +1428,15 @@ no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an
 expression: `x = 5 + 3` leaves `x` at "5 + 3". The tree carries it since the
-block of the `AutoTrim` (2026-11-02), with the text of the script, the trim
+block of the `AutoTrim`, with the text of the script, the trim
 of the `AutoTrim`, the number that a text of base ten is, and the
 substitution that finds the built-in variables.
 
 **The format of the numbers.** The `SetFormat` of the v1 rounds the floats
 that are computed to the decimals of the format, and the whole numbers are
 in the base of the format. The tree carries it since the block of the
-formats (2026-11-02), with the `A_FormatFloat` and the `A_FormatInteger`
-that say which one is in force. The block of the number (2026-11-02) added
+formats, with the `A_FormatFloat` and the `A_FormatInteger`
+that say which one is in force. The block of the number added
 the number that is written: the whole number that is written without the
 zeros in front of it is a number and the format writes it, and the pure
 numbers keep the text that was written.
@@ -1439,24 +1444,22 @@ numbers keep the text that was written.
 **The arithmetic with a text.** The v1 does not concatenate when an operand
 is a text: the text that is written between quotes is a string, and the
 value of a variable is a number when it can be one. The tree carries it
-since the block of the arithmetic (2026-11-02): the sum of a text that is
+since the block of the arithmetic: the sum of a text that is
 written and of a number is a concatenation, the sum of a number and of a
 text that is written is blank, and a value that is not a number makes the
 operation blank.
 
 **The sense of the case.** The `StringCaseSense` of the v1 turns the sense of
 the case on and off, and the `A_StringCaseSense` says the one that is in
-force. The tree carries it since the block of the sense of the case
-(2026-11-02), with the comparison operators of the expressions: they follow
+force. The tree carries it since the block of the sense of the case, with the comparison operators of the expressions: they follow
 the sense, the `==` is always with the case, and the `=` is always without
 it. The names that follow the sense in the v1 and that the tree carries with
 the shape of the v2 — the `StringReplace`, the `StringGetPos`, the
-`StrReplace` and the `InStr` — follow it since the block of the searches
-(2026-11-02), with the shape of the v1.
+`StrReplace` and the `InStr` — follow it since the block of the searches, with the shape of the v1.
 
 **The math and the capacity.** The `Transform` of the v1 is a command with a
 sub-command, and the `VarSetCapacity` is a function that empties the variable
-of the caller. The tree carries both since the block of the math (2026-11-02),
+of the caller. The tree carries both since the block of the math,
 with the kind of the answer of each sub-command, the quotes of the
 parameters and the bits of thirty-two and of sixty-four. The tree keeps
 no capacity of its own, and the number that it answers is the one that was
@@ -1465,7 +1468,7 @@ asked for.
 **The body of the action.** The commands of the v1 that have a body are the
 `IfInString`, the `IfNotInString` and the `IfMsgBox`, and the `else` is the
 action of the other side. The tree carries them since the block of the body
-of the action (2026-11-02), with the action of the same line, the block and
+of the action, with the action of the same line, the block and
 the statement of the next line, and with the refusal of the load: the
 `else` that has no `if` before it, the number of the parameters of a command,
 and the parameter that wants the name of a variable and is blank. The
@@ -1486,7 +1489,7 @@ plan (§5).
 **The searches of the v1.** The `StringGetPos`, the `StringReplace` and the
 `StrReplace` are the names that find a text in another one, and the v1 gives
 each one of them a shape of its own. The tree carries them since the block of
-the searches (2026-11-02): the place of the `StringGetPos` counts from zero
+the searches: the place of the `StringGetPos` counts from zero
 and is minus one when the text is not there, the occurrence is "L2" or "R1"
 and the number that is alone is the first from the right, and the offset is on
 the side that the occurrence names; the `StringReplace` replaces the first
@@ -1509,7 +1512,7 @@ of the v1 put their answer there — it comes with the block of the
 **The `ErrorLevel` of the v1.** It is the one built-in variable of the v1
 that has no prefix, and the measurement of the surface took the names of the
 page of the built-in variables and left it out. The tree carries it since
-the block of the `ErrorLevel` (2026-11-02): it is the global variable of the
+the block of the `ErrorLevel`: it is the global variable of the
 script, it is zero when the script begins, a script may write it, and the
 `StringGetPos`, the `StringReplace` and the file commands write it the way
 the v1 does.
@@ -1519,11 +1522,10 @@ write it as well -- the `ClipWait`, the `DllCall` and the `Run` -- are not
 carried yet: theirs is the answer of the machine and not a count of the
 failures. The `global ErrorLevel` is refused by the v1 -- "Built-in variables
 must not be declared." -- and the tree refuses it since the block of the
-`global` (2026-11-02).
+`global`.
 
 **The `ErrorLevel` of the machine.** The commands of the machine write it
-too, and the tree carries it since the block of the machine commands
-(2026-11-02): the `ClipWait` writes one when the wait expires and zero when
+too, and the tree carries it since the block of the machine commands: the `ClipWait` writes one when the wait expires and zero when
 the clipboard has data, the `Run` writes nothing unless the options say
 "useerrorlevel" -- and then it writes zero when the program starts and the
 word "ERROR" when it does not -- and the `RunWait` writes the code of the
@@ -1533,14 +1535,14 @@ together, and the list of the names took one of them.
 
 **The call of a function of the v1.** The v1 refuses the call of a function
 at the load, and the refusal names the call as it was written. The tree
-carries it since the block of the call (2026-11-02): the number of the
+carries it since the block of the call: the number of the
 arguments that is wrong is refused with "Too few parameters passed to
 function." or with "Too many parameters passed to function.", and the name
 that is not a function is refused with "Call to nonexistent function.". A
 command of the v1 is not a function, and a function of the v1 is not a
 command.
 
-**The text that the refusal of a call names** (2026-11-04). The text is the
+**The text that the refusal of a call names**. The text is the
 rest of the line, from the name of the call, and not only the call: the
 `x := abc(c) + 1` is refused with "Call to nonexistent function.\n
      Specifically: abc(c) + 1", and the same is true of the complaint of the
@@ -1549,7 +1551,7 @@ number of the arguments that is wrong -- the `x := Abs() + 1` is refused with
 spaces that the script wrote are in it: the `x := InStr( "ABCabc" )` names
 the `InStr( "ABCabc" )` and not only the call.
 
-**The definition of a function of the v1** (2026-11-04). The definition is
+**The definition of a function of the v1**. The definition is
 the line `f(a) {` and the line `f(a)` whose brace is on the line that comes
 next, and the rest of the line after the parenthesis that closes the list
 decides: when there is anything else there, the line is a call. The `f(a) 1`
@@ -1559,12 +1561,12 @@ dialect (`a_line_is_a_definition`), and the v2 decides with the token that
 comes after the parenthesis: the brace and the fat arrow make a definition
 of it.
 
-Two corners of it came with the block of the tail of the call (2026-11-04):
+Two corners of it came with the block of the tail of the call:
 the `f(a) { return a }` is a call in the v1, and the tree refuses it with
 "Call to nonexistent function.\n     Specifically: f(a) { return a }", and the
 `f(a) { x := 1` is refused the same way.
 
-**The brace that follows a value** (2026-11-04). The v1 refuses the brace
+**The brace that follows a value**. The v1 refuses the brace
 at once, and it does not look for the brace that closes the literal of an
 object: the `x := 1 {` is refused with "Unexpected "{"", and not with
 "Missing "}"". The literal of an object is a literal of the v1 too, when it
@@ -1573,7 +1575,7 @@ begins the expression: the `x := {a: 1}` is a literal.
 The rule is a hook of the dialect (`the_brace_after_a_value_opens_a_literal`),
 and the v2 looks for the closing brace first.
 
-**The call whose parenthesis that closes it is not there** (2026-11-04). The
+**The call whose parenthesis that closes it is not there**. The
 v1 does not need the parenthesis that closes the call of a name that is not a
 function, and the call is refused at the load: the `x := abc(c` is refused
 with "Call to nonexistent function.\n     Specifically: abc(c", and the parse
@@ -1593,7 +1595,7 @@ The rule is a hook of the dialect
 arguments of the call with it
 (`the_arguments_of_a_call`).
 
-**The tail of a call of the v1** (2026-11-04). The v1 reads the rest of the line
+**The tail of a call of the v1**. The v1 reads the rest of the line
 as text when the name of the call is not a function, and the refusal of the
 call is the only one of the line: the `MyFunc() { return 2 }` is refused at the
 load with "Call to nonexistent function.\n     Specifically: MyFunc() { return 2 }",
@@ -1625,7 +1627,7 @@ The rules are hooks of the dialect
 of the functions of the script before it reads the lines of it
 (`the_functions_of_the_script`).
 
-**The tail of a call whose name is a function** (2026-11-04). The tail of a
+**The tail of a call whose name is a function**. The tail of a
 statement is a list of items in the v1, and the commas are what separate them.
 The items that are expressions are evaluated, and an item that is not an
 expression is a text -- the parameter of a command -- that the v1 does not run
@@ -1638,7 +1640,7 @@ The tree reads the tail of a statement the way the v1 reads it. The rule is a
 hook of the dialect (`the_tail_of_a_list_is_text`), and the v2 refuses the
 item of the list that is not an expression with "Syntax error.\n     Specifically: *".
 
-**The failure of the condition of the v1 is not reported** (2026-11-04). The v1
+**The failure of the condition of the v1 is not reported**. The v1
 does not report the failure of the condition of an `if` or of a `while`: the
 `if := 5`, the `if 1 := 5`, the `if 1/0` and the `if x.y` are accepted, the
 condition is false, and the body of the construct does not run. The failure of
@@ -1650,7 +1652,7 @@ and the failure of the parse is caught by the parser
 (`the_condition_that_is_not_reported`). The rule is a hook of the dialect
 (`the_failure_of_a_condition_is_not_reported`), and the v2 reports the failure.
 
-**The write of a property of a value that is not an object is dropped** (2026-11-04).
+**The write of a property of a value that is not an object is dropped**.
 The v1 does not refuse it: the `a.b := 5` is accepted when the `a` has no value,
 when the `a` is a text and when the `a` is a number, and the write is dropped --
 the value of the `a` does not change. The write of a member of an object is kept.
@@ -1662,7 +1664,7 @@ The rule is a hook of the dialect
 (`the_write_of_a_property_of_a_value_that_is_not_an_object_is_dropped`), and the
 runtime drops the write.
 
-**The operand that is not there** (2026-11-04). The v1 does not refuse the
+**The operand that is not there**. The v1 does not refuse the
 expression whose operand is not there: the `x := 1 +` and the `x := not` are
 accepted, and the value of the expression is the empty text.
 
@@ -1707,8 +1709,7 @@ no property named "__Item".". The length of the array of the v1 is a method
 and not a property: the `a.Length()` of the `a := [1, 2]` is two, and the
 `a.Length` is the empty text; the tree reads the `a.Length` as the length.
 
-**The word that is alone at the start of a statement holds no action**
-(2026-11-04). The v1 refuses a line that begins with a reserved word and
+**The word that is alone at the start of a statement holds no action**. The v1 refuses a line that begins with a reserved word and
 that holds no action, and it says "This line does not contain a
 recognized action." The `true` alone and the `false` alone are refused the
 same way as the `not` and the `and`: the word is named, and the line that
@@ -1760,7 +1761,7 @@ left of it. It came with the block of the name of a function.
 **The name of a function.** The name of a function of the v1 is not a value:
 `x := StrLen` is a blank text, and so is the name of a function of the script
 and the name of a command. The tree carries it since the block of the name of
-a function (2026-11-02): the `IsFunc` of the v1 takes a value and not a name,
+a function: the `IsFunc` of the v1 takes a value and not a name,
 a command of the v1 is not a function, and the `Func` of the v1 is the
 reference to the function -- it carries the name of it, whether it is built
 in, and the number of its parameters -- and the name that is not a function
@@ -1777,14 +1778,14 @@ not have it, the property of a value that is not an object, and the item of
 an object. And the text of an object of the v1 is the empty text, so the
 concatenation of an object and of "a" is "a", and a built-in that wants a
 text takes it: `StrLen(Object())` is zero. The tree carries it since the
-block of the objects (2026-11-02).
+block of the objects.
 
 **What stays out of the objects.** The built-in that wants a number refuses
 an object with the words of the v2, where the v1 answers a blank text:
 `Abs(Object())` is a blank text in the v1.
 
 **The classes of the script of the v1.** The tree carries them since the
-block of the classes (2026-11-02): the `new` makes an instance -- `new C` and
+block of the classes: the `new` makes an instance -- `new C` and
 `new C(5)` , and the word is not reserved -- the arguments of the `new` are
 the ones of the `__New` , the `__Init` takes none and runs before it, the
 `this` of a method is the object the method was called on, the method of the
@@ -1814,7 +1815,7 @@ that is not refused -- the interpreter creates it at the load, and it is a
 variable of the script -- and the names that the v1 does not have as
 variables are not refused either: five of them are directives of the v1 and
 the `A_TrayMenu` is a variable of the v2. The tree carries it since the
-block of the `global` (2026-11-02), and the test that walks the surface of
+block of the `global`, and the test that walks the surface of
 the v1 asks the tree about every variable of it.
 
 **The coercion of the built-ins of the v1.** The built-in of the v1 does not
@@ -1838,7 +1839,7 @@ does not fit in sixty-four bits is the largest one:
 `x := 100000000000000000000` is 9223372036854775807.
 
 **The block carries.** The tree carries these three rules since the block of
-the coercion (2026-11-02), and the probes that compare the two are
+the coercion, and the probes that compare the two are
 `egm-review/probe_both_v1_number_coercion.py` (215 of 216) ,
 `egm-review/probe_both_v1_math.py` (174 of 174) and
 `egm-review/probe_both_v1_float_text.py` (120 of 120).
@@ -1861,7 +1862,7 @@ class that is declared twice is refused with the words of the v1: "Duplicate
 class definition.\n Specifically: C".
 
 **The block carries.** The tree carries these three rules since the block of
-the refusals (2026-11-02), and the probes that compare the two are
+the refusals, and the probes that compare the two are
 `egm-review/probe_both_v1_class_members.py` and
 `egm-review/probe_both_v1_class_names.py`.
 
@@ -1872,7 +1873,7 @@ the same in the v1, and the name of a class may be the output of an assignment,
 and the tree refuses the two.
 
 The property that has a getter is not out of the refusals any more: the
-measurement of 2026-11-02 saw only the form of the arrow, and the v1 has the
+measurement saw only the form of the arrow, and the v1 has the
 property when the body of the getter is a block of commands.
 
 
@@ -1889,7 +1890,7 @@ of the `InStr` of the v1 is the number that the text holds -- the
 -- and the needle that is empty is at the first character of the haystack.
 
 **The block carries.** The tree carries these rules since the block of the
-number of a parameter (2026-11-02), with the table of the parameters that want
+number of a parameter, with the table of the parameters that want
 a number (`crates/ahk/src/v1/kinds.rs`), the handlers of the `SubStr` and of
 the `InStr` of the v1 (`crates/ahk/src/v1/strings.rs`), and the conversion of
 the argument in the runtime, before the body of the built-in runs. The probes
@@ -1918,7 +1919,7 @@ The substitution of the v1 is a text and not an expression: the `Exit, %n%` is
 the value of `n`, and the `Exit, %n%+50` is fifty and not a hundred.
 
 **The block carries.** The tree carries these rules since the block of the
-parameter of a command (2026-11-02), with the table of the parameters that
+parameter of a command, with the table of the parameters that
 want a number (`crates/ahk/src/v1/kinds.rs`), the parser that reads the
 parameter as an expression (`crates/ahk/src/parser.rs`), the tree that carries
 the parameter as a text or as an expression (`crates/ahk/src/ast.rs`), and the
@@ -1946,11 +1947,11 @@ the arrow is refused with "Not a valid property getter/setter.\n Specifically:
 get => 1". The member that has no body is a method of the property, and the v1
 refuses it with "Missing \"{\"\n Specifically: p.get()".
 
-The measurement of 2026-11-05 is the one that carries these rules, and it is
-the block of the accessor (2026-11-05) that brought them to the tree.
+The measurement is the one that carries these rules, and it is
+the block of the accessor that brought them to the tree.
 
 **The block carries.** The tree carries these two rules since the block of the
-body of a class (2026-11-02), with the two hooks of the dialect
+body of a class, with the two hooks of the dialect
 (`crates/ahk/src/dialect.rs`) and the parser that asks them
 (`crates/ahk/src/parser.rs`). The probes that compare the two are
 `egm-review/probe_v1_class_refusals3.py` and
@@ -1991,7 +1992,7 @@ exist, and the tree says it the other way round. And the text that the
 refusal of the hotkey names: the v1 names the action -- the `"abc` -- and the
 tree names the line.
 
-**The legacy reference of the v1** (2026-11-04). The `%name%` of a command
+**The legacy reference of the v1**. The `%name%` of a command
 parameter of the v1 is the value of the variable of the script, and the tree
 does that: the `FileAppend, %a%, *` writes the "1" of the `a := 1`, and the
 `FileAppend, %ZZTEST%, *` writes the value of the environment. In an
@@ -2017,7 +2018,7 @@ reads it and answers the empty text. The refusal of the write inside a
 function names the name that the script built and not the reference as it was
 written: the v1 says "Specifically: %a%" and the tree says the name "1".
 
-**The literal of an object of the v1 is a list of parameters** (2026-11-04).
+**The literal of an object of the v1 is a list of parameters**.
 The literal is a list of parameters, and the number of them has to be even:
 the key of a property and its value are two, and a parameter that is in
 blank is one. The number is checked after every parameter that is not in
@@ -2036,7 +2037,7 @@ The tree does all of it: the literal of the tree is a list of items, and an
 item that has no name is a value that the runtime evaluates and drops.
 
 **The key of a property of the literal of an object of the v1** is the value
-of the expression that is written until the colon (2026-11-04). The v1 takes
+of the expression that is written until the colon. The v1 takes
 it as a value and not as the text of it: the `{1 + 1: 1}` has the property
 "2", and the `{a.b: 1}` has the property of the value of `a.b`. A key that is
 a single name is the name itself: the `{b: 1}` has the property "b", and the
@@ -2050,12 +2051,11 @@ the property of the text: the `{1: 1}` has the property "1", which the
 `a["1"]` finds.
 
 **The comma at the end of the list of the arguments of a call of the v1** is a
-parameter (2026-11-04). The v1 counts it: the `f(1,)` is refused with "Too
+parameter. The v1 counts it: the `f(1,)` is refused with "Too
 many parameters passed to function." when f takes one parameter, and the name
 of it is the call. The tree counts it too.
 
-**The blank parameter of a call of the v1** is refused with "Blank parameter"
-(2026-11-04). The v1 counts it: the `g(,)` and the `g(, 1)` are refused that
+**The blank parameter of a call of the v1** is refused with "Blank parameter". The v1 counts it: the `g(,)` and the `g(, 1)` are refused that
 way, and the name of it is the call. The blank is a parameter that is not
 there, and the v1 refuses it when the list ends right after it or when the
 number of the parameters that came before it is less than the least number of
@@ -2067,22 +2067,20 @@ the blank keeps its place in the list of the arguments, and the place where it
 is decides the complaint.
 
 **The list of the arguments of a method of the v1** that ends with a blank is
-refused at the load (2026-11-04). The number of the arguments of a method is
+refused at the load. The number of the arguments of a method is
 not checked there -- the `o.Say(1, 2)` is accepted -- and the blank at the end
 of the list is refused all the same: the `o.Say(1,)` is refused with "Blank
 parameter", and the name of it is the text of the call, from the dot. The
 tree refuses it too.
 
-**The brace that closes a block of the v1 names the brace and nothing else**
-(2026-11-04). The v1 does not name the line of the script under the refusal:
+**The brace that closes a block of the v1 names the brace and nothing else**. The v1 does not name the line of the script under the refusal:
 the `y := 2 }` that comes after the `if (1) {` is an "Unexpected "}"" with
 nothing under it, and so are the brace that closes the body of a function and
 the brace that closes nothing. The v2 names the line of the script under the
 same refusal. The tree carries it: the hook of the dialect is
 `the_closing_brace_names_the_text`, and the v1 turns it off.
 
-**The text of a parameter of a command of the v1 is cut at the commas**
-(2026-11-04). The quotes and the groups of parentheses do not hold the comma
+**The text of a parameter of a command of the v1 is cut at the commas**. The quotes and the groups of parentheses do not hold the comma
 back: the `FileAppend, "a,b", *` has three parameters -- `"a`, `b"` and `*` --
 and the v1 refuses it with "Parameter #3 invalid." and the text "*". The group
 is the same: the `FileAppend, (a, b), *` has three parameters, and the
@@ -2104,7 +2102,7 @@ probe of the block is `egm-review/probe_v1_command_cut.py`, and it is eleven
 cases of the binary and the tree, all the same.
 
 **The quote that is not closed in the line of a command of the v1 is not an
-error** (2026-11-04). The v1 has no texts in the line of a command: the
+error**. The v1 has no texts in the line of a command: the
 `FileAppend, "abc, *` writes the text `"abc`, and the right side of the
 legacy assignment is a text too: the `x = "abc` leaves `x` at `"abc` with the
 quote that was written.
@@ -2122,7 +2120,7 @@ are not are the ones that the paragraph above names, and the `FileAppend` that
 has no name of file -- the v1 writes it and the tree refuses it.
 
 **The brace that opens the body of the loop of the v1 is the one that is at
-the end of the line** (2026-11-04). The v1 opens the body of the loop with
+the end of the line**. The v1 opens the body of the loop with
 the brace that ends the line of it: the `loop {` opens the body and the loop
 goes on until a break, and the `loop 3 {` opens it with three turns. The
 command of the v1 takes the count after a comma, and the `Loop, 3 {` opens
@@ -2153,7 +2151,7 @@ forms is `egm-review/probe_v1_loop_forms.py`, and it is eleven cases: nine
 are the same, and the two that are not are the `while` that the paragraph
 above names.
 
-**The condition of the while of the v1 comes after a comma** (2026-11-04).
+**The condition of the while of the v1 comes after a comma**.
 The `While, n < 2` is the while of the v1: the body of it is the line that
 comes next or the block that the brace opens, and the brace that is not at
 the end of the line is refused with 'Unexpected "{"'.
@@ -2169,8 +2167,7 @@ with "Missing operand.".
 The probe of the block is `egm-review/probe_v1_while_forms.py`, and it is
 ten cases of the binary and the tree, all the same.
 
-**The arithmetic of the date of the v1 is the arithmetic of the machine**
-(2026-11-04). The `EnvAdd` and the `EnvSub` of the v1 have two forms: with
+**The arithmetic of the date of the v1 is the arithmetic of the machine**. The `EnvAdd` and the `EnvSub` of the v1 have two forms: with
 two parameters they are the arithmetic of a number on a variable of the
 script, and with three they are the arithmetic of the date of the machine.
 The third parameter is the unit of the time -- the "S", the "M", the "H" and
@@ -2206,7 +2203,7 @@ The probes of the block are `egm-review/probe_v1_env_text.py`,
 `egm-review/probe_v1_env_corners.py` and `egm-review/probe_v1_env_reach.py`,
 and they are the cases of the binary and the tree: all the same.
 
-**The MouseMove of the v1 takes the place and the speed** (2026-11-04). The
+**The MouseMove of the v1 takes the place and the speed**. The
 `MouseMove` of the v1 takes three parameters -- the place, the place of the
 y, and the speed of the move -- and the fourth one is refused when it is not
 blank: the "1" is refused with "Parameter #4 invalid." and the text that was
@@ -2224,7 +2221,7 @@ twenty-seven cases of the binary and the tree, all the same. The script of
 the probe leaves before the command runs, so the mouse of the machine stays
 where it is.
 
-**The loop of the files of the v1 is a loop of files** (2026-11-05). The `Loop`
+**The loop of the files of the v1 is a loop of files**. The `Loop`
 of the v1 reads its first parameter as a text: it is the count of the turns
 when the text is a number, and it is the pattern of the files when it is not.
 With more than one parameter, the v1 reads the first one always as the
@@ -2288,8 +2285,7 @@ fifty-four cases of the binary and the tree, all the same but one: the
 that has a short one, and the box has no such names. The block below closes
 that one: the script that reads the name is told the reason.
 
-**The read loop and the parse loop of the v1 read what they are for**
-(2026-11-05). The first parameter of the `Loop` of the v1 names the kind of
+**The read loop and the parse loop of the v1 read what they are for**. The first parameter of the `Loop` of the v1 names the kind of
 the loop when it is the "Read" or the "Parse" and when another parameter comes
 after it: the `Loop, Read` alone is a loop of the files that match the pattern
 "Read", and the `Loop Read, file` is the loop that reads the file.
@@ -2335,7 +2331,7 @@ The `FileAppend` that has no name of its own is a hole that is left: the v1
 writes the text nowhere, and the tree refuses it with the refusal of the v2.
 
 **The commands of the files of the v1 go on when the machine cannot do the
-thing** (2026-11-05). The `FileGetSize`, the `FileGetTime`, the
+thing**. The `FileGetSize`, the `FileGetTime`, the
 `FileGetAttrib`, the `FileRead`, the `FileReadLine`, the `FileMoveDir`, the
 `FileCopyDir`, the `FileRemoveDir`, the `FileSetTime` and the `FileAppend` of
 the v1 are not failures of the script when the machine cannot do what they
@@ -2367,8 +2363,7 @@ and `egm-review/probe_v1_file_name_tree.py`, and they are the cases of the
 binary and of the tree: twenty of the twenty and nine of the nine are the
 same.
 
-**The parameter of the v1 that is written with a percent sign and a space**
-(2026-11-05). The percent sign and a space in front of a parameter of a
+**The parameter of the v1 that is written with a percent sign and a space**. The percent sign and a space in front of a parameter of a
 command of the v1 force it to be an expression: the `FileAppend, % "hello", *`
 writes "hello", and the `FileAppend, % n, *` writes the number of the
 variable. The percent sign of that form does not open the name of a variable,
@@ -2378,7 +2373,7 @@ The parse loop takes the expression as the text that is separated: the
 `Loop, Parse, % "a|b|c", "|"` gives the field "a", the field "b" and the field
 "c".
 
-**The comma separated values of the parse loop** (2026-11-05). The manual of
+**The comma separated values of the parse loop**. The manual of
 the v1 says that the delimiters of the parse loop may be the word "CSV", and
 the text is then parsed in the standard comma separated value format. The case
 of the word does not matter and the spaces around it do not matter either: the
@@ -2392,12 +2387,12 @@ that closes the field is left out: the `"a" ,b` is the field "a" and the field
 the comma, and the quote that is inside it is a literal. The characters that
 are left out are not used in this format.
 
-**The characters that are left out of the fields** (2026-11-05). The fourth
+**The characters that are left out of the fields**. The fourth
 parameter of the parse loop holds the characters that are left out of the ends
 of each field, and without the delimiters they are not seen at all: the loop
 does not have a field for them.
 
-**The name of the variable of the parse loop** (2026-11-05). The manual of
+**The name of the variable of the parse loop**. The manual of
 the v1 says that the name of the variable is not to be written between percent
 signs, unless the contents of the variable are to be used as the name: the
 `Loop, Parse, %x%, "|"` separates the text of the variable that the value of
@@ -2417,7 +2412,7 @@ The probes of the block are `egm-review/probe_v1_percent_space.py`,
 of the tree: six of the six, ten of the ten, sixteen of the sixteen and eleven
 of the eleven are the same.
 
-**The short names of the files are refused with the reason** (2026-11-05). The
+**The short names of the files are refused with the reason**. The
 `A_LoopFileShortName` of the v1 is the name that Windows gives to a file that
 has a short one -- the "LONGNA~1.TXT" of a file that is called "long
 name.txt" -- and the box has none. The script that reads the name is told
@@ -2430,8 +2425,7 @@ fail for that: the v1 answers a blank text, and so does the tree.
 
 The v2 has the same two names, and the tree refuses them in the same way.
 
-**The FileAppend of the v1 that has no name writes the text nowhere**
-(2026-11-05). The `FileAppend, hello` writes the text nowhere -- not even in
+**The FileAppend of the v1 that has no name writes the text nowhere**. The `FileAppend, hello` writes the text nowhere -- not even in
 the file of the script -- and the `ErrorLevel` is one and the script goes on.
 The name that is empty is the same, unless the loop that reads has a file of
 its own: the text goes to that file, and the `ErrorLevel` is zero.
@@ -2439,8 +2433,7 @@ its own: the text goes to that file, and the `ErrorLevel` is zero.
 The probe of the block is `egm-review/probe_v1_append_name.py`, and it is nine
 cases of the binary and of the tree, and the nine are the same.
 
-**The percent sign of an expression of the v1 opens the name of a variable**
-(2026-11-05). The percent sign of an expression is not the double deref of the
+**The percent sign of an expression of the v1 opens the name of a variable**. The percent sign of an expression is not the double deref of the
 v2: it opens the name of a variable, and the name has to close with another
 percent sign. The name that does not close is refused with "This parameter
 contains a variable name missing its ending percent sign." and the name that
@@ -2470,7 +2463,7 @@ ten are the same. The three that are not are the ones where the v1 asks the
 user for the value of a variable whose name is not the name of a variable:
 the tree answers an empty value, and it does not ask anybody.
 
-**The names of the tail of a list of the v1 are checked** (2026-11-05). The v1
+**The names of the tail of a list of the v1 are checked**. The v1
 reads the tail of a list as symbols, and the name of each one of them is
 checked: the `x := 1, a"b"` is refused at the load with "The following
 variable name contains an illegal character:" and the name of it, and so is
@@ -2491,8 +2484,7 @@ The probes of the block are `egm-review/probe_v1_quotes_start.py`,
 binary and of the tree: thirteen of the thirteen, seventeen of the seventeen
 and seven of the seven are the same.
 
-**The variables that the runtime owns are values in the substitution of the v1**
-(2026-11-05). The `%A_Index%` is "0" outside a loop, and the tree answered an
+**The variables that the runtime owns are values in the substitution of the v1**. The `%A_Index%` is "0" outside a loop, and the tree answered an
 empty text: the substitution of the v1 did not ask the runtime for the
 variables that it owns. The other variables that the runtime owns are an empty
 text, and the tree already answered that.
@@ -2501,8 +2493,7 @@ The probes of the block are `egm-review/probe_v1_runtime_variables.py` and
 `egm-review/probe_v2_index_outside.py`, and they are the cases of the binary
 and of the tree: sixteen of the sixteen and four of the four are the same.
 
-**The line of the statement and the name of the function that runs**
-(2026-11-05). The `A_LineNumber` is the line of the statement that runs, and
+**The line of the statement and the name of the function that runs**. The `A_LineNumber` is the line of the statement that runs, and
 the `A_ThisFunc` is the name of the function that runs. The tree did not write
 the line, and the name was an empty text in the dialect of the v1 and a
 failure in the dialect of the v2.
@@ -2516,7 +2507,7 @@ The probes of the block are `egm-review/probe_v1_this_func.py` and
 `egm-review/probe_v2_line_number.py`, and they are the cases of the binary
 and of the tree: eight of the eight and three of the three are the same.
 
-**The point of the operand and the text of a member of the v1** (2026-11-05).
+**The point of the operand and the text of a member of the v1**.
 The v1 reads the operand of an expression -- the text that goes from its first
 character to the first character that ends it -- and the point does not end it:
 the `a.b%c` is one operand. When the operand has a point and the text that
@@ -2552,7 +2543,7 @@ eleven of the thirteen are the same. The two that are not are the ones where
 the v1 asks the user for the value of a variable: the tree answers an empty
 value, and it does not ask anybody.
 
-**The `Loop Files` of the v1** (2026-11-05). The `Loop Files` of the v1 is the
+**The `Loop Files` of the v1**. The `Loop Files` of the v1 is the
 `Loop` whose first parameter is the word "Files": the pattern of the files is
 the second parameter and the mode is the third one, and the mode is a set of
 letters -- the "R" walks into the folders, the "D" and the "K" give the
@@ -2571,7 +2562,7 @@ same. The four that are not in the second one are the ones where the v1 fails
 at the run: the failure of the run of the v1 opens a dialog, and the dialog is
 a timeout.
 
-**The `ObjBindMethod` of the v1** (2026-11-05). The v1 makes the binding of a
+**The `ObjBindMethod` of the v1**. The v1 makes the binding of a
 method of an object too, and it does not check the name of the method: the
 `ObjBindMethod(t, "Nope")` is made. The number of the parameters is checked at
 the load -- the `ObjBindMethod(t)` is refused with "Too few parameters passed
@@ -2591,7 +2582,7 @@ name of a variable that has a point in it -- a hole of the v1 that is known --
 and the six that are not in the v2 are the ones where the v2 fails at the run:
 the failure of the run of the v2 opens a dialog, and the dialog is a timeout.
 
-**The `#Warn` of the v1** (2026-11-05, the first block). The v1 has a `#Warn`
+**The `#Warn` of the v1** (the first block). The v1 has a `#Warn`
 of its own, and
 its types are not the ones of the v2: the "UseUnsetLocal", the
 "UseUnsetGlobal", the "UseEnv", the "LocalSameAsGlobal", the "ClassOverwrite"
@@ -2612,7 +2603,7 @@ the block is `egm-review/probe_v1_warn.py`.
 
 ---
 
-**The `#Warn` of the v1** (2026-11-05, the second block). The directive of
+**The `#Warn` of the v1** (the second block). The directive of
 the v1 is carried, and the warnings of the variables are the three that the
 runtime gives: the variable of the script that is read and never written, the
 variable of a function that is read and never written, and the environment
@@ -2641,7 +2632,7 @@ The probe of the block is `egm-review/probe_v1_v2_warn_vars.py`, and the
 comparison of the binary and of the tree is five of the eight: the three that
 are not are the ones where the v1 warns twice.
 
-**The `#Warn` of the v1** (2026-11-05, the third block). The two warnings
+**The `#Warn` of the v1** (the third block). The two warnings
 that are read out of the script are carried too, and the `#Warn` of the v1 has
 all of its types.
 
@@ -2661,9 +2652,9 @@ The probes of the block are `egm-review/probe_v1_v2_warn_names.py` and
 `egm-review/probe_v1_v2_warn_names_compare.py`, and the comparison of the
 binary and of the tree is fifteen of the fifteen.
 
-**The `#Warn` of the v1** (2026-11-05, the fourth block). The v1 has one more
+**The `#Warn` of the v1** (the fourth block). The v1 has one more
 type of warning: the "Unreachable". Measured on the binary of AutoHotkey
-v1.1.37.02 on 2026-11-05: the v1 carries it, the warning is the one of the v2
+v1.1.37.02: the v1 carries it, the warning is the one of the v2
 -- "This line will never execute, due to Return preceding it." -- and the line
 of it is the line that comes right after the statement that leaves the level.
 The "All" of the v1 carries it too.
@@ -2675,9 +2666,9 @@ source of the directive.
 The probes of the block are `egm-review/probe_warn_rules.py` and
 `egm-review/probe_warn_all.py`.
 
-**The `#Warn` of the v1** (2026-11-05, the fifth block). The local that has the
+**The `#Warn` of the v1** (the fifth block). The local that has the
 name of a global one is warned about inside a class too. Measured on the binary
-of AutoHotkey v1.1.37.02 on 2026-11-05: the v1 names the method "A.m" -- the
+of AutoHotkey v1.1.37.02: the v1 names the method "A.m" -- the
 class and the method -- and the class that is nested is "A.B.m"; the getter is
 "A.p.get". The v1 names the line that opens the body of the function, and the
 brace may be on a line of its own.
@@ -2685,9 +2676,8 @@ brace may be on a line of its own.
 The probes of the block are `egm-review/probe_warn_class.py`,
 `egm-review/probe_warn_lines.py` and `egm-review/probe_getter.py`.
 
-**The `#Warn` of the v1** (2026-11-05, the sixth block). The local that is only
-read is a local of the v1. Measured on the binary of AutoHotkey v1.1.37.02 on
-2026-11-05: the scope of a function of the v1 is its own, and the name that it
+**The `#Warn` of the v1** (the sixth block). The local that is only
+read is a local of the v1. Measured on the binary of AutoHotkey v1.1.37.02: the scope of a function of the v1 is its own, and the name that it
 only reads is a local of it: the `f() { y := x }` has a local "x" when the
 script has a global "x". The name of a variable of the v1 is between two
 percent signs, and the text of a command that reads it is a local of the
@@ -2699,9 +2689,9 @@ that it only reads is not a local of it.
 The probes of the block are `egm-review/probe_warn_local_forms.py` and
 `egm-review/probe_warn_local_read.py`.
 
-**The `#Warn` of the v1** (2026-11-05, the seventh block). The warning of the
+**The `#Warn` of the v1** (the seventh block). The warning of the
 environment is given when the variable is there. Measured on the binary of
-AutoHotkey v1.1.37.02 on 2026-11-05: the name that the environment does not
+AutoHotkey v1.1.37.02: the name that the environment does not
 have is a name that has no value, and the warning of the environment is not
 given for it.
 
@@ -2715,12 +2705,12 @@ The probes of the block are `egm-review/probe_env_get.py` and
 
 | Risk | Severity | What is done |
 |---|---|---|
-| **The threads of the v1.** The v1 runs each hotkey in its own thread, with `#MaxThreads` and `#MaxThreadsBuffer`; the v2 is cooperative and has guard rails. | **High** | **Decided: the v1 runs in the cooperative model of the tree**, and the criterion is the one of the rest of the tree — *the dialect decides the names; what each name does is the runtime's, and it is the same in the two dialects*. `Thread` and `Critical` are **commands of the v1** (measured on 2026-10-29) and the v2 has them as commands too: the surface of the v1 carries the two and **refuses them with the reason** that the v2 uses — *"this runtime runs one script in one thread, and it cannot start another."* for `Thread`, and *"this runtime runs one script in one thread, and it cannot make it critical."* for `Critical`. The `SetBatchLines`, which the v1 has and the tree does not, goes to the **pending table**. A real thread model is another project, and this is not it. |
+| **The threads of the v1.** The v1 runs each hotkey in its own thread, with `#MaxThreads` and `#MaxThreadsBuffer`; the v2 is cooperative and has guard rails. | **High** | **Decided: the v1 runs in the cooperative model of the tree**, and the criterion is the one of the rest of the tree — *the dialect decides the names; what each name does is the runtime's, and it is the same in the two dialects*. `Thread` and `Critical` are **commands of the v1** (measured) and the v2 has them as commands too: the surface of the v1 carries the two and **refuses them with the reason** that the v2 uses — *"this runtime runs one script in one thread, and it cannot start another."* for `Thread`, and *"this runtime runs one script in one thread, and it cannot make it critical."* for `Critical`. The `SetBatchLines`, which the v1 has and the tree does not, goes to the **pending table**. A real thread model is another project, and this is not it. |
 | **The `=` of the v1.** Assignment and comparison with the same token. | High | The parser decides by the position (the statement starts with `=` → assigns; inside an expression → compares). Measured: `"ABC" = "abc"` is true. |
 | **`%nome%` is the environment variable in the v1.** | Medium | The tree interpolates the variable of the script. With the v1 dialect it becomes the environment one, and the `#NoEnv` turns the substitution off. It is a change of *sense* of a rule that the tree already has. |
 | **The surface does not come out of the binary.** The names of the v1 are obfuscated. | Medium | The list comes from the documentation and is verified by the binary, on the box — §1.3. |
 | **Two tables to maintain.** | Medium | The parity test per dialect and the `--surface` make the drift visible. |
-| **The wave and the plan on the same `--surface`.** The wave of 2026-10-29 built the command; this plan extends it. | Medium | The extension is a parameter and four questions that come to carry the dialect. There is no second command, and the `AGENTS.md` says which piece is whose. |
+| **The wave and the plan on the same `--surface`.** The wave built the command; this plan extends it. | Medium | The extension is a parameter and four questions that come to carry the dialect. There is no second command, and the `AGENTS.md` says which piece is whose. |
 | **Two grammars in the same parser.** | Medium | The legacy grammar stays behind the predicate of the dialect; the v2 does not see it. |
 | **The license of the AHK_X11.** GPL-2.0. | Low | It is already written in the comparison (the license note): the *behaviour* may be ported, the code may not. This plan only uses the list of names and the measured behaviour. |
 | **The `v1` and the `v2` diverging over time.** | Low | The gate is the dialect, not the version: a new table of the v1 (1.1.37.03) is one more row. |
@@ -2756,7 +2746,7 @@ The mechanics already exist on both sides:
 - `crates/ahk/tests/surface.rs` reads the table of the surface and asks the
   tree, name by name, whether it carries it. With the gate, the same question
   runs for the two dialects.
-- The **command** also already exists: the wave of 2026-10-29 built the
+- The **command** also already exists: the wave built the
   `ahk --surface` ( `crates/ahk/src/surface.rs` ), which prints one line per
   name and the summary at the end. The gate does not create a second command —
   it gives it a parameter:
@@ -2776,19 +2766,19 @@ The shape is the one of today: the name, the kind, and the state — `value` ,
 three lines are the format: a name refused with the reason, a name that
 answers, and a name that the dialect does not yet carry. The numbers of the
 summary are what matters — and the middle one is what says what is missing.
-The surface of the v1 has been counted (2026-10-29, §1.6): **383 names of the
+The surface of the v1 has been counted (§1.6): **383 names of the
 surface** , of which 266 the v2 has as well, 117 are only of the v1 and 21
 are the same name with another kind. The summary of the v1 will say the same
 thing the one of the v2 says, with the number of the dialect in it.
 
-The baseline is the one of the v2, at the commit `feb0d5a` (2026-10-29):
+The baseline is the one of the v2, at the commit `feb0d5a`:
 
 ```
 the surface of v2 has 725 entries: 502 answer with a value, 223 are refused, 0 are pending.
 ```
 
 The tree moved after that baseline: the prefix of the built-in variables was
-closed on 2026-10-29 (`c391430`) , and the surface is 725 entries with **506**
+closed (`c391430`), and the surface is 725 entries with **506**
 values and **219** refusals.
 
 The 223 refusals are almost all names of Windows — and the refusal is the
@@ -2817,7 +2807,7 @@ honest rule is the same as the one of the comparison with the X11 —
 | **What does not change** | the v2, the `Desktop`, the box, the report, the guard rails |
 | **The classes of the v1** | none: the v1 has objects and script classes, not runtime types |
 | **The divergence that stays written** | the v1 runs in the cooperative model: no threads |
-| **The state of the v1** | done (2026-11-05): the surface is carried whole, the `#Warn` of the v1 is carried with all of its types -- the line that never runs, the local that has the name of a global inside a class, the local that is only read, and the environment variable that is there -- and the harness finds no difference of behaviour that is not the machine. The difference that stays is the number of the warnings of the v1 when the variable that is read is the value of an assignment |
+| **The state of the v1** | done: the surface is carried whole, the `#Warn` of the v1 is carried with all of its types -- the line that never runs, the local that has the name of a global inside a class, the local that is only read, and the environment variable that is there -- and the harness finds no difference of behaviour that is not the machine. The difference that stays is the number of the warnings of the v1 when the variable that is read is the value of an assignment |
 | **The authority** | the binary of the v1.1.37.02 and the documentation of the v1 |
-| **The dependency** | the `--surface` of the wave of 2026-10-29, with one dialect more |
+| **The dependency** | the `--surface` of the wave, with one dialect more |
 | **The coordination** | the wave ports capabilities into the v2; this plan adds the dialect beside it |

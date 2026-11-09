@@ -30,17 +30,17 @@ struct Fake {
 /// the user and the ones of everybody, and no desktop for everybody.
 fn the_folders() -> Folders {
     Folders {
-        app_data: Some("/home/danalec/.local/share".to_string()),
+        app_data: Some("/home/<user>/.local/share".to_string()),
         app_data_common: Some("/usr/share".to_string()),
-        desktop: Some("/home/danalec/Desktop".to_string()),
+        desktop: Some("/home/<user>/Desktop".to_string()),
         desktop_common: None,
-        start_menu: Some("/home/danalec/.local/share/applications".to_string()),
+        start_menu: Some("/home/<user>/.local/share/applications".to_string()),
         start_menu_common: Some("/usr/share/applications".to_string()),
-        programs: Some("/home/danalec/.local/share/applications".to_string()),
+        programs: Some("/home/<user>/.local/share/applications".to_string()),
         programs_common: Some("/usr/share/applications".to_string()),
-        startup: Some("/home/danalec/.config/autostart".to_string()),
+        startup: Some("/home/<user>/.config/autostart".to_string()),
         startup_common: Some("/etc/xdg/autostart".to_string()),
-        my_documents: Some("/home/danalec/Documents".to_string()),
+        my_documents: Some("/home/<user>/Documents".to_string()),
         temp: Some("/tmp".to_string()),
     }
 }
@@ -62,10 +62,10 @@ impl Sound for Fake {}
 
 impl Machine for Fake {
     fn user_name(&mut self) -> Result<String, String> {
-        Ok("danalec".to_string())
+        Ok("<user>".to_string())
     }
     fn computer_name(&mut self) -> Result<String, String> {
-        Ok("pod158c".to_string())
+        Ok("<host>".to_string())
     }
     fn shell(&mut self) -> Result<String, String> {
         Ok("/usr/bin/zsh".to_string())
@@ -74,7 +74,7 @@ impl Machine for Fake {
         Ok(self.folders.clone())
     }
     fn os_version(&mut self) -> Result<String, String> {
-        Ok("7.3.0-5-cachyos".to_string())
+        Ok("<kernel>".to_string())
     }
     fn language(&mut self) -> Result<String, String> {
         Ok("en_US.UTF-8".to_string())
@@ -258,7 +258,7 @@ fn a_name_of_the_machine_answers_with_the_value_of_the_desktop() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["danalec, pod158c, /usr/bin/zsh, en_US.UTF-8"]
+        vec!["<user>, <host>, /usr/bin/zsh, en_US.UTF-8"]
     );
 }
 
@@ -285,7 +285,7 @@ fn a_folder_of_the_machine_answers_with_the_folder() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["/home/danalec/Desktop, /tmp, /home/danalec/Documents"]
+        vec!["/home/<user>/Desktop, /tmp, /home/<user>/Documents"]
     );
 }
 

@@ -15,7 +15,7 @@ the port to v2. It is kept to be read, not to be run. **The two do not
 speak the same dialect any more, and that is the point of the port.** The
 rule that said they had to agree is in section 1, and it has changed.
 
-**The box** is the lab machine at `192.168.0.40`: Linux, a Wayland
+**The box** is the lab machine: Linux, a Wayland
 session, the COSMIC compositor. Everything in the second part of this file
 happens there, not on the workstation that edits the code.
 
@@ -72,6 +72,14 @@ and the result is a stale binary with no error.
 - `crates/ahk-cli/tests/runner.rs` -- the cases of the runner.
 - `../archived/ahk-python/` -- the reference implementation. Frozen;
   nothing new lands there.
+- `docs/README.md` -- the index of the folder: which document is the
+  reference of a dialect, which is the plan, which is the measurement. Start
+  here when you do not know which of the files below you want.
+- `docs/runner-and-report.md` -- the runner and the report it prints: the
+  command, the flags, the standard input and output, the `exit_code`, the
+  `variables`, the steps, the notes and the pid file of the emergency stop.
+  Read it before changing what the runner prints, and before reading a
+  report from a test.
 - `docs/ahk-x11-comparison.md` -- the AHK_X11 (the AHK v1.0.24 for X11, in
   Crystal) against this tree, and what to port from it. Read it before
   touching the hotkeys, the clipboard, the sound or the windows. Its code
@@ -95,6 +103,16 @@ and the result is a stale binary with no error.
   with the AHK_X11 says that the legacy v1 syntax is not ported; that
   line is inverted for the v1 dialect alone, and this plan is where the
   decision lives.
+- `docs/ahk-v2-reference.md` -- every name of v2.0.19, grouped by commands,
+  functions, built-in variables, class types and the methods of the class
+  types, with the state this tree answers for each. The catalogue behind
+  `docs/v2-capability-report.md`: that file says how much of each area is
+  carried, this one lists the names. Written, not generated: `--surface`
+  prints a flat `name kind state` text, this is the annotated form.
+- `docs/ahk-v1-reference.md` -- the same catalogue for v1.1.37.02, by
+  commands, functions, built-in variables and directives. Read it beside
+  `docs/ahk-v1-dialect.md`: the plan says how the dialect is woven in,
+  this one says which names exist in it.
 
 EGM artifact directory: `egm-review/`
 
@@ -463,8 +481,8 @@ the box: it does no I/O, and it has to keep building without `std`.
   places.
 - A new language feature gets its cases in the Rust tree. **Not** in the
   archive: that tree is frozen, and it is the record of what the dialect
-  meant at that point. The README of this repository still says the
-  opposite on this point; this file wins.
+  meant at that point. The README says the same of the archive (section
+  "The archive"), and the two agree.
 - The guard rails and the timeout are language cases too, and they are in
   `tests/language.rs`: a script that loops forever must fail with `error`
   holding "ran more than" and `error_line` set. The timeout is the odd one
@@ -546,11 +564,12 @@ binary of v2.0.19, and they are the contract of the port.
   the arity of each parameter and the shape of each one (Value, Variable
   or Output). A directive has no shape: every parameter of a directive is a
   value, and a directive is not a row of the built-in table. The plan of the
-  dialect is `docs/ahk-v1-dialect.md`, and the gate is not built yet: the
-  table is the data of its first phase.
+  dialect is `docs/ahk-v1-dialect.md`, and the gate (`--dialect=v1`) is
+  built: the table is read by the tests of the v1.
 - `ahk-v1.1.37.02.pending.tsv` -- the names of the v1 that the tree does
-  not carry yet, with the reason. It is not empty: it is the first pending
-  table that is not, and it has 72 names.
+  not carry yet, with the reason. It was the first pending table that was
+  not empty (72 names, 2026-10-29); the table is empty now, and the v1
+  carries its whole surface (section 174).
 
 **The tree does not carry a name that v2 does not have.** Measured on
 the binary of v2.0.19 on 2026-10-30: a file has no `ReadUInt64` and no
@@ -629,7 +648,7 @@ of every name, and it is `docs/v2-capability-report.md` .
 - The commit subject is a full sentence that says what changed and, when
   it is not obvious, why. No `feat:`/`fix:` prefixes, in this history or
   in any other commit in the tree.
-- The remote is `forgejo` (`http://192.168.0.10:3000/danalec/ahk.git`).
+- The remote is a remote of your choice; it is not named here.
 - The notes in this file change in the same commit as the behaviour they
   describe. The box notes are measurements: a measurement without its date
   is not evidence.
@@ -669,8 +688,8 @@ the crates say the same, so they can be published as they are.
 
 ## Security
 
-- No secrets in the tree. The credentials of the lab server live in
-  `yoko-rust`, not here.
+- No secrets in the tree. The credentials of the lab server live outside
+  this tree, not here.
 - A script drives the desktop for real: it types, it clicks, it presses
   keys. Read the script before running it, and keep the emergency stop of
   section 8 in mind.
@@ -824,7 +843,7 @@ place cannot be read.
 
 **The windows of a Wayland session are asked of the compositor, and the
 compositor answers.** Measured on 2026-10-29 on the box: `WinGetTitle()`
-answered `pod153/Login - Chromium`, `WinExist("Chromium")` answered 1,
+answered `<host>/Login - Chromium`, `WinExist("Chromium")` answered 1,
 `WinExist("chromium")` answered 0, `WinExist("zzz-nothing-zzz")` answered 0
 and `WinActive("Chromium")` answered 1. The client is in
 `crates/ahk-box/src/wayland.rs`, and it speaks two protocols:
@@ -897,10 +916,11 @@ Three things about that file:
 - **The slot is for one runner.** Two runs on the same box write the same
   file, and the first one to end deletes the second one's file.
 
-From a shell, when the MCP itself is stuck and cannot answer:
+From a shell on the Linux box, when the MCP itself is stuck and cannot
+answer, stop the runtime with `pkill -f release/ahk`:
 
 ```sh
-ssh danalec@192.168.0.40 'pkill -f release/ahk'
+pkill -f release/ahk
 ```
 
 That kills every `ahk` process of that user, not just the runaway one:
@@ -989,24 +1009,23 @@ not there.
 The workspace commands are in "Setup commands". On the box:
 
 ```sh
-ssh danalec@192.168.0.40 'mkdir -p ~/ahk'
-scp -r crates danalec@192.168.0.40:~/ahk/
-scp Cargo.toml danalec@192.168.0.40:~/ahk/
-ssh danalec@192.168.0.40 'cd ~/ahk && cargo build --release -p ahk-cli'
+mkdir -p ~/ahk
+# copy crates/ and Cargo.toml into ~/ahk here
+cd ~/ahk && cargo build --release -p ahk-cli
 ```
 
-The copy is the point: a build that does not copy the source builds
-whatever the box still has, and the result is a stale binary with no
-error. `crates/` carries the crate manifests; the workspace `Cargo.toml`
-has to be copied too, because it holds the `[workspace.dependencies]` the
-crates point at. `Cargo.lock` is not copied: the box resolves the
-dependencies itself.
+The copy is the point: copy the sources to the Linux box and build there,
+or the build compiles the sources the box still has, and the result is a
+stale binary with no error. `crates/` carries the crate manifests; the
+workspace `Cargo.toml` has to be copied too, because it holds the
+`[workspace.dependencies]` the crates point at. `Cargo.lock` is not copied:
+the box resolves the dependencies itself.
 
-A script goes over as base64, and the report comes back on the ssh's
+A script goes over as base64, and the report comes back on the runner's
 stdout:
 
 ```sh
-printf %s '<base64>' | base64 -d | ssh danalec@192.168.0.40 '~/ahk/target/release/ahk --timeout=60'
+printf %s '<base64>' | base64 -d | ~/ahk/target/release/ahk --timeout=60
 ```
 
 The check that matters is on the box, and it is read-only: a script that
@@ -1025,7 +1044,7 @@ purpose.
 
 ## 13. What is verified, and what is not
 
-Verified on the box on 2026-10-25, on 192.168.0.40. The colours and the
+Verified on the box on 2026-10-25. The colours and the
 coordinates below are the ones that were on the screen that day -- the
 Orion wallpaper -- so they are the record of a measurement and not what
 another screen will answer. What was verified is the method; the values
@@ -1242,8 +1261,8 @@ against the real thing and read off its dialogs.
   2026-10-29: the value that was there is in the `Extra` of the failure,
   and not in the message.
 - **`SplitPath` cuts the drive off the path before it cuts the name.**
-  Measured on the binary of v2.0.19: the path "C:/Users/danalec/file.txt"
-  gives the name "/Users/danalec/file.txt" and the directory "C:". The
+  Measured on the binary of v2.0.19: the path "C:/Users/<user>/file.txt"
+  gives the name "/Users/<user>/file.txt" and the directory "C:". The
   slash is not a separator of a file, and the drive is not part of the
   name.
 - **The flag of the table of v2 is the place of the first parameter that is
@@ -1267,10 +1286,10 @@ script that used them was answered with something else.
 
 ## 17. How v2 is measured
 
-The binary of v2.0.19 is at `E:\autohotkey\AutoHotkey64.exe`, and it is the
-reference: every measurement in these notes came out of it. There is a copy of
-it at `%TEMP%\ahk-v2-measure\AutoHotkey64.exe`, and the copy of the temporary
-is the one that the probes of the blocks of November of 2026 used. Measured on
+The local AutoHotkey v2.0.19 binary is the reference: every measurement in
+these notes came out of it. There is a portable v2 binary that is a copy of
+it, and the copy of the temporary is the one that the probes of the blocks
+of November of 2026 used. Measured on
 2026-11-05: the two are the same build -- the copy of the temporary refuses
 the comma of the v1 with "Function calls require a space or \"(\"." and the
 version that it says is 2.0.19.
@@ -2113,9 +2132,9 @@ carry. The reason is written once, and the read of the name and the refusal
 of the name say the same thing.
 
 Measured on the box on 2026-10-29: twenty-four of the forty-seven answer
-with a value -- the user is `danalec`, the computer is `pod158c`, the shell
-is `/usr/bin/zsh`, the version is `7.3.0-5-cachyos`, the language is
-`en_US.UTF-8`, the script is not elevated, the temporary folder is `/tmp`,
+with a value -- the user is `<user>`, the computer is `<host>`, the shell
+is the one of the login, the version is the Linux kernel, the language is
+the UTF-8 locale, the script is not elevated, the temporary folder is `/tmp`,
 and the folders are the ones of the XDG. The other twenty-three refuse with
 the reason of the name.
 
@@ -2125,8 +2144,8 @@ portal of the box does not publish the interface
 `org.freedesktop.portal.Idle`, so the four idle times have nothing to read.
 
 And the name of the computer is asked to the kernel, not to the environment:
-a run that comes from `ssh` has no `HOSTNAME` in its environment, and the
-computer is `pod158c`.
+a run that comes over SSH has no `HOSTNAME` in its environment, and the
+computer is `<host>`.
 
 One question of the machine is closed now, and it was answered by the binary
 of v2.0.19 and not by the box: the tree answered the name of a variable with
@@ -2164,11 +2183,11 @@ And the error of a write of a built-in variable now carries the line of the
 statement that asked, like every other error of the tree: the reason of a
 write carries no line, and the caller is the one that puts it there.
 
-Measured on the box on 2026-10-29: `A_WorkingDir` is `/home/danalec`,
+Measured on the box on 2026-10-29: `A_WorkingDir` is `/home/<user>`,
 `A_InitialWorkingDir` and `A_ScriptDir` are the same, and `A_ScriptName`
 and `A_ScriptFullPath` are `*`. Writing `A_WorkingDir` moves the run --
 `A_WorkingDir := "/tmp"` leaves the script in `/tmp` and the run where it
-started in `/home/danalec` -- and writing `A_ScriptName` fails at the line
+started in `/home/<user>` -- and writing `A_ScriptName` fails at the line
 of the statement.
 
 What is still open in this group: the other built-in variables that v2 lets
@@ -6167,14 +6186,14 @@ JSON is not asked for.
 
 ## 146. The v1 runs on the box
 
-Verified on the box on 2026-11-02, on 192.168.0.40, with the runner
+Verified on the box on 2026-11-02, with the runner
 built from this tree and the flag `--dialect=v1`. The script was in the
 names of the v1: the `PixelGetColor`, the `MouseGetPos`, the `FileRead`,
 the `StrLen`, the `IsSet`, the `IsFunc` and the `Object`.
 
 The report was `ok: true`, with the note that the absolute pointer was
 opened, the colour of the pixel (`#565656`), the name of the machine
-(`pod158c`) and the answers of the names that the v1 has and the v2 does
+(`<host>`) and the answers of the names that the v1 has and the v2 does
 not (`set 1 func 2 object 42`).
 
 Two things came out of the run:
@@ -6397,6 +6416,10 @@ Measured on the binary of v1.1.37.02 on 2026-11-02.
 The `IfInString`, the `IfNotInString`, the `IfMsgBox` and the `Else` leave
 the pending table of the v1: the surface of the v1 has 277 values, 108
 refusals and 1 pending name, and the pending one is the `SetBatchLines`.
+(These are the numbers of this block, 2026-11-02. The `SetBatchLines` was
+carried later that day, and the pending table is empty now -- section 174:
+the surface of the v1 has 405 entries, 299 values, 106 refusals and no
+pending name.)
 
 The `if (expression)` of the v1 is not the one of the tree: the body of it is
 the statement of the next line and not the statement of the same line, and

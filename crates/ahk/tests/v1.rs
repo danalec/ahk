@@ -3274,9 +3274,9 @@ fn every_variable_of_the_surface_of_the_v1_may_not_be_declared_global() {
             "the v1 refuses the global of {name}"
         );
     }
-    // The surface of the v1 carries 138 variables, and the `A_Args` is the
+    // The surface of the v1 carries 141 variables, and the `A_Args` is the
     // one that is not refused.
-    assert_eq!(count, 137);
+    assert_eq!(count, 140);
 }
 
 /// The math functions of the v1 read the number that the text starts with.

@@ -1,6 +1,6 @@
 # What is missing in the v1 and in the v2
 
-> **Measured on 2026-11-05.** The state of the tree is the one of the commit
+> **Measured.** The state of the tree is the one of the commit
 > `d41dec5` (the branch `port/v2-dialect`). The numbers come from the tree
 > itself: `ahk --surface --dialect=v1` and `ahk --surface --dialect=v2`, and
 > the comparisons are `egm-review/run_all_comparisons.py`, which runs the
@@ -107,17 +107,17 @@ binaries that is not the machine.
 
 ### 2.2 The holes of the v1
 
-**The quote that a string begins with** — *closed on 2026-11-05*. The name of
+**The quote that a string begins with** — *closed*. The name of
 the v1 is permissive: it holds the quote, and the check of the name refuses
 it. The tree ended the name at the quote, and the script that the v1 refuses
 at the load was accepted.
 
-Measured on the binary of v1.1.37.02 on 2026-11-05:
+Measured on the binary of v1.1.37.02:
 
 | The script | The v1 | The tree |
 |---|---|---|
 | `x := ""a""` | refused at the load: *"The following variable name contains an illegal character:\n\"a\"\"\""* | refused at the load, with the same words |
-| `x := ""a,b"",c"` | refused at the load: *"The following variable name contains an illegal character:\n\"b\"\"\""* | refused at the load, with the same words (2026-11-05) |
+| `x := ""a,b"",c"` | refused at the load: *"The following variable name contains an illegal character:\n\"b\"\"\""* | refused at the load, with the same words |
 | `x := """"` | the text is `"` | the text is `"` |
 
 The way of the v1 that works is `x := """a""b"""`, and the tree agrees with
@@ -129,16 +129,16 @@ the tree swallowed the complaint because the tail of the v1 is a text. The
 parser asks the dialect now (`the_names_of_a_tail_are_checked`), and the
 refusal of the v1 is in the parser.
 
-The holes that the probes of 2026-11-05 found after that one:
+The holes that the probes found after that one:
 
 | The script | The v1 | The tree |
 |---|---|---|
-| `FileAppend, %A_Index%, *` | `0` | `0` (2026-11-05) |
-| `x := a.b%c` | refused at the load: *"Ambiguous or invalid use of \".\"\n     Specifically: .b%c"* | refused at the load, with the same words (2026-11-05) |
-| `x := a."b"` | refused at the load: *"This character is not allowed here.\n     Specifically: \"b\""* | refused at the load, with the same words (2026-11-05) |
+| `FileAppend, %A_Index%, *` | `0` | `0` |
+| `x := a.b%c` | refused at the load: *"Ambiguous or invalid use of \".\"\n     Specifically: .b%c"* | refused at the load, with the same words |
+| `x := a."b"` | refused at the load: *"This character is not allowed here.\n     Specifically: \"b\""* | refused at the load, with the same words |
 
 The first one is a name of the v1 that is a number outside a loop, and it was
-closed on 2026-11-05: the substitution of the v1 did not ask the runtime for
+closed: the substitution of the v1 did not ask the runtime for
 the variables that it owns. The other two are the complaints of the v1 for the
 point and for the quote of a member, and they were closed on the same day.
 
@@ -147,7 +147,7 @@ did not write the line of the statement that runs, and the name of the
 function that runs was an empty text in the dialect of the v1 and a failure in
 the dialect of the v2.
 
-**The point of the operand and the text of a member** -- *closed on 2026-11-05*.
+**The point of the operand and the text of a member** -- *closed*.
 The v1 reads the operand of an expression -- the text that goes from its first
 character to the first character that ends it, and the point does not end it --
 and it refuses the operand that has a point and a percent sign after the point,
@@ -162,13 +162,13 @@ it asks the dialect for the two refusals
 be in the operand of the one that opens it, and that was the work of the
 parser too.
 
-**The `Loop Files` of the v1** -- *closed on 2026-11-05*. The v1 has two forms
+**The `Loop Files` of the v1** -- *closed*. The v1 has two forms
 of the loop of the files: the `Loop, <pattern>, <mode>` whose mode is a number,
 and the `Loop Files, <pattern>, <mode>` whose mode is a set of letters. The
 tree carried the first one and not the second one: the pattern of the files
 was the word "Files" and the mode was the pattern.
 
-**The `#Warn` of the v1** -- *closed on 2026-11-05*. The v1 has a `#Warn` of
+**The `#Warn` of the v1** -- *closed*. The v1 has a `#Warn` of
 its own, and its types are not the ones of the v2: the "UseUnsetLocal", the
 "UseUnsetGlobal", the "UseEnv", the "LocalSameAsGlobal", the "ClassOverwrite",
 the "Unreachable" and the "All". The modes are the "MsgBox", the "StdOut", the
@@ -195,7 +195,7 @@ materializes the empty content of the variable, and that depends on the
 operator: the value of an assignment is materialized twice, and the value of
 an object and the value of a comparison too. The tree warns once per read.
 
-**The property with a getter of the v1** -- *closed on 2026-11-05*. The v1 has
+**The property with a getter of the v1** -- *closed*. The v1 has
 the property with a getter, and the body of the getter is a block of commands:
 the `return` of it is the value of the property. The tree refused the property
 altogether, and the refusal was "Not a valid property getter/setter.\n
@@ -205,7 +205,7 @@ line of the member, the member that has no body -- that one is a method of the
 property, and the refusal is "Missing \"{\"\n Specifically: p.get()" -- and
 the member that is static.
 
-**The property with a getter of the v1** -- *closed on 2026-11-05*. The v1 has
+**The property with a getter of the v1** -- *closed*. The v1 has
 the property with a getter, and the body of the getter is a block of commands:
 the `return` of it is the value of the property. The tree refused the property
 altogether, and the refusal was "Not a valid property getter/setter.\n
@@ -217,17 +217,17 @@ the member that is static.
 
 ### 2.3 The holes of the v2 that are known
 
-**`ObjBindMethod`** — *closed on 2026-11-05*. The tree binds the method of an
+**`ObjBindMethod`** — *closed*. The tree binds the method of an
 object, and the value of it is of the class `BoundFunc`. The call of it calls
 the method with the object as its `this`, and the name of the method is not
 checked when the binding is made.
 
-**The `A_LineNumber` and the `A_ThisFunc` of the v2** — *closed on 2026-11-05*.
+**The `A_LineNumber` and the `A_ThisFunc` of the v2** — *closed*.
 The tree did not write the line of the statement that runs, and it refused the
 two names with *"This global variable has not been assigned a value."*. The
 runtime writes them now, and they are seen in a function.
 
-**The warnings of the v2** — *closed on 2026-11-05, for the "Unreachable" and
+**The warnings of the v2** — *closed, for the "Unreachable" and
 the "VarUnset"*. The `#Warn` takes the type of the warning and the mode of it,
 and the type that is not one of them is refused at the load with "Parameter #1
 invalid." and the source of the line, and the mode that is not one of them
@@ -248,7 +248,7 @@ script is read, and not when the variable is read. The v2 measures it as the
 binary measures it: the `if 0 { x := nope }` is warned about, and the name that
 the scope writes is not warned about.
 
-**The body of the getter of the v2** — *closed on 2026-11-05*. The body of the
+**The body of the getter of the v2** — *closed*. The body of the
 getter and of the setter that is a block is a scope of its own: the `return` of
 it is the value of the property, and the name that it writes is a local of it.
 The tree refused the `return` with "Return's parameter should be blank except
@@ -256,12 +256,12 @@ inside a function.". The getter that is on the same line as the name and the
 body of the getter that is on the line of the member are refused, and the
 `this` of a class is not a variable that the warning of the "VarUnset" names.
 
-**The second parameter of the `Loop Read` of the v2** — *closed on 2026-11-05*.
+**The second parameter of the `Loop Read` of the v2** — *closed*.
 The v2 does not open the file of the second parameter when the loop begins:
 the file that is not there is not made, and the one that has text keeps it.
 The `FileAppend` of the body writes to it, and the tree does the same.
 
-**The mode of the `Loop Files` of the v2** — *closed on 2026-11-05*. The mode
+**The mode of the `Loop Files` of the v2** — *closed*. The mode
 is a set of letters -- the "R" walks into the folders, the "D" and the "K"
 give the folders, the "F" and the "V" give the files -- and the spaces and
 the tabs between them are ignored. The letter that is not one of them is
@@ -281,28 +281,28 @@ and gave the files and the folders, and the v2 refuses it with a dialog.
 
 ## 3. The order of the work
 
-1. **The quote that a string of the v1 begins with** (§2.2) — *closed on
-   2026-11-05*. The check of the name was the work: the v1 reads the tail of a
+1. **The quote that a string of the v1 begins with** (§2.2) — *closed*.
+   The check of the name was the work: the v1 reads the tail of a
    list as symbols, and the tree swallowed the complaint.
 2. **The point of the operand and the text of a member of the v1** (§2.2) —
-   *closed on 2026-11-05*. The operand of the v1 was the work: it does not end
+   *closed*. The operand of the v1 was the work: it does not end
    at the point, and the tree ended the name at it.
-3. **The `ObjBindMethod`** (§1.1) — *closed on 2026-11-05*. The tree binds
+3. **The `ObjBindMethod`** (§1.1) — *closed*. The tree binds
    the method of an object, and the value of it is of the class `BoundFunc`.
-4. **The mode of the `Loop Files` of the v2** (§2.3) — *closed on 2026-11-05*.
+4. **The mode of the `Loop Files` of the v2** (§2.3) — *closed*.
    The mode is a set of letters, and the tree refuses the letter that the v2
    refuses.
-5. **The second parameter of the `Loop Read` of the v2** (§2.3) — *closed on
-   2026-11-05*. The tree does what the v2 does: the file is not opened when
+5. **The second parameter of the `Loop Read` of the v2** (§2.3) — *closed*.
+   The tree does what the v2 does: the file is not opened when
    the loop begins, and the `FileAppend` of the body writes to it.
-6. **The `Loop Files` of the v1** (§2.2) — *closed on 2026-11-05*. The v1
+6. **The `Loop Files` of the v1** (§2.2) — *closed*. The v1
    has two forms of the loop of the files, and the tree carried the one whose
    mode is a number and not the one whose mode is a set of letters.
-7. **The warnings of the v2** (§2.3) — *closed on 2026-11-05*. The runtime
+7. **The warnings of the v2** (§2.3) — *closed*. The runtime
    has a warning channel now: the warnings go to the report, and the mode of
    the "StdOut" writes them to the standard output. The three types of the v2
    are carried.
-8. **The `#Warn` of the v1** (§2.2) — *closed on 2026-11-05*. The directive
+8. **The `#Warn` of the v1** (§2.2) — *closed*. The directive
    of the v1 is carried, and its six types are: the variable of the script that
    is read and never written, the variable of a function that is read and
    never written, the environment variable that is accessed, the local that has

@@ -17,3 +17,6 @@ crates/ahk-box/helper/helper.exe
 crates/ahk-box/helper/helper32.exe
 crates/ahk-box/helper/libkernel32.a
 crates/ahk-box/helper/libkernel32_32.a
+
+# the review artefacts of the second pass are not part of the tree
+egm-review-doc-language/

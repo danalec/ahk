@@ -12,6 +12,12 @@
 //! "StdOut" writes them to the standard output as well, the way the v2 does:
 //! the line of the script and the text of the warning.
 
+use alloc::collections::BTreeSet;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::ast::Node;
 use crate::dialect::Dialect;
 use serde::Serialize;
@@ -420,7 +426,7 @@ pub fn the_warnings_of_the_locals_that_are_globals(
 
 fn the_warnings_of_the_locals_of_the_level(
     statements: &[Node],
-    globals: &std::collections::BTreeSet<String>,
+    globals: &BTreeSet<String>,
     dialect: &dyn Dialect,
     warnings: &mut Vec<Warning>,
 ) {
@@ -486,7 +492,7 @@ struct TheScope<'a> {
 /// line of the write of the local.
 fn the_warnings_of_the_locals_of_a_scope(
     scope: TheScope<'_>,
-    globals: &std::collections::BTreeSet<String>,
+    globals: &BTreeSet<String>,
     dialect: &dyn Dialect,
     warnings: &mut Vec<Warning>,
 ) {
@@ -508,7 +514,7 @@ fn the_warnings_of_the_locals_of_a_scope(
         locals.extend(reads);
         locals.sort_by_key(|(_, line)| *line);
     }
-    let mut seen = std::collections::BTreeSet::new();
+    let mut seen = BTreeSet::new();
     for (local, the_line) in locals {
         if !seen.insert(local.to_lowercase()) {
             continue;
@@ -560,7 +566,7 @@ fn the_warnings_of_the_locals_of_a_class(
     methods: &[crate::ast::MethodDef],
     accessors: &[crate::ast::AccessDef],
     nested: &[Node],
-    globals: &std::collections::BTreeSet<String>,
+    globals: &BTreeSet<String>,
     dialect: &dyn Dialect,
     warnings: &mut Vec<Warning>,
 ) {
@@ -897,7 +903,7 @@ fn the_closing_percent(chars: &[char], from: usize) -> Option<usize> {
 }
 
 /// The names of a scope: the ones that it writes and the ones that it reads.
-type TheNames = std::collections::BTreeSet<String>;
+type TheNames = BTreeSet<String>;
 
 /// The warning of the variable that is read and never written.
 ///
@@ -931,7 +937,7 @@ fn the_warnings_of_the_reads_of_the_script(
     for (name, _) in writes {
         globals.insert(name.to_lowercase());
     }
-    let empty = std::collections::BTreeSet::new();
+    let empty = BTreeSet::new();
     for statement in statements {
         match statement {
             Node::FunctionDef {
@@ -1069,7 +1075,7 @@ fn the_warnings_of_the_reads_of_the_script(
                 for class in nested {
                     if let Node::ClassDef { .. } = class {
                         the_warnings_of_the_reads_of_the_script(
-                            std::slice::from_ref(class),
+                            core::slice::from_ref(class),
                             globals,
                             warnings,
                         );
@@ -1079,7 +1085,7 @@ fn the_warnings_of_the_reads_of_the_script(
             _ => {
                 // The body of the script.
                 let mut reads = Vec::new();
-                the_reads_of_a_level(std::slice::from_ref(statement), &mut reads);
+                the_reads_of_a_level(core::slice::from_ref(statement), &mut reads);
                 the_warnings_of_the_reads_of_a_scope(&reads, globals, None, &empty, true, warnings);
             }
         }
@@ -1095,7 +1101,7 @@ fn the_warnings_of_the_reads_of_a_scope(
     reads: &[(String, u32)],
     own: &mut TheNames,
     mut globals: Option<&mut TheNames>,
-    declared_global: &std::collections::BTreeSet<String>,
+    declared_global: &BTreeSet<String>,
     the_script: bool,
     warnings: &mut Vec<Warning>,
 ) {
@@ -1144,7 +1150,7 @@ fn the_warnings_of_the_reads_of_a_scope(
 /// it is "Class may be overwritten." and the name of the class, and it is
 /// given at the line of the write that overwrites it.
 pub fn the_warnings_of_the_classes_that_are_overwritten(statements: &[Node]) -> Vec<Warning> {
-    let mut classes = std::collections::BTreeSet::new();
+    let mut classes = BTreeSet::new();
     the_classes_of_the_script(statements, &mut classes);
     let mut warnings = Vec::new();
     let mut writes = Vec::new();
@@ -1165,14 +1171,14 @@ pub fn the_warnings_of_the_classes_that_are_overwritten(statements: &[Node]) -> 
 ///
 /// The names that the script writes at its level are the variables of the
 /// script, and the classes of the script are variables too.
-fn the_globals_of_the_script(statements: &[Node]) -> std::collections::BTreeSet<String> {
-    let mut globals = std::collections::BTreeSet::new();
+fn the_globals_of_the_script(statements: &[Node]) -> BTreeSet<String> {
+    let mut globals = BTreeSet::new();
     let mut writes = Vec::new();
     the_writes_of_a_level(statements, &mut writes, false);
     for (name, _line) in writes {
         globals.insert(name.to_lowercase());
     }
-    let mut classes = std::collections::BTreeSet::new();
+    let mut classes = BTreeSet::new();
     the_classes_of_the_script(statements, &mut classes);
     for name in classes {
         globals.insert(name);
@@ -1183,7 +1189,7 @@ fn the_globals_of_the_script(statements: &[Node]) -> std::collections::BTreeSet<
 /// The names of the classes of the script.
 fn the_classes_of_the_script(
     statements: &[Node],
-    classes: &mut std::collections::BTreeSet<String>,
+    classes: &mut BTreeSet<String>,
 ) {
     for statement in statements {
         if let Node::ClassDef { name, .. } = statement {

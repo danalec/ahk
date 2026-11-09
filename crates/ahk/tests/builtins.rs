@@ -898,13 +898,13 @@ fn a_path_is_cut_into_its_pieces() {
     // v2 writes the pieces into the variables of the caller, and it
     // answers with nothing.
     let report = run(concat!(
-        "SplitPath \"C:\\Users\\danalec\\file.txt\", &name, &dir, &ext, &noext, &drive\n",
+        "SplitPath \"C:\\Users\\<user>\\file.txt\", &name, &dir, &ext, &noext, &drive\n",
         "pieces := name . \"|\" . dir . \"|\" . ext . \"|\" . noext . \"|\" . drive"
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         value_of(&report, "pieces"),
-        Value::Text("file.txt|C:\\Users\\danalec|txt|file|C:".into())
+        Value::Text("file.txt|C:\\Users\\<user>|txt|file|C:".into())
     );
 }
 
@@ -913,13 +913,13 @@ fn a_path_with_a_drive_and_no_backslash_keeps_the_drive_out_of_the_name() {
     // Measured on the binary of v2.0.19: the drive is cut off the path
     // before the name is, and the slash is not a separator of a file.
     let report = run(concat!(
-        "SplitPath \"C:/Users/danalec/file.txt\", &name, &dir, &ext, &noext, &drive\n",
+        "SplitPath \"C:/Users/<user>/file.txt\", &name, &dir, &ext, &noext, &drive\n",
         "pieces := name . \"|\" . dir . \"|\" . ext . \"|\" . noext . \"|\" . drive"
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         value_of(&report, "pieces"),
-        Value::Text("/Users/danalec/file.txt|C:|txt|/Users/danalec/file|C:".into())
+        Value::Text("/Users/<user>/file.txt|C:|txt|/Users/<user>/file|C:".into())
     );
 }
 

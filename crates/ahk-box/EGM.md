@@ -4,9 +4,9 @@
 
 `ahk-box` is the part of the runtime that touches the machine. At this level there is no source file of its own: the whole crate is in `src/`, which is its single component.
 
-The dependency runs one way. The language crate `ahk` does no I/O at all and runs a script against whatever implements `ahk::desktop::Desktop` -- the sum of the eleven capability traits; this crate is that implementation for the lab box, and the runner `ahk-cli` is what builds it. Nothing here reaches back into the language's internals, and nothing here depends on the runner.
+The dependency runs one way. The language crate `ahk` does no I/O at all and runs a script against whatever implements `ahk::desktop::Desktop` -- the sum of the fifteen capability traits; this crate is that implementation for the lab box, and the runner `ahk-cli` is what builds it. Nothing here reaches back into the language's internals, and nothing here depends on the runner.
 
-Everything that talks to the machine is Linux. The keyboard, the pointer, the screen reads and the windows of the compositor are the four primitives, and all four were measured on the lab box (CachyOS, COSMIC Wayland): the three first on 2026-10-25, and the windows on 2026-10-29.
+Everything that talks to the machine is Linux. The keyboard, the pointer, the screen reads and the windows of the compositor are the four primitives, and all four were measured on the Linux box (COSMIC Wayland).
 
 ## Subdirectories & Boundaries
 

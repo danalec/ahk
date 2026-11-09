@@ -3,7 +3,7 @@
 //! A port of `src/ahk/box.py` from the archived Python implementation.
 //!
 //! Three primitives are not obvious, and all three were measured on the
-//! lab box (CachyOS, COSMIC Wayland) on 2026-10-25:
+//! lab box (COSMIC Wayland):
 //!
 //! * **Text** goes through the keyboard of our own, one key at a time,
 //!   and the layout is the US one. A character the layout does not have
@@ -1730,9 +1730,9 @@ mod tests {
     #[test]
     fn a_title_contains_the_text_that_was_asked_for() {
         let mode = TitleMatch::Contains;
-        assert!(title_matches("pod153/Login - Chromium", "Login", mode).expect("it matches"));
+        assert!(title_matches("<host>/Login - Chromium", "Login", mode).expect("it matches"));
         assert!(
-            title_matches("pod153/Login - Chromium", "pod153/Login - Chromium", mode)
+            title_matches("<host>/Login - Chromium", "<host>/Login - Chromium", mode)
                 .expect("it matches")
         );
     }
@@ -1742,9 +1742,9 @@ mod tests {
     #[test]
     fn the_case_of_the_title_matters() {
         let mode = TitleMatch::Contains;
-        assert!(title_matches("pod153/Login - Chromium", "Chromium", mode).expect("it matches"));
+        assert!(title_matches("<host>/Login - Chromium", "Chromium", mode).expect("it matches"));
         assert!(
-            !title_matches("pod153/Login - Chromium", "chromium", mode).expect("it does not match")
+            !title_matches("<host>/Login - Chromium", "chromium", mode).expect("it does not match")
         );
     }
 
@@ -1764,8 +1764,8 @@ mod tests {
     fn a_title_that_is_not_there_is_not_there() {
         let mode = TitleMatch::Contains;
         assert!(
-            !title_matches("pod153/Login - Chromium", "Firefox", mode).expect("it does not match")
+            !title_matches("<host>/Login - Chromium", "Firefox", mode).expect("it does not match")
         );
-        assert!(!title_matches("pod153/Login - Chromium", "", mode).expect("it does not match"));
+        assert!(!title_matches("<host>/Login - Chromium", "", mode).expect("it does not match"));
     }
 }

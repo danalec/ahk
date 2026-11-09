@@ -444,17 +444,14 @@ impl Dispatch<ZcosmicToplevelHandleV1, ()> for State {
             return;
         };
 
-        match event {
-            CosmicEvent::State { state: states } => {
-                // The states are numbers, four bytes each, and the array
-                // carries its length in bytes.
-                toplevel.active = states.chunks_exact(4).any(|state| {
-                    u32::from_ne_bytes([state[0], state[1], state[2], state[3]]) == ACTIVATED
-                });
-                // The compositor has said the state of this window.
-                toplevel.state_seen = true;
-            }
-            _ => {}
+        if let CosmicEvent::State { state: states } = event {
+            // The states are numbers, four bytes each, and the array
+            // carries its length in bytes.
+            toplevel.active = states.chunks_exact(4).any(|state| {
+                u32::from_ne_bytes([state[0], state[1], state[2], state[3]]) == ACTIVATED
+            });
+            // The compositor has said the state of this window.
+            toplevel.state_seen = true;
         }
     }
 }

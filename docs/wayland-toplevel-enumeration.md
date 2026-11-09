@@ -4,7 +4,7 @@
 > `ext-foreign-toplevel-list-v1`.
 >
 > The code of this guide was **compiled and run** on the box of the laboratory
-> (192.168.0.40, CachyOS, Wayland, COSMIC) on 2026-10-28. The real output is
+> (the Linux box, Wayland, COSMIC). The real output is
 > in section 7.
 
 ---
@@ -57,7 +57,7 @@ that made X11 be considered unsafe: the list is useful, the control is
 dangerous, and a compositor may want to give the first and refuse the
 second.
 
-> **Measured on the box (2026-10-28).** The compositor is `cosmic-comp`. It
+> **Measured on the box.** The compositor is `cosmic-comp`. It
 > publishes `ext_foreign_toplevel_list_v1` (version 1),
 > `zcosmic_toplevel_manager_v1`, `zcosmic_toplevel_info_v1`,
 > `ext_data_control_manager_v1`, `ext_workspace_manager_v1`,
@@ -76,7 +76,7 @@ publishes `ext_foreign_toplevel_list_v1`, and the program of this guide
 enumerates the windows of the box without any difficulty. What was missing
 was the Wayland-native path, not the permission.
 
-**That path is done (2026-10-29).** The client lives in
+**That path is done.** The client lives in
 `crates/ahk-box/src/wayland.rs`, and `WinGetTitle`, `WinExist` and `WinActive`
 answer with a value on the box. Two things this guide does not cover and
 that the client had to learn:
@@ -564,19 +564,19 @@ The crate is **Linux-only**: the `wayland-sys` uses `std::os::unix`, and so it
 does not compile on Windows. On the box:
 
 ```sh
-# 1. the code goes to the box first: a build without the copy compiles
-#    what the box still has, and the result is an old binary with no error.
-ssh danalec@192.168.0.40 'mkdir -p ~/src/wl-toplevels/src'
-scp Cargo.toml danalec@192.168.0.40:~/src/wl-toplevels/Cargo.toml
-scp src/main.rs danalec@192.168.0.40:~/src/wl-toplevels/src/main.rs
+# 1. copy the sources to the box first: a build without the copy
+#    compiles what the box still has, and the result is an old
+#    binary with no error.
+mkdir -p ~/src/wl-toplevels/src
+# copy Cargo.toml and src/main.rs into ~/src/wl-toplevels here
 
-# 2. the build
-ssh danalec@192.168.0.40 'cd ~/src/wl-toplevels && cargo build --release'
+# 2. the build (on the box, in the session of the user)
+cd ~/src/wl-toplevels && cargo build --release
 
 # 3. the run, in the session of the user
-ssh danalec@192.168.0.40 'cd ~/src/wl-toplevels && \
+cd ~/src/wl-toplevels && \
     XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 \
-    ./target/release/wl-toplevels'
+    ./target/release/wl-toplevels
 ```
 
 In a normal graphical session (a terminal inside Wayland), it is enough:
@@ -728,14 +728,14 @@ window leaves the inventory before it sends the `title`.
 
 ## 7. Expected output (measured on the box)
 
-Measured on 2026-10-28, on the box of the laboratory (COSMIC, Wayland
+Measured on the box of the laboratory (COSMIC, Wayland
 session), with a Chromium window and two terminals open:
 
 ```
 --- snapshot: 3 mapped toplevel(s) ---
-[0xff000000] identifier=P6jNlxgKyYzywzlT0DEhIpIkDjEMuTq8 title="pod153/Login - Chromium" app_id="chromium"
+[0xff000000] identifier=P6jNlxgKyYzywzlT0DEhIpIkDjEMuTq8 title="<host>/Login - Chromium" app_id="chromium"
 [0xff000001] identifier=KQhaYikN2lfsB10mfujYMPK32Ob48Dsi title="agy --dangerously-skip-permissions" app_id="kitty"
-[0xff000002] identifier=BmWetEuIFvUaMMZj4VWUow1Cp0pdriKd title="danalec@pod158c:~" app_id="kitty"
+[0xff000002] identifier=BmWetEuIFvUaMMZj4VWUow1Cp0pdriKd title="<user>@<host>:~" app_id="kitty"
 --- the snapshot is over; the changes follow ---
 ```
 
@@ -789,7 +789,7 @@ registry:
 WAYLAND_DEBUG=1 <any-wayland-client> 2>&1 | grep 'wl_registry@.*global'
 ```
 
-And what the box answers (2026-10-28), in order:
+And what the box answers, in order:
 
 ```
 wl_compositor, wl_subcompositor, wl_data_device_manager, wl_shm, wl_output,
@@ -886,7 +886,7 @@ project may not be copied. Generating the bindings from the XML with the
 ## 9. What this gives to the runtime
 
 The `AGENTS.md` (§7 and §23) says that `WinExist` and `WinActive` answer
-*"unknown"* on the box. The measurement of 2026-10-28 says that **that
+*"unknown"* on the box. The measurement says that **that
 refusal is not the only possible answer anymore**: the compositor of the box
 publishes the listing.
 
@@ -920,6 +920,6 @@ refusal becomes a wrong answer.
   and <https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml>
 - The crate: `wayland-client` 0.31.15, `wayland-protocols` 0.32.13,
   `wayland-backend` 0.3.17, `wayland-scanner` 0.31.11, `rustix` 1.1.6.
-- The box: 192.168.0.40, CachyOS, `cosmic-comp`, socket `wayland-1`.
+- The box: a Linux box running `cosmic-comp`, socket `wayland-1`.
   Build in `~/src/wl-toplevels`, with Rust 1.98.1.
-- The record: 2026-10-28.
+- The record: the measurements of this guide.

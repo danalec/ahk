@@ -9,7 +9,7 @@
 >   crates (`ahk`, `ahk-box`, `ahk-cli`), **Apache 2.0**.
 >
 > The sources of every claim are at the end of the document. What is
-> **measured** on the box (192.168.0.40) is marked with the date; what is
+> **measured** on the box is marked as such; what is
 > **read** from foreign code is marked as such; what is **inferred** is marked
 > as an inference.
 
@@ -388,7 +388,7 @@ with the reason.
 
 ### 3.3 What the box does on Linux, measured
 
-| Primitive | Mechanism | Measurement (2026-10-25 / 27 / 28) |
+| Primitive | Mechanism | Measurement |
 |---|---|---|
 | Text and keys | our own **uinput** keyboard, US layout | `Send "Teste-Ahk 42!"` writes the whole string, capitals and punctuation included |
 | Modifiers | they go down before the key, and up after | `ctrl+a` selects the text of a GTK field and the backspace deletes it |
@@ -569,7 +569,7 @@ right method and the right signature — the body is missing.
 Item 6 is the cheapest of all and the most useful: it turns "what is missing"
 from an opinion into a number.
 
-**The state of this wave (2026-10-29).** The six items are done: the clipboard
+**The state of this wave.** The six items are done: the clipboard
 (1), the sound (2), the `NumGet` and the `NumPut` (3), the `Files` (4) and the
 `FormatTime` with the `DateAdd` and the `DateDiff` (5) came out of the refusal
 in the block of section 25 of the notes, and the `ahk --surface` (6) now
@@ -802,9 +802,8 @@ rule we propose.
   `crates/ahk/src/variables.rs`, `crates/ahk/reference/ahk-v2.0.19.surface.tsv`,
   `crates/ahk-box/src/{desktop,keyboard,pointer,native,raven}.rs`,
   `crates/ahk-cli/src/main.rs`.
-- **Measurements of the box** — 2026-10-25, 2026-10-27 and 2026-10-28, on
-  192.168.0.40 (CachyOS, Wayland, COSMIC). The full record is in the
-  `AGENTS.md` (§13).
+- **Measurements of the box** — on the Linux box (Wayland, COSMIC).
+  The full record is in the `AGENTS.md` (§13).
 - **Counts of this comparison** — 725 entries of surface (644 distinct names):
   242 commands, 103 functions, 131 variables, 249 methods; 346 built-ins in the
   table, 141 with a real handler and 205 with `not_carried`. Of the 725

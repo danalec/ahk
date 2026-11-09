@@ -28,7 +28,7 @@ The table has **828 entries and 780 distinct names** : a property with a setter 
 
 ## What the numbers do not say
 
-Three things, all measured on the binary of the v2.0.19 on 2026-10-29.
+Three things, all measured on the binary of the v2.0.19.
 
 **The classes of the windows are carried, and every call of them fails.**
 The names of `Gui` , of `Gui.Control` , of `Gui.ListView` , of
@@ -44,7 +44,7 @@ The table carries the thirty-two class types of v2.0.19 --- `Any` ,
 `ComObject` , `ComValue` , `Enumerator` , `Error` , `File` , `Func` ,
 `Gui` , `InputHook` , `Map` , `Menu` , `Object` , `RegExMatchInfo` and
 the thirteen classes of the failures --- measured on the binary of
-v2.0.19 on 2026-10-31, where a script reads every one of them as the
+v2.0.19, where a script reads every one of them as the
 class. The `Hotkey` is the exception: the name is a function of v2, and
 the class of a hotkey is the class of the object that the function makes.
 
@@ -67,7 +67,7 @@ come first: the number of the arguments and the kind of them are the
 dialect's, and the reason of the machine comes after them.
 
 **The area of the parser is about the surface, not about the grammar.**
-What a script may write is the work of the wave of 2026-10-29
+What a script may write is the work of the wave
 (`docs/ahk-v1-dialect.md` says what the plan is) . This report is about the
 names that the tree answers.
 
