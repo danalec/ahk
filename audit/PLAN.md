@@ -888,6 +888,39 @@ second time in two rounds that a test was the bug's alibi (round 19 had
 Also checked: no other place in the tree discards a reason with
 `map_err(|_| String::new())`.
 
+### Round 21 — 2026-11-09: a defect that was not one
+
+**No code changed, and that is the result.** The audit listed defect 4 as
+"errors lose their cause": `FileCopy`, `FileMove` and `DirDelete` answer
+`"Failed"` where `FileDelete` answers `(2) The system cannot find the file
+specified.`. It read like the same class as round 20's `ImageSearch` bug.
+
+It is not. Measured on the binary of v2.0.19 on 2026-11-09:
+
+| call | the binary | this tree |
+|---|---|---|
+| `FileCopy` of a missing file | `Failed`, `What "FileCopy"`, `Extra "1"` | the same |
+| `FileMove` of a missing file | `Failed`, `Extra "1"` | the same |
+| `DirDelete` of a missing folder | `Failed`, `Extra ""` | the same |
+| `DirDelete` of a **non-empty** folder | `Failed`, `Extra ""` | the same |
+| `FileDelete` of a missing file | `(2) The system cannot find the file specified.` | the same |
+
+**v2 itself is inconsistent, and the tree is faithful to the inconsistency.**
+The tree had already recorded this on 2026-11-01 -- the handler says
+"Measured on the binary of v2.0.19: the copy of a file that is not there fails
+with `Failed`, and the `Extra` is 1" -- and `tests/builtins.rs` pins
+`"Failed | FileCopy | 1"` with the measurement beside it. So a future round
+that "improved" the message would fail a test that exists for exactly that
+reason.
+
+**The lesson is about the audit, not the tree.** A defect in that table has to
+carry the binary's answer beside it, the way every behaviour in this tree does.
+This row carried only the tree's answer, so it read as a deviation when it was
+fidelity. Rows 1, 2, 3 and 7 of the same table were all measured before they
+were acted on; this one was not, and it was wrong.
+
+The audit is corrected: the row now says what the binary does.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
