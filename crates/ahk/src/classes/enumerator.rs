@@ -34,9 +34,19 @@ const PROPERTIES: [&str; 5] = ["name", "minparams", "maxparams", "isbuiltin", "i
 /// The methods an enumerator has: the ones of the class, and the ones every
 /// object has.
 const METHODS: [&str; 13] = [
-    "call", "isoptional", "isbyref", "bind",
-    "ownprops", "hasownprop", "defineprop", "deleteprop", "getownpropdesc",
-    "hasprop", "hasmethod", "getmethod", "hasbase",
+    "call",
+    "isoptional",
+    "isbyref",
+    "bind",
+    "ownprops",
+    "hasownprop",
+    "defineprop",
+    "deleteprop",
+    "getownpropdesc",
+    "hasprop",
+    "hasmethod",
+    "getmethod",
+    "hasbase",
 ];
 
 /// Which of the two of a pair is given when the caller wants one value.
@@ -63,7 +73,10 @@ pub(crate) fn names() -> Vec<&'static str> {
 /// key when the caller gives it two variables, and the one of the two that
 /// `alone` names when the caller gives it one.
 pub(crate) fn make(pairs: Vec<(Value, Value)>, alone: Alone) -> Value {
-    let mut state = Object { class: STATE_CLASS.to_string(), properties: BTreeMap::new() };
+    let mut state = Object {
+        class: STATE_CLASS.to_string(),
+        properties: BTreeMap::new(),
+    };
     set_pairs(&mut state, pairs);
     put(
         &mut state.properties,
@@ -74,7 +87,11 @@ pub(crate) fn make(pairs: Vec<(Value, Value)>, alone: Alone) -> Value {
         }),
     );
     let mut table = BTreeMap::new();
-    put(&mut table, STATE, Value::Object(Rc::new(RefCell::new(state))));
+    put(
+        &mut table,
+        STATE,
+        Value::Object(Rc::new(RefCell::new(state))),
+    );
     Value::Object(Rc::new(RefCell::new(Object {
         class: "enumerator".to_string(),
         properties: table,
@@ -83,7 +100,9 @@ pub(crate) fn make(pairs: Vec<(Value, Value)>, alone: Alone) -> Value {
 
 /// Whether a value is an enumerator.
 pub(crate) fn is_one(value: &Value) -> bool {
-    let Value::Object(object) = value else { return false };
+    let Value::Object(object) = value else {
+        return false;
+    };
     object.borrow().class == "enumerator"
 }
 
@@ -124,10 +143,15 @@ pub(crate) fn call(
         // not a property, and v2 says so.
         "ownprops" => Some(Ok(make(Vec::new(), Alone::TheKey))),
         "hasownprop" => {
-            let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+            let name = arguments
+                .first()
+                .map(|value| value.to_text())
+                .unwrap_or_default();
             let key = name.to_lowercase();
             let answer = match this {
-                Value::Object(object) => key != STATE && object.borrow().properties.contains_key(&key),
+                Value::Object(object) => {
+                    key != STATE && object.borrow().properties.contains_key(&key)
+                }
                 _ => false,
             };
             Some(Ok(Value::Int(answer as i64)))
@@ -192,7 +216,9 @@ fn the_call(
     rt: &mut Runtime,
     _line: u32,
 ) -> Result<Value, RuntimeFailure> {
-    let Some((key, value, alone)) = the_pair(this) else { return Ok(Value::Int(0)) };
+    let Some((key, value, alone)) = the_pair(this) else {
+        return Ok(Value::Int(0));
+    };
     let alone_value = match alone {
         Alone::TheKey => key.clone(),
         Alone::TheValue => value.clone(),
@@ -218,7 +244,9 @@ fn the_call(
 
 /// The state of an enumerator.
 fn state(enumerator: &Value) -> Option<Rc<RefCell<Object>>> {
-    let Value::Object(object) = enumerator else { return None };
+    let Value::Object(object) = enumerator else {
+        return None;
+    };
     let state = object.borrow().value_of(STATE)?;
     match state {
         Value::Object(state) => Some(state),
@@ -228,7 +256,9 @@ fn state(enumerator: &Value) -> Option<Rc<RefCell<Object>>> {
 
 /// The pairs of an enumerator: the key and the value under it.
 fn pairs(state: &Object) -> Vec<(Value, Value)> {
-    let Some(Value::List(items)) = state.value_of("pairs") else { return Vec::new() };
+    let Some(Value::List(items)) = state.value_of("pairs") else {
+        return Vec::new();
+    };
     items
         .iter()
         .map(|item| match item {

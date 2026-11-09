@@ -31,7 +31,9 @@ pub fn read(path: &str) -> Result<Picture, String> {
     let decoder = png::Decoder::new(std::io::BufReader::new(file));
     let mut reader = decoder.read_info().map_err(|error| error.to_string())?;
     let mut buffer = vec![0u8; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut buffer).map_err(|error| error.to_string())?;
+    let info = reader
+        .next_frame(&mut buffer)
+        .map_err(|error| error.to_string())?;
     let width = info.width as usize;
     let height = info.height as usize;
     let bytes = &buffer[..info.buffer_size()];
@@ -56,7 +58,9 @@ pub fn read(path: &str) -> Result<Picture, String> {
                 png::ColorType::Grayscale => (bytes[offset], bytes[offset], bytes[offset]),
                 png::ColorType::GrayscaleAlpha => (bytes[offset], bytes[offset], bytes[offset]),
                 png::ColorType::Indexed => {
-                    let Some(palette) = palette.as_ref() else { break };
+                    let Some(palette) = palette.as_ref() else {
+                        break;
+                    };
                     let at = bytes[offset] as usize * 3;
                     if at + 2 >= palette.len() {
                         break;
@@ -69,7 +73,11 @@ pub fn read(path: &str) -> Result<Picture, String> {
             pixels.push(blue);
         }
     }
-    Ok(Picture { pixels, width, height })
+    Ok(Picture {
+        pixels,
+        width,
+        height,
+    })
 }
 
 /// The picture at the size that was asked for.
@@ -117,7 +125,11 @@ pub fn resized(picture: Picture, width: Option<i64>, height: Option<i64>) -> Pic
             pixels.push(picture.pixels[at + 2]);
         }
     }
-    Picture { pixels, width, height }
+    Picture {
+        pixels,
+        width,
+        height,
+    }
 }
 
 /// Look for a picture on the screen.
@@ -177,7 +189,11 @@ fn the_picture_is_there(
             if at + 2 >= picture.pixels.len() || at_there + 2 >= screen.pixels.len() {
                 return false;
             }
-            let one = [picture.pixels[at], picture.pixels[at + 1], picture.pixels[at + 2]];
+            let one = [
+                picture.pixels[at],
+                picture.pixels[at + 1],
+                picture.pixels[at + 2],
+            ];
             let other = [
                 screen.pixels[at_there],
                 screen.pixels[at_there + 1],
@@ -202,7 +218,11 @@ fn the_picture_is_there(
 
 /// The pictures of the desktop.
 impl ahk::desktop::Pictures for LabDesktop {
-    fn load_picture(&mut self, filename: &str, options: &PictureOptions) -> Result<Option<u32>, String> {
+    fn load_picture(
+        &mut self,
+        filename: &str,
+        options: &PictureOptions,
+    ) -> Result<Option<u32>, String> {
         // A file that is not there is not a failure: v2 answers zero.
         if !Path::new(filename).exists() {
             return Ok(None);

@@ -5,8 +5,8 @@
 //! the object is made, and every name of it says why it cannot work.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime, Value};
@@ -73,7 +73,14 @@ impl Pointer for Fake {
 }
 
 impl Screen for Fake {
-    fn capture(&mut self, _x: i64, _y: i64, _width: i64, _height: i64, _filename: &str) -> Result<String, String> {
+    fn capture(
+        &mut self,
+        _x: i64,
+        _y: i64,
+        _width: i64,
+        _height: i64,
+        _filename: &str,
+    ) -> Result<String, String> {
         Ok(String::new())
     }
 
@@ -125,7 +132,10 @@ fn a_menu_that_adds_an_item_says_why_it_cannot() {
     let report = run("bar := Menu()\nbar.Add(\"File\")");
     assert!(!report.ok);
     let error = error_of(&report);
-    assert!(error.contains("Menu cannot add an item to the menu bar"), "{error}");
+    assert!(
+        error.contains("Menu cannot add an item to the menu bar"),
+        "{error}"
+    );
     assert!(error.contains("Wayland session without one"), "{error}");
     assert_eq!(report.error_line, Some(2));
 }
@@ -135,7 +145,10 @@ fn a_property_of_a_gui_says_why_it_cannot() {
     let report = run("window := Gui()\ntitle := window.Title");
     assert!(!report.ok);
     let error = error_of(&report);
-    assert!(error.contains("Gui cannot read or set the title of the window"), "{error}");
+    assert!(
+        error.contains("Gui cannot read or set the title of the window"),
+        "{error}"
+    );
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -144,7 +157,10 @@ fn a_property_of_a_gui_that_is_written_says_why_it_cannot() {
     let report = run("window := Gui()\nwindow.Title := \"the window\"");
     assert!(!report.ok);
     let error = error_of(&report);
-    assert!(error.contains("Gui cannot read or set the title of the window"), "{error}");
+    assert!(
+        error.contains("Gui cannot read or set the title of the window"),
+        "{error}"
+    );
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -180,7 +196,9 @@ fn the_events_of_a_gui_are_an_object() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["Parameter #4 of Gui.Prototype.__New requires an Object, but received an Integer. | Gui.Prototype.__New | 5"]
+        vec![
+            "Parameter #4 of Gui.Prototype.__New requires an Object, but received an Integer. | Gui.Prototype.__New | 5"
+        ]
     );
 }
 
@@ -190,11 +208,32 @@ fn the_options_of_a_gui_are_read() {
     // words of the text, and the name of one is written in full and it does
     // not know the case.
     for options in [
-        "AlwaysOnTop", "Border", "Caption", "Disabled", "DPIScale", "E",
-        "LastFound", "MaximizeBox", "MinimizeBox", "MinSize", "MaxSize",
-        "OwnDialogs", "Resize", "SysMenu", "Theme", "ToolWindow", "+Resize",
-        "-Caption", "E0", "MinSize100x200", "0", "12", "0x10", "caption",
-        "+Resize -Caption", "+Resize  -Caption",
+        "AlwaysOnTop",
+        "Border",
+        "Caption",
+        "Disabled",
+        "DPIScale",
+        "E",
+        "LastFound",
+        "MaximizeBox",
+        "MinimizeBox",
+        "MinSize",
+        "MaxSize",
+        "OwnDialogs",
+        "Resize",
+        "SysMenu",
+        "Theme",
+        "ToolWindow",
+        "+Resize",
+        "-Caption",
+        "E0",
+        "MinSize100x200",
+        "0",
+        "12",
+        "0x10",
+        "caption",
+        "+Resize -Caption",
+        "+Resize  -Caption",
     ] {
         let report = run(&format!("window := Gui(\"{options}\")"));
         assert!(report.ok, "{options}: {:?}", report.error);
@@ -235,7 +274,10 @@ fn the_owner_of_a_window_says_why_it_cannot() {
         assert!(!report.ok, "{option}");
         let error = error_of(&report);
         assert!(
-            error.contains(&format!("Gui cannot take the {} of the window", option.to_lowercase())),
+            error.contains(&format!(
+                "Gui cannot take the {} of the window",
+                option.to_lowercase()
+            )),
             "{error}"
         );
         assert!(error.contains("Wayland session without one"), "{error}");

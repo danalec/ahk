@@ -47,7 +47,10 @@ pub(crate) fn construct(
                     message: crate::runtime::requires(1, CONSTRUCTOR, TypeName::Number, data),
                     line,
                 },
-                Detail { what: CONSTRUCTOR.to_string(), extra: data.to_text() },
+                Detail {
+                    what: CONSTRUCTOR.to_string(),
+                    extra: data.to_text(),
+                },
             ));
         }
         Value::Int(_) | Value::Float(_) => {
@@ -61,16 +64,24 @@ pub(crate) fn construct(
                         message: format!("Parameter #1 of {CONSTRUCTOR} is invalid."),
                         line,
                     },
-                    Detail { what: CONSTRUCTOR.to_string(), extra: data.to_text() },
+                    Detail {
+                        what: CONSTRUCTOR.to_string(),
+                        extra: data.to_text(),
+                    },
                 ));
             }
             if arguments.len() < 2 {
                 return Err(RuntimeFailure::Detailed(
                     RuntimeError {
-                        message: format!("Parameter #2 of {CONSTRUCTOR} must not be omitted in this case."),
+                        message: format!(
+                            "Parameter #2 of {CONSTRUCTOR} must not be omitted in this case."
+                        ),
                         line,
                     },
-                    Detail { what: CONSTRUCTOR.to_string(), extra: String::new() },
+                    Detail {
+                        what: CONSTRUCTOR.to_string(),
+                        extra: String::new(),
+                    },
                 ));
             }
         }

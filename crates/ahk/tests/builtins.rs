@@ -9,11 +9,9 @@ use ahk::desktop::{
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network, PictureOptions,
     Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
-use ahk::dll::{
-    encode_number, NativeCall, NativeFailure, NativeResult, NativeType, NativeValue,
-};
-use ahk::runtime::{Report, Runtime, Value};
+use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
+use ahk::runtime::{Report, Runtime, Value};
 use std::time::Duration;
 
 /// A desktop that records what it was asked to do.
@@ -33,8 +31,13 @@ struct Fake {
 
 impl Desktop for Fake {}
 impl Pictures for Fake {
-    fn load_picture(&mut self, filename: &str, _options: &PictureOptions) -> Result<Option<u32>, String> {
-        self.calls.push(("load-picture".into(), filename.to_string()));
+    fn load_picture(
+        &mut self,
+        filename: &str,
+        _options: &PictureOptions,
+    ) -> Result<Option<u32>, String> {
+        self.calls
+            .push(("load-picture".into(), filename.to_string()));
         Ok(Some(7))
     }
     fn image_search(
@@ -46,7 +49,8 @@ impl Pictures for Fake {
         image: &Image,
         _options: &ImageOptions,
     ) -> Result<ImageSearch, String> {
-        self.calls.push(("image-search".into(), format!("{x1},{y1},{x2},{y2}")));
+        self.calls
+            .push(("image-search".into(), format!("{x1},{y1},{x2},{y2}")));
         match image {
             Image::File(name) if name.is_empty() => Ok(ImageSearch::NotLoadable),
             _ => Ok(ImageSearch::Found(10, 20)),
@@ -55,7 +59,8 @@ impl Pictures for Fake {
 }
 impl Network for Fake {
     fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
-        self.calls.push(("download".into(), format!("{url}|{file}")));
+        self.calls
+            .push(("download".into(), format!("{url}|{file}")));
         Ok(file.to_string())
     }
 }
@@ -66,7 +71,8 @@ impl Sound for Fake {
         Ok(50.0)
     }
     fn sound_set_volume(&mut self, device: &str, volume: f64) -> Result<(), String> {
-        self.calls.push(("set-volume".into(), format!("{device} {volume}")));
+        self.calls
+            .push(("set-volume".into(), format!("{device} {volume}")));
         Ok(())
     }
     fn sound_muted(&mut self, device: &str) -> Result<bool, String> {
@@ -74,7 +80,8 @@ impl Sound for Fake {
         Ok(false)
     }
     fn sound_set_muted(&mut self, device: &str, muted: bool) -> Result<(), String> {
-        self.calls.push(("set-mute".into(), format!("{device} {muted}")));
+        self.calls
+            .push(("set-mute".into(), format!("{device} {muted}")));
         Ok(())
     }
     fn sound_play(&mut self, path: &str) -> Result<String, String> {
@@ -82,7 +89,8 @@ impl Sound for Fake {
         Ok(format!("played {path}"))
     }
     fn sound_beep(&mut self, frequency: f64, duration: u64) -> Result<String, String> {
-        self.calls.push(("beep".into(), format!("{frequency} {duration}")));
+        self.calls
+            .push(("beep".into(), format!("{frequency} {duration}")));
         Ok("beeped".to_string())
     }
 }
@@ -99,7 +107,10 @@ impl Dialogs for Fake {
             "input-box".into(),
             format!("{prompt}|{title}|{default}|{:?}", options.timeout),
         ));
-        Ok(InputAnswer { value: "the answer".into(), result: "OK".into() })
+        Ok(InputAnswer {
+            value: "the answer".into(),
+            result: "OK".into(),
+        })
     }
 
     fn file_select(
@@ -109,16 +120,23 @@ impl Dialogs for Fake {
         title: &str,
         filter: &str,
     ) -> Result<FileAnswer, String> {
-        self.calls.push(("file-select".into(), format!("{root}|{title}|{filter}")));
+        self.calls
+            .push(("file-select".into(), format!("{root}|{title}|{filter}")));
         if options.multiple {
-            Ok(FileAnswer::Many(vec!["/tmp/one.txt".into(), "/tmp/two.txt".into()]))
+            Ok(FileAnswer::Many(vec![
+                "/tmp/one.txt".into(),
+                "/tmp/two.txt".into(),
+            ]))
         } else {
             Ok(FileAnswer::One("/tmp/chosen.txt".into()))
         }
     }
 
     fn dir_select(&mut self, starting: &str, options: i64, prompt: &str) -> Result<String, String> {
-        self.calls.push(("dir-select".into(), format!("{starting}|{options}|{prompt}")));
+        self.calls.push((
+            "dir-select".into(),
+            format!("{starting}|{options}|{prompt}"),
+        ));
         Ok("/tmp/chosen".into())
     }
 }
@@ -130,15 +148,31 @@ impl Files for Fake {
         self.calls.push(("working-dir".into(), directory.into()));
         Ok(format!("the working directory is now {directory}"))
     }
-    fn attributes_of_the_pattern(&mut self, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
+    fn attributes_of_the_pattern(
+        &mut self,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
         self.calls.push((format!("pattern {mode}"), pattern.into()));
         if mode.contains('D') {
-            return Ok(if pattern == "/tmp" { vec!["D".to_string()] } else { Vec::new() });
+            return Ok(if pattern == "/tmp" {
+                vec!["D".to_string()]
+            } else {
+                Vec::new()
+            });
         }
-        Ok(if pattern.ends_with(".txt") { vec!["A".to_string()] } else { Vec::new() })
+        Ok(if pattern.ends_with(".txt") {
+            vec!["A".to_string()]
+        } else {
+            Vec::new()
+        })
     }
     fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
-        Ok(if path.ends_with(".txt") { vec!["A".to_string()] } else { vec!["D".to_string()] })
+        Ok(if path.ends_with(".txt") {
+            vec!["A".to_string()]
+        } else {
+            vec!["D".to_string()]
+        })
     }
     fn read_file(&mut self, _path: &str) -> Result<Vec<String>, String> {
         Ok(vec!["one".to_string(), "two".to_string()])
@@ -156,7 +190,8 @@ impl Files for Fake {
         Ok(String::new())
     }
     fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
-        self.calls.push(("copy-file".into(), format!("{from}|{to}|{overwrite}")));
+        self.calls
+            .push(("copy-file".into(), format!("{from}|{to}|{overwrite}")));
         // The machine says "Failed" when the file that is copied is not
         // there, and the number of the files that failed goes in the
         // `Extra` of the failure.
@@ -165,7 +200,11 @@ impl Files for Fake {
     fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
         self.calls.push((
             "append-file".into(),
-            format!("{path} {} {}", String::from_utf8_lossy(bytes), String::from_utf8_lossy(mark)),
+            format!(
+                "{path} {} {}",
+                String::from_utf8_lossy(bytes),
+                String::from_utf8_lossy(mark)
+            ),
         ));
         Ok(bytes.len().to_string())
     }
@@ -207,12 +246,19 @@ impl Pointer for Fake {
         self.calls.push(("click".into(), format!("{x} {y}")));
         Ok(format!("clicked ({x}, {y})"))
     }
-    fn mouse_down(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
-        self.calls.push(("down".into(), format!("{x:?} {y:?} {button}")));
+    fn mouse_down(
+        &mut self,
+        x: Option<i64>,
+        y: Option<i64>,
+        button: &str,
+    ) -> Result<String, String> {
+        self.calls
+            .push(("down".into(), format!("{x:?} {y:?} {button}")));
         Ok("down".to_string())
     }
     fn mouse_up(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
-        self.calls.push(("up".into(), format!("{x:?} {y:?} {button}")));
+        self.calls
+            .push(("up".into(), format!("{x:?} {y:?} {button}")));
         Ok("up".to_string())
     }
     fn move_pointer(&mut self, x: i64, y: i64) -> Result<String, String> {
@@ -222,7 +268,14 @@ impl Pointer for Fake {
 }
 
 impl Screen for Fake {
-    fn capture(&mut self, _x: i64, _y: i64, _width: i64, _height: i64, filename: &str) -> Result<String, String> {
+    fn capture(
+        &mut self,
+        _x: i64,
+        _y: i64,
+        _width: i64,
+        _height: i64,
+        filename: &str,
+    ) -> Result<String, String> {
         Ok(format!("/tmp/{filename}"))
     }
     fn pixel(&mut self, _x: i64, _y: i64) -> Result<String, String> {
@@ -252,7 +305,9 @@ impl Native for Fake {
             if !argument.address {
                 continue;
             }
-            let Some(number) = writes.next() else { continue };
+            let Some(number) = writes.next() else {
+                continue;
+            };
             argument.value = NativeValue::Bytes(encode_number(*number, argument.kind));
         }
         Ok(self.answer.clone().unwrap_or(NativeResult {
@@ -304,7 +359,14 @@ impl Pointer for Blind {
 }
 
 impl Screen for Blind {
-    fn capture(&mut self, _x: i64, _y: i64, _width: i64, _height: i64, _filename: &str) -> Result<String, String> {
+    fn capture(
+        &mut self,
+        _x: i64,
+        _y: i64,
+        _width: i64,
+        _height: i64,
+        _filename: &str,
+    ) -> Result<String, String> {
         Ok(String::new())
     }
     fn pixel(&mut self, _x: i64, _y: i64) -> Result<String, String> {
@@ -335,7 +397,11 @@ fn run_on(source: &str, desktop: &mut Fake) -> Report {
 
 /// The value of a variable, as the script left it.
 fn value_of(report: &Report, name: &str) -> Value {
-    report.variables.get(name).cloned().unwrap_or_else(|| panic!("{name} has no value"))
+    report
+        .variables
+        .get(name)
+        .cloned()
+        .unwrap_or_else(|| panic!("{name} has no value"))
 }
 
 /// The value of a variable, as a whole number.
@@ -372,7 +438,10 @@ fn the_volume_of_a_device_can_be_set() {
     let mut desktop = Fake::default();
     let report = run_on("SoundSetVolume 30", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("set-volume".to_string(), " 30".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("set-volume".to_string(), " 30".to_string())]
+    );
 }
 
 #[test]
@@ -384,7 +453,10 @@ fn a_sign_in_front_of_the_volume_adjusts_it() {
     // it: 50 becomes 60.
     assert_eq!(
         desktop.calls,
-        vec![("volume".to_string(), String::new()), ("set-volume".to_string(), " 60".to_string())]
+        vec![
+            ("volume".to_string(), String::new()),
+            ("set-volume".to_string(), " 60".to_string())
+        ]
     );
 }
 
@@ -392,7 +464,10 @@ fn a_sign_in_front_of_the_volume_adjusts_it() {
 fn a_volume_that_is_not_a_percentage_fails_the_script() {
     let report = run("SoundSetVolume \"loud\"");
     let failure = failure_of(&report);
-    assert!(failure.contains("percentage between -100 and 100"), "{failure}");
+    assert!(
+        failure.contains("percentage between -100 and 100"),
+        "{failure}"
+    );
 }
 
 #[test]
@@ -407,7 +482,10 @@ fn a_device_can_be_muted_and_unmuted() {
     let mut desktop = Fake::default();
     let report = run_on("SoundSetMute 1", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("set-mute".to_string(), " true".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("set-mute".to_string(), " true".to_string())]
+    );
 }
 
 #[test]
@@ -418,7 +496,10 @@ fn a_minus_sign_in_front_of_the_volume_adjusts_it_down() {
     // The volume of the device is 50, and the sign takes ten from it.
     assert_eq!(
         desktop.calls,
-        vec![("volume".to_string(), String::new()), ("set-volume".to_string(), " 40".to_string())]
+        vec![
+            ("volume".to_string(), String::new()),
+            ("set-volume".to_string(), " 40".to_string())
+        ]
     );
 }
 
@@ -434,7 +515,10 @@ fn a_tone_is_a_frequency_and_a_duration() {
     let mut desktop = Fake::default();
     let report = run_on("SoundBeep 750, 500", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("beep".to_string(), "750 500".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("beep".to_string(), "750 500".to_string())]
+    );
 }
 
 #[test]
@@ -443,7 +527,10 @@ fn a_tone_has_the_defaults_of_v2() {
     let report = run_on("SoundBeep", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
     // The frequency of v2 is 523 and its duration is 150 milliseconds.
-    assert_eq!(desktop.calls, vec![("beep".to_string(), "523 150".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("beep".to_string(), "523 150".to_string())]
+    );
 }
 
 #[test]
@@ -458,7 +545,10 @@ fn a_sound_file_is_played() {
     let mut desktop = Fake::default();
     let report = run_on("SoundPlay \"/tmp/a.wav\"", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("play".to_string(), "/tmp/a.wav".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("play".to_string(), "/tmp/a.wav".to_string())]
+    );
 }
 
 #[test]
@@ -473,21 +563,30 @@ fn a_sound_that_the_desktop_cannot_answer_fails_the_script() {
 #[test]
 fn the_names_of_the_sound_that_are_windows_fail_with_the_reason() {
     let report = run("SoundGetName()");
-    assert_eq!(failure_of(&report), "this is a name of Windows, and this desktop is not Windows.");
+    assert_eq!(
+        failure_of(&report),
+        "this is a name of Windows, and this desktop is not Windows."
+    );
 }
 
 #[test]
 fn a_string_in_title_case_has_the_first_letter_of_each_word_up() {
     let report = run("a := StrTitle(\"This is a test.\")");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "a"), Value::Text("This Is A Test.".into()));
+    assert_eq!(
+        value_of(&report, "a"),
+        Value::Text("This Is A Test.".into())
+    );
 }
 
 #[test]
 fn the_title_case_lowercases_the_rest_of_the_word() {
     let report = run("a := StrTitle(\"GONE with the WIND\")");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "a"), Value::Text("Gone With The Wind".into()));
+    assert_eq!(
+        value_of(&report, "a"),
+        Value::Text("Gone With The Wind".into())
+    );
 }
 
 #[test]
@@ -500,9 +599,8 @@ fn the_versions_are_compared_by_their_numbers() {
 
 #[test]
 fn a_version_with_a_pre_release_is_older_than_the_same_version() {
-    let report = run(
-        "a := VerCompare(\"2.0-a137\", \"2.0\")\nb := VerCompare(\"2.0-a137\", \"2.0-a136\")",
-    );
+    let report =
+        run("a := VerCompare(\"2.0-a137\", \"2.0\")\nb := VerCompare(\"2.0-a137\", \"2.0-a136\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "a"), -1);
     assert_eq!(int_of(&report, "b"), 1);
@@ -528,7 +626,10 @@ fn the_working_directory_of_the_script_can_be_changed() {
     let mut desktop = Fake::default();
     let report = run_on("SetWorkingDir \"there\"", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("working-dir".to_string(), "there".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("working-dir".to_string(), "there".to_string())]
+    );
 }
 
 #[test]
@@ -536,7 +637,10 @@ fn the_click_of_v2_takes_the_button_first() {
     let mut desktop = Fake::default();
     let report = run_on("MouseClick \"Right\", 10, 20", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("click".to_string(), "10 20".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("click".to_string(), "10 20".to_string())]
+    );
 }
 
 #[test]
@@ -557,7 +661,10 @@ fn a_drag_goes_down_in_one_place_and_comes_up_in_another() {
 #[test]
 fn a_name_of_windows_fails_with_the_reason() {
     let report = run("StrGet(\"a\")");
-    assert_eq!(failure_of(&report), "this is a name of Windows, and this desktop is not Windows.");
+    assert_eq!(
+        failure_of(&report),
+        "this is a name of Windows, and this desktop is not Windows."
+    );
 }
 
 #[test]
@@ -588,7 +695,10 @@ fn a_unit_that_v2_does_not_have_fails_with_the_reason_of_v2() {
 fn the_environment_is_asked_of_the_desktop() {
     let report = run("a := EnvGet(\"HOME\")\nb := EnvSet(\"HOME\", \"there\")");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "a"), Value::Text("the value of HOME".into()));
+    assert_eq!(
+        value_of(&report, "a"),
+        Value::Text("the value of HOME".into())
+    );
     assert_eq!(value_of(&report, "b"), Value::Text("there".into()));
 }
 
@@ -611,7 +721,10 @@ fn the_files_are_asked_of_the_desktop() {
 #[test]
 fn the_pattern_of_the_files_is_asked_of_the_desktop() {
     let mut desktop = Fake::default();
-    let report = run_on("a := FileExist(\"*.txt\")\nb := DirExist(\"/tmp\")", &mut desktop);
+    let report = run_on(
+        "a := FileExist(\"*.txt\")\nb := DirExist(\"/tmp\")",
+        &mut desktop,
+    );
     assert!(report.ok, "{:?}", report.error);
     // v2 answers with the attributes of the first entry that matches, and
     // a folder is asked for with the mode "D".
@@ -632,7 +745,10 @@ fn the_content_of_a_file_is_the_text_of_it() {
     // text of the file and not an array of its lines.
     let report = run("text := FileRead(\"a.txt\")");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "text"), Value::Text("one\r\ntwo\r\n".into()));
+    assert_eq!(
+        value_of(&report, "text"),
+        Value::Text("one\r\ntwo\r\n".into())
+    );
 }
 
 #[test]
@@ -656,7 +772,10 @@ fn an_option_of_the_read_that_v2_does_not_know_is_refused() {
         "try {\n    FileRead(\"a.txt\", \"bogus\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Invalid option. | ValueError | FileRead | bogus"]);
+    assert_eq!(
+        report.output,
+        vec!["Invalid option. | ValueError | FileRead | bogus"]
+    );
 }
 
 #[test]
@@ -682,15 +801,16 @@ fn an_option_of_the_write_that_v2_does_not_know_is_refused() {
         "try {\n    FileAppend(\"a\", \"a.txt\", \"m5000\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Invalid option. | ValueError | FileAppend | m5000"]);
+    assert_eq!(
+        report.output,
+        vec!["Invalid option. | ValueError | FileAppend | m5000"]
+    );
 }
 
 #[test]
 fn a_text_is_cut_at_the_delimiters() {
-    let report = run(
-        "pieces := StrSplit(\"a,b,c\", \",\")\n\
-         kind := Type(pieces)\nlength := pieces.Length\nfirst := pieces[1]",
-    );
+    let report = run("pieces := StrSplit(\"a,b,c\", \",\")\n\
+         kind := Type(pieces)\nlength := pieces.Length\nfirst := pieces[1]");
     assert!(report.ok, "{:?}", report.error);
     // Measured on the binary of v2.0.19 on 2026-10-31: the answer of
     // `StrSplit` is an array of v2, and not a list of the tree.
@@ -704,12 +824,10 @@ fn the_delimiters_of_a_text_are_literals() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the text is cut
     // where a delimiter is, and a delimiter is a literal and not a set of
     // characters.
-    let report = run(
-        "one := StrSplit(\"aXXb\", \"XX\")\n\
+    let report = run("one := StrSplit(\"aXXb\", \"XX\")\n\
          two := StrSplit(\"a.b.c\", \"..\")\n\
          first := one[1] . \",\" . one[2]\n\
-         second := two[1]",
-    );
+         second := two[1]");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "first"), Value::Text("a,b".into()));
     assert_eq!(value_of(&report, "second"), Value::Text("a.b.c".into()));
@@ -717,10 +835,8 @@ fn the_delimiters_of_a_text_are_literals() {
 
 #[test]
 fn the_delimiters_of_a_text_may_be_an_array() {
-    let report = run(
-        "pieces := StrSplit(\"a.b-c\", [\".\", \"-\"])\n\
-         first := pieces[1] . \",\" . pieces[2] . \",\" . pieces[3]",
-    );
+    let report = run("pieces := StrSplit(\"a.b-c\", [\".\", \"-\"])\n\
+         first := pieces[1] . \",\" . pieces[2] . \",\" . pieces[3]");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "first"), Value::Text("a,b,c".into()));
 }
@@ -729,10 +845,8 @@ fn the_delimiters_of_a_text_may_be_an_array() {
 fn the_characters_to_omit_are_cut_from_the_pieces() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the characters to
     // omit are cut from the beginning and the end of every piece.
-    let report = run(
-        "pieces := StrSplit(\"a,b,c\", \",\", \"ac\")\n\
-         first := \"[\" pieces[1] \"]\" . \"[\" pieces[2] \"]\" . \"[\" pieces[3] \"]\"",
-    );
+    let report = run("pieces := StrSplit(\"a,b,c\", \",\", \"ac\")\n\
+         first := \"[\" pieces[1] \"]\" . \"[\" pieces[2] \"]\" . \"[\" pieces[3] \"]\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "first"), Value::Text("[][b][]".into()));
 }
@@ -742,14 +856,15 @@ fn the_number_of_the_pieces_says_how_many_times_the_text_is_cut() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the text is cut a
     // maximum of MaxParts-1 times, and the rest of the text is the last
     // piece.
-    let report = run(
-        "two := StrSplit(\"a,b,c\", \",\", \"\", 2)\n\
+    let report = run("two := StrSplit(\"a,b,c\", \",\", \"\", 2)\n\
          one := StrSplit(\"a,b,c\", \",\", \"\", 1)\n\
          none := StrSplit(\"a,b,c\", \",\", \"\", 0)\n\
-         first := two[1] . \",\" . two[2] . \" \" . one[1] . \" \" . none.Length",
-    );
+         first := two[1] . \",\" . two[2] . \" \" . one[1] . \" \" . none.Length");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "first"), Value::Text("a,b,c a,b,c 0".into()));
+    assert_eq!(
+        value_of(&report, "first"),
+        Value::Text("a,b,c a,b,c 0".into())
+    );
 }
 
 #[test]
@@ -757,10 +872,8 @@ fn a_blank_delimiter_makes_a_piece_of_every_character() {
     // Measured on the binary of v2.0.19 on 2026-10-31: when the
     // delimiters are blank every character of the text is a piece, and
     // the characters to omit are not pieces at all.
-    let report = run(
-        "pieces := StrSplit(\"a b\", \"\", \" \")\n\
-         first := pieces[1] . pieces[2]",
-    );
+    let report = run("pieces := StrSplit(\"a b\", \"\", \" \")\n\
+         first := pieces[1] . pieces[2]");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "first"), Value::Text("ab".into()));
 }
@@ -889,7 +1002,8 @@ fn the_commands_of_the_settings_answer_with_the_value_that_was_there() {
 }
 
 #[test]
-fn the_commands_of_the_delay_of_the_controls_and_of_the_view_of_the_registry_answer_with_the_value_that_was_there() {
+fn the_commands_of_the_delay_of_the_controls_and_of_the_view_of_the_registry_answer_with_the_value_that_was_there()
+ {
     // Measured on the binary of v2.0.19 on 2026-10-31: every one of them
     // answers the value that was there before, and the view of the
     // registry is always a text.
@@ -908,7 +1022,9 @@ fn a_delay_of_the_controls_that_is_not_a_number_is_refused() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["Parameter #1 of SetControlDelay requires a Number, but received a String. | TypeError | SetControlDelay | x"]
+        vec![
+            "Parameter #1 of SetControlDelay requires a Number, but received a String. | TypeError | SetControlDelay | x"
+        ]
     );
 }
 
@@ -951,7 +1067,9 @@ fn a_word_that_is_neither_the_mode_nor_the_speed_is_refused() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["Parameter #1 of SetTitleMatchMode is invalid. | ValueError | SetTitleMatchMode | Bogus"]
+        vec![
+            "Parameter #1 of SetTitleMatchMode is invalid. | ValueError | SetTitleMatchMode | Bogus"
+        ]
     );
 }
 
@@ -963,14 +1081,24 @@ fn a_mode_of_the_titles_that_is_not_one_is_refused() {
         "try {\n    SetTitleMatchMode(5)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Parameter #1 of SetTitleMatchMode is invalid. | ValueError | SetTitleMatchMode | 5"]);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of SetTitleMatchMode is invalid. | ValueError | SetTitleMatchMode | 5"]
+    );
 }
 
 #[test]
 fn the_mode_of_the_keys_is_the_one_of_the_box() {
     let report = run("SendMode \"Input\"");
     assert!(report.ok, "{:?}", report.error);
-    assert!(report.notes.iter().any(|note| note.contains("keyboard of the box")), "{:?}", report.notes);
+    assert!(
+        report
+            .notes
+            .iter()
+            .any(|note| note.contains("keyboard of the box")),
+        "{:?}",
+        report.notes
+    );
     let report = run("SendMode \"Event\"");
     assert_eq!(
         failure_of(&report),
@@ -992,7 +1120,11 @@ fn a_timer_runs_between_the_statements() {
         .filter(|step| step.detail.contains("tick"))
         .map(|step| &step.detail)
         .collect();
-    assert!(!typed.is_empty(), "the timer did not run: {:?}", report.steps);
+    assert!(
+        !typed.is_empty(),
+        "the timer did not run: {:?}",
+        report.steps
+    );
 }
 
 #[test]
@@ -1084,9 +1216,8 @@ fn the_kind_of_a_value_is_named_in_the_message() {
 
 #[test]
 fn the_value_of_a_failure_is_empty_when_it_has_no_text() {
-    let report = run(
-        "try {\n    x := Abs({})\n} catch Any as e {\n    MsgBox \"[\" e.Extra \"]\"\n}",
-    );
+    let report =
+        run("try {\n    x := Abs({})\n} catch Any as e {\n    MsgBox \"[\" e.Extra \"]\"\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[]"]);
 }
@@ -1169,9 +1300,8 @@ fn a_reference_is_not_an_object_either() {
 
 #[test]
 fn the_base_of_an_object_is_the_prototype_of_its_class() {
-    let report = run(
-        "class Alpha {\n}\nclass Beta extends Alpha {\n}\nb := Beta()\nx := ObjGetBase(b)",
-    );
+    let report =
+        run("class Alpha {\n}\nclass Beta extends Alpha {\n}\nb := Beta()\nx := ObjGetBase(b)");
     assert!(report.ok, "{:?}", report.error);
     match value_of(&report, "x") {
         Value::Object(object) => assert_eq!(object.borrow().class, "prototype"),
@@ -1196,13 +1326,11 @@ fn a_script_may_set_the_base_of_an_object() {
 
 #[test]
 fn the_own_properties_of_an_object_are_its_own() {
-    let report = run(
-        "class Box {\n  x := 1\n}\nb := Box()\n\
+    let report = run("class Box {\n  x := 1\n}\nb := Box()\n\
          names := ObjOwnProps(b)\ncount := ObjOwnPropCount(b)\nhas := ObjHasOwnProp(b, \"x\")\n\
          kind := Type(names)\n\
          first := \"\"\nnames.Call(&first)\n\
-         after := \"\"\nnames.Call(&after)",
-    );
+         after := \"\"\nnames.Call(&after)");
     assert!(report.ok, "{:?}", report.error);
     // Measured on the binary of v2.0.19 on 2026-10-31: the own properties
     // of v2 are an enumerator, and it gives the name when the caller
@@ -1216,7 +1344,9 @@ fn the_own_properties_of_an_object_are_its_own() {
 
 #[test]
 fn the_state_of_a_map_is_not_a_property_of_it() {
-    let report = run("m := Map()\nnames := ObjOwnProps(m)\nkind := Type(names)\ncount := ObjOwnPropCount(m)");
+    let report = run(
+        "m := Map()\nnames := ObjOwnProps(m)\nkind := Type(names)\ncount := ObjOwnPropCount(m)",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "kind"), Value::Text("Enumerator".into()));
     assert_eq!(int_of(&report, "count"), 0);
@@ -1234,13 +1364,19 @@ fn a_plain_value_is_not_a_descriptor() {
     // parameter of `DefineProp` is a descriptor, and a value that is not
     // one is refused with the reason.
     let report = run("o := {}\no.DefineProp(\"x\", 1)");
-    assert_eq!(failure_of(&report), "Parameter #2 of Object.Prototype.DefineProp is invalid.");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of Object.Prototype.DefineProp is invalid."
+    );
 }
 
 #[test]
 fn an_object_without_a_member_is_not_a_descriptor() {
     let report = run("o := {}\no.DefineProp(\"x\", {y: 1})");
-    assert_eq!(failure_of(&report), "Parameter #2 of Object.Prototype.DefineProp is invalid.");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of Object.Prototype.DefineProp is invalid."
+    );
 }
 
 #[test]
@@ -1292,10 +1428,8 @@ fn a_descriptor_of_a_call_is_called() {
 
 #[test]
 fn the_descriptor_that_comes_back_is_an_object() {
-    let report = run(
-        "o := {}\no.DefineProp(\"x\", {Value: 5})\n\
-         a := Type(o.GetOwnPropDesc(\"x\")) . \" \" . o.GetOwnPropDesc(\"x\").Value",
-    );
+    let report = run("o := {}\no.DefineProp(\"x\", {Value: 5})\n\
+         a := Type(o.GetOwnPropDesc(\"x\")) . \" \" . o.GetOwnPropDesc(\"x\").Value");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "a"), Value::Text("Object 5".into()));
 }
@@ -1313,7 +1447,9 @@ fn the_descriptor_of_a_property_that_is_not_there_is_refused() {
 fn the_take_away_of_a_property_answers_its_value() {
     // Measured on the binary of v2.0.19 on 2026-10-31: `DeleteProp`
     // answers the value of the property that is taken away.
-    let report = run("o := {}\no.DefineProp(\"x\", {Value: 7})\na := o.DeleteProp(\"x\")\nb := o.DeleteProp(\"x\")");
+    let report = run(
+        "o := {}\no.DefineProp(\"x\", {Value: 7})\na := o.DeleteProp(\"x\")\nb := o.DeleteProp(\"x\")",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "a"), Value::Int(7));
     assert_eq!(value_of(&report, "b"), Value::Text("".into()));
@@ -1361,7 +1497,10 @@ fn random_answers_a_number_in_its_range() {
 fn sort_puts_the_lines_in_order() {
     let report = run("a := Sort(\"pear\" . Chr(10) . \"apple\" . Chr(10) . \"fig\")");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "a"), Value::Text("apple\nfig\npear".into()));
+    assert_eq!(
+        value_of(&report, "a"),
+        Value::Text("apple\nfig\npear".into())
+    );
 }
 
 #[test]
@@ -1371,10 +1510,22 @@ fn sort_puts_a_list_in_order() {
     let sort = ahk::builtins::find("Sort").expect("the tree carries Sort");
     let numbers = Value::List(vec![Value::Int(3), Value::Int(1), Value::Int(2)]);
     let sorted = (sort.handler)(&mut runtime, &[numbers], 1, 0).expect("the list is sorted");
-    assert_eq!(sorted, Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
-    let words = Value::List(vec![Value::Text("pear".into()), Value::Text("apple".into())]);
+    assert_eq!(
+        sorted,
+        Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+    );
+    let words = Value::List(vec![
+        Value::Text("pear".into()),
+        Value::Text("apple".into()),
+    ]);
     let sorted = (sort.handler)(&mut runtime, &[words], 1, 0).expect("the list is sorted");
-    assert_eq!(sorted, Value::List(vec![Value::Text("apple".into()), Value::Text("pear".into())]));
+    assert_eq!(
+        sorted,
+        Value::List(vec![
+            Value::Text("apple".into()),
+            Value::Text("pear".into())
+        ])
+    );
 }
 
 #[test]
@@ -1421,12 +1572,30 @@ fn the_case_sense_wants_a_boolean() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the sense of the case
     // is a boolean, and a text is not a value that the parameter can take.
     for (source, message) in [
-        ("a := StrCompare(\"a\", \"A\", \"On\")", "Parameter #3 of StrCompare is invalid."),
-        ("a := StrReplace(\"a\", \"a\", \"b\", \"On\")", "Parameter #4 of StrReplace is invalid."),
-        ("a := InStr(\"a\", \"a\", \"On\")", "Parameter #3 of InStr is invalid."),
-        ("a := StrCompare(\"a\", \"A\", 3)", "Parameter #3 of StrCompare is invalid."),
-        ("a := StrReplace(\"a\", \"a\", \"b\", 3)", "Parameter #4 of StrReplace is invalid."),
-        ("a := InStr(\"a\", \"a\", 1.0)", "Parameter #3 of InStr is invalid."),
+        (
+            "a := StrCompare(\"a\", \"A\", \"On\")",
+            "Parameter #3 of StrCompare is invalid.",
+        ),
+        (
+            "a := StrReplace(\"a\", \"a\", \"b\", \"On\")",
+            "Parameter #4 of StrReplace is invalid.",
+        ),
+        (
+            "a := InStr(\"a\", \"a\", \"On\")",
+            "Parameter #3 of InStr is invalid.",
+        ),
+        (
+            "a := StrCompare(\"a\", \"A\", 3)",
+            "Parameter #3 of StrCompare is invalid.",
+        ),
+        (
+            "a := StrReplace(\"a\", \"a\", \"b\", 3)",
+            "Parameter #4 of StrReplace is invalid.",
+        ),
+        (
+            "a := InStr(\"a\", \"a\", 1.0)",
+            "Parameter #3 of InStr is invalid.",
+        ),
     ] {
         let report = run(source);
         assert_eq!(failure_of(&report), message, "{source}");
@@ -1594,7 +1763,8 @@ fn the_trims_take_the_characters_off_the_ends() {
 
 #[test]
 fn sub_str_takes_the_part_between_the_places() {
-    let report = run("a := SubStr(\"hello\", 2)\nb := SubStr(\"hello\", 2, 2)\nc := SubStr(\"hello\", -2)");
+    let report =
+        run("a := SubStr(\"hello\", 2)\nb := SubStr(\"hello\", 2, 2)\nc := SubStr(\"hello\", -2)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "a"), Value::Text("ello".into()));
     assert_eq!(value_of(&report, "b"), Value::Text("el".into()));
@@ -1676,10 +1846,8 @@ fn type_says_the_name_of_the_type() {
 
 #[test]
 fn the_type_of_an_object_is_the_name_of_its_class() {
-    let report = run(
-        "class Box {\n}\nb := Box()\n\
-         a := Type(b)\nc := Type(Box)\nd := Type(Map())\ne := Type(Box.Prototype)",
-    );
+    let report = run("class Box {\n}\nb := Box()\n\
+         a := Type(b)\nc := Type(Box)\nd := Type(Map())\ne := Type(Box.Prototype)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "a"), Value::Text("Box".into()));
     assert_eq!(value_of(&report, "c"), Value::Text("Class".into()));
@@ -1751,7 +1919,10 @@ fn regex_match_says_where_the_pattern_is() {
 #[test]
 fn regex_match_with_an_output_variable_fails() {
     let report = run("a := RegExMatch(\"hello\", \"l\", \"out\")");
-    assert_eq!(failure_of(&report), "the matches of the pattern are not carried into a variable yet.");
+    assert_eq!(
+        failure_of(&report),
+        "the matches of the pattern are not carried into a variable yet."
+    );
 }
 
 #[test]
@@ -1811,7 +1982,10 @@ fn regex_replace_wants_a_reference_where_it_writes_the_count() {
 
 #[test]
 fn a_wait_for_the_clipboard_that_finds_data_answers_one() {
-    let mut desktop = Fake { clipboard: "the text".to_string(), ..Default::default() };
+    let mut desktop = Fake {
+        clipboard: "the text".to_string(),
+        ..Default::default()
+    };
     let report = run_on("MsgBox ClipWait(0.25)", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
@@ -1827,7 +2001,10 @@ fn a_wait_for_the_clipboard_that_times_out_answers_zero() {
 
 #[test]
 fn a_wait_for_the_clipboard_with_no_timeout_waits_for_the_data() {
-    let mut desktop = Fake { clipboard: "the text".to_string(), ..Default::default() };
+    let mut desktop = Fake {
+        clipboard: "the text".to_string(),
+        ..Default::default()
+    };
     let report = run_on("MsgBox ClipWait()", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
@@ -1848,7 +2025,10 @@ fn a_desktop_that_cannot_read_the_clipboard_fails_the_wait_with_the_reason() {
     let mut desktop = Blind;
     let statements = parse("ClipWait(0.25)").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
-    assert_eq!(failure_of(&report), "this desktop cannot read the clipboard");
+    assert_eq!(
+        failure_of(&report),
+        "this desktop cannot read the clipboard"
+    );
 }
 
 #[test]
@@ -1884,7 +2064,11 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "Reload",
             "this runtime runs one script once, and it cannot run itself again.",
         ),
-        ("Suspend", "Suspend", "this runtime cannot stop itself: it would never end."),
+        (
+            "Suspend",
+            "Suspend",
+            "this runtime cannot stop itself: it would never end.",
+        ),
         (
             "ListLines",
             "ListLines",
@@ -2041,16 +2225,18 @@ fn a_function_of_the_exit_that_fails_fails_the_run() {
 fn a_function_of_the_exit_that_fails_when_the_script_already_failed_is_a_note() {
     // The error of the script is the error of the run, and the failure of
     // the function is not lost.
-    let report = run(
-        "OnExit Bye\nBye(Reason, Code) {\n  MsgBox NoSuchVariable\n}\nMsgBox NoSuchVariable\n",
-    );
+    let report =
+        run("OnExit Bye\nBye(Reason, Code) {\n  MsgBox NoSuchVariable\n}\nMsgBox NoSuchVariable\n");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
         Some("This global variable has not been assigned a value.")
     );
     assert!(
-        report.notes.iter().any(|note| note.contains("the function of the exit failed")),
+        report
+            .notes
+            .iter()
+            .any(|note| note.contains("the function of the exit failed")),
         "{:?}",
         report.notes
     );
@@ -2101,13 +2287,19 @@ fn a_callback_that_takes_the_rest_of_the_arguments_is_a_callback() {
 #[test]
 fn the_callback_of_the_exit_is_required() {
     let report = run("OnExit()");
-    assert_eq!(failure_of(&report), "Too few parameters passed to function.\n     Specifically: OnExit");
+    assert_eq!(
+        failure_of(&report),
+        "Too few parameters passed to function.\n     Specifically: OnExit"
+    );
 }
 
 #[test]
 fn the_order_of_the_callbacks_is_one_minus_one_or_zero() {
     let report = run("OnExit Bye, 5\nBye(Reason, Code) {\n}\n");
-    assert_eq!(failure_of(&report), "Parameter #2 of OnExit is invalid.\n     Specifically: 5");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of OnExit is invalid.\n     Specifically: 5"
+    );
 }
 
 #[test]
@@ -2191,7 +2383,10 @@ fn a_function_of_the_exit_that_answers_a_number_keeps_the_script_alive() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.exit_code, None);
     assert!(
-        report.notes.iter().any(|note| note.contains("keep the script alive")),
+        report
+            .notes
+            .iter()
+            .any(|note| note.contains("keep the script alive")),
         "{:?}",
         report.notes
     );
@@ -2232,7 +2427,10 @@ fn a_function_of_the_error_that_answers_one_hides_the_failure() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert!(
-        report.notes.iter().any(|note| note.contains("hid the failure")),
+        report
+            .notes
+            .iter()
+            .any(|note| note.contains("hid the failure")),
         "{:?}",
         report.notes
     );
@@ -2287,7 +2485,10 @@ fn the_function_of_the_error_is_removed_when_the_order_is_zero() {
 #[test]
 fn a_script_that_writes_the_clipboard_finds_what_it_wrote_when_it_reads_it_again() {
     let mut desktop = Fake::default();
-    let report = run_on("A_Clipboard := \"the new text\"\nMsgBox A_Clipboard", &mut desktop);
+    let report = run_on(
+        "A_Clipboard := \"the new text\"\nMsgBox A_Clipboard",
+        &mut desktop,
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["the new text"]);
     assert_eq!(desktop.clipboard, "the new text");
@@ -2308,7 +2509,10 @@ fn the_library_and_the_function_are_read_out_of_the_first_parameter() {
 #[test]
 fn the_types_of_the_arguments_are_read_in_pairs() {
     let mut desktop = Fake::default();
-    let report = run_on("DllCall(\"f\", \"Int\", 5, \"Str\", \"hello\")", &mut desktop);
+    let report = run_on(
+        "DllCall(\"f\", \"Int\", 5, \"Str\", \"hello\")",
+        &mut desktop,
+    );
     assert!(report.ok, "{:?}", report.error);
     let call = desktop.native.expect("the desktop was asked for a call");
     assert_eq!(call.arguments.len(), 2);
@@ -2335,7 +2539,10 @@ fn the_type_of_the_answer_is_the_last_parameter_when_the_rest_is_odd() {
 #[test]
 fn the_answer_of_the_desktop_comes_back_to_the_script() {
     let mut desktop = Fake {
-        answer: Some(NativeResult { kind: NativeType::Int, value: NativeValue::Integer(42) }),
+        answer: Some(NativeResult {
+            kind: NativeType::Int,
+            value: NativeValue::Integer(42),
+        }),
         ..Default::default()
     };
     let report = run_on("a := DllCall(\"f\")", &mut desktop);
@@ -2346,8 +2553,14 @@ fn the_answer_of_the_desktop_comes_back_to_the_script() {
 #[test]
 fn a_star_at_the_end_of_a_type_is_the_address_of_a_variable() {
     // The fake writes into the memory of the address, the way the box does.
-    let mut desktop = Fake { writes: vec![42.0], ..Default::default() };
-    let report = run_on("counter := 0\nDllCall(\"f\", \"Int64*\", &counter)", &mut desktop);
+    let mut desktop = Fake {
+        writes: vec![42.0],
+        ..Default::default()
+    };
+    let report = run_on(
+        "counter := 0\nDllCall(\"f\", \"Int64*\", &counter)",
+        &mut desktop,
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "counter"), 42);
 }
@@ -2397,7 +2610,11 @@ fn the_base_of_an_object_of_a_class_type_of_the_runtime_cannot_be_written() {
             "try {{\n    {source}\n}} catch Any as e {{\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}}\n"
         ));
         assert!(report.ok, "{:?}", report.error);
-        assert_eq!(report.output, vec!["Invalid base. | ObjSetBase | "], "the base of {source}");
+        assert_eq!(
+            report.output,
+            vec!["Invalid base. | ObjSetBase | "],
+            "the base of {source}"
+        );
     }
     // The base of a plain object, of an error and of an instance of a class
     // of the script can be written.
@@ -2425,7 +2642,10 @@ fn a_desktop_that_cannot_make_a_native_call_fails_with_the_reason() {
     let mut desktop = Blind;
     let statements = parse("DllCall(\"f\")").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
-    assert_eq!(failure_of(&report), "this desktop cannot make a native call.");
+    assert_eq!(
+        failure_of(&report),
+        "this desktop cannot make a native call."
+    );
 }
 
 #[test]
@@ -2437,7 +2657,10 @@ fn the_failure_of_a_built_in_names_the_built_in() {
         "try {\n    x := Chr(-1)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Parameter #1 of Chr is invalid. | Chr | -1"]);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of Chr is invalid. | Chr | -1"]
+    );
 }
 
 #[test]
@@ -2454,9 +2677,7 @@ fn the_failure_of_a_built_in_that_wants_a_number_carries_the_value() {
 
 #[test]
 fn the_failure_of_a_built_in_is_of_the_class_of_v2() {
-    let report = run(
-        "try {\n    x := Chr(-1)\n} catch Any as e {\n    MsgBox e is ValueError\n}",
-    );
+    let report = run("try {\n    x := Chr(-1)\n} catch Any as e {\n    MsgBox e is ValueError\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
 }
@@ -2512,11 +2733,17 @@ fn the_input_box_answers_an_object_with_the_text_and_the_result() {
 #[test]
 fn the_input_box_carries_what_it_was_asked() {
     let mut desktop = Fake::default();
-    let report = run_on("InputBox(\"the prompt\", \"the title\", \"T10\", \"the default\")", &mut desktop);
+    let report = run_on(
+        "InputBox(\"the prompt\", \"the title\", \"T10\", \"the default\")",
+        &mut desktop,
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         desktop.calls,
-        vec![("input-box".to_string(), "the prompt|the title|the default|Some(10.0)".to_string())]
+        vec![(
+            "input-box".to_string(),
+            "the prompt|the title|the default|Some(10.0)".to_string()
+        )]
     );
 }
 
@@ -2541,7 +2768,10 @@ fn an_option_of_the_input_box_that_v2_does_not_know_is_refused() {
         "try {\n    InputBox(\"a\", \"b\", \"z9\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class \" | \" e.What \" | \" e.Extra\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Invalid option. | ValueError | InputBox | z9"]);
+    assert_eq!(
+        report.output,
+        vec!["Invalid option. | ValueError | InputBox | z9"]
+    );
 }
 
 #[test]
@@ -2591,7 +2821,10 @@ fn the_filter_of_the_file_select_is_not_there_when_a_folder_is_asked_for() {
         "try {\n    FileSelect(\"D\", \"\", \"\", \"Text (*.txt)\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.Extra\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Parameter #4 of FileSelect is invalid. | Text (*.txt)"]);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #4 of FileSelect is invalid. | Text (*.txt)"]
+    );
 }
 
 #[test]
@@ -2622,11 +2855,11 @@ fn the_options_of_the_dir_select_are_a_number() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["Parameter #2 of DirSelect requires a Number, but received a String. | TypeError | DirSelect | b"]
+        vec![
+            "Parameter #2 of DirSelect requires a Number, but received a String. | TypeError | DirSelect | b"
+        ]
     );
 }
-
-
 
 #[test]
 fn the_load_picture_answers_the_number_of_the_picture() {
@@ -2685,9 +2918,7 @@ fn the_image_search_answers_one_and_writes_the_place() {
 fn the_image_search_wants_two_variables() {
     // Measured on the binary of v2.0.19 on 2026-10-29: the first two
     // parameters want a variable.
-    let report = run(
-        "z := ImageSearch(0, 0, 0, 0, 10, 10, \"the.png\")\n",
-    );
+    let report = run("z := ImageSearch(0, 0, 0, 0, 10, 10, \"the.png\")\n");
     assert!(!report.ok);
     assert_eq!(
         failure_of(&report),
@@ -2738,7 +2969,9 @@ fn a_desktop_that_does_not_read_the_images_says_so() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("the picture is read by the desktop, and this desktop does not read the images of the machine.")
+        Some(
+            "the picture is read by the desktop, and this desktop does not read the images of the machine."
+        )
     );
 }
 
@@ -2756,7 +2989,10 @@ fn the_download_writes_the_file_and_answers_nothing() {
     assert_eq!(report.output, vec!["[]"]);
     assert_eq!(
         desktop.calls,
-        vec![("download".to_string(), "https://example.com/file.txt|/tmp/file.txt".to_string())]
+        vec![(
+            "download".to_string(),
+            "https://example.com/file.txt|/tmp/file.txt".to_string()
+        )]
     );
 }
 
@@ -2783,7 +3019,8 @@ fn the_download_without_arguments_fails_the_way_v2_does() {
 #[test]
 fn a_desktop_that_does_not_reach_the_network_says_so() {
     let mut desktop = Blind;
-    let statements = parse("Download(\"https://example.com/file.txt\", \"/tmp/file.txt\")").expect("parses");
+    let statements =
+        parse("Download(\"https://example.com/file.txt\", \"/tmp/file.txt\")").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
     assert_eq!(
@@ -2843,7 +3080,10 @@ fn a_parameter_that_wants_a_reference_says_it() {
 #[test]
 fn an_empty_text_is_named_in_the_message_of_the_check() {
     let report = run("a := ObjOwnProps(\"\")");
-    assert_eq!(failure_of(&report), "Expected an Object but got an empty string.");
+    assert_eq!(
+        failure_of(&report),
+        "Expected an Object but got an empty string."
+    );
 }
 
 #[test]
@@ -2921,7 +3161,9 @@ fn the_name_of_a_file_that_is_empty_is_refused() {
         assert!(report.ok, "{call}: {:?}", report.error);
         assert_eq!(
             report.output,
-            vec![format!("Parameter #{number} of {name} is invalid. | {name} | empty string")],
+            vec![format!(
+                "Parameter #{number} of {name} is invalid. | {name} | empty string"
+            )],
             "{call}"
         );
     }
@@ -3040,7 +3282,10 @@ fn the_wildcards_of_the_delete_are_not_carried() {
         "try {\n    x := FileDelete(\"*.txt\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["the wildcards of v2 are not carried yet. | FileDelete"]);
+    assert_eq!(
+        report.output,
+        vec!["the wildcards of v2 are not carried yet. | FileDelete"]
+    );
 }
 /// The class that the cases of the binding use: a method that takes one
 /// argument and one that takes two.
@@ -3069,7 +3314,10 @@ fn the_value_of_a_binding_is_of_the_class_bound_func() {
         "{THE_THING}t := Thing()\nf := ObjBindMethod(t, \"Method\")\nthe_class := f.__Class\nthe_name := f.Name\nthe_minimum := f.MinParams"
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "the_class"), Value::Text("BoundFunc".into()));
+    assert_eq!(
+        value_of(&report, "the_class"),
+        Value::Text("BoundFunc".into())
+    );
     assert_eq!(value_of(&report, "the_name"), Value::Text("".into()));
     assert_eq!(int_of(&report, "the_minimum"), 0);
 }
@@ -3105,9 +3353,8 @@ fn the_call_of_a_binding_may_go_through_the_call_method() {
 /// The binding of a method of a class type of the runtime.
 #[test]
 fn the_obj_bind_method_binds_the_method_of_a_class_type() {
-    let report = run(
-        "m := Map()\nm[\"a\"] := 1\nf := ObjBindMethod(m, \"Clear\")\nf()\nn := m.Count",
-    );
+    let report =
+        run("m := Map()\nm[\"a\"] := 1\nf := ObjBindMethod(m, \"Clear\")\nf()\nn := m.Count");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "n"), 0);
 }

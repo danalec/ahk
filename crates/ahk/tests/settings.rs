@@ -8,11 +8,11 @@
 //! what the machine does.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes, Screen,
-    Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
-use ahk::runtime::{Report, Runtime};
 use ahk::parse;
+use ahk::runtime::{Report, Runtime};
 use std::time::Duration;
 
 /// A desktop that answers nothing: the settings are the language's.
@@ -122,7 +122,9 @@ fn the_mode_of_the_send_is_written() {
 fn the_level_of_the_send_is_written() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the level is a
     // number, and a text that holds one is that number.
-    let report = run("A_SendLevel := \"2\"\na := A_SendLevel\nA_SendLevel := 3\nb := A_SendLevel\nMsgBox \"%a% %b%\"");
+    let report = run(
+        "A_SendLevel := \"2\"\na := A_SendLevel\nA_SendLevel := 3\nb := A_SendLevel\nMsgBox \"%a% %b%\"",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2 3"]);
 }
@@ -203,5 +205,8 @@ fn a_level_of_the_send_that_is_not_a_number_is_refused() {
         "try {\n    A_SendLevel := \"x\"\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Expected a Number but got a String. | TypeError"]);
+    assert_eq!(
+        report.output,
+        vec!["Expected a Number but got a String. | TypeError"]
+    );
 }

@@ -184,11 +184,7 @@ fn every_name_of_v2_is_carried_or_pending() {
         .into_iter()
         .filter(|row| !carries(row[0], row[1], row[2]))
         .filter(|row| {
-            !pending.contains(&(
-                row[0].to_string(),
-                row[1].to_string(),
-                row[2].to_string(),
-            ))
+            !pending.contains(&(row[0].to_string(), row[1].to_string(), row[2].to_string()))
         })
         .map(|row| format!("{} {} {}", row[0], row[1], row[2]))
         .collect();
@@ -205,12 +201,19 @@ fn every_pending_row_has_a_reason_and_a_kind() {
     let mut bad: Vec<String> = Vec::new();
     for row in &pending {
         let kind = row[0];
-        let name = if row[1].is_empty() { row[2] } else { "a method" };
+        let name = if row[1].is_empty() {
+            row[2]
+        } else {
+            "a method"
+        };
         if !KINDS.contains(&kind) {
             bad.push(format!("{name}: the kind {kind} is not one of {KINDS:?}"));
         }
         if row[3].is_empty() || !REASONS.contains(&row[3]) {
-            bad.push(format!("{name}: the reason {:?} is not one of {REASONS:?}", row[3]));
+            bad.push(format!(
+                "{name}: the reason {:?} is not one of {REASONS:?}",
+                row[3]
+            ));
         }
     }
     assert!(
@@ -224,8 +227,7 @@ fn every_pending_row_has_a_reason_and_a_kind() {
 fn every_pending_row_is_a_row_of_the_surface() {
     let surface = places(SURFACE);
     let pending = places(PENDING);
-    let invented: Vec<(String, String, String)> =
-        pending.difference(&surface).cloned().collect();
+    let invented: Vec<(String, String, String)> = pending.difference(&surface).cloned().collect();
     assert!(
         invented.is_empty(),
         "the pending table names that v2 does not have: {invented:?}; {}",
@@ -251,7 +253,9 @@ fn the_kind_and_the_arity_of_a_name_are_the_ones_of_the_binary() {
         if kind != "command" && kind != "function" {
             continue;
         }
-        let Some(builtin) = ahk::builtins::find(name) else { continue };
+        let Some(builtin) = ahk::builtins::find(name) else {
+            continue;
+        };
         let ours = match builtin.kind {
             ahk::builtins::BuiltinKind::Command => "command",
             ahk::builtins::BuiltinKind::Function => "function",
@@ -268,10 +272,16 @@ fn the_kind_and_the_arity_of_a_name_are_the_ones_of_the_binary() {
         let low: u32 = row[4].parse().unwrap_or(u32::MAX);
         let high: u32 = row[5].parse().unwrap_or(u32::MAX);
         if builtin.min as u32 != low {
-            wrong.push(format!("{name}: v2 says at least {low}, the tree says {}", builtin.min));
+            wrong.push(format!(
+                "{name}: v2 says at least {low}, the tree says {}",
+                builtin.min
+            ));
         }
         if builtin.max as u32 != high {
-            wrong.push(format!("{name}: v2 says at most {high}, the tree says {}", builtin.max));
+            wrong.push(format!(
+                "{name}: v2 says at most {high}, the tree says {}",
+                builtin.max
+            ));
         }
     }
     assert!(wrong.is_empty(), "the rows that drifted: {wrong:?}");
@@ -325,11 +335,7 @@ fn every_name_of_the_v1_is_carried_or_pending() {
         .into_iter()
         .filter(|row| !carries_of(dialect, row[0], row[1], row[2]))
         .filter(|row| {
-            !pending.contains(&(
-                row[0].to_string(),
-                row[1].to_string(),
-                row[2].to_string(),
-            ))
+            !pending.contains(&(row[0].to_string(), row[1].to_string(), row[2].to_string()))
         })
         .map(|row| format!("{} {} {}", row[0], row[1], row[2]))
         .collect();
@@ -367,13 +373,20 @@ fn every_pending_row_of_the_v1_is_a_row_of_the_surface_with_a_reason() {
     for row in rows(PENDING_V1) {
         let (kind, class, name) = (row[0], row[1], row[2]);
         if !KINDS_V1.contains(&kind) {
-            bad.push(format!("{name}: the kind {kind} is not one of {KINDS_V1:?}"));
+            bad.push(format!(
+                "{name}: the kind {kind} is not one of {KINDS_V1:?}"
+            ));
         }
         if row[3].is_empty() || !REASONS_V1.contains(&row[3]) {
-            bad.push(format!("{name}: the reason {:?} is not one of {REASONS_V1:?}", row[3]));
+            bad.push(format!(
+                "{name}: the reason {:?} is not one of {REASONS_V1:?}",
+                row[3]
+            ));
         }
         if !surface.contains(&(kind.to_string(), class.to_string(), name.to_string())) {
-            bad.push(format!("{name}: the pending table names that the v1 does not have"));
+            bad.push(format!(
+                "{name}: the pending table names that the v1 does not have"
+            ));
         }
     }
     assert!(

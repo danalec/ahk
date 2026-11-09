@@ -6,8 +6,8 @@
 //! a hotkey is the class of the object that the function makes.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime};
@@ -174,7 +174,13 @@ fn the_failure_of(source: &str) -> String {
         "try {{\n    {source}\n}} catch Any as e {{\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}}\n"
     ));
     assert!(report.ok, "{:?}", report.error);
-    report.output.first().cloned().unwrap_or_default().trim().to_string()
+    report
+        .output
+        .first()
+        .cloned()
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 #[test]
@@ -199,14 +205,32 @@ fn the_calls_of_the_classes_are_the_calls_of_v2() {
         // The `Any` is the type of any value, and it is not a class that
         // can be made: the call of it goes through the `Call` method of
         // the class, and a class has none.
-        ("Any()", "This value of type \"Class\" has no method named \"Call\". |  |"),
-        ("Any(1)", "This value of type \"Class\" has no method named \"Call\". |  |"),
+        (
+            "Any()",
+            "This value of type \"Class\" has no method named \"Call\". |  |",
+        ),
+        (
+            "Any(1)",
+            "This value of type \"Class\" has no method named \"Call\". |  |",
+        ),
         // The number of the arguments of the constructors, and the names
         // that go in the `What` and in the `Extra` of the refusal.
-        ("ComObject()", "Too few parameters passed to function. |  | ComObject.Call"),
-        ("ComObject(1, 2, 3)", "Too many parameters passed to function. |  | ComObject.Call"),
-        ("ComValue()", "Too few parameters passed to function. |  | ComValue.Call"),
-        ("ComValue(1)", "Too few parameters passed to function. |  | ComValue.Call"),
+        (
+            "ComObject()",
+            "Too few parameters passed to function. |  | ComObject.Call",
+        ),
+        (
+            "ComObject(1, 2, 3)",
+            "Too many parameters passed to function. |  | ComObject.Call",
+        ),
+        (
+            "ComValue()",
+            "Too few parameters passed to function. |  | ComValue.Call",
+        ),
+        (
+            "ComValue(1)",
+            "Too few parameters passed to function. |  | ComValue.Call",
+        ),
         (
             "ComValue(\"x\", 1)",
             "Parameter #1 of ComValue.Call requires a Number, but received a String. | ComValue.Call | x",
@@ -215,9 +239,18 @@ fn the_calls_of_the_classes_are_the_calls_of_v2() {
             "ComValue(1, 2, \"x\")",
             "Parameter #3 of ComValue.Call requires a Number, but received a String. | ComValue.Call | x",
         ),
-        ("Class(1)", "Too many parameters passed to function. | Object.Call |"),
-        ("Object(1)", "Too many parameters passed to function. | Object.Call |"),
-        ("Menu(1)", "Too many parameters passed to function. | Menu.Call |"),
+        (
+            "Class(1)",
+            "Too many parameters passed to function. | Object.Call |",
+        ),
+        (
+            "Object(1)",
+            "Too many parameters passed to function. | Object.Call |",
+        ),
+        (
+            "Menu(1)",
+            "Too many parameters passed to function. | Menu.Call |",
+        ),
         (
             "ClipboardAll(\"x\")",
             "Parameter #1 of ClipboardAll.Prototype.__New requires a Number, but received a String. | ClipboardAll.Prototype.__New | x",
@@ -299,7 +332,11 @@ fn the_call_of_a_class_value_makes_an_object() {
     ] {
         let report = run(&format!("c := {name}\nx := c()\nMsgBox x.__Class"));
         assert!(report.ok, "{:?}", report.error);
-        assert_eq!(report.output.first().cloned().unwrap_or_default(), class, "the call of {name}");
+        assert_eq!(
+            report.output.first().cloned().unwrap_or_default(),
+            class,
+            "the call of {name}"
+        );
     }
 }
 
@@ -312,7 +349,11 @@ fn a_class_that_the_dialect_does_not_make_says_so_when_it_is_called() {
         "This value of type \"Class\" has no method named \"Call\". |  |"
     );
     for name in ["File", "Func", "Enumerator"] {
-        assert_eq!(the_failure_of(&format!("c := {name}\nc()")), "Invalid base. | Object.Call |", "the call of {name}");
+        assert_eq!(
+            the_failure_of(&format!("c := {name}\nc()")),
+            "Invalid base. | Object.Call |",
+            "the call of {name}"
+        );
     }
 }
 
@@ -373,5 +414,8 @@ fn the_clipboard_all_is_made_with_nothing() {
     // class with no arguments makes the object.
     let report = run("x := ClipboardAll()\nMsgBox x.__Class");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output.first().cloned().unwrap_or_default(), "ClipboardAll");
+    assert_eq!(
+        report.output.first().cloned().unwrap_or_default(),
+        "ClipboardAll"
+    );
 }

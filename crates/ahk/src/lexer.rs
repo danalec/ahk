@@ -79,37 +79,9 @@ pub struct Token {
 /// default case of a switch and the base of a class are told apart by
 /// what comes with them, and not by the word itself.
 pub const KEYWORDS: &[&str] = &[
-    "if",
-    "else",
-    "switch",
-    "case",
-    "return",
-    "exitapp",
-    "while",
-    "until",
-    "loop",
-    "try",
-    "catch",
-    "finally",
-    "throw",
-    "for",
-    "break",
-    "continue",
-    "goto",
-    "true",
-    "false",
-    "and",
-    "or",
-    "not",
-    "is",
-    "in",
-    "contains",
-    "as",
-    "class",
-    "static",
-    "global",
-    "local",
-    "super",
+    "if", "else", "switch", "case", "return", "exitapp", "while", "until", "loop", "try", "catch",
+    "finally", "throw", "for", "break", "continue", "goto", "true", "false", "and", "or", "not",
+    "is", "in", "contains", "as", "class", "static", "global", "local", "super",
 ];
 
 /// The reason of the refusal of a word that the language reserves.
@@ -161,8 +133,28 @@ fn the_character_ends_a_symbol(character: char) -> bool {
     character.is_whitespace()
         || matches!(
             character,
-            ',' | ')' | '}' | '{' | ':' | '.' | ';' | '=' | '!' | '<' | '>' | '&' | '|' | '^' | '+'
-                | '-' | '*' | '/' | '%' | '~' | '?' | '(' | '['
+            ',' | ')'
+                | '}'
+                | '{'
+                | ':'
+                | '.'
+                | ';'
+                | '='
+                | '!'
+                | '<'
+                | '>'
+                | '&'
+                | '|'
+                | '^'
+                | '+'
+                | '-'
+                | '*'
+                | '/'
+                | '%'
+                | '~'
+                | '?'
+                | '('
+                | '['
         )
 }
 
@@ -177,8 +169,26 @@ pub fn the_character_ends_the_symbol_of_the_v1(character: char) -> bool {
     character.is_whitespace()
         || matches!(
             character,
-            ',' | ')' | '(' | '}' | '{' | ']' | '[' | ':' | '=' | '!' | '<' | '>' | '&' | '|' | '^'
-                | '+' | '-' | '*' | '/' | '~' | '?'
+            ',' | ')'
+                | '('
+                | '}'
+                | '{'
+                | ']'
+                | '['
+                | ':'
+                | '='
+                | '!'
+                | '<'
+                | '>'
+                | '&'
+                | '|'
+                | '^'
+                | '+'
+                | '-'
+                | '*'
+                | '/'
+                | '~'
+                | '?'
         )
 }
 
@@ -228,8 +238,9 @@ pub fn the_refusal_of_a_word(word: &str) -> Option<TheRefusal> {
 /// operand.
 const OPERATORS: &[&str] = &[
     ">>>=", "<<=", "//=", ">>=", ":=", "+=", "-=", "*=", "/=", ".=", "|=", "^=", "&=", "~=", "!==",
-    "==", "!=", "<=", ">=", "&&", "||", "??", "**", "//", "<<", ">>>", ">>", "++", "--", "::", "=>", "=", "<", ">",
-    "+", "-", "*", "%", "/", ".", "(", ")", ",", "{", "}", "[", "]", "!", ":", "?", "&", "|", "^", "~",
+    "==", "!=", "<=", ">=", "&&", "||", "??", "**", "//", "<<", ">>>", ">>", "++", "--", "::",
+    "=>", "=", "<", ">", "+", "-", "*", "%", "/", ".", "(", ")", ",", "{", "}", "[", "]", "!", ":",
+    "?", "&", "|", "^", "~",
 ];
 
 /// The operators of the dialect, the longest first so that the longest match
@@ -245,7 +256,10 @@ fn the_operators_of(dialect: &'static dyn crate::dialect::Dialect) -> Vec<&'stat
     }
     let mut operators = OPERATORS.to_vec();
     // The `<>` comes before the `<`, because the longest match wins.
-    let at = operators.iter().position(|operator| *operator == "<").unwrap_or(0);
+    let at = operators
+        .iter()
+        .position(|operator| *operator == "<")
+        .unwrap_or(0);
     operators.insert(at, "<>");
     operators
 }
@@ -261,7 +275,11 @@ pub struct SyntaxError {
 
 impl SyntaxError {
     fn new(message: impl Into<String>, line: u32, column: u32) -> Self {
-        Self { message: message.into(), line, column }
+        Self {
+            message: message.into(),
+            line,
+            column,
+        }
     }
 }
 
@@ -398,7 +416,12 @@ fn the_name_with_the_escape(
         }
         name.push(expanded);
     }
-    TheNameWithTheEscape { name, end: index, operator, has_an_escape }
+    TheNameWithTheEscape {
+        name,
+        end: index,
+        operator,
+        has_an_escape,
+    }
 }
 
 /// The name of a script, the way v2 writes it in a message.
@@ -419,7 +442,11 @@ fn the_line_of_the_hash(chars: &[char], start: usize) -> String {
     while end < chars.len() && chars[end] != '\n' {
         end += 1;
     }
-    chars[start..end].iter().collect::<String>().trim_end().to_string()
+    chars[start..end]
+        .iter()
+        .collect::<String>()
+        .trim_end()
+        .to_string()
 }
 
 /// The refusal of the type or of the mode of the `#Warn`.
@@ -442,7 +469,11 @@ fn the_refusal_of_the_warn(
     let (kind, mode) = crate::warnings::the_parts_of_the_argument(argument);
     if !kind.is_empty() && dialect.the_type_of_the_warning(kind).is_none() {
         let source = the_line_of_the_hash(chars, hash_at);
-        let text = source.split(',').next().unwrap_or(source.as_str()).trim_end();
+        let text = source
+            .split(',')
+            .next()
+            .unwrap_or(source.as_str())
+            .trim_end();
         return Err(SyntaxError::new(
             format!("Parameter #1 invalid.\n     Specifically: {text}"),
             line,
@@ -473,7 +504,6 @@ fn the_source_of_the_chars(chars: &[char], start: usize, end: usize) -> String {
     }
     text
 }
-
 
 /// The options of a continuation section.
 ///
@@ -645,7 +675,15 @@ fn the_section_at(
         lines.push(text);
         cursor = end_of_the_line;
     }
-    Ok(Some(TheSection { options, lines, rest, end, rest_at, after: end_of_the_line + 1, closed }))
+    Ok(Some(TheSection {
+        options,
+        lines,
+        rest,
+        end,
+        rest_at,
+        after: end_of_the_line + 1,
+        closed,
+    }))
 }
 
 /// The text of the lines of a section.
@@ -679,7 +717,11 @@ fn the_content_of_the_section(section: &TheSection) -> String {
         let first = lines.first().map(|line| line.as_str()).unwrap_or("");
         let spaces = first.chars().take_while(|c| *c == ' ').count();
         let tabs = first.chars().take_while(|c| *c == '\t').count();
-        indentation = if spaces > 0 { (spaces, ' ') } else { (tabs, '\t') };
+        indentation = if spaces > 0 {
+            (spaces, ' ')
+        } else {
+            (tabs, '\t')
+        };
     }
     if indentation.0 > 0 {
         let (count, character) = indentation;
@@ -746,7 +788,11 @@ fn the_escapes_of_a_text(
 fn the_tokens_of_the_content(content: &str) -> Result<Vec<Token>, SyntaxError> {
     let mut tokens = tokenize(content)?;
     // The end of the text is not a token of the script.
-    if tokens.last().map(|token| token.kind == TokenKind::Eof).unwrap_or(false) {
+    if tokens
+        .last()
+        .map(|token| token.kind == TokenKind::Eof)
+        .unwrap_or(false)
+    {
         tokens.pop();
     }
     let mut a_newline_was_there = false;
@@ -804,7 +850,10 @@ fn the_line_the_section_joins(
     while number > 1 {
         number -= 1;
         let start = the_starts_of_the_lines[number - 1];
-        let end = the_starts_of_the_lines.get(number).copied().unwrap_or(chars.len());
+        let end = the_starts_of_the_lines
+            .get(number)
+            .copied()
+            .unwrap_or(chars.len());
         let text: String = chars[start..end].iter().collect();
         if !the_code_of_a_line(&text).trim().is_empty() {
             return Some((number as u32, start, end));
@@ -873,13 +922,26 @@ pub fn tokenize_with(
                         None => break,
                     }
                 }
-                the_section_joins_the_line_above(&mut tokens, &chars, &section, &the_starts_of_the_lines, line)?;
+                the_section_joins_the_line_above(
+                    &mut tokens,
+                    &chars,
+                    &section,
+                    &the_starts_of_the_lines,
+                    line,
+                )?;
                 index = section.end;
                 line += section.lines.len() as u32 + 2;
                 column = 1;
                 continue;
             }
-            tokens.push(Token { kind: TokenKind::Newline, value: "\n".into(), line, column, spaced: before, quote: None });
+            tokens.push(Token {
+                kind: TokenKind::Newline,
+                value: "\n".into(),
+                line,
+                column,
+                spaced: before,
+                quote: None,
+            });
             index += 1;
             line += 1;
             column = 1;
@@ -898,7 +960,14 @@ pub fn tokenize_with(
             // illegal character in an expression, and the parser is the one
             // that says so.
             if tokens.iter().any(|token| token.line == line) {
-                tokens.push(Token { kind: TokenKind::Op, value: "#".into(), line, column, spaced: before, quote: None });
+                tokens.push(Token {
+                    kind: TokenKind::Op,
+                    value: "#".into(),
+                    line,
+                    column,
+                    spaced: before,
+                    quote: None,
+                });
                 index += 1;
                 column += 1;
                 continue;
@@ -911,9 +980,7 @@ pub fn tokenize_with(
             index += 1;
             column += 1;
             let mut name = String::new();
-            while index < chars.len()
-                && the_character_is_of_a_name(chars[index], marks)
-            {
+            while index < chars.len() && the_character_is_of_a_name(chars[index], marks) {
                 name.push(chars[index]);
                 index += 1;
                 column += 1;
@@ -957,7 +1024,14 @@ pub fn tokenize_with(
             // mode that is not one of them with "Parameter #2 invalid." and
             // the text that was written.
             if name.eq_ignore_ascii_case("warn") {
-                the_refusal_of_the_warn(dialect, &chars, hash_at, &argument, start_line, start_column)?;
+                the_refusal_of_the_warn(
+                    dialect,
+                    &chars,
+                    hash_at,
+                    &argument,
+                    start_line,
+                    start_column,
+                )?;
             }
             tokens.push(Token {
                 kind: TokenKind::Directive,
@@ -995,7 +1069,14 @@ pub fn tokenize_with(
                 }
                 continue;
             }
-            tokens.push(Token { kind: TokenKind::Op, value: ";".into(), line, column, spaced: before, quote: None });
+            tokens.push(Token {
+                kind: TokenKind::Op,
+                value: ";".into(),
+                line,
+                column,
+                spaced: before,
+                quote: None,
+            });
             index += 1;
             column += 1;
             continue;
@@ -1103,7 +1184,11 @@ pub fn tokenize_with(
                 // literal and the newlines are kept.
                 let content = the_content_of_the_section(&section);
                 the_text_of_the_section = content.clone();
-                buffer.push_str(&the_escapes_of_a_text(&content, section.options.accent, dialect));
+                buffer.push_str(&the_escapes_of_a_text(
+                    &content,
+                    section.options.accent,
+                    dialect,
+                ));
                 // The text that follows the closing parenthesis is the text
                 // that is being read: the quote that closes it is there.
                 index = section.rest_at;
@@ -1185,15 +1270,13 @@ pub fn tokenize_with(
         // the point of a number.
         //
         // Measured on the binary of v2.0.19 on 2026-10-31.
-        if current.is_ascii_digit() || (current == '.' && the_point_begins_a_number(&chars, index, &tokens)) {
+        if current.is_ascii_digit()
+            || (current == '.' && the_point_begins_a_number(&chars, index, &tokens))
+        {
             let (start_line, start_column) = (line, column);
             let start = index;
-            index = the_end_of_the_number(
-                &chars,
-                index,
-                dialect.the_exponent_needs_a_point(),
-                marks,
-            );
+            index =
+                the_end_of_the_number(&chars, index, dialect.the_exponent_needs_a_point(), marks);
             column += (index - start) as u32;
             // A name that begins with a number is not a number: v2 refuses
             // the script at the load, and it says which name it is.
@@ -1237,9 +1320,7 @@ pub fn tokenize_with(
                     name.push_str(&escape.name);
                     index = escape.end;
                 }
-                while index < chars.len()
-                    && the_character_is_of_a_name(chars[index], marks)
-                {
+                while index < chars.len() && the_character_is_of_a_name(chars[index], marks) {
                     name.push(chars[index]);
                     index += 1;
                 }
@@ -1280,7 +1361,10 @@ pub fn tokenize_with(
                     continue;
                 }
                 return Err(SyntaxError::new(
-                    format!("This variable name starts with a number, which is not allowed:\n{}", the_name_of_a_message(&name)),
+                    format!(
+                        "This variable name starts with a number, which is not allowed:\n{}",
+                        the_name_of_a_message(&name)
+                    ),
                     start_line,
                     start_column,
                 ));
@@ -1289,7 +1373,9 @@ pub fn tokenize_with(
             // the number of the v1 may be the name of a variable, and the
             // name may not carry a quote: the `5"a"` is a name with an
             // illegal character.
-            if dialect.the_name_may_not_carry_an_illegal_character() && chars.get(index) == Some(&'"') {
+            if dialect.the_name_may_not_carry_an_illegal_character()
+                && chars.get(index) == Some(&'"')
+            {
                 let text: String = chars[start..index].iter().collect();
                 // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
                 // the number with a point is a number and not the name of a
@@ -1309,7 +1395,14 @@ pub fn tokenize_with(
                 let word: String = chars[start..end].iter().collect();
                 column += (end - index) as u32;
                 index = end;
-                tokens.push(Token { kind: TokenKind::Name, value: word, line: start_line, column: start_column, spaced: before, quote: None });
+                tokens.push(Token {
+                    kind: TokenKind::Name,
+                    value: word,
+                    line: start_line,
+                    column: start_column,
+                    spaced: before,
+                    quote: None,
+                });
                 continue;
             }
             tokens.push(Token {
@@ -1351,7 +1444,14 @@ pub fn tokenize_with(
                 let word: String = chars[start..end].iter().collect();
                 column += (end - index) as u32;
                 index = end;
-                tokens.push(Token { kind: TokenKind::Name, value: word, line: start_line, column: start_column, spaced: before, quote: None });
+                tokens.push(Token {
+                    kind: TokenKind::Name,
+                    value: word,
+                    line: start_line,
+                    column: start_column,
+                    spaced: before,
+                    quote: None,
+                });
                 continue;
             }
             let word = name.name;
@@ -1368,7 +1468,14 @@ pub fn tokenize_with(
             } else {
                 TokenKind::Name
             };
-            tokens.push(Token { kind, value: word, line: start_line, column: start_column, spaced: before, quote: None });
+            tokens.push(Token {
+                kind,
+                value: word,
+                line: start_line,
+                column: start_column,
+                spaced: before,
+                quote: None,
+            });
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
             // the escape that carries an operator is the operator that comes
             // after the name: the `x := a`.b` is the member "b" of the "a".
@@ -1413,7 +1520,10 @@ pub fn tokenize_with(
             // of the variable "0".
             if matches!(operator, "++" | "--")
                 && !dialect.the_increment_after_a_number_is_an_operator()
-                && tokens.last().map(|token| token.kind == TokenKind::Number).unwrap_or(false)
+                && tokens
+                    .last()
+                    .map(|token| token.kind == TokenKind::Number)
+                    .unwrap_or(false)
             {
                 continue;
             }
@@ -1433,10 +1543,21 @@ pub fn tokenize_with(
             }
         }
         if !matched {
-            return Err(SyntaxError::new(format!("unexpected character {current:?}"), line, column));
+            return Err(SyntaxError::new(
+                format!("unexpected character {current:?}"),
+                line,
+                column,
+            ));
         }
     }
-    tokens.push(Token { kind: TokenKind::Eof, value: String::new(), line, column, spaced: false, quote: None });
+    tokens.push(Token {
+        kind: TokenKind::Eof,
+        value: String::new(),
+        line,
+        column,
+        spaced: false,
+        quote: None,
+    });
     Ok(tokens)
 }
 
@@ -1454,13 +1575,18 @@ fn the_section_joins_the_line_above(
     line: u32,
 ) -> Result<(), SyntaxError> {
     // The section continues the last line that has code.
-    while tokens.last().map(|token| token.kind == TokenKind::Newline).unwrap_or(false) {
+    while tokens
+        .last()
+        .map(|token| token.kind == TokenKind::Newline)
+        .unwrap_or(false)
+    {
         tokens.pop();
     }
-    let (the_number, the_start, the_end) = match the_line_the_section_joins(chars, the_starts_of_the_lines, line + 1) {
-        Some(above) => above,
-        None => (line + 1, line as usize, line as usize),
-    };
+    let (the_number, the_start, the_end) =
+        match the_line_the_section_joins(chars, the_starts_of_the_lines, line + 1) {
+            Some(above) => above,
+            None => (line + 1, line as usize, line as usize),
+        };
     let text_of_the_line: String = chars[the_start..the_end].iter().collect();
     // The space that separates the name from the contents of the section.
     let a_space = the_number != line + 1 && the_last_character_is_a_name(&text_of_the_line);
@@ -1496,7 +1622,11 @@ fn the_section_joins_the_line_above(
         .any(|token| token.kind == TokenKind::Directive);
     if the_directive_is_the_line_above {
         let mut argument = String::new();
-        if tokens.last().map(|token| token.kind == TokenKind::String).unwrap_or(false) {
+        if tokens
+            .last()
+            .map(|token| token.kind == TokenKind::String)
+            .unwrap_or(false)
+        {
             argument = tokens.pop().map(|token| token.value).unwrap_or_default();
         }
         if a_space {
@@ -1551,7 +1681,10 @@ fn the_section_joins_the_line_above(
 /// Measured on the binary of v2.0.19 on 2026-10-31.
 fn the_point_begins_a_number(chars: &[char], index: usize, tokens: &[Token]) -> bool {
     // A point that is not followed by a digit is the point of the member.
-    if !chars.get(index + 1).is_some_and(|next| next.is_ascii_digit()) {
+    if !chars
+        .get(index + 1)
+        .is_some_and(|next| next.is_ascii_digit())
+    {
         return false;
     }
     // The point of a member comes after a value.
@@ -1593,7 +1726,9 @@ fn the_end_of_the_number(
     // The hex of v2.
     if chars.get(start) == Some(&'0')
         && matches!(chars.get(start + 1), Some(&'x') | Some(&'X'))
-        && chars.get(start + 2).is_some_and(|digit| digit.is_ascii_hexdigit())
+        && chars
+            .get(start + 2)
+            .is_some_and(|digit| digit.is_ascii_hexdigit())
     {
         let mut index = start + 2;
         while index < chars.len() && chars[index].is_ascii_hexdigit() {
@@ -1652,7 +1787,11 @@ mod tests {
     use super::*;
 
     fn kinds(source: &str) -> Vec<TokenKind> {
-        tokenize(source).expect("parses").iter().map(|t| t.kind).collect()
+        tokenize(source)
+            .expect("parses")
+            .iter()
+            .map(|t| t.kind)
+            .collect()
     }
 
     #[test]
@@ -1678,10 +1817,16 @@ mod tests {
         // not closed is named, and the line of the script says where it was.
         let error = tokenize("Send \"never closed").expect_err("fails");
         assert_eq!(error.line, 1);
-        assert_eq!(error.message, "Missing \"\"\"\n     Specifically: Send \"never closed");
+        assert_eq!(
+            error.message,
+            "Missing \"\"\"\n     Specifically: Send \"never closed"
+        );
         let error = tokenize("Send 'never closed").expect_err("fails");
         assert_eq!(error.line, 1);
-        assert_eq!(error.message, "Missing \"'\"\n     Specifically: Send 'never closed");
+        assert_eq!(
+            error.message,
+            "Missing \"'\"\n     Specifically: Send 'never closed"
+        );
     }
 
     #[test]

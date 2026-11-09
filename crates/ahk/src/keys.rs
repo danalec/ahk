@@ -29,9 +29,9 @@
 
 use alloc::format;
 use alloc::string::{String, ToString};
-use alloc::vec::Vec;
 #[cfg(test)]
 use alloc::vec;
+use alloc::vec::Vec;
 
 /// The Linux input event codes, the numbering ydotool 1.x expects.
 pub const EVDEV: &[(&str, u16)] = &[
@@ -483,7 +483,10 @@ pub fn resolve_name(name: &str) -> Result<u16, UnknownKey> {
 
 /// The evdev code of a name that is already one of ours.
 fn code_of(name: &str) -> Option<u16> {
-    EVDEV.iter().find(|(name_, _)| *name_ == name).map(|(_, code)| *code)
+    EVDEV
+        .iter()
+        .find(|(name_, _)| *name_ == name)
+        .map(|(_, code)| *code)
 }
 
 /// The number of a `vkXX` or `scXXX` name, read as hexadecimal.
@@ -509,12 +512,18 @@ fn virtual_key_name(code: u32) -> Option<&'static str> {
         return None;
     }
     let upper = character.to_ascii_uppercase();
-    EVDEV.iter().find(|(name, _)| name.starts_with(upper)).map(|(name, _)| *name)
+    EVDEV
+        .iter()
+        .find(|(name, _)| name.starts_with(upper))
+        .map(|(name, _)| *name)
 }
 
 /// The name of the key with a scan code.
 fn scan_key_name(code: u32) -> Option<&'static str> {
-    SCAN_KEYS.iter().find(|(key, _)| *key == code).map(|(_, name)| *name)
+    SCAN_KEYS
+        .iter()
+        .find(|(key, _)| *key == code)
+        .map(|(_, name)| *name)
 }
 
 /// The evdev code for a single printable character.
@@ -537,14 +546,20 @@ fn character_code(character: &str) -> Option<u16> {
                 other
             } else if other.chars().all(|c| c.is_ascii_alphabetic()) {
                 return other.to_uppercase().chars().next().and_then(|c| {
-                    EVDEV.iter().find(|(name_, _)| *name_ == c.to_string()).map(|(_, code)| *code)
+                    EVDEV
+                        .iter()
+                        .find(|(name_, _)| *name_ == c.to_string())
+                        .map(|(_, code)| *code)
                 });
             } else {
                 return None;
             }
         }
     };
-    EVDEV.iter().find(|(name_, _)| *name_ == name).map(|(_, code)| *code)
+    EVDEV
+        .iter()
+        .find(|(name_, _)| *name_ == name)
+        .map(|(_, code)| *code)
 }
 
 /// The key that types a character, and whether it needs the shift key.
@@ -554,16 +569,32 @@ fn character_code(character: &str) -> Option<u16> {
 /// currency sign -- has no key here, and the caller is told so instead of
 /// typing something else.
 pub fn character_stroke(character: char) -> Option<(u16, bool)> {
-    let shifted = |name: &str| EVDEV.iter().find(|(key, _)| *key == name).map(|(_, code)| (*code, true));
-    let plain = |name: &str| EVDEV.iter().find(|(key, _)| *key == name).map(|(_, code)| (*code, false));
+    let shifted = |name: &str| {
+        EVDEV
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, code)| (*code, true))
+    };
+    let plain = |name: &str| {
+        EVDEV
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, code)| (*code, false))
+    };
     if character.is_ascii_alphabetic() {
         let name = character.to_ascii_uppercase().to_string();
-        let code = EVDEV.iter().find(|(key, _)| *key == name).map(|(_, code)| *code)?;
+        let code = EVDEV
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, code)| *code)?;
         return Some((code, character.is_ascii_uppercase()));
     }
     if character.is_ascii_digit() {
         let name = character.to_string();
-        return EVDEV.iter().find(|(key, _)| *key == name).map(|(_, code)| (*code, false));
+        return EVDEV
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, code)| (*code, false));
     }
     match character {
         ' ' => plain("SPACE"),
@@ -645,7 +676,10 @@ pub fn parse_spec(spec: &str) -> Result<Vec<KeyStroke>, UnknownKey> {
             }
             modifiers.push(name);
         }
-        strokes.push(KeyStroke { code: resolve_name(&key_part)?, modifiers });
+        strokes.push(KeyStroke {
+            code: resolve_name(&key_part)?,
+            modifiers,
+        });
     }
     if strokes.is_empty() {
         return Err(UnknownKey(spec.to_string()));

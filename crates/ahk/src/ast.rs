@@ -421,14 +421,24 @@ pub enum ObjectItem {
 /// One node of the tree.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Node {    /// A value.
+pub enum Node {
+    /// A value.
     Literal { value: LiteralValue, line: u32 },
     /// A variable.
     Var { name: String, line: u32 },
     /// `not x`, `-x`.
-    Unary { op: UnaryOp, operand: Box<Node>, line: u32 },
+    Unary {
+        op: UnaryOp,
+        operand: Box<Node>,
+        line: u32,
+    },
     /// A binary operation.
-    Binary { op: BinaryOp, left: Box<Node>, right: Box<Node>, line: u32 },
+    Binary {
+        op: BinaryOp,
+        left: Box<Node>,
+        right: Box<Node>,
+        line: u32,
+    },
     /// The operand that is not there.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -439,7 +449,12 @@ pub enum Node {    /// A value.
     /// answer is one or zero.
     Unset { line: u32 },
     /// `cond ? a : b`.
-    Ternary { condition: Box<Node>, then: Box<Node>, otherwise: Box<Node>, line: u32 },
+    Ternary {
+        condition: Box<Node>,
+        then: Box<Node>,
+        otherwise: Box<Node>,
+        line: u32,
+    },
     /// `%expr%`: the name that the script builds.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the dynamic
@@ -447,7 +462,10 @@ pub enum Node {    /// A value.
     /// are the text that is written and the values of the expressions. The
     /// name of the variable whose value is the answer is the one that the
     /// pieces make.
-    DynamicName { pieces: Vec<DynamicPiece>, line: u32 },
+    DynamicName {
+        pieces: Vec<DynamicPiece>,
+        line: u32,
+    },
     /// `%expr% := value`: the write of a name that the script builds.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the variable has to
@@ -460,7 +478,12 @@ pub enum Node {    /// A value.
         line: u32,
     },
     /// `x := 1`.
-    Assign { name: String, op: AssignOp, value: Box<Node>, line: u32 },
+    Assign {
+        name: String,
+        op: AssignOp,
+        value: Box<Node>,
+        line: u32,
+    },
     /// `x = 5`: the legacy assignment of the v1.
     ///
     /// The right side of the legacy assignment is a text and not an
@@ -468,7 +491,11 @@ pub enum Node {    /// A value.
     /// it at `"abc"` with the quotes that were written.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02.
-    LegacyAssign { name: String, text: String, line: u32 },
+    LegacyAssign {
+        name: String,
+        text: String,
+        line: u32,
+    },
     /// `if x = 1`: the comparison of the legacy `if` of the v1.
     ///
     /// The right side of the comparison is the text of the rest of the line
@@ -479,7 +506,12 @@ pub enum Node {    /// A value.
     /// the brace that closes the block is unexpected.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04.
-    LegacyComparison { left: Box<Node>, op: BinaryOp, text: String, line: u32 },
+    LegacyComparison {
+        left: Box<Node>,
+        op: BinaryOp,
+        text: String,
+        line: u32,
+    },
     /// `if x in a, b`: the forms of the legacy `if` of the v1 that are not a
     /// comparison.
     ///
@@ -509,12 +541,20 @@ pub enum Node {    /// A value.
     /// `list[1]`, `text[2]`: the item at a position.
     ///
     /// The positions count from one, the way AutoHotkey counts them.
-    Index { target: Box<Node>, index: Box<Node>, line: u32 },
+    Index {
+        target: Box<Node>,
+        index: Box<Node>,
+        line: u32,
+    },
     /// A call: `PixelGetColor(10, 20)`.
     ///
     /// A command is a call written without parentheses: `Send "hello"`
     /// is the same built-in with its arguments in the same order.
-    Call { name: String, arguments: Vec<Node>, line: u32 },
+    Call {
+        name: String,
+        arguments: Vec<Node>,
+        line: u32,
+    },
     /// The `new` of the v1: `new C` and `new C(5)`.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the `new` of
@@ -526,7 +566,11 @@ pub enum Node {    /// A value.
     /// The path is the name that follows the word and the names of the
     /// classes that it holds: the `new C.D` is an instance of D, and the
     /// `new o.D` is an instance of the class that the instance holds.
-    New { path: Vec<String>, arguments: Vec<Node>, line: u32 },
+    New {
+        path: Vec<String>,
+        arguments: Vec<Node>,
+        line: u32,
+    },
     /// The legacy command of the v1: `Msg, text`.
     ///
     /// The parameters of a command of the v1 are texts, and the shape of
@@ -541,7 +585,11 @@ pub enum Node {    /// A value.
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the parameter
     /// that wants a number is an expression: the `Sleep, 100+50` waits for
     /// a hundred and fifty milliseconds.
-    LegacyCall { name: String, parameters: Vec<LegacyParameter>, line: u32 },
+    LegacyCall {
+        name: String,
+        parameters: Vec<LegacyParameter>,
+        line: u32,
+    },
     /// A command of the v1 that has a body: the `IfInString` and the
     /// `IfMsgBox`.
     ///
@@ -583,11 +631,23 @@ pub enum Node {    /// A value.
     /// empty.
     Block { body: Vec<Node>, line: u32 },
     /// `If cond { } else if cond { } else { }`.
-    If { branches: Vec<Branch>, otherwise: Vec<Node>, line: u32 },
+    If {
+        branches: Vec<Branch>,
+        otherwise: Vec<Node>,
+        line: u32,
+    },
     /// `Switch value { Case 1 { } Default { } }`.
-    Switch { subject: Box<Node>, cases: Vec<Case>, line: u32 },
+    Switch {
+        subject: Box<Node>,
+        cases: Vec<Case>,
+        line: u32,
+    },
     /// `While cond { }`.
-    While { condition: Box<Node>, body: Vec<Node>, line: u32 },
+    While {
+        condition: Box<Node>,
+        body: Vec<Node>,
+        line: u32,
+    },
     /// `Loop 3 { }`, `Loop Files "*.txt" { }`, `Loop Parse "a,b" { }`.
     ///
     /// The `until` is the condition of the v1: it is the statement that
@@ -604,7 +664,11 @@ pub enum Node {    /// A value.
     ///
     /// The name is the name of the directive and the argument is the
     /// rest of the line, which is what the directive is about.
-    Directive { name: String, argument: String, line: u32 },
+    Directive {
+        name: String,
+        argument: String,
+        line: u32,
+    },
     /// `Break`.
     Break { line: u32 },
     /// `Continue`.
@@ -635,7 +699,11 @@ pub enum Node {    /// A value.
     ///
     /// The names are read when the script is read, and the values wait for
     /// the statement that carries them.
-    Declare { scope: DeclareKind, names: Vec<Declared>, line: u32 },
+    Declare {
+        scope: DeclareKind,
+        names: Vec<Declared>,
+        line: u32,
+    },
     /// `class Name extends Base { }`: the definition of a class.
     ClassDef {
         name: String,
@@ -649,9 +717,18 @@ pub enum Node {    /// A value.
         line: u32,
     },
     /// `obj.Method(args)`: a method called on a value.
-    MethodCall { target: Box<Node>, name: MemberName, arguments: Vec<Node>, line: u32 },
+    MethodCall {
+        target: Box<Node>,
+        name: MemberName,
+        arguments: Vec<Node>,
+        line: u32,
+    },
     /// `obj.Prop`: a property of a value.
-    Property { target: Box<Node>, name: MemberName, line: u32 },
+    Property {
+        target: Box<Node>,
+        name: MemberName,
+        line: u32,
+    },
     /// `obj.Prop := value`: a property of a value that is written.
     AssignProperty {
         target: Box<Node>,
@@ -721,7 +798,11 @@ pub enum Node {    /// A value.
     /// The body of the arrow function of v2 is an expression, and not a
     /// block of statements, and the function closes over the scope where it
     /// was written.
-    Lambda { parameters: Vec<Parameter>, body: Box<Node>, line: u32 },
+    Lambda {
+        parameters: Vec<Parameter>,
+        body: Box<Node>,
+        line: u32,
+    },
     /// `try { } catch { } else { } finally { }`.
     ///
     /// The block of the `try` is guarded against the errors of the runtime
@@ -747,7 +828,12 @@ pub enum Node {    /// A value.
     /// The variables are the ones the enumerator gives, and a name that
     /// is left out is the one the enumerator does not give: `for , value
     /// in map` asks for the value alone.
-    For { variables: Vec<String>, source: Box<Node>, body: Vec<Node>, line: u32 },
+    For {
+        variables: Vec<String>,
+        source: Box<Node>,
+        body: Vec<Node>,
+        line: u32,
+    },
     /// A label: `name:`.
     ///
     /// A label names a line of the script, and a `Goto` jumps to it. The

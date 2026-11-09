@@ -8,11 +8,11 @@
 //! These are a port of the archived Python tests, and the two
 //! implementations have to agree.
 
-use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, TitleMatch, Windows,
-};
 use ahk::desktop::WindowAnswer;
+use ahk::desktop::{
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, TitleMatch, Windows,
+};
 use ahk::runtime::{Report, Runtime, Value};
 use ahk::{Node, parse};
 use std::time::Duration;
@@ -49,8 +49,14 @@ impl Machine for Fake {}
 impl Dialogs for Fake {}
 
 impl Files for Fake {
-    fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
-        self.calls.push(("list_files".into(), format!("{folder}|{pattern}|{mode}")));
+    fn list_files(
+        &mut self,
+        folder: &str,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
+        self.calls
+            .push(("list_files".into(), format!("{folder}|{pattern}|{mode}")));
         // The pattern of v2 is the tail of the name: "*.txt" is every
         // name that ends with ".txt".
         let wanted = pattern.strip_prefix('*').unwrap_or(pattern);
@@ -97,16 +103,27 @@ impl Keyboard for Fake {
 }
 
 impl Pointer for Fake {
-    fn mouse_down(&mut self, _x: Option<i64>, _y: Option<i64>, button: &str) -> Result<String, String> {
+    fn mouse_down(
+        &mut self,
+        _x: Option<i64>,
+        _y: Option<i64>,
+        button: &str,
+    ) -> Result<String, String> {
         self.calls.push(("mouse_down".into(), button.into()));
         Ok(format!("{button} is down"))
     }
-    fn mouse_up(&mut self, _x: Option<i64>, _y: Option<i64>, button: &str) -> Result<String, String> {
+    fn mouse_up(
+        &mut self,
+        _x: Option<i64>,
+        _y: Option<i64>,
+        button: &str,
+    ) -> Result<String, String> {
         self.calls.push(("mouse_up".into(), button.into()));
         Ok(format!("{button} is up"))
     }
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
-        self.calls.push(("click".into(), format!("{x},{y},{button},{count}")));
+        self.calls
+            .push(("click".into(), format!("{x},{y},{button},{count}")));
         Ok(format!("clicked ({x}, {y})"))
     }
     fn move_pointer(&mut self, x: i64, y: i64) -> Result<String, String> {
@@ -120,13 +137,28 @@ impl Pointer for Fake {
 }
 
 impl Screen for Fake {
-    fn capture(&mut self, x: i64, y: i64, width: i64, height: i64, filename: &str) -> Result<String, String> {
-        self.calls.push(("capture".into(), format!("{x},{y},{width},{height},{filename}")));
+    fn capture(
+        &mut self,
+        x: i64,
+        y: i64,
+        width: i64,
+        height: i64,
+        filename: &str,
+    ) -> Result<String, String> {
+        self.calls.push((
+            "capture".into(),
+            format!("{x},{y},{width},{height},{filename}"),
+        ));
         Ok(format!("/tmp/{filename}"))
     }
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
         self.calls.push(("pixel".into(), format!("{x},{y}")));
-        Ok(self.pixels.iter().find(|(at, _)| *at == (x, y)).map(|(_, colour)| colour.clone()).unwrap_or_else(|| "#000000".into()))
+        Ok(self
+            .pixels
+            .iter()
+            .find(|(at, _)| *at == (x, y))
+            .map(|(_, colour)| colour.clone())
+            .unwrap_or_else(|| "#000000".into()))
     }
     fn pixel_search(
         &mut self,
@@ -136,7 +168,11 @@ impl Screen for Fake {
         _y2: i64,
         colour: &str,
     ) -> Result<Option<(i64, i64)>, String> {
-        Ok(self.pixels.iter().find(|(_, value)| value == colour).map(|(at, _)| *at))
+        Ok(self
+            .pixels
+            .iter()
+            .find(|(_, value)| value == colour)
+            .map(|(at, _)| *at))
     }
 }
 
@@ -205,7 +241,9 @@ fn run_with_timeout(source: &str, timeout: Duration) -> (Report, Fake) {
     let mut desktop = Fake::default();
     desktop.pixels.push(((10, 20), "#ff8800".into()));
     let statements = parse(source).expect("parses");
-    let report = Runtime::new(&mut desktop, timeout).with_source(source).run(&statements);
+    let report = Runtime::new(&mut desktop, timeout)
+        .with_source(source)
+        .run(&statements);
     (report, desktop)
 }
 
@@ -240,7 +278,8 @@ fn a_concatenation_uses_the_dot() {
 
 #[test]
 fn an_if_takes_the_branch_that_holds() {
-    let (report, desktop) = run("x := 5\nIf x > 3 {\n  Send \"big\"\n} Else {\n  Send \"small\"\n}");
+    let (report, desktop) =
+        run("x := 5\nIf x > 3 {\n  Send \"big\"\n} Else {\n  Send \"small\"\n}");
     assert!(report.ok);
     assert_eq!(desktop.types(), vec!["big"]);
 }
@@ -268,18 +307,16 @@ fn a_loop_runs_its_body_n_times() {
 
 #[test]
 fn a_break_leaves_the_loop() {
-    let (report, desktop) = run(
-        "i := 0\nLoop 10 {\n  i := i + 1\n  If i = 2 {\n    Break\n  }\n}\nSend \"%i%\"",
-    );
+    let (report, desktop) =
+        run("i := 0\nLoop 10 {\n  i := i + 1\n  If i = 2 {\n    Break\n  }\n}\nSend \"%i%\"");
     assert!(report.ok);
     assert_eq!(desktop.types(), vec!["2"]);
 }
 
 #[test]
 fn a_continue_skips_the_rest_of_the_body() {
-    let (report, desktop) = run(
-        "i := 0\nLoop 3 {\n  i := i + 1\n  If i < 3 {\n    Continue\n  }\n  Send \"%i%\"\n}",
-    );
+    let (report, desktop) =
+        run("i := 0\nLoop 3 {\n  i := i + 1\n  If i < 3 {\n    Continue\n  }\n  Send \"%i%\"\n}");
     assert!(report.ok);
     assert_eq!(desktop.types(), vec!["3"]);
 }
@@ -288,7 +325,12 @@ fn a_continue_skips_the_rest_of_the_body() {
 fn a_run_carries_the_output() {
     let (report, _desktop) = run("Run \"echo hello\"");
     assert!(report.ok);
-    assert!(report.output.iter().any(|line| line.contains("ran echo hello")));
+    assert!(
+        report
+            .output
+            .iter()
+            .any(|line| line.contains("ran echo hello"))
+    );
 }
 
 #[test]
@@ -304,21 +346,32 @@ fn the_power_binds_tighter_than_the_unary_minus() {
 fn a_pixel_get_reads_the_colour() {
     let (report, _desktop) = run("PixelGetColor 10, 20");
     assert!(report.ok);
-    assert_eq!(report.variables.get("pixel"), Some(&Value::Text("#ff8800".into())));
+    assert_eq!(
+        report.variables.get("pixel"),
+        Some(&Value::Text("#ff8800".into()))
+    );
 }
 
 #[test]
 fn a_screenshot_captures_the_region() {
     let (report, desktop) = run("Screenshot 0, 0, 100, 50, \"shot.png\"");
     assert!(report.ok);
-    assert!(desktop.calls.contains(&("capture".into(), "0,0,100,50,shot.png".into())));
+    assert!(
+        desktop
+            .calls
+            .contains(&("capture".into(), "0,0,100,50,shot.png".into()))
+    );
 }
 
 #[test]
 fn a_click_clicks_at_the_position() {
     let (report, desktop) = run("Click 40, 50");
     assert!(report.ok);
-    assert!(desktop.calls.contains(&("click".into(), "40,50,left,1".into())));
+    assert!(
+        desktop
+            .calls
+            .contains(&("click".into(), "40,50,left,1".into()))
+    );
 }
 
 #[test]
@@ -344,14 +397,21 @@ fn a_requires_that_is_met_is_accepted() {
 fn a_requires_that_is_not_met_fails_the_script() {
     let (report, _desktop) = run("#Requires AutoHotkey v1\nMsgBox \"ok\"");
     assert!(!report.ok);
-    assert!(report.error.as_deref().unwrap_or("").contains("requires"), "{:?}", report.error);
+    assert!(
+        report.error.as_deref().unwrap_or("").contains("requires"),
+        "{:?}",
+        report.error
+    );
 }
 
 #[test]
 fn a_directive_this_runtime_does_not_carry_fails_with_the_reason() {
     let (report, _desktop) = run("#UseHook\nMsgBox \"ok\"");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the hotkeys are not carried by this runtime."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the hotkeys are not carried by this runtime.")
+    );
     assert_eq!(report.error_line, Some(1));
 }
 
@@ -366,7 +426,8 @@ fn a_loop_that_parses_a_text_runs_the_body_once_for_each_piece() {
 fn a_loop_that_parses_a_text_counts_the_pieces() {
     let (report, _desktop) = run("Loop Parse \"a,b\", \",\" {\n  Send \"%A_Index%\"\n}");
     assert!(report.ok, "{:?}", report.error);
-    let (report, _desktop) = run("Loop Parse \"a,b\", \",\" {\n  last := A_Index\n}\nSend \"%last%\"");
+    let (report, _desktop) =
+        run("Loop Parse \"a,b\", \",\" {\n  last := A_Index\n}\nSend \"%last%\"");
     assert!(report.ok, "{:?}", report.error);
 }
 
@@ -374,14 +435,19 @@ fn a_loop_that_parses_a_text_counts_the_pieces() {
 fn a_loop_over_the_registry_fails_with_the_reason() {
     let (report, _desktop) = run("Loop Reg \"HKLM\\\\*\" {\n}");
     assert!(!report.ok);
-    assert!(report.error.as_deref().unwrap_or("").contains("Windows"), "{:?}", report.error);
+    assert!(
+        report.error.as_deref().unwrap_or("").contains("Windows"),
+        "{:?}",
+        report.error
+    );
 }
 
 #[test]
 fn a_string_is_read_where_it_is_written() {
     // The name is the name of the scope that is writing the string, so
     // a string a function returns still knows its own parameter.
-    let (report, desktop) = run("Greet(name) {\n  return \"hello %name%\"\n}\nSend Greet(\"world\")");
+    let (report, desktop) =
+        run("Greet(name) {\n  return \"hello %name%\"\n}\nSend Greet(\"world\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["hello world"]);
 }
@@ -467,20 +533,16 @@ fn a_property_can_be_defined_and_taken_away() {
 fn an_object_that_is_called_is_asked_through_call() {
     // Measured on the binary of v2.0.19 on 2026-10-30: the object is
     // asked through its `Call` method.
-    let (report, desktop) = run(
-        "class Adder {\n  Call(a, b) {\n    return a + b\n  }\n}\n\
-         add := Adder()\nSend add(2, 3)",
-    );
+    let (report, desktop) = run("class Adder {\n  Call(a, b) {\n    return a + b\n  }\n}\n\
+         add := Adder()\nSend add(2, 3)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["5"]);
 }
 
 #[test]
 fn an_object_without_a_call_method_says_so() {
-    let (report, _) = run(
-        "class Plain {\n}\n\
-         p := Plain()\nMsgBox p(2, 3)",
-    );
+    let (report, _) = run("class Plain {\n}\n\
+         p := Plain()\nMsgBox p(2, 3)");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -518,9 +580,8 @@ fn a_property_of_an_instance_can_be_read() {
 
 #[test]
 fn a_property_of_an_instance_can_be_written() {
-    let (report, desktop) = run(
-        "class Point {\n  x := 3\n}\np := Point()\np.x := 7\nSend \"%p.x%\"",
-    );
+    let (report, desktop) =
+        run("class Point {\n  x := 3\n}\np := Point()\np.x := 7\nSend \"%p.x%\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["7"]);
 }
@@ -537,21 +598,17 @@ fn a_method_sees_the_object_it_was_called_on() {
 
 #[test]
 fn a_class_can_extend_another_one() {
-    let (report, desktop) = run(
-        "class Base {\n  Who() {\n    return \"base\"\n  }\n}\n\
+    let (report, desktop) = run("class Base {\n  Who() {\n    return \"base\"\n  }\n}\n\
          class Child extends Base {\n  Who() {\n    return \"child\"\n  }\n}\n\
-         c := Child()\nSend c.Who()",
-    );
+         c := Child()\nSend c.Who()");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["child"]);
 }
 
 #[test]
 fn a_method_of_the_class_it_extends_is_there() {
-    let (report, desktop) = run(
-        "class Base {\n  Who() {\n    return \"base\"\n  }\n}\n\
-         class Child extends Base {\n}\nc := Child()\nSend c.Who()",
-    );
+    let (report, desktop) = run("class Base {\n  Who() {\n    return \"base\"\n  }\n}\n\
+         class Child extends Base {\n}\nc := Child()\nSend c.Who()");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["base"]);
 }
@@ -643,7 +700,8 @@ fn a_parameter_may_carry_a_default() {
 #[test]
 fn a_method_called_with_too_few_arguments_fails_with_the_reason() {
     // Measured on the binary of v2.0.19 on 2026-10-30.
-    let (report, _desktop) = run("class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method()");
+    let (report, _desktop) =
+        run("class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method()");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -654,7 +712,8 @@ fn a_method_called_with_too_few_arguments_fails_with_the_reason() {
 
 #[test]
 fn a_method_called_with_too_many_arguments_fails_with_the_reason() {
-    let (report, _desktop) = run("class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method(1, 2)");
+    let (report, _desktop) =
+        run("class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method(1, 2)");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -665,14 +724,18 @@ fn a_method_called_with_too_many_arguments_fails_with_the_reason() {
 
 #[test]
 fn a_method_without_parameters_runs_when_none_are_given() {
-    let (report, desktop) = run("class Thing {\n  Method() {\n    return \"the answer\"\n  }\n}\nt := Thing()\nSend t.Method()");
+    let (report, desktop) = run(
+        "class Thing {\n  Method() {\n    return \"the answer\"\n  }\n}\nt := Thing()\nSend t.Method()",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["the answer"]);
 }
 
 #[test]
 fn a_method_takes_the_default_of_a_parameter_that_is_not_given() {
-    let (report, desktop) = run("class Thing {\n  Method(a := \"the default\") {\n    return a\n  }\n}\nt := Thing()\nSend t.Method()");
+    let (report, desktop) = run(
+        "class Thing {\n  Method(a := \"the default\") {\n    return a\n  }\n}\nt := Thing()\nSend t.Method()",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["the default"]);
 }
@@ -754,7 +817,10 @@ fn an_endless_loop_is_stopped() {
 fn a_while_body_runs_at_most_a_thousand_times() {
     let (report, _desktop) = run("while (true) {\n}");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the loop ran more than 1000 times"));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the loop ran more than 1000 times")
+    );
     assert_eq!(report.error_line, Some(1));
 }
 
@@ -764,15 +830,22 @@ fn a_script_runs_at_most_twenty_thousand_statements() {
     // it, which is why the message is about statements and not about turns.
     let (report, _desktop) = run("Loop 100000 {\n  Send \"x\"\n}");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the script ran more than 20000 statements"));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the script ran more than 20000 statements")
+    );
     assert!(report.error_line.is_some());
 }
 
 #[test]
 fn a_script_that_outlives_its_timeout_is_stopped() {
-    let (report, _desktop) = run_with_timeout("Sleep 200\nMsgBox \"late\"", Duration::from_millis(50));
+    let (report, _desktop) =
+        run_with_timeout("Sleep 200\nMsgBox \"late\"", Duration::from_millis(50));
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the script ran for more than 0.05s"));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the script ran for more than 0.05s")
+    );
     // The timeout is not a statement: it stops the script between two of
     // them, so it does not know a line, and it says so by leaving it out.
     assert_eq!(report.error_line, None);
@@ -826,16 +899,16 @@ fn a_switch_runs_the_case_that_matches() {
 
 #[test]
 fn a_switch_without_a_match_runs_the_default() {
-    let (report, desktop) = run(
-        "x := 9\nSwitch x {\n  Case 1:\n    Send \"one\"\n  Default:\n    Send \"other\"\n}",
-    );
+    let (report, desktop) =
+        run("x := 9\nSwitch x {\n  Case 1:\n    Send \"one\"\n  Default:\n    Send \"other\"\n}");
     assert!(report.ok);
     assert_eq!(desktop.types(), vec!["other"]);
 }
 
 #[test]
 fn a_function_returns_a_value() {
-    let (report, desktop) = run("Add(a, b) {\n  return a + b\n}\ntotal := Add(2, 3)\nSend \"%total%\"");
+    let (report, desktop) =
+        run("Add(a, b) {\n  return a + b\n}\ntotal := Add(2, 3)\nSend \"%total%\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["5"]);
 }
@@ -849,23 +922,24 @@ fn a_function_can_be_called_as_a_statement() {
 
 #[test]
 fn a_function_may_be_defined_after_the_call() {
-    let (report, desktop) = run("text := Later()\nSend \"%text%\"\nLater() {\n  return \"here\"\n}");
+    let (report, desktop) =
+        run("text := Later()\nSend \"%text%\"\nLater() {\n  return \"here\"\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["here"]);
 }
 
 #[test]
 fn a_return_leaves_the_function_at_once() {
-    let (report, desktop) = run(
-        "text := First()\nSend \"%text%\"\nFirst() {\n  return \"one\"\n  Send \"never\"\n}",
-    );
+    let (report, desktop) =
+        run("text := First()\nSend \"%text%\"\nFirst() {\n  return \"one\"\n  Send \"never\"\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["one"]);
 }
 
 #[test]
 fn a_variable_assigned_inside_a_function_is_local() {
-    let (report, _desktop) = run("x := \"outside\"\nSet() {\n  x := \"inside\"\n}\nSet()\nMsgBox x");
+    let (report, _desktop) =
+        run("x := \"outside\"\nSet() {\n  x := \"inside\"\n}\nSet()\nMsgBox x");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["outside"]);
 }
@@ -884,10 +958,8 @@ fn exitapp_ends_the_script_and_carries_a_code() {
 fn a_parameter_written_by_reference_is_an_alias_of_the_variable_of_the_caller() {
     // The ByRef marker of v2: the parameter and the variable of the
     // caller are the same thing.
-    let (report, _desktop) = run(
-        "Swap(&a, &b) {\n  tmp := a\n  a := b\n  b := tmp\n}\n\
-         a := \"one\"\nb := \"two\"\nSwap(&a, &b)",
-    );
+    let (report, _desktop) = run("Swap(&a, &b) {\n  tmp := a\n  a := b\n  b := tmp\n}\n\
+         a := \"one\"\nb := \"two\"\nSwap(&a, &b)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("a"), Some(&Value::Text("two".into())));
     assert_eq!(report.variables.get("b"), Some(&Value::Text("one".into())));
@@ -909,9 +981,7 @@ fn a_parameter_written_by_reference_wants_a_reference() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some(
-            "Parameter #1 of Show requires a variable reference, but received an Integer."
-        )
+        Some("Parameter #1 of Show requires a variable reference, but received an Integer.")
     );
 }
 
@@ -921,14 +991,20 @@ fn a_parameter_written_by_reference_that_the_call_leaves_out_is_a_local_one() {
     // one when the call does not give it a reference.
     let (report, _desktop) = run("Show(&x := \"default\") {\n  return x\n}\nout := Show()");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("out"), Some(&Value::Text("default".into())));
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Text("default".into()))
+    );
 }
 
 #[test]
 fn a_reference_is_not_a_value() {
     let (report, _desktop) = run("x := 1\ny := &x\nout := \"v=\" . y");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a String but got a VarRef."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a String but got a VarRef.")
+    );
 }
 
 #[test]
@@ -937,7 +1013,10 @@ fn a_plain_parameter_that_is_given_a_reference_holds_it() {
     // not written `&x` holds it.
     let (report, _desktop) = run("Show(x) {\n  out := \"in=\" . x\n}\ny := \"orig\"\nShow(&y)");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a String but got a VarRef."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a String but got a VarRef.")
+    );
 }
 
 #[test]
@@ -974,7 +1053,9 @@ fn a_built_in_variable_cannot_have_its_reference_taken() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This built-in variable cannot have its reference taken.\n     Specifically: A_ScreenWidth")
+        Some(
+            "This built-in variable cannot have its reference taken.\n     Specifically: A_ScreenWidth"
+        )
     );
 }
 
@@ -998,12 +1079,16 @@ fn a_loop_over_the_files_takes_the_pattern_of_v2() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["one.txt", "two.txt"]);
     assert!(
-        desktop.calls.contains(&("working_directory".to_string(), String::new())),
+        desktop
+            .calls
+            .contains(&("working_directory".to_string(), String::new())),
         "{:?}",
         desktop.calls
     );
     assert!(
-        desktop.calls.contains(&("list_files".to_string(), "/work|*.txt|".to_string())),
+        desktop
+            .calls
+            .contains(&("list_files".to_string(), "/work|*.txt|".to_string())),
         "{:?}",
         desktop.calls
     );
@@ -1024,7 +1109,9 @@ fn a_loop_over_the_files_writes_the_variables_of_v2() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.variables.get("out"),
-        Some(&Value::Text("two.txt|txt|/work|/work/two.txt|/work/two".into()))
+        Some(&Value::Text(
+            "two.txt|txt|/work|/work/two.txt|/work/two".into()
+        ))
     );
 }
 
@@ -1040,7 +1127,9 @@ fn the_short_names_of_the_files_are_refused_with_the_reason() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("the short names of the files are a thing of Windows, and this desktop is not Windows.")
+        Some(
+            "the short names of the files are a thing of Windows, and this desktop is not Windows."
+        )
     );
     assert_eq!(report.error_line, Some(2));
 }
@@ -1059,7 +1148,9 @@ fn a_loop_over_the_files_takes_the_mode_of_v2() {
     let (report, desktop) = run("Loop Files \"*.txt\", \"R\" {\n  Send \"%A_LoopFileName%\"\n}");
     assert!(report.ok, "{:?}", report.error);
     assert!(
-        desktop.calls.contains(&("list_files".to_string(), "/work|*.txt|R".to_string())),
+        desktop
+            .calls
+            .contains(&("list_files".to_string(), "/work|*.txt|R".to_string())),
         "{:?}",
         desktop.calls
     );
@@ -1139,9 +1230,7 @@ fn the_match_operator_of_v2_is_the_tilde_one() {
 
 #[test]
 fn a_list_can_be_picked_by_its_position() {
-    let (report, _desktop) = run(
-        "MouseGetPos &x, &y\nfound := [10, 20]\nfx := found[1]",
-    );
+    let (report, _desktop) = run("MouseGetPos &x, &y\nfound := [10, 20]\nfx := found[1]");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
     assert_eq!(report.variables.get("y"), Some(&Value::Int(0)));
@@ -1164,7 +1253,10 @@ fn a_text_cannot_be_picked_by_its_position() {
 fn a_letter_is_taken_out_of_a_text_with_substr() {
     let (report, _desktop) = run("letter := SubStr(\"hello\", 2, 1)");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("letter"), Some(&Value::Text("e".into())));
+    assert_eq!(
+        report.variables.get("letter"),
+        Some(&Value::Text("e".into()))
+    );
 }
 
 #[test]
@@ -1181,7 +1273,10 @@ fn a_position_that_is_not_there_is_an_error() {
 fn a_modifier_before_a_key_is_a_modifier() {
     let (report, desktop) = run("Send \"^a\"");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("key".to_string(), "ctrl+a".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("key".to_string(), "ctrl+a".to_string())]
+    );
 }
 
 #[test]
@@ -1202,7 +1297,10 @@ fn a_modifier_in_braces_is_text() {
 fn a_key_that_goes_down_stays_down() {
     let (report, desktop) = run("Send \"{a down}\"");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("key_down".to_string(), "a".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("key_down".to_string(), "a".to_string())]
+    );
 }
 
 #[test]
@@ -1229,7 +1327,10 @@ fn a_mouse_button_can_be_held_down() {
 fn a_click_can_have_a_count() {
     let (report, desktop) = run("Click 10, 20, 2");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,left,2".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("click".to_string(), "10,20,left,2".to_string())]
+    );
 }
 
 #[test]
@@ -1239,7 +1340,10 @@ fn a_click_can_name_the_button_and_the_count() {
     // the word `right` is a variable of the script.
     let (report, desktop) = run("right := \"right\"\nClick 10, 20, right, 3");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,right,3".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("click".to_string(), "10,20,right,3".to_string())]
+    );
 }
 
 #[test]
@@ -1248,14 +1352,20 @@ fn a_number_alone_is_the_number_of_clicks() {
     // clicks: `Click 2` is a double click where the pointer is.
     let (report, desktop) = run("Click 2");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("click".to_string(), "0,0,left,2".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("click".to_string(), "0,0,left,2".to_string())]
+    );
 }
 
 #[test]
 fn the_components_of_a_click_may_be_in_one_string() {
     let (report, desktop) = run("Click \"100 200 Right\"");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("click".to_string(), "100,200,right,1".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("click".to_string(), "100,200,right,1".to_string())]
+    );
 }
 
 #[test]
@@ -1271,9 +1381,8 @@ fn a_click_that_would_hold_the_button_fails_with_the_reason() {
 
 #[test]
 fn a_mouse_button_can_be_held_at_a_place() {
-    let (report, desktop) = run(
-        "MouseMove 100, 200\nSend \"{LButton down}\"\nSend \"{LButton up}\"",
-    );
+    let (report, desktop) =
+        run("MouseMove 100, 200\nSend \"{LButton down}\"\nSend \"{LButton up}\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.calls.len(), 3);
 }
@@ -1293,8 +1402,7 @@ fn a_pixel_search_finds_the_colour() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the command takes
     // seven parameters, the first two are references, and it answers one
     // when the colour is there.
-    let (report, _desktop) =
-        run("found := PixelSearch(&x, &y, 0, 0, 100, 100, \"#ff8800\")");
+    let (report, _desktop) = run("found := PixelSearch(&x, &y, 0, 0, 100, 100, \"#ff8800\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("found"), Some(&Value::Int(1)));
     assert_eq!(report.variables.get("x"), Some(&Value::Int(10)));
@@ -1303,8 +1411,7 @@ fn a_pixel_search_finds_the_colour() {
 
 #[test]
 fn a_pixel_search_that_finds_nothing_answers_zero() {
-    let (report, _desktop) =
-        run("found := PixelSearch(&x, &y, 0, 0, 100, 100, \"#ffffff\")");
+    let (report, _desktop) = run("found := PixelSearch(&x, &y, 0, 0, 100, 100, \"#ffffff\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("found"), Some(&Value::Int(0)));
     // The place of v2 is blank when the colour is not there.
@@ -1314,7 +1421,10 @@ fn a_pixel_search_that_finds_nothing_answers_zero() {
 
 #[test]
 fn win_active_says_whether_the_window_is_active() {
-    let mut desktop = Fake { active: Some("Steam".into()), ..Default::default() };
+    let mut desktop = Fake {
+        active: Some("Steam".into()),
+        ..Default::default()
+    };
     let statements = parse("active := WinActive(\"Steam\")").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(report.ok, "{:?}", report.error);
@@ -1356,7 +1466,10 @@ fn win_active_of_a_window_that_is_not_there_is_false() {
 /// and the desktop is told it.
 #[test]
 fn the_mode_of_the_matching_of_the_titles_is_the_one_of_the_script() {
-    let mut desktop = Fake { windows: vec!["Steam Client".into()], ..Default::default() };
+    let mut desktop = Fake {
+        windows: vec!["Steam Client".into()],
+        ..Default::default()
+    };
     let statements = parse(
         "SetTitleMatchMode(3)\nthere := WinExist(\"Steam\")\nSetTitleMatchMode(1)\nstarts := WinExist(\"Steam\")\nSetTitleMatchMode(2)\ninside := WinExist(\"Steam\")\nSetTitleMatchMode(\"RegEx\")\npattern := WinExist(\"Steam .*\")\nfolded := WinExist(\"i)steam .*\")\nSetTitleMatchMode(2)",
     )
@@ -1414,7 +1527,10 @@ fn win_get_title_says_the_title_of_the_window_that_has_the_focus() {
     let statements = parse("title := WinGetTitle()").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("title"), Some(&Value::Text("Firefox".into())));
+    assert_eq!(
+        report.variables.get("title"),
+        Some(&Value::Text("Firefox".into()))
+    );
 }
 
 /// A desktop with no window in front has no title to give.
@@ -1424,12 +1540,18 @@ fn win_get_title_without_a_window_in_front_is_empty() {
     let statements = parse("title := WinGetTitle()").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("title"), Some(&Value::Text(String::new())));
+    assert_eq!(
+        report.variables.get("title"),
+        Some(&Value::Text(String::new()))
+    );
 }
 
 #[test]
 fn a_window_question_that_cannot_be_answered_fails_the_script() {
-    let mut desktop = Fake { window_answer_unknown: true, ..Default::default() };
+    let mut desktop = Fake {
+        window_answer_unknown: true,
+        ..Default::default()
+    };
     let statements = parse("active := WinActive(\"Steam\")").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
@@ -1475,14 +1597,20 @@ fn the_is_operator_says_whether_an_object_is_of_a_class() {
 fn the_is_operator_wants_a_class() {
     let (report, _desktop) = run("class Alpha {\n}\nb := Alpha()\na := b is \"Alpha\"");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a Class but got a String."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a Class but got a String.")
+    );
 }
 
 #[test]
 fn a_class_has_a_prototype() {
     let (report, _desktop) = run("class Alpha {\n}\np := Alpha.Prototype\nt := Type(Alpha)");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("t"), Some(&Value::Text("Class".into())));
+    assert_eq!(
+        report.variables.get("t"),
+        Some(&Value::Text("Class".into()))
+    );
     match report.variables.get("p") {
         Some(Value::Object(object)) => assert_eq!(object.borrow().class, "prototype"),
         other => panic!("the prototype is {other:?}"),
@@ -1498,16 +1626,24 @@ fn the_text_has_its_functions() {
     assert_eq!(report.variables.get("a"), Some(&Value::Int(5)));
     // AutoHotkey counts the positions from one.
     assert_eq!(report.variables.get("b"), Some(&Value::Text("ello".into())));
-    assert_eq!(report.variables.get("c"), Some(&Value::Text("heLLo".into())));
+    assert_eq!(
+        report.variables.get("c"),
+        Some(&Value::Text("heLLo".into()))
+    );
     assert_eq!(report.variables.get("d"), Some(&Value::Int(3)));
     assert_eq!(report.variables.get("e"), Some(&Value::Text("HI".into())));
-    assert_eq!(report.variables.get("f"), Some(&Value::Text("2 of 3".into())));
+    assert_eq!(
+        report.variables.get("f"),
+        Some(&Value::Text("2 of 3".into()))
+    );
     assert_eq!(report.variables.get("g"), Some(&Value::Text("2.35".into())));
 }
 
 #[test]
 fn a_function_with_the_name_of_a_builtin_wins() {
-    let (report, desktop) = run("StrUpper(text) {\n  return \"mine\"\n}\nresult := StrUpper(\"hi\")\nSend \"%result%\"");
+    let (report, desktop) = run(
+        "StrUpper(text) {\n  return \"mine\"\n}\nresult := StrUpper(\"hi\")\nSend \"%result%\"",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["mine"]);
 }
@@ -1560,9 +1696,7 @@ fn an_item_of_a_class_of_the_script_may_not_be_written() {
     // v2.0.19 asks only the `__Item` property of the item, and the
     // meta-functions answer for the properties that are not there.
     // Measured on the binary of v2.0.19 on 2026-10-30.
-    let (report, _desktop) = run(
-        "class Box {\n}\nb := Box()\nb[\"a\"] := 1",
-    );
+    let (report, _desktop) = run("class Box {\n}\nb := Box()\nb[\"a\"] := 1");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -1659,7 +1793,10 @@ fn the_name_of_a_property_of_an_object_literal_must_be_a_name() {
 #[test]
 fn a_property_of_an_object_literal_needs_its_colon() {
     let error = parse("x := {a 1}").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
     assert_eq!(error.line, 1);
 }
 
@@ -1678,15 +1815,30 @@ fn the_literal_of_an_object_of_the_v2_is_a_list_of_parameters() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["0".to_string()]);
     let error = parse("x := {, b: 1}").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
     let error = parse("x := {, 1, 2}").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
     let error = parse("x := {b: 1, , c: 2}").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
     let error = parse("x := {b: 1, c}").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
     let error = parse("x := {1, 2}").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
 }
 
 /// The blank at the end of the literal of an object of the v2 is accepted.
@@ -1760,9 +1912,8 @@ fn the_arrow_function_without_parentheses_is_a_function() {
 
 #[test]
 fn the_arrow_function_closes_over_the_scope_where_it_was_written() {
-    let (report, _desktop) = run(
-        "Outer() {\n    n := 10\n    f := (a) => a + n\n    return f(1)\n}\nMsgBox Outer()",
-    );
+    let (report, _desktop) =
+        run("Outer() {\n    n := 10\n    f := (a) => a + n\n    return f(1)\n}\nMsgBox Outer()");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["11"]);
 }
@@ -1906,7 +2057,10 @@ fn a_switch_that_is_not_closed_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-11-01: the switch that is
     // empty names the statement of it.
     let error = parse("Switch 1 {").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"}\"\n     Specifically: Switch 1 {");
+    assert_eq!(
+        error.message,
+        "Missing \"}\"\n     Specifically: Switch 1 {"
+    );
 }
 
 #[test]
@@ -1935,7 +2089,10 @@ fn a_token_that_is_not_wanted_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the token is named,
     // and the line of the script says where it was.
     let error = parse("x := 1 )").expect_err("does not parse");
-    assert_eq!(error.message, "Unexpected \")\"\n     Specifically: x := 1 )");
+    assert_eq!(
+        error.message,
+        "Unexpected \")\"\n     Specifically: x := 1 )"
+    );
 }
 
 #[test]
@@ -1983,21 +2140,30 @@ fn the_concatenation_of_an_object_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the concatenation
     // wants a text or a number, and the message names the kind of the value
     // that arrived.
-    assert_eq!(report.error.as_deref(), Some("Expected a String but got an Object."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a String but got an Object.")
+    );
 }
 
 #[test]
 fn the_concatenation_of_an_array_is_refused() {
     let (report, _desktop) = run("x := [1]\nMsgBox \"a\" . x");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a String but got an Array."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a String but got an Array.")
+    );
 }
 
 #[test]
 fn the_concatenation_of_a_function_is_refused() {
     let (report, _desktop) = run("x := () => 1\nMsgBox \"a\" . x");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a String but got a Func."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a String but got a Func.")
+    );
 }
 
 #[test]
@@ -2011,21 +2177,30 @@ fn the_concatenation_of_a_number_is_a_text() {
 fn the_maths_refuses_an_object() {
     let (report, _desktop) = run("x := {}\nMsgBox 1 + x");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a Number but got an Object."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a Number but got an Object.")
+    );
 }
 
 #[test]
 fn the_maths_refuses_an_array() {
     let (report, _desktop) = run("x := [1]\nMsgBox 1 + x");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a Number but got an Array."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a Number but got an Array.")
+    );
 }
 
 #[test]
 fn the_maths_refuses_a_text_that_is_not_a_number() {
     let (report, _desktop) = run("x := \"a\"\nMsgBox 1 + x");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a Number but got a String."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a Number but got a String.")
+    );
 }
 
 #[test]
@@ -2055,7 +2230,10 @@ fn the_whole_number_of_the_bitwise_operations_is_a_number_first() {
 fn a_number_with_a_point_is_not_a_whole_number() {
     let (report, _desktop) = run("MsgBox 1 & 1.5");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected an Integer but got a Float."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected an Integer but got a Float.")
+    );
 }
 
 #[test]
@@ -2104,7 +2282,8 @@ fn a_name_that_begins_with_a_number_does_not_parse() {
 
 #[test]
 fn an_item_may_be_written_with_an_operator() {
-    let (report, desktop) = run("m := Map()\nm[\"a\"] := 1\nm[\"a\"] += 2\nv := m[\"a\"]\nSend \"%v%\"");
+    let (report, desktop) =
+        run("m := Map()\nm[\"a\"] := 1\nm[\"a\"] += 2\nv := m[\"a\"]\nSend \"%v%\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["3"]);
 }
@@ -2157,7 +2336,8 @@ fn a_for_walks_the_keys_of_a_map() {
 
 #[test]
 fn a_for_with_two_variables_walks_the_keys_and_the_values_of_a_map() {
-    let (report, desktop) = run("m := Map()\nm.Set(\"a\", 1)\nfor k, v in m {\n  Send \"%k%=%v%\"\n}");
+    let (report, desktop) =
+        run("m := Map()\nm.Set(\"a\", 1)\nfor k, v in m {\n  Send \"%k%=%v%\"\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["a=1"]);
 }
@@ -2178,18 +2358,16 @@ fn a_for_counts_its_turns() {
 
 #[test]
 fn a_break_leaves_a_for() {
-    let (report, desktop) = run(
-        "for v in [\"a\", \"b\", \"c\"] {\n  If v = \"b\" {\n    Break\n  }\n  Send v\n}",
-    );
+    let (report, desktop) =
+        run("for v in [\"a\", \"b\", \"c\"] {\n  If v = \"b\" {\n    Break\n  }\n  Send v\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["a"]);
 }
 
 #[test]
 fn a_continue_skips_the_rest_of_a_for() {
-    let (report, desktop) = run(
-        "for v in [\"a\", \"b\"] {\n  If v = \"a\" {\n    Continue\n  }\n  Send v\n}",
-    );
+    let (report, desktop) =
+        run("for v in [\"a\", \"b\"] {\n  If v = \"a\" {\n    Continue\n  }\n  Send v\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["b"]);
 }
@@ -2236,9 +2414,8 @@ fn a_for_walks_what_a_class_of_the_script_enumerates() {
 fn an_enumerator_that_is_a_list_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the enumerator of
     // v2 is something that can be called, and a list is not one.
-    let (report, _desktop) = run(
-        "class Bag {\n  __Enum(n) {\n    return [\"a\", \"b\"]\n  }\n}\nfor v in Bag() {\n}",
-    );
+    let (report, _desktop) =
+        run("class Bag {\n  __Enum(n) {\n    return [\"a\", \"b\"]\n  }\n}\nfor v in Bag() {\n}");
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("Value not enumerable."));
 }
@@ -2247,16 +2424,16 @@ fn an_enumerator_that_is_a_list_is_refused() {
 fn an_enumerator_that_is_a_number_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a value that is
     // not an object at all is a mismatch of the type.
-    let (report, _desktop) = run(
-        "class Bag {\n  __Enum(n) {\n    return 5\n  }\n}\nfor v in Bag() {\n}",
-    );
+    let (report, _desktop) =
+        run("class Bag {\n  __Enum(n) {\n    return 5\n  }\n}\nfor v in Bag() {\n}");
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("Type mismatch."));
 }
 
 #[test]
 fn a_for_gives_the_variables_back_inside_a_function() {
-    let (report, desktop) = run("f() {\n  v := \"before\"\n  for v in [\"a\"] {\n  }\n  return v\n}\nSend f()");
+    let (report, desktop) =
+        run("f() {\n  v := \"before\"\n  for v in [\"a\"] {\n  }\n  return v\n}\nSend f()");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["before"]);
 }
@@ -2282,7 +2459,10 @@ fn a_for_that_runs_too_long_fails_with_the_reason() {
     let (report, _desktop) = run("a := []\nLoop 1001 {\n  a.Push(1)\n}\nfor v in a {\n}");
     assert!(!report.ok);
     let error = report.error.unwrap_or_default();
-    assert!(error.contains("the loop ran more than 1000 times"), "{error}");
+    assert!(
+        error.contains("the loop ran more than 1000 times"),
+        "{error}"
+    );
 }
 
 // -- the error handling --------------------------------------------------------
@@ -2304,9 +2484,8 @@ fn a_try_catches_the_error_of_the_runtime() {
 #[test]
 fn a_variable_of_a_function_that_has_no_value_is_a_local_one() {
     // Measured on the binary of v2.0.19 on 2026-10-30.
-    let (report, _) = run(
-        "Helper()\n\nHelper() {\n    for answer in [\"a\"] {\n    }\n    MsgBox answer\n}",
-    );
+    let (report, _) =
+        run("Helper()\n\nHelper() {\n    for answer in [\"a\"] {\n    }\n    MsgBox answer\n}");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -2568,9 +2747,8 @@ fn a_method_of_the_script_is_a_value() {
 fn a_name_that_is_a_statement_calls_the_method() {
     // Measured on the binary of v2.0.19 on 2026-10-29: a name that is a
     // statement is a call, and the parentheses may be left out.
-    let (report, _) = run(
-        "class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method",
-    );
+    let (report, _) =
+        run("class Thing {\n  Method(a) {\n    return a\n  }\n}\nt := Thing()\nt.Method");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -2652,9 +2830,8 @@ fn a_function_says_whether_it_is_built_in() {
 #[test]
 fn an_error_carries_its_message() {
     // Measured on the binary of v2.0.19 on 2026-10-30.
-    let (report, _) = run(
-        "try {\n    throw Error(\"the message\")\n} catch as e {\n    MsgBox e.Message\n}",
-    );
+    let (report, _) =
+        run("try {\n    throw Error(\"the message\")\n} catch as e {\n    MsgBox e.Message\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["the message"]);
 }
@@ -2915,7 +3092,10 @@ fn a_super_in_a_grandchild_asks_the_middle() {
         "MsgBox d.m()\n",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["the derived and the middle and the base"]);
+    assert_eq!(
+        report.output,
+        vec!["the derived and the middle and the base"]
+    );
 }
 
 #[test]
@@ -3249,9 +3429,8 @@ fn the_class_of_a_class_is_a_class() {
 
 #[test]
 fn the_class_of_a_prototype_is_the_class_it_is_the_prototype_of() {
-    let (report, _desktop) = run(
-        "class Thing {\n}\nMsgBox Thing.Prototype.__Class \" \" Map.Prototype.__Class",
-    );
+    let (report, _desktop) =
+        run("class Thing {\n}\nMsgBox Thing.Prototype.__Class \" \" Map.Prototype.__Class");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Thing Map"]);
 }
@@ -3296,7 +3475,10 @@ fn the_assignment_of_a_call_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the assignment of
     // an expression is refused at the load, and the text of it is named.
     let error = parse("StrLen(\"abc\") := 1").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 1");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: := 1"
+    );
 }
 
 #[test]
@@ -3354,7 +3536,10 @@ fn a_group_is_not_a_literal_text() {
     // is not a constant, and v2 refuses it at the run and not at the load.
     let (report, _desktop) = run("x := (\"a\") + 0");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a Number but got a String."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a Number but got a String.")
+    );
 }
 
 #[test]
@@ -3405,7 +3590,10 @@ fn the_condition_of_an_if_is_not_there() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the `if` needs a
     // condition, and it says so in its own words.
     let error = parse("if\n    x := 1").expect_err("does not parse");
-    assert_eq!(error.message, "\"If\" requires at least 1 parameter.\n     Specifically: if");
+    assert_eq!(
+        error.message,
+        "\"If\" requires at least 1 parameter.\n     Specifically: if"
+    );
 }
 
 #[test]
@@ -3413,7 +3601,10 @@ fn the_class_needs_its_braces() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the class names the
     // line of it.
     let error = parse("class Thing\n    x := 1").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"{\"\n     Specifically: class Thing");
+    assert_eq!(
+        error.message,
+        "Missing \"{\"\n     Specifically: class Thing"
+    );
 }
 
 #[test]
@@ -3444,7 +3635,9 @@ fn the_base_of_an_object_is_the_prototype_of_its_class() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the question is
     // whether the base of the object is the other object, and the chain of
     // the bases is walked.
-    let (report, _desktop) = run("m := Map()\nMsgBox HasBase(m, Map.Prototype) \" \" HasBase(m, Object.Prototype) \" \" HasBase(m, Array.Prototype)");
+    let (report, _desktop) = run(
+        "m := Map()\nMsgBox HasBase(m, Map.Prototype) \" \" HasBase(m, Object.Prototype) \" \" HasBase(m, Array.Prototype)",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 1 0"]);
 }
@@ -3467,7 +3660,8 @@ fn a_class_has_no_base_of_itself() {
 fn the_methods_of_the_base_object_are_the_methods_of_every_object() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
     // base object are inherited.
-    let (report, _desktop) = run("o := {}\nMsgBox HasMethod(o, \"OwnProps\") \" \" HasMethod(o, \"Nothing\")");
+    let (report, _desktop) =
+        run("o := {}\nMsgBox HasMethod(o, \"OwnProps\") \" \" HasMethod(o, \"Nothing\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 0"]);
 }
@@ -3477,7 +3671,8 @@ fn the_question_with_no_name_asks_whether_the_value_is_a_class() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a class has the
     // methods of the base object, and an instance has the methods of its
     // class.
-    let (report, _desktop) = run("m := Map()\nMsgBox HasMethod(Map) \" \" HasMethod(m) \" \" HasMethod({})");
+    let (report, _desktop) =
+        run("m := Map()\nMsgBox HasMethod(Map) \" \" HasMethod(m) \" \" HasMethod({})");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 0 0"]);
 }
@@ -3587,7 +3782,8 @@ fn a_local_may_not_hold_the_class_of_its_name() {
 fn a_local_that_is_declared_may_not_hold_the_class_of_its_name_either() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a local that is
     // declared says the same words without the hint.
-    let (report, _desktop) = run("class Foo {\n}\nf() {\n    local foo\n    foo := Foo()\n    return foo\n}\nf()");
+    let (report, _desktop) =
+        run("class Foo {\n}\nf() {\n    local foo\n    foo := Foo()\n    return foo\n}\nf()");
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -3597,13 +3793,11 @@ fn a_local_that_is_declared_may_not_hold_the_class_of_its_name_either() {
 
 #[test]
 fn every_object_has_the_property_of_the_class_of_it() {
-    let (report, _desktop) = run(
-        "m := Map()\nMsgBox m.HasProp(\"__Class\") \" \" m.HasOwnProp(\"__Class\")",
-    );
+    let (report, _desktop) =
+        run("m := Map()\nMsgBox m.HasProp(\"__Class\") \" \" m.HasOwnProp(\"__Class\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 0"]);
 }
-
 
 #[test]
 fn the_concat_of_a_variable_that_has_no_value_is_an_empty_text() {
@@ -3693,7 +3887,8 @@ fn a_member_of_a_class_that_is_a_name_alone_is_a_line_with_no_action() {
 fn a_goto_goes_to_the_label_and_the_run_goes_on() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the `Goto` jumps to
     // the label and continues the run.
-    let (report, _desktop) = run("if (true) {\n    Goto later\n    MsgBox \"skipped\"\n}\nlater:\nMsgBox \"done\"");
+    let (report, _desktop) =
+        run("if (true) {\n    Goto later\n    MsgBox \"skipped\"\n}\nlater:\nMsgBox \"done\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["done"]);
 }
@@ -3717,7 +3912,10 @@ fn a_goto_to_a_label_that_is_not_there_fails_with_the_reason() {
     // Measured on the binary of v2.0.19 on 2026-11-01: the load refuses the
     // goto whose label is not in the scope, and it names the label.
     let error = parse("if (true) {\n    Goto nowhere\n}").expect_err("does not parse");
-    assert_eq!(error.message, "Label not found in current scope.\n     Specifically: nowhere");
+    assert_eq!(
+        error.message,
+        "Label not found in current scope.\n     Specifically: nowhere"
+    );
     assert_eq!(error.line, 2);
 }
 
@@ -3740,7 +3938,10 @@ fn the_failure_of_a_goto_is_not_taken_by_a_catch() {
     // is not there is refused at the load, and a catch does not take it.
     let error = parse("try {\n    Goto nowhere\n} catch Any as e {\n    MsgBox \"caught\"\n}")
         .expect_err("does not parse");
-    assert_eq!(error.message, "Label not found in current scope.\n     Specifically: nowhere");
+    assert_eq!(
+        error.message,
+        "Label not found in current scope.\n     Specifically: nowhere"
+    );
 }
 
 #[test]
@@ -3749,7 +3950,10 @@ fn a_label_of_a_function_is_not_a_label_of_the_script() {
     // function is not the label of the script, and the load says so.
     let error = parse("f() {\n    Goto inner\n}\nf()\ninner:\nMsgBox \"done\"")
         .expect_err("does not parse");
-    assert_eq!(error.message, "Label not found in current scope.\n     Specifically: inner");
+    assert_eq!(
+        error.message,
+        "Label not found in current scope.\n     Specifically: inner"
+    );
     assert_eq!(error.line, 2);
 }
 
@@ -4016,9 +4220,15 @@ fn the_literal_at_the_start_of_a_statement_holds_no_action() {
     // start of a statement is a line that holds no action, and the line is
     // named with it.
     let error = parse("2").expect_err("does not parse");
-    assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: 2");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: 2"
+    );
     let error = parse("1 + 2").expect_err("does not parse");
-    assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: 1 + 2");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: 1 + 2"
+    );
 }
 
 #[test]
@@ -4026,7 +4236,10 @@ fn the_value_that_came_too_close_names_the_rest_of_the_line() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the value that came
     // too close is named, and the rest of the line is named with it.
     let error = parse("x := \"a\"\"b\"\"c\"").expect_err("does not parse");
-    assert_eq!(error.message, "Missing space or operator before this.\n     Specifically: \"b\"\"c\"");
+    assert_eq!(
+        error.message,
+        "Missing space or operator before this.\n     Specifically: \"b\"\"c\""
+    );
 }
 
 #[test]
@@ -4035,7 +4248,10 @@ fn the_command_carries_the_parenthesis_that_closes_it() {
     // a call whose parentheses are not written, and the text that names the
     // operator carries the one that closes it.
     let error = parse("MsgBox \"x\"2").expect_err("does not parse");
-    assert_eq!(error.message, "Missing space or operator before this.\n     Specifically: 2)");
+    assert_eq!(
+        error.message,
+        "Missing space or operator before this.\n     Specifically: 2)"
+    );
 }
 
 #[test]
@@ -4044,7 +4260,10 @@ fn the_bracket_that_is_not_there_names_the_statement() {
     // not there is named with the statement that holds it, and the lines of
     // the statement are written in one.
     let error = parse("FileAppend \"[\" (\nabc").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \")\"\n     Specifically: FileAppend \"[\" ( abc");
+    assert_eq!(
+        error.message,
+        "Missing \")\"\n     Specifically: FileAppend \"[\" ( abc"
+    );
 }
 
 #[test]
@@ -4129,11 +4348,20 @@ fn the_number_that_carries_a_point_is_refused_by_the_assignment() {
     // carries a point is not refused at the parse: the assignment is the one
     // that is refused, and the text it names is the operator and the value.
     let error = parse("1.5 := 2").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 2");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: := 2"
+    );
     let error = parse("2.0 := 2").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 2");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: := 2"
+    );
     let error = parse("1.5 := 2 + 3").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 2 + 3");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: := 2 + 3"
+    );
 }
 
 #[test]
@@ -4142,11 +4370,20 @@ fn the_compound_assignment_refuses_the_number() {
     // operators refuse the number that is their left side, and the text
     // they name is the operator and the value.
     let error = parse("1 += 2").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: += 2");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: += 2"
+    );
     let error = parse("1e3 -= 2").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: -= 2");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: -= 2"
+    );
     let error = parse("1.5 *= 2").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: *= 2");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: *= 2"
+    );
 }
 
 #[test]
@@ -4182,7 +4419,8 @@ fn the_array_at_the_start_of_a_statement_holds_no_action() {
 fn a_static_keeps_its_value_between_the_calls() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the static of a
     // function is the same one in every call of it.
-    let (report, _desktop) = run("F() {\nstatic count := 0\ncount++\nreturn count\n}\nMsgBox F()\nMsgBox F()");
+    let (report, _desktop) =
+        run("F() {\nstatic count := 0\ncount++\nreturn count\n}\nMsgBox F()\nMsgBox F()");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1", "2"]);
 }
@@ -4191,13 +4429,15 @@ fn a_static_keeps_its_value_between_the_calls() {
 fn the_value_of_a_static_declaration_runs_once() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the value of the
     // declaration runs the first time that declaration is reached.
-    let (report, _desktop) = run("F() {\nstatic count := 5\ncount++\nreturn count\n}\nMsgBox F()\nMsgBox F()");
+    let (report, _desktop) =
+        run("F() {\nstatic count := 5\ncount++\nreturn count\n}\nMsgBox F()\nMsgBox F()");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["6", "7"]);
     // The declaration that the function does not reach on the first call
     // runs its value on the call that reaches it.
-    let (report, _desktop) =
-        run("F(n) {\nif n = 0\nreturn \"none\"\nstatic count := 5\nreturn count\n}\nMsgBox F(0)\nMsgBox F(1)");
+    let (report, _desktop) = run(
+        "F(n) {\nif n = 0\nreturn \"none\"\nstatic count := 5\nreturn count\n}\nMsgBox F(0)\nMsgBox F(1)",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["none", "5"]);
 }
@@ -4223,8 +4463,9 @@ fn a_static_belongs_to_the_function_that_declares_it() {
 fn a_static_shadows_a_global_inside_the_function() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the static of a
     // function is not the global of the same name.
-    let (report, _desktop) =
-        run("global count := 1\nF() {\nstatic count := 2\nreturn count\n}\nMsgBox F()\nMsgBox count");
+    let (report, _desktop) = run(
+        "global count := 1\nF() {\nstatic count := 2\nreturn count\n}\nMsgBox F()\nMsgBox count",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2", "1"]);
 }
@@ -4384,9 +4625,15 @@ fn the_operators_that_want_a_word_of_their_own_are_named_apart() {
         "Syntax error. Did you mean to use \":=\"?\n     Specifically: = 1"
     );
     let error = parse(":= 1").expect_err("does not parse");
-    assert_eq!(error.message, "\":=\" requires that parameter #1 be non-blank.");
+    assert_eq!(
+        error.message,
+        "\":=\" requires that parameter #1 be non-blank."
+    );
     let error = parse("+= 1").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: += 1");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: += 1"
+    );
     let error = parse(", 1").expect_err("does not parse");
     assert_eq!(
         error.message,
@@ -4429,7 +4676,10 @@ fn the_line_that_begins_with_an_operator_continues_the_one_before_it() {
     // read before it is assigned.
     let (report, _desktop) = run("x := 1\n-x");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("This global variable has not been assigned a value."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This global variable has not been assigned a value.")
+    );
     // The assignment that the continuation makes is the one of the
     // operator: `x := 5 - (x := 2)` leaves x with 3.
     let (report, _desktop) = run("x := 5\n-x := 2\nMsgBox x");
@@ -4443,16 +4693,31 @@ fn a_loop_of_a_kind_without_its_parameter_is_refused_at_the_load() {
     // kind checks its parameters when the script loads, and the parameter
     // that is not there is named.
     let error = parse("Loop Read {\n  x := 1\n}").expect_err("does not parse");
-    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop Read ");
+    assert_eq!(
+        error.message,
+        "Parameter #1 required\n     Specifically: Loop Read "
+    );
     let error = parse("Loop Parse {\n  x := 1\n}").expect_err("does not parse");
-    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop Parse ");
+    assert_eq!(
+        error.message,
+        "Parameter #1 required\n     Specifically: Loop Parse "
+    );
     let error = parse("Loop Files {\n  x := 1\n}").expect_err("does not parse");
-    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop Files ");
+    assert_eq!(
+        error.message,
+        "Parameter #1 required\n     Specifically: Loop Files "
+    );
     let error = parse("Loop Reg {\n  x := 1\n}").expect_err("does not parse");
-    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop Reg ");
+    assert_eq!(
+        error.message,
+        "Parameter #1 required\n     Specifically: Loop Reg "
+    );
     // The name of the kind is the one that the script wrote.
     let error = parse("Loop read {\n  x := 1\n}").expect_err("does not parse");
-    assert_eq!(error.message, "Parameter #1 required\n     Specifically: Loop read ");
+    assert_eq!(
+        error.message,
+        "Parameter #1 required\n     Specifically: Loop read "
+    );
 }
 
 #[test]
@@ -4512,9 +4777,15 @@ fn the_count_of_the_loop_is_not_a_name_of_a_kind() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a comma after the
     // count says that the type of the loop is not a valid one.
     let error = parse("Loop 5, 6 {\n}").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid loop type.\n     Specifically: Loop 5, 6 {");
+    assert_eq!(
+        error.message,
+        "Invalid loop type.\n     Specifically: Loop 5, 6 {"
+    );
     let error = parse("Loop Foo, 5 {\n}").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid loop type.\n     Specifically: Loop Foo, 5 {");
+    assert_eq!(
+        error.message,
+        "Invalid loop type.\n     Specifically: Loop Foo, 5 {"
+    );
     // The comma of a call is not there.
     let error = parse("Loop,").expect_err("does not parse");
     assert_eq!(
@@ -4527,7 +4798,8 @@ fn the_count_of_the_loop_is_not_a_name_of_a_kind() {
 fn a_loop_without_a_count_goes_on_until_a_break() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the loop without
     // a count goes on until a break.
-    let (report, _desktop) = run("i := 0\nLoop {\n  i := i + 1\n  If i = 3 {\n    Break\n  }\n}\nMsgBox i");
+    let (report, _desktop) =
+        run("i := 0\nLoop {\n  i := i + 1\n  If i = 3 {\n    Break\n  }\n}\nMsgBox i");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["3"]);
 }
@@ -4539,7 +4811,11 @@ fn a_loop_that_runs_away_is_stopped_by_the_guard_rail() {
     let (report, _desktop) = run("Loop {\n}");
     assert!(!report.ok);
     assert!(
-        report.error.as_deref().unwrap_or("").contains("ran more than"),
+        report
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("ran more than"),
         "{:?}",
         report.error
     );
@@ -4556,7 +4832,8 @@ fn the_fields_of_the_loop_that_parses_are_the_characters_of_the_text() {
     assert_eq!(desktop.types(), vec!["a", " ", "b"]);
     // The characters that are not wanted at the ends of a field are taken
     // away from them.
-    let (report, desktop) = run("Loop Parse \" a , b \", \",\", \" \" {\n  Send \"%A_LoopField%\"\n}");
+    let (report, desktop) =
+        run("Loop Parse \" a , b \", \",\", \" \" {\n  Send \"%A_LoopField%\"\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["a", "b"]);
 }
@@ -4657,15 +4934,20 @@ fn the_stack_of_an_error_names_the_frames_of_the_call() {
 fn the_stack_of_an_error_of_the_section_that_starts_the_script() {
     // The section that starts the script is the last frame of the stack,
     // and it has no name.
-    let (report, _desktop) = run("try {\n  Throw Error(\"boom\")\n} catch Any as err {\n  MsgBox err.Stack\n}");
+    let (report, _desktop) =
+        run("try {\n  Throw Error(\"boom\")\n} catch Any as err {\n  MsgBox err.Stack\n}");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec![" (2) : [] Throw Error(\"boom\")\n> Auto-execute"]);
+    assert_eq!(
+        report.output,
+        vec![" (2) : [] Throw Error(\"boom\")\n> Auto-execute"]
+    );
 }
 
 #[test]
 fn the_stack_of_a_failure_of_the_run_names_the_line_that_failed() {
     // A failure that the script did not throw has a stack too.
-    let (report, _desktop) = run("try {\n  x := 1 / 0\n} catch Any as err {\n  MsgBox err.Stack\n}");
+    let (report, _desktop) =
+        run("try {\n  x := 1 / 0\n} catch Any as err {\n  MsgBox err.Stack\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec![" (2) : [] x := 1 / 0\n> Auto-execute"]);
 }
@@ -4680,7 +4962,9 @@ fn the_stack_names_every_frame_of_the_call() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec![" (8) : [h] Throw Error(\"boom\")\n (5) : [f] h()\n (2) : [g] f()\n (11) : [] g()\n> Auto-execute"]
+        vec![
+            " (8) : [h] Throw Error(\"boom\")\n (5) : [f] h()\n (2) : [g] f()\n (11) : [] g()\n> Auto-execute"
+        ]
     );
 }
 
@@ -4707,13 +4991,11 @@ fn the_write_to_a_member_of_a_call_is_refused_when_the_property_is_read_only() {
     // property that may not be written is refused at the run, with
     // "Property is read-only.", the name of the property in the Extra, and
     // nothing in the What.
-    let (report, _desktop) = run(
-        r#"try {
+    let (report, _desktop) = run(r#"try {
     Map().Count := 1
 } catch Any as e {
     MsgBox e.Message " | " e.What " | " e.Extra
-}"#,
-    );
+}"#);
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Property is read-only. |  | Count"]);
 }
@@ -4724,7 +5006,10 @@ fn the_call_itself_may_not_be_written() {
     // is not a value that may be written, and the refusal is at the load,
     // with the operator and the value named.
     let error = parse("Map() := 1").expect_err("does not parse");
-    assert_eq!(error.message, "Invalid assignment.\n     Specifically: := 1");
+    assert_eq!(
+        error.message,
+        "Invalid assignment.\n     Specifically: := 1"
+    );
     let error = parse("Map()++").expect_err("does not parse");
     assert_eq!(error.message, "Invalid assignment.\n     Specifically: ++");
 }
@@ -4754,9 +5039,15 @@ fn the_hash_that_is_not_a_directive_is_an_illegal_character() {
     // expression, and the command of v2 carries the parenthesis that closes
     // it.
     let error = parse("x := 1 #y").expect_err("does not parse");
-    assert_eq!(error.message, "Illegal character in expression.\n     Specifically: #y");
+    assert_eq!(
+        error.message,
+        "Illegal character in expression.\n     Specifically: #y"
+    );
     let error = parse("MsgBox #y").expect_err("does not parse");
-    assert_eq!(error.message, "Illegal character in expression.\n     Specifically: #y)");
+    assert_eq!(
+        error.message,
+        "Illegal character in expression.\n     Specifically: #y)"
+    );
 }
 
 #[test]
@@ -4888,7 +5179,10 @@ fn the_dynamic_method_is_called_by_its_name() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["This value of type \"Object\" has no method named \"a\".", "MethodError"]
+        vec![
+            "This value of type \"Object\" has no method named \"a\".",
+            "MethodError"
+        ]
     );
 }
 
@@ -4919,7 +5213,10 @@ fn the_double_deref_that_does_not_close_is_refused_at_the_load() {
     let error = parse("x := %a").expect_err("does not parse");
     assert_eq!(error.message, "Missing ending \"%\"\n     Specifically: %a");
     let error = parse("x := a%b").expect_err("does not parse");
-    assert_eq!(error.message, "Missing ending \"%\"\n     Specifically: a%b");
+    assert_eq!(
+        error.message,
+        "Missing ending \"%\"\n     Specifically: a%b"
+    );
 }
 
 #[test]
@@ -5000,7 +5297,10 @@ fn the_button_of_a_click_may_be_the_value_of_a_variable() {
     // variable.
     let (report, desktop) = run("right := \"left\"\nClick 10, 20, right");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,left,1".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("click".to_string(), "10,20,left,1".to_string())]
+    );
 }
 
 #[test]
@@ -5018,7 +5318,10 @@ fn a_brace_that_opens_an_argument_of_a_command_opens_an_object() {
     // refused at the load, because the brace opens the literal of an
     // object and the name of a property is not there.
     let error = parse("Send {Enter}").expect_err("does not parse");
-    assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
 }
 
 #[test]
@@ -5028,7 +5331,10 @@ fn the_button_of_a_mouse_click_is_the_first_parameter() {
     // spread. `MouseClick 10, 20` is refused, and the "10" is the button.
     let (report, _desktop) = run("MouseClick 10, 20");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Parameter #1 of MouseClick is invalid."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #1 of MouseClick is invalid.")
+    );
 }
 
 #[test]
@@ -5036,7 +5342,10 @@ fn the_button_of_a_mouse_click_that_is_not_one_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31.
     let (report, _desktop) = run("MouseClick \"nonsense\"");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Parameter #1 of MouseClick is invalid."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #1 of MouseClick is invalid.")
+    );
 }
 
 #[test]
@@ -5045,16 +5354,18 @@ fn the_button_of_a_mouse_click_is_not_spread() {
     // button are not the words of a click.
     let (report, _desktop) = run("MouseClick \"R D\"");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Parameter #1 of MouseClick is invalid."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Parameter #1 of MouseClick is invalid.")
+    );
 }
 
 #[test]
 fn the_value_of_the_button_that_failed_is_in_the_extra() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the value that
     // failed is in the `Extra`, with the space at the end of it cut.
-    let (report, _desktop) = run(
-        "try {\n    MouseClick \"Left \"\n} catch as err {\n    MsgBox err.Extra\n}",
-    );
+    let (report, _desktop) =
+        run("try {\n    MouseClick \"Left \"\n} catch as err {\n    MsgBox err.Extra\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Left".to_string()]);
 }
@@ -5063,7 +5374,10 @@ fn the_value_of_the_button_that_failed_is_in_the_extra() {
 fn a_mouse_click_takes_the_place_and_the_count() {
     let (report, desktop) = run("MouseClick \"Right\", 10, 20, 3");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("click".to_string(), "10,20,right,3".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("click".to_string(), "10,20,right,3".to_string())]
+    );
 }
 
 #[test]
@@ -5072,7 +5386,10 @@ fn a_mouse_click_with_no_button_is_the_left_one() {
     // not there is the left one.
     let (report, desktop) = run("MouseClick");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(desktop.calls, vec![("click".to_string(), "0,0,left,1".to_string())]);
+    assert_eq!(
+        desktop.calls,
+        vec![("click".to_string(), "0,0,left,1".to_string())]
+    );
 }
 
 #[test]
@@ -5081,23 +5398,28 @@ fn the_wheel_of_a_mouse_click_is_not_carried_yet() {
     // of a `MouseClick`, and the desktop of the tree does not.
     let (report, _desktop) = run("MouseClick \"WheelUp\"");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the wheel is not carried yet."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the wheel is not carried yet.")
+    );
 }
 
 #[test]
 fn the_fourth_button_of_a_mouse_click_is_not_carried_yet() {
     let (report, _desktop) = run("MouseClick \"X1\"");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the fourth button is not carried yet."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the fourth button is not carried yet.")
+    );
 }
 
 #[test]
 fn the_value_that_the_is_refuses_is_in_the_extra() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the value that
     // arrived goes in the `Extra` of the failure, and the `What` is empty.
-    let (report, _desktop) = run(
-        "try {\n    x := 1 is 2\n} catch as err {\n    MsgBox err.Extra\n}",
-    );
+    let (report, _desktop) =
+        run("try {\n    x := 1 is 2\n} catch as err {\n    MsgBox err.Extra\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2".to_string()]);
 }
@@ -5115,9 +5437,8 @@ fn the_value_of_the_list_is_the_last_one() {
 fn every_item_of_the_list_runs() {
     // Measured on the binary of v2.0.19 on 2026-10-31: every item of a
     // parenthesized list runs.
-    let (report, _desktop) = run(
-        "i := 0\nf() {\n    global i\n    i := i + 1\n}\nx := (f(), f())\nMsgBox i",
-    );
+    let (report, _desktop) =
+        run("i := 0\nf() {\n    global i\n    i := i + 1\n}\nx := (f(), f())\nMsgBox i");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2"]);
 }
@@ -5171,7 +5492,10 @@ fn the_member_with_a_space_is_not_a_call_in_an_expression() {
         "class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nx := t.Method (\"a\")",
     );
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a String but got a Func."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a String but got a Func.")
+    );
 }
 
 #[test]
@@ -5181,7 +5505,10 @@ fn the_parameter_that_is_not_there_is_a_missing_one() {
     // call is refused with "Missing a required parameter.".
     let (report, _desktop) = run("Three(a, b, c) {\n    MsgBox a\n}\nThree (\"a\"),, \"c\"");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Missing a required parameter."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Missing a required parameter.")
+    );
     assert_eq!(report.error_line, Some(4));
 }
 
@@ -5189,7 +5516,8 @@ fn the_parameter_that_is_not_there_is_a_missing_one() {
 fn the_parameter_that_is_not_there_takes_its_default() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a parameter that
     // has a default takes it, and one that has none is a missing one.
-    let (report, _desktop) = run("WithDefault(a, b := \"the default\") {\n    MsgBox b\n}\nWithDefault (\"a\"),,");
+    let (report, _desktop) =
+        run("WithDefault(a, b := \"the default\") {\n    MsgBox b\n}\nWithDefault (\"a\"),,");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["the default"]);
 }
@@ -5230,9 +5558,14 @@ fn the_expression_of_a_statement_goes_on() {
 fn the_concatenation_of_a_statement_is_a_part_of_it() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the concatenation of
     // v2 is a part of the expression of a statement, and it wants a String.
-    let (report, _desktop) = run("class Thing {\n    Method() {\n        return \"m\"\n    }\n}\nt := Thing()\nf() {\n    return t.Method\n}\nf() \"a\"");
+    let (report, _desktop) = run(
+        "class Thing {\n    Method() {\n        return \"m\"\n    }\n}\nt := Thing()\nf() {\n    return t.Method\n}\nf() \"a\"",
+    );
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Expected a String but got a Func."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a String but got a Func.")
+    );
 }
 
 #[test]
@@ -5240,7 +5573,8 @@ fn the_comma_ends_the_expression_of_a_statement() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the expression of a
     // statement ends at the comma, and the rest of the line is the list of
     // v1: it is evaluated, and its value is thrown away.
-    let (report, _desktop) = run("f() {\n    MsgBox \"[f]\"\n}\ng() {\n    MsgBox \"[g]\"\n}\nf(), g()");
+    let (report, _desktop) =
+        run("f() {\n    MsgBox \"[f]\"\n}\ng() {\n    MsgBox \"[g]\"\n}\nf(), g()");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[f]", "[g]"]);
 }
@@ -5260,7 +5594,9 @@ fn the_member_that_has_parentheses_is_an_expression() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the member that has
     // parentheses is an expression, and the comma ends it: the rest of the
     // line is the list of v1, and it is evaluated.
-    let (report, _desktop) = run("class Thing {\n    Method() {\n        MsgBox \"[m]\"\n    }\n}\nt := Thing()\ng() {\n    MsgBox \"[g]\"\n}\nt.Method(), g()");
+    let (report, _desktop) = run(
+        "class Thing {\n    Method() {\n        MsgBox \"[m]\"\n    }\n}\nt := Thing()\ng() {\n    MsgBox \"[g]\"\n}\nt.Method(), g()",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[m]", "[g]"]);
 }
@@ -5270,7 +5606,8 @@ fn the_member_that_is_a_command_carries_its_arguments() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the member that has
     // no parentheses is a command of v2, and the rest of the line is the
     // list of its arguments.
-    let (report, _desktop) = run("class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method 7");
+    let (report, _desktop) =
+        run("class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method 7");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["7"]);
 }
@@ -5279,7 +5616,9 @@ fn the_member_that_is_a_command_carries_its_arguments() {
 fn the_parameters_of_the_command_of_a_member_are_separated_by_the_comma() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the space is the
     // concatenation of v2, and the comma is what separates the arguments.
-    let (report, _desktop) = run("class Thing {\n    Method(a, b) {\n        MsgBox a \",\" b\n    }\n}\nt := Thing()\nt.Method 7, 8");
+    let (report, _desktop) = run(
+        "class Thing {\n    Method(a, b) {\n        MsgBox a \",\" b\n    }\n}\nt := Thing()\nt.Method 7, 8",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["7,8"]);
 }
@@ -5289,9 +5628,14 @@ fn the_parameter_that_is_not_there_in_a_method_is_a_missing_one() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the parameter that
     // the command does not give a value to keeps its place, and the method
     // is refused with "Missing a required parameter.".
-    let (report, _desktop) = run("class Thing {\n    Method(a, b) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method , 7");
+    let (report, _desktop) = run(
+        "class Thing {\n    Method(a, b) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method , 7",
+    );
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Missing a required parameter."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Missing a required parameter.")
+    );
 }
 
 #[test]
@@ -5323,9 +5667,14 @@ fn the_number_of_the_arguments_of_a_method_is_checked_before_the_values() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the number of the
     // arguments of a method is checked before the arguments are evaluated,
     // and the failure carries the name of the method in the \"Extra\".
-    let (report, _desktop) = run("class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method(\"a\", nothingHere)");
+    let (report, _desktop) = run(
+        "class Thing {\n    Method(a) {\n        MsgBox a\n    }\n}\nt := Thing()\nt.Method(\"a\", nothingHere)",
+    );
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Too many parameters passed to function."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too many parameters passed to function.")
+    );
 }
 
 #[test]
@@ -5371,7 +5720,6 @@ fn the_comma_at_the_end_of_the_list_of_the_arguments_adds_nothing_in_the_v2() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1".to_string()]);
 }
-
 
 #[test]
 fn the_object_literal_that_is_written_in_more_than_one_line() {
@@ -5442,14 +5790,19 @@ fn the_case_of_a_switch_may_name_many_values() {
     // Measured on the binary of v2.0.19 on 2026-11-01: a case may name
     // many values, and it matches when the subject of the switch is one of
     // them.
-    let (report, _desktop) = run("x := 2\nswitch (x) {\n    case 1, 2:\n        FileAppend \"one_or_two=\", \"*\"\n    default:\n        FileAppend \"other=\", \"*\"\n}");
+    let (report, _desktop) = run(
+        "x := 2\nswitch (x) {\n    case 1, 2:\n        FileAppend \"one_or_two=\", \"*\"\n    default:\n        FileAppend \"other=\", \"*\"\n}",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one_or_two="]);
-    let (report, _desktop) = run("x := 9\nswitch (x) {\n    case 1, 2:\n        FileAppend \"one_or_two=\", \"*\"\n    default:\n        FileAppend \"other=\", \"*\"\n}");
+    let (report, _desktop) = run(
+        "x := 9\nswitch (x) {\n    case 1, 2:\n        FileAppend \"one_or_two=\", \"*\"\n    default:\n        FileAppend \"other=\", \"*\"\n}",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["other="]);
     // The comma at the end of the list adds nothing.
-    let (report, _desktop) = run("x := 2\nswitch (x) {\n    case 1, 2,:\n        FileAppend \"one_or_two=\", \"*\"\n}");
+    let (report, _desktop) =
+        run("x := 2\nswitch (x) {\n    case 1, 2,:\n        FileAppend \"one_or_two=\", \"*\"\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one_or_two="]);
 }
@@ -5469,7 +5822,10 @@ fn the_reserved_word_refuses_with_the_reason_of_the_word() {
     let error = parse("true := 1").expect_err("does not parse");
     assert_eq!(error.message, "Syntax error.\n     Specifically: true");
     let error = parse("in := 1").expect_err("does not parse");
-    assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: in");
+    assert_eq!(
+        error.message,
+        "Unexpected reserved word.\n     Specifically: in"
+    );
 }
 
 #[test]
@@ -5484,7 +5840,10 @@ fn the_value_of_a_reserved_word_refuses_with_the_reason_of_the_word() {
     let error = parse("x := and").expect_err("does not parse");
     assert_eq!(error.message, "Syntax error.\n     Specifically: and");
     let error = parse("x := in").expect_err("does not parse");
-    assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: in");
+    assert_eq!(
+        error.message,
+        "Unexpected reserved word.\n     Specifically: in"
+    );
 }
 
 #[test]
@@ -5586,7 +5945,9 @@ fn the_default_of_a_switch_is_a_name_and_a_colon() {
     // default case is the name `default` and a colon, and the name alone in
     // the body of the switch is not a label.
     let statements = parse("switch 1 {\ndefault:\n}").expect("parses");
-    let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+    let Node::Switch { cases, .. } = &statements[0] else {
+        panic!("a switch")
+    };
     assert_eq!(cases.len(), 1);
     assert!(cases[0].values.is_empty());
     let error = parse("switch 1 {\ndefault\n}").expect_err("does not parse");
@@ -5599,7 +5960,9 @@ fn a_case_may_name_no_value() {
     // may be none, and the colon is what says where the label of the case
     // ends.
     let statements = parse("switch 1 {\ncase:\n}").expect("parses");
-    let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+    let Node::Switch { cases, .. } = &statements[0] else {
+        panic!("a switch")
+    };
     assert_eq!(cases.len(), 1);
     assert!(cases[0].values.is_empty());
     let error = parse("switch 1 {\ncase\n}").expect_err("does not parse");
@@ -5631,7 +5994,10 @@ fn a_return_that_carries_a_value_outside_a_function_is_refused() {
     // a value outside a function is refused at the load, and the reason
     // comes before the one of the expression that it carries.
     let error = parse("return 1").expect_err("does not parse");
-    assert_eq!(error.message, "Return's parameter should be blank except inside a function.");
+    assert_eq!(
+        error.message,
+        "Return's parameter should be blank except inside a function."
+    );
     assert_eq!(error.line, 1);
 }
 
@@ -5808,7 +6174,10 @@ fn the_goto_whose_parenthesis_is_spaced_looks_for_the_whole_text() {
     // Measured on the binary of v2.0.19 on 2026-11-01: the parenthesis
     // that is spaced is a part of the text of the name of the label.
     let error = parse("Goto (nowhere)").expect_err("does not parse");
-    assert_eq!(error.message, "Label not found in current scope.\n     Specifically: (nowhere)");
+    assert_eq!(
+        error.message,
+        "Label not found in current scope.\n     Specifically: (nowhere)"
+    );
 }
 
 #[test]
@@ -5817,7 +6186,10 @@ fn the_name_of_a_member_that_is_a_text_is_an_illegal_character() {
     // may not be a text: the `a.'b'` is refused with "Illegal character in
     // expression." and the text is named as it was written.
     let error = parse("a := 1\nx := a.'b'").expect_err("does not parse");
-    assert_eq!(error.message, "Illegal character in expression.\n     Specifically: 'b'");
+    assert_eq!(
+        error.message,
+        "Illegal character in expression.\n     Specifically: 'b'"
+    );
 }
 
 #[test]
@@ -5863,10 +6235,13 @@ fn the_mode_of_the_loop_of_the_files_carries_the_letters_of_v2() {
     );
     assert_eq!(report.error_line, Some(1));
     // The spaces between the letters are ignored.
-    let (report, desktop) = run("Loop Files \"*.txt\", \"D R\" {\n  Send \"%A_LoopFileName%\"\n}\n");
+    let (report, desktop) =
+        run("Loop Files \"*.txt\", \"D R\" {\n  Send \"%A_LoopFileName%\"\n}\n");
     assert!(report.ok, "{:?}", report.error);
     assert!(
-        desktop.calls.contains(&("list_files".to_string(), "/work|*.txt|D R".to_string())),
+        desktop
+            .calls
+            .contains(&("list_files".to_string(), "/work|*.txt|D R".to_string())),
         "{:?}",
         desktop.calls
     );
@@ -5970,7 +6345,10 @@ fn the_line_that_never_runs_is_warned_about() {
     );
     assert_eq!(
         report.output,
-        vec!["(3) : ==> Warning: This line will never execute, due to Return preceding it.".to_string()]
+        vec![
+            "(3) : ==> Warning: This line will never execute, due to Return preceding it."
+                .to_string()
+        ]
     );
 }
 
@@ -6138,7 +6516,10 @@ fn the_type_of_the_warn_that_the_tree_carries_is_not_named_in_the_report() {
     let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\n");
     assert!(report.ok, "{:?}", report.error);
     assert!(
-        !report.notes.iter().any(|note| note.contains("LocalSameAsGlobal")),
+        !report
+            .notes
+            .iter()
+            .any(|note| note.contains("LocalSameAsGlobal")),
         "{:?}",
         report.notes
     );
@@ -6152,7 +6533,8 @@ fn the_type_of_the_warn_that_the_tree_carries_is_not_named_in_the_report() {
 /// the line of the write of the local.
 #[test]
 fn the_local_that_has_the_name_of_a_global_is_warned_about() {
-    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  x := 2\n}\nf()\n");
+    let (report, _desktop) =
+        run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  x := 2\n}\nf()\n");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.warnings.len(), 1);
     assert_eq!(report.warnings[0].line, 4);
@@ -6173,7 +6555,8 @@ fn the_local_that_has_the_name_of_a_global_is_warned_about() {
 /// only reads is not a local of it.
 #[test]
 fn the_local_that_is_only_read_is_not_warned_about() {
-    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  y := x\n}\nf()\n");
+    let (report, _desktop) =
+        run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  y := x\n}\nf()\n");
     assert!(report.ok, "{:?}", report.error);
     assert!(report.warnings.is_empty(), "{:?}", report.warnings);
 }
@@ -6185,7 +6568,8 @@ fn the_local_that_is_only_read_is_not_warned_about() {
 /// the line of the warning is the line of the write of the local.
 #[test]
 fn the_local_of_a_method_that_has_the_name_of_a_global_is_warned_about() {
-    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nclass A {\n  m() {\n    x := 2\n  }\n}\n");
+    let (report, _desktop) =
+        run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nclass A {\n  m() {\n    x := 2\n  }\n}\n");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.warnings.len(), 1);
     assert_eq!(report.warnings[0].line, 5);
@@ -6220,7 +6604,8 @@ fn the_local_of_a_getter_that_has_the_name_of_a_global_is_warned_about() {
 /// the function declares global is not warned about.
 #[test]
 fn the_local_that_is_declared_global_is_not_warned_about() {
-    let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  global x\n  x := 2\n}\nf()\n");
+    let (report, _desktop) =
+        run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  global x\n  x := 2\n}\nf()\n");
     assert!(report.warnings.is_empty(), "{:?}", report.warnings);
     // The local without a global is not warned about either.
     let (report, _desktop) = run("#Warn LocalSameAsGlobal, StdOut\nf() {\n  x := 2\n}\nf()\n");
@@ -6234,7 +6619,9 @@ fn the_local_that_is_declared_global_is_not_warned_about() {
 /// writes is a local of it.
 #[test]
 fn the_body_of_the_getter_is_a_scope_of_the_v2() {
-    let (report, desktop) = run("class Thing {\n  p {\n    get {\n      return 1\n    }\n  }\n}\ninst := Thing()\nSend inst.p");
+    let (report, desktop) = run(
+        "class Thing {\n  p {\n    get {\n      return 1\n    }\n  }\n}\ninst := Thing()\nSend inst.p",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(desktop.types(), vec!["1"]);
 }
@@ -6245,7 +6632,8 @@ fn the_body_of_the_getter_is_a_scope_of_the_v2() {
 /// and the member is named whole: "p { get { return 1 } }".
 #[test]
 fn the_getter_that_is_on_the_same_line_as_the_name_is_refused() {
-    let error = parse("class Thing {\n  p { get {\n      return 1\n  } }\n}").expect_err("does not parse");
+    let error =
+        parse("class Thing {\n  p { get {\n      return 1\n  } }\n}").expect_err("does not parse");
     assert_eq!(
         error.message,
         "Not a valid method, class or property definition.\n     Specifically: p { get { return 1 } }"
@@ -6259,7 +6647,8 @@ fn the_getter_that_is_on_the_same_line_as_the_name_is_refused() {
 /// and the line of the member is named: "get { return 1 }".
 #[test]
 fn the_body_of_the_getter_that_is_on_the_line_of_the_member_is_refused() {
-    let error = parse("class Thing {\n  p {\n    get { return 1 }\n  }\n}").expect_err("does not parse");
+    let error =
+        parse("class Thing {\n  p {\n    get { return 1 }\n  }\n}").expect_err("does not parse");
     assert_eq!(
         error.message,
         "Not a valid property getter/setter.\n     Specifically: get { return 1 }"
@@ -6300,9 +6689,12 @@ fn the_value_of_the_setter_is_not_warned_about_in_the_v2() {
 /// getter are not warned about, and the `this` of a function is.
 #[test]
 fn the_this_of_a_class_is_not_a_variable_of_the_v2() {
-    let (report, _desktop) = run("#Warn VarUnset, StdOut\nclass Thing {\n  m() {\n    this.x := 1\n  }\n}\n");
+    let (report, _desktop) =
+        run("#Warn VarUnset, StdOut\nclass Thing {\n  m() {\n    this.x := 1\n  }\n}\n");
     assert!(report.warnings.is_empty(), "{:?}", report.warnings);
-    let (report, _desktop) = run("#Warn VarUnset, StdOut\nclass Thing {\n  p {\n    get {\n      this.x := 1\n    }\n  }\n}\n");
+    let (report, _desktop) = run(
+        "#Warn VarUnset, StdOut\nclass Thing {\n  p {\n    get {\n      this.x := 1\n    }\n  }\n}\n",
+    );
     assert!(report.warnings.is_empty(), "{:?}", report.warnings);
     // The `this` of a function is a variable that has no value.
     let (report, _desktop) = run("#Warn VarUnset, StdOut\nf() {\n  y := this\n}\n");

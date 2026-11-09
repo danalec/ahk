@@ -35,10 +35,15 @@ use alloc::string::{String, ToString};
 /// that the v1 wants.
 pub(crate) fn the_refusal_of_a_sub_command(name: &str, parameters: &[String]) -> Option<String> {
     // The command whose rule is its own comes first.
-    if let Some(rule) = THE_OWN.iter().find(|rule| rule.name.eq_ignore_ascii_case(name)) {
+    if let Some(rule) = THE_OWN
+        .iter()
+        .find(|rule| rule.name.eq_ignore_ascii_case(name))
+    {
         return (rule.check)(parameters);
     }
-    let rule = SUB_COMMANDS.iter().find(|rule| rule.name.eq_ignore_ascii_case(name))?;
+    let rule = SUB_COMMANDS
+        .iter()
+        .find(|rule| rule.name.eq_ignore_ascii_case(name))?;
     the_refusal_of_the_sub_command(rule, parameters)
 }
 
@@ -52,12 +57,30 @@ struct TheOwn {
 
 /// The commands of the v1 whose rule is not the rule of a sub-command.
 const THE_OWN: &[TheOwn] = &[
-    TheOwn { name: "Process", check: the_process },
-    TheOwn { name: "SoundGet", check: the_sound },
-    TheOwn { name: "SoundSet", check: the_sound },
-    TheOwn { name: "RegRead", check: the_reg_read },
-    TheOwn { name: "RegWrite", check: the_reg_write },
-    TheOwn { name: "RegDelete", check: the_reg_delete },
+    TheOwn {
+        name: "Process",
+        check: the_process,
+    },
+    TheOwn {
+        name: "SoundGet",
+        check: the_sound,
+    },
+    TheOwn {
+        name: "SoundSet",
+        check: the_sound,
+    },
+    TheOwn {
+        name: "RegRead",
+        check: the_reg_read,
+    },
+    TheOwn {
+        name: "RegWrite",
+        check: the_reg_write,
+    },
+    TheOwn {
+        name: "RegDelete",
+        check: the_reg_delete,
+    },
 ];
 
 /// The rule of a command of the v1 whose parameter names a sub-command.
@@ -121,23 +144,119 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: false,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "Add", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Delete", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Style", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "ExStyle", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "ShowDropDown", wants: &[TheWant { place: 1, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "HideDropDown", wants: &[TheWant { place: 1, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "TabLeft", wants: &[] },
-            SubCommand { name: "TabRight", wants: &[] },
-            SubCommand { name: "Choose", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "ChooseString", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "EditPaste", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Enable", wants: &[TheWant { place: 1, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Disable", wants: &[TheWant { place: 1, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Show", wants: &[TheWant { place: 1, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Hide", wants: &[TheWant { place: 1, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Check", wants: &[TheWant { place: 1, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Uncheck", wants: &[TheWant { place: 1, complaint: TheComplaint::Blank }] },
+            SubCommand {
+                name: "Add",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Delete",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Style",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "ExStyle",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "ShowDropDown",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "HideDropDown",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "TabLeft",
+                wants: &[],
+            },
+            SubCommand {
+                name: "TabRight",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Choose",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "ChooseString",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "EditPaste",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Enable",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Disable",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Show",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Hide",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Check",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Uncheck",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
         ],
     },
     Rule {
@@ -147,21 +266,108 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: false,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "Checked", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Enabled", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Visible", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Tab", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Choice", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "LineCount", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "CurrentLine", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "CurrentCol", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Selected", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Style", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "ExStyle", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "Hwnd", wants: &[TheWant { place: 2, complaint: TheComplaint::Blank }] },
-            SubCommand { name: "FindString", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Line", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "List", wants: &[] },
+            SubCommand {
+                name: "Checked",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Enabled",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Visible",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Tab",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Choice",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "LineCount",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "CurrentLine",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "CurrentCol",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Selected",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Style",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "ExStyle",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "Hwnd",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Blank,
+                }],
+            },
+            SubCommand {
+                name: "FindString",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Line",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "List",
+                wants: &[],
+            },
         ],
     },
     Rule {
@@ -171,10 +377,31 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: false,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "Lock", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Unlock", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Label", wants: &[TheWant { place: 1, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Eject", wants: &[] },
+            SubCommand {
+                name: "Lock",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Unlock",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Label",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Eject",
+                wants: &[],
+            },
         ],
     },
     Rule {
@@ -184,14 +411,56 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: false,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "List", wants: &[] },
-            SubCommand { name: "StatusCD", wants: &[] },
-            SubCommand { name: "Capacity", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "FileSystem", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Label", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Serial", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Type", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Status", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
+            SubCommand {
+                name: "List",
+                wants: &[],
+            },
+            SubCommand {
+                name: "StatusCD",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Capacity",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "FileSystem",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Label",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Serial",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Type",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Status",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
         ],
     },
     Rule {
@@ -200,25 +469,79 @@ const SUB_COMMANDS: &[Rule] = &[
         carries_a_name: true,
         allows_a_blank: false,
         // The list of options of the `Gui` takes no parameter after it.
-        options: &[TheWant { place: 1, complaint: TheComplaint::Omitted }],
+        options: &[TheWant {
+            place: 1,
+            complaint: TheComplaint::Omitted,
+        }],
         sub_commands: &[
-            SubCommand { name: "New", wants: &[] },
-            SubCommand { name: "Add", wants: &[] },
-            SubCommand { name: "Show", wants: &[] },
-            SubCommand { name: "Submit", wants: &[] },
-            SubCommand { name: "Cancel", wants: &[] },
-            SubCommand { name: "Hide", wants: &[] },
-            SubCommand { name: "Destroy", wants: &[] },
-            SubCommand { name: "Font", wants: &[] },
-            SubCommand { name: "Color", wants: &[] },
-            SubCommand { name: "Margin", wants: &[] },
-            SubCommand { name: "Menu", wants: &[] },
-            SubCommand { name: "Minimize", wants: &[] },
-            SubCommand { name: "Maximize", wants: &[] },
-            SubCommand { name: "Restore", wants: &[] },
-            SubCommand { name: "Flash", wants: &[] },
-            SubCommand { name: "Default", wants: &[] },
-            SubCommand { name: "Tab", wants: &[] },
+            SubCommand {
+                name: "New",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Add",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Show",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Submit",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Cancel",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Hide",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Destroy",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Font",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Color",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Margin",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Menu",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Minimize",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Maximize",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Restore",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Flash",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Default",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Tab",
+                wants: &[],
+            },
         ],
     },
     Rule {
@@ -228,17 +551,59 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: true,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "Text", wants: &[] },
-            SubCommand { name: "Move", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "MoveDraw", wants: &[] },
-            SubCommand { name: "Focus", wants: &[] },
-            SubCommand { name: "Disable", wants: &[] },
-            SubCommand { name: "Enable", wants: &[] },
-            SubCommand { name: "Hide", wants: &[] },
-            SubCommand { name: "Show", wants: &[] },
-            SubCommand { name: "Choose", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "ChooseString", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Font", wants: &[] },
+            SubCommand {
+                name: "Text",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Move",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "MoveDraw",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Focus",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Disable",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Enable",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Hide",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Show",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Choose",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "ChooseString",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Font",
+                wants: &[],
+            },
         ],
     },
     Rule {
@@ -248,19 +613,52 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: true,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "Pos", wants: &[] },
-            SubCommand { name: "Focus", wants: &[
-                TheWant { place: 2, complaint: TheComplaint::Blank },
-                TheWant { place: 3, complaint: TheComplaint::Blank },
-            ] },
-            SubCommand { name: "FocusV", wants: &[
-                TheWant { place: 2, complaint: TheComplaint::Blank },
-                TheWant { place: 3, complaint: TheComplaint::Blank },
-            ] },
-            SubCommand { name: "Enabled", wants: &[] },
-            SubCommand { name: "Visible", wants: &[] },
-            SubCommand { name: "Hwnd", wants: &[] },
-            SubCommand { name: "Name", wants: &[] },
+            SubCommand {
+                name: "Pos",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Focus",
+                wants: &[
+                    TheWant {
+                        place: 2,
+                        complaint: TheComplaint::Blank,
+                    },
+                    TheWant {
+                        place: 3,
+                        complaint: TheComplaint::Blank,
+                    },
+                ],
+            },
+            SubCommand {
+                name: "FocusV",
+                wants: &[
+                    TheWant {
+                        place: 2,
+                        complaint: TheComplaint::Blank,
+                    },
+                    TheWant {
+                        place: 3,
+                        complaint: TheComplaint::Blank,
+                    },
+                ],
+            },
+            SubCommand {
+                name: "Enabled",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Visible",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Hwnd",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Name",
+                wants: &[],
+            },
         ],
     },
     Rule {
@@ -270,30 +668,141 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: false,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "Add", wants: &[] },
-            SubCommand { name: "Insert", wants: &[] },
-            SubCommand { name: "Delete", wants: &[] },
-            SubCommand { name: "DeleteAll", wants: &[] },
-            SubCommand { name: "Rename", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Check", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Uncheck", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "ToggleCheck", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Enable", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Disable", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "ToggleEnable", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "Default", wants: &[] },
-            SubCommand { name: "NoDefault", wants: &[TheWant { place: 2, complaint: TheComplaint::Omitted }] },
-            SubCommand { name: "Standard", wants: &[TheWant { place: 2, complaint: TheComplaint::Omitted }] },
-            SubCommand { name: "NoStandard", wants: &[TheWant { place: 2, complaint: TheComplaint::Omitted }] },
-            SubCommand { name: "Icon", wants: &[] },
-            SubCommand { name: "NoIcon", wants: &[] },
-            SubCommand { name: "Tip", wants: &[] },
-            SubCommand { name: "Show", wants: &[] },
-            SubCommand { name: "Color", wants: &[] },
-            SubCommand { name: "Click", wants: &[TheWant { place: 2, complaint: TheComplaint::NotBlank }] },
-            SubCommand { name: "MainWindow", wants: &[TheWant { place: 2, complaint: TheComplaint::Omitted }] },
-            SubCommand { name: "NoMainWindow", wants: &[TheWant { place: 2, complaint: TheComplaint::Omitted }] },
-            SubCommand { name: "UseErrorLevel", wants: &[] },
+            SubCommand {
+                name: "Add",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Insert",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Delete",
+                wants: &[],
+            },
+            SubCommand {
+                name: "DeleteAll",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Rename",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Check",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Uncheck",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "ToggleCheck",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Enable",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Disable",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "ToggleEnable",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "Default",
+                wants: &[],
+            },
+            SubCommand {
+                name: "NoDefault",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Omitted,
+                }],
+            },
+            SubCommand {
+                name: "Standard",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Omitted,
+                }],
+            },
+            SubCommand {
+                name: "NoStandard",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Omitted,
+                }],
+            },
+            SubCommand {
+                name: "Icon",
+                wants: &[],
+            },
+            SubCommand {
+                name: "NoIcon",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Tip",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Show",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Color",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Click",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::NotBlank,
+                }],
+            },
+            SubCommand {
+                name: "MainWindow",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Omitted,
+                }],
+            },
+            SubCommand {
+                name: "NoMainWindow",
+                wants: &[TheWant {
+                    place: 2,
+                    complaint: TheComplaint::Omitted,
+                }],
+            },
+            SubCommand {
+                name: "UseErrorLevel",
+                wants: &[],
+            },
         ],
     },
     Rule {
@@ -303,11 +812,26 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: false,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "MonitorCount", wants: &[] },
-            SubCommand { name: "MonitorPrimary", wants: &[] },
-            SubCommand { name: "Monitor", wants: &[] },
-            SubCommand { name: "MonitorWorkArea", wants: &[] },
-            SubCommand { name: "MonitorName", wants: &[] },
+            SubCommand {
+                name: "MonitorCount",
+                wants: &[],
+            },
+            SubCommand {
+                name: "MonitorPrimary",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Monitor",
+                wants: &[],
+            },
+            SubCommand {
+                name: "MonitorWorkArea",
+                wants: &[],
+            },
+            SubCommand {
+                name: "MonitorName",
+                wants: &[],
+            },
         ],
     },
     Rule {
@@ -317,20 +841,62 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: true,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "ID", wants: &[] },
-            SubCommand { name: "IDLast", wants: &[] },
-            SubCommand { name: "PID", wants: &[] },
-            SubCommand { name: "ProcessName", wants: &[] },
-            SubCommand { name: "ProcessPath", wants: &[] },
-            SubCommand { name: "Count", wants: &[] },
-            SubCommand { name: "List", wants: &[] },
-            SubCommand { name: "MinMax", wants: &[] },
-            SubCommand { name: "ControlList", wants: &[] },
-            SubCommand { name: "ControlListHwnd", wants: &[] },
-            SubCommand { name: "Transparent", wants: &[] },
-            SubCommand { name: "TransColor", wants: &[] },
-            SubCommand { name: "Style", wants: &[] },
-            SubCommand { name: "ExStyle", wants: &[] },
+            SubCommand {
+                name: "ID",
+                wants: &[],
+            },
+            SubCommand {
+                name: "IDLast",
+                wants: &[],
+            },
+            SubCommand {
+                name: "PID",
+                wants: &[],
+            },
+            SubCommand {
+                name: "ProcessName",
+                wants: &[],
+            },
+            SubCommand {
+                name: "ProcessPath",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Count",
+                wants: &[],
+            },
+            SubCommand {
+                name: "List",
+                wants: &[],
+            },
+            SubCommand {
+                name: "MinMax",
+                wants: &[],
+            },
+            SubCommand {
+                name: "ControlList",
+                wants: &[],
+            },
+            SubCommand {
+                name: "ControlListHwnd",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Transparent",
+                wants: &[],
+            },
+            SubCommand {
+                name: "TransColor",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Style",
+                wants: &[],
+            },
+            SubCommand {
+                name: "ExStyle",
+                wants: &[],
+            },
         ],
     },
     Rule {
@@ -340,17 +906,65 @@ const SUB_COMMANDS: &[Rule] = &[
         allows_a_blank: false,
         options: &[],
         sub_commands: &[
-            SubCommand { name: "AlwaysOnTop", wants: &[] },
-            SubCommand { name: "Bottom", wants: &[TheWant { place: 1, complaint: TheComplaint::BlankWithoutTheText }] },
-            SubCommand { name: "Top", wants: &[TheWant { place: 1, complaint: TheComplaint::BlankWithoutTheText }] },
-            SubCommand { name: "Disable", wants: &[TheWant { place: 1, complaint: TheComplaint::BlankWithoutTheText }] },
-            SubCommand { name: "Enable", wants: &[TheWant { place: 1, complaint: TheComplaint::BlankWithoutTheText }] },
-            SubCommand { name: "Redraw", wants: &[TheWant { place: 1, complaint: TheComplaint::BlankWithoutTheText }] },
-            SubCommand { name: "Style", wants: &[] },
-            SubCommand { name: "ExStyle", wants: &[] },
-            SubCommand { name: "Region", wants: &[] },
-            SubCommand { name: "Transparent", wants: &[] },
-            SubCommand { name: "TransColor", wants: &[] },
+            SubCommand {
+                name: "AlwaysOnTop",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Bottom",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::BlankWithoutTheText,
+                }],
+            },
+            SubCommand {
+                name: "Top",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::BlankWithoutTheText,
+                }],
+            },
+            SubCommand {
+                name: "Disable",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::BlankWithoutTheText,
+                }],
+            },
+            SubCommand {
+                name: "Enable",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::BlankWithoutTheText,
+                }],
+            },
+            SubCommand {
+                name: "Redraw",
+                wants: &[TheWant {
+                    place: 1,
+                    complaint: TheComplaint::BlankWithoutTheText,
+                }],
+            },
+            SubCommand {
+                name: "Style",
+                wants: &[],
+            },
+            SubCommand {
+                name: "ExStyle",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Region",
+                wants: &[],
+            },
+            SubCommand {
+                name: "Transparent",
+                wants: &[],
+            },
+            SubCommand {
+                name: "TransColor",
+                wants: &[],
+            },
         ],
     },
 ];
@@ -375,7 +989,11 @@ fn the_refusal_of_the_sub_command(rule: &Rule, parameters: &[String]) -> Option<
     if name.is_empty() && rule.allows_a_blank {
         return None;
     }
-    let Some(sub) = rule.sub_commands.iter().find(|sub| sub.name.eq_ignore_ascii_case(name)) else {
+    let Some(sub) = rule
+        .sub_commands
+        .iter()
+        .find(|sub| sub.name.eq_ignore_ascii_case(name))
+    else {
         return Some(the_refusal_of_an_invalid_parameter(rule.place, trimmed));
     };
     the_refusal_of_the_wants(sub.wants, parameters)
@@ -399,7 +1017,10 @@ fn the_refusal_of_the_wants(wants: &[TheWant], parameters: &[String]) -> Option<
                 if the_text_at(parameters, want.place).trim().is_empty() {
                     continue;
                 }
-                return Some(format!("Parameter #{} must be blank in this case.", want.place + 1));
+                return Some(format!(
+                    "Parameter #{} must be blank in this case.",
+                    want.place + 1
+                ));
             }
             TheComplaint::NotBlank => {
                 if the_text_at(parameters, want.place).trim().is_empty() {
@@ -444,7 +1065,10 @@ fn the_refusal_of_an_invalid_parameter(place: usize, text: &str) -> String {
     if text.is_empty() {
         return format!("Parameter #{} invalid.", place + 1);
     }
-    format!("Parameter #{} invalid.\n     Specifically: {text}", place + 1)
+    format!(
+        "Parameter #{} invalid.\n     Specifically: {text}",
+        place + 1
+    )
 }
 
 /// Whether the parameter of this place of this command has to be there.

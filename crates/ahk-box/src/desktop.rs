@@ -42,11 +42,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use ahk::keys::{MODIFIERS, resolve_name};
 use ahk::desktop::{
     FileAnswer, FileOptions, Folders, Idle, InputAnswer, InputOptions, Processes, WindowAnswer,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult};
+use ahk::keys::{MODIFIERS, resolve_name};
 
 use crate::keyboard::{ENUMERATION_WAIT, Keyboard, KeyboardError};
 use crate::native::Libraries;
@@ -145,7 +145,8 @@ impl LabDesktop {
             let codes = announced_codes();
             let keyboard = Keyboard::open(codes)?;
             std::thread::sleep(ENUMERATION_WAIT);
-            self.notes.push("opened a uinput keyboard for the keys".to_string());
+            self.notes
+                .push("opened a uinput keyboard for the keys".to_string());
             self.keyboard = Some(keyboard);
         }
         Ok(self.keyboard.as_mut().expect("just opened"))
@@ -196,7 +197,8 @@ impl LabDesktop {
                 String::from_utf8_lossy(&output.stderr)
             )));
         }
-        let size = image_size(&path).ok_or_else(|| BoxError::Failed("the capture has no size".into()))?;
+        let size =
+            image_size(&path).ok_or_else(|| BoxError::Failed("the capture has no size".into()))?;
         let _ = std::fs::remove_file(&path);
         self.screen = Some(size);
         Ok(size)
@@ -213,7 +215,8 @@ impl LabDesktop {
             return;
         }
         let Some(uid) = uid() else {
-            self.notes.push("no uid on this platform; the session environment is unknown".to_string());
+            self.notes
+                .push("no uid on this platform; the session environment is unknown".to_string());
             return;
         };
         let runtime_dir = format!("/run/user/{uid}");
@@ -227,13 +230,16 @@ impl LabDesktop {
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with("wayland-") {
                 unsafe { std::env::set_var("WAYLAND_DISPLAY", &name) };
-                self.notes.push(format!("WAYLAND_DISPLAY={name} (XDG_RUNTIME_DIR={runtime_dir})"));
+                self.notes.push(format!(
+                    "WAYLAND_DISPLAY={name} (XDG_RUNTIME_DIR={runtime_dir})"
+                ));
                 found = true;
                 break;
             }
         }
         if !found {
-            self.notes.push(format!("no wayland socket in {runtime_dir}"));
+            self.notes
+                .push(format!("no wayland socket in {runtime_dir}"));
         }
     }
 
@@ -280,12 +286,11 @@ impl LabDesktop {
 /// a key code.
 fn announced_codes() -> Vec<u16> {
     vec![
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
-        47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
-        70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 89, 90, 91, 92,
-        93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 108, 109, 119, 120, 121, 122, 123, 124, 125,
-        126, 127, 130,
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+        26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 70, 71, 72,
+        73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 89, 90, 91, 92, 93, 94, 95, 96,
+        97, 98, 99, 100, 101, 102, 108, 109, 119, 120, 121, 122, 123, 124, 125, 126, 127, 130,
     ]
 }
 
@@ -392,7 +397,9 @@ impl LabDesktop {
         if stderr.contains("not available") {
             return Ok(String::new());
         }
-        Err(format!("the clipboard of an X11 session cannot be read: {stderr}"))
+        Err(format!(
+            "the clipboard of an X11 session cannot be read: {stderr}"
+        ))
     }
 
     /// Put a text on the clipboard of an X11 session.
@@ -416,7 +423,10 @@ impl LabDesktop {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|error| error.to_string())?;
-        let mut input = child.stdin.take().ok_or("the tool of the clipboard takes no input")?;
+        let mut input = child
+            .stdin
+            .take()
+            .ok_or("the tool of the clipboard takes no input")?;
         // A tool that dies while the text goes in says why on its output,
         // and the status of it is the reason.
         let _ = input.write_all(text.as_bytes());
@@ -427,7 +437,10 @@ impl LabDesktop {
             if let Some(mut pipe) = child.stderr.take() {
                 let _ = pipe.read_to_string(&mut stderr);
             }
-            return Err(format!("the text did not go on the clipboard: {}", stderr.trim()));
+            return Err(format!(
+                "the text did not go on the clipboard: {}",
+                stderr.trim()
+            ));
         }
         Ok(format!("put {text:?} on the clipboard"))
     }
@@ -483,9 +496,8 @@ impl ahk::desktop::Keyboard for LabDesktop {
             let (code, shift) = match character {
                 '\n' => (28, false),
                 '\t' => (15, false),
-                other => ahk::keys::character_stroke(other).ok_or_else(|| {
-                    format!("the keyboard of this box has no key for {other:?}")
-                })?,
+                other => ahk::keys::character_stroke(other)
+                    .ok_or_else(|| format!("the keyboard of this box has no key for {other:?}"))?,
             };
             let modifiers: Vec<u16> = if shift { vec![42] } else { Vec::new() };
             self.keyboard()
@@ -494,7 +506,9 @@ impl ahk::desktop::Keyboard for LabDesktop {
                 .map_err(|error| error.to_string())?;
             typed += 1;
         }
-        Ok(format!("typed {typed} characters through the uinput keyboard"))
+        Ok(format!(
+            "typed {typed} characters through the uinput keyboard"
+        ))
     }
     fn press_key(&mut self, name: &str, modifiers: &[String]) -> Result<String, String> {
         let code = resolve_name(name).map_err(|error| error.to_string())?;
@@ -511,24 +525,37 @@ impl ahk::desktop::Keyboard for LabDesktop {
             .map(|modifier| resolve_name(modifier).map_err(|error| error.to_string()))
             .collect::<Result<Vec<u16>, String>>()?;
         if modifier_codes.is_empty() {
-            self.keyboard().map_err(|error| error.to_string())?.tap(code).map_err(|error| error.to_string())?;
-            return Ok(format!("pressed {name} (code {code}) through the uinput keyboard"));
+            self.keyboard()
+                .map_err(|error| error.to_string())?
+                .tap(code)
+                .map_err(|error| error.to_string())?;
+            return Ok(format!(
+                "pressed {name} (code {code}) through the uinput keyboard"
+            ));
         }
         self.keyboard()
             .map_err(|error| error.to_string())?
             .tap_with_modifiers(code, &modifier_codes)
             .map_err(|error| error.to_string())?;
         let names = modifiers.join("+");
-        Ok(format!("pressed {names}+{name} (code {code}) through the uinput keyboard"))
+        Ok(format!(
+            "pressed {names}+{name} (code {code}) through the uinput keyboard"
+        ))
     }
     fn key_down(&mut self, name: &str) -> Result<String, String> {
         let code = resolve_name(name).map_err(|error| error.to_string())?;
-        self.keyboard().map_err(|error| error.to_string())?.down(code).map_err(|error| error.to_string())?;
+        self.keyboard()
+            .map_err(|error| error.to_string())?
+            .down(code)
+            .map_err(|error| error.to_string())?;
         Ok(format!("{name} is down (code {code})"))
     }
     fn key_up(&mut self, name: &str) -> Result<String, String> {
         let code = resolve_name(name).map_err(|error| error.to_string())?;
-        self.keyboard().map_err(|error| error.to_string())?.up(code).map_err(|error| error.to_string())?;
+        self.keyboard()
+            .map_err(|error| error.to_string())?
+            .up(code)
+            .map_err(|error| error.to_string())?;
         Ok(format!("{name} is up (code {code})"))
     }
     fn key_is_down(&mut self, name: &str) -> Result<bool, String> {
@@ -556,31 +583,55 @@ impl ahk::desktop::Pointer for LabDesktop {
                 std::thread::sleep(Duration::from_millis(60));
             }
         }
-        let times = if count == 1 { String::new() } else { format!(" {count} times") };
+        let times = if count == 1 {
+            String::new()
+        } else {
+            format!(" {count} times")
+        };
         Ok(format!(
             "clicked ({x}, {y}){times} through the absolute pointer (screen {width}x{height})",
             width = size.0,
             height = size.1
         ))
     }
-    fn mouse_down(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
+    fn mouse_down(
+        &mut self,
+        x: Option<i64>,
+        y: Option<i64>,
+        button: &str,
+    ) -> Result<String, String> {
         if let (Some(x), Some(y)) = (x, y) {
-            self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;
+            self.pointer()
+                .map_err(|error| error.to_string())?
+                .move_to(x, y)
+                .map_err(|error| error.to_string())?;
             std::thread::sleep(PRESS_SETTLE);
         }
-        self.pointer().map_err(|error| error.to_string())?.button_down(button).map_err(|error| error.to_string())?;
+        self.pointer()
+            .map_err(|error| error.to_string())?
+            .button_down(button)
+            .map_err(|error| error.to_string())?;
         Ok(format!("the {button} button is down"))
     }
     fn mouse_up(&mut self, x: Option<i64>, y: Option<i64>, button: &str) -> Result<String, String> {
         if let (Some(x), Some(y)) = (x, y) {
-            self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;
+            self.pointer()
+                .map_err(|error| error.to_string())?
+                .move_to(x, y)
+                .map_err(|error| error.to_string())?;
             std::thread::sleep(PRESS_SETTLE);
         }
-        self.pointer().map_err(|error| error.to_string())?.button_up(button).map_err(|error| error.to_string())?;
+        self.pointer()
+            .map_err(|error| error.to_string())?
+            .button_up(button)
+            .map_err(|error| error.to_string())?;
         Ok(format!("the {button} button is up"))
     }
     fn move_pointer(&mut self, x: i64, y: i64) -> Result<String, String> {
-        self.pointer().map_err(|error| error.to_string())?.move_to(x, y).map_err(|error| error.to_string())?;
+        self.pointer()
+            .map_err(|error| error.to_string())?
+            .move_to(x, y)
+            .map_err(|error| error.to_string())?;
         Ok(format!("moved the pointer to ({x}, {y})"))
     }
     fn mouse_position(&mut self) -> Result<(i64, i64), String> {
@@ -601,7 +652,10 @@ impl ahk::desktop::Pointer for LabDesktop {
                 // position the runtime put the pointer at is still the
                 // truth about what it did, and the report says which of
                 // the two this is.
-                let last = self.pointer().map(|pointer| pointer.last_position()).unwrap_or((0, 0));
+                let last = self
+                    .pointer()
+                    .map(|pointer| pointer.last_position())
+                    .unwrap_or((0, 0));
                 self.notes.push(format!(
                     "the kernel did not say where the pointer is ({error}); this is the position \
                      the runtime put it at"
@@ -638,14 +692,21 @@ impl ahk::desktop::Screen for LabDesktop {
         };
         let path = PathBuf::from(&name);
         let geometry = format!("{x},{y} {width}x{height}");
-        let command = format!("grim -g {} {}", shell_quote(&geometry), shell_quote(&path.to_string_lossy()));
+        let command = format!(
+            "grim -g {} {}",
+            shell_quote(&geometry),
+            shell_quote(&path.to_string_lossy())
+        );
         let output = Command::new("sh")
             .arg("-c")
             .arg(&command)
             .output()
             .map_err(|error| error.to_string())?;
         if !output.status.success() || !path.exists() {
-            return Err(format!("grim failed: {}", String::from_utf8_lossy(&output.stderr)));
+            return Err(format!(
+                "grim failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
         Ok(path.to_string_lossy().to_string())
     }
@@ -674,7 +735,13 @@ impl ahk::desktop::Screen for LabDesktop {
         if width <= 0 || height <= 0 {
             return Ok(None);
         }
-        let path = self.capture(left, top, width, height, &format!("ahk-search-{}.png", millis()))?;
+        let path = self.capture(
+            left,
+            top,
+            width,
+            height,
+            &format!("ahk-search-{}.png", millis()),
+        )?;
         let found = search_pixel(&path, target);
         let _ = std::fs::remove_file(&path);
         Ok(found.map(|(x, y)| (x + left, y + top)))
@@ -762,19 +829,26 @@ impl ahk::desktop::Windows for LabDesktop {
                     .to_string(),
             );
         };
-        let command = format!("DISPLAY={display} xprop -root _NET_ACTIVE_WINDOW 2>/dev/null || true");
+        let command =
+            format!("DISPLAY={display} xprop -root _NET_ACTIVE_WINDOW 2>/dev/null || true");
         let output = self.run(&command, "")?;
         let text = output.1.trim().to_string();
         if text.is_empty() {
             return Ok(None);
         }
-        let Some(id) = text.rsplit('#').next().map(str::trim).filter(|id| !id.is_empty()) else {
+        let Some(id) = text
+            .rsplit('#')
+            .next()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+        else {
             return Ok(None);
         };
         if id == "0x0" {
             return Ok(None);
         }
-        let command = format!("DISPLAY={display} xprop -id {id} _NET_WM_NAME WM_NAME 2>/dev/null || true");
+        let command =
+            format!("DISPLAY={display} xprop -id {id} _NET_WM_NAME WM_NAME 2>/dev/null || true");
         let output = self.run(&command, "")?;
         for line in output.1.lines() {
             if let Some((_, value)) = line.split_once(" = ") {
@@ -796,9 +870,9 @@ impl ahk::desktop::Sound for LabDesktop {
         // "Volume: front-left: 64881 /  99% / -0.26 dB,  front-right: ...".
         let head = output.split('%').next().unwrap_or_default();
         let percent = head.rsplit('/').next().unwrap_or_default().trim();
-        percent.parse().map_err(|_| {
-            format!("the volume of {sink} is not a number: {:?}", output.trim())
-        })
+        percent
+            .parse()
+            .map_err(|_| format!("the volume of {sink} is not a number: {:?}", output.trim()))
     }
 
     fn sound_set_volume(&mut self, device: &str, volume: f64) -> Result<(), String> {
@@ -867,7 +941,10 @@ impl ahk::desktop::Processes for LabDesktop {
             return Err("the name of a variable of the environment may not be empty".to_string());
         }
         if name.contains('=') {
-            return Err("the name of a variable of the environment may not carry the equal sign".to_string());
+            return Err(
+                "the name of a variable of the environment may not carry the equal sign"
+                    .to_string(),
+            );
         }
         // The environment of the runner is its own: the box has one
         // session and one user, and a script that sets a variable of it
@@ -913,7 +990,9 @@ impl ahk::desktop::Processes for LabDesktop {
             .spawn()
             .map_err(|error| error.to_string())?;
         let pid = child.id();
-        let output = child.wait_with_output().map_err(|error| error.to_string())?;
+        let output = child
+            .wait_with_output()
+            .map_err(|error| error.to_string())?;
         Ok((
             pid,
             output.status.code().unwrap_or(-1),
@@ -1103,10 +1182,7 @@ fn zenity(args: &[String]) -> Result<(String, i32), String> {
     if !(0..=5).contains(&code) {
         // The dialog failed: zenity says why on its error output.
         let reason = String::from_utf8_lossy(&output.stderr);
-        return Err(format!(
-            "the dialog of the box failed: {}",
-            reason.trim()
-        ));
+        return Err(format!("the dialog of the box failed: {}", reason.trim()));
     }
     let text = String::from_utf8_lossy(&output.stdout)
         .trim_end_matches(['\r', '\n'])
@@ -1154,8 +1230,6 @@ fn the_filter_of_zenity(filter: &str) -> Option<String> {
     Some(format!("{name} | {}", patterns.join(" ")))
 }
 
-
-
 /// The files of a folder that match a pattern.
 ///
 /// The mode is v2's: "R" walks into the subfolders as well, and "D"
@@ -1166,12 +1240,18 @@ fn the_filter_of_zenity(filter: &str) -> Option<String> {
 /// Measured on the binary of v2.0.19 on 2026-11-05 and on the binary of
 /// AutoHotkey v1.1.37.02 on 2026-11-05: the files of a folder come first,
 /// and the walk into the folders of it comes after them.
-pub(crate) fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &mut Vec<String>) -> Result<(), String> {
+pub(crate) fn walk_the_folder(
+    folder: &Path,
+    pattern: &str,
+    mode: &str,
+    files: &mut Vec<String>,
+) -> Result<(), String> {
     let mut entries: Vec<(String, bool, PathBuf)> = Vec::new();
     for entry in std::fs::read_dir(folder)
         .map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?
     {
-        let entry = entry.map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?;
+        let entry =
+            entry.map_err(|error| format!("the folder {folder:?} cannot be read: {error}"))?;
         let name = entry.file_name().to_string_lossy().to_string();
         let path = entry.path();
         let is_file = path.is_file();
@@ -1184,7 +1264,10 @@ pub(crate) fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &
     // of NTFS come in the order of the name with the case taken away, and the
     // tree sorts them the same way.
     entries.sort_by(|one, other| {
-        one.0.to_uppercase().cmp(&other.0.to_uppercase()).then_with(|| one.0.cmp(&other.0))
+        one.0
+            .to_uppercase()
+            .cmp(&other.0.to_uppercase())
+            .then_with(|| one.0.cmp(&other.0))
     });
     // The mode is a set of letters: the "F" and the "V" give the files, the
     // "D" and the "K" give the folders, and the "A" gives the two of them --
@@ -1203,7 +1286,11 @@ pub(crate) fn walk_the_folder(folder: &Path, pattern: &str, mode: &str, files: &
         // The directories are not files: a loop over the files of a
         // folder does not walk into them, unless the mode asks for the
         // directories instead, or for the two of them.
-        let wanted = if *is_file { wants_the_files } else { wants_the_folders };
+        let wanted = if *is_file {
+            wants_the_files
+        } else {
+            wants_the_folders
+        };
         if wanted && name_matches(pattern, name) {
             files.push(path.to_string_lossy().to_string());
         }
@@ -1236,10 +1323,12 @@ impl LabDesktop {
             let index: usize = number
                 .parse()
                 .map_err(|_| format!("the sound device {device:?} is not a number"))?;
-            return sinks
-                .get(index.saturating_sub(1))
-                .cloned()
-                .ok_or_else(|| format!("the mixer has {} devices, and there is no #{index}", sinks.len()));
+            return sinks.get(index.saturating_sub(1)).cloned().ok_or_else(|| {
+                format!(
+                    "the mixer has {} devices, and there is no #{index}",
+                    sinks.len()
+                )
+            });
         }
         if sinks.iter().any(|sink| sink == device) {
             return Ok(device.to_string());
@@ -1388,7 +1477,11 @@ impl LabDesktop {
         let windows = self.wayland()?.windows()?;
         for window in &windows {
             if title_matches(&window.title, title, mode)? {
-                return Ok(if window.active { WindowAnswer::Active } else { WindowAnswer::NotActive });
+                return Ok(if window.active {
+                    WindowAnswer::Active
+                } else {
+                    WindowAnswer::NotActive
+                });
             }
         }
         Ok(WindowAnswer::Absent)
@@ -1465,8 +1558,13 @@ fn title_matches(
 
 /// Parse a colour: `#rrggbb`, `#rgb`, or `rrggbb`.
 fn parse_colour(colour: &str) -> Result<[u8; 3], String> {
-    let text = colour.trim().trim_start_matches('#').trim_start_matches("0x");
-    let parse = |part: &str| -> Result<u8, String> { u8::from_str_radix(part, 16).map_err(|error| error.to_string()) };
+    let text = colour
+        .trim()
+        .trim_start_matches('#')
+        .trim_start_matches("0x");
+    let parse = |part: &str| -> Result<u8, String> {
+        u8::from_str_radix(part, 16).map_err(|error| error.to_string())
+    };
     match text.len() {
         6 => {
             let red = parse(&text[0..2])?;
@@ -1479,7 +1577,11 @@ fn parse_colour(colour: &str) -> Result<[u8; 3], String> {
                 let value = parse(part)?;
                 Ok(value * 17)
             };
-            Ok([expand(&text[0..1])?, expand(&text[1..2])?, expand(&text[2..3])?])
+            Ok([
+                expand(&text[0..1])?,
+                expand(&text[1..2])?,
+                expand(&text[2..3])?,
+            ])
         }
         _ => Err(format!("{colour:?} is not a colour: write it as #rrggbb")),
     }
@@ -1487,7 +1589,10 @@ fn parse_colour(colour: &str) -> Result<[u8; 3], String> {
 
 /// The milliseconds since the epoch, for the scratch file names.
 fn millis() -> u128 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
 }
 
 /// The size of an image, read from its header.
@@ -1507,7 +1612,9 @@ fn read_pixel(path: &str) -> Result<String, String> {
     let decoder = png::Decoder::new(std::io::BufReader::new(file));
     let mut reader = decoder.read_info().map_err(|error| error.to_string())?;
     let mut buffer = vec![0u8; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut buffer).map_err(|error| error.to_string())?;
+    let info = reader
+        .next_frame(&mut buffer)
+        .map_err(|error| error.to_string())?;
     if info.width == 0 || info.height == 0 {
         return Err("the capture is empty".to_string());
     }
@@ -1570,7 +1677,10 @@ fn search_pixel(path: &str, target: [u8; 3]) -> Option<(i64, i64)> {
 
 /// The modifier names, for the report.
 pub fn modifier_names() -> Vec<String> {
-    MODIFIERS.iter().map(|(name, _)| (*name).to_string()).collect()
+    MODIFIERS
+        .iter()
+        .map(|(name, _)| (*name).to_string())
+        .collect()
 }
 
 /// Whether a name matches a pattern with the stars and the question
@@ -1583,8 +1693,14 @@ pub(crate) fn name_matches(pattern: &str, name: &str) -> bool {
     // Measured on the binary of v2.0.19 on 2026-10-31: the case of the
     // pattern and the case of the name do not count: the machine of v2 is
     // one that does not tell them apart.
-    let pattern: Vec<char> = pattern.chars().flat_map(|letter| letter.to_lowercase()).collect();
-    let name: Vec<char> = name.chars().flat_map(|letter| letter.to_lowercase()).collect();
+    let pattern: Vec<char> = pattern
+        .chars()
+        .flat_map(|letter| letter.to_lowercase())
+        .collect();
+    let name: Vec<char> = name
+        .chars()
+        .flat_map(|letter| letter.to_lowercase())
+        .collect();
     let mut table = vec![vec![false; name.len() + 1]; pattern.len() + 1];
     table[0][0] = true;
     for p in 1..=pattern.len() {
@@ -1627,7 +1743,9 @@ mod tests {
     fn the_case_of_the_title_matters() {
         let mode = TitleMatch::Contains;
         assert!(title_matches("pod153/Login - Chromium", "Chromium", mode).expect("it matches"));
-        assert!(!title_matches("pod153/Login - Chromium", "chromium", mode).expect("it does not match"));
+        assert!(
+            !title_matches("pod153/Login - Chromium", "chromium", mode).expect("it does not match")
+        );
     }
 
     /// The case of the pattern and the case of the name do not count: the
@@ -1645,7 +1763,9 @@ mod tests {
     #[test]
     fn a_title_that_is_not_there_is_not_there() {
         let mode = TitleMatch::Contains;
-        assert!(!title_matches("pod153/Login - Chromium", "Firefox", mode).expect("it does not match"));
+        assert!(
+            !title_matches("pod153/Login - Chromium", "Firefox", mode).expect("it does not match")
+        );
         assert!(!title_matches("pod153/Login - Chromium", "", mode).expect("it does not match"));
     }
 }

@@ -6,11 +6,11 @@
 //! names that the tree does not carry refuse with the reason of the name.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Folders, Hotkeys, Idle, Keyboard, Machine, Native, Network, Pictures, Pointer,
-    Processes, Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Folders, Hotkeys, Idle, Keyboard, Machine, Native, Network,
+    Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
-use ahk::runtime::{Report, Runtime};
 use ahk::parse;
+use ahk::runtime::{Report, Runtime};
 use std::time::Duration;
 
 /// A desktop that holds a clipboard of its own and answers the machine.
@@ -83,7 +83,12 @@ impl Machine for Fake {
         Ok(false)
     }
     fn idle_times(&mut self) -> Result<Idle, String> {
-        Ok(Idle { any: 1000, physical: 2000, keyboard: 3000, mouse: 4000 })
+        Ok(Idle {
+            any: 1000,
+            physical: 2000,
+            keyboard: 3000,
+            mouse: 4000,
+        })
     }
 }
 
@@ -198,7 +203,10 @@ fn the_line_of_the_statement_and_the_name_of_the_function_that_runs() {
 /// The report of a script that ran, and the clipboard it left behind.
 fn run_with_clipboard(script: &str, clipboard: &str) -> (Report, String) {
     let statements = parse(script).expect("parses");
-    let mut desktop = Fake { clipboard: clipboard.to_string(), ..Fake::default() };
+    let mut desktop = Fake {
+        clipboard: clipboard.to_string(),
+        ..Fake::default()
+    };
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     (report, desktop.clipboard)
 }
@@ -228,7 +236,11 @@ fn a_script_that_asks_for_the_space_is_told_a_space() {
 fn a_script_that_asks_for_the_tick_count_is_told_a_number_of_milliseconds() {
     let report = run("MsgBox A_TickCount");
     assert!(report.ok, "{:?}", report.error);
-    assert!(report.output[0].parse::<u64>().is_ok(), "{:?}", report.output);
+    assert!(
+        report.output[0].parse::<u64>().is_ok(),
+        "{:?}",
+        report.output
+    );
 }
 
 #[test]
@@ -244,7 +256,10 @@ fn a_name_of_the_machine_answers_with_the_value_of_the_desktop() {
     // The machine is the desktop's, and the desktop is asked.
     let report = run("MsgBox A_UserName \", \" A_ComputerName \", \" A_ComSpec \", \" A_Language");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["danalec, pod158c, /usr/bin/zsh, en_US.UTF-8"]);
+    assert_eq!(
+        report.output,
+        vec!["danalec, pod158c, /usr/bin/zsh, en_US.UTF-8"]
+    );
 }
 
 #[test]
@@ -257,7 +272,9 @@ fn a_script_that_asks_whether_it_is_elevated_is_told_a_number() {
 
 #[test]
 fn an_idle_time_answers_with_the_milliseconds_of_the_desktop() {
-    let report = run("MsgBox A_TimeIdle \", \" A_TimeIdlePhysical \", \" A_TimeIdleKeyboard \", \" A_TimeIdleMouse");
+    let report = run(
+        "MsgBox A_TimeIdle \", \" A_TimeIdlePhysical \", \" A_TimeIdleKeyboard \", \" A_TimeIdleMouse",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1000, 2000, 3000, 4000"]);
 }
@@ -266,7 +283,10 @@ fn an_idle_time_answers_with_the_milliseconds_of_the_desktop() {
 fn a_folder_of_the_machine_answers_with_the_folder() {
     let report = run("MsgBox A_Desktop \", \" A_Temp \", \" A_MyDocuments");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["/home/danalec/Desktop, /tmp, /home/danalec/Documents"]);
+    assert_eq!(
+        report.output,
+        vec!["/home/danalec/Desktop, /tmp, /home/danalec/Documents"]
+    );
 }
 
 #[test]
@@ -277,7 +297,9 @@ fn a_folder_that_the_machine_does_not_have_refuses_with_the_reason_of_the_name()
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("the machine has no desktop for everybody: the desktop of the session is the one of the user.")
+        Some(
+            "the machine has no desktop for everybody: the desktop of the session is the one of the user."
+        )
     );
     assert_eq!(report.error_line, Some(1));
 }
@@ -401,7 +423,11 @@ fn a_script_that_appends_to_the_clipboard_adds_to_what_is_there() {
 fn the_clipboard_is_not_a_variable_of_the_script() {
     let (report, _) = run_with_clipboard("A_Clipboard := \"the new text\"", "");
     assert!(report.ok, "{:?}", report.error);
-    assert!(!report.variables.contains_key("A_Clipboard"), "{:?}", report.variables);
+    assert!(
+        !report.variables.contains_key("A_Clipboard"),
+        "{:?}",
+        report.variables
+    );
 }
 
 #[test]
@@ -544,7 +570,10 @@ fn a_text_that_holds_no_number_is_refused_by_the_interval_of_the_hotkeys() {
         "try {\n    A_HotkeyInterval := \"text\"\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Expected a Number but got a String. | TypeError"]);
+    assert_eq!(
+        report.output,
+        vec!["Expected a Number but got a String. | TypeError"]
+    );
 }
 
 #[test]
@@ -790,9 +819,8 @@ fn the_variable_of_a_for_may_not_carry_the_name_of_a_read_only_variable() {
 fn a_variable_that_has_no_value_is_an_unset_error() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a variable that has
     // no value is an `UnsetError`.
-    let report = run(
-        "try {\n    x += 5\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
-    );
+    let report =
+        run("try {\n    x += 5\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
@@ -809,5 +837,8 @@ fn the_compound_operator_checks_the_value_that_is_written_first() {
         "try {\n    x += \"text\"\n} catch Any as e {\n    MsgBox e.Message \" | \" e.__Class\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Expected a Number but got a String. | TypeError"]);
+    assert_eq!(
+        report.output,
+        vec!["Expected a Number but got a String. | TypeError"]
+    );
 }

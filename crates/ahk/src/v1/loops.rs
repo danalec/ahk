@@ -64,7 +64,10 @@ pub(crate) fn the_refusal_of_the_mode(text: &str) -> Option<String> {
     if the_mode_of_the_loop_of_the_files(text).is_some() {
         return None;
     }
-    Some(format!("Parameter #2 invalid.\n     Specifically: {}", text.trim()))
+    Some(format!(
+        "Parameter #2 invalid.\n     Specifically: {}",
+        text.trim()
+    ))
 }
 
 /// The refusal of the flag of the recursion of the loop of the files of the v1.

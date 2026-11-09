@@ -66,7 +66,10 @@ enum Inst {
     /// Match any character but the end of the line.
     Any,
     /// Match one character of a class.
-    Class { negated: bool, items: Vec<ClassItem> },
+    Class {
+        negated: bool,
+        items: Vec<ClassItem>,
+    },
     /// Try the first branch, and the second when the first fails.
     Split(usize, usize),
     /// Go on.
@@ -124,7 +127,11 @@ impl Regex {
         program.extend(shift_block(&compiler.program, 1));
         program.push(Inst::Save(1));
         program.push(Inst::Match);
-        Ok(Regex { program, groups, ignore_case })
+        Ok(Regex {
+            program,
+            groups,
+            ignore_case,
+        })
     }
 
     /// The number of the groups, the whole one included.
@@ -186,7 +193,10 @@ impl Regex {
                     let instruction = self.program[thread.pc].clone();
                     match instruction {
                         Inst::Char(expected) => match chars.get(thread.sp) {
-                            Some(actual) if *actual == expected || (self.ignore_case && same_case(*actual, expected)) => {
+                            Some(actual)
+                                if *actual == expected
+                                    || (self.ignore_case && same_case(*actual, expected)) =>
+                            {
                                 thread.sp += 1;
                                 thread.pc += 1;
                             }
@@ -281,7 +291,9 @@ impl Match {
     /// The text of the whole match.
     pub fn text(&self, chars: &[char]) -> String {
         let (start, end) = self.span();
-        chars[start.min(chars.len())..end.min(chars.len())].iter().collect()
+        chars[start.min(chars.len())..end.min(chars.len())]
+            .iter()
+            .collect()
     }
 
     /// The text of one group, when the group took part in the match.
@@ -347,7 +359,12 @@ struct Compiler {
 impl Compiler {
     /// A compiler over a pattern.
     fn new(chars: Vec<char>, index: usize, groups: usize) -> Self {
-        Self { chars, index, program: Vec::new(), groups }
+        Self {
+            chars,
+            index,
+            program: Vec::new(),
+            groups,
+        }
     }
 }
 
@@ -366,7 +383,10 @@ impl Compiler {
     fn compile(&mut self) -> Result<(), String> {
         self.alternation()?;
         if self.index < self.chars.len() {
-            return Err(format!("the pattern has {:?} left over", self.chars[self.index]));
+            return Err(format!(
+                "the pattern has {:?} left over",
+                self.chars[self.index]
+            ));
         }
         Ok(())
     }
@@ -465,7 +485,9 @@ impl Compiler {
             self.index = start;
             return Ok(None);
         }
-        let low: u32 = low.parse().map_err(|_| "the count of a repetition is too large.".to_string())?;
+        let low: u32 = low
+            .parse()
+            .map_err(|_| "the count of a repetition is too large.".to_string())?;
         match self.peek() {
             Some('}') => {
                 self.index += 1;
@@ -489,8 +511,9 @@ impl Compiler {
                 if high.is_empty() {
                     Ok(Some((low, None)))
                 } else {
-                    let high: u32 =
-                        high.parse().map_err(|_| "the count of a repetition is too large.".to_string())?;
+                    let high: u32 = high
+                        .parse()
+                        .map_err(|_| "the count of a repetition is too large.".to_string())?;
                     if high < low {
                         return Err("the counts of a repetition are the wrong way round.".into());
                     }
@@ -629,7 +652,10 @@ impl Compiler {
                 let escaped = self.escape()?;
                 match escaped.first() {
                     Some(Inst::Char(character)) => *character,
-                    Some(Inst::Class { negated, items: named }) => {
+                    Some(Inst::Class {
+                        negated,
+                        items: named,
+                    }) => {
                         // A named class inside a class: the items of the
                         // named class join the class.
                         if *negated {
@@ -638,13 +664,20 @@ impl Compiler {
                         items.extend(named.iter().cloned());
                         continue;
                     }
-                    _ => return Err("only a character or a named class can sit inside a class.".into()),
+                    _ => {
+                        return Err(
+                            "only a character or a named class can sit inside a class.".into()
+                        );
+                    }
                 }
             } else {
                 character
             };
             // A range: `a-z`.
-            if self.peek() == Some('-') && self.peek_next() != Some(']') && self.peek_next().is_some() {
+            if self.peek() == Some('-')
+                && self.peek_next() != Some(']')
+                && self.peek_next().is_some()
+            {
                 self.index += 1;
                 let Some(high) = self.peek() else {
                     return Err("a character class is missing its closing bracket.".into());
@@ -784,7 +817,11 @@ mod tests {
     use super::*;
 
     fn matches(pattern: &str, text: &str) -> bool {
-        Regex::new(pattern).expect("compiles").find(text).expect("runs").is_some()
+        Regex::new(pattern)
+            .expect("compiles")
+            .find(text)
+            .expect("runs")
+            .is_some()
     }
 
     #[test]

@@ -28,11 +28,26 @@ const HOTKEY: &[(&str, &str)] = &[
     ("start", "start watching for the key"),
     ("stop", "stop watching for the key"),
     ("wait", "wait for the key"),
-    ("backspaceisundo", "read or set whether the backspace key undoes"),
-    ("casesensitive", "read or set whether the key is matched by its case"),
-    ("findanywhere", "read or set whether the key is found anywhere"),
-    ("notifynontext", "read or set whether a key that is not text is announced"),
-    ("visiblenontext", "read or set whether a key that is not text is shown"),
+    (
+        "backspaceisundo",
+        "read or set whether the backspace key undoes",
+    ),
+    (
+        "casesensitive",
+        "read or set whether the key is matched by its case",
+    ),
+    (
+        "findanywhere",
+        "read or set whether the key is found anywhere",
+    ),
+    (
+        "notifynontext",
+        "read or set whether a key that is not text is announced",
+    ),
+    (
+        "visiblenontext",
+        "read or set whether a key that is not text is shown",
+    ),
     ("visibletext", "read or set whether a text key is shown"),
     ("endkey", "read which key ended the hotkey"),
     ("endmods", "read which modifiers ended the hotkey"),
@@ -40,10 +55,16 @@ const HOTKEY: &[(&str, &str)] = &[
     ("inprogress", "read whether the hotkey is running"),
     ("input", "read the text the hotkey was given"),
     ("match", "read the text the hotkey matched"),
-    ("minsendlevel", "read or set the lowest input level of the hotkey"),
+    (
+        "minsendlevel",
+        "read or set the lowest input level of the hotkey",
+    ),
     ("onchar", "read or set the character handler of the hotkey"),
     ("onend", "read or set the end handler of the hotkey"),
-    ("onkeydown", "read or set the key-down handler of the hotkey"),
+    (
+        "onkeydown",
+        "read or set the key-down handler of the hotkey",
+    ),
     ("onkeyup", "read or set the key-up handler of the hotkey"),
     ("timeout", "read or set the timeout of the hotkey"),
 ];
@@ -277,9 +298,11 @@ fn set_property_of(
         // What happened to the hotkey is not something a script writes.
         "endkey" | "endmods" | "endreason" | "inprogress" | "input" | "match" => {
             return Err(fail(
-                &format!("the {name} of a hotkey is what happened to it, and a script cannot write it."),
+                &format!(
+                    "the {name} of a hotkey is what happened to it, and a script cannot write it."
+                ),
                 line,
-            ))
+            ));
         }
         _ => return Ok(false),
     }
@@ -394,7 +417,10 @@ fn wait(
 
 /// A hotkey that is already made cannot be made again.
 fn made_again(_this: &Value, line: u32) -> Result<Value, RuntimeFailure> {
-    Err(fail("a hotkey that is already made cannot be made again.", line))
+    Err(fail(
+        "a hotkey that is already made cannot be made again.",
+        line,
+    ))
 }
 
 /// The state of a hotkey, as the property table holds it.
@@ -409,9 +435,15 @@ fn stored(state: &State) -> Value {
             ("case_sensitive", Value::Int(state.case_sensitive as i64)),
             ("find_anywhere", Value::Int(state.find_anywhere as i64)),
             ("notify_non_text", Value::Int(state.notify_non_text as i64)),
-            ("visible_non_text", Value::Int(state.visible_non_text as i64)),
+            (
+                "visible_non_text",
+                Value::Int(state.visible_non_text as i64),
+            ),
             ("visible_text", Value::Int(state.visible_text as i64)),
-            ("backspace_is_undo", Value::Int(state.backspace_is_undo as i64)),
+            (
+                "backspace_is_undo",
+                Value::Int(state.backspace_is_undo as i64),
+            ),
             ("min_send_level", Value::Int(state.min_send_level)),
             ("timeout", Value::Int(state.timeout)),
             ("on_char", Value::Text(state.on_char.clone())),
@@ -488,7 +520,9 @@ fn restore(this: &Value, state: &State) {
 
 /// The entry of the registry that carries this object.
 fn entry_of(rt: &mut Runtime, this: &Value) -> Option<hotkeys::Hotkey> {
-    let Value::Object(object) = this else { return None };
+    let Value::Object(object) = this else {
+        return None;
+    };
     rt.hotkeys()
         .iter()
         .find(|entry| match &entry.object {
@@ -528,8 +562,8 @@ fn fail(message: &str, line: u32) -> RuntimeFailure {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-        Processes, Screen, Sound, Timers, Windows,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+        Pointer, Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
     use core::time::Duration;
@@ -552,13 +586,26 @@ mod tests {
     }
 
     impl Pointer for Fake {
-        fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        fn click(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _button: &str,
+            _count: u32,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
     }
 
     impl Screen for Fake {
-        fn capture(&mut self, _x: i64, _y: i64, _w: i64, _h: i64, _filename: &str) -> Result<String, String> {
+        fn capture(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _w: i64,
+            _h: i64,
+            _filename: &str,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
 
@@ -599,8 +646,8 @@ mod tests {
     impl Pictures for Fake {}
     impl Network for Fake {}
     impl Sound for Fake {}
-impl Machine for Fake {}
-impl Dialogs for Fake {}
+    impl Machine for Fake {}
+    impl Dialogs for Fake {}
 
     /// A clock that does not move.
     struct TheClock;
@@ -618,7 +665,8 @@ impl Dialogs for Fake {}
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::default();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
         (Value::Text(String::new()), desktop)
     }
@@ -628,7 +676,10 @@ impl Dialogs for Fake {}
     fn every_name_of_the_binary_is_carried() {
         let carried: Vec<&str> = super::HOTKEY.iter().map(|(name, _)| *name).collect();
         for name in names_of("hotkey") {
-            assert!(carried.contains(&name.as_str()), "the Hotkey class does not carry {name}");
+            assert!(
+                carried.contains(&name.as_str()),
+                "the Hotkey class does not carry {name}"
+            );
         }
         for name in &carried {
             let binary = names_of("hotkey");
@@ -670,9 +721,13 @@ impl Dialogs for Fake {}
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::default();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
-        assert_eq!(report.variables.get("opt"), Some(&Value::Text("S".to_string())));
+        assert_eq!(
+            report.variables.get("opt"),
+            Some(&Value::Text("S".to_string()))
+        );
         assert_eq!(report.variables.get("timeout"), Some(&Value::Int(0)));
         assert_eq!(report.variables.get("visible"), Some(&Value::Int(1)));
     }
@@ -684,7 +739,8 @@ impl Dialogs for Fake {}
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::default();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
         assert_eq!(desktop.registered, vec!["^a".to_string()]);
         assert_eq!(desktop.unregistered, vec!["^a".to_string()]);

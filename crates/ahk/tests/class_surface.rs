@@ -18,11 +18,11 @@
 //! tables against the surface instead.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
-use ahk::runtime::{Report, Runtime};
 use ahk::parse;
+use ahk::runtime::{Report, Runtime};
 use std::time::Duration;
 
 /// The surface of v2.0.19, read out of the binary.

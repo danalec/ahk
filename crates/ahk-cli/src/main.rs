@@ -71,9 +71,15 @@ fn main() -> std::process::ExitCode {
     // The flag is answered before the script is read: the command is
     // about the tree, and it must not wait for a script that is not
     // coming.
-    if std::env::args().skip(1).any(|argument| argument == "--surface") {
+    if std::env::args()
+        .skip(1)
+        .any(|argument| argument == "--surface")
+    {
         // The JSON is for the CI, and the text is for a human.
-        if std::env::args().skip(1).any(|argument| argument == "--json") {
+        if std::env::args()
+            .skip(1)
+            .any(|argument| argument == "--json")
+        {
             print_surface_json(dialect);
         } else {
             print_surface(dialect);
@@ -88,7 +94,11 @@ fn main() -> std::process::ExitCode {
     }
     let timeout = std::env::args()
         .skip(1)
-        .find_map(|argument| argument.strip_prefix("--timeout=").and_then(|value| value.parse::<f64>().ok()))
+        .find_map(|argument| {
+            argument
+                .strip_prefix("--timeout=")
+                .and_then(|value| value.parse::<f64>().ok())
+        })
         .unwrap_or(60.0);
 
     // The includes are resolved here and not in the language: the
@@ -140,9 +150,26 @@ fn main() -> std::process::ExitCode {
     let handle = std::thread::Builder::new()
         .stack_size(STACK_BYTES)
         .spawn(move || {
-            let mut desktop = LabDesktop::new();
-            desktop.ensure_session_env();
-            let report = Runtime::new(&mut desktop, Duration::from_secs_f64(timeout))
+            // `YOKO_DESKTOP=x11` selects the X11 backend (XTEST + XGetImage)
+            // instead of the uinput one: a FreeBSD box has no /dev/uinput,
+            // and a Wayland box has no X11 focus for uinput to reach. Both
+            // are the same AHK language, with a different desktop.
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            let x11 = ahk_box::desktop_kind().eq_ignore_ascii_case("x11")
+                && ahk_box::x11_available();
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            let mut x11_desktop = ahk_box::x11::X11Desktop::new();
+            let mut lab_desktop = LabDesktop::new();
+            lab_desktop.ensure_session_env();
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            let desktop: &mut dyn ahk::desktop::Desktop = if x11 {
+                &mut x11_desktop
+            } else {
+                &mut lab_desktop
+            };
+            #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
+            let desktop: &mut dyn ahk::desktop::Desktop = &mut lab_desktop;
+            let report = Runtime::new(desktop, Duration::from_secs_f64(timeout))
                 .with_stack_budget(STACK_BUDGET)
                 .with_source(&source)
                 .with_dialect(dialect)
@@ -151,9 +178,9 @@ fn main() -> std::process::ExitCode {
             if let Some(map) = payload.as_object_mut() {
                 // The notes of the runtime come first, and the notes of the
                 // box are added to them: a host that wrote a note of its own
-                // keeps it.
+                // keeps it. The X11 desktop keeps its own notes too.
                 let mut notes = report.notes.clone();
-                notes.extend(desktop.notes().iter().cloned());
+                notes.extend(lab_desktop.notes().iter().cloned());
                 map.insert("notes".to_string(), serde_json::json!(notes));
             }
             (payload.to_string(), report.ok)
@@ -180,13 +207,17 @@ fn main() -> std::process::ExitCode {
 /// dialect of AutoHotkey, which is measured on the binary of v1.1.37.02.
 fn the_dialect() -> &'static dyn Dialect {
     let asked = std::env::args().skip(1).find_map(|argument| {
-        argument.strip_prefix("--dialect=").map(|value| value.to_lowercase())
+        argument
+            .strip_prefix("--dialect=")
+            .map(|value| value.to_lowercase())
     });
     match asked.as_deref() {
         Some("v1") => dialect::v1(),
         Some("v2") | None => dialect::v2(),
         Some(other) => {
-            eprintln!("the dialect {other} is not one this tree speaks: the tree speaks v1 and v2.");
+            eprintln!(
+                "the dialect {other} is not one this tree speaks: the tree speaks v1 and v2."
+            );
             std::process::exit(2);
         }
     }
@@ -263,11 +294,7 @@ fn print_surface_json(dialect: &'static dyn Dialect) {
 /// path is taken from the directory of the file that asks for it. An
 /// include that is already in the tree is not put in twice: the second
 /// time it is read it is skipped, the way `#IncludeAgain` says.
-fn resolve_includes(
-    source: &str,
-    base: &Path,
-    seen: &mut Vec<PathBuf>,
-) -> Result<String, String> {
+fn resolve_includes(source: &str, base: &Path, seen: &mut Vec<PathBuf>) -> Result<String, String> {
     let mut out = String::with_capacity(source.len());
     for line in source.lines() {
         let trimmed = line.trim();

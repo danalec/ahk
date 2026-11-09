@@ -21,24 +21,27 @@ use crate::runtime::{Runtime, RuntimeError, Value};
 /// Measured on the binary of v2.0.19 on 2026-10-29: the answer is zero
 /// when the picture is not there, the type of the handle is written in
 /// the third parameter, and an option that v2 does not know is ignored.
-pub fn load_picture(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn load_picture(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let filename = text_of(values, 0);
     let options = the_options_of_the_picture(&text_of(values, 1));
     let handle = rt
         .desktop()
         .load_picture(&filename, &options)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     // The type of the handle is written in the third parameter, when
     // there is one: it is zero, the bitmap of v2.
     if let Some(value) = values.get(2) {
         if !matches!(value, Value::Reference(_)) {
             return Err(RuntimeError {
-                message: crate::runtime::wants_a_reference(
-                    3,
-                    "LoadPicture",
-                    "a VarRef",
-                    value,
-                ),
+                message: crate::runtime::wants_a_reference(3, "LoadPicture", "a VarRef", value),
                 line,
             });
         }
@@ -56,11 +59,18 @@ pub fn load_picture(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
 /// Measured on the binary of v2.0.19 on 2026-10-29: the first two
 /// parameters want a variable, and a picture that cannot be loaded is
 /// refused with "Parameter #7 of ImageSearch is invalid.".
-pub fn image_search(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn image_search(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The place of the picture is written in the first two parameters,
     // and they are given by reference.
     for index in 0..2 {
-        let Some(value) = values.get(index) else { continue };
+        let Some(value) = values.get(index) else {
+            continue;
+        };
         if !matches!(value, Value::Reference(_)) {
             return Err(RuntimeError {
                 message: crate::runtime::wants_a_reference(
@@ -81,7 +91,10 @@ pub fn image_search(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
     let answer = rt
         .desktop()
         .image_search(x1, y1, x2, y2, &image, &options)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     match answer {
         ImageSearch::Found(x, y) => {
             rt.write_reference(&values[0], Value::Int(x));
@@ -198,10 +211,16 @@ fn the_number_of_an_option(text: &str) -> Option<i64> {
 
 /// The text of the argument at this place, or the empty string.
 fn text_of(values: &[Value], index: usize) -> String {
-    values.get(index).map(|value| value.to_text()).unwrap_or_default()
+    values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
 }
 
 /// The number of the argument at this place, or zero.
 fn number_of(values: &[Value], index: usize) -> f64 {
-    values.get(index).and_then(|value| value.to_number()).unwrap_or(0.0)
+    values
+        .get(index)
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0)
 }

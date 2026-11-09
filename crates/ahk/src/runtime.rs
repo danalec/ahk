@@ -30,11 +30,11 @@
 //! `false`. A script that cannot answer the question fails; it does not
 //! quietly take the wrong branch.
 
+use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::collections::BTreeSet;
 use alloc::format;
 use alloc::string::{String, ToString};
-use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::time::Duration;
@@ -45,8 +45,9 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use crate::ast::{
-    AccessBody, AccessDef, AssignOp, BinaryOp, DeclareKind, Declarations, DynamicPiece, LegacyForm, LiteralValue,
-    LoopKind, MemberName, MethodDef, Node, ObjectItem, Parameter, PropertyDef, UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, Declarations, DeclareKind, DynamicPiece, LegacyForm,
+    LiteralValue, LoopKind, MemberName, MethodDef, Node, ObjectItem, Parameter, PropertyDef,
+    UnaryOp,
 };
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
@@ -378,12 +379,7 @@ pub fn invalid_parameter(index: usize, name: &str) -> String {
 /// `Extra` of the failure, and not in the message. The kind is the name
 /// of the class of the value: "an Integer", "an Array", "an empty
 /// string".
-pub fn wants_a_reference(
-    index: usize,
-    name: &str,
-    wants: &str,
-    value: &Value,
-) -> String {
+pub fn wants_a_reference(index: usize, name: &str, wants: &str, value: &Value) -> String {
     format!(
         "Parameter #{index} of {name} requires {wants}, but received {}.",
         the_kind_of(value)
@@ -402,9 +398,22 @@ pub fn refusal_of_directive(name: &str) -> Option<&'static str> {
     match name {
         "commentflag" | "escapechar" => Some("the comment flags are not carried by this runtime."),
         "maxmem" => Some("the memory limits are not carried by this runtime."),
-        "if" | "iftimeout" | "ifwinactive" | "installkeybdhook" | "installmousehook" | "keyhistory"
-        | "maxhotkeysperinterval" | "hotkeyinterval" | "hotkeymodifiertimeout" | "menumaskkey"
-        | "usehook" | "hotif" | "hotiftimeout" | "hotstring" | "maxthreads" | "maxthreadsperhotkey"
+        "if"
+        | "iftimeout"
+        | "ifwinactive"
+        | "installkeybdhook"
+        | "installmousehook"
+        | "keyhistory"
+        | "maxhotkeysperinterval"
+        | "hotkeyinterval"
+        | "hotkeymodifiertimeout"
+        | "menumaskkey"
+        | "usehook"
+        | "hotif"
+        | "hotiftimeout"
+        | "hotstring"
+        | "maxthreads"
+        | "maxthreadsperhotkey"
         | "maxthreadsbuffer" => Some("the hotkeys are not carried by this runtime."),
         "clipboardtimeout" => Some("the clipboard is not carried by this runtime."),
         "inputlevel" => Some("the input level is not carried by this runtime."),
@@ -648,7 +657,9 @@ pub(crate) fn put(properties: &mut BTreeMap<String, Property>, name: &str, value
 impl Object {
     /// The value of a property, by the key of it.
     pub fn value_of(&self, key: &str) -> Option<Value> {
-        self.properties.get(key).map(|property| property.value.clone())
+        self.properties
+            .get(key)
+            .map(|property| property.value.clone())
     }
 
     /// Put a property in, and keep the name that was written.
@@ -889,7 +900,9 @@ pub struct SystemClock {
 impl SystemClock {
     /// A clock that starts counting now.
     pub fn new() -> Self {
-        Self { started: std::time::Instant::now() }
+        Self {
+            started: std::time::Instant::now(),
+        }
     }
 }
 
@@ -988,7 +1001,10 @@ pub(crate) enum Flow {
     /// The name is the text of the parameter, and not its value: v2 reads
     /// the name of a label as it stands, and the quotes of a text are part
     /// of it.
-    Goto { name: String, line: u32 },
+    Goto {
+        name: String,
+        line: u32,
+    },
 }
 
 /// What the functions of the error said about a failure.
@@ -1580,7 +1596,11 @@ impl<'a> Runtime<'a> {
         builtins
             .iter()
             .find(|builtin| builtin.name.to_lowercase() == wanted && builtin.kind == kind)
-            .or_else(|| builtins.iter().find(|builtin| builtin.name.to_lowercase() == wanted))
+            .or_else(|| {
+                builtins
+                    .iter()
+                    .find(|builtin| builtin.name.to_lowercase() == wanted)
+            })
     }
 
     /// The milliseconds since the run started.
@@ -1603,12 +1623,12 @@ impl<'a> Runtime<'a> {
     /// hotkey that is written in the body of another one is registered too,
     /// and the registration of it does not wait for the code that comes
     /// before it.
-    fn register_the_hotkeys_of_the_v1(
-        &mut self,
-        statements: &[Node],
-    ) -> Result<(), RuntimeError> {
+    fn register_the_hotkeys_of_the_v1(&mut self, statements: &[Node]) -> Result<(), RuntimeError> {
         for statement in statements {
-            if let Node::HotkeyDefinition { name, body, line, .. } = statement {
+            if let Node::HotkeyDefinition {
+                name, body, line, ..
+            } = statement
+            {
                 crate::hotkeys::register_the_hotkey_of_the_v1(self, name, body.clone(), *line)
                     .map_err(|failure| match failure {
                         RuntimeFailure::Error(error) => error,
@@ -1655,7 +1675,8 @@ impl<'a> Runtime<'a> {
         match registered {
             Ok(()) => match self.run_block(statements) {
                 Ok(()) => {}
-                Err(RuntimeFailure::Flow(Flow::Break)) | Err(RuntimeFailure::Flow(Flow::Continue)) => {}
+                Err(RuntimeFailure::Flow(Flow::Break))
+                | Err(RuntimeFailure::Flow(Flow::Continue)) => {}
                 Err(RuntimeFailure::Flow(Flow::Return(_))) => {}
                 Err(RuntimeFailure::Flow(Flow::Exit(code))) => exit_code = Some(code),
                 // The jump of a `Goto` that leaves the script: the label is not
@@ -1730,7 +1751,8 @@ impl<'a> Runtime<'a> {
                         RuntimeFailure::Thrown(value) => (thrown_message(&value), 0),
                         RuntimeFailure::Timeout(timeout) => (timeout.to_string(), 0),
                         RuntimeFailure::Flow(_) => (
-                            "the function of the exit left the script in the middle of a block.".to_string(),
+                            "the function of the exit left the script in the middle of a block."
+                                .to_string(),
                             0,
                         ),
                     };
@@ -1782,10 +1804,7 @@ impl<'a> Runtime<'a> {
     /// of the "StdOut" writes the warning to the standard output with the
     /// line of it. The tree has no dialog, and the warning goes to the
     /// report.
-    fn the_warnings_of_the_script(
-        &mut self,
-        statements: &[Node],
-    ) -> Vec<crate::warnings::Warning> {
+    fn the_warnings_of_the_script(&mut self, statements: &[Node]) -> Vec<crate::warnings::Warning> {
         self.modes = crate::warnings::the_modes_of_the_script(statements, self.dialect);
         // The type of the warning that the tree does not carry yet is named in
         // the report: the script asks for it, and the tree does not give it.
@@ -1805,9 +1824,10 @@ impl<'a> Runtime<'a> {
         // and never written.
         if self.modes.local_same_as_global != crate::warnings::WarningMode::Off {
             let mode = self.modes.local_same_as_global;
-            for warning in
-                crate::warnings::the_warnings_of_the_locals_that_are_globals(statements, self.dialect)
-            {
+            for warning in crate::warnings::the_warnings_of_the_locals_that_are_globals(
+                statements,
+                self.dialect,
+            ) {
                 self.warn(warning.line, warning.message.clone(), mode);
                 warnings.push(warning);
             }
@@ -1829,7 +1849,9 @@ impl<'a> Runtime<'a> {
         // the local that has the name of a global.
         if self.modes.class_overwrite != crate::warnings::WarningMode::Off {
             let mode = self.modes.class_overwrite;
-            for warning in crate::warnings::the_warnings_of_the_classes_that_are_overwritten(statements) {
+            for warning in
+                crate::warnings::the_warnings_of_the_classes_that_are_overwritten(statements)
+            {
                 self.warn(warning.line, warning.message.clone(), mode);
                 warnings.push(warning);
             }
@@ -1854,9 +1876,13 @@ impl<'a> Runtime<'a> {
     /// line of it, and the tree has no dialog: the other modes write it to
     /// the report alone.
     fn warn(&mut self, line: u32, message: String, mode: crate::warnings::WarningMode) {
-        self.warnings.push(crate::warnings::Warning { line, message: message.clone() });
+        self.warnings.push(crate::warnings::Warning {
+            line,
+            message: message.clone(),
+        });
         if mode == crate::warnings::WarningMode::StdOut {
-            self.output.push(format!("({line}) : ==> Warning: {message}"));
+            self.output
+                .push(format!("({line}) : ==> Warning: {message}"));
         }
     }
 
@@ -1891,13 +1917,19 @@ impl<'a> Runtime<'a> {
         } else {
             "a global variable"
         };
-        let mode = if local { self.modes.use_unset_local } else { self.modes.use_unset_global };
+        let mode = if local {
+            self.modes.use_unset_local
+        } else {
+            self.modes.use_unset_global
+        };
         if mode == crate::warnings::WarningMode::Off {
             return;
         }
         self.warn(
             line,
-            format!("This variable has not been assigned a value.\n     Specifically: {name}  ({kind})"),
+            format!(
+                "This variable has not been assigned a value.\n     Specifically: {name}  ({kind})"
+            ),
             mode,
         );
     }
@@ -1930,7 +1962,15 @@ impl<'a> Runtime<'a> {
     fn collect_functions(&mut self, statements: &[Node]) {
         for statement in statements {
             match statement {
-                Node::ClassDef { name, extends, methods, properties, accessors, nested, .. } => {
+                Node::ClassDef {
+                    name,
+                    extends,
+                    methods,
+                    properties,
+                    accessors,
+                    nested,
+                    ..
+                } => {
                     let mut table: BTreeMap<String, MethodDef> = BTreeMap::new();
                     for method in methods {
                         table.insert(method.name.to_lowercase(), method.clone());
@@ -1959,7 +1999,13 @@ impl<'a> Runtime<'a> {
                     );
                     self.collect_functions(nested);
                 }
-                Node::FunctionDef { name, parameters, body, declarations, .. } => {
+                Node::FunctionDef {
+                    name,
+                    parameters,
+                    body,
+                    declarations,
+                    ..
+                } => {
                     self.functions.insert(
                         name.to_lowercase(),
                         Function {
@@ -1972,11 +2018,17 @@ impl<'a> Runtime<'a> {
                     );
                 }
                 Node::Block { body, .. } => self.collect_functions(body),
-                Node::LegacyIf { body, otherwise, .. } => {
+                Node::LegacyIf {
+                    body, otherwise, ..
+                } => {
                     self.collect_functions(body);
                     self.collect_functions(otherwise);
                 }
-                Node::If { branches, otherwise, .. } => {
+                Node::If {
+                    branches,
+                    otherwise,
+                    ..
+                } => {
                     for branch in branches {
                         self.collect_functions(&branch.tail);
                         self.collect_functions(&branch.body);
@@ -1989,7 +2041,13 @@ impl<'a> Runtime<'a> {
                     }
                 }
                 Node::While { body, .. } | Node::Loop { body, .. } => self.collect_functions(body),
-                Node::Try { body, catches, otherwise, finally, .. } => {
+                Node::Try {
+                    body,
+                    catches,
+                    otherwise,
+                    finally,
+                    ..
+                } => {
                     self.collect_functions(body);
                     for catch in catches {
                         self.collect_functions(&catch.body);
@@ -2010,7 +2068,13 @@ impl<'a> Runtime<'a> {
     fn collect_the_nested_functions(&mut self, statements: &[Node]) {
         for statement in statements {
             match statement {
-                Node::FunctionDef { name, parameters, body, declarations, .. } => {
+                Node::FunctionDef {
+                    name,
+                    parameters,
+                    body,
+                    declarations,
+                    ..
+                } => {
                     let function = Function {
                         name: name.clone(),
                         parameters: parameters.clone(),
@@ -2023,11 +2087,17 @@ impl<'a> Runtime<'a> {
                     self.assign_in_the_scope(name, value);
                 }
                 Node::Block { body, .. } => self.collect_the_nested_functions(body),
-                Node::LegacyIf { body, otherwise, .. } => {
+                Node::LegacyIf {
+                    body, otherwise, ..
+                } => {
                     self.collect_the_nested_functions(body);
                     self.collect_the_nested_functions(otherwise);
                 }
-                Node::If { branches, otherwise, .. } => {
+                Node::If {
+                    branches,
+                    otherwise,
+                    ..
+                } => {
                     for branch in branches {
                         self.collect_the_nested_functions(&branch.body);
                     }
@@ -2038,8 +2108,16 @@ impl<'a> Runtime<'a> {
                         self.collect_the_nested_functions(&case.body);
                     }
                 }
-                Node::While { body, .. } | Node::Loop { body, .. } => self.collect_the_nested_functions(body),
-                Node::Try { body, catches, otherwise, finally, .. } => {
+                Node::While { body, .. } | Node::Loop { body, .. } => {
+                    self.collect_the_nested_functions(body)
+                }
+                Node::Try {
+                    body,
+                    catches,
+                    otherwise,
+                    finally,
+                    ..
+                } => {
                     self.collect_the_nested_functions(body);
                     for catch in catches {
                         self.collect_the_nested_functions(&catch.body);
@@ -2058,9 +2136,15 @@ impl<'a> Runtime<'a> {
     /// scope is not found in the current one, and a label of a block that
     /// does not enclose the jump is refused with a failure of its own.
     fn the_label_is_not_there(&self, name: &str, scope: &[Node], line: u32) -> RuntimeError {
-        if the_labels_of(scope).iter().any(|label| label.eq_ignore_ascii_case(name)) {
+        if the_labels_of(scope)
+            .iter()
+            .any(|label| label.eq_ignore_ascii_case(name))
+        {
             return RuntimeError {
-                message: self.dialect.the_refusal_of_a_jump_into_a_block().to_string(),
+                message: self
+                    .dialect
+                    .the_refusal_of_a_jump_into_a_block()
+                    .to_string(),
                 line,
             };
         }
@@ -2076,7 +2160,9 @@ impl<'a> Runtime<'a> {
     /// in the scope that runs, and the name of a label does not know its
     /// case.
     pub fn has_label(&self, name: &str) -> bool {
-        let Some(scope) = self.label_scopes.last() else { return false };
+        let Some(scope) = self.label_scopes.last() else {
+            return false;
+        };
         scope.iter().any(|label| label.eq_ignore_ascii_case(name))
     }
 
@@ -2167,10 +2253,7 @@ impl<'a> Runtime<'a> {
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
     /// body of a hotkey runs with the scope of the script, and the `return`
     /// of it ends the thread of the hotkey and not the script.
-    pub(crate) fn run_the_body_of_a_hotkey(
-        &mut self,
-        body: &[Node],
-    ) -> Result<(), RuntimeFailure> {
+    pub(crate) fn run_the_body_of_a_hotkey(&mut self, body: &[Node]) -> Result<(), RuntimeFailure> {
         let was_in_the_body = self.in_the_body_of_a_hotkey;
         self.in_the_body_of_a_hotkey = true;
         let answer = self.run_block(body);
@@ -2267,7 +2350,11 @@ impl<'a> Runtime<'a> {
     /// The class of the catch is a name: `any` takes everything, `error`
     /// takes the errors of the runtime, and a class of the script takes the
     /// objects of that class and of the classes that extend it.
-    fn catch_takes(&self, catch: &crate::ast::Catch, value: &Value) -> Result<bool, RuntimeFailure> {
+    fn catch_takes(
+        &self,
+        catch: &crate::ast::Catch,
+        value: &Value,
+    ) -> Result<bool, RuntimeFailure> {
         let class = catch.class.to_lowercase();
         if class == "any" {
             return Ok(true);
@@ -2276,7 +2363,9 @@ impl<'a> Runtime<'a> {
             // Measured on the binary of v2.0.19 on 2026-10-31: a catch that
             // names no class takes every error of the runtime. The errors
             // are a tree of classes, and every one of them is an `Error`.
-            let Value::Object(object) = value else { return Ok(false) };
+            let Value::Object(object) = value else {
+                return Ok(false);
+            };
             return Ok(crate::classes::error::is_a_class(&object.borrow().class));
         }
         // A class of the script. A class that the tree does not know is a
@@ -2299,7 +2388,9 @@ impl<'a> Runtime<'a> {
     /// Whether the value is an object of the class, or of one that extends
     /// it.
     fn value_has_class(&self, value: &Value, class: &str) -> bool {
-        let Value::Object(object) = value else { return false };
+        let Value::Object(object) = value else {
+            return false;
+        };
         let mut name = object.borrow().class.clone();
         loop {
             if name.eq_ignore_ascii_case(class) {
@@ -2396,8 +2487,14 @@ impl<'a> Runtime<'a> {
         if carries {
             return;
         }
-        let Some(frame) = self.frames.last() else { return };
-        put(&mut object.borrow_mut().properties, "what", Value::Text(frame.name.clone()));
+        let Some(frame) = self.frames.last() else {
+            return;
+        };
+        put(
+            &mut object.borrow_mut().properties,
+            "what",
+            Value::Text(frame.name.clone()),
+        );
     }
 
     /// The timers that are due.
@@ -2427,7 +2524,11 @@ impl<'a> Runtime<'a> {
     /// Set a timer of the script.
     pub(crate) fn add_timer(&mut self, name: &str, period: u64) {
         let last = self.now_ms();
-        self.timers.push(Timer { name: name.to_string(), period, last });
+        self.timers.push(Timer {
+            name: name.to_string(),
+            period,
+            last,
+        });
     }
 
     /// Stop the script with this code.
@@ -2477,14 +2578,21 @@ impl<'a> Runtime<'a> {
             }));
         }
         if self.elapsed_ms() > self.timeout.as_millis() as u64 {
-            return Err(RuntimeFailure::Timeout(Timeout { seconds: self.timeout.as_secs_f64() }));
+            return Err(RuntimeFailure::Timeout(Timeout {
+                seconds: self.timeout.as_secs_f64(),
+            }));
         }
 
         let started = self.clock.now_ms();
         let mut detail = String::new();
 
         match statement {
-            Node::Assign { name, op, value, line } => {
+            Node::Assign {
+                name,
+                op,
+                value,
+                line,
+            } => {
                 let value = self.evaluate(value)?;
                 let stored = self.write_a_variable(name, *op, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
@@ -2497,12 +2605,22 @@ impl<'a> Runtime<'a> {
                 let stored = self.write_a_variable(name, AssignOp::Set, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
             }
-            Node::LegacyCall { name, parameters, line } => {
+            Node::LegacyCall {
+                name,
+                parameters,
+                line,
+            } => {
                 // The legacy command of the v1: `Msg, text`.
                 let value = self.the_legacy_command(name, parameters, *line)?;
                 detail = value.to_text();
             }
-            Node::LegacyIf { name, parameters, body, otherwise, line } => {
+            Node::LegacyIf {
+                name,
+                parameters,
+                body,
+                otherwise,
+                line,
+            } => {
                 // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // command of the v1 that has a body runs its action when the
                 // condition holds, and the action of the other side when it
@@ -2531,10 +2649,20 @@ impl<'a> Runtime<'a> {
             Node::Lambda { .. } => {
                 // The literal of a function is an expression too.
             }
-            Node::For { variables, source, body, line } => {
+            Node::For {
+                variables,
+                source,
+                body,
+                line,
+            } => {
                 self.for_loop(variables, source, body, *line)?;
             }
-            Node::MethodCall { target, name, arguments, line } => {
+            Node::MethodCall {
+                target,
+                name,
+                arguments,
+                line,
+            } => {
                 // `super.m()`: the method of the base.
                 let name = self.the_name_of_the_member(name, *line)?;
                 let value = if let Node::Super { .. } = &**target {
@@ -2556,37 +2684,66 @@ impl<'a> Runtime<'a> {
                 };
                 detail = value.to_text();
             }
-            Node::AssignDynamic { name, op, value, line } => {
+            Node::AssignDynamic {
+                name,
+                op,
+                value,
+                line,
+            } => {
                 let name = self.the_name_of_the_pieces(name, *line)?;
                 let value = self.evaluate(value)?;
                 let stored = self.write_a_dynamic_name(&name, *op, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
             }
-            Node::AssignProperty { target, name, op, value, line } => {
+            Node::AssignProperty {
+                target,
+                name,
+                op,
+                value,
+                line,
+            } => {
                 let value = self.evaluate(value)?;
                 let name = self.the_name_of_the_member(name, *line)?;
                 let stored = self.write_a_property(target, &name, *op, value, *line)?;
                 detail = format!("{name} = {}", stored.to_text());
             }
-            Node::AssignIndex { target, index, op, value, line } => {
+            Node::AssignIndex {
+                target,
+                index,
+                op,
+                value,
+                line,
+            } => {
                 let target_value = self.evaluate(target)?;
                 let key = self.evaluate(index)?;
                 let value = self.evaluate(value)?;
                 let stored = self.set_item(&target_value, &key, *op, value, *line)?;
                 detail = format!("{} = {}", key.to_text(), stored.to_text());
             }
-            Node::Call { name, arguments, line } => {
+            Node::Call {
+                name,
+                arguments,
+                line,
+            } => {
                 let value = self.call(name, arguments, *line)?;
                 detail = value.to_text();
             }
-            Node::New { path, arguments, line } => {
+            Node::New {
+                path,
+                arguments,
+                line,
+            } => {
                 let value = self.new_instance(path, arguments, *line)?;
                 detail = value.to_text();
             }
             Node::Block { body, .. } => {
                 self.run_block(body)?;
             }
-            Node::If { branches, otherwise, .. } => {
+            Node::If {
+                branches,
+                otherwise,
+                ..
+            } => {
                 let mut taken = false;
                 for branch in branches {
                     let value = self.the_value_of_the_condition(&branch.condition)?;
@@ -2607,7 +2764,11 @@ impl<'a> Runtime<'a> {
                     self.run_block(otherwise)?;
                 }
             }
-            Node::Switch { subject, cases, line } => {
+            Node::Switch {
+                subject,
+                cases,
+                line,
+            } => {
                 let value = self.evaluate(subject)?;
                 let mut matched = false;
                 for case in cases {
@@ -2633,7 +2794,9 @@ impl<'a> Runtime<'a> {
                 }
                 let _ = (matched, line);
             }
-            Node::While { condition, body, .. } => {
+            Node::While {
+                condition, body, ..
+            } => {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
                 // the v1 takes the body of the loop from the statement that
                 // comes next, and the script that has none ends at the loop:
@@ -2660,7 +2823,10 @@ impl<'a> Runtime<'a> {
                     iterations += 1;
                     if iterations > Self::MAX_ITERATIONS {
                         return Err(RuntimeFailure::Error(RuntimeError {
-                            message: format!("the loop ran more than {} times", Self::MAX_ITERATIONS),
+                            message: format!(
+                                "the loop ran more than {} times",
+                                Self::MAX_ITERATIONS
+                            ),
                             line: statement.line(),
                         }));
                     }
@@ -2675,7 +2841,13 @@ impl<'a> Runtime<'a> {
                 }
                 self.the_index_is_given_back(saved);
             }
-            Node::Try { body, catches, otherwise, finally, .. } => {
+            Node::Try {
+                body,
+                catches,
+                otherwise,
+                finally,
+                ..
+            } => {
                 self.run_try(body, catches, otherwise, finally)?;
             }
             Node::Super { line } => {
@@ -2693,7 +2865,9 @@ impl<'a> Runtime<'a> {
                     if let Some(value) = &declared.value {
                         // The value of a static declaration runs the first
                         // time that declaration is reached.
-                        if *scope == DeclareKind::Static && self.the_static_already_ran(*line, &declared.name) {
+                        if *scope == DeclareKind::Static
+                            && self.the_static_already_ran(*line, &declared.name)
+                        {
                             continue;
                         }
                         let value = self.evaluate(value)?;
@@ -2714,9 +2888,10 @@ impl<'a> Runtime<'a> {
                         Some(value) => value,
                         None => {
                             return Err(RuntimeFailure::Error(RuntimeError {
-                                message: "there is nothing to throw again: no catch took a value.".into(),
+                                message: "there is nothing to throw again: no catch took a value."
+                                    .into(),
                                 line: *line,
-                            }))
+                            }));
                         }
                     },
                 };
@@ -2725,7 +2900,13 @@ impl<'a> Runtime<'a> {
                 self.name_the_thrower(&value);
                 return Err(RuntimeFailure::Thrown(value));
             }
-            Node::Loop { mode, arguments, body, until, line } => {
+            Node::Loop {
+                mode,
+                arguments,
+                body,
+                until,
+                line,
+            } => {
                 // Measured on the binary of v2.0.19 on 2026-11-01: every loop
                 // saves the value of `A_Index` when it starts and gives it
                 // back when it ends.
@@ -2740,9 +2921,9 @@ impl<'a> Runtime<'a> {
                                 // first parameter is not a number, and it is a
                                 // loop of a number of turns when it is.
                                 if self.dialect.legacy_commands() {
-                                    if let Some(pattern) =
-                                        self.the_pattern_of_the_files_of_the_v1(node, arguments, *line)?
-                                    {
+                                    if let Some(pattern) = self.the_pattern_of_the_files_of_the_v1(
+                                        node, arguments, *line,
+                                    )? {
                                         self.the_loop_of_the_files_of_the_v1(
                                             &pattern, arguments, body, until, *line,
                                         )?;
@@ -2864,7 +3045,9 @@ impl<'a> Runtime<'a> {
                             split_on_any(&text, &delimiters)
                                 .into_iter()
                                 .map(|piece| {
-                                    piece.trim_matches(|character| omitted.contains(character)).to_string()
+                                    piece
+                                        .trim_matches(|character| omitted.contains(character))
+                                        .to_string()
                                 })
                                 .collect()
                         };
@@ -2920,14 +3103,21 @@ impl<'a> Runtime<'a> {
                                 line: *line,
                             }));
                         }
-                        let folder = self
-                            .desktop()
-                            .working_directory()
-                            .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line: *line }))?;
+                        let folder = self.desktop().working_directory().map_err(|reason| {
+                            RuntimeFailure::Error(RuntimeError {
+                                message: reason,
+                                line: *line,
+                            })
+                        })?;
                         let files = self
                             .desktop()
                             .list_files(&folder, &pattern, &mode)
-                            .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line: *line }))?;
+                            .map_err(|reason| {
+                                RuntimeFailure::Error(RuntimeError {
+                                    message: reason,
+                                    line: *line,
+                                })
+                            })?;
                         for (index, file) in files.iter().enumerate() {
                             let name = the_name_of(file);
                             let extension = the_extension_of(name);
@@ -2935,8 +3125,14 @@ impl<'a> Runtime<'a> {
                             self.set_global("A_LoopFileFullPath", Value::Text(file.clone()));
                             self.set_global("A_LoopFileName", Value::Text(name.to_string()));
                             self.set_global("A_LoopFileExt", Value::Text(extension.to_string()));
-                            self.set_global("A_LoopFileDir", Value::Text(the_folder_of(file).to_string()));
-                            self.set_global("A_LoopFilePath", Value::Text(without_the_extension(file, extension)));
+                            self.set_global(
+                                "A_LoopFileDir",
+                                Value::Text(the_folder_of(file).to_string()),
+                            );
+                            self.set_global(
+                                "A_LoopFilePath",
+                                Value::Text(without_the_extension(file, extension)),
+                            );
                             // The short names of the files are a thing of
                             // Windows, and this box has none.
                             self.the_short_names_of_the_files_are_refused = true;
@@ -2970,10 +3166,12 @@ impl<'a> Runtime<'a> {
                             Some(node) => self.evaluate(node)?.to_text(),
                             None => String::new(),
                         };
-                        let lines = self
-                            .desktop()
-                            .read_file(&path)
-                            .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line: *line }))?;
+                        let lines = self.desktop().read_file(&path).map_err(|reason| {
+                            RuntimeFailure::Error(RuntimeError {
+                                message: reason,
+                                line: *line,
+                            })
+                        })?;
                         self.loop_output_files.push(output);
                         let mut failure = None;
                         for (index, line_text) in lines.iter().enumerate() {
@@ -3000,14 +3198,19 @@ impl<'a> Runtime<'a> {
                     }
                     LoopKind::Reg => {
                         return Err(RuntimeFailure::Error(RuntimeError {
-                            message: "the registry is a Windows thing and this box has none.".into(),
+                            message: "the registry is a Windows thing and this box has none."
+                                .into(),
                             line: *line,
                         }));
                     }
                 }
                 self.the_index_is_given_back(saved);
             }
-            Node::Directive { name, argument, line } => {
+            Node::Directive {
+                name,
+                argument,
+                line,
+            } => {
                 detail = self.directive(name, argument, *line)?;
             }
             // A label names a line of the script: it does nothing by
@@ -3025,7 +3228,10 @@ impl<'a> Runtime<'a> {
             }
             // The jump of a `Goto`: the run goes on at the label.
             Node::Goto { name, line } => {
-                return Err(RuntimeFailure::Flow(Flow::Goto { name: name.clone(), line: *line }));
+                return Err(RuntimeFailure::Flow(Flow::Goto {
+                    name: name.clone(),
+                    line: *line,
+                }));
             }
             // The hotkey of the v1: the definition of it is a label, and
             // the code that comes after it is a part of the thread that is
@@ -3242,7 +3448,10 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         if self.can_enumerate(object) {
-            let count = Node::Literal { value: LiteralValue::Integer(wanted as i64), line };
+            let count = Node::Literal {
+                value: LiteralValue::Integer(wanted as i64),
+                line,
+            };
             return self.call_method_on(object, "__enum", &[count], line);
         }
         // An enumerator is a function of its own kind, and a loop walks it
@@ -3329,13 +3538,21 @@ impl<'a> Runtime<'a> {
         // The values are read back from the variables of the loop.
         let mut values = Vec::new();
         for reference in &references {
-            let Value::Reference(reference) = reference else { continue };
-            values.push(self.read_reference(reference).unwrap_or(Value::Text(String::new())));
+            let Value::Reference(reference) = reference else {
+                continue;
+            };
+            values.push(
+                self.read_reference(reference)
+                    .unwrap_or(Value::Text(String::new())),
+            );
         }
         let item = if values.len() >= 2 {
             Value::List(vec![values[0].clone(), values[1].clone()])
         } else {
-            values.into_iter().next().unwrap_or(Value::Text(String::new()))
+            values
+                .into_iter()
+                .next()
+                .unwrap_or(Value::Text(String::new()))
         };
         Ok(Some(item))
     }
@@ -3373,7 +3590,9 @@ impl<'a> Runtime<'a> {
     /// The enumerator of a value is its `__Enum`: a class of the script
     /// may have one, and the class types of the runtime have their own.
     fn can_enumerate(&self, object: &Value) -> bool {
-        let Value::Object(value) = object else { return false };
+        let Value::Object(value) = object else {
+            return false;
+        };
         if self.find_method_on(object, "__enum").is_some() {
             return true;
         }
@@ -3403,11 +3622,10 @@ impl<'a> Runtime<'a> {
                     return Err(RuntimeFailure::Error(RuntimeError {
                         message: "the enumeration did not give a key and a value.".into(),
                         line,
-                    }))
+                    }));
                 }
             };
-            let names: Vec<&String> =
-                variables.iter().filter(|name| !name.is_empty()).collect();
+            let names: Vec<&String> = variables.iter().filter(|name| !name.is_empty()).collect();
             if let Some(name) = names.first() {
                 self.assign(name, pair[0].clone());
             }
@@ -3441,7 +3659,7 @@ impl<'a> Runtime<'a> {
                         return Err(RuntimeFailure::Error(RuntimeError {
                             message: "the enumeration did not give a key and a value.".into(),
                             line,
-                        }))
+                        }));
                     }
                 };
                 for (name, value) in variables.iter().zip(pair.iter()) {
@@ -3585,7 +3803,9 @@ impl<'a> Runtime<'a> {
     /// An object is named after the class it is an instance of, and a
     /// class is named after itself.
     pub(crate) fn class_of(&self, target: &Value) -> Option<String> {
-        let Value::Object(object) = target else { return None };
+        let Value::Object(object) = target else {
+            return None;
+        };
         let class = object.borrow().class.clone();
         // The name the class was written with, when the runtime knows it.
         if let Some(Value::Object(class)) = self.class_value_of(&class) {
@@ -3602,9 +3822,13 @@ impl<'a> Runtime<'a> {
     /// The classes the runtime made are known to it, and it can tell one
     /// of them from an instance of one.
     pub(crate) fn class_name_of(&self, value: &Value) -> Option<String> {
-        let Value::Object(object) = value else { return None };
+        let Value::Object(object) = value else {
+            return None;
+        };
         for class in self.class_values.borrow().values() {
-            let Value::Object(other) = class else { continue };
+            let Value::Object(other) = class else {
+                continue;
+            };
             if Rc::ptr_eq(object, other) {
                 return object
                     .borrow()
@@ -3621,13 +3845,17 @@ impl<'a> Runtime<'a> {
     /// prototype of the class it is an instance of. A script may set
     /// another one with `ObjSetBase`.
     pub(crate) fn base_of(&self, target: &Value) -> Option<Value> {
-        let Value::Object(object) = target else { return None };
+        let Value::Object(object) = target else {
+            return None;
+        };
         // A base that the script set is the base of the object.
         if let Some(base) = object.borrow().value_of(BASE) {
             return Some(base.clone());
         }
         let class = object.borrow().class.clone();
-        let Value::Object(class) = self.class_value_of(&class)? else { return None };
+        let Value::Object(class) = self.class_value_of(&class)? else {
+            return None;
+        };
         class.borrow().value_of("prototype")
     }
 
@@ -3637,7 +3865,9 @@ impl<'a> Runtime<'a> {
     /// gives it one: the prototype of its class is what `ObjGetBase`
     /// answers with.
     pub(crate) fn stored_base_of(&self, target: &Value) -> Option<Value> {
-        let Value::Object(object) = target else { return None };
+        let Value::Object(object) = target else {
+            return None;
+        };
         object.borrow().value_of(BASE)
     }
 
@@ -3724,7 +3954,10 @@ impl<'a> Runtime<'a> {
                 "array" | "buffer" | "enumerator" | "file" | "func" | "gui" | "map" | "menu"
             )
         {
-            return Err(RuntimeError { message: "Invalid base.".to_string(), line });
+            return Err(RuntimeError {
+                message: "Invalid base.".to_string(),
+                line,
+            });
         }
         object.borrow_mut().put(BASE, base);
         Ok(())
@@ -3818,7 +4051,9 @@ impl<'a> Runtime<'a> {
     /// A name that the function declares static is not a local one: it
     /// lives in the storage of the function.
     fn is_declared_static(&self, name: &str) -> bool {
-        let Some(frame) = self.declarations.last() else { return false };
+        let Some(frame) = self.declarations.last() else {
+            return false;
+        };
         frame.statics.contains(name)
     }
 
@@ -3867,13 +4102,10 @@ impl<'a> Runtime<'a> {
     /// A command of the v1 is not a function: `IsFunc("MsgBox")` is zero in
     /// the v1. Measured on the binary of v1.1.37.02 on 2026-11-02.
     pub(crate) fn has_a_builtin_function(&self, name: &str) -> bool {
-        self.dialect
-            .builtins()
-            .iter()
-            .any(|builtin| {
-                builtin.kind == crate::builtins::BuiltinKind::Function
-                    && builtin.name.eq_ignore_ascii_case(name)
-            })
+        self.dialect.builtins().iter().any(|builtin| {
+            builtin.kind == crate::builtins::BuiltinKind::Function
+                && builtin.name.eq_ignore_ascii_case(name)
+        })
     }
 
     /// The value of the built-in function of this name.
@@ -3909,16 +4141,18 @@ impl<'a> Runtime<'a> {
         Some(func_value(&function.name, function))
     }
 
-
     /// The static variables of the function that runs.
     ///
     /// The frame is the name of the function or of the method that runs,
     /// and the table of the function is under it.
     fn the_statics_of_the_frame(&mut self) -> &mut BTreeMap<String, Value> {
-        let frame = self.frames.last().map(|frame| frame.name.clone()).unwrap_or_default();
+        let frame = self
+            .frames
+            .last()
+            .map(|frame| frame.name.clone())
+            .unwrap_or_default();
         self.statics.entry(frame).or_default()
     }
-
 
     /// The value of a static variable of the function that runs.
     fn the_static_of_the_frame(&self, name: &str) -> Option<Value> {
@@ -3926,27 +4160,32 @@ impl<'a> Runtime<'a> {
         self.statics.get(&frame.name)?.get(name).cloned()
     }
 
-
     /// Whether the value of a static declaration already ran.
     ///
     /// The value of a static declaration runs the first time that
     /// declaration is reached.
     fn the_static_already_ran(&self, line: u32, name: &str) -> bool {
-        let Some(frame) = self.frames.last() else { return false };
-        let Some(ran) = self.statics_run.get(&frame.name) else { return false };
+        let Some(frame) = self.frames.last() else {
+            return false;
+        };
+        let Some(ran) = self.statics_run.get(&frame.name) else {
+            return false;
+        };
         ran.contains(&the_key_of_a_declaration(line, name))
     }
 
-
     /// Mark the value of a static declaration as one that ran.
     fn mark_the_static_as_ran(&mut self, line: u32, name: &str) {
-        let frame = self.frames.last().map(|frame| frame.name.clone()).unwrap_or_default();
+        let frame = self
+            .frames
+            .last()
+            .map(|frame| frame.name.clone())
+            .unwrap_or_default();
         self.statics_run
             .entry(frame)
             .or_default()
             .insert(the_key_of_a_declaration(line, name));
     }
-
 
     /// Whether the name is one that the function that runs declares local.
     ///
@@ -3955,7 +4194,9 @@ impl<'a> Runtime<'a> {
     /// that assumes the scope of the script says it for every name it does
     /// not name.
     fn is_declared_local(&self, name: &str) -> bool {
-        let Some(frame) = self.declarations.last() else { return false };
+        let Some(frame) = self.declarations.last() else {
+            return false;
+        };
         frame.locals.contains(name)
     }
 
@@ -3979,7 +4220,9 @@ impl<'a> Runtime<'a> {
         if self.lives_in_the_script(&key) {
             return Ok(());
         }
-        let Some(class) = self.the_class_of_the_name(&key) else { return Ok(()) };
+        let Some(class) = self.the_class_of_the_name(&key) else {
+            return Ok(());
+        };
         if self.the_class_key_of_the_value(value).as_deref() != Some(class.as_str()) {
             return Ok(());
         }
@@ -4009,7 +4252,9 @@ impl<'a> Runtime<'a> {
     /// class of a class is the class itself. The name that v2 shows is
     /// another one: a class is a "Class" there.
     fn the_class_key_of_the_value(&self, value: &Value) -> Option<String> {
-        let Value::Object(object) = value else { return None };
+        let Value::Object(object) = value else {
+            return None;
+        };
         Some(object.borrow().class.clone())
     }
 
@@ -4020,7 +4265,9 @@ impl<'a> Runtime<'a> {
     fn alias_of(&self, name: &str) -> Option<Reference> {
         let name = the_key_of(name);
         for scope in self.scopes.iter().rev() {
-            let Some(found) = scope.borrow().get(&name).cloned() else { continue };
+            let Some(found) = scope.borrow().get(&name).cloned() else {
+                continue;
+            };
             if let Value::Reference(reference) = found {
                 if reference.alias {
                     return Some(reference);
@@ -4048,7 +4295,9 @@ impl<'a> Runtime<'a> {
     /// This is what a built-in does with the variable of the caller that
     /// it was given by reference.
     pub(crate) fn write_reference(&mut self, value: &Value, written: Value) {
-        let Value::Reference(reference) = value else { return };
+        let Value::Reference(reference) = value else {
+            return;
+        };
         let name = the_key_of(&reference.name);
         match reference.scope {
             Scope::Global => {
@@ -4067,7 +4316,9 @@ impl<'a> Runtime<'a> {
     /// The variable is left without a value: the enumeration of a place that
     /// has no value of its own writes nothing into it.
     pub(crate) fn unset_reference(&mut self, value: &Value) {
-        let Value::Reference(reference) = value else { return };
+        let Value::Reference(reference) = value else {
+            return;
+        };
         let name = the_key_of(&reference.name);
         match reference.scope {
             Scope::Global => {
@@ -4142,7 +4393,9 @@ impl<'a> Runtime<'a> {
     /// names the variable decides, and a function that assumes the scope
     /// of the script says it for every name it does not name.
     fn lives_in_the_script(&self, name: &str) -> bool {
-        let Some(frame) = self.declarations.last() else { return false };
+        let Some(frame) = self.declarations.last() else {
+            return false;
+        };
         if frame.globals.contains(name) {
             return true;
         }
@@ -4177,12 +4430,16 @@ impl<'a> Runtime<'a> {
     /// Every chain ends at the prototype of the base object.
     fn the_chain_of_the_bases(&self, target: &Value) -> Vec<Rc<RefCell<Object>>> {
         let mut chain: Vec<Rc<RefCell<Object>>> = Vec::new();
-        let Value::Object(object) = target else { return chain };
+        let Value::Object(object) = target else {
+            return chain;
+        };
         let mut class = object.borrow().class.clone();
         // A class is not an instance of itself: the chain of a class begins
         // at the base of the class, and not at its own prototype.
         if self.class_name_of(target).is_some() {
-            let Some(base) = self.the_base_class_of(&class) else { return chain };
+            let Some(base) = self.the_base_class_of(&class) else {
+                return chain;
+            };
             class = base;
         }
         // A base that the script set is the base of the object.
@@ -4195,7 +4452,9 @@ impl<'a> Runtime<'a> {
                 break;
             }
             chain.push(prototype);
-            let Some(base) = self.the_base_class_of(&class) else { break };
+            let Some(base) = self.the_base_class_of(&class) else {
+                break;
+            };
             class = base;
         }
         chain
@@ -4203,9 +4462,13 @@ impl<'a> Runtime<'a> {
 
     /// The prototype of a class, the object that holds its methods.
     fn the_prototype_of_the_class(&self, class: &str) -> Option<Rc<RefCell<Object>>> {
-        let Some(Value::Object(value)) = self.class_value_of(class) else { return None };
+        let Some(Value::Object(value)) = self.class_value_of(class) else {
+            return None;
+        };
         let prototype = value.borrow().value_of("prototype");
-        let Some(Value::Object(prototype)) = prototype else { return None };
+        let Some(Value::Object(prototype)) = prototype else {
+            return None;
+        };
         Some(prototype)
     }
 
@@ -4271,7 +4534,9 @@ impl<'a> Runtime<'a> {
     /// A static method belongs to the class and not to its instances, and
     /// the prototype of a class carries the methods of the class.
     fn find_method_on(&self, target: &Value, name: &str) -> Option<(String, MethodDef)> {
-        let Value::Object(object) = target else { return None };
+        let Value::Object(object) = target else {
+            return None;
+        };
         let class = object.borrow().class.clone();
         // A class value is not an instance of its class: the methods of the
         // class are not its own, and only the static ones are.
@@ -4283,7 +4548,10 @@ impl<'a> Runtime<'a> {
             // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1
             // calls the method of the class object, and the `this` of the
             // method is the class object.
-            if self.dialect.a_method_of_the_class_object_is_a_method_of_the_class() {
+            if self
+                .dialect
+                .a_method_of_the_class_object_is_a_method_of_the_class()
+            {
                 return self.find_the_instance_method_in(&class, name);
             }
             return self.find_the_static_method_in(&class, name);
@@ -4300,7 +4568,12 @@ impl<'a> Runtime<'a> {
     }
 
     /// The object a class makes.
-    fn construct(&mut self, class: &str, arguments: &[Node], line: u32) -> Result<Value, RuntimeFailure> {
+    fn construct(
+        &mut self,
+        class: &str,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
         // A class type of the runtime makes its own object: the script
         // has no class of that name, and cannot extend one.
         if !self.classes.contains_key(&class.to_lowercase()) {
@@ -4378,7 +4651,10 @@ impl<'a> Runtime<'a> {
         let mut value = if first == "this" {
             self.the_this()
         } else {
-            match self.lookup_variable(first).or_else(|| self.class_value_of(first)) {
+            match self
+                .lookup_variable(first)
+                .or_else(|| self.class_value_of(first))
+            {
                 Some(value) => value,
                 None => return Ok(Value::Text(String::new())),
             }
@@ -4391,7 +4667,9 @@ impl<'a> Runtime<'a> {
             };
             value = class;
         }
-        let Value::Object(object) = &value else { return Ok(Value::Text(String::new())) };
+        let Value::Object(object) = &value else {
+            return Ok(Value::Text(String::new()));
+        };
         // The class of the value: a class carries its own name, and an
         // instance carries the class of it.
         let class = match self.class_name_of(&value) {
@@ -4441,7 +4719,12 @@ impl<'a> Runtime<'a> {
     /// assigns the variables, and the explicit one calls nothing: the
     /// variables of the base are not assigned when the derived has an
     /// `__Init` of its own.
-    fn call_the_init(&mut self, class: &str, object: &Value, line: u32) -> Result<(), RuntimeFailure> {
+    fn call_the_init(
+        &mut self,
+        class: &str,
+        object: &Value,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
         let chain = self.class_chain(class);
         self.call_the_init_of(&chain, object, line)
     }
@@ -4473,9 +4756,15 @@ impl<'a> Runtime<'a> {
 
     /// The variables that belong to a class, assigned to the class.
     fn assign_the_static_variables(&mut self, class: &str) -> Result<(), RuntimeFailure> {
-        let Some(definition) = self.classes.get(class).cloned() else { return Ok(()) };
-        let Some(value) = self.class_value_of(class) else { return Ok(()) };
-        let Value::Object(object) = value else { return Ok(()) };
+        let Some(definition) = self.classes.get(class).cloned() else {
+            return Ok(());
+        };
+        let Some(value) = self.class_value_of(class) else {
+            return Ok(());
+        };
+        let Value::Object(object) = value else {
+            return Ok(());
+        };
         for property in &definition.properties {
             if !property.is_static {
                 continue;
@@ -4533,7 +4822,9 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<(), RuntimeFailure> {
         for (index, name) in chain.iter().enumerate() {
-            let Some(definition) = self.classes.get(name).cloned() else { continue };
+            let Some(definition) = self.classes.get(name).cloned() else {
+                continue;
+            };
             if let Some(method) = definition.methods.get("__init").cloned() {
                 // The `__Init` of this class: it runs, and the ones of the
                 // base do not.
@@ -4561,8 +4852,12 @@ impl<'a> Runtime<'a> {
 
     /// The variables of a class, assigned to the object.
     fn assign_the_variables(&mut self, class: &str, object: &Value) -> Result<(), RuntimeFailure> {
-        let Some(definition) = self.classes.get(class).cloned() else { return Ok(()) };
-        let Value::Object(cell) = object else { return Ok(()) };
+        let Some(definition) = self.classes.get(class).cloned() else {
+            return Ok(());
+        };
+        let Value::Object(cell) = object else {
+            return Ok(());
+        };
         for property in &definition.properties {
             // A variable that belongs to the class is not one of the
             // instance: it is the class that has it.
@@ -4705,7 +5000,10 @@ impl<'a> Runtime<'a> {
         let this = self.the_this();
         if let Some(base) = base {
             if let Some((defining, method)) = self.find_method_in(&base, "__item") {
-                let arguments = [Node::Literal { value: LiteralValue::Text(key.to_text()), line }];
+                let arguments = [Node::Literal {
+                    value: LiteralValue::Text(key.to_text()),
+                    line,
+                }];
                 return self.call_method(&defining, &method, &this, &arguments, line);
             }
         }
@@ -4834,7 +5132,9 @@ impl<'a> Runtime<'a> {
                 } else {
                     "Too many parameters passed to function."
                 };
-                return Err(crate::classes::the_arity_failure(&class, name, message, line));
+                return Err(crate::classes::the_arity_failure(
+                    &class, name, message, line,
+                ));
             }
         }
         // A class value is not an instance of its class: the methods of the
@@ -4864,7 +5164,10 @@ impl<'a> Runtime<'a> {
                         ),
                         line,
                     },
-                    Detail { what: String::new(), extra: String::new() },
+                    Detail {
+                        what: String::new(),
+                        extra: String::new(),
+                    },
                 ));
             }
         }
@@ -4883,7 +5186,8 @@ impl<'a> Runtime<'a> {
                 // `D.Prototype.Say()` answers 1, and the class of the
                 // value that it answers is the class of the prototype.
                 if self.classes.contains_key(&class) {
-                    if let Some((defining, method)) = self.find_the_instance_method_in(&class, name) {
+                    if let Some((defining, method)) = self.find_the_instance_method_in(&class, name)
+                    {
                         return self.call_method_with(&defining, &method, target, &values, line);
                     }
                 }
@@ -4949,8 +5253,10 @@ impl<'a> Runtime<'a> {
         // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
         // that the command does not give a value to is the one that is not
         // there: the place of it is kept, and it has no value.
-        let missing: Vec<bool> =
-            arguments.iter().map(|argument| matches!(argument, Node::Empty { .. })).collect();
+        let missing: Vec<bool> = arguments
+            .iter()
+            .map(|argument| matches!(argument, Node::Empty { .. }))
+            .collect();
         self.call_method_with_missing(class, method, this, &values, line, &missing)
     }
 
@@ -4978,8 +5284,14 @@ impl<'a> Runtime<'a> {
         if !variadic && arguments.len() > method.parameters.len() {
             let extra = self.the_name_of_the_method(class, method);
             return Err(RuntimeFailure::Detailed(
-                RuntimeError { message: "Too many parameters passed to function.".into(), line },
-                Detail { what: String::new(), extra },
+                RuntimeError {
+                    message: "Too many parameters passed to function.".into(),
+                    line,
+                },
+                Detail {
+                    what: String::new(),
+                    extra,
+                },
             ));
         }
         // A parameter that has no default is required: v2 refuses the call
@@ -4991,8 +5303,14 @@ impl<'a> Runtime<'a> {
                 && !parameter.variadic
             {
                 return Err(RuntimeFailure::Detailed(
-                    RuntimeError { message: "Missing a required parameter.".into(), line },
-                    Detail { what: String::new(), extra: parameter.name.clone() },
+                    RuntimeError {
+                        message: "Missing a required parameter.".into(),
+                        line,
+                    },
+                    Detail {
+                        what: String::new(),
+                        extra: parameter.name.clone(),
+                    },
                 ));
             }
         }
@@ -5045,7 +5363,10 @@ impl<'a> Runtime<'a> {
                         message: "Too many parameters passed to function.".into(),
                         line,
                     },
-                    Detail { what: String::new(), extra },
+                    Detail {
+                        what: String::new(),
+                        extra,
+                    },
                 ));
             }
             // A parameter that has no default is required: v2 refuses the
@@ -5061,7 +5382,10 @@ impl<'a> Runtime<'a> {
                             message: "Missing a required parameter.".into(),
                             line,
                         },
-                        Detail { what: String::new(), extra: parameter.name.clone() },
+                        Detail {
+                            what: String::new(),
+                            extra: parameter.name.clone(),
+                        },
                     ));
                 }
             }
@@ -5126,7 +5450,11 @@ impl<'a> Runtime<'a> {
         }
         // The parameter that takes the rest of the arguments takes them as
         // an array, the way v2 has it.
-        if let Some(index) = method.parameters.iter().position(|parameter| parameter.variadic) {
+        if let Some(index) = method
+            .parameters
+            .iter()
+            .position(|parameter| parameter.variadic)
+        {
             let rest: Vec<Value> = values.iter().skip(index).cloned().collect();
             let array = match crate::classes::construct("array", &rest, self, line) {
                 Some(result) => result?,
@@ -5173,7 +5501,9 @@ impl<'a> Runtime<'a> {
     /// class that it extends, and the base of a prototype is the
     /// prototype of the class that it extends.
     fn the_base_of_the_value(&self, target: &Value) -> Option<Value> {
-        let Value::Object(object) = target else { return None };
+        let Value::Object(object) = target else {
+            return None;
+        };
         let class = object.borrow().class.clone();
         // The prototype of a class: its base is the prototype of the
         // class that the class extends.
@@ -5213,7 +5543,10 @@ impl<'a> Runtime<'a> {
     fn the_base_of_the_class_name(&self, name: &str) -> Option<String> {
         let name = name.to_lowercase();
         if let Some(definition) = self.classes.get(&name) {
-            let base = definition.extends.clone().unwrap_or_else(|| "object".to_string());
+            let base = definition
+                .extends
+                .clone()
+                .unwrap_or_else(|| "object".to_string());
             return Some(base.to_lowercase());
         }
         crate::classes::the_base_class_of_a_class(&name).map(|base| base.to_string())
@@ -5227,13 +5560,17 @@ impl<'a> Runtime<'a> {
     /// the script wrote replaces the chain.
     fn the_chain_of_the_class_bases(&self, target: &Value) -> Vec<Value> {
         let mut chain: Vec<Value> = Vec::new();
-        let Some(name) = self.class_name_of(target) else { return chain };
+        let Some(name) = self.class_name_of(target) else {
+            return chain;
+        };
         if self.stored_base_of(target).is_some() {
             return chain;
         }
         let mut current = self.the_base_of_the_class_name(&name);
         while let Some(class) = current {
-            let Some(value) = self.class_value_of(&class) else { break };
+            let Some(value) = self.class_value_of(&class) else {
+                break;
+            };
             let Value::Object(object) = &value else { break };
             // A class that extends itself would loop for ever.
             if chain.iter().any(|seen| match seen {
@@ -5250,7 +5587,9 @@ impl<'a> Runtime<'a> {
 
     /// The prototype of a class.
     fn the_prototype_of(&self, class: &str) -> Option<Value> {
-        let Value::Object(value) = self.class_value_of(class)? else { return None };
+        let Value::Object(value) = self.class_value_of(class)? else {
+            return None;
+        };
         value.borrow().value_of("prototype")
     }
 
@@ -5282,7 +5621,8 @@ impl<'a> Runtime<'a> {
         if lower == "prototype" {
             return Err(crate::classes::named(
                 RuntimeFailure::Error(RuntimeError {
-                    message: "This value of type \"Prototype\" has no method named \"Call\".".to_string(),
+                    message: "This value of type \"Prototype\" has no method named \"Call\"."
+                        .to_string(),
                     line,
                 }),
                 "GetMethod",
@@ -5302,7 +5642,10 @@ impl<'a> Runtime<'a> {
             // The class does not have the method: the words of the
             // dialect say so, and the name of the method goes in the
             // `What`.
-            return Err(crate::classes::named(self.no_method(target, &name, line), "GetMethod"));
+            return Err(crate::classes::named(
+                self.no_method(target, &name, line),
+                "GetMethod",
+            ));
         }
         // The name of the method is the way v2 spells it, and the object
         // is one of the arguments of the call.
@@ -5341,9 +5684,13 @@ impl<'a> Runtime<'a> {
     /// properties of the class value, the way the call of the class is.
     fn the_static_methods_declared_by_a_class(&self, target: &Value) -> Vec<String> {
         let mut names: Vec<String> = Vec::new();
-        let Some(class) = self.class_name_of(target) else { return names };
+        let Some(class) = self.class_name_of(target) else {
+            return names;
+        };
         for class in self.class_chain(&class) {
-            let Some(definition) = self.classes.get(&class) else { continue };
+            let Some(definition) = self.classes.get(&class) else {
+                continue;
+            };
             for (name, method) in &definition.methods {
                 if method.is_static && !names.contains(name) {
                     names.push(name.clone());
@@ -5366,7 +5713,10 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Option<Value>, RuntimeFailure> {
         let lower = name.to_lowercase();
-        if !self.the_static_methods_of_a_class_value(target).contains(&lower) {
+        if !self
+            .the_static_methods_of_a_class_value(target)
+            .contains(&lower)
+        {
             return Ok(None);
         }
         // The static methods that the class of the script declares.
@@ -5385,7 +5735,9 @@ impl<'a> Runtime<'a> {
     /// The prototype of a class holds the members of the class, and the name
     /// of the class is under the key of it.
     fn the_class_of_the_prototype(&self, target: &Value) -> Option<String> {
-        let Value::Object(object) = target else { return None };
+        let Value::Object(object) = target else {
+            return None;
+        };
         if object.borrow().class != "prototype" {
             return None;
         }
@@ -5411,7 +5763,11 @@ impl<'a> Runtime<'a> {
     /// The name of the class, the name of the prototype, and the name of the
     /// member.
     fn the_name_of_a_member(&self, class: &str, member: &str) -> String {
-        format!("{}.Prototype.{}", self.the_spelling_of_the_class(class), member)
+        format!(
+            "{}.Prototype.{}",
+            self.the_spelling_of_the_class(class),
+            member
+        )
     }
 
     /// The name of a method of a class, the way v2 spells it.
@@ -5481,7 +5837,9 @@ impl<'a> Runtime<'a> {
     /// declares itself.
     fn the_own_properties_of_a_prototype(&self, target: &Value) -> Vec<String> {
         let mut names = vec!["__Class".to_string()];
-        let Some(class) = self.the_class_of_the_prototype(target) else { return names };
+        let Some(class) = self.the_class_of_the_prototype(target) else {
+            return names;
+        };
         match self.classes.get(&class) {
             // A class of the script: the methods that it declares itself.
             // The static ones belong to the class and not to its prototype.
@@ -5503,7 +5861,10 @@ impl<'a> Runtime<'a> {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // prototype of a class with a property owns "__Init".
                 if !definition.methods.contains_key("__init")
-                    && definition.properties.iter().any(|property| !property.is_static)
+                    && definition
+                        .properties
+                        .iter()
+                        .any(|property| !property.is_static)
                 {
                     names.push("__Init".to_string());
                 }
@@ -5527,11 +5888,7 @@ impl<'a> Runtime<'a> {
     /// The class of the value is its own property, and a method of the class
     /// is handed over as a function. A property of the class cannot be read
     /// on the prototype of it, and the value of it is empty.
-    fn the_value_of_an_own_property_of_a_prototype(
-        &self,
-        target: &Value,
-        name: &str,
-    ) -> Value {
+    fn the_value_of_an_own_property_of_a_prototype(&self, target: &Value, name: &str) -> Value {
         let lower = name.to_lowercase();
         if lower == "__class" {
             return Value::Text(self.the_class_of_the_value(target));
@@ -5565,7 +5922,9 @@ impl<'a> Runtime<'a> {
     /// declares.
     fn the_own_properties_of_a_class_value(&self, target: &Value) -> Vec<String> {
         let mut names: Vec<String> = Vec::new();
-        let Some(class) = self.class_name_of(target) else { return names };
+        let Some(class) = self.class_name_of(target) else {
+            return names;
+        };
         match self.classes.get(&class) {
             Some(definition) => {
                 // A class of the script: the initialiser of it, the static
@@ -5665,7 +6024,10 @@ impl<'a> Runtime<'a> {
         put(&mut properties, "maxparams", Value::Int(1));
         put(&mut properties, "isbuiltin", Value::Int(built_in));
         put(&mut properties, "isvariadic", Value::Int(0));
-        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+        Value::Object(Rc::new(RefCell::new(Object {
+            class: "func".to_string(),
+            properties,
+        })))
     }
 
     /// The value of a static method of a class of the script.
@@ -5679,28 +6041,57 @@ impl<'a> Runtime<'a> {
             .map(|definition| definition.name.clone())
             .unwrap_or_else(|| class.to_string());
         let mut properties: BTreeMap<String, Property> = BTreeMap::new();
-        put(&mut properties, "name", Value::Text(format!("{owner}.{}", method.name)));
+        put(
+            &mut properties,
+            "name",
+            Value::Text(format!("{owner}.{}", method.name)),
+        );
         // The first parameter of the reference is `this`.
         let required = method
             .parameters
             .iter()
             .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
             .count();
-        put(&mut properties, "minparams", Value::Int(required as i64 + 1));
-        put(&mut properties, "maxparams", Value::Int(method.parameters.len() as i64 + 1));
+        put(
+            &mut properties,
+            "minparams",
+            Value::Int(required as i64 + 1),
+        );
+        put(
+            &mut properties,
+            "maxparams",
+            Value::Int(method.parameters.len() as i64 + 1),
+        );
         put(&mut properties, "isbuiltin", Value::Int(0));
         put(&mut properties, "isvariadic", Value::Int(0));
         // The class and the name of the method: the reference calls them.
-        put(&mut properties, METHOD_CLASS, Value::Text(class.to_string()));
-        put(&mut properties, METHOD_NAME, Value::Text(method.name.clone()));
-        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+        put(
+            &mut properties,
+            METHOD_CLASS,
+            Value::Text(class.to_string()),
+        );
+        put(
+            &mut properties,
+            METHOD_NAME,
+            Value::Text(method.name.clone()),
+        );
+        Value::Object(Rc::new(RefCell::new(Object {
+            class: "func".to_string(),
+            properties,
+        })))
     }
 
     /// The reference of a static method of a class.
     ///
     /// The reference is the method, and the object is one of the
     /// arguments of the call.
-    fn method_reference_of_the_base_object(&self, spelled: &str, method: &str, min: i64, max: i64) -> Value {
+    fn method_reference_of_the_base_object(
+        &self,
+        spelled: &str,
+        method: &str,
+        min: i64,
+        max: i64,
+    ) -> Value {
         let mut properties = BTreeMap::new();
         put(&mut properties, "name", Value::Text(spelled.to_string()));
         put(&mut properties, "minparams", Value::Int(min));
@@ -5708,15 +6099,28 @@ impl<'a> Runtime<'a> {
         put(&mut properties, "isbuiltin", Value::Int(1));
         put(&mut properties, "isvariadic", Value::Int(0));
         // The class and the name of the method: the reference calls them.
-        put(&mut properties, METHOD_CLASS, Value::Text("object".to_string()));
-        put(&mut properties, METHOD_NAME, Value::Text(method.to_string()));
-        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+        put(
+            &mut properties,
+            METHOD_CLASS,
+            Value::Text("object".to_string()),
+        );
+        put(
+            &mut properties,
+            METHOD_NAME,
+            Value::Text(method.to_string()),
+        );
+        Value::Object(Rc::new(RefCell::new(Object {
+            class: "func".to_string(),
+            properties,
+        })))
     }
 
     /// The copy of an object: the state of it is copied, and the class of
     /// it is the same.
     fn clone_of_an_object(&self, target: &Value) -> Value {
-        let Value::Object(object) = target else { return target.clone() };
+        let Value::Object(object) = target else {
+            return target.clone();
+        };
         let class = object.borrow().class.clone();
         let mut properties = BTreeMap::new();
         for (key, property) in object.borrow().properties.iter() {
@@ -5730,7 +6134,9 @@ impl<'a> Runtime<'a> {
     /// Measured on the binary of v2.0.19 on 2026-10-31: the copy of a
     /// class is a class, and it is not the class it was copied from.
     fn clone_of_a_class(&self, target: &Value) -> Value {
-        let Value::Object(object) = target else { return target.clone() };
+        let Value::Object(object) = target else {
+            return target.clone();
+        };
         let class = object.borrow().class.clone();
         let mut properties = BTreeMap::new();
         for (key, property) in object.borrow().properties.iter() {
@@ -5800,7 +6206,9 @@ impl<'a> Runtime<'a> {
     /// `{b: 1}` has one member, and the `[1, 2]` has two, and the `[1, 2]`
     /// with the property "b" has three.
     fn the_members_of_the_v1(&self, target: &Value) -> usize {
-        let Value::Object(object) = target else { return 0 };
+        let Value::Object(object) = target else {
+            return 0;
+        };
         let mut count = 0;
         for name in object.borrow().properties.keys() {
             // The names that the runtime owns are not members of the object.
@@ -5835,7 +6243,9 @@ impl<'a> Runtime<'a> {
         arguments: &[Value],
         line: u32,
     ) -> Option<Result<Value, RuntimeFailure>> {
-        let Value::Object(object) = target else { return None };
+        let Value::Object(object) = target else {
+            return None;
+        };
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // object of the v1 has no method of the base object of the v2, and it
         // has the `Count()` and the `Length()`.
@@ -5844,10 +6254,12 @@ impl<'a> Runtime<'a> {
         }
         let class = object.borrow().class.clone();
         let method = name.to_string();
-        let missing = || RuntimeFailure::Error(RuntimeError {
-            message: format!("{method} needs a name."),
-            line,
-        });
+        let missing = || {
+            RuntimeFailure::Error(RuntimeError {
+                message: format!("{method} needs a name."),
+                line,
+            })
+        };
         match name.to_lowercase().as_str() {
             "clone" => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -5943,7 +6355,10 @@ impl<'a> Runtime<'a> {
                     self.the_own_properties_of_a_class_value(target)
                         .iter()
                         .any(|own| own.to_lowercase() == name.to_lowercase())
-                        || object.borrow().properties.contains_key(&name.to_lowercase())
+                        || object
+                            .borrow()
+                            .properties
+                            .contains_key(&name.to_lowercase())
                         || name.eq_ignore_ascii_case("base")
                         || self
                             .the_static_methods_of_a_class_value(target)
@@ -6031,21 +6446,30 @@ impl<'a> Runtime<'a> {
                     // Measured on the binary of v2.0.19 on 2026-10-31:
                     // `C.Prototype.GetMethod("Say")` is refused when `Say` is
                     // a static method of the class.
-                    if let Some((defining, method)) = self.find_the_instance_method_in(&class, &name) {
+                    if let Some((defining, method)) =
+                        self.find_the_instance_method_in(&class, &name)
+                    {
                         return Some(Ok(self.method_reference(&defining, &method)));
                     }
                     // A method of a class type of the runtime.
-                    if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name) {
+                    if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name)
+                    {
                         let reference =
                             self.method_reference_of_a_class_type(&class, spelled, min, max);
                         return Some(Ok(reference));
                     }
                     // A method of the base object.
                     if crate::classes::the_base_object_has_the_method(&name) {
-                        let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&name);
-                        let (min, max) = crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
-                        let reference = self
-                            .method_reference_of_the_base_object(&spelled, &name, min + 1, max + 1);
+                        let spelled =
+                            crate::classes::the_name_of_a_method_of_the_base_object(&name);
+                        let (min, max) =
+                            crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
+                        let reference = self.method_reference_of_the_base_object(
+                            &spelled,
+                            &name,
+                            min + 1,
+                            max + 1,
+                        );
                         return Some(Ok(reference));
                     }
                     return Some(Err(self.no_method(target, &name, line)));
@@ -6074,7 +6498,8 @@ impl<'a> Runtime<'a> {
                 // `o.GetMethod("Clone")` is the method of the base object.
                 if crate::classes::the_base_object_has_the_method(&name) {
                     let spelled = crate::classes::the_name_of_a_method_of_the_base_object(&name);
-                    let (min, max) = crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
+                    let (min, max) =
+                        crate::classes::the_arity_of("object", &name).unwrap_or((0, 0));
                     let reference =
                         self.method_reference_of_the_base_object(&spelled, &name, min + 1, max + 1);
                     return Some(Ok(reference));
@@ -6101,12 +6526,10 @@ impl<'a> Runtime<'a> {
                 // Measured on the binary of v2.0.19 on 2026-10-31.
                 if self.class_name_of(target).is_some() {
                     let chain = self.the_chain_of_the_class_bases(target);
-                    return Some(Ok(Value::Int(
-                        chain.iter().any(|object| match object {
-                            Value::Object(one) => Rc::ptr_eq(one, base),
-                            _ => false,
-                        }) as i64,
-                    )));
+                    return Some(Ok(Value::Int(chain.iter().any(|object| match object {
+                        Value::Object(one) => Rc::ptr_eq(one, base),
+                        _ => false,
+                    }) as i64)));
                 }
                 let chain = self.the_chain_of_the_bases(target);
                 Some(Ok(Value::Int(
@@ -6135,7 +6558,10 @@ impl<'a> Runtime<'a> {
                                 ),
                                 line,
                             },
-                            Detail { what: String::new(), extra: String::new() },
+                            Detail {
+                                what: String::new(),
+                                extra: String::new(),
+                            },
                         )));
                     }
                     let own = self
@@ -6203,13 +6629,15 @@ impl<'a> Runtime<'a> {
                                 ),
                                 line,
                             },
-                            Detail { what: String::new(), extra: String::new() },
+                            Detail {
+                                what: String::new(),
+                                extra: String::new(),
+                            },
                         )));
                     }
                     let mut pairs: Vec<(Value, Value)> = Vec::new();
                     for name in self.the_own_properties_of_a_prototype(target) {
-                        let value =
-                            self.the_value_of_an_own_property_of_a_prototype(target, &name);
+                        let value = self.the_value_of_an_own_property_of_a_prototype(target, &name);
                         pairs.push((Value::Text(name), value));
                     }
                     return Some(Ok(crate::classes::enumerator::make(
@@ -6244,7 +6672,8 @@ impl<'a> Runtime<'a> {
                     // The names are in the order of v2, and the case of them
                     // does not count.
                     pairs.sort_by(|left, right| {
-                        left.0.to_text()
+                        left.0
+                            .to_text()
                             .to_lowercase()
                             .cmp(&right.0.to_text().to_lowercase())
                     });
@@ -6280,7 +6709,8 @@ impl<'a> Runtime<'a> {
                 own.sort_by_key(|(name, _)| name.to_lowercase());
                 let mut pairs: Vec<(Value, Value)> = Vec::with_capacity(own.len());
                 for (name, value) in own {
-                    let value = match self.the_value_of_the_descriptor(&value, target, &name, line) {
+                    let value = match self.the_value_of_the_descriptor(&value, target, &name, line)
+                    {
                         Ok(Some(value)) => value,
                         Ok(None) => value,
                         Err(_) => Value::Text(String::new()),
@@ -6311,16 +6741,22 @@ impl<'a> Runtime<'a> {
                 let Some(name) = arguments.first().map(|value| value.to_text()) else {
                     return Some(Err(missing()));
                 };
-                let gone = object.borrow_mut().properties.remove(&name.to_lowercase()).map(|property| property.value);
+                let gone = object
+                    .borrow_mut()
+                    .properties
+                    .remove(&name.to_lowercase())
+                    .map(|property| property.value);
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // answer is the value of the property that is taken away,
                 // and an empty text when there was none.
                 Some(Ok(match gone {
                     None => Value::Text(String::new()),
-                    Some(value) => match self.the_value_of_the_descriptor(&value, target, &name, line) {
-                        Ok(Some(value)) => value,
-                        _ => value,
-                    },
+                    Some(value) => {
+                        match self.the_value_of_the_descriptor(&value, target, &name, line) {
+                            Ok(Some(value)) => value,
+                            _ => value,
+                        }
+                    }
                 }))
             }
             "getownpropdesc" => {
@@ -6419,7 +6855,10 @@ impl<'a> Runtime<'a> {
         // dialect.
         if self.class_name_of(target).is_none() {
             if let Some(reason) = crate::classes::the_reason_of_a_class_that_is_not_carried(&kind) {
-                return RuntimeFailure::Error(RuntimeError { message: reason.to_string(), line });
+                return RuntimeFailure::Error(RuntimeError {
+                    message: reason.to_string(),
+                    line,
+                });
             }
         }
         RuntimeFailure::Error(RuntimeError {
@@ -6433,7 +6872,12 @@ impl<'a> Runtime<'a> {
     /// Measured on the binary of v2.0.19 on 2026-10-31: v2 reads the
     /// property "Ptr" of the value that it writes, and an object has none:
     /// 'This value of type "Map" has no property named "Ptr".'.
-    pub(crate) fn the_message_of_no_property(&self, target: &Value, name: &str, line: u32) -> String {
+    pub(crate) fn the_message_of_no_property(
+        &self,
+        target: &Value,
+        name: &str,
+        line: u32,
+    ) -> String {
         match self.no_property(target, name, line) {
             RuntimeFailure::Error(error) => error.message,
             RuntimeFailure::Detailed(error, _) => error.message,
@@ -6450,20 +6894,28 @@ impl<'a> Runtime<'a> {
     /// `Set` and `Call`, and refuses anything else with "Parameter #2 of
     /// Object.Prototype.DefineProp is invalid.". A descriptor that carries
     /// a value and an accessor at the same time is refused as well.
-    pub(crate) fn the_descriptor(&self, value: Option<&Value>, line: u32) -> Result<Value, RuntimeFailure> {
+    pub(crate) fn the_descriptor(
+        &self,
+        value: Option<&Value>,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
         // Measured on the binary of v2.0.19 on 2026-10-31: the value that
         // is not a descriptor goes in the `Extra` of the failure.
-        let invalid = || RuntimeFailure::Detailed(
-            RuntimeError {
-                message: "Parameter #2 of Object.Prototype.DefineProp is invalid.".into(),
-                line,
-            },
-            Detail {
-                what: String::new(),
-                extra: value.map(|value| value.to_text()).unwrap_or_default(),
-            },
-        );
-        let Some(Value::Object(object)) = value else { return Err(invalid()) };
+        let invalid = || {
+            RuntimeFailure::Detailed(
+                RuntimeError {
+                    message: "Parameter #2 of Object.Prototype.DefineProp is invalid.".into(),
+                    line,
+                },
+                Detail {
+                    what: String::new(),
+                    extra: value.map(|value| value.to_text()).unwrap_or_default(),
+                },
+            )
+        };
+        let Some(Value::Object(object)) = value else {
+            return Err(invalid());
+        };
         let table = object.borrow();
         let mut members: BTreeMap<String, Property> = BTreeMap::new();
         for key in ["value", "get", "set", "call"] {
@@ -6483,16 +6935,23 @@ impl<'a> Runtime<'a> {
 
     /// Whether a value is the descriptor of a property.
     fn is_a_descriptor(&self, value: &Value) -> bool {
-        let Value::Object(object) = value else { return false };
+        let Value::Object(object) = value else {
+            return false;
+        };
         object.borrow().class == DESCRIPTOR
     }
 
     /// The members of a descriptor, when the value is one.
-    pub(crate) fn the_members_of_a_descriptor(&self, value: &Value) -> Option<BTreeMap<String, Property>> {
+    pub(crate) fn the_members_of_a_descriptor(
+        &self,
+        value: &Value,
+    ) -> Option<BTreeMap<String, Property>> {
         if !self.is_a_descriptor(value) {
             return None;
         }
-        let Value::Object(object) = value else { return None };
+        let Value::Object(object) = value else {
+            return None;
+        };
         Some(object.borrow().properties.clone())
     }
 
@@ -6512,7 +6971,9 @@ impl<'a> Runtime<'a> {
         if !self.is_a_descriptor(value) {
             return Ok(None);
         }
-        let Value::Object(object) = value else { return Ok(None) };
+        let Value::Object(object) = value else {
+            return Ok(None);
+        };
         let getter = object.borrow().value_of("get");
         let held = object.borrow().value_of("value");
         if let Some(getter) = getter {
@@ -6527,12 +6988,16 @@ impl<'a> Runtime<'a> {
 
     /// The call of a property that is a descriptor.
     fn the_call_of_the_descriptor(&self, target: &Value, name: &str) -> Option<Value> {
-        let Value::Object(object) = target else { return None };
+        let Value::Object(object) = target else {
+            return None;
+        };
         let current = object.borrow().value_of(&name.to_lowercase())?;
         if !self.is_a_descriptor(&current) {
             return None;
         }
-        let Value::Object(descriptor) = &current else { return None };
+        let Value::Object(descriptor) = &current else {
+            return None;
+        };
         descriptor.borrow().value_of("call")
     }
 
@@ -6547,22 +7012,30 @@ impl<'a> Runtime<'a> {
         name: &str,
         line: u32,
     ) -> Result<Option<Value>, RuntimeFailure> {
-        let Value::Object(object) = target else { return Ok(None) };
+        let Value::Object(object) = target else {
+            return Ok(None);
+        };
         let Some(current) = object.borrow().value_of(&name.to_lowercase()) else {
             return Ok(None);
         };
         if !self.is_a_descriptor(&current) {
             return Ok(None);
         }
-        let Value::Object(descriptor) = &current else { return Ok(None) };
+        let Value::Object(descriptor) = &current else {
+            return Ok(None);
+        };
         let getter = descriptor.borrow().value_of("get");
-        let Some(getter) = getter else { return Ok(None) };
+        let Some(getter) = getter else {
+            return Ok(None);
+        };
         Ok(Some(self.call_the_function(&getter, target, &[], line)?))
     }
 
     /// Whether a value is a function of the script.
     fn is_a_function(&self, value: &Value) -> bool {
-        let Value::Object(object) = value else { return false };
+        let Value::Object(object) = value else {
+            return false;
+        };
         object.borrow().class == "func"
     }
 
@@ -6579,7 +7052,9 @@ impl<'a> Runtime<'a> {
         written: &str,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
-        let Value::Object(object) = descriptor else { return Ok(()) };
+        let Value::Object(object) = descriptor else {
+            return Ok(());
+        };
         let setter = object.borrow().value_of("set");
         if let Some(setter) = setter {
             // The setter is asked with the object and the value that is
@@ -6593,8 +7068,14 @@ impl<'a> Runtime<'a> {
             return Ok(());
         }
         Err(RuntimeFailure::Detailed(
-            RuntimeError { message: "Property is read-only.".to_string(), line },
-            Detail { what: String::new(), extra: written.to_string() },
+            RuntimeError {
+                message: "Property is read-only.".to_string(),
+                line,
+            },
+            Detail {
+                what: String::new(),
+                extra: written.to_string(),
+            },
         ))
     }
 
@@ -6629,7 +7110,10 @@ impl<'a> Runtime<'a> {
         // dialect.
         if self.class_name_of(target).is_none() {
             if let Some(reason) = crate::classes::the_reason_of_a_class_that_is_not_carried(&kind) {
-                return RuntimeFailure::Error(RuntimeError { message: reason.to_string(), line });
+                return RuntimeFailure::Error(RuntimeError {
+                    message: reason.to_string(),
+                    line,
+                });
             }
         }
         RuntimeFailure::Error(RuntimeError {
@@ -6672,21 +7156,44 @@ impl<'a> Runtime<'a> {
     /// of the arguments of the call.
     fn method_reference(&self, class: &str, method: &MethodDef) -> Value {
         let mut properties: BTreeMap<String, Property> = BTreeMap::new();
-        put(&mut properties, "name", Value::Text(self.the_name_of_the_method(class, method)));
+        put(
+            &mut properties,
+            "name",
+            Value::Text(self.the_name_of_the_method(class, method)),
+        );
         // The first parameter of the reference is `this`.
         let required = method
             .parameters
             .iter()
             .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
             .count();
-        put(&mut properties, "minparams", Value::Int(required as i64 + 1));
-        put(&mut properties, "maxparams", Value::Int(method.parameters.len() as i64 + 1));
+        put(
+            &mut properties,
+            "minparams",
+            Value::Int(required as i64 + 1),
+        );
+        put(
+            &mut properties,
+            "maxparams",
+            Value::Int(method.parameters.len() as i64 + 1),
+        );
         put(&mut properties, "isbuiltin", Value::Int(0));
         put(&mut properties, "isvariadic", Value::Int(0));
         // The class and the name of the method: the reference calls them.
-        put(&mut properties, METHOD_CLASS, Value::Text(class.to_string()));
-        put(&mut properties, METHOD_NAME, Value::Text(method.name.clone()));
-        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+        put(
+            &mut properties,
+            METHOD_CLASS,
+            Value::Text(class.to_string()),
+        );
+        put(
+            &mut properties,
+            METHOD_NAME,
+            Value::Text(method.name.clone()),
+        );
+        Value::Object(Rc::new(RefCell::new(Object {
+            class: "func".to_string(),
+            properties,
+        })))
     }
 
     /// The value of a function that is bound to an object.
@@ -6709,7 +7216,10 @@ impl<'a> Runtime<'a> {
         // The object and the target: the call of the value calls them.
         put(&mut properties, BOUND, object);
         put(&mut properties, BOUND_TARGET, target);
-        Value::Object(Rc::new(RefCell::new(Object { class: "boundfunc".to_string(), properties })))
+        Value::Object(Rc::new(RefCell::new(Object {
+            class: "boundfunc".to_string(),
+            properties,
+        })))
     }
 
     /// The reference to a method of a class type of the runtime.
@@ -6726,15 +7236,30 @@ impl<'a> Runtime<'a> {
     ) -> Value {
         let mut properties = BTreeMap::new();
         let owner = crate::classes::the_spelling_of(class);
-        put(&mut properties, "name", Value::Text(format!("{owner}.Prototype.{spelled}")));
+        put(
+            &mut properties,
+            "name",
+            Value::Text(format!("{owner}.Prototype.{spelled}")),
+        );
         put(&mut properties, "minparams", Value::Int(min));
         put(&mut properties, "maxparams", Value::Int(max));
         put(&mut properties, "isbuiltin", Value::Int(0));
         put(&mut properties, "isvariadic", Value::Int(0));
         // The class and the name of the method: the reference calls them.
-        put(&mut properties, METHOD_CLASS, Value::Text(class.to_string()));
-        put(&mut properties, METHOD_NAME, Value::Text(spelled.to_string()));
-        Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+        put(
+            &mut properties,
+            METHOD_CLASS,
+            Value::Text(class.to_string()),
+        );
+        put(
+            &mut properties,
+            METHOD_NAME,
+            Value::Text(spelled.to_string()),
+        );
+        Value::Object(Rc::new(RefCell::new(Object {
+            class: "func".to_string(),
+            properties,
+        })))
     }
 
     /// A method of a class of the script, called through the reference to it.
@@ -6762,7 +7287,9 @@ impl<'a> Runtime<'a> {
                     } else {
                         "Too many parameters passed to function."
                     };
-                    return Err(crate::classes::the_arity_failure(class, method, message, line));
+                    return Err(crate::classes::the_arity_failure(
+                        class, method, message, line,
+                    ));
                 }
             }
             let Some((this, rest)) = arguments.split_first() else {
@@ -6857,7 +7384,9 @@ impl<'a> Runtime<'a> {
                     } else {
                         "Too many parameters passed to function."
                     };
-                    return Err(crate::classes::the_arity_failure(&class, method, message, line));
+                    return Err(crate::classes::the_arity_failure(
+                        &class, method, message, line,
+                    ));
                 }
             }
             return match crate::classes::call(&class, method, target, arguments, self, line) {
@@ -6876,7 +7405,12 @@ impl<'a> Runtime<'a> {
     }
 
     /// A property of a value.
-    pub(crate) fn read_property(&mut self, target: &Value, name: &str, line: u32) -> Result<Value, RuntimeFailure> {
+    pub(crate) fn read_property(
+        &mut self,
+        target: &Value,
+        name: &str,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
         self.read_property_with(target, name, &[], line)
     }
 
@@ -6941,8 +7475,8 @@ impl<'a> Runtime<'a> {
         // `Map.Prototype.Count` is refused with "Expected a Map but got a
         // Prototype.".
         if let Some(class) = &owner {
-            let property =
-                crate::classes::the_property_of_the_prototype(class, &name).map(|spelled| spelled.to_string());
+            let property = crate::classes::the_property_of_the_prototype(class, &name)
+                .map(|spelled| spelled.to_string());
             if let Some(spelled) = property {
                 return Err(RuntimeFailure::Detailed(
                     RuntimeError {
@@ -6983,7 +7517,9 @@ impl<'a> Runtime<'a> {
         if let Some(value) = object.borrow().value_of(&name) {
             // A property may be a descriptor: the getter of it is asked
             // for the value of the property.
-            if let Some(answer) = self.the_value_of_the_descriptor(&value, target, &written, line)? {
+            if let Some(answer) =
+                self.the_value_of_the_descriptor(&value, target, &written, line)?
+            {
                 return Ok((answer, false));
             }
             return Ok((value, false));
@@ -7057,8 +7593,7 @@ impl<'a> Runtime<'a> {
             // hands it over as a function whose first parameter is
             // `this`.
             if let Some((spelled, min, max)) = crate::classes::the_method_of(&members, &name) {
-                let reference =
-                    self.method_reference_of_a_class_type(&members, spelled, min, max);
+                let reference = self.method_reference_of_a_class_type(&members, spelled, min, max);
                 return Ok((reference, false));
             }
             // A method of the base object is a value too, and every object
@@ -7137,8 +7672,14 @@ impl<'a> Runtime<'a> {
             // written: v2 says that the property is read-only.
             if name == "__class" {
                 return Err(RuntimeFailure::Detailed(
-                    RuntimeError { message: "Property is read-only.".to_string(), line },
-                    Detail { what: String::new(), extra: written },
+                    RuntimeError {
+                        message: "Property is read-only.".to_string(),
+                        line,
+                    },
+                    Detail {
+                        what: String::new(),
+                        extra: written,
+                    },
                 ));
             }
             return Err(self.no_property(target, &written, line));
@@ -7151,7 +7692,8 @@ impl<'a> Runtime<'a> {
         // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Count` may
         // be written, and `Map.HasProp` may not.
         if self.class_name_of(target).is_some() {
-            return self.write_the_property_of_a_class_value(target, &class, &name, &written, value, line);
+            return self
+                .write_the_property_of_a_class_value(target, &class, &name, &written, value, line);
         }
         // The base of an object is written the way the `ObjSetBase` built-in
         // writes it: the value has to be an object, and the base of an
@@ -7167,16 +7709,22 @@ impl<'a> Runtime<'a> {
                         message: expected_type(TypeName::Object, value.type_name()),
                         line,
                     },
-                    Detail { what: "ObjSetBase".to_string(), extra: value.to_text() },
+                    Detail {
+                        what: "ObjSetBase".to_string(),
+                        extra: value.to_text(),
+                    },
                 ));
             }
             let base = value.clone();
-            return self
-                .set_base_of(target, base, line)
-                .map_err(|error| RuntimeFailure::Detailed(
+            return self.set_base_of(target, base, line).map_err(|error| {
+                RuntimeFailure::Detailed(
                     error,
-                    Detail { what: "ObjSetBase".to_string(), extra: String::new() },
-                ));
+                    Detail {
+                        what: "ObjSetBase".to_string(),
+                        extra: String::new(),
+                    },
+                )
+            });
         }
         // The members of the prototype of a class are read-only: the class
         // holds them, and the prototype is not the one that has them.
@@ -7188,8 +7736,14 @@ impl<'a> Runtime<'a> {
         if let Some(class) = self.the_class_of_the_prototype(target) {
             if self.the_prototype_has_the_member(&class, &name) {
                 return Err(RuntimeFailure::Detailed(
-                    RuntimeError { message: "Property is read-only.".to_string(), line },
-                    Detail { what: String::new(), extra: written.clone() },
+                    RuntimeError {
+                        message: "Property is read-only.".to_string(),
+                        line,
+                    },
+                    Detail {
+                        what: String::new(),
+                        extra: written.clone(),
+                    },
                 ));
             }
         }
@@ -7201,11 +7755,19 @@ impl<'a> Runtime<'a> {
         // `Extra`, and the `What` is empty.
         if crate::classes::the_property_is_read_only(&class, &name) {
             return Err(RuntimeFailure::Detailed(
-                RuntimeError { message: "Property is read-only.".to_string(), line },
-                Detail { what: String::new(), extra: written },
+                RuntimeError {
+                    message: "Property is read-only.".to_string(),
+                    line,
+                },
+                Detail {
+                    what: String::new(),
+                    extra: written,
+                },
             ));
         }
-        if let Some(result) = crate::classes::set_property(&class, &name, target, value.clone(), self, line) {
+        if let Some(result) =
+            crate::classes::set_property(&class, &name, target, value.clone(), self, line)
+        {
             return result;
         }
         // A property of the class that has a setter: the write of it calls
@@ -7268,10 +7830,19 @@ impl<'a> Runtime<'a> {
         //
         // Measured on the binary of v2.0.19 on 2026-10-31: the write of a
         // static method of a class of the script is refused as well.
-        if self.the_static_methods_of_a_class_value(target).contains(&name.to_string()) {
+        if self
+            .the_static_methods_of_a_class_value(target)
+            .contains(&name.to_string())
+        {
             return Err(RuntimeFailure::Detailed(
-                RuntimeError { message: "Property is read-only.".to_string(), line },
-                Detail { what: String::new(), extra: written.to_string() },
+                RuntimeError {
+                    message: "Property is read-only.".to_string(),
+                    line,
+                },
+                Detail {
+                    what: String::new(),
+                    extra: written.to_string(),
+                },
             ));
         }
         // The base of a class is written the way the `ObjSetBase` built-in
@@ -7287,16 +7858,22 @@ impl<'a> Runtime<'a> {
                         message: expected_type(TypeName::Object, value.type_name()),
                         line,
                     },
-                    Detail { what: "ObjSetBase".to_string(), extra: value.to_text() },
+                    Detail {
+                        what: "ObjSetBase".to_string(),
+                        extra: value.to_text(),
+                    },
                 ));
             }
             let base = value.clone();
-            return self
-                .set_base_of(target, base, line)
-                .map_err(|error| RuntimeFailure::Detailed(
+            return self.set_base_of(target, base, line).map_err(|error| {
+                RuntimeFailure::Detailed(
                     error,
-                    Detail { what: "ObjSetBase".to_string(), extra: String::new() },
-                ));
+                    Detail {
+                        what: "ObjSetBase".to_string(),
+                        extra: String::new(),
+                    },
+                )
+            });
         }
         let Value::Object(object) = target else {
             return Err(self.no_property(target, written, line));
@@ -7354,7 +7931,10 @@ impl<'a> Runtime<'a> {
             self.classes
                 .get(class)
                 .map(|definition| {
-                    definition.properties.iter().any(|property| property.name.to_lowercase() == name)
+                    definition
+                        .properties
+                        .iter()
+                        .any(|property| property.name.to_lowercase() == name)
                 })
                 .unwrap_or(false)
         })
@@ -7372,9 +7952,10 @@ impl<'a> Runtime<'a> {
             self.classes
                 .get(class)
                 .map(|definition| {
-                    definition.properties.iter().any(|property| {
-                        !property.is_static && property.name.to_lowercase() == name
-                    })
+                    definition
+                        .properties
+                        .iter()
+                        .any(|property| !property.is_static && property.name.to_lowercase() == name)
                 })
                 .unwrap_or(false)
         })
@@ -7403,8 +7984,12 @@ impl<'a> Runtime<'a> {
             }
         };
         for class in self.class_chain(&class) {
-            let Some(definition) = self.classes.get(&class) else { continue };
-            let Some(access) = definition.accessors.get(&lower) else { continue };
+            let Some(definition) = self.classes.get(&class) else {
+                continue;
+            };
+            let Some(access) = definition.accessors.get(&lower) else {
+                continue;
+            };
             if access.is_static == is_static {
                 return Some(access.clone());
             }
@@ -7423,7 +8008,9 @@ impl<'a> Runtime<'a> {
         name: &str,
         line: u32,
     ) -> Result<Option<Value>, RuntimeFailure> {
-        let Some(access) = self.the_accessor_of(target, name) else { return Ok(None) };
+        let Some(access) = self.the_accessor_of(target, name) else {
+            return Ok(None);
+        };
         let Some(getter) = &access.getter else {
             return Err(self.no_property(target, name, line));
         };
@@ -7444,11 +8031,19 @@ impl<'a> Runtime<'a> {
         value: Value,
         line: u32,
     ) -> Result<bool, RuntimeFailure> {
-        let Some(access) = self.the_accessor_of(target, name) else { return Ok(false) };
+        let Some(access) = self.the_accessor_of(target, name) else {
+            return Ok(false);
+        };
         let Some(setter) = &access.setter else {
             return Err(RuntimeFailure::Detailed(
-                RuntimeError { message: "Property is read-only.".to_string(), line },
-                Detail { what: String::new(), extra: name.to_string() },
+                RuntimeError {
+                    message: "Property is read-only.".to_string(),
+                    line,
+                },
+                Detail {
+                    what: String::new(),
+                    extra: name.to_string(),
+                },
             ));
         };
         self.call_the_body_of_an_accessor(target, &access, setter, line, &[], Some(&value))?;
@@ -7630,7 +8225,10 @@ impl<'a> Runtime<'a> {
             // is the one of the category of the directive, and the table and
             // the run are the same truth.
             other => match refusal_of_directive(other) {
-                Some(why) => Err(RuntimeFailure::Error(RuntimeError { message: why.into(), line })),
+                Some(why) => Err(RuntimeFailure::Error(RuntimeError {
+                    message: why.into(),
+                    line,
+                })),
                 None => Err(RuntimeFailure::Error(RuntimeError {
                     message: format!("{other} is not a directive this runtime knows."),
                     line,
@@ -7871,17 +8469,23 @@ impl<'a> Runtime<'a> {
                         line,
                     }));
                 }
-                Value::Int(self.the_whole_number_of_a_value_of_the_v1(&a).wrapping_div(other))
+                Value::Int(
+                    self.the_whole_number_of_a_value_of_the_v1(&a)
+                        .wrapping_div(other),
+                )
             }
-            AssignOp::BitwiseAnd => {
-                Value::Int(self.the_whole_number_of_a_value_of_the_v1(&a) & self.the_whole_number_of_a_value_of_the_v1(&b))
-            }
-            AssignOp::BitwiseOr => {
-                Value::Int(self.the_whole_number_of_a_value_of_the_v1(&a) | self.the_whole_number_of_a_value_of_the_v1(&b))
-            }
-            AssignOp::BitwiseXor => {
-                Value::Int(self.the_whole_number_of_a_value_of_the_v1(&a) ^ self.the_whole_number_of_a_value_of_the_v1(&b))
-            }
+            AssignOp::BitwiseAnd => Value::Int(
+                self.the_whole_number_of_a_value_of_the_v1(&a)
+                    & self.the_whole_number_of_a_value_of_the_v1(&b),
+            ),
+            AssignOp::BitwiseOr => Value::Int(
+                self.the_whole_number_of_a_value_of_the_v1(&a)
+                    | self.the_whole_number_of_a_value_of_the_v1(&b),
+            ),
+            AssignOp::BitwiseXor => Value::Int(
+                self.the_whole_number_of_a_value_of_the_v1(&a)
+                    ^ self.the_whole_number_of_a_value_of_the_v1(&b),
+            ),
             AssignOp::ShiftLeft => Value::Int(
                 self.the_whole_number_of_a_value_of_the_v1(&a)
                     .wrapping_shl(self.the_whole_number_of_a_value_of_the_v1(&b) as u32),
@@ -7892,7 +8496,8 @@ impl<'a> Runtime<'a> {
             ),
             AssignOp::ShiftRightUnsigned => Value::Int(
                 (self.the_whole_number_of_a_value_of_the_v1(&a) as u64
-                    >> (self.the_whole_number_of_a_value_of_the_v1(&b) as u32 & 63)) as i64,
+                    >> (self.the_whole_number_of_a_value_of_the_v1(&b) as u32 & 63))
+                    as i64,
             ),
             AssignOp::Set | AssignOp::Concat => Value::Text(String::new()),
         })
@@ -7936,7 +8541,9 @@ impl<'a> Runtime<'a> {
         match value {
             Value::Int(number) => *number,
             Value::Float(number) => *number as i64,
-            other => crate::v1::the_whole_number_at_the_start_of_a_text(&other.to_text()).unwrap_or(0),
+            other => {
+                crate::v1::the_whole_number_at_the_start_of_a_text(&other.to_text()).unwrap_or(0)
+            }
         }
     }
 
@@ -7970,7 +8577,11 @@ impl<'a> Runtime<'a> {
         // name of the function that runs is the name of it, and it is an
         // empty text when there is no function that runs.
         if rest == "thisfunc" {
-            let name = self.frames.last().map(|frame| frame.name.clone()).unwrap_or_default();
+            let name = self
+                .frames
+                .last()
+                .map(|frame| frame.name.clone())
+                .unwrap_or_default();
             return Some(Value::Text(name));
         }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
@@ -8059,7 +8670,10 @@ impl<'a> Runtime<'a> {
         let position = position.max(1) as usize;
         match target {
             Value::List(items) => items.get(position - 1).cloned().ok_or_else(|| {
-                RuntimeFailure::Error(RuntimeError { message: "Invalid index.".into(), line })
+                RuntimeFailure::Error(RuntimeError {
+                    message: "Invalid index.".into(),
+                    line,
+                })
             }),
             // A text has no item, and v2 refuses the index of one:
             // `SubStr` is the way to take a letter out.
@@ -8082,8 +8696,14 @@ impl<'a> Runtime<'a> {
     /// variable goes in the `Extra` of the error, and the `What` is empty.
     fn the_unassigned_failure(&self, name: &str, line: u32) -> RuntimeFailure {
         RuntimeFailure::Detailed(
-            RuntimeError { message: self.the_unassigned(name), line },
-            Detail { what: String::new(), extra: name.to_string() },
+            RuntimeError {
+                message: self.the_unassigned(name),
+                line,
+            },
+            Detail {
+                what: String::new(),
+                extra: name.to_string(),
+            },
         )
     }
 
@@ -8093,8 +8713,14 @@ impl<'a> Runtime<'a> {
     /// parameter is in the `Extra` of the failure, and the `What` is empty.
     fn the_missing_parameter(&self, name: &str, line: u32) -> RuntimeFailure {
         RuntimeFailure::Detailed(
-            RuntimeError { message: "Missing a required parameter.".into(), line },
-            Detail { what: String::new(), extra: name.to_string() },
+            RuntimeError {
+                message: "Missing a required parameter.".into(),
+                line,
+            },
+            Detail {
+                what: String::new(),
+                extra: name.to_string(),
+            },
         )
     }
 
@@ -8121,7 +8747,10 @@ impl<'a> Runtime<'a> {
                     message: expected_number(value),
                     line,
                 },
-                Detail { what: String::new(), extra: the_extra_of_the_value(value) },
+                Detail {
+                    what: String::new(),
+                    extra: the_extra_of_the_value(value),
+                },
             )
         })
     }
@@ -8154,7 +8783,10 @@ impl<'a> Runtime<'a> {
                     message: expected_the_kind(wants, &self.the_type_of(value)),
                     line,
                 },
-                Detail { what: String::new(), extra: the_extra_of_the_value(value) },
+                Detail {
+                    what: String::new(),
+                    extra: the_extra_of_the_value(value),
+                },
             ));
         }
         Ok(number as i64)
@@ -8189,7 +8821,10 @@ impl<'a> Runtime<'a> {
                     message: expected_the_kind(TypeName::String, &self.the_type_of(other)),
                     line,
                 },
-                Detail { what: String::new(), extra: String::new() },
+                Detail {
+                    what: String::new(),
+                    extra: String::new(),
+                },
             )),
         }
     }
@@ -8220,7 +8855,13 @@ impl<'a> Runtime<'a> {
     /// written between quotes is a string, and the arithmetic of the v1
     /// never turns it into a number: `"5" + 1` is "51".
     fn the_node_is_a_quoted_text(&self, node: &Node) -> bool {
-        matches!(node, Node::Literal { value: LiteralValue::Text(_), .. })
+        matches!(
+            node,
+            Node::Literal {
+                value: LiteralValue::Text(_),
+                ..
+            }
+        )
     }
 
     /// The comparison of the v1.
@@ -8426,18 +9067,23 @@ impl<'a> Runtime<'a> {
                         let method = self.case_sense.the_method();
                         let at_the_low = the_order_of_the_texts(&text_of_the_value, low, method);
                         let at_the_high = the_order_of_the_texts(&text_of_the_value, high, method);
-                        at_the_low != core::cmp::Ordering::Less && at_the_high != core::cmp::Ordering::Greater
+                        at_the_low != core::cmp::Ordering::Less
+                            && at_the_high != core::cmp::Ordering::Greater
                     }
                 }
             }
             LegacyForm::In => {
                 // The comparison of the texts follows the sense of the case.
                 let method = self.case_sense.the_method();
-                items.iter().any(|item| the_same_text(&text_of_the_value, item, method))
+                items
+                    .iter()
+                    .any(|item| the_same_text(&text_of_the_value, item, method))
             }
             LegacyForm::Contains => {
                 let method = self.case_sense.the_method();
-                items.iter().any(|item| the_text_contains(&text_of_the_value, item, method))
+                items
+                    .iter()
+                    .any(|item| the_text_contains(&text_of_the_value, item, method))
             }
         };
         Ok(Value::Int(if negated { !holds } else { holds } as i64))
@@ -8476,7 +9122,10 @@ impl<'a> Runtime<'a> {
                 // variable, and the increment of one changes nothing: the
                 // value is the empty text, and the built-in keeps the value
                 // that it had.
-                if self.dialect.the_increment_of_a_built_in_variable_changes_nothing(name) {
+                if self
+                    .dialect
+                    .the_increment_of_a_built_in_variable_changes_nothing(name)
+                {
                     return Ok(Value::Text(String::new()));
                 }
                 let current = match self.lookup(name) {
@@ -8485,7 +9134,9 @@ impl<'a> Runtime<'a> {
                     // 2026-11-04: the increment of a variable of the v1 that
                     // has no value is the increment of the blank: the `0++`
                     // writes the variable "0" with the value 1.
-                    None if self.dialect.unset_is_blank() => self.the_value_of_an_unset_variable(name),
+                    None if self.dialect.unset_is_blank() => {
+                        self.the_value_of_an_unset_variable(name)
+                    }
                     None => return Err(self.the_unassigned_failure(name, line)),
                 };
                 let stored = self.the_number_after(&current, step, line)?;
@@ -8497,23 +9148,43 @@ impl<'a> Runtime<'a> {
             }
             // Measured on the binary of v2.0.19 on 2026-10-31: the increment
             // of a property and of an item writes to them.
-            Node::Property { target, name, line: property_line } => {
+            Node::Property {
+                target,
+                name,
+                line: property_line,
+            } => {
                 let target_value = self.evaluate(target)?;
                 let name = self.the_name_of_the_member(name, *property_line)?;
                 let current = self.read_property(&target_value, &name, *property_line)?;
                 let stored = self.the_number_after(&current, step, *property_line)?;
-                self.write_a_property(target, &name, AssignOp::Set, stored.clone(), *property_line)?;
+                self.write_a_property(
+                    target,
+                    &name,
+                    AssignOp::Set,
+                    stored.clone(),
+                    *property_line,
+                )?;
                 Ok(match op {
                     UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
                     _ => current,
                 })
             }
-            Node::Index { target, index, line: item_line } => {
+            Node::Index {
+                target,
+                index,
+                line: item_line,
+            } => {
                 let target_value = self.evaluate(target)?;
                 let key = self.evaluate(index)?;
                 let current = self.index_a_value(&target_value, &key, *item_line)?;
                 let stored = self.the_number_after(&current, step, *item_line)?;
-                self.set_item(&target_value, &key, AssignOp::Set, stored.clone(), *item_line)?;
+                self.set_item(
+                    &target_value,
+                    &key,
+                    AssignOp::Set,
+                    stored.clone(),
+                    *item_line,
+                )?;
                 Ok(match op {
                     UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
                     _ => current,
@@ -8596,7 +9267,9 @@ impl<'a> Runtime<'a> {
         // v1 takes the name of a built-in as the name of a variable, and the
         // call still goes to the built-in: `Abs := 5` and then `Abs(3)`
         // answers 3.
-        if self.dialect.the_call_of_a_built_in_wins_over_the_variable() && self.builtin(name).is_some() {
+        if self.dialect.the_call_of_a_built_in_wins_over_the_variable()
+            && self.builtin(name).is_some()
+        {
             return self.call_a_builtin_by_name(name, arguments, line);
         }
         // The value of the name is what the call asks for: a variable of
@@ -8610,10 +9283,12 @@ impl<'a> Runtime<'a> {
         // v2 does not ask the `__Call` of the class when the object
         // itself is called.
         if let Some(value) = value {
-            let value = value.map_err(|error| RuntimeFailure::Error(RuntimeError {
-                message: error.message,
-                line,
-            }))?;
+            let value = value.map_err(|error| {
+                RuntimeFailure::Error(RuntimeError {
+                    message: error.message,
+                    line,
+                })
+            })?;
             if let Value::Object(object) = &value {
                 // A class is a value, and the call of it makes an object of
                 // that class. Measured on the binary of v2.0.19 on 2026-10-31:
@@ -8674,7 +9349,9 @@ impl<'a> Runtime<'a> {
         // The v1 has functions that ask for the name of a variable and not
         // for its value: `IsSet(x)` asks whether the variable `x` has a
         // value. Measured on the binary of v1.1.37.02 on 2026-11-02.
-        let wants_the_name = self.dialect.the_place_of_the_argument_that_wants_the_name(builtin.name);
+        let wants_the_name = self
+            .dialect
+            .the_place_of_the_argument_that_wants_the_name(builtin.name);
         // The v1 has functions that ask for the variable itself: the
         // `VarSetCapacity(y, 100)` empties `y`, and the `StrReplace` of the
         // v1 writes the number of the replacements into the variable of its
@@ -8755,8 +9432,10 @@ impl<'a> Runtime<'a> {
         // The parameters that the command does not give a value to are the
         // ones that are not there: the place of them is kept, and they have
         // no value.
-        let missing: Vec<bool> =
-            arguments.iter().map(|argument| matches!(argument, Node::Empty { .. })).collect();
+        let missing: Vec<bool> = arguments
+            .iter()
+            .map(|argument| matches!(argument, Node::Empty { .. }))
+            .collect();
         self.call_function_with(function, &values, line, route, &missing)
     }
 
@@ -8805,7 +9484,10 @@ impl<'a> Runtime<'a> {
                 .unwrap_or_default();
             return Err(self.the_missing_parameter(&missing, line));
         }
-        let variadic = function.parameters.iter().any(|parameter| parameter.variadic);
+        let variadic = function
+            .parameters
+            .iter()
+            .any(|parameter| parameter.variadic);
         if !variadic && count > function.parameters.len() {
             return Err(self.the_arity_failure(
                 "Too many parameters passed to function.",
@@ -8883,7 +9565,11 @@ impl<'a> Runtime<'a> {
         }
         // The parameter that takes the rest of the arguments takes them as
         // an array, the way v2 has it.
-        if let Some(index) = function.parameters.iter().position(|parameter| parameter.variadic) {
+        if let Some(index) = function
+            .parameters
+            .iter()
+            .position(|parameter| parameter.variadic)
+        {
             let rest: Vec<Value> = values.iter().skip(index).cloned().collect();
             let array = match crate::classes::construct("array", &rest, self, line) {
                 Some(result) => result?,
@@ -8903,7 +9589,10 @@ impl<'a> Runtime<'a> {
         // the body runs.
         self.collect_the_nested_functions(&function.body);
         self.declarations.push(function.declarations.clone());
-        self.frames.push(Frame { name: function.name.clone(), line });
+        self.frames.push(Frame {
+            name: function.name.clone(),
+            line,
+        });
         // The labels of the function are the scope of the function.
         self.label_scopes.push(the_labels_of(&function.body));
         let outcome = self.run_block(&function.body);
@@ -8974,7 +9663,10 @@ impl<'a> Runtime<'a> {
         // value that it had: the write goes nowhere. The rule is asked here,
         // because the settings of the run are written where they live, and
         // the settings of the v2 are built-in variables of the v1.
-        if self.dialect.the_write_of_a_built_in_variable_goes_nowhere(name, op) {
+        if self
+            .dialect
+            .the_write_of_a_built_in_variable_goes_nowhere(name, op)
+        {
             return Ok(value);
         }
         // A setting of the runtime is written where it lives: the setting
@@ -9144,14 +9836,19 @@ impl<'a> Runtime<'a> {
     /// The function a variable holds, if it holds one.
     fn function_in_a_variable(&self, name: &str) -> Option<Function> {
         let value = self.lookup_variable(name)?;
-        let Value::Object(object) = &value else { return None };
+        let Value::Object(object) = &value else {
+            return None;
+        };
         let object = object.borrow();
         if object.class != "func" {
             return None;
         }
         // A closure is kept under a name of its own.
         if let Some(closure) = object.value_of(CLOSURE) {
-            return self.functions.get(&closure.to_text().to_lowercase()).cloned();
+            return self
+                .functions
+                .get(&closure.to_text().to_lowercase())
+                .cloned();
         }
         let function_name = object.value_of("name")?.to_text().to_lowercase();
         self.functions.get(&function_name).cloned()
@@ -9163,7 +9860,9 @@ impl<'a> Runtime<'a> {
     /// `this`: the class and the name of the method are what it carries.
     fn method_reference_in_a_variable(&self, name: &str) -> Option<(String, String)> {
         let value = self.lookup_variable(name)?;
-        let Value::Object(object) = &value else { return None };
+        let Value::Object(object) = &value else {
+            return None;
+        };
         let object = object.borrow();
         if object.class != "func" {
             return None;
@@ -9194,14 +9893,26 @@ impl<'a> Runtime<'a> {
                 line,
             }),
             Route::ThroughValue => RuntimeFailure::Detailed(
-                RuntimeError { message: message.to_string(), line },
-                Detail { what: String::new(), extra: name.to_string() },
+                RuntimeError {
+                    message: message.to_string(),
+                    line,
+                },
+                Detail {
+                    what: String::new(),
+                    extra: name.to_string(),
+                },
             ),
             Route::ThroughTheCall => RuntimeFailure::Detailed(
-                RuntimeError { message: message.to_string(), line },
+                RuntimeError {
+                    message: message.to_string(),
+                    line,
+                },
                 // The call went through the `Call` method of a value, and
                 // v2 names that method in the `What`.
-                Detail { what: "Func.Prototype.Call".to_string(), extra: name.to_string() },
+                Detail {
+                    what: "Func.Prototype.Call".to_string(),
+                    extra: name.to_string(),
+                },
             ),
         }
     }
@@ -9295,7 +10006,11 @@ impl<'a> Runtime<'a> {
             Some(crate::builtins::Parameter::Output) => {
                 let name = the_text_of_the_parameter(parameter);
                 let scope = self.the_scope_of(&name);
-                Ok(Value::Reference(Reference { name, scope, alias: true }))
+                Ok(Value::Reference(Reference {
+                    name,
+                    scope,
+                    alias: true,
+                }))
             }
             // The name of a variable of the script: the value of it is the
             // parameter.
@@ -9331,7 +10046,11 @@ impl<'a> Runtime<'a> {
     /// not a number: the `loop n` is skipped.
     fn the_count_of_the_loop(&mut self, node: &Node, line: u32) -> Result<i64, RuntimeFailure> {
         if self.dialect.the_count_of_the_loop_is_a_number() {
-            if let Node::Literal { value: crate::ast::LiteralValue::Text(text), .. } = node {
+            if let Node::Literal {
+                value: crate::ast::LiteralValue::Text(text),
+                ..
+            } = node
+            {
                 let text = self.the_substitution_of_the_v1(text, line)?;
                 return Ok(crate::v1::the_count_of_the_loop(&text));
             }
@@ -9354,10 +10073,16 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<Option<String>, RuntimeFailure> {
         let text = match node {
-            Node::Literal { value: crate::ast::LiteralValue::Text(text), .. } => text,
+            Node::Literal {
+                value: crate::ast::LiteralValue::Text(text),
+                ..
+            } => text,
             _ => return Ok(None),
         };
-        let text = self.the_substitution_of_the_v1(text, line)?.trim().to_string();
+        let text = self
+            .the_substitution_of_the_v1(text, line)?
+            .trim()
+            .to_string();
         if arguments.len() == 1 && crate::v1::the_text_is_the_count_of_a_loop(&text) {
             return Ok(None);
         }
@@ -9376,7 +10101,9 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<u8, RuntimeFailure> {
-        let Some(node) = arguments.get(1) else { return Ok(crate::v1::THE_FILES) };
+        let Some(node) = arguments.get(1) else {
+            return Ok(crate::v1::THE_FILES);
+        };
         let text = self.the_text_of_the_parameter_of_the_loop(node, line)?;
         match crate::v1::the_mode_of_the_loop_of_the_files(&text) {
             Some(mode) => Ok(mode),
@@ -9398,7 +10125,9 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<bool, RuntimeFailure> {
-        let Some(node) = arguments.get(2) else { return Ok(false) };
+        let Some(node) = arguments.get(2) else {
+            return Ok(false);
+        };
         let text = self.the_text_of_the_parameter_of_the_loop(node, line)?;
         Ok(crate::v1::the_flag_asks_for_the_recursion(&text))
     }
@@ -9413,9 +10142,10 @@ impl<'a> Runtime<'a> {
         line: u32,
     ) -> Result<String, RuntimeFailure> {
         match node {
-            Node::Literal { value: crate::ast::LiteralValue::Text(text), .. } => {
-                Ok(self.the_substitution_of_the_v1(text, line)?)
-            }
+            Node::Literal {
+                value: crate::ast::LiteralValue::Text(text),
+                ..
+            } => Ok(self.the_substitution_of_the_v1(text, line)?),
             _ => Ok(self.evaluate(node)?.to_text()),
         }
     }
@@ -9504,21 +10234,34 @@ impl<'a> Runtime<'a> {
         until: &Option<Box<Node>>,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
-        let folder = self
-            .desktop()
-            .working_directory()
-            .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line }))?;
+        let folder = self.desktop().working_directory().map_err(|reason| {
+            RuntimeFailure::Error(RuntimeError {
+                message: reason,
+                line,
+            })
+        })?;
         let files = self
             .desktop()
             .list_files(&folder, pattern, mode)
-            .map_err(|reason| RuntimeFailure::Error(RuntimeError { message: reason, line }))?;
+            .map_err(|reason| {
+                RuntimeFailure::Error(RuntimeError {
+                    message: reason,
+                    line,
+                })
+            })?;
         for (index, file) in files.iter().enumerate() {
             self.set_global("A_Index", Value::Int(index as i64 + 1));
             let name = the_name_of(file).to_string();
             let path = the_path_that_is_relative_to(file, &folder);
             self.set_global("A_LoopFileName", Value::Text(name.clone()));
-            self.set_global("A_LoopFileExt", Value::Text(the_extension_of(&name).to_string()));
-            self.set_global("A_LoopFileDir", Value::Text(the_folder_of(&path).to_string()));
+            self.set_global(
+                "A_LoopFileExt",
+                Value::Text(the_extension_of(&name).to_string()),
+            );
+            self.set_global(
+                "A_LoopFileDir",
+                Value::Text(the_folder_of(&path).to_string()),
+            );
             self.set_global("A_LoopFilePath", Value::Text(path.clone()));
             // The short names of the files are a thing of Windows, and this
             // box has none.
@@ -9547,9 +10290,18 @@ impl<'a> Runtime<'a> {
             }
             if let Ok(times) = self.desktop().file_times(file) {
                 let offset = crate::files::local_offset(self);
-                self.set_global("A_LoopFileTimeCreated", Value::Text(crate::files::stamp_of(times.0, offset)));
-                self.set_global("A_LoopFileTimeModified", Value::Text(crate::files::stamp_of(times.1, offset)));
-                self.set_global("A_LoopFileTimeAccessed", Value::Text(crate::files::stamp_of(times.2, offset)));
+                self.set_global(
+                    "A_LoopFileTimeCreated",
+                    Value::Text(crate::files::stamp_of(times.0, offset)),
+                );
+                self.set_global(
+                    "A_LoopFileTimeModified",
+                    Value::Text(crate::files::stamp_of(times.1, offset)),
+                );
+                self.set_global(
+                    "A_LoopFileTimeAccessed",
+                    Value::Text(crate::files::stamp_of(times.2, offset)),
+                );
             }
             match self.run_block(body) {
                 Ok(()) => {}
@@ -9644,7 +10396,10 @@ impl<'a> Runtime<'a> {
             // an expression, and the value of it is the text that is
             // separated.
             Some(Node::LegacyExpression { value, .. }) => self.evaluate(value)?.to_text(),
-            Some(Node::Literal { value: crate::ast::LiteralValue::Text(text), .. }) => {
+            Some(Node::Literal {
+                value: crate::ast::LiteralValue::Text(text),
+                ..
+            }) => {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05:
                 // the name of the variable is the text of the parameter, and
                 // the substitution of the v1 may bring the name from another
@@ -9700,7 +10455,9 @@ impl<'a> Runtime<'a> {
             split_on_any(&text, &delimiters)
                 .into_iter()
                 .map(|piece| {
-                    piece.trim_matches(|character| omitted.contains(character)).to_string()
+                    piece
+                        .trim_matches(|character| omitted.contains(character))
+                        .to_string()
                 })
                 .collect()
         };
@@ -9732,8 +10489,13 @@ impl<'a> Runtime<'a> {
     /// writes the variable "i" and the condition is true.
     ///
     /// The v2 has no such statement, and the loop has no condition.
-    fn the_until_ends_the_loop(&mut self, until: &Option<Box<Node>>) -> Result<bool, RuntimeFailure> {
-        let Some(condition) = until else { return Ok(false) };
+    fn the_until_ends_the_loop(
+        &mut self,
+        until: &Option<Box<Node>>,
+    ) -> Result<bool, RuntimeFailure> {
+        let Some(condition) = until else {
+            return Ok(false);
+        };
         let value = self.evaluate(condition)?;
         Ok(self.the_value_is_true(&value))
     }
@@ -9750,7 +10512,11 @@ impl<'a> Runtime<'a> {
     /// the percent sign that it carries does not open the name of a variable,
     /// and the percent sign that closes a name is not the one that the
     /// escape carries.
-    pub(crate) fn the_substitution_of_the_v1(&mut self, text: &str, line: u32) -> Result<String, RuntimeFailure> {
+    pub(crate) fn the_substitution_of_the_v1(
+        &mut self,
+        text: &str,
+        line: u32,
+    ) -> Result<String, RuntimeFailure> {
         if !text.contains('%') && !text.contains('`') {
             return Ok(text.to_string());
         }
@@ -9840,7 +10606,11 @@ impl<'a> Runtime<'a> {
         let text = self.the_substitution_of_the_v1(text, line)?;
         // The `AutoTrim` of the v1 trims the text of the assignment. The
         // parameters of a command are not trimmed by it.
-        let text = if self.auto_trim { text.trim().to_string() } else { text };
+        let text = if self.auto_trim {
+            text.trim().to_string()
+        } else {
+            text
+        };
         Ok(crate::v1::the_number_of_a_legacy_text(&text).unwrap_or(Value::Text(text)))
     }
 
@@ -9877,7 +10647,10 @@ impl<'a> Runtime<'a> {
         // short names of the files are a thing of Windows, and this box has
         // none: the script that reads the name is told that.
         if let Some(reason) = self.the_reason_of_the_short_names_of_the_files(name) {
-            return Err(RuntimeFailure::Error(RuntimeError { message: reason.to_string(), line }));
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: reason.to_string(),
+                line,
+            }));
         }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
         // variables that the runtime owns are values too: the `%A_Index%` is
@@ -10019,9 +10792,7 @@ impl<'a> Runtime<'a> {
                 crate::builtins::Wants::Declared(kind) => {
                     requires(index + 1, builtin.name, kind, value)
                 }
-                crate::builtins::Wants::Checked(kind) => {
-                    expects_a_kind(kind, value)
-                }
+                crate::builtins::Wants::Checked(kind) => expects_a_kind(kind, value),
                 // A parameter that wants a reference takes one.
                 crate::builtins::Wants::Reference(_) => continue,
                 crate::builtins::Wants::Value => continue,
@@ -10030,7 +10801,10 @@ impl<'a> Runtime<'a> {
             // failure: v2 carries it there.
             return Err(RuntimeFailure::Detailed(
                 RuntimeError { message, line },
-                Detail { what: builtin.name.to_string(), extra: String::new() },
+                Detail {
+                    what: builtin.name.to_string(),
+                    extra: String::new(),
+                },
             ));
         }
         // A parameter that v2 declares wants a value of a kind, and a
@@ -10082,7 +10856,10 @@ impl<'a> Runtime<'a> {
             // function.
             return Err(RuntimeFailure::Detailed(
                 RuntimeError { message, line },
-                Detail { what: builtin.name.to_string(), extra: the_extra_of_the_value(value) },
+                Detail {
+                    what: builtin.name.to_string(),
+                    extra: the_extra_of_the_value(value),
+                },
             ));
         }
         // A command may declare fewer parameters than it needs: the table
@@ -10091,7 +10868,10 @@ impl<'a> Runtime<'a> {
         // the parameter and not the count, and it comes after the kind of
         // the values that are there: the dialect converts the arguments
         // before the body of the function runs.
-        for number in self.dialect.the_parameters_that_may_not_be_left_out(builtin.name) {
+        for number in self
+            .dialect
+            .the_parameters_that_may_not_be_left_out(builtin.name)
+        {
             if values.len() < *number as usize {
                 return Err(RuntimeFailure::Detailed(
                     RuntimeError {
@@ -10106,7 +10886,10 @@ impl<'a> Runtime<'a> {
                     // that is not the one that was wanted.
                     //
                     // Measured on the binary of v2.0.19 on 2026-11-01.
-                    Detail { what: builtin.name.to_string(), extra: String::new() },
+                    Detail {
+                        what: builtin.name.to_string(),
+                        extra: String::new(),
+                    },
                 ));
             }
         }
@@ -10118,7 +10901,10 @@ impl<'a> Runtime<'a> {
                 .unwrap_or_else(|| the_parameter_that_failed(&error.message, values));
             RuntimeFailure::Detailed(
                 error,
-                Detail { what: builtin.name.to_string(), extra },
+                Detail {
+                    what: builtin.name.to_string(),
+                    extra,
+                },
             )
         })
     }
@@ -10227,33 +11013,52 @@ impl<'a> Runtime<'a> {
     /// v2 keeps one entry for a callback: registering the same function
     /// again does not make it run twice.
     pub(crate) fn set_exit_callback(&mut self, name: &str, line: u32) {
-        match self.exit_callbacks.iter_mut().find(|callback| callback.name.eq_ignore_ascii_case(name)) {
+        match self
+            .exit_callbacks
+            .iter_mut()
+            .find(|callback| callback.name.eq_ignore_ascii_case(name))
+        {
             Some(callback) => callback.line = line,
-            None => self.exit_callbacks.push(Callback { name: name.to_string(), line }),
+            None => self.exit_callbacks.push(Callback {
+                name: name.to_string(),
+                line,
+            }),
         }
     }
 
     /// The function the script asks to run when a failure is not caught.
     pub(crate) fn set_error_callback(&mut self, name: &str, line: u32) {
-        match self.error_callbacks.iter_mut().find(|callback| callback.name.eq_ignore_ascii_case(name)) {
+        match self
+            .error_callbacks
+            .iter_mut()
+            .find(|callback| callback.name.eq_ignore_ascii_case(name))
+        {
             Some(callback) => callback.line = line,
-            None => self.error_callbacks.push(Callback { name: name.to_string(), line }),
+            None => self.error_callbacks.push(Callback {
+                name: name.to_string(),
+                line,
+            }),
         }
     }
 
     /// The callback of the exit that has this name is not called any more.
     pub(crate) fn remove_exit_callback(&mut self, name: &str) {
-        self.exit_callbacks.retain(|callback| !callback.name.eq_ignore_ascii_case(name));
+        self.exit_callbacks
+            .retain(|callback| !callback.name.eq_ignore_ascii_case(name));
     }
 
     /// The callback of the error that has this name is not called any more.
     pub(crate) fn remove_error_callback(&mut self, name: &str) {
-        self.error_callbacks.retain(|callback| !callback.name.eq_ignore_ascii_case(name));
+        self.error_callbacks
+            .retain(|callback| !callback.name.eq_ignore_ascii_case(name));
     }
 
     /// Put a callback before the ones that are registered, or after them.
     pub(crate) fn order_exit_callback(&mut self, name: &str, before: bool) {
-        let Some(at) = self.exit_callbacks.iter().position(|callback| callback.name.eq_ignore_ascii_case(name))
+        let Some(at) = self
+            .exit_callbacks
+            .iter()
+            .position(|callback| callback.name.eq_ignore_ascii_case(name))
         else {
             return;
         };
@@ -10267,7 +11072,10 @@ impl<'a> Runtime<'a> {
 
     /// Put a callback before the ones that are registered, or after them.
     pub(crate) fn order_error_callback(&mut self, name: &str, before: bool) {
-        let Some(at) = self.error_callbacks.iter().position(|callback| callback.name.eq_ignore_ascii_case(name))
+        let Some(at) = self
+            .error_callbacks
+            .iter()
+            .position(|callback| callback.name.eq_ignore_ascii_case(name))
         else {
             return;
         };
@@ -10296,7 +11104,9 @@ impl<'a> Runtime<'a> {
     ) -> Result<Callback, RuntimeError> {
         let Some(value) = value else {
             return Err(RuntimeError {
-                message: format!("Parameter #1 of {name} requires an Object, but received nothing."),
+                message: format!(
+                    "Parameter #1 of {name} requires an Object, but received nothing."
+                ),
                 line,
             });
         };
@@ -10304,12 +11114,7 @@ impl<'a> Runtime<'a> {
         // value it is.
         let Value::Object(object) = value else {
             return Err(RuntimeError {
-                message: crate::runtime::wants_a_reference(
-                    1,
-                    name,
-                    "an Object",
-                    value,
-                ),
+                message: crate::runtime::wants_a_reference(1, name, "an Object", value),
                 line,
             });
         };
@@ -10338,7 +11143,10 @@ impl<'a> Runtime<'a> {
                     .iter()
                     .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
                     .count();
-                let variadic = function.parameters.iter().any(|parameter| parameter.variadic);
+                let variadic = function
+                    .parameters
+                    .iter()
+                    .any(|parameter| parameter.variadic);
                 fewest <= 2 && (variadic || function.parameters.len() >= 2)
             }
             // A built-in has its own arity, and the same rule is asked of
@@ -10350,9 +11158,15 @@ impl<'a> Runtime<'a> {
             }
         };
         if !takes_two {
-            return Err(RuntimeError { message: "Invalid callback function.".into(), line });
+            return Err(RuntimeError {
+                message: "Invalid callback function.".into(),
+                line,
+            });
         }
-        Ok(Callback { name: function_name, line })
+        Ok(Callback {
+            name: function_name,
+            line,
+        })
     }
 
     /// The functions that asked to see the failure, and what they said.
@@ -10378,7 +11192,10 @@ impl<'a> Runtime<'a> {
             RuntimeFailure::Thrown(value) => (value.clone(), "Exit"),
             // The timeout of the tree stops the program.
             RuntimeFailure::Timeout(timeout) => (
-                self.error_value(&RuntimeError { message: timeout.to_string(), line: 0 }),
+                self.error_value(&RuntimeError {
+                    message: timeout.to_string(),
+                    line: 0,
+                }),
                 "ExitApp",
             ),
             _ => return TheError::Goes,
@@ -10388,7 +11205,9 @@ impl<'a> Runtime<'a> {
         for callback in callbacks {
             let values = [value.clone(), Value::Text(mode.to_string())];
             // A function that fails does not hide the failure.
-            if let Ok(said) = self.call_named(&callback.name, &values, callback.line, Route::Written) {
+            if let Ok(said) =
+                self.call_named(&callback.name, &values, callback.line, Route::Written)
+            {
                 let said = said.to_number().unwrap_or(0.0) as i64;
                 if said != 0 {
                     answer = said;
@@ -10411,11 +11230,16 @@ impl<'a> Runtime<'a> {
     /// A name that is not a function of the script is a name that does
     /// nothing: the caller of this is a hotkey, and the hotkey of a
     /// function that the script does not have is a hotkey of nothing.
-    pub(crate) fn call_function_by_name(&mut self, name: &str, line: u32) -> Result<(), RuntimeFailure> {
+    pub(crate) fn call_function_by_name(
+        &mut self,
+        name: &str,
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
         let Some(function) = self.functions.get(&name.to_lowercase()).cloned() else {
             return Ok(());
         };
-        self.call_function(&function, &[], line, Route::Written).map(|_| ())
+        self.call_function(&function, &[], line, Route::Written)
+            .map(|_| ())
     }
 
     /// The date and the time of the machine, when the clock knows them.
@@ -10443,7 +11267,9 @@ impl<'a> Runtime<'a> {
     /// of a variable is a number when it can be one, and the `!x` with `x`
     /// holding "00" is one.
     fn the_operand_is_true(&self, node: &Node, value: &Value) -> bool {
-        if self.dialect.the_text_that_was_written_is_a_string() && self.the_node_is_a_quoted_text(node) {
+        if self.dialect.the_text_that_was_written_is_a_string()
+            && self.the_node_is_a_quoted_text(node)
+        {
             return match value {
                 Value::Text(text) => !text.is_empty(),
                 other => other.truthy(),
@@ -10500,7 +11326,10 @@ impl<'a> Runtime<'a> {
                 if !self.dialect.the_failure_of_a_condition_is_not_reported() {
                     return Err(failure);
                 }
-                if !matches!(failure, RuntimeFailure::Error(_) | RuntimeFailure::Detailed(_, _)) {
+                if !matches!(
+                    failure,
+                    RuntimeFailure::Error(_) | RuntimeFailure::Detailed(_, _)
+                ) {
                     return Err(failure);
                 }
                 Ok(Value::Int(0))
@@ -10516,28 +11345,56 @@ impl<'a> Runtime<'a> {
                 // not there is the empty text.
                 Ok(Value::Text(String::new()))
             }
-            Node::Assign { name, op, value, line } => {
+            Node::Assign {
+                name,
+                op,
+                value,
+                line,
+            } => {
                 // The assignment of v2 is an expression, and the value of
                 // it is the value that was written.
                 let value = self.evaluate(value)?;
                 self.write_a_variable(name, *op, value, *line)
             }
-            Node::LegacyComparison { left, op, text, line } => {
+            Node::LegacyComparison {
+                left,
+                op,
+                text,
+                line,
+            } => {
                 // The comparison of the legacy `if` of the v1: the right side
                 // of it is the text of the rest of the line.
                 self.the_comparison_of_a_legacy_if(left, *op, text, *line)
             }
-            Node::LegacyMatch { left, form, texts, negated, line } => {
+            Node::LegacyMatch {
+                left,
+                form,
+                texts,
+                negated,
+                line,
+            } => {
                 // The forms of the legacy `if` of the v1 that are not a
                 // comparison: the `between`, the `in` and the `contains`.
                 self.the_match_of_a_legacy_if(left, *form, texts, *negated, *line)
             }
-            Node::AssignProperty { target, name, op, value, line } => {
+            Node::AssignProperty {
+                target,
+                name,
+                op,
+                value,
+                line,
+            } => {
                 let value = self.evaluate(value)?;
                 let name = self.the_name_of_the_member(name, *line)?;
                 self.write_a_property(target, &name, *op, value, *line)
             }
-            Node::AssignIndex { target, index, op, value, line } => {
+            Node::AssignIndex {
+                target,
+                index,
+                op,
+                value,
+                line,
+            } => {
                 let target_value = self.evaluate(target)?;
                 let key = self.evaluate(index)?;
                 let value = self.evaluate(value)?;
@@ -10603,11 +11460,7 @@ impl<'a> Runtime<'a> {
                                 // has the property of the value of `a.b`.
                                 let key = self.evaluate(key)?;
                                 let value = self.evaluate(value)?;
-                                put(
-                                    &mut cell.borrow_mut().properties,
-                                    &key.to_text(),
-                                    value,
-                                );
+                                put(&mut cell.borrow_mut().properties, &key.to_text(), value);
                             }
                             ObjectItem::Value(value) => {
                                 // Measured on the binary of AutoHotkey
@@ -10621,14 +11474,21 @@ impl<'a> Runtime<'a> {
                 }
                 Ok(object)
             }
-            Node::Lambda { parameters, body, line } => {
+            Node::Lambda {
+                parameters,
+                body,
+                line,
+            } => {
                 // The arrow function of v2: a function that closes over the
                 // scope where it was written, and whose body is an
                 // expression.
                 let function = Function {
                     name: String::new(),
                     parameters: parameters.clone(),
-                    body: vec![Node::Return { value: Some(Box::new((**body).clone())), line: *line }],
+                    body: vec![Node::Return {
+                        value: Some(Box::new((**body).clone())),
+                        line: *line,
+                    }],
                     declarations: Declarations::default(),
                     closure: self.scopes.clone(),
                 };
@@ -10647,7 +11507,9 @@ impl<'a> Runtime<'a> {
                         None => values.push(None),
                     }
                 }
-                Ok(crate::classes::array::construct_with_holes(&values, self, *line))
+                Ok(crate::classes::array::construct_with_holes(
+                    &values, self, *line,
+                ))
             }
             Node::Group { items, .. } => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the value
@@ -10734,7 +11596,8 @@ impl<'a> Runtime<'a> {
                         // of Windows, and this box has none: the script that
                         // reads the name is told that, and the tree does not
                         // make up a name for the file.
-                        if let Some(reason) = self.the_reason_of_the_short_names_of_the_files(name) {
+                        if let Some(reason) = self.the_reason_of_the_short_names_of_the_files(name)
+                        {
                             return Err(RuntimeFailure::Error(RuntimeError {
                                 message: reason.to_string(),
                                 line: *line,
@@ -10831,7 +11694,11 @@ impl<'a> Runtime<'a> {
                     let value = self.evaluate(operand)?;
                     // v2 says that the bitwise not wants a number here, and
                     // not a whole one: the message is the one of the number.
-                    Ok(Value::Int(!self.the_whole_number(&value, *line, TypeName::Number)?))
+                    Ok(Value::Int(!self.the_whole_number(
+                        &value,
+                        *line,
+                        TypeName::Number,
+                    )?))
                 }
                 // The reference operator: `&x`.
                 //
@@ -10861,10 +11728,19 @@ impl<'a> Runtime<'a> {
                         0 => Scope::Global,
                         depth => Scope::Local(depth - 1),
                     };
-                    Ok(Value::Reference(Reference { name: name.clone(), scope, alias: false }))
+                    Ok(Value::Reference(Reference {
+                        name: name.clone(),
+                        scope,
+                        alias: false,
+                    }))
                 }
             },
-            Node::Binary { op, left, right, line } => {
+            Node::Binary {
+                op,
+                left,
+                right,
+                line,
+            } => {
                 let line = *line;
                 // The or-maybe is about a variable that may have no value
                 // at all, so its left side is not read the way the other
@@ -10922,11 +11798,14 @@ impl<'a> Runtime<'a> {
                 // The arithmetic of the v1 is not the one of the v2: the text
                 // that is written between quotes is a string, and the value
                 // of a variable is a number when it can be one.
-                let (left_value, right_value) = if self.dialect.a_value_that_is_not_a_number_is_blank()
+                let (left_value, right_value) = if self
+                    .dialect
+                    .a_value_that_is_not_a_number_is_blank()
                 {
                     // The sum of a text that is written is a concatenation.
                     if *op == BinaryOp::Add && self.the_node_is_a_quoted_text(left) {
-                        let text = format!("{}{}", left_value.to_text(), self.the_text_of(&right_value));
+                        let text =
+                            format!("{}{}", left_value.to_text(), self.the_text_of(&right_value));
                         return Ok(Value::Text(text));
                     }
                     // The comparison is a number when both sides are numbers,
@@ -10938,14 +11817,16 @@ impl<'a> Runtime<'a> {
                             | BinaryOp::LessEqual
                             | BinaryOp::GreaterEqual
                     ) {
-                        let answer =
-                            self.the_comparison_of_the_v1(left, right, &left_value, &right_value, op);
+                        let answer = self.the_comparison_of_the_v1(
+                            left,
+                            right,
+                            &left_value,
+                            &right_value,
+                            op,
+                        );
                         return Ok(Value::Int(answer as i64));
                     }
-                    if matches!(
-                        op,
-                        BinaryOp::Equal | BinaryOp::NotEqual
-                    ) {
+                    if matches!(op, BinaryOp::Equal | BinaryOp::NotEqual) {
                         // The equal sign of the v1 is always without regard
                         // to the case, and the method of the locale is the
                         // one it uses when the sense of the case is On. The
@@ -10964,7 +11845,9 @@ impl<'a> Runtime<'a> {
                             self.the_number_of_the_v1(right, &right_value),
                         ) {
                             (Some(one), Some(other)) => the_same_number(&one, &other),
-                            _ => the_same_text(&left_value.to_text(), &right_value.to_text(), method),
+                            _ => {
+                                the_same_text(&left_value.to_text(), &right_value.to_text(), method)
+                            }
                         };
                         let answer = match op {
                             BinaryOp::Equal => same,
@@ -11046,7 +11929,11 @@ impl<'a> Runtime<'a> {
                             && (matches!(left_value, Value::Text(_))
                                 || matches!(right_value, Value::Text(_)))
                         {
-                            Value::Text(format!("{}{}", left_value.to_text(), right_value.to_text()))
+                            Value::Text(format!(
+                                "{}{}",
+                                left_value.to_text(),
+                                right_value.to_text()
+                            ))
                         } else {
                             let a = self.number(&left_value, line)?;
                             let b = self.number(&right_value, line)?;
@@ -11105,7 +11992,9 @@ impl<'a> Runtime<'a> {
                         let b = self.number(&right_value, line)?;
                         // Two whole numbers with a whole exponent give a
                         // whole number; a negative exponent gives a float.
-                        if let (Value::Int(base), Value::Int(exponent)) = (&left_value, &right_value) {
+                        if let (Value::Int(base), Value::Int(exponent)) =
+                            (&left_value, &right_value)
+                        {
                             if *exponent >= 0 && *exponent <= 63 {
                                 if let Some(power) = base.checked_pow(*exponent as u32) {
                                     return Ok(Value::Int(power));
@@ -11156,7 +12045,10 @@ impl<'a> Runtime<'a> {
                             Ok(Some(position)) => Value::Int(position as i64),
                             Ok(None) => Value::Int(0),
                             Err(reason) => {
-                                return Err(RuntimeFailure::Error(RuntimeError { message: reason, line }))
+                                return Err(RuntimeFailure::Error(RuntimeError {
+                                    message: reason,
+                                    line,
+                                }));
                             }
                         }
                     }
@@ -11170,7 +12062,10 @@ impl<'a> Runtime<'a> {
                         let Some(class) = self.class_name_of(&right_value) else {
                             return Err(RuntimeFailure::Detailed(
                                 RuntimeError {
-                                    message: expected_type(TypeName::Class, right_value.type_name()),
+                                    message: expected_type(
+                                        TypeName::Class,
+                                        right_value.type_name(),
+                                    ),
                                     line,
                                 },
                                 Detail {
@@ -11196,9 +12091,22 @@ impl<'a> Runtime<'a> {
                     }
                 })
             }
-            Node::Call { name, arguments, line } => self.call(name, arguments, *line),
-            Node::New { path, arguments, line } => self.new_instance(path, arguments, *line),
-            Node::MethodCall { target, name, arguments, line } => {
+            Node::Call {
+                name,
+                arguments,
+                line,
+            } => self.call(name, arguments, *line),
+            Node::New {
+                path,
+                arguments,
+                line,
+            } => self.new_instance(path, arguments, *line),
+            Node::MethodCall {
+                target,
+                name,
+                arguments,
+                line,
+            } => {
                 // `super.m()`: the method of the base.
                 if let Node::Super { .. } = &**target {
                     let name = self.the_name_of_the_member(name, *line)?;
@@ -11218,7 +12126,11 @@ impl<'a> Runtime<'a> {
                 let name = self.the_name_of_the_member(name, *line)?;
                 self.read_property(&target_value, &name, *line)
             }
-            Node::Index { target, index, line } => {
+            Node::Index {
+                target,
+                index,
+                line,
+            } => {
                 // `super["value"]`: the item of the base.
                 if let Node::Super { .. } = &**target {
                     let key = self.evaluate(index)?;
@@ -11228,16 +12140,20 @@ impl<'a> Runtime<'a> {
                 // `x.y[z]`: the `__Get` of `x.y` is asked with the
                 // parameters of the access, and the value it answers is
                 // the one that is indexed.
-                if let Node::Property { target: object, name, line: property_line } = &**target {
+                if let Node::Property {
+                    target: object,
+                    name,
+                    line: property_line,
+                } = &**target
+                {
                     let object_value = self.evaluate(object)?;
                     let name = self.the_name_of_the_member(name, *property_line)?;
-                    let (value, by_meta) =
-                        self.read_property_fully(
-                            &object_value,
-                            &name,
-                            core::slice::from_ref(&key),
-                            *property_line,
-                        )?;
+                    let (value, by_meta) = self.read_property_fully(
+                        &object_value,
+                        &name,
+                        core::slice::from_ref(&key),
+                        *property_line,
+                    )?;
                     // The meta-function of a class handles the whole
                     // access: the brackets are its parameters and its
                     // answer is the answer.
@@ -11249,7 +12165,12 @@ impl<'a> Runtime<'a> {
                 let target = self.evaluate(target)?;
                 self.index_a_value(&target, &key, *line)
             }
-            Node::Ternary { condition, then, otherwise, .. } => {
+            Node::Ternary {
+                condition,
+                then,
+                otherwise,
+                ..
+            } => {
                 let value = self.evaluate(condition)?;
                 if self.the_value_is_true(&value) {
                     self.evaluate(then)
@@ -11270,17 +12191,31 @@ impl<'a> Runtime<'a> {
                         // 2026-11-04: the v1 does not refuse the name that is
                         // not there: it creates the variable of that name and
                         // reads it, and the answer is the empty text.
-                        if self.dialect.the_name_that_the_script_builds_and_that_is_not_there_is_answered() {
+                        if self
+                            .dialect
+                            .the_name_that_the_script_builds_and_that_is_not_there_is_answered()
+                        {
                             return Ok(Value::Text(String::new()));
                         }
                         Err(RuntimeFailure::Detailed(
-                            RuntimeError { message: "Variable not found.".to_string(), line: *line },
-                            Detail { what: String::new(), extra: name },
+                            RuntimeError {
+                                message: "Variable not found.".to_string(),
+                                line: *line,
+                            },
+                            Detail {
+                                what: String::new(),
+                                extra: name,
+                            },
                         ))
                     }
                 }
             }
-            Node::AssignDynamic { name, op, value, line } => {
+            Node::AssignDynamic {
+                name,
+                op,
+                value,
+                line,
+            } => {
                 let name = self.the_name_of_the_pieces(name, *line)?;
                 let value = self.evaluate(value)?;
                 self.write_a_dynamic_name(&name, *op, value, *line)?;
@@ -11307,8 +12242,7 @@ impl<'a> Runtime<'a> {
             | Node::ExitApp { .. }
             | Node::FunctionDef { .. }
             | Node::Directive { .. }
-            | Node::ClassDef { .. }
-            => Err(RuntimeFailure::Error(RuntimeError {
+            | Node::ClassDef { .. } => Err(RuntimeFailure::Error(RuntimeError {
                 message: "this is a statement, not an expression".into(),
                 line: node.line(),
             })),
@@ -11411,7 +12345,9 @@ impl<'a> Runtime<'a> {
                 self.apply_assign(other, "the item", Some(current), value, line)?
             }
         };
-        if let Some(result) = crate::classes::set_item(&class, key, target, value.clone(), self, line) {
+        if let Some(result) =
+            crate::classes::set_item(&class, key, target, value.clone(), self, line)
+        {
             result?;
             return Ok(value);
         }
@@ -11466,12 +12402,19 @@ impl<'a> Runtime<'a> {
                 // `obj["a"]` is refused with 'This value of type "Integer"
                 // has no property named "__Item".' when the getter answers
                 // a number.
-                let value = self.call_the_body_of_an_accessor(target, &access, getter, line, &[], None)?;
+                let value =
+                    self.call_the_body_of_an_accessor(target, &access, getter, line, &[], None)?;
                 return self.read_item(&value, key, line);
             }
             // The parameters of the property are the ones of the index.
-            let value =
-                self.call_the_body_of_an_accessor(target, &access, getter, line, core::slice::from_ref(key), None)?;
+            let value = self.call_the_body_of_an_accessor(
+                target,
+                &access,
+                getter,
+                line,
+                core::slice::from_ref(key),
+                None,
+            )?;
             return Ok(value);
         }
         // A method of that name is not the item of the object: the item is
@@ -11530,8 +12473,11 @@ impl<'a> Runtime<'a> {
         &mut self,
         reference: &str,
         line: u32,
-    ) -> Result<Option<Value>, RuntimeError> {        let mut parts = reference.split('.');
-        let Some(name) = parts.next() else { return Ok(None) };
+    ) -> Result<Option<Value>, RuntimeError> {
+        let mut parts = reference.split('.');
+        let Some(name) = parts.next() else {
+            return Ok(None);
+        };
         let found = self.lookup(name);
         let mut value = match found {
             Some(value) => value,
@@ -11541,7 +12487,10 @@ impl<'a> Runtime<'a> {
             None => match self.the_built_in_variable(name) {
                 Some(Ok(value)) => value,
                 Some(Err(error)) => {
-                    return Err(RuntimeError { message: error.message, line });
+                    return Err(RuntimeError {
+                        message: error.message,
+                        line,
+                    });
                 }
                 // A name that is not set is left alone.
                 None => return Ok(None),
@@ -11628,9 +12577,10 @@ impl<'a> Runtime<'a> {
         }
         match self.the_built_in_variable(name) {
             Some(Ok(value)) => Ok(Some(value)),
-            Some(Err(error)) => {
-                Err(RuntimeFailure::Error(RuntimeError { message: error.message, line }))
-            }
+            Some(Err(error)) => Err(RuntimeFailure::Error(RuntimeError {
+                message: error.message,
+                line,
+            })),
             None => Ok(None),
         }
     }
@@ -11652,14 +12602,22 @@ impl<'a> Runtime<'a> {
         // v1 refuses the write of a name that the script builds inside a
         // function, and it refuses it whatever the variable of that name is.
         if self.declarations.last().is_some()
-            && self.dialect.the_dynamic_write_inside_a_function_is_refused()
+            && self
+                .dialect
+                .the_dynamic_write_inside_a_function_is_refused()
         {
             return Err(RuntimeFailure::Detailed(
                 RuntimeError {
-                    message: self.dialect.the_message_of_the_dynamic_write_inside_a_function().to_string(),
+                    message: self
+                        .dialect
+                        .the_message_of_the_dynamic_write_inside_a_function()
+                        .to_string(),
                     line,
                 },
-                Detail { what: String::new(), extra: name.to_string() },
+                Detail {
+                    what: String::new(),
+                    extra: name.to_string(),
+                },
             ));
         }
         // A dynamic reference does not create a variable: the one that is
@@ -11670,12 +12628,21 @@ impl<'a> Runtime<'a> {
             // the v1 creates the variable of the name that the script builds
             // and writes it: the `a := 1` and the `%a% := 7` write the
             // variable "1".
-            if self.dialect.the_name_that_the_script_builds_and_that_is_not_there_is_answered() {
+            if self
+                .dialect
+                .the_name_that_the_script_builds_and_that_is_not_there_is_answered()
+            {
                 self.assign(name, Value::Text(String::new()));
             } else {
                 return Err(RuntimeFailure::Detailed(
-                    RuntimeError { message: "Variable not found.".to_string(), line },
-                    Detail { what: String::new(), extra: name.to_string() },
+                    RuntimeError {
+                        message: "Variable not found.".to_string(),
+                        line,
+                    },
+                    Detail {
+                        what: String::new(),
+                        extra: name.to_string(),
+                    },
                 ));
             }
         }
@@ -11690,10 +12657,14 @@ impl<'a> Runtime<'a> {
         if self.declarations.last().is_some() && !is_local && !self.lives_in_the_script(&key) {
             return Err(RuntimeFailure::Detailed(
                 RuntimeError {
-                    message: "This dynamic assignment requires a \"global\" declaration.".to_string(),
+                    message: "This dynamic assignment requires a \"global\" declaration."
+                        .to_string(),
                     line,
                 },
-                Detail { what: String::new(), extra: name.to_string() },
+                Detail {
+                    what: String::new(),
+                    extra: name.to_string(),
+                },
             ));
         }
         // The compound operators read the variable before they write it.
@@ -11920,11 +12891,7 @@ pub(crate) fn powi(value: f64, exponent: i32) -> f64 {
         factor *= factor;
         rest >>= 1;
     }
-    if exponent < 0 {
-        1.0 / result
-    } else {
-        result
-    }
+    if exponent < 0 { 1.0 / result } else { result }
 }
 
 /// The value of a function: an object of the class `Func`.
@@ -11941,10 +12908,17 @@ fn func_value(name: &str, function: &Function) -> Value {
     let mut properties: BTreeMap<String, Property> = BTreeMap::new();
     put(&mut properties, "name", Value::Text(name.to_string()));
     put(&mut properties, "minparams", Value::Int(fewest as i64));
-    put(&mut properties, "maxparams", Value::Int(function.parameters.len() as i64));
+    put(
+        &mut properties,
+        "maxparams",
+        Value::Int(function.parameters.len() as i64),
+    );
     put(&mut properties, "isbuiltin", Value::Int(0));
     put(&mut properties, "isvariadic", Value::Int(0));
-    Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+    Value::Object(Rc::new(RefCell::new(Object {
+        class: "func".to_string(),
+        properties,
+    })))
 }
 
 /// The value of a closure: an object of the class `Func`.
@@ -11954,7 +12928,9 @@ fn func_value(name: &str, function: &Function) -> Value {
 fn closure_value(name: &str, function: &Function) -> Value {
     let value = func_value("", function);
     if let Value::Object(object) = &value {
-        object.borrow_mut().put(CLOSURE, Value::Text(name.to_string()));
+        object
+            .borrow_mut()
+            .put(CLOSURE, Value::Text(name.to_string()));
     }
     value
 }
@@ -11974,7 +12950,10 @@ fn builtin_value(name: &str, min: u8, max: u32) -> Value {
     put(&mut properties, "maxparams", Value::Int(max as i64));
     put(&mut properties, "isbuiltin", Value::Int(1));
     put(&mut properties, "isvariadic", Value::Int(0));
-    Value::Object(Rc::new(RefCell::new(Object { class: "func".to_string(), properties })))
+    Value::Object(Rc::new(RefCell::new(Object {
+        class: "func".to_string(),
+        properties,
+    })))
 }
 
 /// The value of a class: an object of the class itself.
@@ -11982,7 +12961,10 @@ fn class_value(name: &str, class: &Class) -> Value {
     let mut properties: BTreeMap<String, Property> = BTreeMap::new();
     put(&mut properties, CLASS_NAME, Value::Text(class.name.clone()));
     put(&mut properties, "prototype", prototype_value(&class.name));
-    Value::Object(Rc::new(RefCell::new(Object { class: name.to_lowercase(), properties })))
+    Value::Object(Rc::new(RefCell::new(Object {
+        class: name.to_lowercase(),
+        properties,
+    })))
 }
 
 /// The value of the parameter that a failure names.
@@ -12455,7 +13437,10 @@ pub(crate) fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
     match failure {
         RuntimeFailure::Error(error) => error,
         RuntimeFailure::Detailed(error, _) => error,
-        _ => RuntimeError { message: "the runtime cannot answer that.".into(), line },
+        _ => RuntimeError {
+            message: "the runtime cannot answer that.".into(),
+            line,
+        },
     }
 }
 
@@ -12486,7 +13471,11 @@ fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
     values_equal_with(
         left,
         right,
-        if case_sensitive { CaseMethod::Exact } else { CaseMethod::Ascii },
+        if case_sensitive {
+            CaseMethod::Exact
+        } else {
+            CaseMethod::Ascii
+        },
     )
 }
 
@@ -12518,7 +13507,6 @@ fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
     the_same_text(&left.to_text(), &right.to_text(), method)
 }
 
-
 /// The message of a failure, the way the report carries it.
 pub(crate) fn the_message_of(failure: &RuntimeFailure) -> String {
     match failure {
@@ -12533,7 +13521,10 @@ pub(crate) fn the_message_of(failure: &RuntimeFailure) -> String {
 
 /// The number of a property of an object, when it has one.
 fn number_of(properties: &BTreeMap<String, Property>, name: &str) -> i64 {
-    properties.get(name).map(|property| property.value.to_number().unwrap_or(0.0) as i64).unwrap_or(0)
+    properties
+        .get(name)
+        .map(|property| property.value.to_number().unwrap_or(0.0) as i64)
+        .unwrap_or(0)
 }
 
 /// The key of a static declaration: the line it is on and the name it
@@ -12595,7 +13586,11 @@ fn collect_the_labels(body: &[Node], labels: &mut Vec<String>) {
             // The body of a hotkey of the v1 is of the scope that carries
             // it: the hotkey is not a block, and a jump may leave it.
             Node::HotkeyDefinition { body, .. } => collect_the_labels(body, labels),
-            Node::If { branches, otherwise, .. } => {
+            Node::If {
+                branches,
+                otherwise,
+                ..
+            } => {
                 for branch in branches {
                     collect_the_labels(&branch.body, labels);
                 }
@@ -12612,11 +13607,19 @@ fn collect_the_labels(body: &[Node], labels: &mut Vec<String>) {
             | Node::For { body, .. } => {
                 collect_the_labels(body, labels);
             }
-            Node::LegacyIf { body, otherwise, .. } => {
+            Node::LegacyIf {
+                body, otherwise, ..
+            } => {
                 collect_the_labels(body, labels);
                 collect_the_labels(otherwise, labels);
             }
-            Node::Try { body, catches, otherwise, finally, .. } => {
+            Node::Try {
+                body,
+                catches,
+                otherwise,
+                finally,
+                ..
+            } => {
                 collect_the_labels(body, labels);
                 for catch in catches {
                     collect_the_labels(&catch.body, labels);

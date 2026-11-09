@@ -76,7 +76,7 @@ pub(crate) fn set_format(
                     return Err(RuntimeError {
                         message: format!("Parameter #2 invalid.\n     Specifically: {format}"),
                         line,
-                    })
+                    });
                 }
             };
             rt.set_integer_format(format);
@@ -88,7 +88,7 @@ pub(crate) fn set_format(
                     return Err(RuntimeError {
                         message: format!("Parameter #2 invalid.\n     Specifically: {format}"),
                         line,
-                    })
+                    });
                 }
             };
             rt.set_float_format(format);
@@ -97,7 +97,7 @@ pub(crate) fn set_format(
             return Err(RuntimeError {
                 message: format!("Parameter #1 invalid.\n     Specifically: {number_type}"),
                 line,
-            })
+            });
         }
     }
     Ok(Value::Text(String::new()))
@@ -122,7 +122,7 @@ pub(crate) fn auto_trim(
             return Err(RuntimeError {
                 message: format!("Parameter #1 invalid.\n     Specifically: {trimmed}"),
                 line,
-            })
+            });
         }
     }
     Ok(Value::Text(String::new()))
@@ -154,7 +154,7 @@ pub(crate) fn set_batch_lines(
             return Err(RuntimeError {
                 message: format!("Parameter #1 invalid.\n     Specifically: {trimmed}"),
                 line,
-            })
+            });
         }
     };
     // The zero is the default of the dialect, and it is ten.
@@ -200,7 +200,7 @@ pub(crate) fn string_case_sense(
             return Err(RuntimeError {
                 message: format!("Parameter #1 invalid.\n     Specifically: {trimmed}"),
                 line,
-            })
+            });
         }
     };
     rt.set_case_sense(sense);
@@ -219,7 +219,10 @@ pub(crate) fn set_detect_hidden_text_of_the_v1(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let on = super::parameters::the_switch_of_the_v1(
-        &values.first().map(|value| value.to_text()).unwrap_or_default(),
+        &values
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default(),
     )
     .unwrap_or(false);
     crate::settings::set_detect_hidden_text(rt, &[Value::Int(on as i64)], line, 0)
@@ -237,7 +240,10 @@ pub(crate) fn set_detect_hidden_windows_of_the_v1(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let on = super::parameters::the_switch_of_the_v1(
-        &values.first().map(|value| value.to_text()).unwrap_or_default(),
+        &values
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default(),
     )
     .unwrap_or(false);
     crate::settings::set_detect_hidden_windows(rt, &[Value::Int(on as i64)], line, 0)
@@ -255,7 +261,10 @@ pub(crate) fn set_store_caps_lock_mode_of_the_v1(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let on = super::parameters::the_switch_of_the_v1(
-        &values.first().map(|value| value.to_text()).unwrap_or_default(),
+        &values
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default(),
     )
     .unwrap_or(false);
     crate::settings::set_store_caps_lock_mode(rt, &[Value::Int(on as i64)], line, 0)
@@ -273,8 +282,14 @@ pub(crate) fn coord_mode_of_the_v1(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let target = values.first().map(|value| value.to_text()).unwrap_or_default();
-    let relative = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let target = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let relative = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     crate::settings::set_the_coord_mode_of_the_v1(&target, &relative);
     Ok(Value::Text(String::new()))
 }
@@ -292,7 +307,10 @@ pub(crate) fn set_control_delay_of_the_v1(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let text = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let delay = crate::v1::the_number_of_a_text(&text)
         .and_then(|value| value.to_number())
         .unwrap_or(0.0) as i32;
@@ -311,7 +329,10 @@ pub(crate) fn set_win_delay_of_the_v1(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let text = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let delay = crate::v1::the_number_of_a_text(&text)
         .and_then(|value| value.to_number())
         .unwrap_or(0.0);
@@ -328,8 +349,14 @@ pub(crate) fn set_mouse_delay_of_the_v1(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let delay = values.first().and_then(|value| value.to_number()).unwrap_or(0.0);
-    let mode = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let delay = values
+        .first()
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0);
+    let mode = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let mode = if mode.trim().eq_ignore_ascii_case("play") {
         "Play"
     } else {
@@ -353,8 +380,14 @@ pub(crate) fn set_key_delay_of_the_v1(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let delay = values.first().and_then(|value| value.to_number()).unwrap_or(0.0);
-    let mode = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let delay = values
+        .first()
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0);
+    let mode = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let mode = if mode.trim().eq_ignore_ascii_case("play") {
         "Play"
     } else {
@@ -378,7 +411,10 @@ pub(crate) fn file_encoding_of_the_v1(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let name = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     if name.trim().is_empty() {
         return Ok(Value::Text(crate::settings::file_encoding().to_string()));
     }
@@ -393,7 +429,8 @@ pub(crate) fn file_encoding_of_the_v1(
 /// `Transform` are the numbers of the text without its quotes: `Ceil, "1.2"`
 /// is 2, and `Abs, "-5"` is "5". The `Asc` and the `Deref` see the text as
 /// it is.
-fn the_text_without_the_quotes(text: &str) -> &str {    let text = text.trim();
+fn the_text_without_the_quotes(text: &str) -> &str {
+    let text = text.trim();
     if text.len() >= 2 && text.starts_with('"') && text.ends_with('"') {
         return &text[1..text.len() - 1];
     }
@@ -465,10 +502,20 @@ fn the_condition_of_the_search(
     _line: u32,
     name: &str,
 ) -> Result<Value, RuntimeError> {
-    let haystack = values.first().map(|value| value.to_text()).unwrap_or_default();
-    let needle = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let haystack = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let needle = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let holds = crate::runtime::the_text_contains(&haystack, &needle, rt.case_sense().the_method());
-    Ok(Value::Int(if name == "IfNotInString" { !holds } else { holds } as i64))
+    Ok(Value::Int(if name == "IfNotInString" {
+        !holds
+    } else {
+        holds
+    } as i64))
 }
 
 /// The condition of the `IfMsgBox` of the v1.
@@ -514,9 +561,18 @@ pub(crate) fn transform(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let sub = values.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let first = values.get(2).map(|value| value.to_text()).unwrap_or_default();
-    let second = values.get(3).map(|value| value.to_text()).unwrap_or_default();
+    let sub = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let first = values
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let second = values
+        .get(3)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let answer = the_answer_of_the_transform(rt, &sub, &first, &second, line)?;
     crate::v1::write_the_answer(rt, "Transform", values, 0, answer.clone(), line)?;
     Ok(answer)
@@ -576,7 +632,10 @@ fn the_answer_of_the_transform(
         "mod" => {
             let divisor = number(plain(second));
             if divisor == 0.0 {
-                return invalid(format!("Divide by zero\n     Specifically: {}", plain(second)));
+                return invalid(format!(
+                    "Divide by zero\n     Specifically: {}",
+                    plain(second)
+                ));
             }
             let left = number(plain(first));
             Ok(Value::Int((left % divisor) as i64))
@@ -622,7 +681,9 @@ fn the_answer_of_the_transform(
             Ok(Value::Float(answer))
         }
         "ceil" => Ok(Value::Int(crate::runtime::ceil(number(plain(first))) as i64)),
-        "floor" => Ok(Value::Int(crate::runtime::floor(number(plain(first))) as i64)),
+        "floor" => Ok(Value::Int(
+            crate::runtime::floor(number(plain(first))) as i64
+        )),
         // The absolute value of the v1 is the text of the number without the
         // sign of the minus: "5.50" stays "5.50". A text that does not
         // begin with a number is the text as it is.
@@ -678,7 +739,10 @@ fn the_answer_of_the_transform(
                     }
                 }
             }
-            Ok(Value::Float(crate::runtime::powf(base, number(plain(second)))))
+            Ok(Value::Float(crate::runtime::powf(
+                base,
+                number(plain(second)),
+            )))
         }
         // The bits of the v1: the `BitNot` is of thirty-two bits and the
         // rest is of sixty-four.
@@ -686,9 +750,15 @@ fn the_answer_of_the_transform(
             let bits = number(plain(first)) as u32;
             Ok(Value::Int((!bits) as i64))
         }
-        "bitand" => Ok(Value::Int(number(plain(first)) as i64 & number(plain(second)) as i64)),
-        "bitor" => Ok(Value::Int(number(plain(first)) as i64 | number(plain(second)) as i64)),
-        "bitxor" => Ok(Value::Int(number(plain(first)) as i64 ^ number(plain(second)) as i64)),
+        "bitand" => Ok(Value::Int(
+            number(plain(first)) as i64 & number(plain(second)) as i64,
+        )),
+        "bitor" => Ok(Value::Int(
+            number(plain(first)) as i64 | number(plain(second)) as i64,
+        )),
+        "bitxor" => Ok(Value::Int(
+            number(plain(first)) as i64 ^ number(plain(second)) as i64,
+        )),
         "bitshiftleft" => Ok(Value::Int(
             (number(plain(first)) as i64) << (number(plain(second)) as i64 & 63),
         )),
@@ -708,7 +778,8 @@ fn the_answer_of_the_transform(
         // The HTML of the v1 is a table of the names of the characters that
         // are not of the English, and the tree does not carry it.
         "html" => invalid(
-            "this runtime does not carry the sub-command of the v1.\n     Specifically: HTML".to_string(),
+            "this runtime does not carry the sub-command of the v1.\n     Specifically: HTML"
+                .to_string(),
         ),
         // The sub-command that the v1 does not know, and the one of the
         // clipboard that a Unicode build does not have.
@@ -734,7 +805,10 @@ pub(crate) fn var_set_capacity(
     let Some(Value::Reference(_)) = values.first() else {
         return Ok(Value::Int(0));
     };
-    let capacity = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let capacity = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     if capacity.trim().is_empty() {
         // The capacity that the variable has is not the one of the tree:
         // the tree keeps no capacity, and it says so.
@@ -770,7 +844,10 @@ pub(crate) fn is_set(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let name = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let answer = if rt.has_a_value(&name) { 1 } else { 0 };
     Ok(Value::Int(answer))
 }
@@ -824,7 +901,10 @@ pub(crate) fn is_by_ref(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let name = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let answer = if rt.is_a_reference(&name) { 1 } else { 0 };
     Ok(Value::Int(answer))
 }
@@ -857,7 +937,10 @@ pub(crate) fn func(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let name = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     if let Some(value) = rt.the_function_of_the_script(&name) {
         return Ok(value);
     }
@@ -882,8 +965,14 @@ pub(crate) fn file_read_line(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let path = values.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let number = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+    let path = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let number = values
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let number: usize = number.trim().parse().unwrap_or(0);
     let lines = match rt.desktop().read_file(&path) {
         Ok(lines) => lines,
@@ -914,16 +1003,28 @@ pub(crate) fn input(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let options = values.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let title = values.get(2).map(|value| value.to_text()).unwrap_or_default();
-    let default = values.get(3).map(|value| value.to_text()).unwrap_or_default();
+    let options = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let title = values
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let default = values
+        .get(3)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     // The title of the v1 is the prompt of the dialogue, and the options
     // are the ones that the v2 reads.
     let options = crate::dialogs::the_options_of_the_input_box(&options, line)?;
     let answer = rt
         .desktop()
         .input_box(&title, &title, &options, &default)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     let answer = Value::Text(answer.value);
     crate::v1::write_the_answer(rt, "Input", values, 0, answer.clone(), line)?;
     Ok(answer)

@@ -6,8 +6,8 @@
 //! binary of v2.0.19 on 2026-10-29.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime};
@@ -227,9 +227,7 @@ fn an_index_that_is_out_of_range_is_an_index_error() {
 
 #[test]
 fn a_value_of_the_wrong_type_is_a_type_error() {
-    let report = run(
-        "try {\n    x := 1 + \"a\"\n} catch Any as e {\n    MsgBox e is TypeError\n}",
-    );
+    let report = run("try {\n    x := 1 + \"a\"\n} catch Any as e {\n    MsgBox e is TypeError\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
 }
@@ -245,9 +243,8 @@ fn a_value_that_is_not_valid_is_a_value_error() {
 
 #[test]
 fn the_arity_of_a_call_is_a_plain_error() {
-    let report = run(
-        "try {\n    f := Abs\n    f.Call()\n} catch Any as e {\n    MsgBox e is Error\n}",
-    );
+    let report =
+        run("try {\n    f := Abs\n    f.Call()\n} catch Any as e {\n    MsgBox e is Error\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
 }
@@ -260,7 +257,10 @@ fn the_stack_of_an_error_names_the_frames_of_the_call() {
     // has no file of its own, and the file of every frame is empty.
     let report = run("e := Error(\"the message\")\nMsgBox e.Stack");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec![" (1) : [] e := Error(\"the message\")\n> Auto-execute"]);
+    assert_eq!(
+        report.output,
+        vec![" (1) : [] e := Error(\"the message\")\n> Auto-execute"]
+    );
 }
 
 #[test]
@@ -272,7 +272,10 @@ fn the_own_properties_of_an_error_are_the_ones_that_v2_spells() {
         "e := Error(\"m\", \"w\", \"x\")\ns := \"\"\nfor p in ObjOwnProps(e)\n    s .= \"[\" p \"]\"\nMsgBox s",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["[Extra][File][Line][Message][Stack][What]"]);
+    assert_eq!(
+        report.output,
+        vec!["[Extra][File][Line][Message][Stack][What]"]
+    );
 }
 
 #[test]
@@ -303,9 +306,7 @@ fn the_line_of_an_error_is_the_line_where_it_was_made() {
 fn the_line_of_an_error_that_was_thrown_is_the_line_of_the_throw() {
     // Measured on the binary of v2.0.19 on 2026-11-01: the error that is
     // thrown carries the line where it was thrown.
-    let report = run(
-        "try {\n    throw Error(\"m\")\n} catch as e {\n    MsgBox e.Line\n}",
-    );
+    let report = run("try {\n    throw Error(\"m\")\n} catch as e {\n    MsgBox e.Line\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2"]);
 }
@@ -347,7 +348,8 @@ fn the_base_of_the_error_is_the_class_that_it_extends() {
 fn the_properties_of_an_error_are_its_own() {
     // Measured on the binary of v2.0.19 on 2026-11-01: the message of an
     // error is a property of it, and it is an own one.
-    let report = run("e := Error(\"m\")\nMsgBox e.HasProp(\"Message\") \" | \" e.HasOwnProp(\"Message\")");
+    let report =
+        run("e := Error(\"m\")\nMsgBox e.HasProp(\"Message\") \" | \" e.HasOwnProp(\"Message\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 | 1"]);
 }

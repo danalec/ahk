@@ -209,7 +209,8 @@ pub fn parse(spec: &str) -> Result<Spec, String> {
             return Err("Invalid key name.".to_string());
         };
         if modifiers.is_empty() {
-            let code = keys::resolve_name(&modifier).map_err(|_| "Invalid key name.".to_string())?;
+            let code =
+                keys::resolve_name(&modifier).map_err(|_| "Invalid key name.".to_string())?;
             return Ok(Spec {
                 modifiers,
                 key: modifier,
@@ -266,7 +267,11 @@ pub fn hotstring_text(name: &str) -> Option<String> {
     if first != last || first.is_alphanumeric() || name.chars().count() < 3 {
         return None;
     }
-    let inner: String = name.chars().skip(1).take(name.chars().count() - 2).collect();
+    let inner: String = name
+        .chars()
+        .skip(1)
+        .take(name.chars().count() - 2)
+        .collect();
     Some(inner)
 }
 
@@ -288,7 +293,12 @@ pub(crate) fn run_fired(rt: &mut Runtime<'_>) -> Result<(), RuntimeFailure> {
         Ok(None) => return Ok(()),
         Err(reason) => return Err(fail(&reason, 0)),
     };
-    let Some(entry) = rt.hotkeys().iter().find(|entry| entry.matches(&fired)).cloned() else {
+    let Some(entry) = rt
+        .hotkeys()
+        .iter()
+        .find(|entry| entry.matches(&fired))
+        .cloned()
+    else {
         return Ok(());
     };
     if !entry.enabled {
@@ -312,7 +322,12 @@ pub(crate) fn run_fired(rt: &mut Runtime<'_>) -> Result<(), RuntimeFailure> {
         return Ok(());
     }
     if entry.takes_name {
-        rt.call_named(&entry.function, &[Value::Text(fired)], entry.line, Route::Written)?;
+        rt.call_named(
+            &entry.function,
+            &[Value::Text(fired)],
+            entry.line,
+            Route::Written,
+        )?;
     } else {
         rt.call_function_by_name(&entry.function, entry.line)?;
     }
@@ -426,7 +441,11 @@ fn condition_holds(rt: &mut Runtime<'_>, entry: &Hotkey) -> Result<bool, Runtime
 /// The name is the spelling of the script, the function is the name of
 /// the function of the script that the hotkey runs, and the object is the
 /// one of the class, which the callback receives.
-pub(crate) fn register(rt: &mut Runtime<'_>, shape: Shape, line: u32) -> Result<(), RuntimeFailure> {
+pub(crate) fn register(
+    rt: &mut Runtime<'_>,
+    shape: Shape,
+    line: u32,
+) -> Result<(), RuntimeFailure> {
     let Shape {
         kind,
         name,
@@ -599,7 +618,10 @@ pub(crate) fn action_of(value: &Value, line: u32) -> Result<(String, bool), Runt
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-28: `Hotstring ":btw:",
 /// "b"` is taken, and `Hotstring ":btw:", 123` is taken as well.
-pub(crate) fn hotstring_action_of(value: &Value, line: u32) -> Result<(String, bool), RuntimeFailure> {
+pub(crate) fn hotstring_action_of(
+    value: &Value,
+    line: u32,
+) -> Result<(String, bool), RuntimeFailure> {
     match value {
         Value::Text(text) => Ok((text.clone(), false)),
         Value::Int(number) => Ok((number.to_string(), false)),
@@ -613,7 +635,12 @@ pub(crate) fn hotstring_action_of(value: &Value, line: u32) -> Result<(String, b
 /// function it runs. The class of the same name does the same thing and
 /// gives the object of the hotkey back, and the runtime asks the class
 /// types before it asks this table.
-pub fn hotkey(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn hotkey(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = text_argument(values.first(), "Parameter #1 of Hotkey is invalid.", line)?;
     // A hotkey without an action is a hotkey of nothing, and v2 says so.
     let Some(action) = values.get(1).cloned() else {
@@ -636,7 +663,8 @@ pub fn hotkey(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -
             _ => {}
         }
     }
-    let (function, takes_name) = action_of(&action, line).map_err(|failure| as_error(failure, line))?;
+    let (function, takes_name) =
+        action_of(&action, line).map_err(|failure| as_error(failure, line))?;
     let shape = Shape {
         kind: Kind::Hotkey,
         name,
@@ -652,7 +680,12 @@ pub fn hotkey(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -
 /// Turn a hotkey that is already there on or off.
 fn toggle(rt: &mut Runtime<'_>, name: &str, word: &str, line: u32) -> Result<Value, RuntimeError> {
     let lowered = word.to_lowercase();
-    let Some(entry) = rt.hotkeys().iter().find(|entry| entry.name == name).cloned() else {
+    let Some(entry) = rt
+        .hotkeys()
+        .iter()
+        .find(|entry| entry.name == name)
+        .cloned()
+    else {
         return Err(RuntimeError {
             message: "Nonexistent hotkey.".to_string(),
             line,
@@ -672,7 +705,11 @@ fn toggle(rt: &mut Runtime<'_>, name: &str, word: &str, line: u32) -> Result<Val
 /// A hotkey that is already in the state it is asked for is not told to
 /// the desktop again: v2 starts a hotkey that is running, and it does
 /// nothing.
-pub(crate) fn set_enabled(rt: &mut Runtime<'_>, entry: &Hotkey, on: bool) -> Result<(), RuntimeFailure> {
+pub(crate) fn set_enabled(
+    rt: &mut Runtime<'_>,
+    entry: &Hotkey,
+    on: bool,
+) -> Result<(), RuntimeFailure> {
     if entry.enabled == on {
         return Ok(());
     }
@@ -698,21 +735,27 @@ pub(crate) fn set_enabled(rt: &mut Runtime<'_>, entry: &Hotkey, on: bool) -> Res
 /// A hotstring is a text that fires a function when it is typed. The text
 /// of v2 is written between two of the same character, and the character
 /// is not part of it.
-pub fn hotstring(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn hotstring(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let text = match values.first() {
         Some(Value::Text(text)) => text.clone(),
         Some(_) => {
             return Err(RuntimeError {
-                message: "Parameter #1 of Hotstring requires a String, but received something else."
-                    .to_string(),
+                message:
+                    "Parameter #1 of Hotstring requires a String, but received something else."
+                        .to_string(),
                 line,
-            })
+            });
         }
         None => {
             return Err(RuntimeError {
                 message: "Parameter #1 of Hotstring is invalid.".to_string(),
                 line,
-            })
+            });
         }
     };
     // v2 says which parameter is wrong first, and the name of the
@@ -731,7 +774,9 @@ pub fn hotstring(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
     };
     // A hotstring without an action runs nothing, and v2 takes it.
     let (function, takes_name) = match values.get(1) {
-        Some(action) => hotstring_action_of(action, line).map_err(|failure| as_error(failure, line))?,
+        Some(action) => {
+            hotstring_action_of(action, line).map_err(|failure| as_error(failure, line))?
+        }
         None => (String::new(), false),
     };
     let shape = Shape {
@@ -751,7 +796,12 @@ pub fn hotstring(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 /// The condition of a hotkey is a function of the script, and it is
 /// called when the hotkey is pressed. The command without an argument
 /// takes the condition away.
-pub fn hotif(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn hotif(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let shared = shared_of(rt);
     match values.first() {
         None => {
@@ -792,7 +842,11 @@ pub fn hotif_window(
     line: u32,
     variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let title = text_argument(values.first(), "Parameter #1 must match an existing #HotIf expression.", line)?;
+    let title = text_argument(
+        values.first(),
+        "Parameter #1 must match an existing #HotIf expression.",
+        line,
+    )?;
     let condition = match variant {
         0 => Condition::WindowActive(title),
         1 => Condition::WindowExists(title),
@@ -809,14 +863,23 @@ pub fn hotif_window(
 /// The command says whether a key is down right now. v2.0.19 takes one
 /// parameter only: the second one is "Parameter #2 of GetKeyState is
 /// invalid.".
-pub fn get_key_state(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn get_key_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     if values.len() > 1 {
         return Err(RuntimeError {
             message: "Parameter #2 of GetKeyState is invalid.".to_string(),
             line,
         });
     }
-    let name = text_argument(values.first(), "Parameter #1 of GetKeyState is invalid.", line)?;
+    let name = text_argument(
+        values.first(),
+        "Parameter #1 of GetKeyState is invalid.",
+        line,
+    )?;
     if keys::resolve_name(&name).is_err() {
         return Err(RuntimeError {
             message: "Parameter #1 of GetKeyState is invalid.".to_string(),
@@ -825,7 +888,10 @@ pub fn get_key_state(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
     }
     match rt.desktop().key_is_down(&name) {
         Ok(down) => Ok(Value::Int(down as i64)),
-        Err(reason) => Err(RuntimeError { message: reason, line }),
+        Err(reason) => Err(RuntimeError {
+            message: reason,
+            line,
+        }),
     }
 }
 
@@ -833,9 +899,16 @@ pub fn get_key_state(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
 ///
 /// The command of v2 opens a window with the keys that were pressed. The
 /// box has no window to open, and the script is told why.
-pub fn key_history(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn key_history(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
-        message: "this desktop cannot show the history of the keys: it has no window to show it in.".to_string(),
+        message:
+            "this desktop cannot show the history of the keys: it has no window to show it in."
+                .to_string(),
         line,
     })
 }
@@ -844,9 +917,16 @@ pub fn key_history(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant
 ///
 /// The command of v2 opens a window with the hotkeys of the script. The
 /// box has no window to open, and the script is told why.
-pub fn list_hotkeys(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn list_hotkeys(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
-        message: "this desktop cannot show the list of the hotkeys: it has no window to show it in.".to_string(),
+        message:
+            "this desktop cannot show the list of the hotkeys: it has no window to show it in."
+                .to_string(),
         line,
     })
 }
@@ -856,7 +936,12 @@ pub fn list_hotkeys(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _varian
 /// The hooks of v2 are installed when a hotkey needs them, and the
 /// commands say that they are there. The box watches the keyboard from
 /// the first hotkey, and the mouse is not watched at all.
-pub fn install_hook(_rt: &mut Runtime<'_>, _values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn install_hook(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     Ok(Value::Text(String::new()))
 }
 
@@ -950,13 +1035,12 @@ fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-        Processes, Screen, Sound, Timers, TitleMatch, WindowAnswer, Windows,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+        Pointer, Processes, Screen, Sound, Timers, TitleMatch, WindowAnswer, Windows,
     };
     use crate::runtime::Clock;
     use alloc::string::String;
@@ -998,13 +1082,26 @@ mod tests {
     }
 
     impl Pointer for Fake {
-        fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        fn click(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _button: &str,
+            _count: u32,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
     }
 
     impl Screen for Fake {
-        fn capture(&mut self, _x: i64, _y: i64, _w: i64, _h: i64, _filename: &str) -> Result<String, String> {
+        fn capture(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _w: i64,
+            _h: i64,
+            _filename: &str,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
 
@@ -1020,11 +1117,19 @@ mod tests {
     }
 
     impl Windows for Fake {
-        fn window_active(&mut self, _title: &str, _mode: TitleMatch) -> Result<WindowAnswer, String> {
+        fn window_active(
+            &mut self,
+            _title: &str,
+            _mode: TitleMatch,
+        ) -> Result<WindowAnswer, String> {
             // The fake has no window at all: every window is absent.
             Ok(WindowAnswer::Absent)
         }
-        fn window_exists(&mut self, _title: &str, _mode: TitleMatch) -> Result<WindowAnswer, String> {
+        fn window_exists(
+            &mut self,
+            _title: &str,
+            _mode: TitleMatch,
+        ) -> Result<WindowAnswer, String> {
             Ok(WindowAnswer::Absent)
         }
     }
@@ -1060,8 +1165,8 @@ mod tests {
     impl Pictures for Fake {}
     impl Network for Fake {}
     impl Sound for Fake {}
-impl Machine for Fake {}
-impl Dialogs for Fake {}
+    impl Machine for Fake {}
+    impl Dialogs for Fake {}
 
     /// A clock that does not move.
     struct TheClock;
@@ -1087,7 +1192,10 @@ impl Dialogs for Fake {}
     /// The shift is a `+` and the windows key is a `#`.
     #[test]
     fn the_shift_and_the_windows_key_are_read() {
-        assert_eq!(parse("^+a").unwrap().modifiers, vec!["ctrl".to_string(), "shift".to_string()]);
+        assert_eq!(
+            parse("^+a").unwrap().modifiers,
+            vec!["ctrl".to_string(), "shift".to_string()]
+        );
         assert_eq!(parse("#a").unwrap().modifiers, vec!["win".to_string()]);
     }
 
@@ -1096,7 +1204,10 @@ impl Dialogs for Fake {}
     fn the_sides_of_the_modifiers_are_read() {
         assert_eq!(parse("<^a").unwrap().modifiers, vec!["ctrl".to_string()]);
         assert_eq!(parse("^>a").unwrap().modifiers, vec!["rctrl".to_string()]);
-        assert_eq!(parse("<^>a").unwrap().modifiers, vec!["ctrl".to_string(), "rctrl".to_string()]);
+        assert_eq!(
+            parse("<^>a").unwrap().modifiers,
+            vec!["ctrl".to_string(), "rctrl".to_string()]
+        );
     }
 
     /// The `~` and the `*` are the two prefixes, and they come first.
@@ -1190,9 +1301,13 @@ impl Dialogs for Fake {}
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::new();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(!report.ok, "the script was expected to fail");
-        assert_eq!(report.error.unwrap(), "Parameter #1 of Hotstring is invalid.");
+        assert_eq!(
+            report.error.unwrap(),
+            "Parameter #1 of Hotstring is invalid."
+        );
     }
 
     /// The action of a hotstring may be a text: it is the name of a
@@ -1203,7 +1318,8 @@ impl Dialogs for Fake {}
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::new();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
         assert_eq!(desktop.registered, vec![":btw:".to_string()]);
     }
@@ -1219,7 +1335,8 @@ impl Dialogs for Fake {}
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::new();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
         assert_eq!(desktop.registered, vec!["^a".to_string()]);
         assert_eq!(report.output, vec!["^a".to_string()]);
@@ -1232,7 +1349,8 @@ impl Dialogs for Fake {}
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::new();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
         assert!(desktop.registered.is_empty());
     }
@@ -1241,14 +1359,20 @@ impl Dialogs for Fake {}
     /// it does not run.
     #[test]
     fn a_hotkey_of_a_window_that_is_not_there_does_not_run() {
-        let script = "Callback(hk) {\n    MsgBox hk\n}\nHotIfWinExist \"Steam\"\nHotkey(\"^a\", Callback)\n";
+        let script =
+            "Callback(hk) {\n    MsgBox hk\n}\nHotIfWinExist \"Steam\"\nHotkey(\"^a\", Callback)\n";
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::new();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
         assert_eq!(desktop.registered, vec!["^a".to_string()]);
-        assert!(report.output.is_empty(), "the hotkey ran: {:?}", report.output);
+        assert!(
+            report.output.is_empty(),
+            "the hotkey ran: {:?}",
+            report.output
+        );
     }
 
     /// A window that is not there is not the active one, and so it is not
@@ -1259,7 +1383,8 @@ impl Dialogs for Fake {}
         let statements = crate::parse(script).expect("the script parses");
         let mut desktop = Fake::new();
         let mut clock = TheClock;
-        let report = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
+        let report =
+            Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10)).run(&statements);
         assert!(report.ok, "the script failed: {:?}", report.error);
         assert_eq!(report.output, vec!["^a".to_string()]);
     }
@@ -1270,11 +1395,20 @@ impl Dialogs for Fake {}
         let mut desktop = Fake::new();
         let mut clock = TheClock;
         let mut rt = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10));
-        assert_eq!(variable("hotkeyinterval", &mut rt).unwrap().unwrap(), Value::Int(2000));
-        assert_eq!(variable("maxhotkeysperinterval", &mut rt).unwrap().unwrap(), Value::Int(70));
+        assert_eq!(
+            variable("hotkeyinterval", &mut rt).unwrap().unwrap(),
+            Value::Int(2000)
+        );
+        assert_eq!(
+            variable("maxhotkeysperinterval", &mut rt).unwrap().unwrap(),
+            Value::Int(70)
+        );
         // Measured on the binary of v2.0.19 on 2026-11-01: the timeout of
         // the change of a hotkey is fifty until a script writes another one.
-        assert_eq!(variable("hotkeymodifiertimeout", &mut rt).unwrap().unwrap(), Value::Int(50));
+        assert_eq!(
+            variable("hotkeymodifiertimeout", &mut rt).unwrap().unwrap(),
+            Value::Int(50)
+        );
     }
 
     /// The variables of the hotkeys carry the state of the last one that
@@ -1285,14 +1419,32 @@ impl Dialogs for Fake {}
         let mut clock = TheClock;
         let mut rt = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10));
         // A script that has not run a hotkey has no hotkey to name.
-        assert_eq!(variable("thishotkey", &mut rt).unwrap().unwrap(), Value::Text(String::new()));
-        assert_eq!(variable("priorhotkey", &mut rt).unwrap().unwrap(), Value::Text(String::new()));
-        assert_eq!(variable("timesincepriorhotkey", &mut rt).unwrap().unwrap(), Value::Text(String::new()));
+        assert_eq!(
+            variable("thishotkey", &mut rt).unwrap().unwrap(),
+            Value::Text(String::new())
+        );
+        assert_eq!(
+            variable("priorhotkey", &mut rt).unwrap().unwrap(),
+            Value::Text(String::new())
+        );
+        assert_eq!(
+            variable("timesincepriorhotkey", &mut rt).unwrap().unwrap(),
+            Value::Text(String::new())
+        );
         let shared = shared_of(&mut rt);
         shared.borrow_mut().current = Some(("^a".to_string(), 0));
         shared.borrow_mut().prior = Some(("a".to_string(), 0));
-        assert_eq!(variable("thishotkey", &mut rt).unwrap().unwrap(), Value::Text("^a".to_string()));
-        assert_eq!(variable("priorhotkey", &mut rt).unwrap().unwrap(), Value::Text("a".to_string()));
-        assert_eq!(variable("timesincethishotkey", &mut rt).unwrap().unwrap(), Value::Int(0));
+        assert_eq!(
+            variable("thishotkey", &mut rt).unwrap().unwrap(),
+            Value::Text("^a".to_string())
+        );
+        assert_eq!(
+            variable("priorhotkey", &mut rt).unwrap().unwrap(),
+            Value::Text("a".to_string())
+        );
+        assert_eq!(
+            variable("timesincethishotkey", &mut rt).unwrap().unwrap(),
+            Value::Int(0)
+        );
     }
 }

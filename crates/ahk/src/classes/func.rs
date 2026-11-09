@@ -8,20 +8,14 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::runtime::{
-    BOUND, BOUND_TARGET, CLOSURE, Route, Runtime, RuntimeFailure, Value, METHOD_CLASS, METHOD_NAME,
+    BOUND, BOUND_TARGET, CLOSURE, METHOD_CLASS, METHOD_NAME, Route, Runtime, RuntimeFailure, Value,
 };
 
 /// The properties a function owns.
 ///
 /// The name, the number of the parameters, whether the function is
 /// built in and whether it takes a rest are in the table of the object.
-const PROPERTIES: [&str; 5] = [
-    "name",
-    "minparams",
-    "maxparams",
-    "isbuiltin",
-    "isvariadic",
-];
+const PROPERTIES: [&str; 5] = ["name", "minparams", "maxparams", "isbuiltin", "isvariadic"];
 
 /// The methods a function has: the ones of the class.
 ///
@@ -61,7 +55,10 @@ pub(crate) fn call(
         // `Abs.Bind(5)` calls the built-in with the object as its first
         // argument -- and the built-in takes one, so the call of it fails.
         "bind" => {
-            let object = arguments.first().cloned().unwrap_or(Value::Text(String::new()));
+            let object = arguments
+                .first()
+                .cloned()
+                .unwrap_or(Value::Text(String::new()));
             Some(Ok(rt.bound_function(object, this.clone())))
         }
         _ => None,
@@ -93,7 +90,9 @@ fn call_the_function(
     line: u32,
     route: Route,
 ) -> Option<Result<Value, RuntimeFailure>> {
-    let Value::Object(object) = this else { return None };
+    let Value::Object(object) = this else {
+        return None;
+    };
     // A function that is bound to an object: the object is the first
     // argument of the call of the function that is bound.
     let bound = object.borrow().value_of(BOUND);
@@ -103,7 +102,10 @@ fn call_the_function(
     }
     // A closure is called by the name the runtime keeps it under, and not
     // by the name the script sees: the name of a closure of v2 is empty.
-    let kept = object.borrow().value_of(CLOSURE).map(|value| value.to_text());
+    let kept = object
+        .borrow()
+        .value_of(CLOSURE)
+        .map(|value| value.to_text());
     let name = match kept {
         Some(kept) => kept,
         None => object
@@ -131,9 +133,9 @@ fn call_the_function(
             // goes through a value, and the object is one of the
             // arguments of it.
             let failure = |message: &str| match route {
-                Route::ThroughTheCall => crate::classes::the_arity_failure_of_a_method(
-                    &class, &method, message, line,
-                ),
+                Route::ThroughTheCall => {
+                    crate::classes::the_arity_failure_of_a_method(&class, &method, message, line)
+                }
                 _ => crate::classes::the_arity_failure(&class, &method, message, line),
             };
             if let Some((min, max)) = crate::classes::the_arity_of(&class, &method) {
@@ -150,10 +152,12 @@ fn call_the_function(
             let Some((this, rest)) = arguments.split_first() else {
                 return Some(Err(failure("Too few parameters passed to function.")));
             };
-            return Some(match crate::classes::call(&class, &method, this, rest, rt, line) {
-                Some(result) => result,
-                None => Err(rt.no_method(this, &method, line)),
-            });
+            return Some(
+                match crate::classes::call(&class, &method, this, rest, rt, line) {
+                    Some(result) => result,
+                    None => Err(rt.no_method(this, &method, line)),
+                },
+            );
         }
         return Some(rt.call_a_method_reference(&class, &method, arguments, line));
     }

@@ -177,7 +177,9 @@ impl Watcher {
                 }
             }
         }
-        let Some(device) = self.device.as_mut() else { return Vec::new() };
+        let Some(device) = self.device.as_mut() else {
+            return Vec::new();
+        };
         let mut buffer = [0u8; EVENT_SIZE * 64];
         let mut events: Vec<InputEvent> = Vec::new();
         loop {
@@ -415,10 +417,13 @@ pub fn register(name: &str) -> Result<String, String> {
         .as_mut()
         .ok_or_else(|| "the keyboard of this box cannot be watched.".to_string())?;
     if let Some(text) = ahk::hotkeys::hotstring_text(name) {
-        watcher.hotstrings.retain(|hotstring| hotstring.name != name);
         watcher
             .hotstrings
-            .push(Hotstring { name: name.to_string(), text });
+            .retain(|hotstring| hotstring.name != name);
+        watcher.hotstrings.push(Hotstring {
+            name: name.to_string(),
+            text,
+        });
         return Ok(name.to_string());
     }
     let spec = ahk::hotkeys::parse(name)?;
@@ -437,7 +442,9 @@ pub fn unregister(name: &str) -> Result<String, String> {
         .as_mut()
         .ok_or_else(|| "the keyboard of this box cannot be watched.".to_string())?;
     watcher.hotkeys.retain(|entry| entry.name != name);
-    watcher.hotstrings.retain(|hotstring| hotstring.name != name);
+    watcher
+        .hotstrings
+        .retain(|hotstring| hotstring.name != name);
     Ok(name.to_string())
 }
 
@@ -447,8 +454,17 @@ pub fn list() -> Result<Vec<String>, String> {
     let watcher = guard
         .as_mut()
         .ok_or_else(|| "the keyboard of this box cannot be watched.".to_string())?;
-    let mut names: Vec<String> = watcher.hotkeys.iter().map(|entry| entry.name.clone()).collect();
-    names.extend(watcher.hotstrings.iter().map(|hotstring| hotstring.name.clone()));
+    let mut names: Vec<String> = watcher
+        .hotkeys
+        .iter()
+        .map(|entry| entry.name.clone())
+        .collect();
+    names.extend(
+        watcher
+            .hotstrings
+            .iter()
+            .map(|hotstring| hotstring.name.clone()),
+    );
     Ok(names)
 }
 
@@ -525,7 +541,9 @@ fn device_named(name: &str) -> Option<PathBuf> {
             continue;
         }
         let handlers = field(block, "H: Handlers=");
-        let event = handlers.split_whitespace().find(|word| word.starts_with("event"))?;
+        let event = handlers
+            .split_whitespace()
+            .find(|word| word.starts_with("event"))?;
         return Some(PathBuf::from(format!("/dev/input/{event}")));
     }
     None

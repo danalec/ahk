@@ -11,8 +11,8 @@
 //! `egm-review/probe_v1_semantics3.py`.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-    Processes, Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::dialect;
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeValue};
@@ -57,8 +57,7 @@ impl Clipboard for Fake {
 impl Files for Fake {
     fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
         // The cases that read a file write one that is there.
-        let text = std::fs::read_to_string(path)
-            .map_err(|reason| format!("{reason}"))?;
+        let text = std::fs::read_to_string(path).map_err(|reason| format!("{reason}"))?;
         Ok(text.lines().map(|line| line.to_string()).collect())
     }
 
@@ -77,7 +76,9 @@ impl Files for Fake {
     }
 
     fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
-        self.calls.borrow_mut().push(format!("copy_file {from} {to} {overwrite}"));
+        self.calls
+            .borrow_mut()
+            .push(format!("copy_file {from} {to} {overwrite}"));
         if from.contains("nothere") {
             return Err("the file is not there".into());
         }
@@ -85,15 +86,24 @@ impl Files for Fake {
     }
 
     fn move_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
-        self.calls.borrow_mut().push(format!("move_file {from} {to} {overwrite}"));
+        self.calls
+            .borrow_mut()
+            .push(format!("move_file {from} {to} {overwrite}"));
         if from.contains("nothere") {
             return Err("the file is not there".into());
         }
         Ok(String::new())
     }
 
-    fn list_files(&mut self, _folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
-        self.calls.borrow_mut().push(format!("list_files {pattern}"));
+    fn list_files(
+        &mut self,
+        _folder: &str,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
+        self.calls
+            .borrow_mut()
+            .push(format!("list_files {pattern}"));
         self.modes.borrow_mut().push(mode.to_string());
         // The mode that asks for the folders gives none: the fake has none,
         // and the name of a file is not a folder.
@@ -110,7 +120,10 @@ impl Files for Fake {
             if pattern.contains("bin") {
                 return Ok(vec!["C:\\work\\nothere.bin".to_string()]);
             }
-            return Ok(vec!["C:\\work\\a.txt".to_string(), "C:\\work\\b.txt".to_string()]);
+            return Ok(vec![
+                "C:\\work\\a.txt".to_string(),
+                "C:\\work\\b.txt".to_string(),
+            ]);
         }
         // The pattern without a wildcard is the name of a file, and the
         // machine gives the file that has that name. The name of the file
@@ -127,13 +140,17 @@ impl Files for Fake {
     }
 
     fn the_size_of_a_file(&mut self, path: &str) -> Result<i64, String> {
-        self.calls.borrow_mut().push(format!("the_size_of_a_file {path}"));
+        self.calls
+            .borrow_mut()
+            .push(format!("the_size_of_a_file {path}"));
         // The files of the fake have five bytes.
         Ok(5)
     }
 
     fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
-        self.calls.borrow_mut().push(format!("file_attributes {path}"));
+        self.calls
+            .borrow_mut()
+            .push(format!("file_attributes {path}"));
         // The name that is not there is the one that the cases use for the
         // command that fails.
         if path.contains("nothere") {
@@ -197,7 +214,10 @@ impl Native for Fake {
         if call.function.contains("nofunction") {
             return Err(NativeFailure::no_function("Call to nonexistent function."));
         }
-        Ok(NativeResult { kind: call.returns, value: NativeValue::Integer(7) })
+        Ok(NativeResult {
+            kind: call.returns,
+            value: NativeValue::Integer(7),
+        })
     }
 }
 impl Timers for Fake {}
@@ -249,7 +269,9 @@ impl Processes for Fake {
         // carries the equal sign, and it refuses it with a panic when the
         // name is given to it as it is.
         if name.contains('=') {
-            return Err("the name of a variable of the environment may not carry the equal sign".into());
+            return Err(
+                "the name of a variable of the environment may not carry the equal sign".into(),
+            );
         }
         Ok(value.to_string())
     }
@@ -399,7 +421,8 @@ fn run_and_the_calls_with_the_fired(script: &str, fired: &[&str]) -> (Report, Ve
 /// parameter of a command of the v1 is checked when the script loads, and
 /// the script does not run at all.
 fn the_refusal_of_the_load(script: &str) -> String {
-    let error = ahk::parse_with(script, dialect::v1()).expect_err("the script of the v1 is refused");
+    let error =
+        ahk::parse_with(script, dialect::v1()).expect_err("the script of the v1 is refused");
     error.message
 }
 
@@ -470,8 +493,8 @@ fn the_second_parameter_of_the_string_length_is_the_name_of_a_variable() {
 /// refused at the load, and it names the line.
 #[test]
 fn the_name_of_a_command_that_the_dialect_does_not_have_is_refused_at_the_load() {
-    let error = ahk::parse_with("NoSuchCommand, 1", dialect::v1())
-        .expect_err("the line holds no action");
+    let error =
+        ahk::parse_with("NoSuchCommand, 1", dialect::v1()).expect_err("the line holds no action");
     assert_eq!(
         error.message,
         "This line does not contain a recognized action.\n     Specifically: NoSuchCommand, 1"
@@ -548,7 +571,14 @@ fn the_substitution_of_a_parameter_is_the_variable_of_the_script_and_then_the_en
 fn the_count_of_the_loop_of_the_v1_comes_after_a_comma() {
     let report = run("Loop, 3\n    FileAppend, [turn], *");
     assert!(report.ok);
-    assert_eq!(report.output, vec!["[turn]".to_string(), "[turn]".to_string(), "[turn]".to_string()]);
+    assert_eq!(
+        report.output,
+        vec![
+            "[turn]".to_string(),
+            "[turn]".to_string(),
+            "[turn]".to_string()
+        ]
+    );
 }
 
 /// The body of a construct of the v1 is one statement.
@@ -605,7 +635,10 @@ fn the_built_in_variables_of_the_v1_answer_with_the_value_that_the_binary_answer
 fn the_variables_of_the_v1_that_are_about_the_machine_are_refused_with_the_reason() {
     let report = run("x := A_OSType");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("this name is about Windows, and this machine is not."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("this name is about Windows, and this machine is not.")
+    );
 
     let report = run("x := A_IPAddress1");
     assert!(!report.ok);
@@ -644,8 +677,7 @@ fn the_write_of_a_built_in_variable_of_the_v1_is_refused_at_the_load() {
 /// `a_ahkpath` is refused with the name that the script wrote.
 #[test]
 fn the_refusal_of_the_v1_names_the_variable_as_the_script_spelled_it() {
-    let error =
-        ahk::parse_with("a_ahkpath := 5", dialect::v1()).expect_err("the write is refused");
+    let error = ahk::parse_with("a_ahkpath := 5", dialect::v1()).expect_err("the write is refused");
     assert_eq!(
         error.message,
         "Not allowed as an output variable.\n     Specifically: a_ahkpath"
@@ -699,7 +731,10 @@ fn every_built_in_variable_of_the_v1_is_read_only() {
 fn the_names_that_the_v1_lets_a_script_write_are_kept() {
     let report = run("A_Args := \"written\"\nx := A_Args");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("written".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("written".into()))
+    );
 
     let report = run("ErrorLevel := 5\nx := ErrorLevel");
     assert!(report.ok);
@@ -880,7 +915,10 @@ fn the_directive_of_the_v1_is_answered_with_the_reason_of_the_thing_it_asks_for(
 
     let report = run("#MaxMem\nFileAppend, ok, *");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the memory limits are not carried by this runtime."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the memory limits are not carried by this runtime.")
+    );
 }
 
 /// The `IsSet` of the v1 asks for the name of the variable and not for its
@@ -960,7 +998,9 @@ fn the_object_of_the_v1_has_no_class() {
 /// of it is the call of the function.
 #[test]
 fn the_func_of_the_v1_hands_the_function_over_as_a_value() {
-    let report = run("f(a, b) {\n    return a + b\n}\nfn := Func(\"f\")\nn := fn.Name\nlo := fn.MinParams\nhi := fn.MaxParams");
+    let report = run(
+        "f(a, b) {\n    return a + b\n}\nfn := Func(\"f\")\nn := fn.Name\nlo := fn.MinParams\nhi := fn.MaxParams",
+    );
     assert!(report.ok);
     assert_eq!(report.variables.get("n"), Some(&Value::Text("f".into())));
     assert_eq!(report.variables.get("lo"), Some(&Value::Int(2)));
@@ -1015,15 +1055,24 @@ fn the_file_read_line_of_the_v1_reads_the_line_of_the_file() {
 fn the_right_side_of_the_legacy_assignment_of_the_v1_is_a_text() {
     let report = run("x = 5 + 3");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("5 + 3".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("5 + 3".into()))
+    );
 
     let report = run("x = \"abc\"");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("\"abc\"".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("\"abc\"".into()))
+    );
 
     let report = run("x = (5+3)");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("(5+3)".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("(5+3)".into()))
+    );
 }
 
 /// The text of the legacy assignment of the v1 is a whole number when it is
@@ -1058,7 +1107,10 @@ fn the_text_of_the_legacy_assignment_of_the_v1_is_a_whole_number() {
 fn the_text_of_the_legacy_assignment_of_the_v1_is_trimmed() {
     let report = run("x =    hello");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("hello".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("hello".into()))
+    );
 
     let report = run("z := \"  pad  \"\nx = %z%");
     assert!(report.ok);
@@ -1068,7 +1120,10 @@ fn the_text_of_the_legacy_assignment_of_the_v1_is_trimmed() {
     // substitution.
     let report = run("AutoTrim, Off\nz := \"  pad  \"\nx = %z%");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("  pad  ".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("  pad  ".into()))
+    );
 }
 
 /// The `AutoTrim` of the v1 turns the trim of the legacy assignments on and
@@ -1180,7 +1235,9 @@ fn the_formats_of_the_v1_say_which_one_is_in_force() {
     assert_eq!(report.variables.get("x"), Some(&Value::Text("0.6".into())));
     assert_eq!(report.variables.get("y"), Some(&Value::Text("D".into())));
 
-    let report = run("SetFormat, Float, 0.2\nSetFormat, Integer, H\nx := A_FormatFloat\ny := A_FormatInteger");
+    let report = run(
+        "SetFormat, Float, 0.2\nSetFormat, Integer, H\nx := A_FormatFloat\ny := A_FormatInteger",
+    );
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("0.2".into())));
     assert_eq!(report.variables.get("y"), Some(&Value::Text("H".into())));
@@ -1309,7 +1366,10 @@ fn the_sense_of_the_case_of_the_v1_is_off_when_the_script_begins() {
 
     let report = run("StringCaseSense, Locale\nx := A_StringCaseSense");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("Locale".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("Locale".into()))
+    );
 
     let report = run("StringCaseSense, 1\nx := A_StringCaseSense");
     assert!(report.ok);
@@ -1361,11 +1421,15 @@ fn the_comparison_of_two_texts_follows_the_sense_of_the_case() {
 #[test]
 fn the_equal_sign_of_the_v1_is_always_without_regard_to_the_case() {
     for sense in ["Off", "On", "Locale"] {
-        let report = run(&format!("StringCaseSense, {sense}\nx := (\"ABC\" = \"abc\")"));
+        let report = run(&format!(
+            "StringCaseSense, {sense}\nx := (\"ABC\" = \"abc\")"
+        ));
         assert!(report.ok);
         assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
 
-        let report = run(&format!("StringCaseSense, {sense}\nx := (\"ABC\" == \"abc\")"));
+        let report = run(&format!(
+            "StringCaseSense, {sense}\nx := (\"ABC\" == \"abc\")"
+        ));
         assert!(report.ok);
         assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
     }
@@ -1439,7 +1503,10 @@ fn the_transform_of_the_v1_answers_the_math_of_the_v1() {
 
     let report = run("Transform, out, BitShiftLeft, 1, 40");
     assert!(report.ok);
-    assert_eq!(report.variables.get("out"), Some(&Value::Int(1099511627776)));
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Int(1099511627776))
+    );
 }
 
 /// The `Asc` of the `Transform` of the v1 sees the text as it is, and the
@@ -1467,7 +1534,10 @@ fn the_asc_of_the_transform_of_the_v1_sees_the_text_as_it_is() {
 fn the_absolute_value_of_the_transform_of_the_v1_is_the_text_of_the_number() {
     let report = run("Transform, out, Abs, \"-5.50\"");
     assert!(report.ok);
-    assert_eq!(report.variables.get("out"), Some(&Value::Text("5.50".into())));
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Text("5.50".into()))
+    );
 
     let report = run("Transform, out, Abs, \"  -5 \"");
     assert!(report.ok);
@@ -1577,22 +1647,27 @@ fn the_if_msg_box_of_the_v1_does_not_hold() {
 #[test]
 fn the_else_of_the_v1_is_the_action_of_the_other_side() {
     // The else is a block.
-    let report = run("x := \"ABC\"\nIfInString, x, z\n{\nFileAppend, [yes], *\n}\nelse\n{\nFileAppend, [no], *\n}");
+    let report = run(
+        "x := \"ABC\"\nIfInString, x, z\n{\nFileAppend, [yes], *\n}\nelse\n{\nFileAppend, [no], *\n}",
+    );
     assert!(report.ok);
     assert_eq!(report.output, vec!["[no]".to_string()]);
 
     // The else is the statement of the next line.
-    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse\nFileAppend, [no], *");
+    let report =
+        run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse\nFileAppend, [no], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[no]".to_string()]);
 
     // The else is the command that is on the same line.
-    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse FileAppend, [no], *");
+    let report =
+        run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse FileAppend, [no], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[no]".to_string()]);
 
     // The action of the `if` runs when the condition holds.
-    let report = run("x := \"ABC\"\nIfInString, x, b\nFileAppend, [yes], *\nelse\nFileAppend, [no], *");
+    let report =
+        run("x := \"ABC\"\nIfInString, x, b\nFileAppend, [yes], *\nelse\nFileAppend, [no], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[yes]".to_string()]);
 }
@@ -1605,7 +1680,8 @@ fn the_else_of_the_v1_is_the_action_of_the_other_side() {
 #[test]
 fn the_action_of_the_else_of_the_v1_may_be_on_the_same_line() {
     // The action is the command that is on the same line.
-    let report = run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse FileAppend, [no], *");
+    let report =
+        run("x := \"ABC\"\nIfInString, x, z\nFileAppend, [yes], *\nelse FileAppend, [no], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[no]".to_string()]);
 
@@ -1630,8 +1706,8 @@ fn the_else_of_the_v1_that_has_no_if_before_it_is_refused_at_the_load() {
     let error = ahk::parse_with("else", dialect::v1()).expect_err("the else has no if");
     assert_eq!(error.message, "ELSE with no matching IF");
 
-    let error = ahk::parse_with("else, something", dialect::v1())
-        .expect_err("the else takes no parameter");
+    let error =
+        ahk::parse_with("else, something", dialect::v1()).expect_err("the else takes no parameter");
     assert_eq!(
         error.message,
         "This line does not contain a recognized action.\n     Specifically: something"
@@ -1651,16 +1727,16 @@ fn the_number_of_the_parameters_of_a_command_of_the_v1_is_checked_at_the_load() 
         "\"IfInString\" requires at least 2 parameters.\n     Specifically: IfInString, x"
     );
 
-    let error = ahk::parse_with("IfMsgBox", dialect::v1())
-        .expect_err("the command wants one parameter");
+    let error =
+        ahk::parse_with("IfMsgBox", dialect::v1()).expect_err("the command wants one parameter");
     assert_eq!(
         error.message,
         "\"IfMsgBox\" requires at least 1 parameter.\n     Specifically: IfMsgBox"
     );
 
     // The comma at the end of the line does not open a parameter.
-    let error = ahk::parse_with("Send,", dialect::v1())
-        .expect_err("the command wants one parameter");
+    let error =
+        ahk::parse_with("Send,", dialect::v1()).expect_err("the command wants one parameter");
     assert_eq!(
         error.message,
         "\"Send\" requires at least 1 parameter.\n     Specifically: Send,"
@@ -1769,26 +1845,41 @@ fn the_string_replace_of_the_v1_replaces_the_first_occurrence_of_the_text() {
     // The first occurrence.
     let report = run("out := \"banana\"\nStringReplace, out, out, a, b");
     assert!(report.ok);
-    assert_eq!(report.variables.get("out"), Some(&Value::Text("bbnana".to_string())));
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Text("bbnana".to_string()))
+    );
 
     // Every occurrence.
     let report = run("out := \"banana\"\nStringReplace, out, out, a, b, All");
     assert!(report.ok);
-    assert_eq!(report.variables.get("out"), Some(&Value::Text("bbnbnb".to_string())));
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Text("bbnbnb".to_string()))
+    );
 
     // The text that is put in the place may be nothing.
     let report = run("out := \"banana\"\nStringReplace, out, out, a");
     assert!(report.ok);
-    assert_eq!(report.variables.get("out"), Some(&Value::Text("bnana".to_string())));
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Text("bnana".to_string()))
+    );
 
     // The sense of the case says whether the letters are the same.
     let report = run("StringCaseSense, On\nout := \"banana\"\nStringReplace, out, out, A, b");
     assert!(report.ok);
-    assert_eq!(report.variables.get("out"), Some(&Value::Text("banana".to_string())));
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Text("banana".to_string()))
+    );
 
     let report = run("out := \"banana\"\nStringReplace, out, out, A, b");
     assert!(report.ok);
-    assert_eq!(report.variables.get("out"), Some(&Value::Text("bbnana".to_string())));
+    assert_eq!(
+        report.variables.get("out"),
+        Some(&Value::Text("bbnana".to_string()))
+    );
 }
 
 /// The parameter of the `StringReplace` of the v1 that says "all" says it
@@ -1837,45 +1928,69 @@ fn the_str_replace_of_the_v1_writes_the_number_of_the_replacements() {
     // Every occurrence of the text is replaced when the limit is not there.
     let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\")");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("XX".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("XX".to_string()))
+    );
 
     // The number of the replacements goes into the variable of the caller.
     let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\", count)");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("XX".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("XX".to_string()))
+    );
     assert_eq!(report.variables.get("count"), Some(&Value::Int(2)));
 
     // The needle that is not there replaces nothing.
     let report = run("x := StrReplace(\"abcabc\", \"zzz\", \"X\", count)");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("abcabc".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("abcabc".to_string()))
+    );
     assert_eq!(report.variables.get("count"), Some(&Value::Int(0)));
 
     // The limit says how many of them are replaced.
     let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\", count, 1)");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("Xabc".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("Xabc".to_string()))
+    );
     assert_eq!(report.variables.get("count"), Some(&Value::Int(1)));
 
     // The limit that is zero replaces none of them.
     let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\", count, 0)");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("abcabc".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("abcabc".to_string()))
+    );
     assert_eq!(report.variables.get("count"), Some(&Value::Int(0)));
 
     // The fourth parameter that is not a variable has nowhere to go.
     let report = run("x := StrReplace(\"abcabc\", \"abc\", \"X\", 1 + 1)");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("XX".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("XX".to_string()))
+    );
 
     // The sense of the case says whether the letters are the same.
     let report = run("StringCaseSense, On\nx := StrReplace(\"ABCabc\", \"abc\", \"X\")");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("ABCX".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("ABCX".to_string()))
+    );
 
     let report = run("x := StrReplace(\"ABCabc\", \"abc\", \"X\")");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("XX".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("XX".to_string()))
+    );
 
     // The variable of a function is the one of the function.
     let report = run("f() {\n    x := StrReplace(\"abcabc\", \"abc\", \"X\", count)\n}\nf()");
@@ -1925,8 +2040,8 @@ fn the_refusal_of_a_command_of_the_v1_names_the_first_parameter() {
     );
 
     // The command that has no parameter names the comma that comes after it.
-    let error = ahk::parse_with("IfMsgBox", dialect::v1())
-        .expect_err("the command wants one parameter");
+    let error =
+        ahk::parse_with("IfMsgBox", dialect::v1()).expect_err("the command wants one parameter");
     assert_eq!(
         error.message,
         "\"IfMsgBox\" requires at least 1 parameter.\n     Specifically: IfMsgBox"
@@ -1968,8 +2083,8 @@ fn the_call_of_a_function_of_the_v1_is_refused_at_the_load() {
     );
 
     // The name that is not there.
-    let error = ahk::parse_with("x := Nonsense(1)", dialect::v1())
-        .expect_err("the name is not a function");
+    let error =
+        ahk::parse_with("x := Nonsense(1)", dialect::v1()).expect_err("the name is not a function");
     assert_eq!(
         error.message,
         "Call to nonexistent function.\n     Specifically: Nonsense(1)"
@@ -2110,15 +2225,16 @@ fn the_blank_parameter_of_a_method_of_the_v1_is_refused() {
 /// written with the name of a function is a line that holds no action, and
 /// the load refuses it with the text of the line.
 #[test]
-fn a_function_of_the_v1_is_not_a_command() {    let error = ahk::parse_with("StrLen \"abc\"", dialect::v1())
+fn a_function_of_the_v1_is_not_a_command() {
+    let error = ahk::parse_with("StrLen \"abc\"", dialect::v1())
         .expect_err("the function is not a command");
     assert_eq!(
         error.message,
         "This line does not contain a recognized action.\n     Specifically: StrLen \"abc\""
     );
 
-    let error = ahk::parse_with("InStr \"abc\"", dialect::v1())
-        .expect_err("the function is not a command");
+    let error =
+        ahk::parse_with("InStr \"abc\"", dialect::v1()).expect_err("the function is not a command");
     assert_eq!(
         error.message,
         "This line does not contain a recognized action.\n     Specifically: InStr \"abc\""
@@ -2171,13 +2287,15 @@ fn the_error_level_of_the_v1_is_the_global_variable_of_the_script() {
     // The value that is written is kept as it is.
     let report = run("ErrorLevel := \"abc\"\nx := ErrorLevel");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("abc".to_string())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("abc".to_string()))
+    );
 
     // The write of a function is a local one, and the global keeps the value
     // that the machine wrote.
-    let report = run(
-        "f() {\n    ErrorLevel := 5\n    return ErrorLevel\n}\nx := f()\ny := ErrorLevel",
-    );
+    let report =
+        run("f() {\n    ErrorLevel := 5\n    return ErrorLevel\n}\nx := f()\ny := ErrorLevel");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
     assert_eq!(report.variables.get("y"), Some(&Value::Int(0)));
@@ -2193,9 +2311,8 @@ fn the_error_level_of_the_v1_is_the_global_variable_of_the_script() {
 
     // The `StringReplace` writes the number of the replacements when the
     // parameter says "useerrorlevel", and zero when it does not.
-    let report = run(
-        "text := \"banana\"\nStringReplace, out, text, a, b, UseErrorLevel\nx := ErrorLevel",
-    );
+    let report =
+        run("text := \"banana\"\nStringReplace, out, text, a, b, UseErrorLevel\nx := ErrorLevel");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(3)));
 
@@ -2250,9 +2367,8 @@ fn the_file_commands_of_the_v1_write_the_error_level() {
 #[test]
 fn the_commands_of_the_files_of_the_v1_go_on_when_the_machine_cannot() {
     for command in ["FileGetSize", "FileGetTime", "FileGetAttrib", "FileRead"] {
-        let script = format!(
-            "out := \"before\"\n{command}, out, nothere.txt\nx := ErrorLevel\ny := out"
-        );
+        let script =
+            format!("out := \"before\"\n{command}, out, nothere.txt\nx := ErrorLevel\ny := out");
         let report = run(&script);
         assert!(report.ok, "{}: {:?}", command, report.error);
         assert_eq!(report.variables.get("x"), Some(&Value::Int(1)), "{command}");
@@ -2363,7 +2479,10 @@ fn the_file_commands_of_the_v1_take_a_pattern() {
     assert!(report.ok);
     assert_eq!(
         calls,
-        vec!["list_files *.bin", "copy_file C:\\work\\nothere.bin folder/nothere.bin false"]
+        vec![
+            "list_files *.bin",
+            "copy_file C:\\work\\nothere.bin folder/nothere.bin false"
+        ]
     );
     assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(1)));
 
@@ -2445,7 +2564,10 @@ fn the_is_func_of_the_v1_takes_a_value() {
 fn the_func_of_the_v1_is_the_reference_to_the_function() {
     let report = run("fn := Func(\"StrLen\")\nx := fn.Name");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("StrLen".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("StrLen".into()))
+    );
 
     let report = run("fn := Func(\"StrLen\")\nx := fn.IsBuiltIn");
     assert!(report.ok);
@@ -2552,7 +2674,10 @@ fn the_run_of_the_v1_writes_the_error_level() {
     let report = run("ErrorLevel := 5\nRun, nothere.exe, , UseErrorLevel");
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("this fake has no processes"));
-    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Text("ERROR".into())));
+    assert_eq!(
+        report.variables.get("errorlevel"),
+        Some(&Value::Text("ERROR".into()))
+    );
 }
 
 /// The `RunWait` of the v1 writes the code of the program in the
@@ -2571,7 +2696,10 @@ fn the_run_wait_of_the_v1_writes_the_error_level() {
     let report = run("ErrorLevel := 5\nRunWait, nothere.exe, , UseErrorLevel");
     assert!(!report.ok);
     assert_eq!(report.error.as_deref(), Some("this fake has no processes"));
-    assert_eq!(report.variables.get("errorlevel"), Some(&Value::Text("ERROR".into())));
+    assert_eq!(
+        report.variables.get("errorlevel"),
+        Some(&Value::Text("ERROR".into()))
+    );
 }
 
 /// The `Run` of the v1 does not wait for the program, and the pid of the
@@ -2639,7 +2767,10 @@ fn the_dll_call_of_the_v1_writes_the_code_of_the_failure() {
     // The function that is not in the library is the minus four.
     let report = run("x := DllCall(\"kernel32\\nofunction\", \"Int\", 1)");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Call to nonexistent function."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Call to nonexistent function.")
+    );
     assert_eq!(report.variables.get("errorlevel"), Some(&Value::Int(-4)));
 
     // The call that is not valid is the minus two.
@@ -2798,23 +2929,27 @@ fn the_global_of_a_built_in_variable_is_refused_by_the_v1() {
 #[test]
 fn the_new_of_the_v1_makes_an_instance() {
     // The `__Init` of the script runs, and the `this` of it is the instance.
-    let report = run("class C {\n    __Init() {\n        this.x := 1\n    }\n}\no := new C\nx := o.x");
+    let report =
+        run("class C {\n    __Init() {\n        this.x := 1\n    }\n}\no := new C\nx := o.x");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("1".into())));
 
     // The `__New` of the script runs too.
-    let report = run("class C {\n    __New() {\n        this.x := 2\n    }\n}\no := new C\nx := o.x");
+    let report =
+        run("class C {\n    __New() {\n        this.x := 2\n    }\n}\no := new C\nx := o.x");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("2".into())));
 
     // The arguments of the `new` are the ones of the `__New`.
-    let report = run("class C {\n    __New(a) {\n        this.x := a\n    }\n}\no := new C(5)\nx := o.x");
+    let report =
+        run("class C {\n    __New(a) {\n        this.x := a\n    }\n}\no := new C(5)\nx := o.x");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("5".into())));
 
     // The `__Init` takes no arguments: the `new` gives its arguments to the
     // `__New` and to nothing else.
-    let report = run("class C {\n    __Init(a) {\n        this.x := a\n    }\n}\no := new C(5)\nx := o.x");
+    let report =
+        run("class C {\n    __Init(a) {\n        this.x := a\n    }\n}\no := new C(5)\nx := o.x");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
 
@@ -2847,9 +2982,8 @@ fn the_new_of_the_v1_makes_an_instance() {
 #[test]
 fn the_new_of_the_v1_takes_the_path_of_the_class() {
     // The `new C.D` is an instance of the class that C holds.
-    let report = run(
-        "class C {\n    class D {\n    }\n}\no := new C.D\nx := o.__Class\nFileAppend, %x%, *",
-    );
+    let report =
+        run("class C {\n    class D {\n    }\n}\no := new C.D\nx := o.__Class\nFileAppend, %x%, *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["C.D".to_string()]);
 
@@ -2971,17 +3105,22 @@ fn the_method_of_the_class_object_of_the_v1_runs() {
 #[test]
 fn the_call_of_a_method_of_the_v1_does_not_check_the_arity() {
     // The method does not run when a parameter has no value.
-    let report = run("class C {\n    Say(a) {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say()");
+    let report =
+        run("class C {\n    Say(a) {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say()");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
 
     // A parameter that has a default is fine.
-    let report = run("class C {\n    Say(a = 5) {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say()");
+    let report = run(
+        "class C {\n    Say(a = 5) {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say()",
+    );
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("hi".into())));
 
     // The arguments that the method does not want are ignored.
-    let report = run("class C {\n    Say() {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say(1, 2)");
+    let report = run(
+        "class C {\n    Say() {\n        return \"hi\"\n    }\n}\no := new C\nx := o.Say(1, 2)",
+    );
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("hi".into())));
 }
@@ -3094,8 +3233,8 @@ fn the_math_functions_of_the_v1_take_the_text_that_holds_a_number() {
     assert_eq!(report.variables.get("y"), Some(&Value::Text(String::new())));
 
     // The number of the arguments is checked at the load.
-    let error = ahk::parse_with("y := Abs()", dialect::v1())
-        .expect_err("the function wants a number");
+    let error =
+        ahk::parse_with("y := Abs()", dialect::v1()).expect_err("the function wants a number");
     assert_eq!(
         error.message,
         "Too few parameters passed to function.\n     Specifically: Abs()"
@@ -3235,7 +3374,10 @@ fn the_chr_of_the_v1_takes_the_whole_number_that_the_text_starts_with() {
     // The whole number stops at the point.
     let report = run("y := Chr(\"1e3\")");
     assert!(report.ok);
-    assert_eq!(report.variables.get("y"), Some(&Value::Text("\u{1}".into())));
+    assert_eq!(
+        report.variables.get("y"),
+        Some(&Value::Text("\u{1}".into()))
+    );
 
     // The hex of the v1 is a number.
     let report = run("y := Chr(\"0x41\")");
@@ -3313,22 +3455,16 @@ fn the_whole_number_of_the_v1_that_does_not_fit_is_the_largest_one() {
 #[test]
 fn the_body_of_a_class_of_the_v1_has_one_set_of_names() {
     // A method and a variable with the same name.
-    let error = ahk::parse_with(
-        "class C\n{\n    x := 5\n    x() {\n    }\n}",
-        dialect::v1(),
-    )
-    .expect_err("the name is declared twice");
+    let error = ahk::parse_with("class C\n{\n    x := 5\n    x() {\n    }\n}", dialect::v1())
+        .expect_err("the name is declared twice");
     assert_eq!(
         error.message,
         "Duplicate declaration.\n     Specifically: x"
     );
 
     // A variable and a method with the same name.
-    let error = ahk::parse_with(
-        "class C\n{\n    x() {\n    }\n    x := 5\n}",
-        dialect::v1(),
-    )
-    .expect_err("the name is declared twice");
+    let error = ahk::parse_with("class C\n{\n    x() {\n    }\n    x := 5\n}", dialect::v1())
+        .expect_err("the name is declared twice");
     assert_eq!(
         error.message,
         "Duplicate declaration.\n     Specifically: x"
@@ -3347,11 +3483,8 @@ fn the_body_of_a_class_of_the_v1_has_one_set_of_names() {
 
     // The case of the name does not count, and the name is the one that was
     // written.
-    let error = ahk::parse_with(
-        "class C\n{\n    x := 5\n    X() {\n    }\n}",
-        dialect::v1(),
-    )
-    .expect_err("the name is declared twice");
+    let error = ahk::parse_with("class C\n{\n    x := 5\n    X() {\n    }\n}", dialect::v1())
+        .expect_err("the name is declared twice");
     assert_eq!(
         error.message,
         "Duplicate declaration.\n     Specifically: X"
@@ -3568,9 +3701,11 @@ fn the_class_of_the_v1_has_no_static_method() {
         "Invalid class variable declaration.\n     Specifically: __Init() {"
     );
 
-    let error =
-        ahk::parse_with("class C\n{\n    static Say() {\n        return 1\n    }\n}", dialect::v1())
-            .expect_err("the static method is refused");
+    let error = ahk::parse_with(
+        "class C\n{\n    static Say() {\n        return 1\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the static method is refused");
     assert_eq!(
         error.message,
         "Invalid class variable declaration.\n     Specifically: Say() {"
@@ -3593,8 +3728,11 @@ fn the_getter_of_the_v1_that_is_on_the_same_line_as_the_name_is_refused() {
         "Not a valid method, class or property definition.\n     Specifically: x { get => 1 }"
     );
 
-    let error = ahk::parse_with("class C\n{\n    x {\n        get => 1\n    }\n}", dialect::v1())
-        .expect_err("the getter is refused");
+    let error = ahk::parse_with(
+        "class C\n{\n    x {\n        get => 1\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the getter is refused");
     assert_eq!(
         error.message,
         "Not a valid property getter/setter.\n     Specifically: get => 1"
@@ -3660,13 +3798,25 @@ fn a_class_and_a_function_of_the_v1_may_carry_the_same_name() {
 /// parenthesis of the call.
 #[test]
 fn the_function_that_is_declared_twice_has_the_words_of_the_v1() {
-    let error = ahk::parse_with("C() {\n    return 1\n}\nC() {\n    return 2\n}", dialect::v1())
-        .expect_err("the function is refused");
-    assert_eq!(error.message, "Duplicate function definition.\n     Specifically: C()");
+    let error = ahk::parse_with(
+        "C() {\n    return 1\n}\nC() {\n    return 2\n}",
+        dialect::v1(),
+    )
+    .expect_err("the function is refused");
+    assert_eq!(
+        error.message,
+        "Duplicate function definition.\n     Specifically: C()"
+    );
 
-    let error = ahk::parse_with("Foo() {\n    return 1\n}\nfoo() {\n    return 2\n}", dialect::v1())
-        .expect_err("the function is refused");
-    assert_eq!(error.message, "Duplicate function definition.\n     Specifically: foo()");
+    let error = ahk::parse_with(
+        "Foo() {\n    return 1\n}\nfoo() {\n    return 2\n}",
+        dialect::v1(),
+    )
+    .expect_err("the function is refused");
+    assert_eq!(
+        error.message,
+        "Duplicate function definition.\n     Specifically: foo()"
+    );
 }
 
 /// The `new` of the v1 reads the variable of the name.
@@ -3735,8 +3885,8 @@ fn the_brace_that_opens_a_class_of_the_v1_names_the_class() {
         .expect_err("the brace of the class is refused");
     assert_eq!(error.message, "Missing \"{\"\n     Specifically: C { }");
 
-    let error = ahk::parse_with("class C", dialect::v1())
-        .expect_err("the brace of the class is refused");
+    let error =
+        ahk::parse_with("class C", dialect::v1()).expect_err("the brace of the class is refused");
     assert_eq!(error.message, "Missing \"{\"\n     Specifically: C");
 }
 
@@ -3763,8 +3913,7 @@ fn the_class_of_the_v1_that_is_not_closed_names_the_class() {
 /// Specifically: class", and the word is a variable when it is assigned.
 #[test]
 fn the_word_class_alone_holds_no_action_of_the_v1() {
-    let error = ahk::parse_with("class", dialect::v1())
-        .expect_err("the word alone is refused");
+    let error = ahk::parse_with("class", dialect::v1()).expect_err("the word alone is refused");
     assert_eq!(
         error.message,
         "This line does not contain a recognized action.\n     Specifically: class"
@@ -3808,7 +3957,8 @@ fn the_function_of_the_v1_does_not_see_the_scope_of_the_script() {
     assert_eq!(report.output, vec!["[]".to_string()]);
 
     // The name that the function declares global is visible.
-    let report = run("x := 1\nf() {\n    global x\n    return x\n}\nr := f()\nFileAppend, [%r%], *");
+    let report =
+        run("x := 1\nf() {\n    global x\n    return x\n}\nr := f()\nFileAppend, [%r%], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[1]".to_string()]);
 
@@ -3914,7 +4064,10 @@ fn the_number_of_the_v1_keeps_the_text_that_was_written() {
     // The zeros in front of the number keep the text.
     let report = run("x := 00123");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("00123".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("00123".into()))
+    );
 
     // The float keeps the text, and so does the exponent.
     let report = run("x := 1.50");
@@ -3922,7 +4075,10 @@ fn the_number_of_the_v1_keeps_the_text_that_was_written() {
     assert_eq!(report.variables.get("x"), Some(&Value::Text("1.50".into())));
     let report = run("x := 1.5e2");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("1.5e2".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("1.5e2".into()))
+    );
 
     // The text of it is the text that was written: the length of the "0x10"
     // is four, and the concatenation of it is the text.
@@ -3994,7 +4150,10 @@ fn the_number_of_the_v1_that_does_not_fit_is_the_one_that_fits() {
     // infinity of the machine.
     let report = run("x := 1.5e400");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("1.5e400".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("1.5e400".into()))
+    );
 }
 
 /// The sign of the number of the v1 is part of the number.
@@ -4013,7 +4172,10 @@ fn the_sign_of_the_number_of_the_v1_is_part_of_the_number() {
     assert_eq!(report.variables.get("x"), Some(&Value::Text("0x10".into())));
     let report = run("x := +00123");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("00123".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("00123".into()))
+    );
     let report = run("x := -00123");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("-123".into())));
@@ -4022,7 +4184,10 @@ fn the_sign_of_the_number_of_the_v1_is_part_of_the_number() {
     assert_eq!(report.variables.get("x"), Some(&Value::Text("-16".into())));
     let report = run("x := -1.50");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x"), Some(&Value::Text("-1.50".into())));
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("-1.50".into()))
+    );
 
     // The group keeps the sign out of the number.
     let report = run("x := -(1.50)\nFileAppend, %x%, *");
@@ -4211,7 +4376,8 @@ fn the_coord_mode_of_the_v1_that_is_not_one_sets_every_mode_to_the_event() {
     assert_eq!(report.output, vec!["Event".to_string()]);
 
     // The target that the v1 does not know changes nothing.
-    let report = run("CoordMode, Mouse, Screen\nCoordMode, abc\nx := A_CoordModeMouse\nFileAppend, %x%, *");
+    let report =
+        run("CoordMode, Mouse, Screen\nCoordMode, abc\nx := A_CoordModeMouse\nFileAppend, %x%, *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["Screen".to_string()]);
 }
@@ -4226,7 +4392,9 @@ fn the_coord_mode_of_the_v1_that_is_not_one_sets_every_mode_to_the_event() {
 /// and zero that the v2 answers.
 #[test]
 fn the_settings_of_the_v1_begin_with_the_values_of_the_v1() {
-    let report = run("x := A_CoordModeMouse\ny := A_SendMode\nz := A_TitleMatchMode\nFileAppend, %x% %y% %z%, *");
+    let report = run(
+        "x := A_CoordModeMouse\ny := A_SendMode\nz := A_TitleMatchMode\nFileAppend, %x% %y% %z%, *",
+    );
     assert!(report.ok);
     assert_eq!(report.output, vec!["Window Event 1".to_string()]);
 
@@ -4234,7 +4402,9 @@ fn the_settings_of_the_v1_begin_with_the_values_of_the_v1() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["[][]".to_string()]);
 
-    let report = run("x := A_StoreCapsLockMode\ny := A_DetectHiddenWindows\nz := A_DetectHiddenText\nFileAppend, %x% %y% %z%, *");
+    let report = run(
+        "x := A_StoreCapsLockMode\ny := A_DetectHiddenWindows\nz := A_DetectHiddenText\nFileAppend, %x% %y% %z%, *",
+    );
     assert!(report.ok);
     assert_eq!(report.output, vec!["On Off On".to_string()]);
 }
@@ -4246,7 +4416,9 @@ fn the_settings_of_the_v1_begin_with_the_values_of_the_v1() {
 /// the v1 has.
 #[test]
 fn the_flag_of_the_v1_follows_the_command_that_turns_it() {
-    let report = run("SetStoreCapsLockMode, Off\nDetectHiddenWindows, On\nDetectHiddenText, Off\nx := A_StoreCapsLockMode\ny := A_DetectHiddenWindows\nz := A_DetectHiddenText\nFileAppend, %x% %y% %z%, *");
+    let report = run(
+        "SetStoreCapsLockMode, Off\nDetectHiddenWindows, On\nDetectHiddenText, Off\nx := A_StoreCapsLockMode\ny := A_DetectHiddenWindows\nz := A_DetectHiddenText\nFileAppend, %x% %y% %z%, *",
+    );
     assert!(report.ok);
     assert_eq!(report.output, vec!["Off On Off".to_string()]);
 }
@@ -4262,12 +4434,11 @@ fn the_encoding_of_the_files_of_the_v1_is_the_name_of_the_encoding() {
     assert!(report.ok);
     assert_eq!(report.output, vec!["UTF-8".to_string()]);
 
-    let report = run("FileEncoding, UTF-8\nFileEncoding, CP0\nx := A_FileEncoding\nFileAppend, %x%, *");
+    let report =
+        run("FileEncoding, UTF-8\nFileEncoding, CP0\nx := A_FileEncoding\nFileAppend, %x%, *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["".to_string()]);
 }
-
-
 
 /// The number of the parameters of a command of the v1 is the number of the
 /// binary.
@@ -4457,7 +4628,10 @@ fn the_refusal_of_a_call_of_the_v1_names_the_rest_of_the_line() {
 #[test]
 fn the_call_of_a_name_that_is_not_a_function_is_refused_at_the_load() {
     let cases = [
-        ("MyFunc()", "Call to nonexistent function.\n     Specifically: MyFunc()"),
+        (
+            "MyFunc()",
+            "Call to nonexistent function.\n     Specifically: MyFunc()",
+        ),
         (
             "MyFunc(1, 2)",
             "Call to nonexistent function.\n     Specifically: MyFunc(1, 2)",
@@ -4516,7 +4690,11 @@ fn the_arithmetic_of_the_v1_is_on_a_variable_of_the_script() {
     for (script, answer) in cases {
         let report = run(&format!("{script}\nFileAppend, [%x%], *"));
         assert!(report.ok, "the script is {script}: {:?}", report.error);
-        assert_eq!(report.output, vec![answer.to_string()], "the script is {script}");
+        assert_eq!(
+            report.output,
+            vec![answer.to_string()],
+            "the script is {script}"
+        );
     }
 
     // The variable that is not there is a zero, and the command writes it.
@@ -4525,8 +4703,8 @@ fn the_arithmetic_of_the_v1_is_on_a_variable_of_the_script() {
     assert_eq!(report.output, vec!["[3]".to_string()]);
 
     // The division by zero is refused when the script loads.
-    let error = ahk::parse_with("x := 5\nEnvDiv, x, 0", dialect::v1())
-        .expect_err("the divisor is a zero");
+    let error =
+        ahk::parse_with("x := 5\nEnvDiv, x, 0", dialect::v1()).expect_err("the divisor is a zero");
     assert_eq!(error.message, "Divide by zero\n     Specifically: 0");
 
     // The divisor that the v1 does not know at the load is not a zero, and
@@ -4538,7 +4716,10 @@ fn the_arithmetic_of_the_v1_is_on_a_variable_of_the_script() {
     // The unit that the v1 does not know is refused when the script loads.
     let error = ahk::parse_with("x := 5\nEnvAdd, x, 1, Furlongs", dialect::v1())
         .expect_err("the unit is not one of the v1");
-    assert_eq!(error.message, "Parameter #3 invalid.\n     Specifically: Furlongs");
+    assert_eq!(
+        error.message,
+        "Parameter #3 invalid.\n     Specifically: Furlongs"
+    );
 }
 
 /// The arithmetic of the date of the v1 is the date of the machine.
@@ -4560,9 +4741,19 @@ fn the_arithmetic_of_the_date_of_the_v1_is_the_date_of_the_machine() {
     // written the way the v1 writes a date.
     let report = run("EnvAdd, out, 0, S\nFileAppend, [%out%], *");
     assert!(report.ok, "{:?}", report.error);
-    let text = report.output.first().expect("the answer of the command").clone();
-    let date = text.trim_matches(|letter| letter == '[' || letter == ']').to_string();
-    assert_eq!(date.len(), 14, "the date of the v1 has fourteen digits: {date}");
+    let text = report
+        .output
+        .first()
+        .expect("the answer of the command")
+        .clone();
+    let date = text
+        .trim_matches(|letter| letter == '[' || letter == ']')
+        .to_string();
+    assert_eq!(
+        date.len(),
+        14,
+        "the date of the v1 has fourteen digits: {date}"
+    );
     assert!(date.chars().all(|letter| letter.is_ascii_digit()), "{date}");
 
     // The unit of the time is the unit of the amount: the hour of the
@@ -4572,7 +4763,10 @@ fn the_arithmetic_of_the_date_of_the_v1_is_the_date_of_the_machine() {
     let report = run("EnvAdd, out, 3600, S\nEnvSub, diff, %out%, S\nFileAppend, [%diff%], *");
     assert!(report.ok, "{:?}", report.error);
     let difference = the_number_of_the_answer(&report);
-    assert!((-3601..=-3599).contains(&difference), "the difference is {difference}");
+    assert!(
+        (-3601..=-3599).contains(&difference),
+        "the difference is {difference}"
+    );
 
     // The subtraction of a date is the number of the units that are between
     // the date and the machine.
@@ -4606,7 +4800,11 @@ fn the_arithmetic_of_the_date_of_the_v1_is_the_date_of_the_machine() {
     ] {
         let report = run(script);
         assert!(report.ok, "the script is {script}: {:?}", report.error);
-        assert_eq!(report.output, vec!["[]".to_string()], "the script is {script}");
+        assert_eq!(
+            report.output,
+            vec!["[]".to_string()],
+            "the script is {script}"
+        );
     }
 
     // The text that is empty is zero, and the text that is not empty and is
@@ -4627,8 +4825,8 @@ fn the_arithmetic_of_the_date_of_the_v1_is_the_date_of_the_machine() {
 
     // The date that is a number and is not a date is refused when the script
     // loads.
-    let error = ahk::parse_with("EnvSub, out, 3, S", dialect::v1())
-        .expect_err("the date is not one");
+    let error =
+        ahk::parse_with("EnvSub, out, 3, S", dialect::v1()).expect_err("the date is not one");
     assert_eq!(error.message, "Parameter #2 invalid.\n     Specifically: 3");
 }
 
@@ -4653,17 +4851,19 @@ fn the_parameters_of_the_mouse_move_of_the_v1_are_the_place_and_the_speed() {
     }
 
     // The place that is blank.
-    let error = ahk::parse_with("MouseMove, , 20", dialect::v1())
-        .expect_err("the place is blank");
+    let error = ahk::parse_with("MouseMove, , 20", dialect::v1()).expect_err("the place is blank");
     assert_eq!(
         error.message,
         "\"MouseMove\" requires that parameter #1 be non-blank.\n     Specifically: MouseMove,"
     );
 
     // The speed that is negative.
-    let error = ahk::parse_with("MouseMove, 10, 20, -1", dialect::v1())
-        .expect_err("the speed is negative");
-    assert_eq!(error.message, "Parameter #3 invalid.\n     Specifically: -1");
+    let error =
+        ahk::parse_with("MouseMove, 10, 20, -1", dialect::v1()).expect_err("the speed is negative");
+    assert_eq!(
+        error.message,
+        "Parameter #3 invalid.\n     Specifically: -1"
+    );
 
     // The fourth parameter.
     let error = ahk::parse_with("MouseMove, 10, 20, 100, 1", dialect::v1())
@@ -4711,8 +4911,7 @@ fn the_environment_of_the_v1_writes_the_error_level() {
     assert_eq!(report.output, vec!["[1][after]".to_string()]);
 
     // The name that is blank is refused when the script loads.
-    let error = ahk::parse_with("EnvSet, , 1", dialect::v1())
-        .expect_err("the name is blank");
+    let error = ahk::parse_with("EnvSet, , 1", dialect::v1()).expect_err("the name is blank");
     assert_eq!(
         error.message,
         "\"EnvSet\" requires that parameter #1 be non-blank.\n     Specifically: EnvSet,"
@@ -4759,8 +4958,7 @@ fn the_last_parameter_of_a_command_of_the_v1_takes_the_rest_of_the_line() {
     }
 
     // The `else` names the rest of the line.
-    let error = ahk::parse_with("Else, a, b", dialect::v1())
-        .expect_err("the else has no if");
+    let error = ahk::parse_with("Else, a, b", dialect::v1()).expect_err("the else has no if");
     assert_eq!(
         error.message,
         "This line does not contain a recognized action.\n     Specifically: a, b"
@@ -5013,10 +5211,7 @@ fn the_value_of_the_parameter_of_a_command_of_the_v1_is_checked_at_the_load() {
             "IfMsgBox, zzz",
             "Parameter #1 invalid.\n     Specifically: zzz",
         ),
-        (
-            "IfMsgBox, 1",
-            "Parameter #1 invalid.\n     Specifically: 1",
-        ),
+        ("IfMsgBox, 1", "Parameter #1 invalid.\n     Specifically: 1"),
         (
             "IfMsgBox, OK, extra",
             "Parameter #1 invalid.\n     Specifically: OK, extra",
@@ -5385,7 +5580,10 @@ fn the_key_of_the_registry_of_the_v1_begins_with_a_root() {
 /// v1 names the whole range: "Parameters 3 through 7 must not be blank.".
 #[test]
 fn the_search_of_the_v1_wants_the_place_of_the_picture() {
-    for script in ["ImageSearch, x, y, 0, 0, 100, 100", "PixelSearch, x, y, 0, 0, 100, 100"] {
+    for script in [
+        "ImageSearch, x, y, 0, 0, 100, 100",
+        "PixelSearch, x, y, 0, 0, 100, 100",
+    ] {
         assert_eq!(
             the_refusal_of_the_load(script),
             "Parameters 3 through 7 must not be blank.",
@@ -5518,7 +5716,11 @@ fn the_label_that_a_command_of_the_v1_names_may_be_written_anywhere() {
 /// the v1: the label that comes out of it is not checked at the load.
 #[test]
 fn the_text_that_names_no_label_is_not_refused() {
-    for script in ["GroupAdd, g, t, x", "GroupAdd, g, t, x,", "GroupAdd, g, t, x, %v%"] {
+    for script in [
+        "GroupAdd, g, t, x",
+        "GroupAdd, g, t, x,",
+        "GroupAdd, g, t, x, %v%",
+    ] {
         assert!(
             ahk::parse_with(script, dialect::v1()).is_ok(),
             "the script is {script}"
@@ -5590,7 +5792,11 @@ fn the_goto_of_the_v1_names_a_label_that_may_not_be_there() {
         the_refusal_of_the_load("goto NoSuchLabel"),
         "Target label does not exist.\n     Specifically: NoSuchLabel"
     );
-    for script in ["goto MyLabel\nMyLabel:", "goto mylabel\nMyLabel:", "goto %v%"] {
+    for script in [
+        "goto MyLabel\nMyLabel:",
+        "goto mylabel\nMyLabel:",
+        "goto %v%",
+    ] {
         assert!(
             ahk::parse_with(script, dialect::v1()).is_ok(),
             "the script is {script}"
@@ -5642,13 +5848,7 @@ fn the_jump_of_the_v1_may_not_leave_the_function_that_it_is_in() {
         the_refusal_of_the_load("f() {\ngoto MyLabel\n}\nMyLabel:"),
         "Cannot jump from inside a function to outside."
     );
-    assert!(
-        ahk::parse_with(
-            "f() {\ngoto MyLabel\nMyLabel:\n}",
-            dialect::v1()
-        )
-        .is_ok()
-    );
+    assert!(ahk::parse_with("f() {\ngoto MyLabel\nMyLabel:\n}", dialect::v1()).is_ok());
 }
 
 /// The refusal of the goto comes after the other refusals of the load.
@@ -5730,11 +5930,7 @@ fn the_name_of_the_key_is_checked_when_the_script_loads() {
 fn the_names_that_are_the_keys_of_the_v1_are_accepted() {
     for name in ["LButton", "F13", "vkFF", "Joy1", "sc01e", "2Joy1", "a"] {
         assert!(
-            ahk::parse_with(
-                &format!("GetKeyState, a, {name}"),
-                dialect::v1()
-            )
-            .is_ok(),
+            ahk::parse_with(&format!("GetKeyState, a, {name}"), dialect::v1()).is_ok(),
             "the name {name} is not a key"
         );
     }
@@ -5761,7 +5957,8 @@ fn the_name_of_the_key_that_is_a_substitution_is_not_checked() {
 /// Measured on the binary of v1.1.37.02 on 2026-11-03: the v1 does not
 /// fail for a name that it does not know, and it answers an empty text.
 #[test]
-fn the_function_of_the_get_key_state_of_the_v1_answers_an_empty_text_for_a_name_that_is_not_a_key() {
+fn the_function_of_the_get_key_state_of_the_v1_answers_an_empty_text_for_a_name_that_is_not_a_key()
+{
     let report = run("x := GetKeyState(\"zzz\")");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Text("".into())));
@@ -5844,7 +6041,17 @@ fn the_names_that_the_v1_takes_are_the_names_of_the_keys() {
 /// beginning of it.
 #[test]
 fn the_names_that_the_v1_does_not_take_are_refused() {
-    for name in ["^!zzz", "a b", "a*b", "a$", "a~", "^!a b", "a & b & c", "^a & b", "^!Browser Back"] {
+    for name in [
+        "^!zzz",
+        "a b",
+        "a*b",
+        "a$",
+        "a~",
+        "^!a b",
+        "a & b & c",
+        "^a & b",
+        "^!Browser Back",
+    ] {
         let script = format!("{name}::x := 1");
         assert_eq!(
             the_refusal_of_the_load(&script),
@@ -6008,8 +6215,8 @@ fn the_tail_of_the_if_of_the_v1_does_not_take_the_line_of_the_else() {
 /// `else` that has no `if` before it is refused at the load.
 #[test]
 fn the_else_of_the_v1_takes_no_parameter() {
-    let error =
-        ahk::parse_with("else FileAppend, hello, *", dialect::v1()).expect_err("the else has no if");
+    let error = ahk::parse_with("else FileAppend, hello, *", dialect::v1())
+        .expect_err("the else has no if");
     assert_eq!(error.message, "ELSE with no matching IF");
 }
 
@@ -6052,7 +6259,10 @@ fn the_legacy_if_of_the_v1_compares_a_variable_with_the_text_of_the_line() {
 /// not opened, and the brace that closes it is unexpected.
 #[test]
 fn the_legacy_if_of_the_v1_has_no_brace_on_the_line_of_the_condition() {
-    assert_eq!(the_refusal_of_the_load("if x = 1 {\ny = 6\n}"), "Unexpected \"}\"");
+    assert_eq!(
+        the_refusal_of_the_load("if x = 1 {\ny = 6\n}"),
+        "Unexpected \"}\""
+    );
 }
 
 /// The legacy `if` of the v1 takes the block on the line that comes.
@@ -6105,7 +6315,10 @@ fn the_legacy_if_of_the_v1_takes_a_number_as_the_name_of_a_variable() {
 
     // The legacy form has no brace: the block is not opened, and the brace
     // that closes it is unexpected.
-    assert_eq!(the_refusal_of_the_load("if 1 = 1 {\ny = 6\n}"), "Unexpected \"}\"");
+    assert_eq!(
+        the_refusal_of_the_load("if 1 = 1 {\ny = 6\n}"),
+        "Unexpected \"}\""
+    );
 }
 
 /// The variable of the v1 that is named "0" holds the text "0".
@@ -6405,8 +6618,8 @@ fn the_equal_sign_of_the_legacy_if_of_the_v1_follows_the_sense_of_the_case() {
 /// line that follows names the line of the condition up to the word.
 #[test]
 fn the_list_of_the_legacy_if_of_the_v1_is_refused_at_the_load_when_it_is_not_there() {
-    let error = ahk::parse_with("if x in", dialect::v1())
-        .expect_err("the list of the in is not there");
+    let error =
+        ahk::parse_with("if x in", dialect::v1()).expect_err("the list of the in is not there");
     assert_eq!(
         error.message,
         "\"in\" requires at least 2 parameters.\n     Specifically: if x"
@@ -6436,16 +6649,19 @@ fn the_list_of_the_legacy_if_of_the_v1_is_refused_at_the_load_when_it_is_not_the
 /// and the bound at the end of it.
 #[test]
 fn the_between_of_the_legacy_if_of_the_v1_is_refused_at_the_load_without_the_word_and() {
-    let error = ahk::parse_with("if x between 1", dialect::v1())
-        .expect_err("the word and is not there");
+    let error =
+        ahk::parse_with("if x between 1", dialect::v1()).expect_err("the word and is not there");
     assert_eq!(
         error.message,
         "BETWEEN requires the word AND.\n     Specifically: if x ,       1"
     );
 
-    let error = ahk::parse_with("if x between", dialect::v1())
-        .expect_err("the word and is not there");
-    assert_eq!(error.message, "BETWEEN requires the word AND.\n     Specifically: if x ,");
+    let error =
+        ahk::parse_with("if x between", dialect::v1()).expect_err("the word and is not there");
+    assert_eq!(
+        error.message,
+        "BETWEEN requires the word AND.\n     Specifically: if x ,"
+    );
 }
 
 /// The tail of the `if` of the v1 that takes the line leaves the `if`
@@ -6476,7 +6692,8 @@ fn the_tail_of_the_if_of_the_v1_that_takes_the_line_leaves_the_if_without_a_body
 /// that comes after the tail sees the effect of it.
 #[test]
 fn the_condition_of_the_if_of_the_v1_is_evaluated_when_the_tail_takes_the_line() {
-    let report = run("x := 0\nif (x := 1) FileAppend, tail, *\nFileAppend, taken, *\nFileAppend, %x%, *");
+    let report =
+        run("x := 0\nif (x := 1) FileAppend, tail, *\nFileAppend, taken, *\nFileAppend, %x%, *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["1".to_string()]);
 }
@@ -6560,7 +6777,6 @@ fn the_text_of_a_condition_of_the_v1_is_a_number_when_the_v1_reads_it_as_one() {
     let report = run("if (0) 0\ny = 6");
     assert!(report.ok);
     assert!(!report.variables.contains_key("y"));
-
 }
 
 /// The `!` of the v1 sees the text that was written as a string and the
@@ -6591,7 +6807,6 @@ fn the_not_of_the_v1_sees_the_text_that_was_written_as_a_string() {
     let report = run("y := \"a\"\nx := !y");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(0)));
-
 }
 
 /// The `&&` and the `||` of the v1 answer one and zero.
@@ -6615,7 +6830,6 @@ fn the_and_and_the_or_of_the_v1_answer_one_and_zero() {
     let report = run("x := 0 || \"a\"");
     assert!(report.ok);
     assert_eq!(report.variables.get("x"), Some(&Value::Int(1)));
-
 }
 
 /// The `if` and the `while` may come inside the line of the condition of an
@@ -6773,7 +6987,10 @@ fn the_items_that_come_after_the_comma_of_the_condition_of_the_v1_are_evaluated(
     // condition is the truth of the text of the line, "01".
     let report = run("if (0) x := 1, y := 3\nFileAppend, [body], *\nFileAppend, [%x% %y%], *");
     assert!(report.ok);
-    assert_eq!(report.output, vec!["[body]".to_string(), "[1 3]".to_string()]);
+    assert_eq!(
+        report.output,
+        vec!["[body]".to_string(), "[1 3]".to_string()]
+    );
 
     // The value of the item does not count for the truth: the text of the
     // condition is "00", and the body of the `if` does not run.
@@ -6918,7 +7135,12 @@ fn the_count_of_the_loop_of_the_v1_is_a_number() {
     assert!(report.ok);
     assert_eq!(
         report.output,
-        vec!["[x]".to_string(), "[x]".to_string(), "[x]".to_string(), "[3]".to_string()]
+        vec![
+            "[x]".to_string(),
+            "[x]".to_string(),
+            "[x]".to_string(),
+            "[3]".to_string()
+        ]
     );
 
     // The variable is not a number, and the loop is a loop of files whose
@@ -6933,15 +7155,26 @@ fn the_count_of_the_loop_of_the_v1_is_a_number() {
     assert!(report.ok);
     assert_eq!(
         report.output,
-        vec!["[x]".to_string(), "[x]".to_string(), "[x]".to_string(), "[3]".to_string()]
+        vec![
+            "[x]".to_string(),
+            "[x]".to_string(),
+            "[x]".to_string(),
+            "[3]".to_string()
+        ]
     );
 
     // The variable of the script is the count.
-    let report = run("n := 3\nx := 0\nloop %n% {\nFileAppend, [x], *\nx++\n}\nFileAppend, [%x%], *");
+    let report =
+        run("n := 3\nx := 0\nloop %n% {\nFileAppend, [x], *\nx++\n}\nFileAppend, [%x%], *");
     assert!(report.ok);
     assert_eq!(
         report.output,
-        vec!["[x]".to_string(), "[x]".to_string(), "[x]".to_string(), "[3]".to_string()]
+        vec![
+            "[x]".to_string(),
+            "[x]".to_string(),
+            "[x]".to_string(),
+            "[3]".to_string()
+        ]
     );
 }
 
@@ -7074,7 +7307,8 @@ fn the_line_that_comes_with_the_tail_of_the_if_of_the_v1_is_an_action() {
 
     // And the line that holds an action is a part of the tail: the body of
     // the `if` does not run.
-    let report = run("if (0) x := 1, FileAppend, A, *\nFileAppend, [body], *\nFileAppend, [mark], *");
+    let report =
+        run("if (0) x := 1, FileAppend, A, *\nFileAppend, [body], *\nFileAppend, [mark], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[mark]".to_string()]);
 }
@@ -7186,7 +7420,10 @@ fn the_for_of_the_v1_walks_the_keys_of_an_array() {
     // The key and the value.
     let report = run("for k, v in [10,20]\nFileAppend, [%k%=%v%], *");
     assert!(report.ok);
-    assert_eq!(report.output, vec!["[1=10]".to_string(), "[2=20]".to_string()]);
+    assert_eq!(
+        report.output,
+        vec!["[1=10]".to_string(), "[2=20]".to_string()]
+    );
 
     // The second name alone gets the key.
     let report = run("for , v in [10,20]\nFileAppend, [%v%], *");
@@ -7539,7 +7776,10 @@ fn the_v1_knows_the_name_of_a_function_that_is_defined_further_down() {
 /// "Unexpected "{". The v2 names the construct that opens the body.
 #[test]
 fn the_brace_that_opens_the_body_of_a_construct_of_the_v1_names_the_brace() {
-    assert_eq!(the_refusal_of_the_load("if 1 { return 2 }"), "Unexpected \"{\"");
+    assert_eq!(
+        the_refusal_of_the_load("if 1 { return 2 }"),
+        "Unexpected \"{\""
+    );
     assert_eq!(
         the_refusal_of_the_load("while 0 { return 2 }"),
         "Unexpected \"{\""
@@ -7671,10 +7911,7 @@ fn the_operand_that_is_not_there_is_the_empty_text_in_the_v1() {
     assert_eq!(report.output, vec!["".to_string()]);
 
     // The bracket that closes nothing is refused.
-    assert_eq!(
-        the_refusal_of_the_load("x := )"),
-        "Unexpected \")\""
-    );
+    assert_eq!(the_refusal_of_the_load("x := )"), "Unexpected \")\"");
 }
 
 /// The word that is an operator takes the value of the right side in the v1.
@@ -8237,8 +8474,7 @@ fn the_declaration_with_no_name_of_the_v1_is_the_first_statement_of_the_function
         .expect("the declaration with no name is the first statement");
     ahk::parse_with("f() {\n    static\n}", dialect::v1())
         .expect("the declaration with no name is the first statement");
-    ahk::parse_with("f() {\n    global\n}", dialect::v1())
-        .expect("the mode of the function");
+    ahk::parse_with("f() {\n    global\n}", dialect::v1()).expect("the mode of the function");
 }
 
 /// The declaration that has no name of the v1 that is not the first statement
@@ -8306,7 +8542,8 @@ fn the_tail_of_a_call_of_the_v1_whose_name_is_a_function_is_text() {
 
     // The name of a function that the script defines further down is known
     // when the line is read.
-    let report = run("f(1) tail\nFileAppend, [end], *\nf(a) {\n    FileAppend, [f], *\n    return a\n}");
+    let report =
+        run("f(1) tail\nFileAppend, [end], *\nf(a) {\n    FileAppend, [f], *\n    return a\n}");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[f]".to_string(), "[end]".to_string()]);
 
@@ -8392,7 +8629,6 @@ fn the_v2_refuses_the_tail_of_a_call_that_is_not_a_list() {
     assert_eq!(error.message, "Syntax error.\n     Specifically: *");
 }
 
-
 /// The name that the script builds and that is not there is the empty text.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -8433,7 +8669,6 @@ fn the_name_of_the_environment_that_the_script_builds_is_the_empty_text_in_the_v
     assert_eq!(report.output, vec!["[]".to_string()]);
 }
 
-
 /// The write of a name that the script builds creates the variable.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
@@ -8460,7 +8695,9 @@ fn the_write_of_a_name_that_the_script_builds_inside_a_function_is_refused_in_th
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("This dynamic variable is blank. If this variable was not intended to be dynamic, remove the % symbols from it.")
+        Some(
+            "This dynamic variable is blank. If this variable was not intended to be dynamic, remove the % symbols from it."
+        )
     );
 }
 
@@ -8641,9 +8878,8 @@ fn the_blank_at_the_end_of_the_literal_of_the_v1_is_refused() {
 /// is the empty text.
 #[test]
 fn the_value_of_the_literal_of_the_v1_that_has_no_name_is_evaluated_and_dropped() {
-    let report = run(
-        "n := 0\nf() {\nglobal n\nn := n + 1\nreturn 0\n}\na := {, f()}\nFileAppend, %n%, *",
-    );
+    let report =
+        run("n := 0\nf() {\nglobal n\nn := n + 1\nreturn 0\n}\na := {, f()}\nFileAppend, %n%, *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["1".to_string()]);
     let report = run("a := {, 1}\nx := a[\"\"]\nFileAppend, [%x%], *");
@@ -8707,9 +8943,7 @@ fn the_item_of_an_object_of_the_v1_does_not_know_the_case_of_the_name() {
 /// writes the property "c", which was not there.
 #[test]
 fn the_write_of_the_item_of_an_object_of_the_v1_writes_the_property() {
-    let report = run(
-        "a := {b: 1}\na[\"b\"] := 5\na[\"c\"] := 6\nx := a.b \nFileAppend, [%x%], *",
-    );
+    let report = run("a := {b: 1}\na[\"b\"] := 5\na[\"c\"] := 6\nx := a.b \nFileAppend, [%x%], *");
     assert!(report.ok);
     assert_eq!(report.output, vec!["[5]".to_string()]);
 }
@@ -9011,7 +9245,10 @@ fn the_remove_of_an_array_of_the_v1_without_an_index_takes_the_last_one_away() {
 #[test]
 fn the_brace_that_closes_a_block_of_the_v1_names_the_brace_alone() {
     // The brace that follows a statement.
-    assert_eq!(the_refusal_of_the_load("x := 1\ny := 2 }"), "Unexpected \"}\"");
+    assert_eq!(
+        the_refusal_of_the_load("x := 1\ny := 2 }"),
+        "Unexpected \"}\""
+    );
 
     // The brace that closes the block of an `if` on the line of the body.
     assert_eq!(
@@ -9142,7 +9379,10 @@ fn the_quote_that_is_not_closed_in_the_line_of_a_command_of_the_v1_is_not_an_err
 
     let report = run("x = \"abc");
     assert!(report.ok);
-    assert_eq!(report.variables.get("x").map(|value| value.to_text()), Some("\"abc".to_string()));
+    assert_eq!(
+        report.variables.get("x").map(|value| value.to_text()),
+        Some("\"abc".to_string())
+    );
 }
 
 /// The text whose quote is not closed is refused when it is read as an
@@ -9271,7 +9511,10 @@ fn the_loop_of_the_files_of_the_v1_gives_the_variables_of_the_file() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["[C:\\work\\a.txt]".to_string(), "[C:\\work\\b.txt]".to_string()]
+        vec![
+            "[C:\\work\\a.txt]".to_string(),
+            "[C:\\work\\b.txt]".to_string()
+        ]
     );
 }
 
@@ -9288,7 +9531,9 @@ fn the_short_names_of_the_files_of_the_v1_are_refused_with_the_reason() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("the short names of the files are a thing of Windows, and this desktop is not Windows.")
+        Some(
+            "the short names of the files are a thing of Windows, and this desktop is not Windows."
+        )
     );
     assert_eq!(report.error_line, Some(3));
 
@@ -9401,7 +9646,12 @@ fn the_read_loop_of_the_v1_reads_the_file_and_gives_its_lines() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["[one]".to_string(), "[1]".to_string(), "[two]".to_string(), "[2]".to_string()]
+        vec![
+            "[one]".to_string(),
+            "[1]".to_string(),
+            "[two]".to_string(),
+            "[2]".to_string()
+        ]
     );
 }
 
@@ -9480,13 +9730,15 @@ fn the_delimiters_of_the_parse_loop_of_the_v1_are_cut_at_the_commas() {
     // The delimiters that are not there make every character a field.
     let report = run("x := \"a,b\"\nLoop, Parse, x\n{\n  FileAppend, [%A_LoopField%], *\n}");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["[a]".to_string(), "[,]".to_string(), "[b]".to_string()]);
+    assert_eq!(
+        report.output,
+        vec!["[a]".to_string(), "[,]".to_string(), "[b]".to_string()]
+    );
 
     // The comma that is inside the quotes is a cut, and the quotes are part
     // of the text.
-    let report = run(
-        "x := \"a|b|c\"\nLoop, Parse, x, \"a,b\"\n{\n  FileAppend, [%A_LoopField%], *\n}",
-    );
+    let report =
+        run("x := \"a|b|c\"\nLoop, Parse, x, \"a,b\"\n{\n  FileAppend, [%A_LoopField%], *\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[]".to_string(), "[|b|c]".to_string()]);
 }
@@ -9549,9 +9801,8 @@ fn the_parse_loop_of_the_v1_leaves_out_the_characters_of_the_fourth_parameter() 
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[a]".to_string(), "[b]".to_string()]);
 
-    let report = run(
-        "x := \"a b\"\nLoop, Parse, x, , \" \"\n{\n  FileAppend, [%A_LoopField%], *\n}",
-    );
+    let report =
+        run("x := \"a b\"\nLoop, Parse, x, , \" \"\n{\n  FileAppend, [%A_LoopField%], *\n}");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[a]".to_string(), "[b]".to_string()]);
 }
@@ -9590,11 +9841,13 @@ fn the_parse_loop_of_the_v1_parses_the_comma_separated_values() {
     assert_eq!(report.output, vec!["[a\"b]".to_string(), "[c]".to_string()]);
 
     // The characters that are left out are not used in this format.
-    let report = run(
-        "x := \" a , b \"\nLoop, Parse, x, CSV, \" \"\n{\n  FileAppend, [%A_LoopField%], *\n}",
-    );
+    let report =
+        run("x := \" a , b \"\nLoop, Parse, x, CSV, \" \"\n{\n  FileAppend, [%A_LoopField%], *\n}");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["[ a ]".to_string(), "[ b ]".to_string()]);
+    assert_eq!(
+        report.output,
+        vec!["[ a ]".to_string(), "[ b ]".to_string()]
+    );
 }
 
 /// The parse loop of the v1 takes the value of the variable as the name.
@@ -9622,9 +9875,8 @@ fn the_parse_loop_of_the_v1_takes_the_value_of_the_variable_as_the_name() {
 /// looks for the name, does not find it, and the loop has no turn.
 #[test]
 fn the_parse_loop_of_the_v1_does_not_fail_when_the_name_is_not_a_variable() {
-    let report = run(
-        "x := \"a|b|c\"\nLoop, Parse, %x%, \"|\"\n{\n  FileAppend, [%A_LoopField%], *\n}",
-    );
+    let report =
+        run("x := \"a|b|c\"\nLoop, Parse, %x%, \"|\"\n{\n  FileAppend, [%A_LoopField%], *\n}");
     assert!(report.ok, "{:?}", report.error);
     assert!(report.output.is_empty());
 }
@@ -9791,7 +10043,6 @@ fn the_percent_sign_that_closes_a_name_of_the_v1_is_in_the_operand() {
 /// give an empty value, because there is no variable whose name is "1".
 #[test]
 fn the_reference_of_a_name_in_an_expression_of_the_v1_reads_the_variable_that_it_names() {
-
     let report = run("b := 7\na := \"b\"\nx := %a%\nFileAppend, [%x%], *");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[7]".to_string()]);
@@ -9933,9 +10184,8 @@ fn the_call_of_the_binding_of_the_v1_is_refused() {
 /// the mode was the pattern.
 #[test]
 fn the_loop_files_of_the_v1_takes_the_pattern_of_the_files() {
-    let (report, calls) = run_and_the_calls(
-        "Loop Files, *.txt\n{\n  FileAppend, [%A_LoopFileName%], *\n}\n",
-    );
+    let (report, calls) =
+        run_and_the_calls("Loop Files, *.txt\n{\n  FileAppend, [%A_LoopFileName%], *\n}\n");
     assert!(report.ok, "{:?}", report.error);
     // The machine is asked for the size, the attributes and the times of every
     // file of the loop, after the one of the listing.
@@ -10099,7 +10349,8 @@ fn the_local_that_has_the_name_of_a_global_is_warned_about_in_the_v1() {
 /// warning is the line that opens the body of the method.
 #[test]
 fn the_local_of_a_method_that_has_the_name_of_a_global_is_warned_about_in_the_v1() {
-    let report = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nclass A {\n  m() {\n    x := 2\n  }\n}\n");
+    let report =
+        run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nclass A {\n  m() {\n    x := 2\n  }\n}\n");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.warnings.len(), 1);
     assert_eq!(report.warnings[0].line, 4);
@@ -10134,7 +10385,8 @@ fn the_local_that_is_only_read_is_warned_about_in_the_v1() {
 /// command that reads it is a local of the function that holds the command.
 #[test]
 fn the_local_that_is_read_by_a_text_is_warned_about_in_the_v1() {
-    let report = run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  FileAppend, %x%, *\n}\nf()\n");
+    let report =
+        run("#Warn LocalSameAsGlobal, StdOut\nx := 1\nf() {\n  FileAppend, %x%, *\n}\nf()\n");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.warnings.len(), 1);
     assert_eq!(report.warnings[0].line, 3);
@@ -10197,15 +10449,18 @@ fn the_line_that_never_runs_is_warned_about_in_the_v1() {
     );
     assert_eq!(
         report.output,
-        vec!["(3) : ==> Warning: This line will never execute, due to Return preceding it.".to_string()]
+        vec![
+            "(3) : ==> Warning: This line will never execute, due to Return preceding it."
+                .to_string()
+        ]
     );
     // The "All" of the v1 carries the type too.
     let report = run("#Warn All, StdOut\nreturn\nx := 1\n");
     assert_eq!(report.warnings.len(), 1);
     assert_eq!(report.warnings[0].line, 3);
     // The type of the v2 that the v1 does not have is refused.
-    let error = ahk::parse_with("#Warn VarUnset, StdOut", dialect::v1())
-        .expect_err("does not parse");
+    let error =
+        ahk::parse_with("#Warn VarUnset, StdOut", dialect::v1()).expect_err("does not parse");
     assert_eq!(
         error.message,
         "Parameter #1 invalid.\n     Specifically: #Warn VarUnset"
@@ -10218,7 +10473,9 @@ fn the_line_that_never_runs_is_warned_about_in_the_v1() {
 /// that is in a block of commands answers the value of the property.
 #[test]
 fn the_class_of_the_v1_has_the_property_with_a_getter() {
-    let report = run("class C\n{\n    p {\n        get {\n            return 1\n        }\n    }\n}\ninst := new C\nx := inst.p\nFileAppend, %x%, *");
+    let report = run(
+        "class C\n{\n    p {\n        get {\n            return 1\n        }\n    }\n}\ninst := new C\nx := inst.p\nFileAppend, %x%, *",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1".to_string()]);
 }
@@ -10229,7 +10486,9 @@ fn the_class_of_the_v1_has_the_property_with_a_getter() {
 /// the setter is a scope, and the name "value" is the value that is written.
 #[test]
 fn the_setter_of_the_v1_writes_the_value_that_is_given_to_it() {
-    let report = run("class C\n{\n    p {\n        set {\n            this.stored := value\n        }\n    }\n}\ninst := new C\ninst.p := 7\nx := inst.stored\nFileAppend, %x%, *");
+    let report = run(
+        "class C\n{\n    p {\n        set {\n            this.stored := value\n        }\n    }\n}\ninst := new C\ninst.p := 7\nx := inst.stored\nFileAppend, %x%, *",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["7".to_string()]);
 }
@@ -10241,7 +10500,9 @@ fn the_setter_of_the_v1_writes_the_value_that_is_given_to_it() {
 /// the getter answers the local that has no value.
 #[test]
 fn the_body_of_the_getter_of_the_v1_is_a_scope_of_its_own() {
-    let report = run("class C\n{\n    p {\n        get {\n            local n := 5\n            return n\n        }\n    }\n}\ninst := new C\nx := inst.p\nFileAppend, %x%, *");
+    let report = run(
+        "class C\n{\n    p {\n        get {\n            local n := 5\n            return n\n        }\n    }\n}\ninst := new C\nx := inst.p\nFileAppend, %x%, *",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["5".to_string()]);
 }
@@ -10253,8 +10514,11 @@ fn the_body_of_the_getter_of_the_v1_is_a_scope_of_its_own() {
 /// => 1".
 #[test]
 fn the_expression_after_the_arrow_is_not_of_the_v1() {
-    let error = ahk::parse_with("class C\n{\n    p {\n        get => 1\n    }\n}", dialect::v1())
-        .expect_err("the arrow is refused");
+    let error = ahk::parse_with(
+        "class C\n{\n    p {\n        get => 1\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the arrow is refused");
     assert_eq!(
         error.message,
         "Not a valid property getter/setter.\n     Specifically: get => 1"
@@ -10269,8 +10533,11 @@ fn the_expression_after_the_arrow_is_not_of_the_v1() {
 /// { return 1 }".
 #[test]
 fn the_body_of_the_getter_of_the_v1_that_is_on_the_line_of_the_member_is_refused() {
-    let error = ahk::parse_with("class C\n{\n    p {\n        get { return 1 }\n    }\n}", dialect::v1())
-        .expect_err("the body is refused");
+    let error = ahk::parse_with(
+        "class C\n{\n    p {\n        get { return 1 }\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the body is refused");
     assert_eq!(
         error.message,
         "Not a valid property getter/setter.\n     Specifically: get { return 1 }"
@@ -10285,8 +10552,11 @@ fn the_body_of_the_getter_of_the_v1_that_is_on_the_line_of_the_member_is_refused
 /// declaration.\n     Specifically: p {".
 #[test]
 fn the_static_member_of_the_property_of_the_v1_is_refused() {
-    let error = ahk::parse_with("class C\n{\n    static p {\n        get {\n            return 1\n        }\n    }\n}", dialect::v1())
-        .expect_err("the static property is refused");
+    let error = ahk::parse_with(
+        "class C\n{\n    static p {\n        get {\n            return 1\n        }\n    }\n}",
+        dialect::v1(),
+    )
+    .expect_err("the static property is refused");
     assert_eq!(
         error.message,
         "Invalid class variable declaration.\n     Specifically: p {"

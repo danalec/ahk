@@ -31,10 +31,10 @@ pub mod client {
     // workspaces and to the listing, and the statics of those have to be
     // in scope.
     pub mod __interfaces {
+        use super::__interfaces_workspace::*;
         use wayland_client::protocol::__interfaces::*;
         use wayland_protocols::ext::foreign_toplevel_list::v1::client::__interfaces::*;
         use wayland_protocols::ext::workspace::v1::client::__interfaces::*;
-        use super::__interfaces_workspace::*;
         wayland_scanner::generate_interfaces!("protocols/cosmic-toplevel-info-unstable-v1.xml");
     }
 

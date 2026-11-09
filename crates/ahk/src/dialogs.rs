@@ -25,7 +25,12 @@ use crate::runtime::{Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Va
 /// Measured on the binary of v2.0.19 on 2026-10-29: the answer is an
 /// object of the class `Object`, and the timeout of the options closes
 /// the dialog with the result "Timeout".
-pub fn input_box(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn input_box(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let prompt = text_of(values, 0);
     let title = text_of(values, 1);
     let options = text_of(values, 2);
@@ -34,7 +39,10 @@ pub fn input_box(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
     let answer = rt
         .desktop()
         .input_box(&prompt, &title, &options, &default)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     let mut properties = BTreeMap::new();
     put(&mut properties, "value", Value::Text(answer.value));
     put(&mut properties, "result", Value::Text(answer.result));
@@ -53,7 +61,12 @@ pub fn input_box(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 /// one letter -- "D", "M" or "S" -- with a number after it, or a
 /// number alone, and the filter is not there when the user chooses a
 /// folder.
-pub fn file_select(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_select(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let options = text_of(values, 0);
     let root = text_of(values, 1);
     let title = text_of(values, 2);
@@ -69,7 +82,10 @@ pub fn file_select(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
     let answer = rt
         .desktop()
         .file_select(&options, &root, &title, &filter)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(match answer {
         FileAnswer::One(path) => Value::Text(path),
         FileAnswer::Many(paths) => {
@@ -84,7 +100,7 @@ pub fn file_select(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
                     return Err(RuntimeError {
                         message: "the array of the files cannot be made.".to_string(),
                         line,
-                    })
+                    });
                 }
             }
         }
@@ -98,22 +114,28 @@ pub fn file_select(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-29: the options are a
 /// number, and a text that is not a number is refused.
-pub fn dir_select(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn dir_select(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let starting = text_of(values, 0);
     let prompt = text_of(values, 2);
     // The options of v2 are a number, and the tree says so the way v2
     // says it.
     let options = values.get(1).cloned().unwrap_or(Value::Int(1));
-    let options = options
-        .to_number_strict()
-        .map_err(|_| RuntimeError {
-            message: crate::runtime::requires(2, "DirSelect", TypeName::Number, &options),
-            line,
-        })? as i64;
+    let options = options.to_number_strict().map_err(|_| RuntimeError {
+        message: crate::runtime::requires(2, "DirSelect", TypeName::Number, &options),
+        line,
+    })? as i64;
     let folder = rt
         .desktop()
         .dir_select(&starting, options, &prompt)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(folder))
 }
 
@@ -235,7 +257,9 @@ fn the_options_of_the_file_select(options: &str, line: u32) -> Result<FileOption
     let rest = letters.as_str();
     // A number alone is the sum of the flags of the options.
     if first.is_ascii_digit() || first == '-' {
-        read.flags = trimmed.parse::<i64>().map_err(|_| invalid_file_option(line))?;
+        read.flags = trimmed
+            .parse::<i64>()
+            .map_err(|_| invalid_file_option(line))?;
         return Ok(read);
     }
     let flags = if rest.is_empty() {
@@ -258,7 +282,10 @@ fn the_options_of_the_file_select(options: &str, line: u32) -> Result<FileOption
 /// The option that was not known is in the `Extra` of the failure, and
 /// the runtime reads it there.
 fn invalid_option(line: u32) -> RuntimeError {
-    RuntimeError { message: "Invalid option.".to_string(), line }
+    RuntimeError {
+        message: "Invalid option.".to_string(),
+        line,
+    }
 }
 
 /// The refusal of an option of a file selection that v2 does not know.
@@ -273,5 +300,8 @@ fn invalid_file_option(line: u32) -> RuntimeError {
 
 /// The text of the argument at this place, or the empty string.
 fn text_of(values: &[Value], index: usize) -> String {
-    values.get(index).map(|value| value.to_text()).unwrap_or_default()
+    values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
 }

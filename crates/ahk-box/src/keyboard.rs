@@ -173,7 +173,11 @@ impl Keyboard {
     /// The modifiers go down first and up last, which is the order a
     /// keyboard delivers them in, and the whole thing is shorter than the
     /// auto-repeat delay so nothing repeats.
-    pub fn tap_with_modifiers(&mut self, code: u16, modifiers: &[u16]) -> Result<(), KeyboardError> {
+    pub fn tap_with_modifiers(
+        &mut self,
+        code: u16,
+        modifiers: &[u16],
+    ) -> Result<(), KeyboardError> {
         for modifier in modifiers {
             self.down(*modifier)?;
         }
@@ -256,7 +260,9 @@ impl Keyboard {
         setup[8..8 + name.len()].copy_from_slice(name);
         let result = unsafe { libc::ioctl(fd, UI_DEV_SETUP, setup.as_ptr()) };
         if result < 0 {
-            return Err(KeyboardError::Setup(std::io::Error::last_os_error().to_string()));
+            return Err(KeyboardError::Setup(
+                std::io::Error::last_os_error().to_string(),
+            ));
         }
         self.ioctl(UI_DEV_CREATE, 0)?;
         Ok(())
@@ -267,7 +273,10 @@ impl Keyboard {
         let fd = self.file.as_raw_fd();
         let result = unsafe { libc::ioctl(fd, request, argument) };
         if result < 0 {
-            return Err(KeyboardError::Ioctl(request, std::io::Error::last_os_error().to_string()));
+            return Err(KeyboardError::Ioctl(
+                request,
+                std::io::Error::last_os_error().to_string(),
+            ));
         }
         Ok(())
     }

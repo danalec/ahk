@@ -35,13 +35,15 @@ mod sub_commands;
 mod table;
 mod variables;
 
-pub(crate) use names::the_place_of_the_argument_that_wants_the_name;
-pub(crate) use names::the_place_of_the_argument_that_wants_the_variable;
 pub(crate) use names::the_command_has_a_body;
 pub(crate) use names::the_command_is_the_else;
+pub(crate) use names::the_place_of_the_argument_that_wants_the_name;
+pub(crate) use names::the_place_of_the_argument_that_wants_the_variable;
 pub(crate) use names::{else_of_the_v1, if_in_string, if_msg_box, if_not_in_string};
 pub use table::BUILTINS;
-pub use variables::{carries as carries_variable, may_not_be_declared, refusal_of as refusal_of_variable};
+pub use variables::{
+    carries as carries_variable, may_not_be_declared, refusal_of as refusal_of_variable,
+};
 
 pub(crate) use chars::chr;
 
@@ -61,39 +63,40 @@ pub(crate) use loops::the_refusal_of_the_parameters_of_the_loop;
 pub(crate) use loops::the_refusal_of_the_registry_of_the_loop;
 pub(crate) use loops::{THE_FILES, THE_FILES_AND_THE_FOLDERS, THE_FOLDERS};
 
+pub(crate) use hotkeys::TheName;
 pub(crate) use hotkeys::is_the_name_of_a_command;
 pub(crate) use hotkeys::the_context_of_the_v1_is_refused_in_a_hotkey;
 pub(crate) use hotkeys::the_name_of_a_hotkey;
-pub(crate) use hotkeys::TheName;
 
 pub(crate) use math::{
     abs, acos, asin, atan, ceil, cos, exp, floor, ln, log, max, min, modulo, round, sin, sqrt, tan,
 };
 
 pub(crate) use numbers::{
-    the_count_of_the_loop, the_number_at_the_start_of_a_text, the_number_is_a_number, the_number_of_a_text,
-    the_text_is_a_float, the_text_is_a_hex, the_text_is_the_count_of_a_loop, the_text_of_the_number_that_fits,
-    the_whole_number_at_the_start_of_a_text, the_whole_number_of_a_hex,
+    the_count_of_the_loop, the_number_at_the_start_of_a_text, the_number_is_a_number,
+    the_number_of_a_text, the_text_is_a_float, the_text_is_a_hex, the_text_is_the_count_of_a_loop,
+    the_text_of_the_number_that_fits, the_whole_number_at_the_start_of_a_text,
+    the_whole_number_of_a_hex,
 };
 
-pub(crate) use parameters::the_refusal_of_a_parameter;
 pub(crate) use parameters::is_the_name_of_a_variable;
 pub(crate) use parameters::is_the_name_of_a_variable_that_may_carry_a_point;
+pub(crate) use parameters::the_refusal_of_a_parameter;
+pub(crate) use parameters::the_refusal_of_the_arity;
 pub(crate) use parameters::the_refusal_of_the_name_of_a_variable;
 pub(crate) use parameters::the_refusal_of_the_percent_sign_of_a_parameter;
 pub(crate) use parameters::the_refusal_of_the_percent_sign_of_an_expression;
 pub(crate) use parameters::the_refusal_of_the_point_of_an_operand;
 pub(crate) use parameters::the_refusal_of_the_text_of_a_member;
-pub(crate) use parameters::the_refusal_of_the_arity;
 pub(crate) use parameters::the_text_is_an_expression_of_the_v1;
-pub(crate) use sub_commands::the_refusal_of_a_sub_command;
 pub(crate) use sub_commands::the_parameter_may_not_be_blank;
+pub(crate) use sub_commands::the_refusal_of_a_sub_command;
 
 pub(crate) use strings::{in_str, sub_str};
 
 pub(crate) use names::{
-    auto_trim, coord_mode_of_the_v1, file_encoding_of_the_v1, file_read_line, func, input, is_by_ref,
-    is_func, is_set, object, set_batch_lines, set_control_delay_of_the_v1,
+    auto_trim, coord_mode_of_the_v1, file_encoding_of_the_v1, file_read_line, func, input,
+    is_by_ref, is_func, is_set, object, set_batch_lines, set_control_delay_of_the_v1,
     set_detect_hidden_text_of_the_v1, set_detect_hidden_windows_of_the_v1, set_format,
     set_key_delay_of_the_v1, set_mouse_delay_of_the_v1, set_store_caps_lock_mode_of_the_v1,
     set_win_delay_of_the_v1, string_case_sense, transform, var_set_capacity,
@@ -169,10 +172,7 @@ pub fn carries_directive(name: &str) -> bool {
 ///
 /// `None` means the name is not a built-in variable of the v1: the name is a
 /// variable of the script.
-pub(crate) fn lookup_variable(
-    name: &str,
-    rt: &mut Runtime,
-) -> Option<Result<Value, RuntimeError>> {
+pub(crate) fn lookup_variable(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError>> {
     variables::lookup(name, rt)
 }
 
@@ -234,15 +234,22 @@ pub(crate) fn hotstring_of_the_v1(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text = values.first().map(|value| value.to_text()).unwrap_or_default();
+    let text = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let invalid = RuntimeError {
         message: "Parameter #1 of Hotstring is invalid.".to_string(),
         line,
     };
     // The trigger of the hotstring is between the two pairs of colons, and
     // the action is what comes after them.
-    let Some(rest) = text.strip_prefix("::") else { return Err(invalid) };
-    let Some((trigger, action)) = rest.split_once("::") else { return Err(invalid) };
+    let Some(rest) = text.strip_prefix("::") else {
+        return Err(invalid);
+    };
+    let Some((trigger, action)) = rest.split_once("::") else {
+        return Err(invalid);
+    };
     // The v2 writes the trigger between two colons.
     let definition = format!(":{trigger}:");
     crate::builtins::hotstring(
@@ -281,7 +288,9 @@ pub(crate) fn write_the_answer(
     answer: Value,
     line: u32,
 ) -> Result<(), RuntimeError> {
-    let Some(value) = values.get(at) else { return Ok(()) };
+    let Some(value) = values.get(at) else {
+        return Ok(());
+    };
     if !matches!(value, Value::Reference(_)) {
         return Err(RuntimeError {
             message: crate::runtime::wants_a_reference(at + 1, name, "a VarRef", value),
@@ -314,8 +323,14 @@ pub(crate) fn env_set(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let name = values.first().map(|value| value.to_text()).unwrap_or_default();
-    let value = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let name = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let value = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     match rt.desktop().env_set(&name, &value) {
         Ok(answer) => {
             rt.set_the_error_level(Value::Int(0));
@@ -323,7 +338,9 @@ pub(crate) fn env_set(
         }
         Err(reason) => {
             rt.set_the_error_level(Value::Int(1));
-            rt.note(format!("the variable of the environment was not set: {reason}"));
+            rt.note(format!(
+                "the variable of the environment was not set: {reason}"
+            ));
             Ok(Value::Text(value))
         }
     }
@@ -461,7 +478,11 @@ pub(crate) fn get_key_state(
     let is_the_command = variant == 0;
     // The name of the key is the second parameter of the command and the
     // first one of the function.
-    let name = if is_the_command { values.get(1) } else { values.first() };
+    let name = if is_the_command {
+        values.get(1)
+    } else {
+        values.first()
+    };
     let answer = match (is_the_command, the_state_of_a_key(rt, name, line)?) {
         // The command writes the letter D or U.
         (true, Some(true)) => Value::Text("D".to_string()),
@@ -494,7 +515,10 @@ fn the_state_of_a_key(
     }
     match rt.desktop().key_is_down(name) {
         Ok(down) => Ok(Some(down)),
-        Err(reason) => Err(RuntimeError { message: reason, line }),
+        Err(reason) => Err(RuntimeError {
+            message: reason,
+            line,
+        }),
     }
 }
 
@@ -559,7 +583,14 @@ pub(crate) fn string_len(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(rt, "StringLen", values, line, crate::builtins::str_len, 0)
+    the_answer_goes_into_the_first_output(
+        rt,
+        "StringLen",
+        values,
+        line,
+        crate::builtins::str_len,
+        0,
+    )
 }
 
 /// `StringMid, name, text, start, length`: a part of the text of a variable.
@@ -569,7 +600,14 @@ pub(crate) fn string_mid(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    the_answer_goes_into_the_first_output(rt, "StringMid", values, line, crate::builtins::sub_str, 0)
+    the_answer_goes_into_the_first_output(
+        rt,
+        "StringMid",
+        values,
+        line,
+        crate::builtins::sub_str,
+        0,
+    )
 }
 
 /// `StringGetPos, name, text, search, occurrence, offset`: the place of a text.
@@ -586,13 +624,29 @@ pub(crate) fn string_get_pos(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let haystack = values.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let needle = values.get(2).map(|value| value.to_text()).unwrap_or_default();
-    let occurrence = values.get(3).map(|value| value.to_text()).unwrap_or_default();
-    let offset = values.get(4).and_then(|value| value.to_number()).unwrap_or(0.0);
+    let haystack = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let needle = values
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let occurrence = values
+        .get(3)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let offset = values
+        .get(4)
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0);
     let (from_the_right, number) = the_occurrence_of_the_v1(&occurrence, line)?;
     let method = rt.case_sense().the_method();
-    let offset = if offset < 0.0 { 0usize } else { offset as usize };
+    let offset = if offset < 0.0 {
+        0usize
+    } else {
+        offset as usize
+    };
     let characters: Vec<char> = haystack.chars().collect();
     let needle_characters: Vec<char> = needle.chars().collect();
     // The offset is on the side that the occurrence names: the left one
@@ -686,12 +740,28 @@ pub(crate) fn string_replace(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let haystack = values.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let needle = values.get(2).map(|value| value.to_text()).unwrap_or_default();
-    let replacement = values.get(3).map(|value| value.to_text()).unwrap_or_default();
-    let every = values.get(4).map(|value| value.to_text()).unwrap_or_default();
+    let haystack = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let needle = values
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let replacement = values
+        .get(3)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let every = values
+        .get(4)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let method = rt.case_sense().the_method();
-    let limit = if the_replace_all_of_the_v1(&every) { usize::MAX } else { 1 };
+    let limit = if the_replace_all_of_the_v1(&every) {
+        usize::MAX
+    } else {
+        1
+    };
     let (answer, count) =
         the_text_with_the_needle_in_it(&haystack, &needle, &replacement, limit, method);
     // Measured on the binary of v1.1.37.02 on 2026-11-02: the `ErrorLevel`
@@ -702,7 +772,14 @@ pub(crate) fn string_replace(
     } else {
         0
     }));
-    write_the_answer(rt, "StringReplace", values, 0, Value::Text(answer.clone()), line)?;
+    write_the_answer(
+        rt,
+        "StringReplace",
+        values,
+        0,
+        Value::Text(answer.clone()),
+        line,
+    )?;
     Ok(Value::Text(answer))
 }
 
@@ -779,19 +856,30 @@ pub(crate) fn str_replace(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let haystack = values.first().map(|value| value.to_text()).unwrap_or_default();
-    let needle = values.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let replacement = values.get(2).map(|value| value.to_text()).unwrap_or_default();
-    let limit = values.get(4).and_then(|value| value.to_number()).unwrap_or(-1.0);
+    let haystack = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let needle = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let replacement = values
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let limit = values
+        .get(4)
+        .and_then(|value| value.to_number())
+        .unwrap_or(-1.0);
     let method = rt.case_sense().the_method();
-    let limit = if limit < 0.0 { usize::MAX } else { limit as usize };
-    let (answer, count) = the_text_with_the_needle_in_it(
-        &haystack,
-        &needle,
-        &replacement,
-        limit,
-        method,
-    );
+    let limit = if limit < 0.0 {
+        usize::MAX
+    } else {
+        limit as usize
+    };
+    let (answer, count) =
+        the_text_with_the_needle_in_it(&haystack, &needle, &replacement, limit, method);
     // The number of the replacements goes into the variable of the caller,
     // and a fourth argument that is not a variable has nowhere to go.
     if let Some(Value::Reference(_)) = values.get(3) {
@@ -1067,7 +1155,10 @@ fn the_error_level_of_a_command_that_goes_on(
         }
         Err(failure) => {
             rt.set_the_error_level(Value::Int(1));
-            rt.note(format!("the command did not do the thing: {}", failure.message));
+            rt.note(format!(
+                "the command did not do the thing: {}",
+                failure.message
+            ));
             Ok(Value::Text(String::new()))
         }
     }
@@ -1104,7 +1195,10 @@ fn the_values_of_the_file_of_the_loop(
     values: &[Value],
 ) -> Option<Vec<Value>> {
     // The name of the file is the second parameter of the command of the v1.
-    let file = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let file = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     if !file.is_empty() {
         return Some(values.to_vec());
     }
@@ -1135,7 +1229,9 @@ fn the_answer_of_a_file_of_the_loop(
 ) -> Result<Value, RuntimeError> {
     let Some(values) = the_values_of_the_file_of_the_loop(rt, values) else {
         rt.set_the_error_level(Value::Int(1));
-        rt.note(format!("the command {name} did not do the thing: there is no file of a loop."));
+        rt.note(format!(
+            "the command {name} did not do the thing: there is no file of a loop."
+        ));
         write_the_answer(rt, name, values, 0, Value::Text(String::new()), line)?;
         return Ok(Value::Text(String::new()));
     };
@@ -1190,7 +1286,10 @@ pub(crate) fn input_box_of_the_v1(
     let text = match rt.read_property(&answer, "Value", line) {
         Ok(value) => value,
         Err(failure) => {
-            return Err(RuntimeError { message: crate::runtime::the_message_of(&failure), line });
+            return Err(RuntimeError {
+                message: crate::runtime::the_message_of(&failure),
+                line,
+            });
         }
     };
     write_the_answer(rt, "InputBox", values, 0, text, line)?;
@@ -1248,9 +1347,18 @@ fn run_or_wait_of_the_v1(
     line: u32,
     waits: bool,
 ) -> Result<Value, RuntimeError> {
-    let target = values.first().map(|value| value.to_text()).unwrap_or_default();
-    let dir = values.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let options = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+    let target = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let dir = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let options = values
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let says = the_options_say_use_error_level(&options);
     if waits {
         // The `RunWait` waits for the program, and the pid of it goes into
@@ -1263,7 +1371,10 @@ fn run_or_wait_of_the_v1(
                 if says {
                     rt.set_the_error_level(Value::Text("ERROR".into()));
                 }
-                return Err(RuntimeError { message: reason, line });
+                return Err(RuntimeError {
+                    message: reason,
+                    line,
+                });
             }
         };
         if !stdout.trim().is_empty() {
@@ -1284,7 +1395,10 @@ fn run_or_wait_of_the_v1(
             if says {
                 rt.set_the_error_level(Value::Text("ERROR".into()));
             }
-            return Err(RuntimeError { message: reason, line });
+            return Err(RuntimeError {
+                message: reason,
+                line,
+            });
         }
     };
     if says {
@@ -1416,15 +1530,22 @@ fn env_arithmetic(
             return the_arithmetic_of_the_date(rt, values, line, name, operation, &units.to_text());
         }
     }
-    let current = rt.read_reference(reference).map(|value| value.to_text()).unwrap_or_default();
+    let current = rt
+        .read_reference(reference)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let current = crate::v1::the_number_at_the_start_of_a_text(&current);
-    let other = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let other = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let other = crate::v1::the_number_at_the_start_of_a_text(&other);
     let left = the_number_of_the_v1(&current);
     let right = the_number_of_the_v1(&other);
     // The two whole numbers give a whole number, and the division of them is
     // rounded towards the zero. The number that is not there is a whole one.
-    let whole = !matches!(current, Some(Value::Float(_))) && !matches!(other, Some(Value::Float(_)));
+    let whole =
+        !matches!(current, Some(Value::Float(_))) && !matches!(other, Some(Value::Float(_)));
     let answer = match operation {
         TheArithmetic::Add => left + right,
         TheArithmetic::Subtract => left - right,
@@ -1490,7 +1611,10 @@ fn the_arithmetic_of_the_date(
         });
     };
     let unit = the_number_of_the_unit_of_the_time(units);
-    let text = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let text = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     match operation {
         TheArithmetic::Add => {
             // The amount that is not a number leaves the variable empty: the
@@ -1503,9 +1627,8 @@ fn the_arithmetic_of_the_date(
             // since the first of January of 1601, and the arithmetic of it
             // goes around: the amount of the biggest number of the machine
             // leaves the date of the machine where it was.
-            let file_time = the_file_time_of_the_machine(&clock.local).wrapping_add(
-                the_hundred_of_nanoseconds_of_the_amount(amount),
-            );
+            let file_time = the_file_time_of_the_machine(&clock.local)
+                .wrapping_add(the_hundred_of_nanoseconds_of_the_amount(amount));
             let millis = (file_time / 10_000) as i64 - THE_MILLIS_BETWEEN_1601_AND_1970;
             let date = crate::date::from_unix_millis(millis);
             // The date that the machine does not read leaves the variable
@@ -1534,7 +1657,8 @@ fn the_arithmetic_of_the_date(
             let Some(date) = crate::v1::the_date_of_the_v1(&whole.to_string()) else {
                 return the_variable_is_empty(rt, variable);
             };
-            let difference = crate::date::to_unix_millis(&clock.local) - crate::date::to_unix_millis(&date);
+            let difference =
+                crate::date::to_unix_millis(&clock.local) - crate::date::to_unix_millis(&date);
             let answer = difference / 1000 / unit;
             rt.write_reference(variable, Value::Int(answer));
             Ok(Value::Int(answer))
@@ -1605,7 +1729,12 @@ fn the_hundred_of_nanoseconds_of_the_amount(amount: f64) -> u64 {
 /// is the first letter of the text -- the "Seconds" is the "S" -- and it is
 /// the second, the minute, the hour or the day.
 fn the_number_of_the_unit_of_the_time(units: &str) -> i64 {
-    match units.trim().chars().next().map(|letter| letter.to_ascii_uppercase()) {
+    match units
+        .trim()
+        .chars()
+        .next()
+        .map(|letter| letter.to_ascii_uppercase())
+    {
         Some('M') => 60,
         Some('H') => 3600,
         Some('D') => 86400,

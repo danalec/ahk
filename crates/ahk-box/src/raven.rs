@@ -128,14 +128,21 @@ struct Pipes {
 
 impl Transport for Pipes {
     fn ask(&mut self, request: &str) -> Result<String, String> {
-        let input = self.input.as_mut().ok_or_else(|| "the raven is not running.".to_string())?;
+        let input = self
+            .input
+            .as_mut()
+            .ok_or_else(|| "the raven is not running.".to_string())?;
         input
             .write_all(request.as_bytes())
             .map_err(|error| format!("the raven did not take the request: {error}"))?;
-        input.flush().map_err(|error| format!("the raven did not take the request: {error}"))?;
+        input
+            .flush()
+            .map_err(|error| format!("the raven did not take the request: {error}"))?;
         let mut reply = String::new();
-        let read =
-            self.output.read_line(&mut reply).map_err(|error| format!("the raven did not answer: {error}"))?;
+        let read = self
+            .output
+            .read_line(&mut reply)
+            .map_err(|error| format!("the raven did not answer: {error}"))?;
         if read == 0 {
             return Err("the raven ended the answer.".to_string());
         }
@@ -185,10 +192,19 @@ impl Raven {
             .stderr(Stdio::null())
             .spawn()
             .map_err(|error| format!("the raven did not start: {error}"))?;
-        let input = process.stdin.take().ok_or_else(|| "the raven has no input.".to_string())?;
-        let output = process.stdout.take().ok_or_else(|| "the raven has no output.".to_string())?;
+        let input = process
+            .stdin
+            .take()
+            .ok_or_else(|| "the raven has no input.".to_string())?;
+        let output = process
+            .stdout
+            .take()
+            .ok_or_else(|| "the raven has no output.".to_string())?;
         Ok(Raven {
-            transport: Box::new(Pipes { input: Some(input), output: BufReader::new(output) }),
+            transport: Box::new(Pipes {
+                input: Some(input),
+                output: BufReader::new(output),
+            }),
             process: Some(process),
         })
     }
@@ -258,7 +274,12 @@ pub struct Guests {
 impl Guests {
     /// The guests of a box, with the paths of the programs.
     pub fn new(paths: Paths) -> Guests {
-        Guests { paths, wide: None, narrow: None, notes: Vec::new() }
+        Guests {
+            paths,
+            wide: None,
+            narrow: None,
+            notes: Vec::new(),
+        }
     }
 
     /// The call of a function of a library of Windows.
@@ -298,7 +319,8 @@ impl Guests {
         if self.wide.is_none() {
             let raven = Raven::start(&self.paths.program, &self.paths.helper)?;
             self.wide = Some(raven);
-            self.notes.push("started a raven for the libraries of Windows".to_string());
+            self.notes
+                .push("started a raven for the libraries of Windows".to_string());
         }
         Ok(self.wide.as_mut().expect("just started"))
     }
@@ -315,8 +337,10 @@ impl Guests {
         if self.narrow.is_none() {
             let raven = Raven::start(&self.paths.program, &guest)?;
             self.narrow = Some(raven);
-            self.notes
-                .push("started a raven of thirty-two bits for the libraries of thirty-two bits".to_string());
+            self.notes.push(
+                "started a raven of thirty-two bits for the libraries of thirty-two bits"
+                    .to_string(),
+            );
         }
         Ok(self.narrow.as_mut())
     }
@@ -389,7 +413,10 @@ pub fn answer(call: &mut NativeCall, line: &str) -> Result<NativeResult, NativeF
     if kind == "error" {
         // The reason is the message of v2.0.19: "Failed to load DLL.",
         // "Call to nonexistent function." and the rest.
-        let reason = fields.get(1).copied().unwrap_or("the raven did not say why.");
+        let reason = fields
+            .get(1)
+            .copied()
+            .unwrap_or("the raven did not say why.");
         return Err(the_failure_of_the_reason(reason));
     }
     if kind != "ok" {
@@ -409,9 +436,9 @@ pub fn answer(call: &mut NativeCall, line: &str) -> Result<NativeResult, NativeF
         if !argument.address {
             continue;
         }
-        let block = blocks
-            .next()
-            .ok_or_else(|| NativeFailure::invalid("the answer has fewer blocks than the call asked for."))?;
+        let block = blocks.next().ok_or_else(|| {
+            NativeFailure::invalid("the answer has fewer blocks than the call asked for.")
+        })?;
         argument.value = NativeValue::Bytes(unhex(block).map_err(the_failure)?);
     }
     let value = if returns.is_text() {
@@ -432,7 +459,10 @@ pub fn answer(call: &mut NativeCall, line: &str) -> Result<NativeResult, NativeF
             returns,
         ))
     };
-    Ok(NativeResult { kind: returns, value })
+    Ok(NativeResult {
+        kind: returns,
+        value,
+    })
 }
 
 /// The failure of the raven itself.
@@ -511,7 +541,9 @@ fn hex(bytes: &[u8]) -> String {
 /// The bytes of the hexadecimal digits.
 fn unhex(text: &str) -> Result<Vec<u8>, String> {
     if text.len() % 2 != 0 {
-        return Err(format!("the answer has digits that are not a whole number of bytes: {text}"));
+        return Err(format!(
+            "the answer has digits that are not a whole number of bytes: {text}"
+        ));
     }
     let mut bytes = Vec::with_capacity(text.len() / 2);
     for pair in text.as_bytes().chunks(2) {
@@ -531,7 +563,10 @@ fn digit_of(byte: u8) -> Result<u8, String> {
         b'0'..=b'9' => Ok(byte - b'0'),
         b'a'..=b'f' => Ok(byte - b'a' + 10),
         b'A'..=b'F' => Ok(byte - b'A' + 10),
-        _ => Err(format!("the answer has a digit that is not one: {}", byte as char)),
+        _ => Err(format!(
+            "the answer has a digit that is not one: {}",
+            byte as char
+        )),
     }
 }
 
@@ -569,9 +604,7 @@ mod tests {
     //! line that comes back.
 
     use super::{Guests, Paths, Raven, Transport, answer, is_windows, request};
-    use ahk::dll::{
-        Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue,
-    };
+    use ahk::dll::{Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue};
     use std::path::{Path, PathBuf};
 
     /// A call, with the library and the function of the cases.
@@ -587,12 +620,20 @@ mod tests {
 
     /// A number, as an argument of a call.
     fn number(kind: NativeType, value: i64) -> NativeArg {
-        NativeArg { kind, address: false, value: NativeValue::Integer(value) }
+        NativeArg {
+            kind,
+            address: false,
+            value: NativeValue::Integer(value),
+        }
     }
 
     /// A text, as an argument of a call.
     fn text(kind: NativeType, value: &str) -> NativeArg {
-        NativeArg { kind, address: false, value: NativeValue::Bytes(ahk::dll::encode(value, kind)) }
+        NativeArg {
+            kind,
+            address: false,
+            value: NativeValue::Bytes(ahk::dll::encode(value, kind)),
+        }
     }
 
     #[test]
@@ -613,8 +654,14 @@ mod tests {
 
     #[test]
     fn the_request_carries_the_bits_of_an_integer() {
-        let line = request(&call(NativeType::Int64, vec![number(NativeType::Int64, 42)]));
-        assert_eq!(line, "kernel32\tGetTickCount\tint64\t1\tint64\t000000000000002a");
+        let line = request(&call(
+            NativeType::Int64,
+            vec![number(NativeType::Int64, 42)],
+        ));
+        assert_eq!(
+            line,
+            "kernel32\tGetTickCount\tint64\t1\tint64\t000000000000002a"
+        );
     }
 
     #[test]
@@ -631,7 +678,10 @@ mod tests {
             value: NativeValue::Integer(42),
         };
         let line = request(&call(NativeType::Int, vec![argument]));
-        assert_eq!(line, "kernel32\tGetTickCount\tint\t1\tint64*\t000000000000002a");
+        assert_eq!(
+            line,
+            "kernel32\tGetTickCount\tint\t1\tint64*\t000000000000002a"
+        );
     }
 
     #[test]
@@ -687,8 +737,11 @@ mod tests {
             value: NativeValue::Bytes(ahk::dll::encode("0000000000", NativeType::AStr)),
         };
         let mut native = call(NativeType::Int, vec![number, text]);
-        let answer =
-            answer(&mut native, "ok\t0000000000000001\t2a00000000000000\t3432\t").expect("the answer");
+        let answer = answer(
+            &mut native,
+            "ok\t0000000000000001\t2a00000000000000\t3432\t",
+        )
+        .expect("the answer");
         assert_eq!(answer.value, NativeValue::Integer(1));
         let NativeValue::Bytes(bytes) = &native.arguments[0].value else {
             panic!("the bytes come back");
@@ -711,7 +764,9 @@ mod tests {
         /// A transport that answers with these lines, one after the
         /// other.
         fn new(answers: &[&str]) -> Fake {
-            Fake { answers: answers.iter().map(|line| line.to_string()).collect() }
+            Fake {
+                answers: answers.iter().map(|line| line.to_string()).collect(),
+            }
         }
     }
 
@@ -735,8 +790,14 @@ mod tests {
                 helper: PathBuf::from("helper.exe"),
                 helper32: Some(PathBuf::from("helper32.exe")),
             },
-            wide: Some(Raven { transport: Box::new(Fake::new(wide)), process: None }),
-            narrow: Some(Raven { transport: Box::new(Fake::new(narrow)), process: None }),
+            wide: Some(Raven {
+                transport: Box::new(Fake::new(wide)),
+                process: None,
+            }),
+            narrow: Some(Raven {
+                transport: Box::new(Fake::new(narrow)),
+                process: None,
+            }),
             notes: Vec::new(),
         }
     }
@@ -783,7 +844,8 @@ mod tests {
         let error = answer(&mut native, "error\tFailed to load DLL.").expect_err("it fails");
         assert_eq!(error.reason, "Failed to load DLL.");
         assert_eq!(error.kind, NativeFailureKind::NoLibrary);
-        let error = answer(&mut native, "error\tCall to nonexistent function.").expect_err("it fails");
+        let error =
+            answer(&mut native, "error\tCall to nonexistent function.").expect_err("it fails");
         assert_eq!(error.reason, "Call to nonexistent function.");
         assert_eq!(error.kind, NativeFailureKind::NoFunction);
         // A reason that the raven does not know is a failure of the call
@@ -822,7 +884,10 @@ mod tests {
         let paths = Paths::from_environment().expect("the box has a raven");
         assert_eq!(paths.program, PathBuf::from("/usr/bin/raven"));
         assert_eq!(paths.helper, PathBuf::from("/usr/lib/ahk/helper.exe"));
-        assert_eq!(paths.helper32, Some(PathBuf::from("/usr/lib/ahk/helper32.exe")));
+        assert_eq!(
+            paths.helper32,
+            Some(PathBuf::from("/usr/lib/ahk/helper32.exe"))
+        );
         // A box that has not both has no raven.
         unsafe {
             std::env::remove_var("AHK_RAVEN_HELPER");

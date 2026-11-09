@@ -54,11 +54,30 @@ use crate::runtime::{Runtime, RuntimeError, Value};
 /// They are not answered here, because the runtime holds them while it
 /// runs. The tree carries them all the same.
 pub const THE_RUNTIME_OWNS: &[&str] = &[
-    "index", "linefile", "linenumber", "loopfield", "loopfileattrib", "loopfiledir", "loopfileext",
-    "loopfilefullpath", "loopfilename", "loopfilepath", "loopfileshortname", "loopfileshortpath",
-    "loopfilesize", "loopfilesizekb", "loopfilesizemb", "loopfiletimeaccessed", "loopfiletimecreated",
-    "loopfiletimemodified", "loopreadline", "loopregkey", "loopregname", "loopregtimemodified",
-    "loopregtype", "thisfunc",
+    "index",
+    "linefile",
+    "linenumber",
+    "loopfield",
+    "loopfileattrib",
+    "loopfiledir",
+    "loopfileext",
+    "loopfilefullpath",
+    "loopfilename",
+    "loopfilepath",
+    "loopfileshortname",
+    "loopfileshortpath",
+    "loopfilesize",
+    "loopfilesizekb",
+    "loopfilesizemb",
+    "loopfiletimeaccessed",
+    "loopfiletimecreated",
+    "loopfiletimemodified",
+    "loopreadline",
+    "loopregkey",
+    "loopregname",
+    "loopregtimemodified",
+    "loopregtype",
+    "thisfunc",
 ];
 
 /// The version of the dialect this runtime carries.
@@ -94,14 +113,12 @@ const NO_DESKTOP_COMMON: &str =
 /// The reason the programs of the user are not there.
 ///
 /// The start menu of the user is the folder of the applications.
-const NO_PROGRAMS: &str =
-    "the machine has no programs folder: the start menu of the user is the folder of the applications.";
+const NO_PROGRAMS: &str = "the machine has no programs folder: the start menu of the user is the folder of the applications.";
 
 /// The reason the programs of everybody are not there.
 ///
 /// The start menu is the folder of the applications.
-const NO_PROGRAMS_COMMON: &str =
-    "the machine has no programs folder for everybody: the start menu is the folder of the applications.";
+const NO_PROGRAMS_COMMON: &str = "the machine has no programs folder for everybody: the start menu is the folder of the applications.";
 
 /// The reason the path of the executable is not answered.
 ///
@@ -111,7 +128,8 @@ const NO_AHK_PATH: &str = "this runtime is not AutoHotkey, and it has no path of
 /// The reason the window of the script is not answered.
 ///
 /// The runtime is a script that runs and ends, and it has no window.
-const NO_SCRIPT_HWND: &str = "this runtime has no window of its own: it is a script that runs and ends.";
+const NO_SCRIPT_HWND: &str =
+    "this runtime has no window of its own: it is a script that runs and ends.";
 
 /// The reason the scale of the output is not answered.
 ///
@@ -126,7 +144,8 @@ const NO_TRAY_ICON: &str = "this runtime has no tray icon.";
 /// The reason the directory where the run started is not answered.
 ///
 /// The runtime does not keep it.
-const NO_INITIAL_WORKING_DIR: &str = "this runtime does not keep the directory where the run started.";
+const NO_INITIAL_WORKING_DIR: &str =
+    "this runtime does not keep the directory where the run started.";
 
 /// The reason a built-in variable cannot be written.
 ///
@@ -141,9 +160,13 @@ const NO_INITIAL_WORKING_DIR: &str = "this runtime does not keep the directory w
 pub(crate) fn read_only(name: &str, op: AssignOp) -> String {
     match op {
         AssignOp::Set => {
-            format!("This built-in variable cannot be used as an output variable.\n     Specifically: {name}")
+            format!(
+                "This built-in variable cannot be used as an output variable.\n     Specifically: {name}"
+            )
         }
-        _ => format!("This built-in variable cannot be assigned a value.\n     Specifically: {name}"),
+        _ => {
+            format!("This built-in variable cannot be assigned a value.\n     Specifically: {name}")
+        }
     }
 }
 
@@ -157,20 +180,47 @@ pub(crate) fn read_only(name: &str, op: AssignOp) -> String {
 const WRITABLE: &[&str] = &[
     // The two names that live outside the script: the clipboard and the
     // directory where the run is.
-    "clipboard", "workingdir",
+    "clipboard",
+    "workingdir",
     // The names of the table of the writes: the name of the script, the
     // tip of the icon, the information of an event, the last error of the
     // operating system, and the three of the hotkeys.
-    "eventinfo", "hotkeyinterval", "hotkeymodifiertimeout", "iconhidden", "icontip",
-    "lasterror", "maxhotkeysperinterval", "scriptname",
+    "eventinfo",
+    "hotkeyinterval",
+    "hotkeymodifiertimeout",
+    "iconhidden",
+    "icontip",
+    "lasterror",
+    "maxhotkeysperinterval",
+    "scriptname",
     // The settings of the run: the mode of the coordinates, the delays,
     // the mode of the matching of the titles. The shape of the cursor is
     // not one of them: the v2 refuses to write it as well.
-    "allowmainwindow", "controldelay", "coordmodecaret", "coordmodemenu", "coordmodemouse",
-    "coordmodepixel", "coordmodetooltip", "defaultmousespeed", "detecthiddentext",
-    "detecthiddenwindows", "fileencoding", "keydelay", "keydelayplay", "keyduration",
-    "keydurationplay", "listlines", "menumaskkey", "mousedelay", "mousedelayplay", "regview",
-    "sendlevel", "sendmode", "storecapslockmode", "titlematchmode", "titlematchmodespeed",
+    "allowmainwindow",
+    "controldelay",
+    "coordmodecaret",
+    "coordmodemenu",
+    "coordmodemouse",
+    "coordmodepixel",
+    "coordmodetooltip",
+    "defaultmousespeed",
+    "detecthiddentext",
+    "detecthiddenwindows",
+    "fileencoding",
+    "keydelay",
+    "keydelayplay",
+    "keyduration",
+    "keydurationplay",
+    "listlines",
+    "menumaskkey",
+    "mousedelay",
+    "mousedelayplay",
+    "regview",
+    "sendlevel",
+    "sendmode",
+    "storecapslockmode",
+    "titlematchmode",
+    "titlematchmodespeed",
     "windelay",
     // The index of the loop is a name that a script may write.
     "index",
@@ -184,7 +234,9 @@ const WRITABLE: &[&str] = &[
 /// not carry the name either. The body of a class is the one place where
 /// the name is a property and not a variable.
 pub(crate) fn is_read_only(name: &str) -> bool {
-    let Some(spelled) = spelled(name) else { return false };
+    let Some(spelled) = spelled(name) else {
+        return false;
+    };
     is_built_in(name) && !WRITABLE.contains(&spelled.as_str())
 }
 
@@ -223,9 +275,11 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
         }),
         Kind::Hotkey => crate::hotkeys::variable(&name, rt),
         Kind::Screen => Some(match rt.desktop().screen_size() {
-            Ok((width, height)) => {
-                Ok(Value::Int(if name == "screenwidth" { width } else { height }))
-            }
+            Ok((width, height)) => Ok(Value::Int(if name == "screenwidth" {
+                width
+            } else {
+                height
+            })),
             Err(message) => Err(reason(&message)),
         }),
     }
@@ -253,7 +307,10 @@ pub(crate) fn spelled(name: &str) -> Option<String> {
 /// nowhere else.
 fn in_the_table(name: &str) -> String {
     let lower = name.to_lowercase();
-    lower.strip_prefix("a_").unwrap_or(lower.as_str()).to_string()
+    lower
+        .strip_prefix("a_")
+        .unwrap_or(lower.as_str())
+        .to_string()
 }
 
 /// The written value of a built-in variable that is not a variable of the
@@ -325,8 +382,14 @@ pub(crate) fn the_kind_of_the_write(name: &str) -> Option<Written> {
         "iconhidden" => Written::Flag,
         // The interval of the hotkeys and the number of the hotkeys are
         // numbers, and a text that holds no number is refused.
-        "hotkeyinterval" => Written::Strict { lowest: 0, highest: 2147483647 },
-        "maxhotkeysperinterval" => Written::Strict { lowest: 1, highest: 2147483647 },
+        "hotkeyinterval" => Written::Strict {
+            lowest: 0,
+            highest: 2147483647,
+        },
+        "maxhotkeysperinterval" => Written::Strict {
+            lowest: 1,
+            highest: 2147483647,
+        },
         _ => return None,
     })
 }
@@ -415,14 +478,19 @@ fn write_to_the_clipboard(
         // ones of the numbers.
         _ => {
             let current = read_the_clipboard(rt, line)?;
-            Err(RuntimeError { message: crate::runtime::expected_number(&Value::Text(current)), line })
+            Err(RuntimeError {
+                message: crate::runtime::expected_number(&Value::Text(current)),
+                line,
+            })
         }
     }
 }
 
 /// The text on the clipboard, or the reason the desktop cannot say.
 fn read_the_clipboard(rt: &mut Runtime, line: u32) -> Result<String, RuntimeError> {
-    rt.desktop().clipboard_read().map_err(|message| RuntimeError { message, line })
+    rt.desktop()
+        .clipboard_read()
+        .map_err(|message| RuntimeError { message, line })
 }
 
 /// Put a text on the clipboard.
@@ -442,7 +510,9 @@ fn put_on_the_clipboard(rt: &mut Runtime, text: &str, line: u32) -> Result<Value
 /// The dialect gives every built-in variable the prefix, and a name
 /// without it is not one of them.
 pub fn is_built_in(name: &str) -> bool {
-    let Some(rest) = spelled(name) else { return false };
+    let Some(rest) = spelled(name) else {
+        return false;
+    };
     kind_of(&rest).is_some() || THE_RUNTIME_OWNS.contains(&rest.as_str())
 }
 
@@ -489,32 +559,60 @@ fn kind_of(name: &str) -> Option<Kind> {
         "ahkversion" | "is64bitos" | "ptrsize" | "iscompiled" | "iscritical" | "ispaused"
         | "issuspended" | "tickcount" | "endchar" | "space" | "tab" => Some(Kind::Known),
         // -- the settings the runtime keeps ---------------------------------------
-        "allowmainwindow" | "controldelay" | "coordmodecaret" | "coordmodemenu" | "coordmodemouse"
-        | "coordmodepixel" | "coordmodetooltip" | "cursor" | "defaultmousespeed" | "detecthiddentext"
-        | "detecthiddenwindows" | "fileencoding" | "keydelay" | "keydelayplay" | "keyduration"
-        | "keydurationplay" | "listlines" | "menumaskkey" | "mousedelay" | "mousedelayplay"
-        | "regview" | "sendlevel" | "sendmode" | "storecapslockmode" | "titlematchmode"
-        | "titlematchmodespeed" | "windelay" => Some(Kind::State),
+        "allowmainwindow"
+        | "controldelay"
+        | "coordmodecaret"
+        | "coordmodemenu"
+        | "coordmodemouse"
+        | "coordmodepixel"
+        | "coordmodetooltip"
+        | "cursor"
+        | "defaultmousespeed"
+        | "detecthiddentext"
+        | "detecthiddenwindows"
+        | "fileencoding"
+        | "keydelay"
+        | "keydelayplay"
+        | "keyduration"
+        | "keydurationplay"
+        | "listlines"
+        | "menumaskkey"
+        | "mousedelay"
+        | "mousedelayplay"
+        | "regview"
+        | "sendlevel"
+        | "sendmode"
+        | "storecapslockmode"
+        | "titlematchmode"
+        | "titlematchmodespeed"
+        | "windelay" => Some(Kind::State),
         // -- the date and the time ------------------------------------------------
-        "dd" | "ddd" | "dddd" | "hour" | "mday" | "min" | "mm" | "mmm" | "mmmm" | "mon" | "msec"
-        | "now" | "nowutc" | "sec" | "wday" | "yday" | "year" | "yweek" | "yyyy" => Some(Kind::Date),
+        "dd" | "ddd" | "dddd" | "hour" | "mday" | "min" | "mm" | "mmm" | "mmmm" | "mon"
+        | "msec" | "now" | "nowutc" | "sec" | "wday" | "yday" | "year" | "yweek" | "yyyy" => {
+            Some(Kind::Date)
+        }
         // -- the machine and the session -------------------------------------------
         "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec" | "desktop"
         | "desktopcommon" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
-        | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments" | "osversion"
-        | "programfiles" | "programs" | "programscommon" | "screendpi" | "scriptdir"
-        | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu" | "startmenucommon"
-        | "startup" | "startupcommon" | "temp" | "timeidle" | "timeidlekeyboard" | "timeidlemouse"
-        | "timeidlephysical" | "traymenu" | "username" | "windir" | "workingdir" => Some(Kind::Machine),
+        | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments"
+        | "osversion" | "programfiles" | "programs" | "programscommon" | "screendpi"
+        | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu"
+        | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle"
+        | "timeidlekeyboard" | "timeidlemouse" | "timeidlephysical" | "traymenu" | "username"
+        | "windir" | "workingdir" => Some(Kind::Machine),
         // -- the clipboard -----------------------------------------------------------
         "clipboard" => Some(Kind::Clipboard),
         // -- the screen ---------------------------------------------------------------
         "screenheight" | "screenwidth" => Some(Kind::Screen),
         // -- the hotkeys ------------------------------------------------------------
-        "hotkeyinterval" | "hotkeymodifiertimeout" | "maxhotkeysperinterval" | "priorhotkey"
-        | "priorkey" | "thishotkey" | "timesincepriorhotkey" | "timesincethishotkey" => {
-            Some(Kind::Hotkey)
-        }
+        "hotkeyinterval"
+        | "hotkeymodifiertimeout"
+        | "maxhotkeysperinterval"
+        | "priorhotkey"
+        | "priorkey"
+        | "thishotkey"
+        | "timesincepriorhotkey"
+        | "timesincethishotkey" => Some(Kind::Hotkey),
         _ => None,
     }
 }
@@ -575,7 +673,11 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         "comspec" => text(rt.desktop().shell()),
         "osversion" => text(rt.desktop().os_version()),
         "language" => text(rt.desktop().language()),
-        "isadmin" => rt.desktop().is_admin().map(|yes| Value::Int(yes as i64)).map_err(|why| reason(&why)),
+        "isadmin" => rt
+            .desktop()
+            .is_admin()
+            .map(|yes| Value::Int(yes as i64))
+            .map_err(|why| reason(&why)),
         // The directory where the run started is the one of the run, and
         // the script does not change it.
         "initialworkingdir" | "scriptdir" => match rt.initial_working_dir() {
@@ -587,10 +689,9 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         // directory of the script is the directory where the run started,
         // and the name and the path are an asterisk.
         "scriptname" | "scriptfullpath" | "icontip" => Ok(Value::Text("*".to_string())),
-        "appdata" | "appdatacommon" | "desktop" | "desktopcommon" | "startmenu" | "startmenucommon"
-        | "programs" | "programscommon" | "startup" | "startupcommon" | "mydocuments" | "temp" => {
-            folder(rt, name)
-        }
+        "appdata" | "appdatacommon" | "desktop" | "desktopcommon" | "startmenu"
+        | "startmenucommon" | "programs" | "programscommon" | "startup" | "startupcommon"
+        | "mydocuments" | "temp" => folder(rt, name),
         "timeidle" | "timeidlephysical" | "timeidlekeyboard" | "timeidlemouse" => idle(rt, name),
         // The working directory is the one of the files, and the tree uses
         // it everywhere else.
@@ -690,21 +791,24 @@ fn idle(rt: &mut Runtime, name: &str) -> Result<Value, RuntimeError> {
 /// The line is zero: the caller knows the line of the statement that asked,
 /// and puts it there.
 fn reason(message: &str) -> RuntimeError {
-    RuntimeError { message: message.to_string(), line: 0 }
+    RuntimeError {
+        message: message.to_string(),
+        line: 0,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-        Processes, Screen, Sound, Timers, Windows,
-    };
     /// The reason the date and the time are not answered.
     ///
     /// The clock of the runtime counts the milliseconds of a run, and it
     /// counts them from an arbitrary origin: it does not know the date.
     use crate::date::NO_DATE;
+    use crate::desktop::{
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+        Pointer, Processes, Screen, Sound, Timers, Windows,
+    };
     use crate::runtime::Clock;
     use alloc::string::String;
     use core::time::Duration;
@@ -720,8 +824,8 @@ mod tests {
     impl Pictures for Fake {}
     impl Network for Fake {}
     impl Sound for Fake {}
-impl Machine for Fake {}
-impl Dialogs for Fake {}
+    impl Machine for Fake {}
+    impl Dialogs for Fake {}
 
     impl Files for Fake {}
 
@@ -745,7 +849,13 @@ impl Dialogs for Fake {}
     }
 
     impl Pointer for Fake {
-        fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        fn click(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _button: &str,
+            _count: u32,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
     }
@@ -889,16 +999,28 @@ impl Dialogs for Fake {}
     fn a_script_that_asks_for_the_machine_is_told_what_the_desktop_cannot_answer() {
         // The machine is the desktop's, and the desktop of this test
         // answers nothing: the reason is the one of the desktop.
-        assert_eq!(reason("a_computername"), "this desktop cannot say the name of the computer");
-        assert_eq!(reason("a_username"), "this desktop cannot say the name of the user");
+        assert_eq!(
+            reason("a_computername"),
+            "this desktop cannot say the name of the computer"
+        );
+        assert_eq!(
+            reason("a_username"),
+            "this desktop cannot say the name of the user"
+        );
     }
 
     #[test]
     fn a_script_that_asks_for_the_size_of_the_screen_is_told_by_the_desktop() {
         // The screen is not the machine: it is the desktop's, and the tree
         // asks it.
-        assert_eq!(reason("a_screenwidth"), "this desktop cannot tell how big the screen is");
-        assert_eq!(reason("a_screenheight"), "this desktop cannot tell how big the screen is");
+        assert_eq!(
+            reason("a_screenwidth"),
+            "this desktop cannot tell how big the screen is"
+        );
+        assert_eq!(
+            reason("a_screenheight"),
+            "this desktop cannot tell how big the screen is"
+        );
     }
 
     #[test]
@@ -973,6 +1095,9 @@ impl Dialogs for Fake {}
             .map(|name| format!("a_{name}"))
             .filter(|name| answer(name).is_none())
             .collect();
-        assert!(lost.is_empty(), "these variables of v2 are not answered: {lost:?}");
+        assert!(
+            lost.is_empty(),
+            "these variables of v2 are not answered: {lost:?}"
+        );
     }
 }

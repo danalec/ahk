@@ -201,17 +201,26 @@ pub struct NativeFailure {
 impl NativeFailure {
     /// The failure of a call that is not valid.
     pub fn invalid(reason: &str) -> Self {
-        NativeFailure { kind: NativeFailureKind::Invalid, reason: reason.to_string() }
+        NativeFailure {
+            kind: NativeFailureKind::Invalid,
+            reason: reason.to_string(),
+        }
     }
 
     /// The failure of a library that is not there.
     pub fn no_library(reason: &str) -> Self {
-        NativeFailure { kind: NativeFailureKind::NoLibrary, reason: reason.to_string() }
+        NativeFailure {
+            kind: NativeFailureKind::NoLibrary,
+            reason: reason.to_string(),
+        }
     }
 
     /// The failure of a function that is not in the library.
     pub fn no_function(reason: &str) -> Self {
-        NativeFailure { kind: NativeFailureKind::NoFunction, reason: reason.to_string() }
+        NativeFailure {
+            kind: NativeFailureKind::NoFunction,
+            reason: reason.to_string(),
+        }
     }
 }
 
@@ -222,7 +231,10 @@ impl NativeFailure {
 /// `None` means the string is not a type.
 pub fn parse_type(text: &str) -> Option<(NativeType, bool)> {
     let trimmed = text.trim();
-    let (body, address) = match trimmed.strip_suffix('*').or_else(|| trimmed.strip_suffix('P')) {
+    let (body, address) = match trimmed
+        .strip_suffix('*')
+        .or_else(|| trimmed.strip_suffix('P'))
+    {
         Some(body) => (body.trim(), true),
         None => (trimmed, false),
     };
@@ -293,7 +305,10 @@ pub fn encode(text: &str, kind: NativeType) -> Vec<u8> {
 pub fn decode(bytes: &[u8], kind: NativeType) -> String {
     match kind {
         NativeType::AStr => {
-            let end = bytes.iter().position(|byte| *byte == 0).unwrap_or(bytes.len());
+            let end = bytes
+                .iter()
+                .position(|byte| *byte == 0)
+                .unwrap_or(bytes.len());
             String::from_utf8_lossy(&bytes[..end]).into_owned()
         }
         _ => {
@@ -455,8 +470,17 @@ mod tests {
     /// The library and the function, out of the string of the script.
     #[test]
     fn the_target_is_read_out_of_its_string() {
-        assert_eq!(split_target("kernel32\\GetLastError"), ("kernel32".into(), "GetLastError".into()));
-        assert_eq!(split_target("GetLastError"), ("".into(), "GetLastError".into()));
-        assert_eq!(split_target("C:\\dir\\file.dll\\Func"), ("C:\\dir\\file.dll".into(), "Func".into()));
+        assert_eq!(
+            split_target("kernel32\\GetLastError"),
+            ("kernel32".into(), "GetLastError".into())
+        );
+        assert_eq!(
+            split_target("GetLastError"),
+            ("".into(), "GetLastError".into())
+        );
+        assert_eq!(
+            split_target("C:\\dir\\file.dll\\Func"),
+            ("C:\\dir\\file.dll".into(), "Func".into())
+        );
     }
 }

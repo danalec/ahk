@@ -36,8 +36,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::ast::{
-    AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, Catch, DeclareKind, Declared, Declarations, DynamicPiece,
-    LegacyForm, LiteralValue, LoopKind, MemberName, MethodDef, Node, ObjectItem, Parameter, PropertyDef, UnaryOp,
+    AccessBody, AccessDef, AssignOp, BinaryOp, Branch, Case, Catch, Declarations, DeclareKind,
+    Declared, DynamicPiece, LegacyForm, LiteralValue, LoopKind, MemberName, MethodDef, Node,
+    ObjectItem, Parameter, PropertyDef, UnaryOp,
 };
 use crate::lexer::{SyntaxError, TheRefusal, Token, TokenKind};
 
@@ -63,7 +64,11 @@ enum TheShapeOfASuper {
 /// call, and the member that is not called is written with the parentheses
 /// of a call -- "super.x()". In an expression the text is the source, and
 /// the parentheses are not there -- "super.x".
-fn the_shape_of_a_super(parser: &Parser, start: usize, as_a_statement: bool) -> (TheShapeOfASuper, String) {
+fn the_shape_of_a_super(
+    parser: &Parser,
+    start: usize,
+    as_a_statement: bool,
+) -> (TheShapeOfASuper, String) {
     let tokens = &parser.tokens;
     let mut end = start + 1;
     let mut shape = TheShapeOfASuper::Bare;
@@ -74,7 +79,9 @@ fn the_shape_of_a_super(parser: &Parser, start: usize, as_a_statement: bool) -> 
             // the value when there is no space after it.
             let name = tokens.get(end + 1);
             let is_member = name.map(|token| !token.spaced).unwrap_or(false)
-                && name.map(|token| token.kind == TokenKind::Name || token.kind == TokenKind::Keyword).unwrap_or(false);
+                && name
+                    .map(|token| token.kind == TokenKind::Name || token.kind == TokenKind::Keyword)
+                    .unwrap_or(false);
             if is_member {
                 end += 2;
                 shape = TheShapeOfASuper::Member;
@@ -247,7 +254,10 @@ fn the_text_ends_the_operand(parser: &Parser, at: usize) -> bool {
     if parser.tokens[at].spaced {
         return true;
     }
-    match at.checked_sub(1).and_then(|before| parser.tokens.get(before)) {
+    match at
+        .checked_sub(1)
+        .and_then(|before| parser.tokens.get(before))
+    {
         None => true,
         Some(token) => !the_token_is_of_an_operand(token),
     }
@@ -259,11 +269,15 @@ fn the_text_ends_the_operand(parser: &Parser, at: usize) -> bool {
 /// of the name is the text of the script, and not the name that the escape
 /// made: the `a``b` is the source "a``b".
 fn the_source_of_the_name_that_carries_an_escape(parser: &Parser, token: &Token) -> String {
-    let Some(line) = parser.lines.get(token.line as usize - 1) else { return token.value.clone() };
+    let Some(line) = parser.lines.get(token.line as usize - 1) else {
+        return token.value.clone();
+    };
     let characters: Vec<char> = line.chars().collect();
     let start = (token.column as usize).saturating_sub(1);
     let mut end = start;
-    while end < characters.len() && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end]) {
+    while end < characters.len()
+        && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end])
+    {
         end += 1;
     }
     characters[start..end].iter().collect()
@@ -275,7 +289,10 @@ fn the_source_of_the_name_that_carries_an_escape(parser: &Parser, token: &Token)
 /// value that cannot be written is refused at the load, and it is an
 /// "Invalid assignment.".
 fn the_value_can_be_written(node: &Node) -> bool {
-    matches!(node, Node::Var { .. } | Node::Property { .. } | Node::Index { .. } | Node::DynamicName { .. })
+    matches!(
+        node,
+        Node::Var { .. } | Node::Property { .. } | Node::Index { .. } | Node::DynamicName { .. }
+    )
 }
 
 /// Whether the increment of this value is refused at the load.
@@ -284,7 +301,10 @@ fn the_value_can_be_written(node: &Node) -> bool {
 /// does not refuse the increment of a literal: the `x := ++5` is a script
 /// that runs, and the value of the expression is the empty text. The v2
 /// refuses it at the load.
-fn the_increment_of_the_value_is_refused(dialect: &dyn crate::dialect::Dialect, node: &Node) -> bool {
+fn the_increment_of_the_value_is_refused(
+    dialect: &dyn crate::dialect::Dialect,
+    node: &Node,
+) -> bool {
     if dialect.the_increment_of_a_literal_is_blank() && matches!(node, Node::Literal { .. }) {
         return false;
     }
@@ -300,7 +320,12 @@ fn the_increment_of_the_value_is_refused(dialect: &dyn crate::dialect::Dialect, 
 /// wants a parameter that is not there names the text of its head.
 fn the_source_of_the_head(parser: &Parser, head: usize, body: usize) -> String {
     let mut text = the_source_of_the_tokens(parser, head, body);
-    if parser.tokens.get(body).map(|token| token.spaced).unwrap_or(false) {
+    if parser
+        .tokens
+        .get(body)
+        .map(|token| token.spaced)
+        .unwrap_or(false)
+    {
         text.push(' ');
     }
     text
@@ -311,7 +336,10 @@ fn the_source_of_the_head(parser: &Parser, head: usize, body: usize) -> String {
 /// The loop of a count and the loops of a kind are the same statement,
 /// and the name of the kind is part of it.
 fn the_loop_of_the_kind(kind: &str) -> bool {
-    matches!(kind, "Loop" | "Loop Files" | "Loop Reg" | "Loop Read" | "Loop Parse")
+    matches!(
+        kind,
+        "Loop" | "Loop Files" | "Loop Reg" | "Loop Read" | "Loop Parse"
+    )
 }
 
 /// The name of the statement of the loop, as the messages of v2 write it.
@@ -376,7 +404,9 @@ fn the_message_of_a_command(mut error: SyntaxError) -> SyntaxError {
     // The line that holds no action is named with the line itself, and the
     // parenthesis of the call is not a part of it.
     if !error.message.starts_with("Missing \"")
-        && !error.message.starts_with("This line does not contain a recognized action.")
+        && !error
+            .message
+            .starts_with("This line does not contain a recognized action.")
         && error.message.contains("\n     Specifically: ")
     {
         error.message.push(')');
@@ -425,12 +455,18 @@ fn the_source_with_the_newlines_as_spaces(parser: &Parser, start: usize, end: us
 /// v2 shows the line when it refuses a name or a bracket, and the line is
 /// the one that the token is on.
 fn the_source_of_the_line(parser: &Parser, line: u32) -> String {
-    let start = parser.tokens.iter().position(|token| token.line == line).unwrap_or(0);
+    let start = parser
+        .tokens
+        .iter()
+        .position(|token| token.line == line)
+        .unwrap_or(0);
     let mut end = start;
     while end < parser.tokens.len() && parser.tokens[end].line == line {
         end += 1;
     }
-    the_source_of_the_tokens(parser, start, end).trim_end().to_string()
+    the_source_of_the_tokens(parser, start, end)
+        .trim_end()
+        .to_string()
 }
 
 /// The text that the refusal of the brace that closes a block names.
@@ -485,15 +521,21 @@ fn the_text_of_the_illegal_character(parser: &Parser, at: usize, in_an_expressio
 /// the `x := 1;c` is the symbol, and the `;` of the `x := 1;(c)` is one.
 /// The point, the semicolon and the percent sign are a part of it.
 fn the_symbol_that_begins_at(parser: &Parser, at: usize) -> String {
-    let Some(token) = parser.tokens.get(at) else { return String::new() };
-    let Some(line) = parser.lines.get(token.line as usize - 1) else { return token.value.clone() };
+    let Some(token) = parser.tokens.get(at) else {
+        return String::new();
+    };
+    let Some(line) = parser.lines.get(token.line as usize - 1) else {
+        return token.value.clone();
+    };
     let characters: Vec<char> = line.chars().collect();
     let start = (token.column as usize).saturating_sub(1);
     if start >= characters.len() {
         return token.value.clone();
     }
     let mut end = start;
-    while end < characters.len() && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end]) {
+    while end < characters.len()
+        && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end])
+    {
         end += 1;
     }
     characters[start..end].iter().collect()
@@ -507,8 +549,12 @@ fn the_symbol_that_begins_at(parser: &Parser, at: usize) -> String {
 /// it: the `x := a``b` is the symbol "`b", and the `x := a``b.c` is the
 /// symbol "`b.c".
 fn the_symbol_of_the_escaped_backtick(parser: &Parser, at: usize) -> String {
-    let Some(token) = parser.tokens.get(at) else { return String::new() };
-    let Some(line) = parser.lines.get(token.line as usize - 1) else { return token.value.clone() };
+    let Some(token) = parser.tokens.get(at) else {
+        return String::new();
+    };
+    let Some(line) = parser.lines.get(token.line as usize - 1) else {
+        return token.value.clone();
+    };
     let characters: Vec<char> = line.chars().collect();
     let start = (token.column as usize).saturating_sub(1);
     // The first backtick of the word opens the escape, and the second one is
@@ -528,7 +574,9 @@ fn the_symbol_of_the_escaped_backtick(parser: &Parser, at: usize) -> String {
         return token.value.clone();
     }
     let mut end = at_the_backtick;
-    while end < characters.len() && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end]) {
+    while end < characters.len()
+        && !crate::lexer::the_character_ends_the_symbol_of_the_v1(characters[end])
+    {
         end += 1;
     }
     characters[at_the_backtick..end].iter().collect()
@@ -607,8 +655,29 @@ fn the_token_is_an_operator(token: &Token) -> bool {
     if token.kind == TokenKind::Op {
         return matches!(
             token.value.as_str(),
-            "**" | "*" | "/" | "//" | "+" | "-" | "<<" | ">>" | ">>>" | "&" | "^" | "|"
-                | "~=" | ">" | ">=" | "<" | "<=" | "=" | "==" | "!=" | "!==" | "&&" | "||" | "??"
+            "**" | "*"
+                | "/"
+                | "//"
+                | "+"
+                | "-"
+                | "<<"
+                | ">>"
+                | ">>>"
+                | "&"
+                | "^"
+                | "|"
+                | "~="
+                | ">"
+                | ">="
+                | "<"
+                | "<="
+                | "="
+                | "=="
+                | "!="
+                | "!=="
+                | "&&"
+                | "||"
+                | "??"
         );
     }
     if token.kind == TokenKind::Keyword {
@@ -658,7 +727,11 @@ fn collect_the_labels_of_a_scope(body: &[Node], labels: &mut Vec<(String, u32)>)
     for statement in body {
         match statement {
             Node::Label { name, line } => labels.push((name.clone(), *line)),
-            Node::If { branches, otherwise, .. } => {
+            Node::If {
+                branches,
+                otherwise,
+                ..
+            } => {
                 for branch in branches {
                     collect_the_labels_of_a_scope(&branch.body, labels);
                 }
@@ -672,7 +745,13 @@ fn collect_the_labels_of_a_scope(body: &[Node], labels: &mut Vec<(String, u32)>)
             Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
                 collect_the_labels_of_a_scope(body, labels);
             }
-            Node::Try { body, catches, otherwise, finally, .. } => {
+            Node::Try {
+                body,
+                catches,
+                otherwise,
+                finally,
+                ..
+            } => {
                 collect_the_labels_of_a_scope(body, labels);
                 for catch in catches {
                     collect_the_labels_of_a_scope(&catch.body, labels);
@@ -722,10 +801,12 @@ impl TheNamesOfTheScript {
         for statement in body {
             match statement {
                 Node::Label { name, .. } => self.labels.push((name.clone(), chain.clone())),
-                Node::Goto { name, line } => {
-                    self.gotos.push((name.clone(), *line, chain.clone()))
-                }
-                Node::If { branches, otherwise, .. } => {
+                Node::Goto { name, line } => self.gotos.push((name.clone(), *line, chain.clone())),
+                Node::If {
+                    branches,
+                    otherwise,
+                    ..
+                } => {
                     for branch in branches {
                         self.collect_in_a_block(&branch.body, chain, false);
                     }
@@ -739,7 +820,13 @@ impl TheNamesOfTheScript {
                 Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
                     self.collect_in_a_block(body, chain, false);
                 }
-                Node::Try { body, catches, otherwise, finally, .. } => {
+                Node::Try {
+                    body,
+                    catches,
+                    otherwise,
+                    finally,
+                    ..
+                } => {
                     self.collect_in_a_block(body, chain, false);
                     for catch in catches {
                         self.collect_in_a_block(&catch.body, chain, false);
@@ -751,7 +838,9 @@ impl TheNamesOfTheScript {
                 // The body of a hotkey of the v1 is of the scope that carries
                 // it: the hotkey is not a block, and a jump may leave it.
                 Node::HotkeyDefinition { body, .. } => self.collect(body, chain),
-                Node::LegacyIf { body, otherwise, .. } => {
+                Node::LegacyIf {
+                    body, otherwise, ..
+                } => {
                     self.collect_in_a_block(body, chain, false);
                     self.collect_in_a_block(otherwise, chain, false);
                 }
@@ -810,7 +899,12 @@ fn the_bodies_of_the_hotkeys(statements: Vec<Node>) -> Vec<Node> {
     let mut rest = statements.into_iter();
     while let Some(statement) = rest.next() {
         match statement {
-            Node::HotkeyDefinition { name, line, body, on_the_line } => {
+            Node::HotkeyDefinition {
+                name,
+                line,
+                body,
+                on_the_line,
+            } => {
                 if on_the_line {
                     // The action of the hotkey is the command of the line,
                     // and the code that comes after it does not belong to
@@ -856,7 +950,11 @@ fn collect_the_gotos_of_a_scope(body: &[Node], gotos: &mut Vec<(String, u32)>) {
     for statement in body {
         match statement {
             Node::Goto { name, line } => gotos.push((name.clone(), *line)),
-            Node::If { branches, otherwise, .. } => {
+            Node::If {
+                branches,
+                otherwise,
+                ..
+            } => {
                 for branch in branches {
                     collect_the_gotos_of_a_scope(&branch.body, gotos);
                 }
@@ -870,7 +968,13 @@ fn collect_the_gotos_of_a_scope(body: &[Node], gotos: &mut Vec<(String, u32)>) {
             Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
                 collect_the_gotos_of_a_scope(body, gotos);
             }
-            Node::Try { body, catches, otherwise, finally, .. } => {
+            Node::Try {
+                body,
+                catches,
+                otherwise,
+                finally,
+                ..
+            } => {
                 collect_the_gotos_of_a_scope(body, gotos);
                 for catch in catches {
                     collect_the_gotos_of_a_scope(&catch.body, gotos);
@@ -901,7 +1005,11 @@ fn the_name_of_a_label(tokens: &[Token]) -> Option<String> {
             TokenKind::Name | TokenKind::Number => {}
             _ => return None,
         }
-        if !token.value.chars().all(|letter| letter.is_ascii_alphanumeric() || letter == '_') {
+        if !token
+            .value
+            .chars()
+            .all(|letter| letter.is_ascii_alphanumeric() || letter == '_')
+        {
             return None;
         }
         name.push_str(&token.value);
@@ -935,11 +1043,7 @@ fn the_name_of_a_property_of_the_v1(parser: &Parser, start: usize, end: usize) -
 /// the name when it is one, and the value of the expression when it is not:
 /// the `{b: 1}` has the property "b" whatever the value of `b` is, and the
 /// `{(b): 1}` has the property of the value of `b`.
-fn the_key_of_a_property_of_the_v1_is_a_name(
-    parser: &Parser,
-    start: usize,
-    end: usize,
-) -> bool {
+fn the_key_of_a_property_of_the_v1_is_a_name(parser: &Parser, start: usize, end: usize) -> bool {
     let tokens = parser.tokens.get(start..end).unwrap_or(&[]);
     tokens.len() == 1 && tokens[0].kind == TokenKind::Name
 }
@@ -978,7 +1082,12 @@ fn the_declarations_of_a_body(
         // The mode is the bare `global` of the first line.
         if first {
             first = false;
-            if let Node::Declare { scope: DeclareKind::Global, names, .. } = statement {
+            if let Node::Declare {
+                scope: DeclareKind::Global,
+                names,
+                ..
+            } = statement
+            {
                 if names.is_empty() {
                     declarations.assume_global = true;
                     continue;
@@ -989,8 +1098,7 @@ fn the_declarations_of_a_body(
             // they are the first statement of the body of the function, and
             // they declare nothing.
             if let Node::Declare { names, .. } = statement {
-                if names.is_empty()
-                    && dialect.the_declaration_with_no_name_is_the_first_statement()
+                if names.is_empty() && dialect.the_declaration_with_no_name_is_the_first_statement()
                 {
                     continue;
                 }
@@ -1008,7 +1116,11 @@ fn the_declarations_of_a_statement(
     dialect: &dyn crate::dialect::Dialect,
 ) -> Result<(), SyntaxError> {
     match statement {
-        Node::Declare { scope: kind, names, line } => {
+        Node::Declare {
+            scope: kind,
+            names,
+            line,
+        } => {
             if *kind == DeclareKind::Global && names.is_empty() {
                 // A bare `global` that is not the mode of the function.
                 //
@@ -1024,8 +1136,7 @@ fn the_declarations_of_a_statement(
             // the v1 refuses the declaration that has no name when it is
             // not the first statement of the body of the function: the
             // `local` alone and the `static` alone.
-            if names.is_empty() && dialect.the_declaration_with_no_name_is_the_first_statement()
-            {
+            if names.is_empty() && dialect.the_declaration_with_no_name_is_the_first_statement() {
                 return Err(SyntaxError {
                     message: dialect.the_message_of_the_refused_declaration(kind.word()),
                     line: *line,
@@ -1048,7 +1159,11 @@ fn the_declarations_of_a_statement(
                 }
             }
         }
-        Node::If { branches, otherwise, .. } => {
+        Node::If {
+            branches,
+            otherwise,
+            ..
+        } => {
             for branch in branches {
                 the_declarations_of_a_body_of(&branch.body, declarations, dialect)?;
             }
@@ -1062,7 +1177,13 @@ fn the_declarations_of_a_statement(
         Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
             the_declarations_of_a_body_of(body, declarations, dialect)?;
         }
-        Node::Try { body, catches, otherwise, finally, .. } => {
+        Node::Try {
+            body,
+            catches,
+            otherwise,
+            finally,
+            ..
+        } => {
             the_declarations_of_a_body_of(body, declarations, dialect)?;
             for catch in catches {
                 the_declarations_of_a_body_of(&catch.body, declarations, dialect)?;
@@ -1268,7 +1389,8 @@ struct TheHotkeyOfTheScript {
 }
 
 /// The recursive descent parser.
-pub struct Parser {    tokens: Vec<Token>,
+pub struct Parser {
+    tokens: Vec<Token>,
     position: usize,
     /// The names the script defines: its functions and its classes.
     defined: BTreeSet<String>,
@@ -1546,7 +1668,10 @@ impl Parser {
 
     fn at_keyword(&self, words: &[&str]) -> bool {
         let token = self.peek();
-        token.kind == TokenKind::Keyword && words.iter().any(|word| token.value.eq_ignore_ascii_case(word))
+        token.kind == TokenKind::Keyword
+            && words
+                .iter()
+                .any(|word| token.value.eq_ignore_ascii_case(word))
     }
 
     /// Whether the name that comes next is the one that is asked for.
@@ -1583,7 +1708,10 @@ impl Parser {
     /// The space belongs to the token that comes next, and that is what
     /// tells a member from a concatenation.
     fn the_space_after_is_there(&self) -> bool {
-        self.tokens.get(self.position + 1).map(|token| token.spaced).unwrap_or(false)
+        self.tokens
+            .get(self.position + 1)
+            .map(|token| token.spaced)
+            .unwrap_or(false)
     }
 
     /// Whether the bracket that comes next reaches into a value.
@@ -1604,7 +1732,10 @@ impl Parser {
     /// a class, so the declaration is what the parser reads.
     fn a_class_declaration_comes_next(&self) -> bool {
         match self.tokens.get(self.position + 1) {
-            Some(token) => matches!(token.kind, TokenKind::Name | TokenKind::Keyword | TokenKind::Number),
+            Some(token) => matches!(
+                token.kind,
+                TokenKind::Name | TokenKind::Keyword | TokenKind::Number
+            ),
             None => false,
         }
     }
@@ -1754,7 +1885,11 @@ impl Parser {
 
     fn error(&self, message: impl Into<String>) -> SyntaxError {
         let token = self.peek();
-        SyntaxError { message: message.into(), line: token.line, column: token.column }
+        SyntaxError {
+            message: message.into(),
+            line: token.line,
+            column: token.column,
+        }
     }
 
     /// The expression of a statement begins.
@@ -1833,7 +1968,9 @@ impl Parser {
             text.push(')');
         }
         SyntaxError {
-            message: format!("Unexpected operator following literal string.\n     Specifically: {text}"),
+            message: format!(
+                "Unexpected operator following literal string.\n     Specifically: {text}"
+            ),
             line: pending.line,
             column: pending.column,
         }
@@ -1956,14 +2093,10 @@ impl Parser {
             }
             let wanted = &call.name;
             // The function of the dialect: the arity is in the table.
-            let function = self
-                .dialect
-                .builtins()
-                .iter()
-                .find(|builtin| {
-                    builtin.name.to_lowercase() == *wanted
-                        && builtin.kind == crate::builtins::BuiltinKind::Function
-                });
+            let function = self.dialect.builtins().iter().find(|builtin| {
+                builtin.name.to_lowercase() == *wanted
+                    && builtin.kind == crate::builtins::BuiltinKind::Function
+            });
             if let Some(function) = function {
                 // The table says 255 when the built-in takes any number of
                 // them.
@@ -2114,8 +2247,7 @@ impl Parser {
             if name.contains('%') {
                 continue;
             }
-            let Some(refusal) = crate::v1::the_refusal_of_a_goto(name, chain, &names.labels)
-            else {
+            let Some(refusal) = crate::v1::the_refusal_of_a_goto(name, chain, &names.labels) else {
                 continue;
             };
             failures.push(SyntaxError {
@@ -2142,7 +2274,8 @@ impl Parser {
             if self.classes.contains_key(&base.to_lowercase()) {
                 continue;
             }
-            if crate::classes::is_a_name_of_a_class(base) && self.dialect.the_base_may_be_a_class_of_the_runtime()
+            if crate::classes::is_a_name_of_a_class(base)
+                && self.dialect.the_base_may_be_a_class_of_the_runtime()
             {
                 continue;
             }
@@ -2172,7 +2305,10 @@ impl Parser {
         // v1 takes the name of a class and the name of a function of the
         // machine as the name of a variable, and it refuses no assignment of
         // the top level.
-        if self.dialect.the_name_of_a_class_or_of_a_function_may_be_assigned() {
+        if self
+            .dialect
+            .the_name_of_a_class_or_of_a_function_may_be_assigned()
+        {
             return Ok(());
         }
         for assignment in assignments {
@@ -2182,9 +2318,15 @@ impl Parser {
                     AssignOp::Set => format!(
                         "This Class cannot be used as an output variable.\n     Specifically: {class}"
                     ),
-                    _ => format!("This Class cannot be assigned a value.\n     Specifically: {class}"),
+                    _ => format!(
+                        "This Class cannot be assigned a value.\n     Specifically: {class}"
+                    ),
                 };
-                return Err(SyntaxError { message, line: assignment.line, column: assignment.column });
+                return Err(SyntaxError {
+                    message,
+                    line: assignment.line,
+                    column: assignment.column,
+                });
             }
             if crate::builtins::find(&key).is_some() {
                 let message = match assignment.op {
@@ -2197,7 +2339,11 @@ impl Parser {
                         assignment.name
                     ),
                 };
-                return Err(SyntaxError { message, line: assignment.line, column: assignment.column });
+                return Err(SyntaxError {
+                    message,
+                    line: assignment.line,
+                    column: assignment.column,
+                });
             }
         }
         Ok(())
@@ -2236,7 +2382,10 @@ impl Parser {
                 // the v1 refuses the class that is declared twice with
                 // "Duplicate class definition.\n     Specifically: C", and the
                 // name is the one that was written.
-                if self.dialect.the_class_that_is_declared_twice_has_its_own_words() {
+                if self
+                    .dialect
+                    .the_class_that_is_declared_twice_has_its_own_words()
+                {
                     return Err(SyntaxError {
                         message: format!("Duplicate class definition.\n     Specifically: {name}"),
                         line,
@@ -2269,7 +2418,10 @@ impl Parser {
             // function definition.\n     Specifically: C()", and the name is
             // written the way the script spelled it and with the parenthesis
             // of the call.
-            if self.dialect.the_function_that_is_declared_twice_has_its_own_words() {
+            if self
+                .dialect
+                .the_function_that_is_declared_twice_has_its_own_words()
+            {
                 return Err(SyntaxError {
                     message: format!("Duplicate function definition.\n     Specifically: {name}()"),
                     line,
@@ -2280,7 +2432,9 @@ impl Parser {
         } else {
             None
         };
-        let Some(message) = message else { return Ok(()) };
+        let Some(message) = message else {
+            return Ok(());
+        };
         Err(SyntaxError {
             message: format!("{message}\n     Specifically: {name}"),
             line,
@@ -2531,7 +2685,11 @@ impl Parser {
                 the_source_of_the_rest_of_the_line(self, self.position - 1)
             ),
             line,
-            column: self.tokens.get(self.position - 1).map(|token| token.column).unwrap_or(1),
+            column: self
+                .tokens
+                .get(self.position - 1)
+                .map(|token| token.column)
+                .unwrap_or(1),
         })
     }
 
@@ -2583,8 +2741,10 @@ impl Parser {
         if self.dialect.the_body_may_be_missing() {
             return false;
         }
-        matches!(kind, "If" | "While" | "For" | "Try" | "Catch" | "Else" | "Finally")
-            || the_loop_of_the_kind(kind)
+        matches!(
+            kind,
+            "If" | "While" | "For" | "Try" | "Catch" | "Else" | "Finally"
+        ) || the_loop_of_the_kind(kind)
     }
 
     /// Whether the body of a block begins on the next line.
@@ -2602,7 +2762,11 @@ impl Parser {
     /// closes a block is at the start of its line, and a brace that is not
     /// names the line of the script.
     fn the_brace_is_at_the_start_of_its_line(&self) -> bool {
-        match self.position.checked_sub(1).and_then(|at| self.tokens.get(at)) {
+        match self
+            .position
+            .checked_sub(1)
+            .and_then(|at| self.tokens.get(at))
+        {
             Some(token) => token.kind == TokenKind::Newline,
             None => true,
         }
@@ -2779,7 +2943,9 @@ impl Parser {
             // The dot is the member of a value that is not there.
             "." => self.the_message_of_the_dot_at_the_start(),
             // The equal wants the operator of an assignment.
-            "=" | "=>" => format!("Syntax error. Did you mean to use \":=\"?\n     Specifically: {line}"),
+            "=" | "=>" => {
+                format!("Syntax error. Did you mean to use \":=\"?\n     Specifically: {line}")
+            }
             // The assignment wants a name on its left.
             ":=" => "\":=\" requires that parameter #1 be non-blank.".to_string(),
             // The compound assignment writes to a name that is not there.
@@ -2803,7 +2969,9 @@ impl Parser {
                 the_text_of_the_illegal_character(self, self.position, false)
             ),
             // The other operators are not a statement of their own.
-            _ => format!("This line does not contain a recognized action.\n     Specifically: {line}"),
+            _ => format!(
+                "This line does not contain a recognized action.\n     Specifically: {line}"
+            ),
         }
     }
 
@@ -2817,15 +2985,21 @@ impl Parser {
         let line = the_source_of_the_line(self, self.peek().line);
         // The name after the dot is the member that is wanted.
         let member = self.tokens.get(self.position + 1);
-        let is_a_member = matches!(member, Some(token) if token.kind == TokenKind::Name && !token.spaced);
+        let is_a_member =
+            matches!(member, Some(token) if token.kind == TokenKind::Name && !token.spaced);
         if !is_a_member {
-            return format!("This line does not contain a recognized action.\n     Specifically: {line}");
+            return format!(
+                "This line does not contain a recognized action.\n     Specifically: {line}"
+            );
         }
         // The statement that carries an assignment is named as it was written.
         if self.the_line_has_an_assignment() {
             return format!("Syntax error.\n     Specifically: {line}");
         }
-        format!("Syntax error.\n     Specifically: {}", self.the_call_of_the_dot())
+        format!(
+            "Syntax error.\n     Specifically: {}",
+            self.the_call_of_the_dot()
+        )
     }
 
     /// Whether the line of the statement carries an assignment.
@@ -2836,7 +3010,8 @@ impl Parser {
     fn the_line_has_an_assignment(&self) -> bool {
         let line = self.peek().line;
         self.tokens.iter().any(|token| {
-            token.line == line && (token.value == "=" || the_assignment_operator(&token.value).is_some())
+            token.line == line
+                && (token.value == "=" || the_assignment_operator(&token.value).is_some())
         })
     }
 
@@ -2881,9 +3056,7 @@ impl Parser {
             .map(|rest| rest.contains("::"))
             .unwrap_or(false);
         if !second {
-            return Err(self.error(format!(
-                "Invalid hotkey.\n     Specifically: {text}"
-            )));
+            return Err(self.error(format!("Invalid hotkey.\n     Specifically: {text}")));
         }
         // The whole line is the hotstring, and the parser goes to the end
         // of it.
@@ -2916,9 +3089,7 @@ impl Parser {
         // The name of the hotkey. The name that is not the name of a key is
         // refused when the script loads.
         let Some(the_name) = crate::v1::the_name_of_a_hotkey(&name) else {
-            return Err(self.error(format!(
-                "Invalid hotkey.\n     Specifically: {source}"
-            )));
+            return Err(self.error(format!("Invalid hotkey.\n     Specifically: {source}")));
         };
         // The two colons are what separates the name from the action.
         self.position = at + 1;
@@ -3166,7 +3337,9 @@ impl Parser {
                             column: token.column,
                         });
                     }
-                    Some(TheRefusal::Variable) if matches!(word.as_str(), "static" | "global" | "local") => {
+                    Some(TheRefusal::Variable)
+                        if matches!(word.as_str(), "static" | "global" | "local") =>
+                    {
                         return Err(SyntaxError {
                             message: format!(
                                 "The following reserved word must not be used as a function name:\n{:?}",
@@ -3258,7 +3431,11 @@ impl Parser {
                     // `else`, the `catch` and the `finally` are statements of
                     // their own, and the body of them never runs.
                     let keyword = self.next();
-                    let kind = if keyword.value.eq_ignore_ascii_case("catch") { "Catch" } else { "else" };
+                    let kind = if keyword.value.eq_ignore_ascii_case("catch") {
+                        "Catch"
+                    } else {
+                        "else"
+                    };
                     let _body = self.parse_block(kind, keyword.line)?;
                     return Ok(Vec::new());
                 }
@@ -3295,7 +3472,8 @@ impl Parser {
                     if self.at_end_of_statement() {
                         return Err(self.error(format!(
                             "\"{}\" requires at least 1 parameter.\n     Specifically: {}",
-                            self.dialect.the_name_of_the_word_that_wants_a_parameter("until"),
+                            self.dialect
+                                .the_name_of_the_word_that_wants_a_parameter("until"),
                             the_source_of_the_line(self, token.line)
                         )));
                     }
@@ -3304,8 +3482,7 @@ impl Parser {
                     // the loop whose body is the statement before it, and the
                     // one that no loop takes is refused when the load is
                     // over.
-                    if let Some(refusal) =
-                        self.dialect.the_refusal_of_the_until_that_has_no_loop()
+                    if let Some(refusal) = self.dialect.the_refusal_of_the_until_that_has_no_loop()
                     {
                         let condition = self.the_expression_of_a_statement()?;
                         // Measured on the binary of AutoHotkey v1.1.37.02 on
@@ -3314,7 +3491,8 @@ impl Parser {
                         // refused at the parse: the error of the line wins
                         // over the refusal of the load.
                         self.end_of_statement()?;
-                        self.untils_without_a_loop.push((refusal, token.line, token.column));
+                        self.untils_without_a_loop
+                            .push((refusal, token.line, token.column));
                         return Ok(vec![Node::Expression {
                             value: Box::new(condition),
                             line: token.line,
@@ -3329,17 +3507,24 @@ impl Parser {
                 _ => {
                     // Measured on the binary of v2.0.19 on 2026-11-01: the
                     // words that may not be the name of a variable say so.
-                    if self.dialect.the_line_that_begins_with_the_word_holds_no_action(&word) {
+                    if self
+                        .dialect
+                        .the_line_that_begins_with_the_word_holds_no_action(&word)
+                    {
                         return Err(self.the_line_holds_no_action(token.line));
                     }
                     if self.the_word_may_not_be_a_name() {
                         if self.the_word_is_the_name_of_a_variable() {
-                            return Err(self.the_error_of_the_reserved_word_as_a_name(self.position));
+                            return Err(
+                                self.the_error_of_the_reserved_word_as_a_name(self.position)
+                            );
                         }
                         // The word `not` is the operator of the negation when
                         // an operand follows it, and the v2 takes the script.
                         if !(word == "not" && self.an_operand_follows_the_word()) {
-                            return Err(self.the_error_of_the_reserved_word_as_a_call(self.position));
+                            return Err(
+                                self.the_error_of_the_reserved_word_as_a_call(self.position)
+                            );
                         }
                     }
                 }
@@ -3385,7 +3570,10 @@ impl Parser {
                     return Err(self.error(message));
                 }
                 self.end_of_statement()?;
-                return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+                return Ok(vec![Node::Expression {
+                    value: Box::new(value),
+                    line: token.line,
+                }]);
             }
             return self.parse_name_statement();
         }
@@ -3395,14 +3583,20 @@ impl Parser {
             // leaves behind is not used.
             let value = self.parse_expression()?;
             self.end_of_statement()?;
-            return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+            return Ok(vec![Node::Expression {
+                value: Box::new(value),
+                line: token.line,
+            }]);
         }
         if token.kind == TokenKind::Op && token.value == "{" {
             // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
             // opens a line is a block of its own, and the statements between
             // the braces run.
             let body = self.parse_block_that_opens_a_line()?;
-            return Ok(vec![Node::Block { body, line: token.line }]);
+            return Ok(vec![Node::Block {
+                body,
+                line: token.line,
+            }]);
         }
         if token.kind == TokenKind::Op && matches!(token.value.as_str(), "++" | "--") {
             // Measured on the binary of v2.0.19 on 2026-10-31: the increment
@@ -3414,7 +3608,10 @@ impl Parser {
             self.the_number_becomes_the_name_of_a_variable(self.position + 1);
             let value = self.parse_expression()?;
             self.end_of_statement()?;
-            return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+            return Ok(vec![Node::Expression {
+                value: Box::new(value),
+                line: token.line,
+            }]);
         }
         if token.kind == TokenKind::Op && token.value == "%" {
             // Measured on the binary of v2.0.19 on 2026-10-31: a statement
@@ -3441,9 +3638,14 @@ impl Parser {
             // The name is only read, and the value it leaves behind is not
             // used.
             self.end_of_statement()?;
-            return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+            return Ok(vec![Node::Expression {
+                value: Box::new(value),
+                line: token.line,
+            }]);
         }
-        if token.kind == TokenKind::Op && !matches!(token.value.as_str(), "[" | "{" | ")" | "]" | "}") {
+        if token.kind == TokenKind::Op
+            && !matches!(token.value.as_str(), "[" | "{" | ")" | "]" | "}")
+        {
             // Measured on the binary of v2.0.19 on 2026-10-31: a statement
             // that begins with an operator is a line that holds no action,
             // and the text that is named is the line itself. The operators
@@ -3466,13 +3668,18 @@ impl Parser {
                     )));
                 }
                 if operator == ":=" && !token.value.contains('.') {
-                    return Err(self.error(format!("Syntax error.\n     Specifically: {}", token.value)));
+                    return Err(
+                        self.error(format!("Syntax error.\n     Specifically: {}", token.value))
+                    );
                 }
                 // The assignment is parsed, and the refusal of its left side
                 // is the one of an assignment that cannot be written.
                 let value = self.parse_expression()?;
                 self.end_of_statement()?;
-                return Ok(vec![Node::Expression { value: Box::new(value), line: token.line }]);
+                return Ok(vec![Node::Expression {
+                    value: Box::new(value),
+                    line: token.line,
+                }]);
             }
         }
         // Measured on the binary of v2.0.19 on 2026-10-31: the number that
@@ -3481,7 +3688,10 @@ impl Parser {
         // and the comma is not the space that a call wants. The number
         // that carries a point is not a name, and the line holds no
         // action.
-        if token.kind == TokenKind::Number && !token.value.contains('.') && self.the_comma_is_after_the_number() {
+        if token.kind == TokenKind::Number
+            && !token.value.contains('.')
+            && self.the_comma_is_after_the_number()
+        {
             return Err(self.error(format!(
                 "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: {}",
                 the_source_of_the_line(self, token.line)
@@ -3642,7 +3852,9 @@ impl Parser {
         let kind = self.peek().kind;
         kind == TokenKind::Name
             || (kind == TokenKind::Keyword
-                && self.dialect.the_name_of_a_class_may_be_a_word_of_the_language())
+                && self
+                    .dialect
+                    .the_name_of_a_class_may_be_a_word_of_the_language())
     }
 
     /// Whether the number that comes first is the name of a variable.
@@ -3669,7 +3881,12 @@ impl Parser {
         if !self.dialect.the_numbers_may_be_names() {
             return;
         }
-        if self.tokens.get(at).map(|token| token.kind == TokenKind::Number).unwrap_or(false) {
+        if self
+            .tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Number)
+            .unwrap_or(false)
+        {
             self.tokens[at].kind = TokenKind::Name;
         }
     }
@@ -3698,7 +3915,11 @@ impl Parser {
         // may be written to: `MyArray%i% := 1`.
         if self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
             let at_the_name = self.position - 1;
-            let pieces = self.the_pieces_of_a_dynamic_name(name_token.value.clone(), at_the_name, name_token.line)?;
+            let pieces = self.the_pieces_of_a_dynamic_name(
+                name_token.value.clone(),
+                at_the_name,
+                name_token.line,
+            )?;
             if self.at_an_assignment_operator() {
                 let operator = self.next();
                 let Some(op) = the_assignment_operator(&operator.value) else {
@@ -3720,7 +3941,10 @@ impl Parser {
             // value it leaves behind is not used.
             self.end_of_statement()?;
             return Ok(vec![Node::Expression {
-                value: Box::new(Node::DynamicName { pieces, line: name_token.line }),
+                value: Box::new(Node::DynamicName {
+                    pieces,
+                    line: name_token.line,
+                }),
                 line: name_token.line,
             }]);
         }
@@ -3751,7 +3975,12 @@ impl Parser {
                 self.expect_op(")")?;
                 self.the_expression_is_done(self.position, false)?;
                 let at_the_top = self.parameters.is_empty();
-                self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
+                self.parameters.push(
+                    parameters
+                        .iter()
+                        .map(|parameter| parameter.name.clone())
+                        .collect(),
+                );
                 self.assignments.push(Vec::new());
                 // A function may not contain a class.
                 let was_in_a_function = self.in_function;
@@ -3768,19 +3997,31 @@ impl Parser {
                 };
                 self.in_function = was_in_a_function;
                 self.check_the_labels(&body)?;
-                let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
+                let assignments = core::mem::take(
+                    self.assignments
+                        .last_mut()
+                        .expect("the list of the assignments"),
+                );
                 self.assignments.pop();
                 self.parameters.pop();
                 let declarations = the_declarations_of_a_body(&body, self.dialect)?;
                 // The assignments of the function that live in the scope of
                 // the script are the ones of the names it declares global.
                 for assignment in assignments {
-                    if declarations.globals.contains(&assignment.name.to_lowercase()) {
+                    if declarations
+                        .globals
+                        .contains(&assignment.name.to_lowercase())
+                    {
                         self.check_the_assignments(vec![assignment])?;
                     }
                 }
                 if at_the_top {
-                    self.the_name_is_declared_twice(&name_token.value, false, name_token.line, name_token.column)?;
+                    self.the_name_is_declared_twice(
+                        &name_token.value,
+                        false,
+                        name_token.line,
+                        name_token.column,
+                    )?;
                     self.functions.insert(name_token.value.to_lowercase());
                     // The v1 refuses the call of a function at the load, and
                     // the number of the arguments is one of the things that it
@@ -3866,7 +4107,10 @@ impl Parser {
             let statement = if matches!(&value, Node::Call { .. }) {
                 value
             } else {
-                Node::Expression { value: Box::new(value), line: name_token.line }
+                Node::Expression {
+                    value: Box::new(value),
+                    line: name_token.line,
+                }
             };
             let mut statements = vec![statement];
             statements.extend(legacy);
@@ -3882,7 +4126,10 @@ impl Parser {
             if let Some(refusal) = self.the_refusal_of_the_name(&name_token) {
                 return Err(refusal);
             }
-            let target = Node::Var { name: name_token.value.clone(), line: name_token.line };
+            let target = Node::Var {
+                name: name_token.value.clone(),
+                line: name_token.line,
+            };
             self.the_expression_begins();
             let target = self.parse_suffixes(target, false, true)?;
             self.the_expression_is_done(self.position, false)?;
@@ -3902,7 +4149,17 @@ impl Parser {
             let is_assignment = operator.kind == TokenKind::Op
                 && matches!(
                     operator.value.as_str(),
-                    ":=" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<=" | ">>="
+                    ":=" | "+="
+                        | "-="
+                        | "*="
+                        | "/="
+                        | "//="
+                        | ".="
+                        | "&="
+                        | "|="
+                        | "^="
+                        | "<<="
+                        | ">>="
                         | ">>>="
                 );
             if is_assignment {
@@ -3999,7 +4256,10 @@ impl Parser {
             // statement that reads it, and throws the value away.
             let statement = match value {
                 Node::MethodCall { .. } | Node::Index { .. } => value,
-                other => Node::Expression { value: Box::new(other), line: name_token.line },
+                other => Node::Expression {
+                    value: Box::new(other),
+                    line: name_token.line,
+                },
             };
             let mut statements = vec![statement];
             statements.extend(legacy);
@@ -4019,7 +4279,18 @@ impl Parser {
         }
         if !matches!(
             operator.value.as_str(),
-            ":=" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>="
+            ":=" | "+="
+                | "-="
+                | "*="
+                | "/="
+                | "//="
+                | ".="
+                | "&="
+                | "|="
+                | "^="
+                | "<<="
+                | ">>="
+                | ">>>="
         ) {
             return Ok(vec![self.parse_call_statement(name_token)?]);
         }
@@ -4072,7 +4343,11 @@ impl Parser {
         // the text that names the operator carries the one that closes it.
         self.the_expression_is_done(self.position, true)?;
         self.end_of_statement()?;
-        Ok(Node::Call { name, arguments, line: name_token.line })
+        Ok(Node::Call {
+            name,
+            arguments,
+            line: name_token.line,
+        })
     }
 
     /// The legacy command of the v1: `Msg, text`.
@@ -4091,15 +4366,11 @@ impl Parser {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: a function of
         // the v1 is not a command: `StrLen "abc"` is a line that holds no
         // action, and the load refuses it with the text of the line.
-        let carried = self
-            .dialect
-            .builtins()
-            .iter()
-            .any(|builtin| {
-                builtin.name.to_lowercase() == name
-                    && (!self.dialect.the_command_has_to_be_a_command()
-                        || builtin.kind == crate::builtins::BuiltinKind::Command)
-            });
+        let carried = self.dialect.builtins().iter().any(|builtin| {
+            builtin.name.to_lowercase() == name
+                && (!self.dialect.the_command_has_to_be_a_command()
+                    || builtin.kind == crate::builtins::BuiltinKind::Command)
+        });
         if !carried {
             return Err(self.error(format!(
                 "This line does not contain a recognized action.\n     Specifically: {}",
@@ -4125,7 +4396,11 @@ impl Parser {
         // the end of the line does not open a parameter: the number of the
         // parameters of a command is the number of the commas that are not
         // the last one.
-        if parameters.last().map(|text| text.is_empty()).unwrap_or(false) {
+        if parameters
+            .last()
+            .map(|text| text.is_empty())
+            .unwrap_or(false)
+        {
             parameters.pop();
             cut.pop();
         }
@@ -4140,7 +4415,8 @@ impl Parser {
         // after the parameters of it is the action, and not a parameter.
         if let Some(builtin) = self.the_builtin_of_the_legacy_command(&name) {
             let count = builtin.parameters.len();
-            if count > 0 && parameters.len() > count && !self.dialect.the_command_has_a_body(&name) {
+            if count > 0 && parameters.len() > count && !self.dialect.the_command_has_a_body(&name)
+            {
                 let from = cut[count - 1].from;
                 let to = cut.last().expect("the parameters are there").to;
                 let text = self.the_source_between(from, to).trim().to_string();
@@ -4231,8 +4507,9 @@ impl Parser {
                             | crate::builtins::Parameter::Name
                     )
                 );
-                let wants_a_sub_command =
-                    self.dialect.the_parameter_may_not_be_blank(&name, index + 1);
+                let wants_a_sub_command = self
+                    .dialect
+                    .the_parameter_may_not_be_blank(&name, index + 1);
                 if (wants_a_name || wants_a_sub_command) && parameter.trim().is_empty() {
                     return Err(self.error(format!(
                         "\"{}\" requires that parameter #{} be non-blank.\n     Specifically: {}",
@@ -4251,14 +4528,12 @@ impl Parser {
             for (index, parameter) in parameters.iter().enumerate() {
                 let is_a_name = matches!(
                     builtin.parameters.get(index),
-                    Some(
-                        crate::builtins::Parameter::Variable
-                            | crate::builtins::Parameter::Output
-                    )
+                    Some(crate::builtins::Parameter::Variable | crate::builtins::Parameter::Output)
                 );
                 if is_a_name {
-                    if let Some(refusal) =
-                        self.dialect.the_refusal_of_the_name_of_a_variable(index + 1, parameter)
+                    if let Some(refusal) = self
+                        .dialect
+                        .the_refusal_of_the_name_of_a_variable(index + 1, parameter)
                     {
                         return Err(self.error(refusal));
                     }
@@ -4270,8 +4545,9 @@ impl Parser {
                 if self.dialect.the_parameter_wants_a_number(&name, index) {
                     continue;
                 }
-                if let Some(refusal) =
-                    self.dialect.the_refusal_of_the_percent_sign_of_a_parameter(index + 1, parameter)
+                if let Some(refusal) = self
+                    .dialect
+                    .the_refusal_of_the_percent_sign_of_a_parameter(index + 1, parameter)
                 {
                     return Err(self.error(refusal));
                 }
@@ -4286,8 +4562,9 @@ impl Parser {
         // that is left of the line went into it, and the check is done by
         // the body of the command.
         if !self.dialect.the_command_has_a_body(&name) {
-            if let Some(refusal) =
-                self.dialect.the_refusal_of_an_invalid_parameter(&name, &parameters)
+            if let Some(refusal) = self
+                .dialect
+                .the_refusal_of_an_invalid_parameter(&name, &parameters)
             {
                 return Err(self.error(refusal));
             }
@@ -4298,7 +4575,11 @@ impl Parser {
             return self.parse_the_body_of_a_legacy_command(name, parameters, cut, name_token.line);
         }
         let parameters = self.the_parameters_of_a_legacy_command(&name, &cut);
-        Ok(Node::LegacyCall { name, parameters, line: name_token.line })
+        Ok(Node::LegacyCall {
+            name,
+            parameters,
+            line: name_token.line,
+        })
     }
 
     /// The source of a command of the v1, from its name to the end of the
@@ -4309,16 +4590,25 @@ impl Parser {
     /// line that holds it: the `else` that is on the same line is not a part
     /// of it.
     fn the_source_of_the_legacy_command(&self, name_at: usize) -> String {
-        let line = self.tokens.get(name_at).map(|token| token.line).unwrap_or(0);
+        let line = self
+            .tokens
+            .get(name_at)
+            .map(|token| token.line)
+            .unwrap_or(0);
         let mut end = name_at;
         while end < self.tokens.len() && self.tokens[end].line == line {
             end += 1;
         }
-        the_source_of_the_tokens(self, name_at, end).trim_end().to_string()
+        the_source_of_the_tokens(self, name_at, end)
+            .trim_end()
+            .to_string()
     }
 
     /// The row of the command of the v1 that has this name.
-    fn the_builtin_of_the_legacy_command(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
+    fn the_builtin_of_the_legacy_command(
+        &self,
+        name: &str,
+    ) -> Option<&'static crate::builtins::Builtin> {
         self.dialect
             .builtins()
             .iter()
@@ -4378,7 +4668,11 @@ impl Parser {
                 let has_a_comma = comma
                     .map(|token| token.kind == TokenKind::Op && token.value == ",")
                     .unwrap_or(false);
-                let after = if has_a_comma { name_at + 2 } else { name_at + 1 };
+                let after = if has_a_comma {
+                    name_at + 2
+                } else {
+                    name_at + 1
+                };
                 match self.tokens.get(after) {
                     Some(token) => (token.line, token.column),
                     None => self.the_end_of_the_tokens(after),
@@ -4445,35 +4739,35 @@ impl Parser {
         // parameter of the command takes the rest of the line when it does
         // not: the `IfInString, x, b, 1, FileAppend, [yes], *` looks for the
         // text "b, 1, FileAppend, [yes], *" and runs nothing.
-        let action = if parameters.len() > own
-            && self.the_text_begins_with_a_command(&parameters[own])
-        {
-            let action = parameters[own..].to_vec();
-            parameters.truncate(own);
-            Some(action)
-        } else {
-            if parameters.len() > own && own > 0 {
-                // The last parameter of the command takes the rest of the
-                // line, the way it does for every other command.
-                let from = places[own - 1].from;
-                let to = places.last().expect("the parameters are there").to;
-                let text = self.the_source_between(from, to).trim().to_string();
+        let action =
+            if parameters.len() > own && self.the_text_begins_with_a_command(&parameters[own]) {
+                let action = parameters[own..].to_vec();
                 parameters.truncate(own);
-                places.truncate(own);
-                parameters[own - 1] = text.clone();
-                places[own - 1].text = text;
-                places[own - 1].to = to;
-            }
-            None
-        };
+                Some(action)
+            } else {
+                if parameters.len() > own && own > 0 {
+                    // The last parameter of the command takes the rest of the
+                    // line, the way it does for every other command.
+                    let from = places[own - 1].from;
+                    let to = places.last().expect("the parameters are there").to;
+                    let text = self.the_source_between(from, to).trim().to_string();
+                    parameters.truncate(own);
+                    places.truncate(own);
+                    parameters[own - 1] = text.clone();
+                    places[own - 1].text = text;
+                    places[own - 1].to = to;
+                }
+                None
+            };
         let own_parameters = parameters;
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the value of
         // the parameter of a command that has a body is checked when the
         // script loads, and the text that the check sees is the text that is
         // left of the line: the `IfMsgBox, OK, extra` is refused with
         // "Parameter #1 invalid." and the text "OK, extra".
-        if let Some(refusal) =
-            self.dialect.the_refusal_of_an_invalid_parameter(&name, &own_parameters)
+        if let Some(refusal) = self
+            .dialect
+            .the_refusal_of_an_invalid_parameter(&name, &own_parameters)
         {
             return Err(self.error(refusal));
         }
@@ -4508,7 +4802,11 @@ impl Parser {
                 // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // comma at the end of the line does not open a parameter, and
                 // the `else` that has it takes no action.
-                if parameters.last().map(|text| text.is_empty()).unwrap_or(false) {
+                if parameters
+                    .last()
+                    .map(|text| text.is_empty())
+                    .unwrap_or(false)
+                {
                     parameters.pop();
                 }
                 if let Some(parameter) = parameters.first() {
@@ -4555,7 +4853,9 @@ impl Parser {
     /// commas that are inside a text or inside a group of parentheses do
     /// not separate them. The line that comes begins with an operator
     /// continues the parameter that is being read.
-    fn the_texts_of_the_parameters_of_a_legacy_command(&mut self) -> Result<Vec<String>, SyntaxError> {
+    fn the_texts_of_the_parameters_of_a_legacy_command(
+        &mut self,
+    ) -> Result<Vec<String>, SyntaxError> {
         let places = self.the_places_of_the_parameters_of_a_legacy_command()?;
         Ok(places
             .iter()
@@ -4633,12 +4933,10 @@ impl Parser {
             // The parameter that keeps its text is not an expression, and the
             // v1 reads the text of it: the amount of the `EnvAdd` that is
             // "5abc" is not a number.
-            _ if self.dialect.the_parameter_keeps_its_text(name, index) => {
-                Some(Node::Literal {
-                    value: crate::ast::LiteralValue::Text(String::new()),
-                    line,
-                })
-            }
+            _ if self.dialect.the_parameter_keeps_its_text(name, index) => Some(Node::Literal {
+                value: crate::ast::LiteralValue::Text(String::new()),
+                line,
+            }),
             // The parameter is not an expression, and the v1 reads it as the
             // number zero.
             _ => Some(Node::Literal {
@@ -4953,7 +5251,9 @@ impl Parser {
     /// character:" and the name between quotes.
     fn the_name_that_carries_a_quote(&self, name: &str, line: u32, column: u32) -> SyntaxError {
         SyntaxError {
-            message: format!("The following variable name contains an illegal character:\n\"{name}\""),
+            message: format!(
+                "The following variable name contains an illegal character:\n\"{name}\""
+            ),
             line,
             column,
         }
@@ -4968,8 +5268,12 @@ impl Parser {
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text of the
     /// legacy dialect is the text of the script.
     fn the_verbatim_source(&self, start: usize, end: usize) -> String {
-        let Some(first) = self.tokens.get(start) else { return String::new() };
-        let Some(last) = self.tokens.get(end.saturating_sub(1)) else { return String::new() };
+        let Some(first) = self.tokens.get(start) else {
+            return String::new();
+        };
+        let Some(last) = self.tokens.get(end.saturating_sub(1)) else {
+            return String::new();
+        };
         // A text that goes from one line to the next is the text of the
         // tokens: the source of the script has a newline in the middle.
         if first.line != last.line {
@@ -5008,7 +5312,9 @@ impl Parser {
         while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline {
             index += 1;
         }
-        let Some(token) = self.tokens.get(index) else { return false };
+        let Some(token) = self.tokens.get(index) else {
+            return false;
+        };
         if token.kind == TokenKind::Op && (token.value == "++" || token.value == "--") {
             return false;
         }
@@ -5034,7 +5340,8 @@ impl Parser {
                         break;
                     }
                     index += 1;
-                    while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline {
+                    while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline
+                    {
                         index += 1;
                     }
                     continue;
@@ -5127,7 +5434,8 @@ impl Parser {
                         return true;
                     }
                     index += 1;
-                    while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline {
+                    while index < self.tokens.len() && self.tokens[index].kind == TokenKind::Newline
+                    {
                         index += 1;
                     }
                 }
@@ -5168,7 +5476,10 @@ impl Parser {
             ">>>=" => AssignOp::ShiftRightUnsigned,
             _ => {
                 return Err(SyntaxError {
-                    message: format!("expected an assignment operator after {:?}", name_token.value),
+                    message: format!(
+                        "expected an assignment operator after {:?}",
+                        name_token.value
+                    ),
                     line: operator.line,
                     column: operator.column,
                 });
@@ -5214,9 +5525,14 @@ impl Parser {
     /// the v1 is the same for every operator, and the concat is the one
     /// that the v1 accepts.
     fn the_output_variable_is_refused(&self, token: &Token, op: AssignOp) -> Option<SyntaxError> {
-        let message =
-            self.dialect.the_refusal_of_the_write_of_a_built_in_variable(&token.value, op)?;
-        Some(SyntaxError { message, line: token.line, column: token.column })
+        let message = self
+            .dialect
+            .the_refusal_of_the_write_of_a_built_in_variable(&token.value, op)?;
+        Some(SyntaxError {
+            message,
+            line: token.line,
+            column: token.column,
+        })
     }
 
     /// The refusal of the dialect to the increment of a value.
@@ -5228,12 +5544,19 @@ impl Parser {
     /// The name of the value is the one that the script spelled, and the
     /// reason is the one of the dialect.
     fn the_refusal_of_the_increment(&self, node: &Node) -> Option<String> {
-        let Node::Unary { op: UnaryOp::PostIncrement | UnaryOp::PostDecrement, operand, .. } = node
+        let Node::Unary {
+            op: UnaryOp::PostIncrement | UnaryOp::PostDecrement,
+            operand,
+            ..
+        } = node
         else {
             return None;
         };
-        let Node::Var { name, .. } = operand.as_ref() else { return None };
-        self.dialect.the_refusal_of_the_increment_of_a_built_in_variable(name)
+        let Node::Var { name, .. } = operand.as_ref() else {
+            return None;
+        };
+        self.dialect
+            .the_refusal_of_the_increment_of_a_built_in_variable(name)
     }
 
     /// The refusal of a name that carries a quote in the tail of a list.
@@ -5350,7 +5673,10 @@ impl Parser {
         if items.is_empty() {
             return Ok(Vec::new());
         }
-        Ok(vec![Node::Legacy { items, line: self.peek().line }])
+        Ok(vec![Node::Legacy {
+            items,
+            line: self.peek().line,
+        }])
     }
 
     /// The equal sign of v1 is not the equal sign of v2.
@@ -5369,7 +5695,11 @@ impl Parser {
                 the_source_of_the_tokens(self, start, end)
             ),
             line,
-            column: self.tokens.get(start).map(|token| token.column).unwrap_or(1),
+            column: self
+                .tokens
+                .get(start)
+                .map(|token| token.column)
+                .unwrap_or(1),
         }
     }
 
@@ -5581,7 +5911,11 @@ impl Parser {
                             the_source_of_the_line(self, name_token.line)
                         ),
                     };
-                    return Err(SyntaxError { message, line: name_token.line, column: name_token.column });
+                    return Err(SyntaxError {
+                        message,
+                        line: name_token.line,
+                        column: name_token.column,
+                    });
                 }
                 name_token.value
             };
@@ -5615,7 +5949,12 @@ impl Parser {
                 self.position += 1;
                 default = Some(Box::new(self.parse_expression()?));
             }
-            parameters.push(Parameter { name, default, variadic, by_ref });
+            parameters.push(Parameter {
+                name,
+                default,
+                variadic,
+                by_ref,
+            });
             if self.at_op(&[","]) {
                 self.position += 1;
                 continue;
@@ -5710,8 +6049,9 @@ impl Parser {
                             // Measured on the binary of AutoHotkey v1.1.37.02
                             // on 2026-11-04: the v1 decides with the rest of
                             // the line, and the dialect says it.
-                            if let Some(answer) =
-                                self.dialect.a_line_is_a_definition(&self.the_rest_of_the_line_after(at))
+                            if let Some(answer) = self
+                                .dialect
+                                .a_line_is_a_definition(&self.the_rest_of_the_line_after(at))
                             {
                                 // Measured on the binary of AutoHotkey v1.1.37.02
                                 // on 2026-11-04: the definition of the v1 needs
@@ -5903,8 +6243,7 @@ impl Parser {
                 .tokens
                 .get(look)
                 .map(|token| {
-                    token.kind == TokenKind::Keyword
-                        && token.value.eq_ignore_ascii_case("else")
+                    token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("else")
                 })
                 .unwrap_or(false);
             if the_else_comes_next && self.dialect.the_command_is_the_else("else") {
@@ -5977,7 +6316,11 @@ impl Parser {
         for index in 0..commas.len() {
             // The item begins after the comma and ends at the next one.
             let from = commas[index] + 1;
-            let to = if index + 1 < commas.len() { commas[index + 1] } else { end };
+            let to = if index + 1 < commas.len() {
+                commas[index + 1]
+            } else {
+                end
+            };
             // The state of the parser is kept, because the text may not be an
             // expression and the read of it may fail.
             let state = self.the_state_is_kept();
@@ -6058,7 +6401,9 @@ impl Parser {
     ///   not opened. The brace that closes the block is unexpected.
     fn the_condition_of_a_legacy_if(&mut self) -> Result<Option<Node>, SyntaxError> {
         // The name of the variable and the comparison that comes after it.
-        let Some(name) = self.tokens.get(self.position) else { return Ok(None) };
+        let Some(name) = self.tokens.get(self.position) else {
+            return Ok(None);
+        };
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
         // the names of the v1 may begin with a number, and the number that
         // comes first in the legacy `if` is the name of a variable: the
@@ -6077,7 +6422,9 @@ impl Parser {
         // borrowed while it is read.
         let name_of_the_variable = name.value.clone();
         let line_of_the_variable = name.line;
-        let Some(operator) = self.tokens.get(self.position + 1) else { return Ok(None) };
+        let Some(operator) = self.tokens.get(self.position + 1) else {
+            return Ok(None);
+        };
         if operator.kind != TokenKind::Op {
             // The forms of the legacy `if` that are not a comparison:
             // the `between`, the `in` and the `contains`.
@@ -6122,7 +6469,10 @@ impl Parser {
         // `if` is the line that comes.
         self.position = end;
         Ok(Some(Node::LegacyComparison {
-            left: Box::new(Node::Var { name: name_of_the_variable, line: line_of_the_variable }),
+            left: Box::new(Node::Var {
+                name: name_of_the_variable,
+                line: line_of_the_variable,
+            }),
             op,
             text,
             line: line_of_the_variable,
@@ -6158,12 +6508,16 @@ impl Parser {
         // The word of the form, and the `not` that may come before it.
         let mut at = self.position + 1;
         let mut negated = false;
-        let Some(token) = self.tokens.get(at) else { return Ok(None) };
+        let Some(token) = self.tokens.get(at) else {
+            return Ok(None);
+        };
         if token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("not") {
             negated = true;
             at += 1;
         }
-        let Some(token) = self.tokens.get(at) else { return Ok(None) };
+        let Some(token) = self.tokens.get(at) else {
+            return Ok(None);
+        };
         if !matches!(token.kind, TokenKind::Name | TokenKind::Keyword) {
             return Ok(None);
         }
@@ -6192,7 +6546,11 @@ impl Parser {
                 // The text is cut at the word "and", and the two bounds
                 // are the texts that come around it.
                 let Some((low, high)) = the_bounds_of_a_between(&text) else {
-                    return Err(self.the_error_of_the_between(line_of_the_variable, at - usize::from(negated), &text));
+                    return Err(self.the_error_of_the_between(
+                        line_of_the_variable,
+                        at - usize::from(negated),
+                        &text,
+                    ));
                 };
                 vec![low, high]
             }
@@ -6205,7 +6563,11 @@ impl Parser {
                     } else {
                         word.clone()
                     };
-                    return Err(self.the_error_of_the_list(line_of_the_variable, at - usize::from(negated), &name_of_the_form));
+                    return Err(self.the_error_of_the_list(
+                        line_of_the_variable,
+                        at - usize::from(negated),
+                        &name_of_the_form,
+                    ));
                 }
                 the_items_of_a_list(text.trim())
             }
@@ -6214,7 +6576,10 @@ impl Parser {
         // `if` is the line that comes.
         self.position = end;
         Ok(Some(Node::LegacyMatch {
-            left: Box::new(Node::Var { name: name_of_the_variable, line: line_of_the_variable }),
+            left: Box::new(Node::Var {
+                name: name_of_the_variable,
+                line: line_of_the_variable,
+            }),
             form,
             texts,
             negated,
@@ -6233,13 +6598,18 @@ impl Parser {
         let before = self.the_source_before_the_word(line, word_at);
         let low = text.trim();
         let whole = the_source_of_the_line(self, line);
-        let width = whole.chars().count().saturating_sub(before.chars().count() + 1);
+        let width = whole
+            .chars()
+            .count()
+            .saturating_sub(before.chars().count() + 1);
         let named = if low.is_empty() {
             format!("{before},")
         } else {
             format!("{before},{:>width$}", low, width = width)
         };
-        self.error(format!("BETWEEN requires the word AND.\n     Specifically: {named}"))
+        self.error(format!(
+            "BETWEEN requires the word AND.\n     Specifically: {named}"
+        ))
     }
 
     /// The refusal of the list of the legacy `if` when it is not there.
@@ -6261,10 +6631,20 @@ impl Parser {
     /// text is the text of the script, and the spaces that come before the
     /// word are a part of it.
     fn the_source_before_the_word(&self, line: u32, word_at: usize) -> String {
-        let start = self.tokens.iter().position(|token| token.line == line).unwrap_or(0);
-        let Some(first) = self.tokens.get(start) else { return String::new() };
-        let Some(word) = self.tokens.get(word_at) else { return String::new() };
-        let Some(source) = self.lines.get(first.line as usize - 1) else { return String::new() };
+        let start = self
+            .tokens
+            .iter()
+            .position(|token| token.line == line)
+            .unwrap_or(0);
+        let Some(first) = self.tokens.get(start) else {
+            return String::new();
+        };
+        let Some(word) = self.tokens.get(word_at) else {
+            return String::new();
+        };
+        let Some(source) = self.lines.get(first.line as usize - 1) else {
+            return String::new();
+        };
         let chars: Vec<char> = source.chars().collect();
         let from = first.column.saturating_sub(1) as usize;
         let to = word.column.saturating_sub(1) as usize;
@@ -6340,7 +6720,10 @@ impl Parser {
                 // The line of the condition is over, and the body of the
                 // construct is the line that comes.
                 self.position = the_end_of_the_line_of(self, self.position);
-                Ok(Node::Literal { value: LiteralValue::Integer(0), line })
+                Ok(Node::Literal {
+                    value: LiteralValue::Integer(0),
+                    line,
+                })
             }
         }
     }
@@ -6356,7 +6739,10 @@ impl Parser {
     /// "Unexpected \"If\"".
     fn parse_the_control_of_a_condition(&mut self, token: Token) -> Result<Node, SyntaxError> {
         let condition = self.the_expression_of_a_statement()?;
-        Ok(Node::LegacyControl { condition: Box::new(condition), line: token.line })
+        Ok(Node::LegacyControl {
+            condition: Box::new(condition),
+            line: token.line,
+        })
     }
 
     fn parse_if(&mut self) -> Result<Node, SyntaxError> {
@@ -6370,7 +6756,8 @@ impl Parser {
             // it is '"" requires at least 1 parameter. Specifically: if'.
             return Err(self.error(format!(
                 "\"{}\" requires at least 1 parameter.\n     Specifically: {}",
-                self.dialect.the_name_of_the_word_that_wants_a_parameter("if"),
+                self.dialect
+                    .the_name_of_the_word_that_wants_a_parameter("if"),
                 the_source_of_the_line(self, token.line)
             )));
         }
@@ -6443,7 +6830,11 @@ impl Parser {
         let Some(condition) = condition else {
             return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
         };
-        branches.push(Branch { condition, tail: the_items_of_the_tail, body });
+        branches.push(Branch {
+            condition,
+            tail: the_items_of_the_tail,
+            body,
+        });
         let mut otherwise = Vec::new();
         // Whether the `else` is a body and not the branch of an `else if`.
         let mut the_else_is_a_body = false;
@@ -6473,25 +6864,33 @@ impl Parser {
                     } else {
                         self.the_parenthesis_of_a_condition_is_empty()
                     };
-                    let condition = match legacy {
-                        Some(condition) => Some(condition),
-                        None => {
-                            if empty.is_some() {
-                                self.next();
-                                self.next();
-                                None
-                            } else {
-                                let condition = self.the_condition_of_an_if();
-                                Some(self.the_condition_that_is_not_reported(branch.line, condition)?)
+                    let condition =
+                        match legacy {
+                            Some(condition) => Some(condition),
+                            None => {
+                                if empty.is_some() {
+                                    self.next();
+                                    self.next();
+                                    None
+                                } else {
+                                    let condition = self.the_condition_of_an_if();
+                                    Some(self.the_condition_that_is_not_reported(
+                                        branch.line,
+                                        condition,
+                                    )?)
+                                }
                             }
-                        }
-                    };
+                        };
                     self.end_of_block()?;
                     let body = self.parse_block("If", branch.line)?;
                     let Some(condition) = condition else {
                         return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
                     };
-                    branches.push(Branch { condition, tail: Vec::new(), body });
+                    branches.push(Branch {
+                        condition,
+                        tail: Vec::new(),
+                        body,
+                    });
                     continue;
                 }
                 otherwise = self.parse_block("Else", keyword.line)?;
@@ -6508,7 +6907,11 @@ impl Parser {
                 branch.body = otherwise.clone();
             }
         }
-        Ok(Node::If { branches, otherwise, line: token.line })
+        Ok(Node::If {
+            branches,
+            otherwise,
+            line: token.line,
+        })
     }
 
     /// Whether the `if` of an `else if` comes next.
@@ -6518,7 +6921,12 @@ impl Parser {
     /// `else` or on the one after it.
     fn the_if_of_an_else_if_comes_next(&self) -> bool {
         let mut at = self.position;
-        while self.tokens.get(at).map(|token| token.kind == TokenKind::Newline).unwrap_or(false) {
+        while self
+            .tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
             at += 1;
         }
         self.tokens
@@ -6556,12 +6964,17 @@ impl Parser {
             // Measured on the binary of v2.0.19 on 2026-10-31: the switch
             // needs the braces, and it names what it found instead.
             let token = self.peek().clone();
-            let message = if token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("case") {
-                "Unexpected \"Case\"".to_string()
-            } else {
-                "Unexpected \"Switch\"".to_string()
-            };
-            return Err(SyntaxError { message, line: token.line, column: token.column });
+            let message =
+                if token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("case") {
+                    "Unexpected \"Case\"".to_string()
+                } else {
+                    "Unexpected \"Switch\"".to_string()
+                };
+            return Err(SyntaxError {
+                message,
+                line: token.line,
+                column: token.column,
+            });
         }
         let open_at = self.position;
         let open = self.expect_op("{")?;
@@ -6634,7 +7047,10 @@ impl Parser {
             if self.at_the_name("default") && self.a_colon_comes_after() {
                 self.next();
                 let body = self.parse_case_body()?;
-                cases.push(Case { values: Vec::new(), body });
+                cases.push(Case {
+                    values: Vec::new(),
+                    body,
+                });
                 continue;
             }
             // Measured on the binary of v2.0.19 on 2026-10-31: v2 looks
@@ -6670,7 +7086,11 @@ impl Parser {
         if let Some(error) = waiting {
             return Err(error);
         }
-        Ok(Node::Switch { subject: Box::new(subject), cases, line: token.line })
+        Ok(Node::Switch {
+            subject: Box::new(subject),
+            cases,
+            line: token.line,
+        })
     }
 
     /// Whether the brace that closes the block is there.
@@ -6786,7 +7206,10 @@ impl Parser {
             });
         }
         self.end_of_statement()?;
-        Ok(Node::Return { value, line: token.line })
+        Ok(Node::Return {
+            value,
+            line: token.line,
+        })
     }
 
     fn parse_exitapp(&mut self) -> Result<Node, SyntaxError> {
@@ -6797,7 +7220,10 @@ impl Parser {
             Some(Box::new(self.the_expression_of_a_statement()?))
         };
         self.end_of_statement()?;
-        Ok(Node::ExitApp { code, line: token.line })
+        Ok(Node::ExitApp {
+            code,
+            line: token.line,
+        })
     }
 
     /// `try { } catch { } else { } finally { }`.
@@ -6842,7 +7268,13 @@ impl Parser {
             self.end_of_block()?;
             finally = self.parse_block("Finally", keyword.line)?;
         }
-        Ok(Node::Try { body, catches, otherwise, finally, line: token.line })
+        Ok(Node::Try {
+            body,
+            catches,
+            otherwise,
+            finally,
+            line: token.line,
+        })
     }
 
     /// `catch { }`, `catch as e { }`, `catch Error { }`, `catch Error as e { }`.
@@ -6876,7 +7308,11 @@ impl Parser {
         self.end_of_block()?;
         let body = self.parse_block("Catch", token.line)?;
         let _ = token;
-        Ok(Catch { class, variable, body })
+        Ok(Catch {
+            class,
+            variable,
+            body,
+        })
     }
 
     /// The name of the variable that holds the value that was caught.
@@ -6909,7 +7345,11 @@ impl Parser {
             if self
                 .parameters
                 .last()
-                .map(|parameters| parameters.iter().any(|parameter| parameter.eq_ignore_ascii_case(&name.value)))
+                .map(|parameters| {
+                    parameters
+                        .iter()
+                        .any(|parameter| parameter.eq_ignore_ascii_case(&name.value))
+                })
                 .unwrap_or(false)
             {
                 return Err(self.error(format!(
@@ -6934,8 +7374,9 @@ impl Parser {
             // refuses the `global` of a built-in variable at the load, and
             // the name of it is in the refusal.
             if kind == DeclareKind::Global {
-                if let Some(message) =
-                    self.dialect.the_refusal_of_a_global_of_a_built_in_variable(&name.value)
+                if let Some(message) = self
+                    .dialect
+                    .the_refusal_of_a_global_of_a_built_in_variable(&name.value)
                 {
                     return Err(self.error(message));
                 }
@@ -6952,7 +7393,11 @@ impl Parser {
             } else {
                 None
             };
-            names.push(Declared { name: name.value, value, text });
+            names.push(Declared {
+                name: name.value,
+                value,
+                text,
+            });
             if !self.at_op(&[","]) {
                 break;
             }
@@ -6998,11 +7443,16 @@ impl Parser {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 refuses the same declarations, and it says that the line holds
         // no action.
-        if (kind == DeclareKind::Local || kind == DeclareKind::Static) && self.parameters.is_empty() {
+        if (kind == DeclareKind::Local || kind == DeclareKind::Static) && self.parameters.is_empty()
+        {
             return Err(self.the_error_of_the_refused_declaration(kind, &names));
         }
         self.end_of_statement()?;
-        Ok(Node::Declare { scope: kind, names, line: token.line })
+        Ok(Node::Declare {
+            scope: kind,
+            names,
+            line: token.line,
+        })
     }
 
     /// The error of a declaration that the dialect refuses.
@@ -7046,12 +7496,16 @@ impl Parser {
             end += 1;
         }
         let line = &self.tokens[self.position..end];
-        let Some(colon) = line.last() else { return Ok(None) };
+        let Some(colon) = line.last() else {
+            return Ok(None);
+        };
         if colon.kind != TokenKind::Op || colon.value != ":" {
             // The line may hold a label with something else written after
             // it: `done: FileAppend "x", "*"` holds no action.
             let writes_more = match line.get(1) {
-                Some(second) => second.kind == TokenKind::Op && second.value == ":" && !second.spaced,
+                Some(second) => {
+                    second.kind == TokenKind::Op && second.value == ":" && !second.spaced
+                }
                 None => false,
             };
             if !writes_more {
@@ -7073,14 +7527,21 @@ impl Parser {
                 // label that a command names may be written anywhere in the
                 // script, and the name of a label does not know its case.
                 self.label_names.insert(name.to_lowercase());
-                Ok(Some(Node::Label { name, line: token.line }))
+                Ok(Some(Node::Label {
+                    name,
+                    line: token.line,
+                }))
             }
             None => {
                 // A name with a dash or with a dot is not a label, and the
                 // line that holds it holds no action. A name with a space
                 // is an expression that the parser reads the way it reads
                 // every other one.
-                if line[..line.len() - 1].iter().skip(1).any(|token| token.spaced) {
+                if line[..line.len() - 1]
+                    .iter()
+                    .skip(1)
+                    .any(|token| token.spaced)
+                {
                     return Ok(None);
                 }
                 Err(self.the_line_holds_no_action(token.line))
@@ -7152,7 +7613,8 @@ impl Parser {
             };
             return Err(self.error(format!(
                 "\"{}\" requires at least 1 parameter.\n     Specifically: {text}",
-                self.dialect.the_name_of_the_word_that_wants_a_parameter("goto")
+                self.dialect
+                    .the_name_of_the_word_that_wants_a_parameter("goto")
             )));
         }
         // The `Goto` takes one.
@@ -7163,7 +7625,10 @@ impl Parser {
             )));
         }
         self.end_of_statement()?;
-        Ok(Node::Goto { name, line: token.line })
+        Ok(Node::Goto {
+            name,
+            line: token.line,
+        })
     }
 
     /// The refusal of a label that is written twice in the same scope.
@@ -7199,7 +7664,9 @@ impl Parser {
         for (name, line) in the_gotos_of_a_scope(body) {
             if !seen.contains(&name.to_lowercase()) {
                 return Err(SyntaxError {
-                    message: format!("Label not found in current scope.\n     Specifically: {name}"),
+                    message: format!(
+                        "Label not found in current scope.\n     Specifically: {name}"
+                    ),
                     line,
                     column: 1,
                 });
@@ -7240,11 +7707,15 @@ impl Parser {
     /// The name that is a number is a name of the member: the `a.2` is the
     /// member "2" of the value of `a`.
     fn the_statement_begins_with_a_member_whose_name_is_not_a_name(&self) -> bool {
-        let Some(dot) = self.tokens.get(self.position + 1) else { return false };
+        let Some(dot) = self.tokens.get(self.position + 1) else {
+            return false;
+        };
         if dot.kind != TokenKind::Op || dot.value != "." || dot.spaced {
             return false;
         }
-        let Some(name) = self.tokens.get(self.position + 2) else { return false };
+        let Some(name) = self.tokens.get(self.position + 2) else {
+            return false;
+        };
         match name.kind {
             TokenKind::String | TokenKind::UnclosedText => true,
             TokenKind::Name => {
@@ -7270,7 +7741,11 @@ impl Parser {
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the message is the
     /// one of the dialect, and it names no text.
-    fn the_loop_of_the_break_or_the_continue(&self, line: u32, column: u32) -> Result<(), SyntaxError> {
+    fn the_loop_of_the_break_or_the_continue(
+        &self,
+        line: u32,
+        column: u32,
+    ) -> Result<(), SyntaxError> {
         if self.loops > 0 {
             return Ok(());
         }
@@ -7285,7 +7760,11 @@ impl Parser {
     ///
     /// The body of a function is a scope of its own: the `break` and the
     /// `continue` of it do not belong to the loop that holds the function.
-    fn the_body_of_a_scope(&mut self, kind: &str, line: u32) -> Result<(Vec<Node>, u32), SyntaxError> {
+    fn the_body_of_a_scope(
+        &mut self,
+        kind: &str,
+        line: u32,
+    ) -> Result<(Vec<Node>, u32), SyntaxError> {
         let loops = self.loops;
         self.loops = 0;
         // The line of the brace that opens the body. Measured on the binary of
@@ -7364,7 +7843,10 @@ impl Parser {
         }
         let value = self.the_expression_of_a_statement()?;
         self.end_of_statement()?;
-        Ok(vec![Node::Return { value: Some(Box::new(value)), line }])
+        Ok(vec![Node::Return {
+            value: Some(Box::new(value)),
+            line,
+        }])
     }
 
     /// `throw value`, or `throw` alone.
@@ -7376,7 +7858,10 @@ impl Parser {
             Some(Box::new(self.the_expression_of_a_statement()?))
         };
         self.end_of_statement()?;
-        Ok(Node::Throw { value, line: token.line })
+        Ok(Node::Throw {
+            value,
+            line: token.line,
+        })
     }
 
     fn parse_while(&mut self) -> Result<Node, SyntaxError> {
@@ -7392,7 +7877,8 @@ impl Parser {
             // needs a condition, and it says so in its own words.
             return Err(self.error(format!(
                 "\"{}\" requires at least 1 parameter.\n     Specifically: {}",
-                self.dialect.the_name_of_the_word_that_wants_a_parameter("while"),
+                self.dialect
+                    .the_name_of_the_word_that_wants_a_parameter("while"),
                 the_source_of_the_line(self, token.line)
             )));
         }
@@ -7414,7 +7900,11 @@ impl Parser {
         let Some(condition) = condition else {
             return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
         };
-        Ok(Node::While { condition: Box::new(condition), body, line: token.line })
+        Ok(Node::While {
+            condition: Box::new(condition),
+            body,
+            line: token.line,
+        })
     }
 
     /// A class: `class Name extends Base { }`.
@@ -7471,7 +7961,9 @@ impl Parser {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the
         // v1 takes the name of a class as it is written, and a word of the
         // language is a name of it: the `class if` is a class.
-        let the_name_is_a_word = self.dialect.the_name_of_a_class_may_be_a_word_of_the_language()
+        let the_name_is_a_word = self
+            .dialect
+            .the_name_of_a_class_may_be_a_word_of_the_language()
             && name_token.kind == TokenKind::Keyword;
         if name_token.kind != TokenKind::Name && !the_name_is_a_function && !the_name_is_a_word {
             // Measured on the binary of v2.0.19 on 2026-10-31: a name that
@@ -7501,7 +7993,11 @@ impl Parser {
                 }
                 _ => "Unexpected \"{\"".to_string(),
             };
-            return Err(SyntaxError { message, line: name_token.line, column: name_token.column });
+            return Err(SyntaxError {
+                message,
+                line: name_token.line,
+                column: name_token.column,
+            });
         }
         let mut extends = None;
         // Measured on the binary of v2.0.19 on 2026-11-01: the `extends` is a
@@ -7534,7 +8030,12 @@ impl Parser {
         // The base of the class is checked when the script is read: it may
         // be declared after the class that extends it.
         if let Some(base) = &extends {
-            self.bases.push((name.clone(), base.clone(), name_token.line, name_token.column));
+            self.bases.push((
+                name.clone(),
+                base.clone(),
+                name_token.line,
+                name_token.column,
+            ));
         }
         // The duplicates of the class are refused while its body is read,
         // the way v2 refuses them: the first duplicate of the body is the
@@ -7572,7 +8073,12 @@ impl Parser {
     }
 
     /// The members of a class: the methods and the properties.
-    fn parse_class_body(&mut self, line: u32, name: &str, name_at: usize) -> Result<TheMembersOfAClass, SyntaxError> {
+    fn parse_class_body(
+        &mut self,
+        line: u32,
+        name: &str,
+        name_at: usize,
+    ) -> Result<TheMembersOfAClass, SyntaxError> {
         // The brace may be on a line of its own.
         self.skip_newlines();
         if !self.at_op(&["{"]) {
@@ -7690,7 +8196,9 @@ impl Parser {
             // The place of the token that was read: the brace of a class
             // with no name is the token that was read as its name.
             let name_at = self.position - 1;
-            if name_token.kind == TokenKind::Keyword && name_token.value.eq_ignore_ascii_case("class") {
+            if name_token.kind == TokenKind::Keyword
+                && name_token.value.eq_ignore_ascii_case("class")
+            {
                 // A class inside a class. Its name is a name of the class
                 // that holds it: it is a property of it, and the duplicate
                 // of it is refused the way the duplicate of a property is.
@@ -7738,8 +8246,14 @@ impl Parser {
                     // 2026-11-02: the v1 refuses the class that is declared
                     // twice with "Duplicate class definition.\n     Specifically:
                     // D", and the name is the one that was written.
-                    let message = if self.dialect.the_class_that_is_declared_twice_has_its_own_words() {
-                        format!("Duplicate class definition.\n     Specifically: {}", nested_name.value)
+                    let message = if self
+                        .dialect
+                        .the_class_that_is_declared_twice_has_its_own_words()
+                    {
+                        format!(
+                            "Duplicate class definition.\n     Specifically: {}",
+                            nested_name.value
+                        )
                     } else {
                         format!(
                             "Duplicate declaration.\n     Specifically: {}",
@@ -7755,7 +8269,8 @@ impl Parser {
                 class_properties.push(key);
                 let line = name_token.line;
                 let column = name_token.column;
-                let class = self.parse_the_class_with_the_name(name_token, nested_name, Some(name))?;
+                let class =
+                    self.parse_the_class_with_the_name(name_token, nested_name, Some(name))?;
                 // A class may not be static: v2 names the whole of the
                 // definition, and not the line of it.
                 //
@@ -7853,7 +8368,9 @@ impl Parser {
                 // the declaration of it.
                 if is_static && name_token.value.eq_ignore_ascii_case("__init") {
                     return Err(SyntaxError {
-                        message: format!("Duplicate declaration.\n     Specifically: {name}.__Init"),
+                        message: format!(
+                            "Duplicate declaration.\n     Specifically: {name}.__Init"
+                        ),
                         line: name_token.line,
                         column: name_token.column,
                     });
@@ -7872,7 +8389,10 @@ impl Parser {
                 {
                     // The name of the `__Init` of the v1 is the name that was
                     // written, and not the path of it.
-                    let owner = if self.dialect.the_duplicate_names_the_member_that_was_written() {
+                    let owner = if self
+                        .dialect
+                        .the_duplicate_names_the_member_that_was_written()
+                    {
                         String::new()
                     } else {
                         format!("{name}.Prototype.")
@@ -7894,10 +8414,17 @@ impl Parser {
                 // declaration.\n     Specifically: C.Prototype.Foo" for a
                 // method of an instance, and "C.Foo" for a method of the
                 // class. The failure is at the line of the second one.
-                let taken = if is_static { &mut class_methods } else { &mut instance_methods };
+                let taken = if is_static {
+                    &mut class_methods
+                } else {
+                    &mut instance_methods
+                };
                 let key = name_token.value.to_lowercase();
                 if taken.contains(&key) {
-                    let owner = if self.dialect.the_duplicate_names_the_member_that_was_written() {
+                    let owner = if self
+                        .dialect
+                        .the_duplicate_names_the_member_that_was_written()
+                    {
                         String::new()
                     } else if is_static {
                         format!("{name}.")
@@ -7936,7 +8463,12 @@ impl Parser {
                 self.next();
                 let parameters = self.parse_parameters()?;
                 self.expect_op(")")?;
-                self.parameters.push(parameters.iter().map(|parameter| parameter.name.clone()).collect());
+                self.parameters.push(
+                    parameters
+                        .iter()
+                        .map(|parameter| parameter.name.clone())
+                        .collect(),
+                );
                 self.assignments.push(Vec::new());
                 // A method may not contain a class either.
                 let was_in_a_function = self.in_function;
@@ -7949,15 +8481,17 @@ impl Parser {
                     let body = self.the_body_of_a_fat_arrow(name_token.line)?;
                     (body, name_token.line)
                 } else {
-                    self.the_body_of_a_scope("method", name_token.line).map_err(|mut error| {
-                        // Measured on the binary of AutoHotkey v1.1.37.02 on
-                        // 2026-11-02: the v1 names the class when the file
-                        // ends inside a method of it.
-                        if names_the_class && error.message.starts_with("Missing \"}\"") {
-                            error.message = format!("Missing \"}}\"\n     Specifically: {name}");
-                        }
-                        error
-                    })?
+                    self.the_body_of_a_scope("method", name_token.line)
+                        .map_err(|mut error| {
+                            // Measured on the binary of AutoHotkey v1.1.37.02 on
+                            // 2026-11-02: the v1 names the class when the file
+                            // ends inside a method of it.
+                            if names_the_class && error.message.starts_with("Missing \"}\"") {
+                                error.message =
+                                    format!("Missing \"}}\"\n     Specifically: {name}");
+                            }
+                            error
+                        })?
                 };
                 // Measured on the binary of v2.0.19 on 2026-10-31: the name
                 // of a method may not begin with a number, and the name is
@@ -7974,12 +8508,19 @@ impl Parser {
                 }
                 self.in_function = was_in_a_function;
                 self.check_the_labels(&body)?;
-                let assignments = core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
+                let assignments = core::mem::take(
+                    self.assignments
+                        .last_mut()
+                        .expect("the list of the assignments"),
+                );
                 self.assignments.pop();
                 self.parameters.pop();
                 let declarations = the_declarations_of_a_body(&body, self.dialect)?;
                 for assignment in assignments {
-                    if declarations.globals.contains(&assignment.name.to_lowercase()) {
+                    if declarations
+                        .globals
+                        .contains(&assignment.name.to_lowercase())
+                    {
                         self.check_the_assignments(vec![assignment])?;
                     }
                 }
@@ -8046,10 +8587,17 @@ impl Parser {
                     });
                 }
                 let key = name_token.value.to_lowercase();
-                let taken = if is_static { &mut class_accessors } else { &mut instance_accessors };
+                let taken = if is_static {
+                    &mut class_accessors
+                } else {
+                    &mut instance_accessors
+                };
                 if taken.contains(&key) {
                     return Err(SyntaxError {
-                        message: format!("Duplicate declaration.\n     Specifically: {}", name_token.value),
+                        message: format!(
+                            "Duplicate declaration.\n     Specifically: {}",
+                            name_token.value
+                        ),
                         line: name_token.line,
                         column: name_token.column,
                     });
@@ -8107,11 +8655,18 @@ impl Parser {
             // Measured on the binary of v2.0.19 on 2026-10-31: "Duplicate
             // declaration.\n     Specifically: value", at the line of the
             // second one.
-            let taken = if is_static { &mut class_properties } else { &mut instance_properties };
+            let taken = if is_static {
+                &mut class_properties
+            } else {
+                &mut instance_properties
+            };
             let key = name_token.value.to_lowercase();
             if taken.contains(&key) {
                 return Err(SyntaxError {
-                    message: format!("Duplicate declaration.\n     Specifically: {}", name_token.value),
+                    message: format!(
+                        "Duplicate declaration.\n     Specifically: {}",
+                        name_token.value
+                    ),
                     line: name_token.line,
                     column: name_token.column,
                 });
@@ -8142,7 +8697,12 @@ impl Parser {
         }
         self.in_class = was_in_a_class;
         self.statement_start = statement_start;
-        Ok(TheMembersOfAClass { methods, properties, accessors, nested })
+        Ok(TheMembersOfAClass {
+            methods,
+            properties,
+            accessors,
+            nested,
+        })
     }
 
     /// The text of a static member of a class that the dialect refuses.
@@ -8162,7 +8722,12 @@ impl Parser {
             end += 1;
         }
         let text = the_source_of_the_tokens(self, name_at, end);
-        if self.tokens.get(end).map(|token| token.value == "{").unwrap_or(false) {
+        if self
+            .tokens
+            .get(end)
+            .map(|token| token.value == "{")
+            .unwrap_or(false)
+        {
             format!("{text} {{")
         } else {
             text
@@ -8237,7 +8802,11 @@ impl Parser {
     /// take parameters, and the body of the getter and of the setter is an
     /// expression after the arrow of v2, and a block of statements between
     /// braces.
-    fn parse_the_accessor(&mut self, name_token: Token, is_static: bool) -> Result<AccessDef, SyntaxError> {
+    fn parse_the_accessor(
+        &mut self,
+        name_token: Token,
+        is_static: bool,
+    ) -> Result<AccessDef, SyntaxError> {
         let mut parameters = Vec::new();
         if self.at_op(&["["]) {
             self.next();
@@ -8315,7 +8884,10 @@ impl Parser {
             let body = if self.at_an_assignment_operator() {
                 vec![self.parse_the_assignment(expression)?]
             } else {
-                vec![Node::Return { value: Some(Box::new(expression)), line: token.line }]
+                vec![Node::Return {
+                    value: Some(Box::new(expression)),
+                    line: token.line,
+                }]
             };
             let declarations = the_declarations_of_a_body(&body, self.dialect)?;
             (body, declarations, line)
@@ -8344,8 +8916,11 @@ impl Parser {
             self.assignments.push(Vec::new());
             let outcome = self.the_body_of_a_scope("accessor", line);
             self.in_function = was_in_a_function;
-            let assignments =
-                core::mem::take(self.assignments.last_mut().expect("the list of the assignments"));
+            let assignments = core::mem::take(
+                self.assignments
+                    .last_mut()
+                    .expect("the list of the assignments"),
+            );
             self.assignments.pop();
             self.parameters.pop();
             let (body, body_line) = outcome?;
@@ -8353,7 +8928,10 @@ impl Parser {
             // The assignments of the body that live in the scope of the script
             // are the ones of the names that it declares global.
             for assignment in assignments {
-                if declarations.globals.contains(&assignment.name.to_lowercase()) {
+                if declarations
+                    .globals
+                    .contains(&assignment.name.to_lowercase())
+                {
                     self.check_the_assignments(vec![assignment])?;
                 }
             }
@@ -8368,12 +8946,14 @@ impl Parser {
             // Measured on the binary of v2.0.19 on 2026-11-05: the v2 refuses
             // it with "Not a valid property getter/setter.\n     Specifically:
             // get".
-            if self.dialect.the_member_of_an_accessor_without_a_body_is_a_call() {
+            if self
+                .dialect
+                .the_member_of_an_accessor_without_a_body_is_a_call()
+            {
                 return Err(SyntaxError {
                     message: format!(
                         "Missing \"{{\"\n     Specifically: {}.{}()",
-                        property,
-                        member.value
+                        property, member.value
                     ),
                     line,
                     column: member.column,
@@ -8384,7 +8964,11 @@ impl Parser {
                 the_source_of_the_line(self, line)
             )));
         };
-        Ok(AccessBody { body, declarations, line: body_line })
+        Ok(AccessBody {
+            body,
+            declarations,
+            line: body_line,
+        })
     }
 
     /// A directive: the name, and the rest of the line.
@@ -8400,7 +8984,11 @@ impl Parser {
             String::new()
         };
         self.end_of_statement()?;
-        Ok(Node::Directive { name: token.value, argument, line: token.line })
+        Ok(Node::Directive {
+            name: token.value,
+            argument,
+            line: token.line,
+        })
     }
 
     /// The loop of v2, and the kinds of it.
@@ -8505,7 +9093,8 @@ impl Parser {
                         // first one are the mode of the loop of the files
                         // and the flag of the recursion, and the v1 reads
                         // them as texts.
-                        let texts = self.the_parameters_of_the_loop_of_the_v1(token.line, &mut arguments)?;
+                        let texts =
+                            self.the_parameters_of_the_loop_of_the_v1(token.line, &mut arguments)?;
                         // The kind of the loop, and the checks of the
                         // parameters of it.
                         kind = self.the_kind_of_the_loop_of_the_v1(&texts)?;
@@ -8530,7 +9119,8 @@ impl Parser {
                             // 2026-11-05: the parameters of the loop of the v1
                             // are the count of the turns or the pattern of the
                             // files, and the ones that come after it.
-                            let texts = self.the_parameters_of_the_loop_of_the_v1(token.line, &mut arguments)?;
+                            let texts = self
+                                .the_parameters_of_the_loop_of_the_v1(token.line, &mut arguments)?;
                             kind = self.the_kind_of_the_loop_of_the_v1(&texts)?;
                         } else {
                             self.the_expression_begins();
@@ -8587,7 +9177,11 @@ impl Parser {
     ///
     /// The v2 has no such statement, and the loop has no condition.
     fn the_until_of_the_loop(&mut self) -> Result<Option<Box<Node>>, SyntaxError> {
-        if self.dialect.the_refusal_of_the_until_that_has_no_loop().is_none() {
+        if self
+            .dialect
+            .the_refusal_of_the_until_that_has_no_loop()
+            .is_none()
+        {
             return Ok(None);
         }
         // The word that comes next, past the newlines.
@@ -8600,7 +9194,9 @@ impl Parser {
         {
             at += 1;
         }
-        let Some(token) = self.tokens.get(at) else { return Ok(None) };
+        let Some(token) = self.tokens.get(at) else {
+            return Ok(None);
+        };
         if token.kind != TokenKind::Keyword || !token.value.eq_ignore_ascii_case("until") {
             return Ok(None);
         }
@@ -8609,7 +9205,9 @@ impl Parser {
         let is_a_name = self
             .tokens
             .get(at + 1)
-            .map(|next| next.kind == TokenKind::Op && the_assignment_operator(&next.value).is_some())
+            .map(|next| {
+                next.kind == TokenKind::Op && the_assignment_operator(&next.value).is_some()
+            })
             .unwrap_or(false);
         if is_a_name {
             return Ok(None);
@@ -8631,9 +9229,7 @@ impl Parser {
         let line = self.peek().line;
         match self.tokens.get(self.position + 1) {
             Some(next) => {
-                next.kind == TokenKind::Newline
-                    || next.kind == TokenKind::Eof
-                    || next.line != line
+                next.kind == TokenKind::Newline || next.kind == TokenKind::Eof || next.line != line
             }
             None => true,
         }
@@ -8669,7 +9265,10 @@ impl Parser {
         if !self.at_op(&["{"]) {
             return false;
         }
-        if !self.dialect.the_brace_of_the_body_of_the_loop_is_at_the_end_of_the_line() {
+        if !self
+            .dialect
+            .the_brace_of_the_body_of_the_loop_is_at_the_end_of_the_line()
+        {
             return true;
         }
         self.the_brace_is_at_the_end_of_the_line()
@@ -8696,7 +9295,13 @@ impl Parser {
             return self.parse_expression();
         }
         // The `%` and the space force the expression.
-        if self.at_op(&["%"]) && self.tokens.get(self.position + 1).map(|token| token.spaced).unwrap_or(false) {
+        if self.at_op(&["%"])
+            && self
+                .tokens
+                .get(self.position + 1)
+                .map(|token| token.spaced)
+                .unwrap_or(false)
+        {
             self.next();
             self.the_expression_begins();
             return self.parse_expression();
@@ -8708,7 +9313,10 @@ impl Parser {
             let end = self.the_end_of_the_line();
             let text = self.the_verbatim_source(start, end);
             self.position = end;
-            return Ok(Node::Literal { value: LiteralValue::Text(text), line });
+            return Ok(Node::Literal {
+                value: LiteralValue::Text(text),
+                line,
+            });
         }
         // The expression is read to know where the count ends, and it is
         // thrown away: the v1 reads the text of it.
@@ -8723,7 +9331,10 @@ impl Parser {
             let end = self.the_end_of_a_parameter(start);
             let text = self.the_verbatim_source(start, end);
             self.position = end;
-            return Ok(Node::Literal { value: LiteralValue::Text(text), line });
+            return Ok(Node::Literal {
+                value: LiteralValue::Text(text),
+                line,
+            });
         }
         let mut end = self.position;
         // The brace that is not at the end of the line is a part of the
@@ -8733,7 +9344,10 @@ impl Parser {
             self.position = end;
         }
         let text = self.the_verbatim_source(start, end);
-        Ok(Node::Literal { value: LiteralValue::Text(text), line })
+        Ok(Node::Literal {
+            value: LiteralValue::Text(text),
+            line,
+        })
     }
 
     /// The kind of the loop, when the word that follows the `Loop` names
@@ -8791,13 +9405,19 @@ impl Parser {
             let node = self.the_count_of_the_loop(line)?;
             let end = self.position;
             match &node {
-                Node::Literal { value: LiteralValue::Text(_), .. } => {
+                Node::Literal {
+                    value: LiteralValue::Text(_),
+                    ..
+                } => {
                     // The text of the first parameter: the count of the
                     // turns, the pattern of the files, or the name of the
                     // kind of the loop.
                     for piece in self.the_pieces_of_a_text_parameter(start, end) {
                         texts.push(piece.text.clone());
-                        arguments.push(Node::Literal { value: LiteralValue::Text(piece.text), line });
+                        arguments.push(Node::Literal {
+                            value: LiteralValue::Text(piece.text),
+                            line,
+                        });
                     }
                 }
                 _ => {
@@ -8835,11 +9455,20 @@ impl Parser {
                         // 2026-11-05: the second parameter of the parse loop
                         // may be an expression, and the value of it is the
                         // text that is separated.
-                        Some(node) => Node::LegacyExpression { value: Box::new(node), line },
-                        None => Node::Literal { value: LiteralValue::Text(piece.text.clone()), line },
+                        Some(node) => Node::LegacyExpression {
+                            value: Box::new(node),
+                            line,
+                        },
+                        None => Node::Literal {
+                            value: LiteralValue::Text(piece.text.clone()),
+                            line,
+                        },
                     }
                 } else {
-                    Node::Literal { value: LiteralValue::Text(piece.text.clone()), line }
+                    Node::Literal {
+                        value: LiteralValue::Text(piece.text.clone()),
+                        line,
+                    }
                 };
                 texts.push(piece.text.clone());
                 arguments.push(node);
@@ -8864,7 +9493,10 @@ impl Parser {
         &mut self,
         texts: &[String],
     ) -> Result<Option<LoopKind>, SyntaxError> {
-        let first = texts.first().map(|text| text.trim().to_lowercase()).unwrap_or_default();
+        let first = texts
+            .first()
+            .map(|text| text.trim().to_lowercase())
+            .unwrap_or_default();
         if texts.len() > 1 {
             match first.as_str() {
                 "read" => return Ok(Some(LoopKind::Read)),
@@ -8873,7 +9505,9 @@ impl Parser {
                     // text is separated, and the v1 checks the name when the
                     // script loads.
                     let name = texts.get(1).map(|text| text.trim()).unwrap_or_default();
-                    if let Some(refusal) = crate::v1::the_refusal_of_the_name_of_the_parse_loop(name) {
+                    if let Some(refusal) =
+                        crate::v1::the_refusal_of_the_name_of_the_parse_loop(name)
+                    {
                         return Err(self.error(refusal));
                     }
                     return Ok(Some(LoopKind::Parse));
@@ -8966,9 +9600,13 @@ impl Parser {
         }
         self.end_of_block()?;
         let body = self.the_body_of_a_loop("For", token.line)?;
-        Ok(Node::For { variables, source: Box::new(source), body, line: token.line })
+        Ok(Node::For {
+            variables,
+            source: Box::new(source),
+            body,
+            line: token.line,
+        })
     }
-
 
     /// Whether the token that comes next is this word.
     ///
@@ -9203,7 +9841,12 @@ impl Parser {
             } else if the_operand_is_not_there(&left) || the_operand_is_not_there(&right) {
                 return Ok(Node::Unset { line: token.line });
             }
-            left = Node::Binary { op, left: Box::new(left), right: Box::new(right), line: token.line };
+            left = Node::Binary {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+                line: token.line,
+            };
         }
     }
 
@@ -9273,7 +9916,9 @@ impl Parser {
     fn starts_expression(&self) -> bool {
         let token = self.peek();
         match token.kind {
-            TokenKind::Number | TokenKind::String | TokenKind::UnclosedText | TokenKind::Name => true,
+            TokenKind::Number | TokenKind::String | TokenKind::UnclosedText | TokenKind::Name => {
+                true
+            }
             // A parenthesis opens a value: the concatenation of v2 takes it
             // as the value that follows the one before it.
             TokenKind::Op if token.value == "(" => true,
@@ -9350,7 +9995,9 @@ impl Parser {
         while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline {
             at += 1;
         }
-        let Some(token) = self.tokens.get(at) else { return false };
+        let Some(token) = self.tokens.get(at) else {
+            return false;
+        };
         if token.kind == TokenKind::Op && (token.value == "++" || token.value == "--") {
             return false;
         }
@@ -9382,17 +10029,60 @@ impl Parser {
         if !self.dialect.a_line_that_ends_with_an_operator_continues() {
             return false;
         }
-        let Some(token) = self.the_token_before(at) else { return false };
+        let Some(token) = self.the_token_before(at) else {
+            return false;
+        };
         match token.kind {
             TokenKind::Op => matches!(
                 token.value.as_str(),
-                "(" | "[" | "," | "?" | ":" | "=>" | "!" | "~"
-                    | "+" | "-" | "*" | "/" | "//" | "**" | "<<" | ">>" | ">>>"
-                    | "&" | "^" | "|" | "~=" | ">" | ">=" | "<" | "<=" | "=" | "=="
-                    | "!=" | "!==" | "&&" | "||" | "??" | ":=" | "+=" | "-=" | "*="
-                    | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>="
+                "(" | "["
+                    | ","
+                    | "?"
+                    | ":"
+                    | "=>"
+                    | "!"
+                    | "~"
+                    | "+"
+                    | "-"
+                    | "*"
+                    | "/"
+                    | "//"
+                    | "**"
+                    | "<<"
+                    | ">>"
+                    | ">>>"
+                    | "&"
+                    | "^"
+                    | "|"
+                    | "~="
+                    | ">"
+                    | ">="
+                    | "<"
+                    | "<="
+                    | "="
+                    | "=="
+                    | "!="
+                    | "!=="
+                    | "&&"
+                    | "||"
+                    | "??"
+                    | ":="
+                    | "+="
+                    | "-="
+                    | "*="
+                    | "/="
+                    | "//="
+                    | ".="
+                    | "&="
+                    | "|="
+                    | "^="
+                    | "<<="
+                    | ">>="
+                    | ">>>="
             ),
-            TokenKind::Keyword => matches!(token.value.to_lowercase().as_str(), "and" | "or" | "is"),
+            TokenKind::Keyword => {
+                matches!(token.value.to_lowercase().as_str(), "and" | "or" | "is")
+            }
             _ => false,
         }
     }
@@ -9447,7 +10137,9 @@ impl Parser {
 
     /// Whether an operand follows the word that opens the statement.
     fn an_operand_follows_the_word(&self) -> bool {
-        let Some(next) = self.tokens.get(self.position + 1) else { return false };
+        let Some(next) = self.tokens.get(self.position + 1) else {
+            return false;
+        };
         !matches!(next.kind, TokenKind::Newline | TokenKind::Eof)
             && !(next.kind == TokenKind::Op && next.value == "}")
     }
@@ -9473,17 +10165,25 @@ impl Parser {
             ),
             TheRefusal::Syntax => format!("Syntax error.\n     Specifically: {}", token.value),
             TheRefusal::Future => {
-                format!("Unexpected reserved word.\n     Specifically: {}", token.value)
+                format!(
+                    "Unexpected reserved word.\n     Specifically: {}",
+                    token.value
+                )
             }
             TheRefusal::Func => format!(
                 "This Func cannot be used as an output variable.\n     Specifically: {}",
                 token.value
             ),
             TheRefusal::Class => {
-                "This Class cannot be used as an output variable.\n     Specifically: Class".to_string()
+                "This Class cannot be used as an output variable.\n     Specifically: Class"
+                    .to_string()
             }
         };
-        SyntaxError { message, line: token.line, column: token.column }
+        SyntaxError {
+            message,
+            line: token.line,
+            column: token.column,
+        }
     }
 
     /// The failure of the reserved word that is the name of a variable.
@@ -9510,7 +10210,10 @@ impl Parser {
             _ => "Syntax error.",
         };
         SyntaxError {
-            message: format!("{message}\n     Specifically: {}", self.the_call_of_the_word(at)),
+            message: format!(
+                "{message}\n     Specifically: {}",
+                self.the_call_of_the_word(at)
+            ),
             line: token.line,
             column: token.column,
         }
@@ -9535,7 +10238,9 @@ impl Parser {
     /// not be the name of a variable says so when it is the name of one,
     /// and the operator of the assignment is what tells the two apart.
     fn the_word_is_the_name_of_a_variable(&self) -> bool {
-        let Some(next) = self.tokens.get(self.position + 1) else { return false };
+        let Some(next) = self.tokens.get(self.position + 1) else {
+            return false;
+        };
         next.kind == TokenKind::Op && the_assignment_operator(&next.value).is_some()
     }
 
@@ -9546,7 +10251,9 @@ impl Parser {
     /// -- and the parenthesis that comes after it and a body are what make
     /// it a definition.
     fn the_word_is_the_name_of_a_function(&self) -> bool {
-        let Some(open) = self.tokens.get(self.position + 1) else { return false };
+        let Some(open) = self.tokens.get(self.position + 1) else {
+            return false;
+        };
         if open.kind != TokenKind::Op || open.value != "(" || open.spaced {
             return false;
         }
@@ -9584,11 +10291,19 @@ impl Parser {
                 token.value
             ),
             Some(TheRefusal::Class) => {
-                "This Class cannot be used as an output variable.\n     Specifically: Class".to_string()
+                "This Class cannot be used as an output variable.\n     Specifically: Class"
+                    .to_string()
             }
-            _ => format!("The following reserved word must not be used as a variable name:\n{:?}", word),
+            _ => format!(
+                "The following reserved word must not be used as a variable name:\n{:?}",
+                word
+            ),
         };
-        SyntaxError { message, line: token.line, column: token.column }
+        SyntaxError {
+            message,
+            line: token.line,
+            column: token.column,
+        }
     }
 
     /// The error of the character that is not a comment and not a directive.
@@ -9606,14 +10321,20 @@ impl Parser {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-04: the v1 says that the character is the leftmost
                 // one of the line.
-                format!("The leftmost character above is illegal in an expression.\n     Specifically: {text}")
+                format!(
+                    "The leftmost character above is illegal in an expression.\n     Specifically: {text}"
+                )
             } else {
                 format!("Illegal character in expression.\n     Specifically: {text}")
             }
         } else {
             format!("This line does not contain a recognized action.\n     Specifically: {text}")
         };
-        SyntaxError { message, line: token.line, column: token.column }
+        SyntaxError {
+            message,
+            line: token.line,
+            column: token.column,
+        }
     }
 
     /// The error of the name that carries the backtick that the escape
@@ -9627,7 +10348,9 @@ impl Parser {
         let token = &self.tokens[at];
         let text = the_symbol_of_the_escaped_backtick(self, at);
         SyntaxError {
-            message: format!("The leftmost character above is illegal in an expression.\n     Specifically: {text}"),
+            message: format!(
+                "The leftmost character above is illegal in an expression.\n     Specifically: {text}"
+            ),
             line: token.line,
             column: token.column,
         }
@@ -9643,8 +10366,9 @@ impl Parser {
         // that is not closed is refused with a complaint of its own. The text
         // that it names is the operand of the name.
         let run = the_source_of_the_operand(self, at);
-        if let Some(refusal) =
-            self.dialect.the_refusal_of_the_percent_sign_of_an_expression(&run, false)
+        if let Some(refusal) = self
+            .dialect
+            .the_refusal_of_the_percent_sign_of_an_expression(&run, false)
         {
             return self.error(refusal);
         }
@@ -9692,8 +10416,9 @@ impl Parser {
         // refuses the reference that is empty with "Empty variable reference
         // (%%).", and the text that it names is the operand of the name.
         let run = the_source_of_the_operand(self, at);
-        if let Some(refusal) =
-            self.dialect.the_refusal_of_the_percent_sign_of_an_expression(&run, true)
+        if let Some(refusal) = self
+            .dialect
+            .the_refusal_of_the_percent_sign_of_an_expression(&run, true)
         {
             return self.error(refusal);
         }
@@ -9724,7 +10449,9 @@ impl Parser {
         if !text[point..].contains('%') {
             return None;
         }
-        let refusal = self.dialect.the_refusal_of_the_point_of_an_operand(&text[point..])?;
+        let refusal = self
+            .dialect
+            .the_refusal_of_the_point_of_an_operand(&text[point..])?;
         Some(self.error(refusal))
     }
 
@@ -9778,7 +10505,10 @@ impl Parser {
     /// Measured on the binary of v2.0.19 on 2026-10-31: the percent signs
     /// that open and that close a piece may have a space around them, and
     /// the pieces that follow are joined without a space.
-    fn the_pieces_after_the_percent(&mut self, value: Node) -> Result<Vec<DynamicPiece>, SyntaxError> {
+    fn the_pieces_after_the_percent(
+        &mut self,
+        value: Node,
+    ) -> Result<Vec<DynamicPiece>, SyntaxError> {
         let mut pieces = vec![DynamicPiece::Value(Box::new(value))];
         while self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
             let open = self.position;
@@ -9828,12 +10558,11 @@ impl Parser {
             // closes a block is not an operand that is missing: it is a
             // token that cannot be there, and the statement it is in is
             // named with it.
-            TokenKind::Op if matches!(token.value.as_str(), ")" | "}" | "]") => {
-                self.the_message_of_a_bracket(
+            TokenKind::Op if matches!(token.value.as_str(), ")" | "}" | "]") => self
+                .the_message_of_a_bracket(
                     &format!("Unexpected {:?}", token.value),
                     &self.the_statement_so_far(),
-                )
-            }
+                ),
             // The colon of the ternary is a part of the question that is
             // not there.
             TokenKind::Op if token.value == ":" => "A \":\" is missing its \"?\"".to_string(),
@@ -9842,7 +10571,8 @@ impl Parser {
             // characters in an expression, and the text of the expression is
             // named.
             TokenKind::Op if the_token_is_an_illegal_character(token) => {
-                return self.the_error_of_the_illegal_character(self.position.saturating_sub(1), true)
+                return self
+                    .the_error_of_the_illegal_character(self.position.saturating_sub(1), true);
             }
             // An operator may not begin a value.
             TokenKind::Op if token.value != "," => {
@@ -9856,7 +10586,8 @@ impl Parser {
                         column: start.column,
                     };
                 }
-                let rest = the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1));
+                let rest =
+                    the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1));
                 match self.the_operator_that_wants_the_operand() {
                     // Measured on the binary of v2.0.19 on 2026-11-01: the
                     // text that is named begins at the operator, and it is
@@ -9878,7 +10609,8 @@ impl Parser {
                 if let Some(operator) = self.the_token_before(self.position.saturating_sub(1)) {
                     text.push_str(&operator.value);
                 }
-                let rest = the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1));
+                let rest =
+                    the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1));
                 if !rest.is_empty() {
                     if !text.is_empty() {
                         text.push(' ');
@@ -9888,7 +10620,11 @@ impl Parser {
                 format!("Missing operand.\n     Specifically: {text}")
             }
         };
-        SyntaxError { message, line: start.line, column: start.column }
+        SyntaxError {
+            message,
+            line: start.line,
+            column: start.column,
+        }
     }
 
     /// Whether the operator that may not begin a value is the last item of
@@ -9900,7 +10636,9 @@ impl Parser {
     /// object are not lists, and the text is there.
     fn the_operator_is_the_last_item_of_a_list(&self) -> bool {
         // The closing bracket of the list comes after the operator.
-        let Some(next) = self.tokens.get(self.position) else { return false };
+        let Some(next) = self.tokens.get(self.position) else {
+            return false;
+        };
         if next.kind != TokenKind::Op || !matches!(next.value.as_str(), ")" | "]") {
             return false;
         }
@@ -9956,19 +10694,49 @@ impl Parser {
         let wants = match token.kind {
             TokenKind::Op => matches!(
                 token.value.as_str(),
-                "**" | "*" | "/" | "//" | "+" | "-" | "<<" | ">>" | ">>>" | "&" | "^" | "|"
-                    | "~=" | ">" | ">=" | "<" | "<=" | "=" | "==" | "!=" | "!==" | "&&" | "||"
-                    | "??" | "?" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^="
-                    | "<<=" | ">>=" | ">>>="
+                "**" | "*"
+                    | "/"
+                    | "//"
+                    | "+"
+                    | "-"
+                    | "<<"
+                    | ">>"
+                    | ">>>"
+                    | "&"
+                    | "^"
+                    | "|"
+                    | "~="
+                    | ">"
+                    | ">="
+                    | "<"
+                    | "<="
+                    | "="
+                    | "=="
+                    | "!="
+                    | "!=="
+                    | "&&"
+                    | "||"
+                    | "??"
+                    | "?"
+                    | "+="
+                    | "-="
+                    | "*="
+                    | "/="
+                    | "//="
+                    | ".="
+                    | "&="
+                    | "|="
+                    | "^="
+                    | "<<="
+                    | ">>="
+                    | ">>>="
             ),
-            TokenKind::Keyword => matches!(token.value.to_lowercase().as_str(), "and" | "or" | "is"),
+            TokenKind::Keyword => {
+                matches!(token.value.to_lowercase().as_str(), "and" | "or" | "is")
+            }
             _ => false,
         };
-        if wants {
-            Some(at)
-        } else {
-            None
-        }
+        if wants { Some(at) } else { None }
     }
 
     /// The operators with one side, and the values.
@@ -10022,12 +10790,19 @@ impl Parser {
                     && matches!(op, UnaryOp::Negate | UnaryOp::Plus)
                     && !self.the_operand_is_a_group(at_the_operand)
                 {
-                    if let Node::Literal { value: LiteralValue::Number(text), line } = operand {
+                    if let Node::Literal {
+                        value: LiteralValue::Number(text),
+                        line,
+                    } = operand
+                    {
                         let text = match op {
                             UnaryOp::Negate => the_text_of_the_negated_number(&text),
                             _ => text,
                         };
-                        return Ok(Node::Literal { value: LiteralValue::Number(text), line });
+                        return Ok(Node::Literal {
+                            value: LiteralValue::Number(text),
+                            line,
+                        });
                     }
                 }
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
@@ -10036,7 +10811,11 @@ impl Parser {
                 if the_operand_is_not_there(&operand) {
                     return Ok(Node::Unset { line: token.line });
                 }
-                return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
+                return Ok(Node::Unary {
+                    op,
+                    operand: Box::new(operand),
+                    line: token.line,
+                });
             }
         }
         if token.kind == TokenKind::Keyword && token.value.eq_ignore_ascii_case("not") {
@@ -10045,7 +10824,11 @@ impl Parser {
             if the_operand_is_not_there(&operand) {
                 return Ok(Node::Unset { line: token.line });
             }
-            return Ok(Node::Unary { op: UnaryOp::NotWord, operand: Box::new(operand), line: token.line });
+            return Ok(Node::Unary {
+                op: UnaryOp::NotWord,
+                operand: Box::new(operand),
+                line: token.line,
+            });
         }
         self.parse_primary()
     }
@@ -10099,12 +10882,22 @@ impl Parser {
                         value: the_literal_of_a_number(&token.value, self.dialect),
                         line: token.line,
                     };
-                    return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
+                    return Ok(Node::Unary {
+                        op,
+                        operand: Box::new(operand),
+                        line: token.line,
+                    });
                 }
                 let value = the_literal_of_a_number(&token.value, self.dialect);
-                Node::Literal { value, line: token.line }
+                Node::Literal {
+                    value,
+                    line: token.line,
+                }
             }
-            TokenKind::String => Node::Literal { value: LiteralValue::Text(token.value), line: token.line },
+            TokenKind::String => Node::Literal {
+                value: LiteralValue::Text(token.value),
+                line: token.line,
+            },
             TokenKind::UnclosedText => {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-04: the v1 has no texts in the line of a command,
@@ -10164,12 +10957,21 @@ impl Parser {
                 } else {
                     // The words that are values are the two below.
                     match token.value.to_lowercase().as_str() {
-                        "true" => Node::Literal { value: LiteralValue::Bool(true), line: token.line },
-                        "false" => Node::Literal { value: LiteralValue::Bool(false), line: token.line },
+                        "true" => Node::Literal {
+                            value: LiteralValue::Bool(true),
+                            line: token.line,
+                        },
+                        "false" => Node::Literal {
+                            value: LiteralValue::Bool(false),
+                            line: token.line,
+                        },
                         // The `Class` is a word of the language and a class
                         // type of the dialect: a script reads it as the
                         // class.
-                        "class" => Node::Var { name: token.value.clone(), line: token.line },
+                        "class" => Node::Var {
+                            name: token.value.clone(),
+                            line: token.line,
+                        },
                         _ => {
                             // Measured on the binary of AutoHotkey v1.1.37.02 on
                             // 2026-11-04: the words of the v1 may be the name
@@ -10185,7 +10987,10 @@ impl Parser {
                                 && !matches!(lower.as_str(), "and" | "or" | "not"))
                                 || crate::builtins::find(&lower).is_some()
                             {
-                                Node::Var { name: token.value.clone(), line: token.line }
+                                Node::Var {
+                                    name: token.value.clone(),
+                                    line: token.line,
+                                }
                             } else if let Some(refusal) =
                                 crate::lexer::the_refusal_of_a_word(&token.value)
                             {
@@ -10268,15 +11073,28 @@ impl Parser {
                 // that closes a name that is being built is not one of them.
                 if self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
                     let at_the_name = self.position - 1;
-                    let pieces = self.the_pieces_of_a_dynamic_name(name, at_the_name, token.line)?;
-                    return Ok(Node::DynamicName { pieces, line: token.line });
+                    let pieces =
+                        self.the_pieces_of_a_dynamic_name(name, at_the_name, token.line)?;
+                    return Ok(Node::DynamicName {
+                        pieces,
+                        line: token.line,
+                    });
                 }
                 // The arrow function of v2 with one parameter: `a => a + 1`.
                 if self.at_op(&["=>"]) {
                     self.position += 1;
                     let body = self.parse_expression()?;
-                    let parameters = vec![Parameter { name: name.clone(), default: None, variadic: false, by_ref: false }];
-                    return Ok(Node::Lambda { parameters, body: Box::new(body), line: token.line });
+                    let parameters = vec![Parameter {
+                        name: name.clone(),
+                        default: None,
+                        variadic: false,
+                        by_ref: false,
+                    }];
+                    return Ok(Node::Lambda {
+                        parameters,
+                        body: Box::new(body),
+                        line: token.line,
+                    });
                 }
                 // `x++` and `x--`: the operator comes after the name, and
                 // the space is what tells it apart from the concat -- unless
@@ -10290,12 +11108,24 @@ impl Parser {
                     } else {
                         UnaryOp::PostDecrement
                     };
-                    let operand = Node::Var { name, line: token.line };
-                    return Ok(Node::Unary { op, operand: Box::new(operand), line: token.line });
+                    let operand = Node::Var {
+                        name,
+                        line: token.line,
+                    };
+                    return Ok(Node::Unary {
+                        op,
+                        operand: Box::new(operand),
+                        line: token.line,
+                    });
                 }
-                Node::Var { name, line: token.line }
+                Node::Var {
+                    name,
+                    line: token.line,
+                }
             }
-            TokenKind::Op if token.value == "(" && self.at_the_parameters_of_an_arrow_function() => {
+            TokenKind::Op
+                if token.value == "(" && self.at_the_parameters_of_an_arrow_function() =>
+            {
                 // The arrow function of v2: `(a, b) => a + b`. The body is
                 // an expression, and the function closes over the scope
                 // where it was written.
@@ -10303,7 +11133,11 @@ impl Parser {
                 self.expect_op(")")?;
                 self.expect_op("=>")?;
                 let body = self.parse_expression()?;
-                Node::Lambda { parameters, body: Box::new(body), line: token.line }
+                Node::Lambda {
+                    parameters,
+                    body: Box::new(body),
+                    line: token.line,
+                }
             }
             TokenKind::Op if token.value == "%" => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the double
@@ -10322,12 +11156,16 @@ impl Parser {
                     return Err(self.the_error_of_a_percent_inside(self.position));
                 }
                 let value = self.the_expression_of_a_dynamic_name(open)?;
-                if !self.at_op(&["%"]) || !the_closing_is_in_the_operand(self, open, self.position) {
+                if !self.at_op(&["%"]) || !the_closing_is_in_the_operand(self, open, self.position)
+                {
                     return Err(self.the_error_of_a_missing_ending(open));
                 }
                 self.next();
                 let pieces = self.the_pieces_after_the_percent(value)?;
-                Node::DynamicName { pieces, line: token.line }
+                Node::DynamicName {
+                    pieces,
+                    line: token.line,
+                }
             }
             TokenKind::Op if token.value == "(" => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: a
@@ -10386,7 +11224,10 @@ impl Parser {
                 if items.len() == 1 {
                     items.pop().expect("the item of the group")
                 } else {
-                    Node::Group { items, line: token.line }
+                    Node::Group {
+                        items,
+                        line: token.line,
+                    }
                 }
             }
             TokenKind::Op if token.value == "[" => {
@@ -10451,14 +11292,19 @@ impl Parser {
                 // that is not there is the operand that is not there: the
                 // `a := [1 +]` is not an object, and the `IsObject(a)` is
                 // zero.
-                if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+                if self
+                    .dialect
+                    .the_operand_that_is_not_there_poisons_the_value_that_holds_it()
                     && items
                         .iter()
                         .any(|item| item.as_ref().is_some_and(the_operand_is_not_there))
                 {
                     return Ok(Node::Unset { line: token.line });
                 }
-                Node::ArrayLiteral { items, line: token.line }
+                Node::ArrayLiteral {
+                    items,
+                    line: token.line,
+                }
             }
             TokenKind::Op if token.value == "{" => {
                 // The literal of an object: `{a: 1, b: 2}`. The braces of
@@ -10538,7 +11384,10 @@ impl Parser {
             .unwrap_or(1);
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // v1 says "Missing "}"" and it names no text.
-        let message = if self.dialect.the_literal_that_is_not_closed_names_the_statement() {
+        let message = if self
+            .dialect
+            .the_literal_that_is_not_closed_names_the_statement()
+        {
             format!(
                 "Missing \"}}\"\n     Specifically: {}",
                 the_source_with_the_newlines_as_spaces(self, self.statement_start, end)
@@ -10546,7 +11395,11 @@ impl Parser {
         } else {
             "Missing \"}\"".to_string()
         };
-        SyntaxError { message, line, column }
+        SyntaxError {
+            message,
+            line,
+            column,
+        }
     }
 
     /// The literal of an object: `{a: 1, b: 2}`.
@@ -10604,9 +11457,7 @@ impl Parser {
                 // list with "Blank parameter", and it names the whole
                 // literal. The v2 accepts it: the `{b: 1,}` is an object of
                 // one property.
-                if self.at_op(&["}"])
-                    && self.dialect.the_blank_at_the_end_of_a_list_is_refused()
-                {
+                if self.at_op(&["}"]) && self.dialect.the_blank_at_the_end_of_a_list_is_refused() {
                     return Err(self.the_error_of_a_blank_parameter(line, open, brace));
                 }
                 continue;
@@ -10626,7 +11477,9 @@ impl Parser {
                 // quotes: the `a := {%x%: 1}` is refused with "Quote marks are
                 // required around this key." and the text that is written from
                 // the percent sign on is named.
-                if self.dialect.the_name_of_a_property_that_the_script_builds_is_refused()
+                if self
+                    .dialect
+                    .the_name_of_a_property_that_the_script_builds_is_refused()
                     && self.at_op(&["%"])
                 {
                     return Err(SyntaxError {
@@ -10797,7 +11650,10 @@ impl Parser {
                         }
                         count += 2;
                         let member = MemberName::Text(
-                            self.tokens.get(start).map(|token| token.value.clone()).unwrap_or_default(),
+                            self.tokens
+                                .get(start)
+                                .map(|token| token.value.clone())
+                                .unwrap_or_default(),
                         );
                         self.position += 1;
                         let value = match self.parse_expression() {
@@ -10833,9 +11689,7 @@ impl Parser {
                 // 2026-11-04: the comma that ends the list is a parameter in
                 // blank, and the v1 refuses it with "Blank parameter". The v2
                 // accepts it.
-                if self.at_op(&["}"])
-                    && self.dialect.the_blank_at_the_end_of_a_list_is_refused()
-                {
+                if self.at_op(&["}"]) && self.dialect.the_blank_at_the_end_of_a_list_is_refused() {
                     return Err(self.the_error_of_a_blank_parameter(line, open, brace));
                 }
                 continue;
@@ -10858,7 +11712,9 @@ impl Parser {
         // literal of an object that holds the operand that is not there is
         // the operand that is not there: the `o := {x: 1 +}` is not an object,
         // and the `IsObject(o)` is zero.
-        if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+        if self
+            .dialect
+            .the_operand_that_is_not_there_poisons_the_value_that_holds_it()
             && items.iter().any(|item| match item {
                 ObjectItem::Property(_, value) => the_operand_is_not_there(value),
                 ObjectItem::LegacyKey(key, value) => {
@@ -10877,12 +11733,7 @@ impl Parser {
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the v1
     /// refuses the `{b: 1,}` with "Blank parameter", and the text that is
     /// named is the whole literal, from the brace that opens it.
-    fn the_error_of_a_blank_parameter(
-        &self,
-        line: u32,
-        column: u32,
-        brace: usize,
-    ) -> SyntaxError {
+    fn the_error_of_a_blank_parameter(&self, line: u32, column: u32, brace: usize) -> SyntaxError {
         SyntaxError {
             message: format!(
                 "Blank parameter\n     Specifically: {}",
@@ -10902,7 +11753,12 @@ impl Parser {
     /// the `command` says that the parser is there: a member that is
     /// followed by a space and a parenthesis is a command of v2, and the
     /// parenthesis is one parameter of it.
-    fn parse_suffixes(&mut self, target: Node, assignment: bool, command: bool) -> Result<Node, SyntaxError> {
+    fn parse_suffixes(
+        &mut self,
+        target: Node,
+        assignment: bool,
+        command: bool,
+    ) -> Result<Node, SyntaxError> {
         let mut node = target;
         loop {
             if self.at_op(&["["]) {
@@ -10912,7 +11768,11 @@ impl Parser {
                 // The index may be written in more than one line.
                 self.skip_newlines();
                 self.expect_op("]")?;
-                node = Node::Index { target: Box::new(node), index: Box::new(index), line };
+                node = Node::Index {
+                    target: Box::new(node),
+                    index: Box::new(index),
+                    line,
+                };
                 continue;
             }
             if self.at_member_dot() {
@@ -10936,7 +11796,9 @@ impl Parser {
                         return Err(self.the_error_of_a_percent_inside(self.position));
                     }
                     let value = self.the_expression_of_a_dynamic_name(open)?;
-                    if !self.at_op(&["%"]) || !the_closing_is_in_the_operand(self, open, self.position) {
+                    if !self.at_op(&["%"])
+                        || !the_closing_is_in_the_operand(self, open, self.position)
+                    {
                         return Err(self.the_error_of_a_missing_ending(open));
                     }
                     self.next();
@@ -10950,7 +11812,11 @@ impl Parser {
                         node = self.the_method_call(node, name, arguments, dot.line);
                         continue;
                     }
-                    node = Node::Property { target: Box::new(node), name, line: dot.line };
+                    node = Node::Property {
+                        target: Box::new(node),
+                        name,
+                        line: dot.line,
+                    };
                     continue;
                 }
                 let name = self.next();
@@ -10978,7 +11844,8 @@ impl Parser {
                     // 2026-11-05: the v1 refuses the point of the operand
                     // before it refuses the text of the member: the
                     // `x := a."b"%c` is refused with the point.
-                    if let Some(refusal) = self.the_refusal_of_the_point_of_the_operand(at_the_dot) {
+                    if let Some(refusal) = self.the_refusal_of_the_point_of_the_operand(at_the_dot)
+                    {
                         return Err(refusal);
                     }
                     if let Some(refusal) = self.dialect.the_refusal_of_the_text_of_a_member(
@@ -10987,7 +11854,9 @@ impl Parser {
                         return Err(self.error(refusal));
                     }
                     if !self.dialect.the_single_quote_is_not_a_text() {
-                        return Err(self.the_error_of_the_illegal_character(self.position - 1, true));
+                        return Err(
+                            self.the_error_of_the_illegal_character(self.position - 1, true)
+                        );
                     }
                 }
                 // The member of v2 may be a number: the name of the
@@ -11017,7 +11886,11 @@ impl Parser {
                 // that is written is the first piece of it.
                 let member = if self.at_op(&["%"]) && !self.peek().spaced && self.derefs == 0 {
                     let at_the_name = self.position - 1;
-                    MemberName::Dynamic(self.the_pieces_of_a_dynamic_name(name.value, at_the_name, name.line)?)
+                    MemberName::Dynamic(self.the_pieces_of_a_dynamic_name(
+                        name.value,
+                        at_the_name,
+                        name.line,
+                    )?)
                 } else {
                     MemberName::Text(name.value)
                 };
@@ -11040,7 +11913,11 @@ impl Parser {
                     let arguments = self.the_parameters_of_a_command()?;
                     return Ok(self.the_method_call(node, member, arguments, dot.line));
                 }
-                node = Node::Property { target: Box::new(node), name: member, line: dot.line };
+                node = Node::Property {
+                    target: Box::new(node),
+                    name: member,
+                    line: dot.line,
+                };
                 continue;
             }
             if self.at_keyword(&["as"]) {
@@ -11073,7 +11950,11 @@ impl Parser {
                         the_source_of_the_tokens(self, self.position - 1, self.position)
                     )));
                 }
-                node = Node::Unary { op, operand: Box::new(node), line };
+                node = Node::Unary {
+                    op,
+                    operand: Box::new(node),
+                    line,
+                };
                 continue;
             }
             if assignment && self.at_an_assignment_operator() {
@@ -11085,7 +11966,9 @@ impl Parser {
         // property and the item of the operand that is not there are the
         // operand that is not there: the `f(1 +).y` is the empty text, and so
         // is the `f(1 +)[1]`.
-        if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+        if self
+            .dialect
+            .the_operand_that_is_not_there_poisons_the_value_that_holds_it()
             && the_operand_is_not_there(&node)
         {
             return Ok(Node::Unset { line: node.line() });
@@ -11106,12 +11989,19 @@ impl Parser {
         arguments: Vec<Node>,
         line: u32,
     ) -> Node {
-        if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+        if self
+            .dialect
+            .the_operand_that_is_not_there_poisons_the_value_that_holds_it()
             && (the_operand_is_not_there(&target) || arguments.iter().any(the_operand_is_not_there))
         {
             return Node::Unset { line };
         }
-        Node::MethodCall { target: Box::new(target), name, arguments, line }
+        Node::MethodCall {
+            target: Box::new(target),
+            name,
+            arguments,
+            line,
+        }
     }
 
     /// The operator of an assignment that comes after the token.
@@ -11151,7 +12041,9 @@ impl Parser {
     /// has no call without parentheses, and the space does not separate the
     /// operator: the `x ++` is the increment of `x`.
     fn the_postfix_increment_is_next(&self) -> bool {
-        let Some(token) = self.tokens.get(self.position + 1) else { return false };
+        let Some(token) = self.tokens.get(self.position + 1) else {
+            return false;
+        };
         token.kind == TokenKind::Op
             && matches!(token.value.as_str(), "++" | "--")
             && (!self.dialect.the_space_separates_the_increment() || !token.spaced)
@@ -11163,8 +12055,15 @@ impl Parser {
     /// output variable of an assignment. The check waits for the end of
     /// the parse: the class may be declared further down.
     fn the_assignment_is_recorded(&mut self, name: &str, op: AssignOp, line: u32, column: u32) {
-        let Some(list) = self.assignments.last_mut() else { return };
-        list.push(Assignment { name: name.to_string(), op, line, column });
+        let Some(list) = self.assignments.last_mut() else {
+            return;
+        };
+        list.push(Assignment {
+            name: name.to_string(),
+            op,
+            line,
+            column,
+        });
     }
 
     /// The value of an assignment that is not there.
@@ -11181,7 +12080,10 @@ impl Parser {
             return None;
         }
         let line = self.peek().line;
-        Some(Node::Literal { value: LiteralValue::Text(String::new()), line })
+        Some(Node::Literal {
+            value: LiteralValue::Text(String::new()),
+            line,
+        })
     }
 
     /// Whether the token is the operator of an assignment.
@@ -11213,17 +12115,33 @@ impl Parser {
         Ok(match target {
             Node::Var { name, .. } => {
                 self.the_assignment_is_recorded(&name, op, line, operator.column);
-                Node::Assign { name, op, value: Box::new(value), line }
+                Node::Assign {
+                    name,
+                    op,
+                    value: Box::new(value),
+                    line,
+                }
             }
-            Node::Property { target, name, .. } => {
-                Node::AssignProperty { target, name, op, value: Box::new(value), line }
-            }
-            Node::Index { target, index, .. } => {
-                Node::AssignIndex { target, index, op, value: Box::new(value), line }
-            }
-            Node::DynamicName { pieces, .. } => {
-                Node::AssignDynamic { name: pieces, op, value: Box::new(value), line }
-            }
+            Node::Property { target, name, .. } => Node::AssignProperty {
+                target,
+                name,
+                op,
+                value: Box::new(value),
+                line,
+            },
+            Node::Index { target, index, .. } => Node::AssignIndex {
+                target,
+                index,
+                op,
+                value: Box::new(value),
+                line,
+            },
+            Node::DynamicName { pieces, .. } => Node::AssignDynamic {
+                name: pieces,
+                op,
+                value: Box::new(value),
+                line,
+            },
             _ => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // assignment of an expression is refused at the load, and
@@ -11285,9 +12203,9 @@ impl Parser {
             if self.in_class {
                 return Err(self.error("Syntax error.\n     Specifically: super"));
             }
-            return Err(self.error(
-                "\"Super\" is valid only inside a class.\n     Specifically: super()",
-            ));
+            return Err(
+                self.error("\"Super\" is valid only inside a class.\n     Specifically: super()")
+            );
         }
         if !self.in_class {
             // Measured on the binary of v2.0.19 on 2026-10-31: the statement
@@ -11317,12 +12235,18 @@ impl Parser {
         // call that takes the operand that is not there is the operand that is
         // not there: the `StrLen(1 +)` is the empty text, and not the zero
         // that the `StrLen` of the empty text answers.
-        if self.dialect.the_operand_that_is_not_there_poisons_the_value_that_holds_it()
+        if self
+            .dialect
+            .the_operand_that_is_not_there_poisons_the_value_that_holds_it()
             && arguments.iter().any(the_operand_is_not_there)
         {
             return Ok(Node::Unset { line });
         }
-        Ok(Node::Call { name, arguments, line })
+        Ok(Node::Call {
+            name,
+            arguments,
+            line,
+        })
     }
 
     /// The arguments of a call, and the parenthesis that closes them.
@@ -11353,7 +12277,10 @@ impl Parser {
         // The list is empty and the parenthesis is not there.
         if self.at_the_end_of_the_line() {
             let at = self.position;
-            return Ok((Vec::new(), Some(self.the_error_of_a_missing_parenthesis(at))));
+            return Ok((
+                Vec::new(),
+                Some(self.the_error_of_a_missing_parenthesis(at)),
+            ));
         }
         let arguments = match self.parse_arguments() {
             Ok(arguments) => arguments,
@@ -11456,7 +12383,11 @@ impl Parser {
             arguments = self.parse_arguments()?;
             self.expect_op(")")?;
         }
-        Ok(Node::New { path, arguments, line })
+        Ok(Node::New {
+            path,
+            arguments,
+            line,
+        })
     }
 
     /// The method of the v1 is recorded, and it is checked at the end of the
@@ -11640,10 +12571,16 @@ fn the_complaint_of_the_arguments(
 /// literal text, and the concatenation of a text and a number is not.
 fn the_literal_is_a_text(node: &Node) -> bool {
     match node {
-        Node::Literal { value: LiteralValue::Text(_), .. } => true,
-        Node::Binary { op: BinaryOp::Concat, left, right, .. } => {
-            the_literal_is_a_text(left) && the_literal_is_a_text(right)
-        }
+        Node::Literal {
+            value: LiteralValue::Text(_),
+            ..
+        } => true,
+        Node::Binary {
+            op: BinaryOp::Concat,
+            left,
+            right,
+            ..
+        } => the_literal_is_a_text(left) && the_literal_is_a_text(right),
         _ => false,
     }
 }
@@ -11663,7 +12600,12 @@ fn the_operand_is_not_there(node: &Node) -> bool {
         Node::Binary { left, right, .. } => {
             the_operand_is_not_there(left) || the_operand_is_not_there(right)
         }
-        Node::Ternary { condition, then, otherwise, .. } => {
+        Node::Ternary {
+            condition,
+            then,
+            otherwise,
+            ..
+        } => {
             the_operand_is_not_there(condition)
                 || the_operand_is_not_there(then)
                 || the_operand_is_not_there(otherwise)
@@ -11687,7 +12629,11 @@ fn the_operand_is_not_there(node: &Node) -> bool {
 fn the_operator_wants_a_number(op: BinaryOp) -> bool {
     matches!(
         op,
-        BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply | BinaryOp::Power | BinaryOp::BitwiseAnd
+        BinaryOp::Add
+            | BinaryOp::Subtract
+            | BinaryOp::Multiply
+            | BinaryOp::Power
+            | BinaryOp::BitwiseAnd
     )
 }
 
@@ -11698,7 +12644,11 @@ fn the_operator_wants_a_number(op: BinaryOp) -> bool {
 /// The numbers of v2 that carry a point are not names: the point of them
 /// is the point of a member.
 fn the_number_is_a_whole_one(token: &Token, dialect: &'static dyn crate::dialect::Dialect) -> bool {
-    token.kind == TokenKind::Number && matches!(the_number_of(&token.value, dialect), LiteralValue::Integer(_))
+    token.kind == TokenKind::Number
+        && matches!(
+            the_number_of(&token.value, dialect),
+            LiteralValue::Integer(_)
+        )
 }
 
 /// The literal of a number, as the dialect writes it.
@@ -11710,7 +12660,10 @@ fn the_number_is_a_whole_one(token: &Token, dialect: &'static dyn crate::dialect
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the number of the
 /// v1 is a "pure number": it keeps the text that was written, and the
 /// literal of it is that text.
-fn the_literal_of_a_number(text: &str, dialect: &'static dyn crate::dialect::Dialect) -> LiteralValue {
+fn the_literal_of_a_number(
+    text: &str,
+    dialect: &'static dyn crate::dialect::Dialect,
+) -> LiteralValue {
     if dialect.the_number_keeps_the_text_that_was_written() {
         return LiteralValue::Number(text.to_string());
     }
@@ -11822,8 +12775,12 @@ mod tests {
         // Measured on the binary of v2.0.19 on 2026-10-31: the key of the
         // v2 is a text, and the braces of it are part of the text.
         let statements = parse("Send \"{Enter}\"").expect("parses");
-        let Node::Call { arguments, .. } = &statements[0] else { panic!("a send") };
-        assert!(matches!(&arguments[0], Node::Literal { value: LiteralValue::Text(text), .. } if text == "{Enter}"));
+        let Node::Call { arguments, .. } = &statements[0] else {
+            panic!("a send")
+        };
+        assert!(
+            matches!(&arguments[0], Node::Literal { value: LiteralValue::Text(text), .. } if text == "{Enter}")
+        );
     }
 
     #[test]
@@ -11832,7 +12789,10 @@ mod tests {
         // opens an argument of a command opens the literal of an object,
         // and not a key: `Send {Enter}` is refused at the load.
         let error = parse("Send {Enter}").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
+        assert_eq!(
+            error.message,
+            "Missing \"propertyname:\" in object literal."
+        );
     }
 
     #[test]
@@ -11850,7 +12810,9 @@ mod tests {
         // Measured on the binary of v2.0.19 on 2026-10-31: `f(*)` is a
         // function of v2, and the arguments that it takes go nowhere.
         let statements = parse("f(*) {\n    return 1\n}").expect("parses");
-        let Node::FunctionDef { parameters, .. } = &statements[0] else { panic!("a function") };
+        let Node::FunctionDef { parameters, .. } = &statements[0] else {
+            panic!("a function")
+        };
         assert_eq!(parameters.len(), 1);
         assert!(parameters[0].variadic);
         assert!(parameters[0].name.is_empty());
@@ -11886,7 +12848,14 @@ mod tests {
         // `if` is written with two words, and the `elseif` is a name like
         // any other.
         let statements = parse("If a {\n} Else If b {\n} Else {\n}").expect("parses");
-        let Node::If { branches, otherwise, .. } = &statements[0] else { panic!("an if") };
+        let Node::If {
+            branches,
+            otherwise,
+            ..
+        } = &statements[0]
+        else {
+            panic!("an if")
+        };
         assert_eq!(branches.len(), 2);
         assert_eq!(otherwise.len(), 0);
     }
@@ -11901,9 +12870,12 @@ mod tests {
 
     #[test]
     fn a_switch_holds_its_cases() {
-        let statements = parse("Switch x {\n  Case 1:\n    MsgBox \"one\"\n  Default:\n    MsgBox \"other\"\n}")
-            .expect("parses");
-        let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+        let statements =
+            parse("Switch x {\n  Case 1:\n    MsgBox \"one\"\n  Default:\n    MsgBox \"other\"\n}")
+                .expect("parses");
+        let Node::Switch { cases, .. } = &statements[0] else {
+            panic!("a switch")
+        };
         assert_eq!(cases.len(), 2);
         assert!(cases[1].values.is_empty());
     }
@@ -11913,9 +12885,11 @@ mod tests {
         // Measured on the binary of v2.0.19 on 2026-11-01: a case may name
         // many values, and it matches when the subject of the switch is one
         // of them.
-        let statements = parse("Switch x {\n  Case 1, 2, 3:\n    MsgBox \"one\"\n}")
-            .expect("parses");
-        let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+        let statements =
+            parse("Switch x {\n  Case 1, 2, 3:\n    MsgBox \"one\"\n}").expect("parses");
+        let Node::Switch { cases, .. } = &statements[0] else {
+            panic!("a switch")
+        };
         assert_eq!(cases.len(), 1);
         assert_eq!(cases[0].values.len(), 3);
     }
@@ -11924,7 +12898,8 @@ mod tests {
     fn a_case_of_v2_has_no_brace() {
         // Measured on the binary of v2.0.19 on 2026-10-31: the body of a
         // case is the statements under it, and a brace is not one.
-        let error = parse("Switch x {\n  Case 1 {\n    MsgBox \"one\"\n  }\n}").expect_err("does not parse");
+        let error = parse("Switch x {\n  Case 1 {\n    MsgBox \"one\"\n  }\n}")
+            .expect_err("does not parse");
         assert_eq!(
             error.message,
             "This line does not contain a recognized action.\n     Specifically: Case 1 {"
@@ -11933,9 +12908,12 @@ mod tests {
 
     #[test]
     fn a_case_can_be_written_with_a_colon() {
-        let statements = parse("Switch x {\n  Case 1:\n    MsgBox \"one\"\n  Default:\n    MsgBox \"other\"\n}")
-            .expect("parses");
-        let Node::Switch { cases, .. } = &statements[0] else { panic!("a switch") };
+        let statements =
+            parse("Switch x {\n  Case 1:\n    MsgBox \"one\"\n  Default:\n    MsgBox \"other\"\n}")
+                .expect("parses");
+        let Node::Switch { cases, .. } = &statements[0] else {
+            panic!("a switch")
+        };
         assert_eq!(cases.len(), 2);
         assert_eq!(cases[0].body.len(), 1);
     }
@@ -11951,7 +12929,10 @@ mod tests {
     #[test]
     fn the_body_of_a_class_begins_on_the_next_line() {
         let error = parse("class Thing { x := 1 }").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"{\"\n     Specifically: class Thing { x := 1 }");
+        assert_eq!(
+            error.message,
+            "Missing \"{\"\n     Specifically: class Thing { x := 1 }"
+        );
     }
 
     #[test]
@@ -11963,7 +12944,10 @@ mod tests {
     #[test]
     fn the_brace_that_closes_a_block_is_alone_on_its_line() {
         let error = parse("if (x) {\n    y := 1 }").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected \"}\"\n     Specifically: y := 1 }");
+        assert_eq!(
+            error.message,
+            "Unexpected \"}\"\n     Specifically: y := 1 }"
+        );
     }
 
     #[test]
@@ -11975,18 +12959,32 @@ mod tests {
     #[test]
     fn a_function_definition_is_not_a_call() {
         let statements = parse("Add(a, b) {\n  return a + b\n}").expect("parses");
-        let Node::FunctionDef { name, parameters, .. } = &statements[0] else { panic!("a definition") };
+        let Node::FunctionDef {
+            name, parameters, ..
+        } = &statements[0]
+        else {
+            panic!("a definition")
+        };
         assert_eq!(name, "Add");
-        let names: Vec<&str> = parameters.iter().map(|parameter| parameter.name.as_str()).collect();
+        let names: Vec<&str> = parameters
+            .iter()
+            .map(|parameter| parameter.name.as_str())
+            .collect();
         assert_eq!(names, vec!["a", "b"]);
-        assert!(parameters.iter().all(|parameter| parameter.default.is_none()));
+        assert!(
+            parameters
+                .iter()
+                .all(|parameter| parameter.default.is_none())
+        );
         assert!(parameters.iter().all(|parameter| !parameter.variadic));
     }
 
     #[test]
     fn a_parameter_may_carry_a_default() {
         let statements = parse("Add(a, b := 1) {\n  return a + b\n}").expect("parses");
-        let Node::FunctionDef { parameters, .. } = &statements[0] else { panic!("a definition") };
+        let Node::FunctionDef { parameters, .. } = &statements[0] else {
+            panic!("a definition")
+        };
         assert!(parameters[0].default.is_none());
         assert!(parameters[1].default.is_some());
     }
@@ -11994,7 +12992,9 @@ mod tests {
     #[test]
     fn a_parameter_may_take_the_rest_of_the_arguments() {
         let statements = parse("Add(a, rest*) {\n  return a\n}").expect("parses");
-        let Node::FunctionDef { parameters, .. } = &statements[0] else { panic!("a definition") };
+        let Node::FunctionDef { parameters, .. } = &statements[0] else {
+            panic!("a definition")
+        };
         assert!(!parameters[0].variadic);
         assert!(parameters[1].variadic);
     }
@@ -12004,7 +13004,9 @@ mod tests {
         // The ByRef marker of v2: the caller must pass a reference, and
         // the parameter is an alias of the variable of the caller.
         let statements = parse("Add(&a) {\n  return a\n}").expect("parses");
-        let Node::FunctionDef { parameters, .. } = &statements[0] else { panic!("a definition") };
+        let Node::FunctionDef { parameters, .. } = &statements[0] else {
+            panic!("a definition")
+        };
         assert!(parameters[0].by_ref);
         assert_eq!(parameters[0].name, "a");
     }
@@ -12023,7 +13025,9 @@ mod tests {
             matches!(&statements[0], Node::Call { name, arguments, .. } if name == "class" && arguments.len() == 1)
         );
         let statements = parse("Class").expect("parses");
-        assert!(matches!(&statements[0], Node::Call { name, arguments, .. } if name == "class" && arguments.is_empty()));
+        assert!(
+            matches!(&statements[0], Node::Call { name, arguments, .. } if name == "class" && arguments.is_empty())
+        );
     }
 
     #[test]
@@ -12031,23 +13035,33 @@ mod tests {
         // Measured on the binary of v2.0.19 on 2026-10-31: two values side by
         // side are one value, and the space between them is what makes it so.
         let statements = parse("x := \"a\" \"b\"").expect("parses");
-        assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(value.as_ref(), Node::Binary { op: BinaryOp::Concat, .. })));
+        assert!(
+            matches!(&statements[0], Node::Assign { value, .. } if matches!(value.as_ref(), Node::Binary { op: BinaryOp::Concat, .. }))
+        );
         let error = parse("x := \"a\"\"b\"").expect_err("does not parse");
         assert_eq!(
             error.message,
             "Missing space or operator before this.\n     Specifically: \"b\""
         );
         let error = parse("x := \"a\"1").expect_err("does not parse");
-        assert_eq!(error.message, "Missing space or operator before this.\n     Specifically: 1");
+        assert_eq!(
+            error.message,
+            "Missing space or operator before this.\n     Specifically: 1"
+        );
         // The text of the other kind is named with its own quote.
         let error = parse("x := \"a\"'b'").expect_err("does not parse");
-        assert_eq!(error.message, "Missing space or operator before this.\n     Specifically: 'b'");
+        assert_eq!(
+            error.message,
+            "Missing space or operator before this.\n     Specifically: 'b'"
+        );
     }
 
     #[test]
     fn a_call_in_a_statement_is_a_call() {
         let statements = parse("DoThing(1, 2)").expect("parses");
-        assert!(matches!(&statements[0], Node::Call { name, arguments, .. } if name == "dothing" && arguments.len() == 2));
+        assert!(
+            matches!(&statements[0], Node::Call { name, arguments, .. } if name == "dothing" && arguments.len() == 2)
+        );
     }
 
     #[test]
@@ -12091,19 +13105,39 @@ mod tests {
     #[test]
     fn the_multiplication_binds_tighter_than_the_addition() {
         let statements = parse("x := 1 + 2 * 3").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::Binary { op, right, .. } = value.as_ref() else { panic!("an addition") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::Binary { op, right, .. } = value.as_ref() else {
+            panic!("an addition")
+        };
         assert_eq!(*op, BinaryOp::Add);
-        assert!(matches!(right.as_ref(), Node::Binary { op: BinaryOp::Multiply, .. }));
+        assert!(matches!(
+            right.as_ref(),
+            Node::Binary {
+                op: BinaryOp::Multiply,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn the_power_binds_to_the_right() {
         let statements = parse("x := 2 ** 3 ** 2").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::Binary { op, right, .. } = value.as_ref() else { panic!("a power") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::Binary { op, right, .. } = value.as_ref() else {
+            panic!("a power")
+        };
         assert_eq!(*op, BinaryOp::Power);
-        assert!(matches!(right.as_ref(), Node::Binary { op: BinaryOp::Power, .. }));
+        assert!(matches!(
+            right.as_ref(),
+            Node::Binary {
+                op: BinaryOp::Power,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -12111,69 +13145,127 @@ mod tests {
         // Measured on the binary of v2.0.19 on 2026-10-28: `-2 ** 2` is
         // -4 there, and not 4.
         let statements = parse("x := -2 ** 2").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::Unary { op, operand, .. } = value.as_ref() else { panic!("a negation") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::Unary { op, operand, .. } = value.as_ref() else {
+            panic!("a negation")
+        };
         assert_eq!(*op, UnaryOp::Negate);
-        assert!(matches!(operand.as_ref(), Node::Binary { op: BinaryOp::Power, .. }));
+        assert!(matches!(
+            operand.as_ref(),
+            Node::Binary {
+                op: BinaryOp::Power,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn the_word_not_binds_looser_than_the_comparison() {
         let statements = parse("x := not a = 3").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::Unary { op, operand, .. } = value.as_ref() else { panic!("a not") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::Unary { op, operand, .. } = value.as_ref() else {
+            panic!("a not")
+        };
         assert_eq!(*op, UnaryOp::NotWord);
-        assert!(matches!(operand.as_ref(), Node::Binary { op: BinaryOp::Equal, .. }));
+        assert!(matches!(
+            operand.as_ref(),
+            Node::Binary {
+                op: BinaryOp::Equal,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn the_ternary_takes_the_branch_that_holds() {
         let statements = parse("x := a ? 1 : 2").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
         assert!(matches!(value.as_ref(), Node::Ternary { .. }));
     }
 
     #[test]
     fn a_function_with_a_keyword_name_can_be_called() {
         let statements = parse("x := PixelGet(10, 20)").expect("parses");
-        assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(value.as_ref(), Node::Call { name, .. } if name == "pixelget")));
+        assert!(
+            matches!(&statements[0], Node::Assign { value, .. } if matches!(value.as_ref(), Node::Call { name, .. } if name == "pixelget"))
+        );
     }
 
     #[test]
     fn the_empty_brackets_are_the_empty_array() {
         let statements = parse("x := []").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else {
+            panic!("an array")
+        };
         assert_eq!(items.len(), 0);
     }
 
     #[test]
     fn an_array_holds_its_values_in_the_order_they_are_written() {
         let statements = parse("x := [1, 2, 3]").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else {
+            panic!("an array")
+        };
         assert_eq!(items.len(), 3);
-        assert!(matches!(items[0].as_ref(), Some(Node::Literal { value: LiteralValue::Integer(number), .. }) if *number == 1));
-        assert!(matches!(items[2].as_ref(), Some(Node::Literal { value: LiteralValue::Integer(number), .. }) if *number == 3));
+        assert!(
+            matches!(items[0].as_ref(), Some(Node::Literal { value: LiteralValue::Integer(number), .. }) if *number == 1)
+        );
+        assert!(
+            matches!(items[2].as_ref(), Some(Node::Literal { value: LiteralValue::Integer(number), .. }) if *number == 3)
+        );
     }
 
     #[test]
     fn an_array_holds_expressions() {
         let statements = parse("x := [a + b, c * d]").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else {
+            panic!("an array")
+        };
         assert_eq!(items.len(), 2);
-        assert!(matches!(items[0].as_ref(), Some(Node::Binary { op: BinaryOp::Add, .. })));
-        assert!(matches!(items[1].as_ref(), Some(Node::Binary { op: BinaryOp::Multiply, .. })));
+        assert!(matches!(
+            items[0].as_ref(),
+            Some(Node::Binary {
+                op: BinaryOp::Add,
+                ..
+            })
+        ));
+        assert!(matches!(
+            items[1].as_ref(),
+            Some(Node::Binary {
+                op: BinaryOp::Multiply,
+                ..
+            })
+        ));
     }
 
     #[test]
     fn an_array_may_hold_another_array() {
         let statements = parse("x := [[1], [2]]").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else {
+            panic!("an array")
+        };
         assert_eq!(items.len(), 2);
-        assert!(matches!(items[0].as_ref(), Some(Node::ArrayLiteral { items, .. }) if items.len() == 1));
+        assert!(
+            matches!(items[0].as_ref(), Some(Node::ArrayLiteral { items, .. }) if items.len() == 1)
+        );
     }
 
     #[test]
@@ -12181,8 +13273,12 @@ mod tests {
         // Measured on the binary of v2.0.19 on 2026-11-01: the literal may
         // have a hole, and the hole is a comma that follows a comma.
         let statements = parse("x := [1, , 3]").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else {
+            panic!("an array")
+        };
         assert_eq!(items.len(), 3);
         assert!(items[1].is_none());
     }
@@ -12190,8 +13286,12 @@ mod tests {
     #[test]
     fn an_array_may_hold_many_places_without_a_value() {
         let statements = parse("x := [1, , , 2]").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else {
+            panic!("an array")
+        };
         assert_eq!(items.len(), 4);
         assert!(items[1].is_none());
         assert!(items[2].is_none());
@@ -12203,12 +13303,20 @@ mod tests {
         // the end of the list add nothing, and the place that has no value
         // of its own and that is the last one is dropped with them.
         let statements = parse("x := [1, 2, , ]").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else {
+            panic!("an array")
+        };
         assert_eq!(items.len(), 2);
         let statements = parse("x := [,]").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::ArrayLiteral { items, .. } = value.as_ref() else { panic!("an array") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::ArrayLiteral { items, .. } = value.as_ref() else {
+            panic!("an array")
+        };
         assert_eq!(items.len(), 0);
     }
 
@@ -12217,8 +13325,12 @@ mod tests {
         // The literal is a primary, and the suffixes follow it the way
         // they follow a variable.
         let statements = parse("x := [1, 2].Length").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else { panic!("an assignment") };
-        let Node::Property { target, name, .. } = value.as_ref() else { panic!("a property") };
+        let Node::Assign { value, .. } = &statements[0] else {
+            panic!("an assignment")
+        };
+        let Node::Property { target, name, .. } = value.as_ref() else {
+            panic!("a property")
+        };
         assert_eq!(name, "Length");
         assert!(matches!(target.as_ref(), Node::ArrayLiteral { items, .. } if items.len() == 2));
     }
@@ -12226,7 +13338,9 @@ mod tests {
     #[test]
     fn an_array_may_be_an_argument_of_a_call() {
         let statements = parse("DoThing([1, 2])").expect("parses");
-        let Node::Call { arguments, .. } = &statements[0] else { panic!("a call") };
+        let Node::Call { arguments, .. } = &statements[0] else {
+            panic!("a call")
+        };
         assert!(matches!(&arguments[0], Node::ArrayLiteral { items, .. } if items.len() == 2));
     }
 
@@ -12236,15 +13350,21 @@ mod tests {
         // value `DoThing`, and `DoThing [1, 2]` is a call whose argument
         // is the array.
         let statements = parse("f(a) {\n}\nf [1, 2]").expect("parses");
-        let Node::Call { arguments, .. } = &statements[1] else { panic!("a call") };
+        let Node::Call { arguments, .. } = &statements[1] else {
+            panic!("a call")
+        };
         assert!(matches!(&arguments[0], Node::ArrayLiteral { items, .. } if items.len() == 2));
     }
 
     #[test]
     fn a_bracket_without_a_space_is_the_item_of_the_value() {
         let statements = parse("x[1] := 2").expect("parses");
-        let Node::AssignIndex { index, .. } = &statements[0] else { panic!("an index") };
-        assert!(matches!(index.as_ref(), Node::Literal { value: LiteralValue::Integer(number), .. } if *number == 1));
+        let Node::AssignIndex { index, .. } = &statements[0] else {
+            panic!("an index")
+        };
+        assert!(
+            matches!(index.as_ref(), Node::Literal { value: LiteralValue::Integer(number), .. } if *number == 1)
+        );
     }
 
     #[test]
@@ -12255,7 +13375,15 @@ mod tests {
     #[test]
     fn a_for_loop_walks_what_the_object_enumerates() {
         let statements = parse("for x in items {\n  total += x\n}").expect("parses");
-        let Node::For { variables, source, body, .. } = &statements[0] else { panic!("a for") };
+        let Node::For {
+            variables,
+            source,
+            body,
+            ..
+        } = &statements[0]
+        else {
+            panic!("a for")
+        };
         assert_eq!(variables.len(), 1);
         assert_eq!(variables[0], "x");
         assert!(matches!(source.as_ref(), Node::Var { name, .. } if name == "items"));
@@ -12265,7 +13393,9 @@ mod tests {
     #[test]
     fn a_for_loop_may_take_two_names() {
         let statements = parse("for key, value in items {\n}").expect("parses");
-        let Node::For { variables, .. } = &statements[0] else { panic!("a for") };
+        let Node::For { variables, .. } = &statements[0] else {
+            panic!("a for")
+        };
         assert_eq!(variables.len(), 2);
         assert_eq!(variables[0], "key");
         assert_eq!(variables[1], "value");
@@ -12275,7 +13405,9 @@ mod tests {
     fn a_for_loop_may_leave_the_first_name_out() {
         // The name that is left out is the empty string.
         let statements = parse("for , value in map {\n}").expect("parses");
-        let Node::For { variables, .. } = &statements[0] else { panic!("a for") };
+        let Node::For { variables, .. } = &statements[0] else {
+            panic!("a for")
+        };
         assert_eq!(variables.len(), 2);
         assert_eq!(variables[0], "");
         assert_eq!(variables[1], "value");
@@ -12284,7 +13416,12 @@ mod tests {
     #[test]
     fn a_for_loop_may_take_no_name_at_all() {
         let statements = parse("for in map {\n}").expect("parses");
-        let Node::For { variables, source, .. } = &statements[0] else { panic!("a for") };
+        let Node::For {
+            variables, source, ..
+        } = &statements[0]
+        else {
+            panic!("a for")
+        };
         assert!(variables.is_empty());
         assert!(matches!(source.as_ref(), Node::Var { name, .. } if name == "map"));
     }
@@ -12292,7 +13429,15 @@ mod tests {
     #[test]
     fn the_names_of_a_for_loop_may_be_written_between_parentheses() {
         let statements = parse("for (x in items) {\n}").expect("parses");
-        let Node::For { variables, source, body, .. } = &statements[0] else { panic!("a for") };
+        let Node::For {
+            variables,
+            source,
+            body,
+            ..
+        } = &statements[0]
+        else {
+            panic!("a for")
+        };
         assert_eq!(variables.len(), 1);
         assert_eq!(variables[0], "x");
         assert!(matches!(source.as_ref(), Node::Var { name, .. } if name == "items"));
@@ -12304,7 +13449,12 @@ mod tests {
         // The `::` that may introduce a block is accepted the way it is
         // accepted by the other loops.
         let statements = parse("for x in items :: {\n}").expect("parses");
-        let Node::For { variables, body, .. } = &statements[0] else { panic!("a for") };
+        let Node::For {
+            variables, body, ..
+        } = &statements[0]
+        else {
+            panic!("a for")
+        };
         assert_eq!(variables[0], "x");
         assert_eq!(body.len(), 0);
     }
@@ -12320,955 +13470,1069 @@ mod tests {
     }
 }
 
-    #[test]
-    fn a_declaration_names_a_variable_and_may_give_it_a_value() {
-        let statements = parse("global g, h := 1").expect("parses");
-        let Node::Declare { scope, names, .. } = &statements[0] else { panic!("a declaration") };
-        assert_eq!(*scope, DeclareKind::Global);
-        assert_eq!(names.len(), 2);
-        assert_eq!(names[0].name, "g");
-        assert!(names[0].value.is_none());
-        assert_eq!(names[1].name, "h");
-        assert!(names[1].value.is_some());
-    }
+#[test]
+fn a_declaration_names_a_variable_and_may_give_it_a_value() {
+    let statements = parse("global g, h := 1").expect("parses");
+    let Node::Declare { scope, names, .. } = &statements[0] else {
+        panic!("a declaration")
+    };
+    assert_eq!(*scope, DeclareKind::Global);
+    assert_eq!(names.len(), 2);
+    assert_eq!(names[0].name, "g");
+    assert!(names[0].value.is_none());
+    assert_eq!(names[1].name, "h");
+    assert!(names[1].value.is_some());
+}
 
-    #[test]
-    fn a_bare_global_is_the_mode_of_the_function() {
-        let statements = parse("f() {\n  global\n  g := 1\n}").expect("parses");
-        let Node::FunctionDef { declarations, .. } = &statements[0] else { panic!("a definition") };
-        assert!(declarations.assume_global);
-        assert!(declarations.globals.is_empty());
-    }
+#[test]
+fn a_bare_global_is_the_mode_of_the_function() {
+    let statements = parse("f() {\n  global\n  g := 1\n}").expect("parses");
+    let Node::FunctionDef { declarations, .. } = &statements[0] else {
+        panic!("a definition")
+    };
+    assert!(declarations.assume_global);
+    assert!(declarations.globals.is_empty());
+}
 
-    #[test]
-    fn a_class_with_an_init_and_variables_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: v2 makes the
-        // `__Init` that carries the variables, and the two cannot both be
-        // there.
-        let error = parse("class Thing {\n  value := 1\n  __Init() {\n  }\n}").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Duplicate declaration.\n     Specifically: Thing.Prototype.__Init"
-        );
-        // The line of the failure is the line of the declaration of the
-        // method, the line of the name.
-        assert_eq!(error.line, 3);
-    }
+#[test]
+fn a_class_with_an_init_and_variables_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: v2 makes the
+    // `__Init` that carries the variables, and the two cannot both be
+    // there.
+    let error =
+        parse("class Thing {\n  value := 1\n  __Init() {\n  }\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: Thing.Prototype.__Init"
+    );
+    // The line of the failure is the line of the declaration of the
+    // method, the line of the name.
+    assert_eq!(error.line, 3);
+}
 
-    #[test]
-    fn the_properties_that_come_after_the_init_are_taken() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the `__Init` that
-        // carries the properties is made when the properties come before the
-        // `__Init`, and the ones that come after it are taken.
-        parse("class Thing {\n  __Init() {\n  }\n  value := 1\n}").expect("parses");
-    }
+#[test]
+fn the_properties_that_come_after_the_init_are_taken() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `__Init` that
+    // carries the properties is made when the properties come before the
+    // `__Init`, and the ones that come after it are taken.
+    parse("class Thing {\n  __Init() {\n  }\n  value := 1\n}").expect("parses");
+}
 
-    #[test]
-    fn a_class_with_a_static_init_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: every class has
-        // an automatic initialiser, and a static `__Init` of its own is a
-        // duplicate of it.
-        let error = parse("class Thing {\n  static __Init() {\n  }\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: Thing.__Init");
-        // The line of the failure is the line of the declaration of the
-        // method, the line of the name.
-        assert_eq!(error.line, 2);
-        // The instance `__Init` is another thing: it is the constructor of
-        // the class, and v2 takes it.
-        parse("class Thing {\n  __Init() {\n  }\n}").expect("parses");
-    }
+#[test]
+fn a_class_with_a_static_init_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: every class has
+    // an automatic initialiser, and a static `__Init` of its own is a
+    // duplicate of it.
+    let error = parse("class Thing {\n  static __Init() {\n  }\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: Thing.__Init"
+    );
+    // The line of the failure is the line of the declaration of the
+    // method, the line of the name.
+    assert_eq!(error.line, 2);
+    // The instance `__Init` is another thing: it is the constructor of
+    // the class, and v2 takes it.
+    parse("class Thing {\n  __Init() {\n  }\n}").expect("parses");
+}
 
-    #[test]
-    fn a_class_with_two_methods_of_the_same_name_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: a name may be
-        // declared only once, and the failure is at the second one.
-        let error = parse("class Thing {\n  Foo() {\n  }\n  Foo() {\n  }\n}").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Duplicate declaration.\n     Specifically: Thing.Prototype.Foo"
-        );
-        assert_eq!(error.line, 4);
-    }
+#[test]
+fn a_class_with_two_methods_of_the_same_name_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a name may be
+    // declared only once, and the failure is at the second one.
+    let error =
+        parse("class Thing {\n  Foo() {\n  }\n  Foo() {\n  }\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: Thing.Prototype.Foo"
+    );
+    assert_eq!(error.line, 4);
+}
 
-    #[test]
-    fn a_class_with_two_static_methods_of_the_same_name_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: a method of the
-        // class and a method of an instance are two names and not one, and
-        // the name of a method of the class is the name of the class and the
-        // name of it.
-        let error =
-            parse("class Thing {\n  static Foo() {\n  }\n  static Foo() {\n  }\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: Thing.Foo");
-        assert_eq!(error.line, 4);
-    }
+#[test]
+fn a_class_with_two_static_methods_of_the_same_name_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a method of the
+    // class and a method of an instance are two names and not one, and
+    // the name of a method of the class is the name of the class and the
+    // name of it.
+    let error = parse("class Thing {\n  static Foo() {\n  }\n  static Foo() {\n  }\n}")
+        .expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: Thing.Foo"
+    );
+    assert_eq!(error.line, 4);
+}
 
-    #[test]
-    fn a_class_with_two_properties_of_the_same_name_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
-        // property is the name of it, and not the name of the class with it.
-        let error = parse("class Thing {\n  value := 1\n  value := 2\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: value");
-        assert_eq!(error.line, 3);
-    }
+#[test]
+fn a_class_with_two_properties_of_the_same_name_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // property is the name of it, and not the name of the class with it.
+    let error = parse("class Thing {\n  value := 1\n  value := 2\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: value"
+    );
+    assert_eq!(error.line, 3);
+}
 
-    #[test]
-    fn a_class_with_two_static_properties_of_the_same_name_is_an_error() {
-        let error =
-            parse("class Thing {\n  static value := 1\n  static value := 2\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: value");
-        assert_eq!(error.line, 3);
-    }
+#[test]
+fn a_class_with_two_static_properties_of_the_same_name_is_an_error() {
+    let error = parse("class Thing {\n  static value := 1\n  static value := 2\n}")
+        .expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: value"
+    );
+    assert_eq!(error.line, 3);
+}
 
-    #[test]
-    fn the_case_of_a_name_does_not_count() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the names of a
-        // class are the names in lower case, and the failure names the one
-        // that was written.
-        let error = parse("class Thing {\n  Foo() {\n  }\n  foo() {\n  }\n}").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Duplicate declaration.\n     Specifically: Thing.Prototype.foo"
-        );
-    }
+#[test]
+fn the_case_of_a_name_does_not_count() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the names of a
+    // class are the names in lower case, and the failure names the one
+    // that was written.
+    let error =
+        parse("class Thing {\n  Foo() {\n  }\n  foo() {\n  }\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: Thing.Prototype.foo"
+    );
+}
 
-    #[test]
-    fn a_method_and_a_property_of_the_same_name_are_taken() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the methods and
-        // the properties of a class are two tables and not one.
-        parse("class Thing {\n  Foo() {\n  }\n  Foo := 1\n}").expect("parses");
-        parse("class Thing {\n  Foo := 1\n  Foo() {\n  }\n}").expect("parses");
-    }
+#[test]
+fn a_method_and_a_property_of_the_same_name_are_taken() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the methods and
+    // the properties of a class are two tables and not one.
+    parse("class Thing {\n  Foo() {\n  }\n  Foo := 1\n}").expect("parses");
+    parse("class Thing {\n  Foo := 1\n  Foo() {\n  }\n}").expect("parses");
+}
 
-    #[test]
-    fn a_static_method_and_an_instance_method_of_the_same_name_are_taken() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
-        // class and the methods of an instance are two tables and not one.
-        parse("class Thing {\n  Foo() {\n  }\n  static Foo() {\n  }\n}").expect("parses");
-    }
+#[test]
+fn a_static_method_and_an_instance_method_of_the_same_name_are_taken() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
+    // class and the methods of an instance are two tables and not one.
+    parse("class Thing {\n  Foo() {\n  }\n  static Foo() {\n  }\n}").expect("parses");
+}
 
-    #[test]
-    fn the_first_duplicate_of_the_body_is_the_one_that_is_reported() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the duplicates are
-        // refused while the body is read, and the first one of them is the
-        // one that is reported.
-        let error =
-            parse("class Thing {\n  Foo() {\n  }\n  Foo() {\n  }\n  static __Init() {\n  }\n}")
-                .expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Duplicate declaration.\n     Specifically: Thing.Prototype.Foo"
-        );
-        assert_eq!(error.line, 4);
-    }
+#[test]
+fn the_first_duplicate_of_the_body_is_the_one_that_is_reported() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the duplicates are
+    // refused while the body is read, and the first one of them is the
+    // one that is reported.
+    let error = parse("class Thing {\n  Foo() {\n  }\n  Foo() {\n  }\n  static __Init() {\n  }\n}")
+        .expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: Thing.Prototype.Foo"
+    );
+    assert_eq!(error.line, 4);
+}
 
-    #[test]
-    fn a_class_with_two_inits_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the `__Init` of an
-        // instance is a name of the prototype, and it may be declared once.
-        let error =
-            parse("class Thing {\n  __Init() {\n  }\n  __Init() {\n  }\n}").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Duplicate declaration.\n     Specifically: Thing.Prototype.__Init"
-        );
-        assert_eq!(error.line, 4);
-    }
+#[test]
+fn a_class_with_two_inits_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the `__Init` of an
+    // instance is a name of the prototype, and it may be declared once.
+    let error = parse("class Thing {\n  __Init() {\n  }\n  __Init() {\n  }\n}")
+        .expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: Thing.Prototype.__Init"
+    );
+    assert_eq!(error.line, 4);
+}
 
-    #[test]
-    fn a_super_outside_a_class_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-30.
-        let error = parse("super.m()").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "\"Super\" is valid only inside a class.\n     Specifically: super.m()"
-        );
-    }
+#[test]
+fn a_super_outside_a_class_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let error = parse("super.m()").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Super\" is valid only inside a class.\n     Specifically: super.m()"
+    );
+}
 
-    #[test]
-    fn the_text_of_a_refused_super_is_the_source() {
-        let error = parse("super.m(1, 2)").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "\"Super\" is valid only inside a class.\n     Specifically: super.m(1, 2)"
-        );
-    }
+#[test]
+fn the_text_of_a_refused_super_is_the_source() {
+    let error = parse("super.m(1, 2)").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Super\" is valid only inside a class.\n     Specifically: super.m(1, 2)"
+    );
+}
 
-    #[test]
-    fn the_text_of_a_refused_super_keeps_the_quotes() {
-        let error = parse("super[\"x\"]").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "\"Super\" is valid only inside a class.\n     Specifically: super[\"x\"]"
-        );
-    }
+#[test]
+fn the_text_of_a_refused_super_keeps_the_quotes() {
+    let error = parse("super[\"x\"]").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Super\" is valid only inside a class.\n     Specifically: super[\"x\"]"
+    );
+}
 
-    #[test]
-    fn a_super_that_has_no_member_is_an_error() {
-        let error = parse("class C {\n  m() {\n    return super\n  }\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: super");
-    }
+#[test]
+fn a_super_that_has_no_member_is_an_error() {
+    let error = parse("class C {\n  m() {\n    return super\n  }\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: super");
+}
 
-    #[test]
-    fn a_super_alone_outside_a_class_is_the_call_of_the_keyword() {
-        let error = parse("super").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "\"Super\" is valid only inside a class.\n     Specifically: super()"
-        );
-    }
+#[test]
+fn a_super_alone_outside_a_class_is_the_call_of_the_keyword() {
+    let error = parse("super").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Super\" is valid only inside a class.\n     Specifically: super()"
+    );
+}
 
-    #[test]
-    fn the_super_of_an_expression_names_the_text_that_was_written() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: in an expression
-        // the text of the `super` is the source, and the parentheses of a
-        // call are not there.
-        let error = parse("x := super.x").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "\"Super\" is valid only inside a class.\n     Specifically: super.x"
-        );
-    }
+#[test]
+fn the_super_of_an_expression_names_the_text_that_was_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: in an expression
+    // the text of the `super` is the source, and the parentheses of a
+    // call are not there.
+    let error = parse("x := super.x").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Super\" is valid only inside a class.\n     Specifically: super.x"
+    );
+}
 
-    #[test]
-    fn a_dot_with_a_space_before_it_reaches_into_the_value() {
-        // Measured on the binary of v2.0.19 on 2026-10-30: the space that
-        // comes after the dot is what tells, and the one that comes before
-        // it does not matter.
-        let statements = parse("y := o .x").expect("parses");
-        assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(&**value, Node::Property { name, .. } if name == "x")));
-    }
+#[test]
+fn a_dot_with_a_space_before_it_reaches_into_the_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-30: the space that
+    // comes after the dot is what tells, and the one that comes before
+    // it does not matter.
+    let statements = parse("y := o .x").expect("parses");
+    assert!(
+        matches!(&statements[0], Node::Assign { value, .. } if matches!(&**value, Node::Property { name, .. } if name == "x"))
+    );
+}
 
-    #[test]
-    fn a_name_that_is_a_statement_calls_the_method() {
-        // Measured on the binary of v2.0.19 on 2026-10-29: a name that is a
-        // statement is a call, and the parentheses may be left out.
-        let statements = parse("o .x").expect("parses");
-        assert!(matches!(&statements[0], Node::MethodCall { name, arguments, .. } if name == "x" && arguments.is_empty()));
-    }
+#[test]
+fn a_name_that_is_a_statement_calls_the_method() {
+    // Measured on the binary of v2.0.19 on 2026-10-29: a name that is a
+    // statement is a call, and the parentheses may be left out.
+    let statements = parse("o .x").expect("parses");
+    assert!(
+        matches!(&statements[0], Node::MethodCall { name, arguments, .. } if name == "x" && arguments.is_empty())
+    );
+}
 
-    #[test]
-    fn a_dot_with_a_space_after_it_joins_two_values() {
-        let statements = parse("x := a . b").expect("parses");
-        assert!(matches!(&statements[0], Node::Assign { value, .. } if matches!(&**value, Node::Binary { op: BinaryOp::Concat, .. })));
-    }
+#[test]
+fn a_dot_with_a_space_after_it_joins_two_values() {
+    let statements = parse("x := a . b").expect("parses");
+    assert!(
+        matches!(&statements[0], Node::Assign { value, .. } if matches!(&**value, Node::Binary { op: BinaryOp::Concat, .. }))
+    );
+}
 
-    #[test]
-    fn a_dot_with_a_space_after_it_and_none_before_it_is_an_error() {
-        // v2 refuses the line: "This line does not contain a recognized
-        // action.\n     Specifically: o. x := 1".
-        let error = parse("o. x := 1").expect_err("does not parse");
-        assert!(!error.message.is_empty());
-    }
+#[test]
+fn a_dot_with_a_space_after_it_and_none_before_it_is_an_error() {
+    // v2 refuses the line: "This line does not contain a recognized
+    // action.\n     Specifically: o. x := 1".
+    let error = parse("o. x := 1").expect_err("does not parse");
+    assert!(!error.message.is_empty());
+}
 
-    #[test]
-    fn a_bare_global_that_is_not_the_first_line_is_an_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-30.
-        let error = parse("f() {\n  x := 1\n  global\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected declaration.\n     Specifically: global");
-    }
+#[test]
+fn a_bare_global_that_is_not_the_first_line_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-30.
+    let error = parse("f() {\n  x := 1\n  global\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected declaration.\n     Specifically: global"
+    );
+}
 
-    #[test]
-    fn a_bare_local_is_an_error() {
-        let error = parse("f() {\n  local\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected declaration.\n     Specifically: local");
-    }
+#[test]
+fn a_bare_local_is_an_error() {
+    let error = parse("f() {\n  local\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected declaration.\n     Specifically: local"
+    );
+}
 
-    #[test]
-    fn a_local_outside_a_function_is_an_error() {
-        let error = parse("local l").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected declaration.\n     Specifically: local l");
-    }
+#[test]
+fn a_local_outside_a_function_is_an_error() {
+    let error = parse("local l").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected declaration.\n     Specifically: local l"
+    );
+}
 
-    #[test]
-    fn a_declaration_of_a_parameter_is_an_error() {
-        let error = parse("f(p) {\n  global p\n}").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "This global variable declaration conflicts with an existing parameter.\n     Specifically: p"
-        );
-    }
+#[test]
+fn a_declaration_of_a_parameter_is_an_error() {
+    let error = parse("f(p) {\n  global p\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This global variable declaration conflicts with an existing parameter.\n     Specifically: p"
+    );
+}
 
-    #[test]
-    fn the_names_of_a_declaration_are_read_when_the_script_is_read() {
-        // A declaration inside a block takes effect for the whole function.
-        let statements = parse("f() {\n  if 1 {\n    global g\n  }\n}").expect("parses");
-        let Node::FunctionDef { declarations, .. } = &statements[0] else { panic!("a definition") };
-        assert!(declarations.globals.contains("g"));
-    }
+#[test]
+fn the_names_of_a_declaration_are_read_when_the_script_is_read() {
+    // A declaration inside a block takes effect for the whole function.
+    let statements = parse("f() {\n  if 1 {\n    global g\n  }\n}").expect("parses");
+    let Node::FunctionDef { declarations, .. } = &statements[0] else {
+        panic!("a definition")
+    };
+    assert!(declarations.globals.contains("g"));
+}
 
-    #[test]
-    fn a_label_is_a_statement_of_its_own() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: a label is a
-        // name and a colon, and it names a line of the script.
-        let statements = parse("done:").expect("parses");
-        assert!(matches!(&statements[0], Node::Label { name, .. } if name == "done"));
-    }
+#[test]
+fn a_label_is_a_statement_of_its_own() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a label is a
+    // name and a colon, and it names a line of the script.
+    let statements = parse("done:").expect("parses");
+    assert!(matches!(&statements[0], Node::Label { name, .. } if name == "done"));
+}
 
-    #[test]
-    fn the_name_of_a_label_may_begin_with_a_number() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
-        // label is of letters, of digits and of the underscore, and it may
-        // begin with a digit.
-        let statements = parse("1abc:").expect("parses");
-        assert!(matches!(&statements[0], Node::Label { name, .. } if name == "1abc"));
-    }
+#[test]
+fn the_name_of_a_label_may_begin_with_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // label is of letters, of digits and of the underscore, and it may
+    // begin with a digit.
+    let statements = parse("1abc:").expect("parses");
+    assert!(matches!(&statements[0], Node::Label { name, .. } if name == "1abc"));
+}
 
-    #[test]
-    fn a_label_with_a_name_that_is_not_one_holds_no_action() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: a name with a
-        // dash is not the name of a label, and the line that holds it holds
-        // no action.
-        let error = parse("a-b:").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "This line does not contain a recognized action.\n     Specifically: a-b:"
-        );
-    }
+#[test]
+fn a_label_with_a_name_that_is_not_one_holds_no_action() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a name with a
+    // dash is not the name of a label, and the line that holds it holds
+    // no action.
+    let error = parse("a-b:").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: a-b:"
+    );
+}
 
-    #[test]
-    fn a_label_with_a_space_before_the_colon_holds_no_action() {
-        let error = parse("done :").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "This line does not contain a recognized action.\n     Specifically: done :"
-        );
-    }
+#[test]
+fn a_label_with_a_space_before_the_colon_holds_no_action() {
+    let error = parse("done :").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: done :"
+    );
+}
 
-    #[test]
-    fn a_label_with_other_code_on_its_line_holds_no_action() {
-        let error = parse("done: x := 1").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "This line does not contain a recognized action.\n     Specifically: done: x := 1"
-        );
-    }
+#[test]
+fn a_label_with_other_code_on_its_line_holds_no_action() {
+    let error = parse("done: x := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: done: x := 1"
+    );
+}
 
-    #[test]
-    fn a_label_that_is_written_twice_is_refused() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the load
-        // refuses the second label of a name.
-        let error = parse("done:\ndone:").expect_err("does not parse");
-        assert_eq!(error.message, "Duplicate label.\n     Specifically: done");
-        assert_eq!(error.line, 2);
-    }
+#[test]
+fn a_label_that_is_written_twice_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the load
+    // refuses the second label of a name.
+    let error = parse("done:\ndone:").expect_err("does not parse");
+    assert_eq!(error.message, "Duplicate label.\n     Specifically: done");
+    assert_eq!(error.line, 2);
+}
 
-    #[test]
-    fn a_label_of_another_scope_may_have_the_name_of_one() {
-        let statements = parse("f() {\n  done:\n}\ndone:").expect("parses");
-        assert_eq!(statements.len(), 2);
-    }
+#[test]
+fn a_label_of_another_scope_may_have_the_name_of_one() {
+    let statements = parse("f() {\n  done:\n}\ndone:").expect("parses");
+    assert_eq!(statements.len(), 2);
+}
 
-    #[test]
-    fn a_goto_needs_a_parameter() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the load
-        // refuses the `Goto` that has none.
-        let error = parse("Goto").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "\"Goto\" requires at least 1 parameter.\n     Specifically: Goto"
-        );
-    }
+#[test]
+fn a_goto_needs_a_parameter() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the load
+    // refuses the `Goto` that has none.
+    let error = parse("Goto").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Goto\" requires at least 1 parameter.\n     Specifically: Goto"
+    );
+}
 
-    #[test]
-    fn a_goto_takes_one_parameter() {
-        let error = parse("Goto a, b").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "\"Goto\" accepts at most 1 parameter.\n     Specifically: Goto a, b"
-        );
-    }
+#[test]
+fn a_goto_takes_one_parameter() {
+    let error = parse("Goto a, b").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Goto\" accepts at most 1 parameter.\n     Specifically: Goto a, b"
+    );
+}
 
-    #[test]
-    fn a_class_may_not_be_declared_inside_a_function() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: a function may
-        // not contain a class, and the line of the class is the one that is
-        // named.
-        let error = parse("F() {\n    class C {\n    }\n}\n").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Functions cannot contain classes.\n     Specifically: class C {"
-        );
-        assert_eq!(error.line, 2);
-        // A method is a function too.
-        let error =
-            parse("class C {\n    Make() {\n        class D {\n        }\n    }\n}\n").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Functions cannot contain classes.\n     Specifically: class D {"
-        );
-        // A class at the top level is fine, and so is one inside a block.
-        parse("class C {\n}\n").expect("parses");
-        parse("try {\n    class C {\n    }\n} catch Any as err {\n}\n").expect("parses");
-    }
+#[test]
+fn a_class_may_not_be_declared_inside_a_function() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a function may
+    // not contain a class, and the line of the class is the one that is
+    // named.
+    let error = parse("F() {\n    class C {\n    }\n}\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Functions cannot contain classes.\n     Specifically: class C {"
+    );
+    assert_eq!(error.line, 2);
+    // A method is a function too.
+    let error = parse("class C {\n    Make() {\n        class D {\n        }\n    }\n}\n")
+        .expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Functions cannot contain classes.\n     Specifically: class D {"
+    );
+    // A class at the top level is fine, and so is one inside a block.
+    parse("class C {\n}\n").expect("parses");
+    parse("try {\n    class C {\n    }\n} catch Any as err {\n}\n").expect("parses");
+}
 
-    #[test]
-    fn a_class_may_be_declared_inside_a_class() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
-        // class inside a class is the name of the class that holds it and
-        // the name of it.
-        let statements = parse("class Outer {\n    class Inner {\n    }\n}\n").expect("parses");
-        let Node::ClassDef { name, nested, .. } = &statements[0] else { panic!("a class") };
-        assert_eq!(name, "Outer");
-        assert_eq!(nested.len(), 1);
-        let Node::ClassDef { name, .. } = &nested[0] else { panic!("a class") };
-        assert_eq!(name, "Outer.Inner");
-    }
+#[test]
+fn a_class_may_be_declared_inside_a_class() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // class inside a class is the name of the class that holds it and
+    // the name of it.
+    let statements = parse("class Outer {\n    class Inner {\n    }\n}\n").expect("parses");
+    let Node::ClassDef { name, nested, .. } = &statements[0] else {
+        panic!("a class")
+    };
+    assert_eq!(name, "Outer");
+    assert_eq!(nested.len(), 1);
+    let Node::ClassDef { name, .. } = &nested[0] else {
+        panic!("a class")
+    };
+    assert_eq!(name, "Outer.Inner");
+}
 
-    #[test]
-    fn a_property_of_a_class_may_have_a_getter_and_a_setter() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the body of the
-        // getter and of the setter is an expression after the arrow of v2,
-        // and a block of statements between braces.
-        let statements = parse("class C {\n    value {\n        get => 1\n    }\n}\n").expect("parses");
-        let Node::ClassDef { accessors, .. } = &statements[0] else { panic!("a class") };
-        assert_eq!(accessors.len(), 1);
-        assert_eq!(accessors[0].name, "value");
-        assert!(accessors[0].getter.is_some());
-        assert!(accessors[0].setter.is_none());
-        // The getter without a body is refused.
-        let error = parse("class C {\n    value {\n        get\n    }\n}\n").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Not a valid property getter/setter.\n     Specifically: get"
-        );
-        // The duplicate of a property is refused.
-        let error =
+#[test]
+fn a_property_of_a_class_may_have_a_getter_and_a_setter() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the body of the
+    // getter and of the setter is an expression after the arrow of v2,
+    // and a block of statements between braces.
+    let statements = parse("class C {\n    value {\n        get => 1\n    }\n}\n").expect("parses");
+    let Node::ClassDef { accessors, .. } = &statements[0] else {
+        panic!("a class")
+    };
+    assert_eq!(accessors.len(), 1);
+    assert_eq!(accessors[0].name, "value");
+    assert!(accessors[0].getter.is_some());
+    assert!(accessors[0].setter.is_none());
+    // The getter without a body is refused.
+    let error =
+        parse("class C {\n    value {\n        get\n    }\n}\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Not a valid property getter/setter.\n     Specifically: get"
+    );
+    // The duplicate of a property is refused.
+    let error =
             parse("class C {\n    value {\n        get => 1\n    }\n    value {\n        get => 2\n    }\n}\n")
                 .expect_err("does not parse");
-        assert_eq!(error.message, "Duplicate declaration.\n     Specifically: value");
-    }
+    assert_eq!(
+        error.message,
+        "Duplicate declaration.\n     Specifically: value"
+    );
+}
 
-    #[test]
-    fn the_name_of_a_label_is_the_text_of_the_parameter() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the parameter of
-        // a `Goto` is not an expression: it is the name of a label, and it
-        // is read as the text of it.
-        //
-        // Measured on the binary of v2.0.19 on 2026-11-01: the label that is
-        // not there is refused at the load, and the text of the parameter is
-        // the name that the refusal carries.
-        let error = parse("Goto \"done\"").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Label not found in current scope.\n     Specifically: \"done\""
-        );
-        let error = parse("Goto(done)").expect_err("does not parse");
-        assert_eq!(error.message, "Label not found in current scope.\n     Specifically: done");
-    }
+#[test]
+fn the_name_of_a_label_is_the_text_of_the_parameter() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameter of
+    // a `Goto` is not an expression: it is the name of a label, and it
+    // is read as the text of it.
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-01: the label that is
+    // not there is refused at the load, and the text of the parameter is
+    // the name that the refusal carries.
+    let error = parse("Goto \"done\"").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Label not found in current scope.\n     Specifically: \"done\""
+    );
+    let error = parse("Goto(done)").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Label not found in current scope.\n     Specifically: done"
+    );
+}
 
-    #[test]
-    fn the_break_that_has_no_loop_around_it_is_refused() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the `break` and
-        // the `continue` need a loop around them, and the script is refused
-        // at the load when there is none.
-        let error = parse("break").expect_err("does not parse");
-        assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
-        let error = parse("continue").expect_err("does not parse");
-        assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
-        // The body of a function is a scope of its own: the loop that holds
-        // the function is not around the `break` of it.
-        let error = parse("f() {\n    break\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
-    }
+#[test]
+fn the_break_that_has_no_loop_around_it_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the `break` and
+    // the `continue` need a loop around them, and the script is refused
+    // at the load when there is none.
+    let error = parse("break").expect_err("does not parse");
+    assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
+    let error = parse("continue").expect_err("does not parse");
+    assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
+    // The body of a function is a scope of its own: the loop that holds
+    // the function is not around the `break` of it.
+    let error = parse("f() {\n    break\n}").expect_err("does not parse");
+    assert_eq!(error.message, "Break/Continue must be enclosed by a Loop.");
+}
 
-    #[test]
-    fn the_break_inside_a_loop_is_not_refused() {
-        parse("Loop 3 {\n    break\n}").expect("parses");
-        parse("x := 0\nwhile (x < 3) {\n    x += 1\n    break\n}").expect("parses");
-        parse("for v in [1, 2] {\n    break\n}").expect("parses");
-        parse("Loop 3 {\n    if (1) {\n        break\n    }\n}").expect("parses");
-    }
+#[test]
+fn the_break_inside_a_loop_is_not_refused() {
+    parse("Loop 3 {\n    break\n}").expect("parses");
+    parse("x := 0\nwhile (x < 3) {\n    x += 1\n    break\n}").expect("parses");
+    parse("for v in [1, 2] {\n    break\n}").expect("parses");
+    parse("Loop 3 {\n    if (1) {\n        break\n    }\n}").expect("parses");
+}
 
-    #[test]
-    fn the_question_that_has_no_colon_says_so() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the question
-        // that has no colon says so, and the text that is named begins at
-        // the question mark.
-        let error = parse("x := 1 ? 2").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "A \"?\" is missing its \":\"\n     Specifically: ? 2"
-        );
-    }
+#[test]
+fn the_question_that_has_no_colon_says_so() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the question
+    // that has no colon says so, and the text that is named begins at
+    // the question mark.
+    let error = parse("x := 1 ? 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "A \"?\" is missing its \":\"\n     Specifically: ? 2"
+    );
+}
 
-    #[test]
-    fn the_colon_that_is_left_over_says_so() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the colon that is
-        // left over after an expression is the colon of a question that is
-        // not there.
-        let error = parse("x := 1 : 2").expect_err("does not parse");
-        assert_eq!(error.message, "A \":\" is missing its \"?\"");
-    }
+#[test]
+fn the_colon_that_is_left_over_says_so() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the colon that is
+    // left over after an expression is the colon of a question that is
+    // not there.
+    let error = parse("x := 1 : 2").expect_err("does not parse");
+    assert_eq!(error.message, "A \":\" is missing its \"?\"");
+}
 
-    #[test]
-    fn the_definition_of_the_fat_arrow_that_has_no_body_is_refused() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the definition
-        // that has no body says so, and the text that is named is the
-        // definition.
-        let error = parse("f(a) =>").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Invalid function declaration.\n     Specifically: f(a) =>"
-        );
-    }
+#[test]
+fn the_definition_of_the_fat_arrow_that_has_no_body_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the definition
+    // that has no body says so, and the text that is named is the
+    // definition.
+    let error = parse("f(a) =>").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Invalid function declaration.\n     Specifically: f(a) =>"
+    );
+}
 
-    #[test]
-    fn the_reserved_word_that_may_not_be_the_name_of_a_variable_says_so() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the word `until`
-        // is reserved and may not be the name of a variable; the words that
-        // are not operators are a "Syntax error."; and the words that are
-        // reserved for a future of v2 say "Unexpected reserved word.". The
-        // text that is named is the word alone.
-        let error = parse("until := 1").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "The following reserved word must not be used as a variable name:\n\"until\""
-        );
-        let error = parse("not := 1").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: not");
-        let error = parse("as := 1").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Unexpected reserved word.\n     Specifically: as"
-        );
-    }
+#[test]
+fn the_reserved_word_that_may_not_be_the_name_of_a_variable_says_so() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the word `until`
+    // is reserved and may not be the name of a variable; the words that
+    // are not operators are a "Syntax error."; and the words that are
+    // reserved for a future of v2 say "Unexpected reserved word.". The
+    // text that is named is the word alone.
+    let error = parse("until := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a variable name:\n\"until\""
+    );
+    let error = parse("not := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: not");
+    let error = parse("as := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected reserved word.\n     Specifically: as"
+    );
+}
 
-    #[test]
-    fn the_bare_until_wants_a_condition() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the bare `until`
-        // wants a condition, and it says so in its own words.
-        let error = parse("until").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "\"Until\" requires at least 1 parameter.\n     Specifically: until"
-        );
-        // The binary crashes when the `until` has a condition, and the tree
-        // refuses it there.
-        let error = parse("until (1)").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected \"Until\"");
-    }
+#[test]
+fn the_bare_until_wants_a_condition() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the bare `until`
+    // wants a condition, and it says so in its own words.
+    let error = parse("until").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "\"Until\" requires at least 1 parameter.\n     Specifically: until"
+    );
+    // The binary crashes when the `until` has a condition, and the tree
+    // refuses it there.
+    let error = parse("until (1)").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"Until\"");
+}
 
-    #[test]
-    fn the_reserved_word_that_is_not_wanted_names_itself() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the words that
-        // may not be the name of a variable say so.
-        let error = parse("x := 1 else").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "The following reserved word must not be used as a variable name:\n\"else\""
-        );
-    }
+#[test]
+fn the_reserved_word_that_is_not_wanted_names_itself() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the words that
+    // may not be the name of a variable say so.
+    let error = parse("x := 1 else").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "The following reserved word must not be used as a variable name:\n\"else\""
+    );
+}
 
-    #[test]
-    fn the_reserved_word_of_the_future_of_v2_is_named() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: `in` and
-        // `contains` are reserved for a future of v2, and the text that is
-        // named is the rest of the line, from the word.
-        let error = parse("x := 1 in").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: in");
-    }
+#[test]
+fn the_reserved_word_of_the_future_of_v2_is_named() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `in` and
+    // `contains` are reserved for a future of v2, and the text that is
+    // named is the rest of the line, from the word.
+    let error = parse("x := 1 in").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected reserved word.\n     Specifically: in"
+    );
+}
 
-    #[test]
-    fn the_word_that_is_not_an_operator_is_a_syntax_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: `not` and `super`
-        // are not operators, and the text that is named is the rest of the
-        // line, from the word.
-        let error = parse("x := 1 not").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: not");
-    }
+#[test]
+fn the_word_that_is_not_an_operator_is_a_syntax_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: `not` and `super`
+    // are not operators, and the text that is named is the rest of the
+    // line, from the word.
+    let error = parse("x := 1 not").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: not");
+}
 
-    #[test]
-    fn v2_has_no_cast() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the word `as` is
-        // a reserved word, and v2 has no cast.
-        let error = parse("x := 1 as Integer").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected reserved word.\n     Specifically: as Integer");
-    }
+#[test]
+fn v2_has_no_cast() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the word `as` is
+    // a reserved word, and v2 has no cast.
+    let error = parse("x := 1 as Integer").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected reserved word.\n     Specifically: as Integer"
+    );
+}
 
-    #[test]
-    fn the_parenthesis_holds_a_list_of_the_values() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: a parenthesis
-        // holds a list of the values, and the value of the list is the last
-        // of them.
-        let statements = parse("x := (\"a\", \"b\")").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else {
-            panic!("an assignment");
-        };
-        assert!(matches!(&**value, Node::Group { items, .. } if items.len() == 2));
-        // The list of one item is the value of that item.
-        let statements = parse("x := (\"a\")").expect("parses");
-        let Node::Assign { value, .. } = &statements[0] else {
-            panic!("an assignment");
-        };
-        assert!(matches!(&**value, Node::Literal { .. }));
-    }
+#[test]
+fn the_parenthesis_holds_a_list_of_the_values() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a parenthesis
+    // holds a list of the values, and the value of the list is the last
+    // of them.
+    let statements = parse("x := (\"a\", \"b\")").expect("parses");
+    let Node::Assign { value, .. } = &statements[0] else {
+        panic!("an assignment");
+    };
+    assert!(matches!(&**value, Node::Group { items, .. } if items.len() == 2));
+    // The list of one item is the value of that item.
+    let statements = parse("x := (\"a\")").expect("parses");
+    let Node::Assign { value, .. } = &statements[0] else {
+        panic!("an assignment");
+    };
+    assert!(matches!(&**value, Node::Literal { .. }));
+}
 
-    #[test]
-    fn the_group_of_nothing_is_a_syntax_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the list of
-        // nothing is a "Syntax error.", and the parenthesis that closes it
-        // is named.
-        let error = parse("x := ()").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: )");
-    }
+#[test]
+fn the_group_of_nothing_is_a_syntax_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the list of
+    // nothing is a "Syntax error.", and the parenthesis that closes it
+    // is named.
+    let error = parse("x := ()").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: )");
+}
 
-    #[test]
-    fn the_comma_at_the_end_of_a_list_is_a_syntax_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: a comma at the
-        // end of the list is a "Syntax error.", and the parenthesis that
-        // closes the list is named.
-        let error = parse("x := (\"a\",)").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: )");
-    }
+#[test]
+fn the_comma_at_the_end_of_a_list_is_a_syntax_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a comma at the
+    // end of the list is a "Syntax error.", and the parenthesis that
+    // closes the list is named.
+    let error = parse("x := (\"a\",)").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: )");
+}
 
-    #[test]
-    fn the_name_with_a_space_and_a_parenthesis_is_a_command() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the parenthesis
-        // that is spaced is not the list of the arguments of a call, and the
-        // group is one parameter of the command.
-        let statements = parse("MyFunc (\"a\", \"b\")").expect("parses");
-        let Node::Call { name, arguments, .. } = &statements[0] else {
-            panic!("a call");
-        };
-        assert_eq!(name, "myfunc");
-        assert_eq!(arguments.len(), 1);
-        assert!(matches!(&arguments[0], Node::Group { items, .. } if items.len() == 2));
-        // The call that is written without the space keeps its arguments.
-        let statements = parse("MyFunc(\"a\", \"b\")").expect("parses");
-        let Node::Call { name, arguments, .. } = &statements[0] else {
-            panic!("a call");
-        };
-        assert_eq!(name, "myfunc");
-        assert_eq!(arguments.len(), 2);
-    }
+#[test]
+fn the_name_with_a_space_and_a_parenthesis_is_a_command() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parenthesis
+    // that is spaced is not the list of the arguments of a call, and the
+    // group is one parameter of the command.
+    let statements = parse("MyFunc (\"a\", \"b\")").expect("parses");
+    let Node::Call {
+        name, arguments, ..
+    } = &statements[0]
+    else {
+        panic!("a call");
+    };
+    assert_eq!(name, "myfunc");
+    assert_eq!(arguments.len(), 1);
+    assert!(matches!(&arguments[0], Node::Group { items, .. } if items.len() == 2));
+    // The call that is written without the space keeps its arguments.
+    let statements = parse("MyFunc(\"a\", \"b\")").expect("parses");
+    let Node::Call {
+        name, arguments, ..
+    } = &statements[0]
+    else {
+        panic!("a call");
+    };
+    assert_eq!(name, "myfunc");
+    assert_eq!(arguments.len(), 2);
+}
 
-    #[test]
-    fn the_parameter_that_is_not_there_keeps_its_place() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
-        // that is not there keeps its place, and it has no value.
-        let statements = parse("MyFunc \"a\",, \"b\"").expect("parses");
-        let Node::Call { name, arguments, .. } = &statements[0] else {
-            panic!("a call");
-        };
-        assert_eq!(name, "myfunc");
-        assert_eq!(arguments.len(), 3);
-        assert!(matches!(&arguments[1], Node::Empty { .. }));
-        // The commas at the end of the parameters add nothing.
-        let statements = parse("MyFunc \"a\",,").expect("parses");
-        let Node::Call { name, arguments, .. } = &statements[0] else {
-            panic!("a call");
-        };
-        assert_eq!(name, "myfunc");
-        assert_eq!(arguments.len(), 1);
-    }
+#[test]
+fn the_parameter_that_is_not_there_keeps_its_place() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
+    // that is not there keeps its place, and it has no value.
+    let statements = parse("MyFunc \"a\",, \"b\"").expect("parses");
+    let Node::Call {
+        name, arguments, ..
+    } = &statements[0]
+    else {
+        panic!("a call");
+    };
+    assert_eq!(name, "myfunc");
+    assert_eq!(arguments.len(), 3);
+    assert!(matches!(&arguments[1], Node::Empty { .. }));
+    // The commas at the end of the parameters add nothing.
+    let statements = parse("MyFunc \"a\",,").expect("parses");
+    let Node::Call {
+        name, arguments, ..
+    } = &statements[0]
+    else {
+        panic!("a call");
+    };
+    assert_eq!(name, "myfunc");
+    assert_eq!(arguments.len(), 1);
+}
 
-    #[test]
-    fn the_value_that_is_not_there_in_a_group_is_a_syntax_error() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the value that
-        // is not there in the list of a group is a "Syntax error.", and the
-        // comma that follows it is named.
-        let error = parse("x := (\"a\",, \"c\")").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: , \"c\")");
-        let error = parse("x := (,\"c\")").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: ,\"c\")");
-    }
+#[test]
+fn the_value_that_is_not_there_in_a_group_is_a_syntax_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the value that
+    // is not there in the list of a group is a "Syntax error.", and the
+    // comma that follows it is named.
+    let error = parse("x := (\"a\",, \"c\")").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: , \"c\")");
+    let error = parse("x := (,\"c\")").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: ,\"c\")");
+}
 
-    #[test]
-    fn the_comma_ends_the_expression_of_a_statement() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the expression of
-        // a statement ends at the comma, and the rest of the line is the
-        // list of v1.
-        let statements = parse("x := 1, 2").expect("parses");
-        assert_eq!(statements.len(), 2);
-        assert!(matches!(&statements[0], Node::Assign { .. }));
-        let Node::Legacy { items, .. } = &statements[1] else {
-            panic!("the list of v1");
-        };
-        assert_eq!(items.len(), 1);
-        // The call of a statement is one too.
-        let statements = parse("f(), 2").expect("parses");
-        assert_eq!(statements.len(), 2);
-        assert!(matches!(&statements[0], Node::Call { .. }));
-        let Node::Legacy { items, .. } = &statements[1] else {
-            panic!("the list of v1");
-        };
-        assert_eq!(items.len(), 1);
-    }
+#[test]
+fn the_comma_ends_the_expression_of_a_statement() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the expression of
+    // a statement ends at the comma, and the rest of the line is the
+    // list of v1.
+    let statements = parse("x := 1, 2").expect("parses");
+    assert_eq!(statements.len(), 2);
+    assert!(matches!(&statements[0], Node::Assign { .. }));
+    let Node::Legacy { items, .. } = &statements[1] else {
+        panic!("the list of v1");
+    };
+    assert_eq!(items.len(), 1);
+    // The call of a statement is one too.
+    let statements = parse("f(), 2").expect("parses");
+    assert_eq!(statements.len(), 2);
+    assert!(matches!(&statements[0], Node::Call { .. }));
+    let Node::Legacy { items, .. } = &statements[1] else {
+        panic!("the list of v1");
+    };
+    assert_eq!(items.len(), 1);
+}
 
-    #[test]
-    fn the_expression_of_a_statement_goes_on() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the expression of
-        // a statement begins with the call, and the operators that follow
-        // it are a part of it.
-        let statements = parse("f() + 1").expect("parses");
-        let Node::Expression { value, .. } = &statements[0] else {
-            panic!("an expression");
-        };
-        assert!(matches!(&**value, Node::Binary { op: BinaryOp::Add, .. }));
-    }
+#[test]
+fn the_expression_of_a_statement_goes_on() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the expression of
+    // a statement begins with the call, and the operators that follow
+    // it are a part of it.
+    let statements = parse("f() + 1").expect("parses");
+    let Node::Expression { value, .. } = &statements[0] else {
+        panic!("an expression");
+    };
+    assert!(matches!(
+        &**value,
+        Node::Binary {
+            op: BinaryOp::Add,
+            ..
+        }
+    ));
+}
 
-    #[test]
-    fn the_name_with_a_comma_is_a_call_that_is_not_written() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
-        // command of v2 is followed by a space or a parenthesis, and the
-        // comma that is there instead of the space is refused.
-        let error = parse("x, 2").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: x, 2"
-        );
-    }
+#[test]
+fn the_name_with_a_comma_is_a_call_that_is_not_written() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the name of a
+    // command of v2 is followed by a space or a parenthesis, and the
+    // comma that is there instead of the space is refused.
+    let error = parse("x, 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: x, 2"
+    );
+}
 
-    #[test]
-    fn the_number_that_is_at_the_start_of_a_statement_is_a_call() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the number that is
-        // at the start of a statement and that is followed by a comma is a
-        // call of v2 that is not written.
-        let error = parse("1, 2").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: 1, 2"
-        );
-        // The number that carries a point is not a name, and the line holds
-        // no action.
-        let error = parse("1.5, 2").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "This line does not contain a recognized action.\n     Specifically: 1.5, 2"
-        );
-    }
+#[test]
+fn the_number_that_is_at_the_start_of_a_statement_is_a_call() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the number that is
+    // at the start of a statement and that is followed by a comma is a
+    // call of v2 that is not written.
+    let error = parse("1, 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Function calls require a space or \"(\". Use comma only between parameters.\n     Specifically: 1, 2"
+    );
+    // The number that carries a point is not a name, and the line holds
+    // no action.
+    let error = parse("1.5, 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: 1.5, 2"
+    );
+}
 
-    #[test]
-    fn the_member_that_has_parentheses_is_an_expression() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the member that
-        // has parentheses is an expression, and the comma ends it.
-        let statements = parse("t.Method(), 2").expect("parses");
-        assert_eq!(statements.len(), 2);
-        assert!(matches!(&statements[0], Node::MethodCall { .. }));
-        let Node::Legacy { items, .. } = &statements[1] else {
-            panic!("the list of v1");
-        };
-        assert_eq!(items.len(), 1);
-    }
+#[test]
+fn the_member_that_has_parentheses_is_an_expression() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the member that
+    // has parentheses is an expression, and the comma ends it.
+    let statements = parse("t.Method(), 2").expect("parses");
+    assert_eq!(statements.len(), 2);
+    assert!(matches!(&statements[0], Node::MethodCall { .. }));
+    let Node::Legacy { items, .. } = &statements[1] else {
+        panic!("the list of v1");
+    };
+    assert_eq!(items.len(), 1);
+}
 
-    #[test]
-    fn the_member_that_has_no_parentheses_is_a_command() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the member that
-        // has no parentheses is a command of v2, and the rest of the line is
-        // the list of its arguments.
-        let statements = parse("t.Method 2").expect("parses");
-        let Node::MethodCall { arguments, .. } = &statements[0] else {
-            panic!("a method");
-        };
-        assert_eq!(arguments.len(), 1);
-        // The comma that comes right after the member with no space is not
-        // one of the arguments, and the line holds no action.
-        let error = parse("t.Method, 2").expect_err("does not parse");
-        assert_eq!(
-            error.message,
-            "This line does not contain a recognized action.\n     Specifically: t.Method, 2"
-        );
-    }
+#[test]
+fn the_member_that_has_no_parentheses_is_a_command() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the member that
+    // has no parentheses is a command of v2, and the rest of the line is
+    // the list of its arguments.
+    let statements = parse("t.Method 2").expect("parses");
+    let Node::MethodCall { arguments, .. } = &statements[0] else {
+        panic!("a method");
+    };
+    assert_eq!(arguments.len(), 1);
+    // The comma that comes right after the member with no space is not
+    // one of the arguments, and the line holds no action.
+    let error = parse("t.Method, 2").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: t.Method, 2"
+    );
+}
 
-    #[test]
-    fn the_line_that_ends_with_a_comma_continues_on_the_next_one() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the line that
-        // ends with a comma continues on the next one, and the list of v1
-        // goes on with it.
-        let statements = parse("x := 1,\n2").expect("parses");
-        assert_eq!(statements.len(), 2);
-        assert!(matches!(&statements[0], Node::Assign { .. }));
-        let Node::Legacy { items, .. } = &statements[1] else {
-            panic!("the list of v1");
-        };
-        assert_eq!(items.len(), 1);
-    }
+#[test]
+fn the_line_that_ends_with_a_comma_continues_on_the_next_one() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the line that
+    // ends with a comma continues on the next one, and the list of v1
+    // goes on with it.
+    let statements = parse("x := 1,\n2").expect("parses");
+    assert_eq!(statements.len(), 2);
+    assert!(matches!(&statements[0], Node::Assign { .. }));
+    let Node::Legacy { items, .. } = &statements[1] else {
+        panic!("the list of v1");
+    };
+    assert_eq!(items.len(), 1);
+}
 
-    #[test]
-    fn the_parameter_that_is_not_there_in_a_call_keeps_its_place() {
-        // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
-        // that is not there keeps its place in the list of the arguments of
-        // a call, and it has no value.
-        let statements = parse("MyFunc(\"a\",, \"b\")").expect("parses");
-        let Node::Call { arguments, .. } = &statements[0] else {
-            panic!("a call");
-        };
-        assert_eq!(arguments.len(), 3);
-        assert!(matches!(&arguments[1], Node::Empty { .. }));
-        // The one that is the last is dropped: the commas at the end of the
-        // list add nothing.
-        let statements = parse("MyFunc(\"a\",)").expect("parses");
-        let Node::Call { arguments, .. } = &statements[0] else {
-            panic!("a call");
-        };
-        assert_eq!(arguments.len(), 1);
-        let statements = parse("MyFunc(,)").expect("parses");
-        let Node::Call { arguments, .. } = &statements[0] else {
-            panic!("a call");
-        };
-        assert_eq!(arguments.len(), 0);
-    }
+#[test]
+fn the_parameter_that_is_not_there_in_a_call_keeps_its_place() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the parameter
+    // that is not there keeps its place in the list of the arguments of
+    // a call, and it has no value.
+    let statements = parse("MyFunc(\"a\",, \"b\")").expect("parses");
+    let Node::Call { arguments, .. } = &statements[0] else {
+        panic!("a call");
+    };
+    assert_eq!(arguments.len(), 3);
+    assert!(matches!(&arguments[1], Node::Empty { .. }));
+    // The one that is the last is dropped: the commas at the end of the
+    // list add nothing.
+    let statements = parse("MyFunc(\"a\",)").expect("parses");
+    let Node::Call { arguments, .. } = &statements[0] else {
+        panic!("a call");
+    };
+    assert_eq!(arguments.len(), 1);
+    let statements = parse("MyFunc(,)").expect("parses");
+    let Node::Call { arguments, .. } = &statements[0] else {
+        panic!("a call");
+    };
+    assert_eq!(arguments.len(), 0);
+}
 
-    #[test]
-    fn the_object_literal_may_be_written_in_more_than_one_line() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the literal of an
-        // object may be written in more than one line: the property may be
-        // on the line that follows the brace that opens it, and the brace
-        // that closes it may be on a line of its own.
-        parse("x := {\n}").expect("parses");
-        parse("x := {a: 1\n}").expect("parses");
-        parse("x := {\na: 1}").expect("parses");
-        parse("x := {a: 1,\nb: 2}").expect("parses");
-    }
+#[test]
+fn the_object_literal_may_be_written_in_more_than_one_line() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the literal of an
+    // object may be written in more than one line: the property may be
+    // on the line that follows the brace that opens it, and the brace
+    // that closes it may be on a line of its own.
+    parse("x := {\n}").expect("parses");
+    parse("x := {a: 1\n}").expect("parses");
+    parse("x := {\na: 1}").expect("parses");
+    parse("x := {a: 1,\nb: 2}").expect("parses");
+}
 
-    #[test]
-    fn the_properties_of_an_object_are_separated_by_commas() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the newline is
-        // not a separator between the properties of an object, and the token
-        // that is there instead of the comma is the name of a property that
-        // is not there.
-        let error = parse("x := {a: 1 b: 2}").expect_err("does not parse");
-        assert_eq!(error.message, "Invalid property name in object literal.");
-        let error = parse("x := {a: 1\nb: 2}").expect_err("does not parse");
-        assert_eq!(error.message, "Invalid property name in object literal.");
-    }
+#[test]
+fn the_properties_of_an_object_are_separated_by_commas() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the newline is
+    // not a separator between the properties of an object, and the token
+    // that is there instead of the comma is the name of a property that
+    // is not there.
+    let error = parse("x := {a: 1 b: 2}").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid property name in object literal.");
+    let error = parse("x := {a: 1\nb: 2}").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid property name in object literal.");
+}
 
-    #[test]
-    fn the_name_of_the_property_that_is_not_there() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the comma that
-        // opens the list of the properties is the name that is not there,
-        // and the name that is not a name is refused.
-        let error = parse("x := {, a: 1}").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
-        let error = parse("x := {1.5: 1}").expect_err("does not parse");
-        assert_eq!(error.message, "Invalid property name in object literal.");
-    }
+#[test]
+fn the_name_of_the_property_that_is_not_there() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the comma that
+    // opens the list of the properties is the name that is not there,
+    // and the name that is not a name is refused.
+    let error = parse("x := {, a: 1}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
+    let error = parse("x := {1.5: 1}").expect_err("does not parse");
+    assert_eq!(error.message, "Invalid property name in object literal.");
+}
 
-    #[test]
-    fn the_brace_that_follows_a_value_opens_the_literal_of_an_object() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
-        // follows a value opens the literal of an object, and not a block:
-        // the literal that is not closed is the failure.
-        let error = parse("x := 1 {").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"}\"\n     Specifically: x := 1 {");
-        let error = parse("Two (a, b) {").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"}\"\n     Specifically: Two (a, b) {");
-    }
+#[test]
+fn the_brace_that_follows_a_value_opens_the_literal_of_an_object() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+    // follows a value opens the literal of an object, and not a block:
+    // the literal that is not closed is the failure.
+    let error = parse("x := 1 {").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"\n     Specifically: x := 1 {");
+    let error = parse("Two (a, b) {").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Missing \"}\"\n     Specifically: Two (a, b) {"
+    );
+}
 
-    #[test]
-    fn the_brace_that_follows_a_value_and_that_is_closed_is_unexpected() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the literal that
-        // is closed is a second value in a row, and the brace is the one that
-        // is not wanted. The properties inside it are not read: the brace is
-        // the failure, and not them.
-        let error = parse("x := 1 {}").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected \"{\"");
-        let error = parse("x := 1 { a: 1 }").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected \"{\"");
-    }
+#[test]
+fn the_brace_that_follows_a_value_and_that_is_closed_is_unexpected() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the literal that
+    // is closed is a second value in a row, and the brace is the one that
+    // is not wanted. The properties inside it are not read: the brace is
+    // the failure, and not them.
+    let error = parse("x := 1 {}").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"{\"");
+    let error = parse("x := 1 { a: 1 }").expect_err("does not parse");
+    assert_eq!(error.message, "Unexpected \"{\"");
+}
 
-    #[test]
-    fn the_character_that_is_illegal_says_what_it_is() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
-        // semicolon that are glued to a token are illegal characters in an
-        // expression, and the text that is named begins at them.
-        let error = parse("x := 1#c").expect_err("does not parse");
-        assert_eq!(error.message, "Illegal character in expression.\n     Specifically: #c");
-        let error = parse("x := 1;c").expect_err("does not parse");
-        assert_eq!(error.message, "Illegal character in expression.\n     Specifically: ;c");
-        // The one that is inside a parenthesis names the text of the
-        // expression that holds it.
-        let error = parse("if (x#c) {").expect_err("does not parse");
-        assert_eq!(error.message, "Illegal character in expression.\n     Specifically: #c)");
-        // The one that begins a statement is a line that holds no action.
-        let error = parse("f() {\n}#c").expect_err("does not parse");
-        assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: #c");
-        // The one that is glued to the name that opens the statement is a
-        // part of it, and the whole line is named.
-        let error = parse("x#y := 1").expect_err("does not parse");
-        assert_eq!(error.message, "This line does not contain a recognized action.\n     Specifically: x#y := 1");
-    }
+#[test]
+fn the_character_that_is_illegal_says_what_it_is() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the hash and the
+    // semicolon that are glued to a token are illegal characters in an
+    // expression, and the text that is named begins at them.
+    let error = parse("x := 1#c").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Illegal character in expression.\n     Specifically: #c"
+    );
+    let error = parse("x := 1;c").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Illegal character in expression.\n     Specifically: ;c"
+    );
+    // The one that is inside a parenthesis names the text of the
+    // expression that holds it.
+    let error = parse("if (x#c) {").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Illegal character in expression.\n     Specifically: #c)"
+    );
+    // The one that begins a statement is a line that holds no action.
+    let error = parse("f() {\n}#c").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: #c"
+    );
+    // The one that is glued to the name that opens the statement is a
+    // part of it, and the whole line is named.
+    let error = parse("x#y := 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: x#y := 1"
+    );
+}
 
-    #[test]
-    fn the_brace_that_opens_a_line_opens_a_block() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
-        // opens a line is a block of its own, and the statements between the
-        // braces run. The content may be on the line of the brace that opens
-        // it, and the brace that closes it is alone in its line -- unless the
-        // block is empty, and then the brace may be written where it is.
-        let statements = parse("{\n}").expect("parses");
-        let Node::Block { body, .. } = &statements[0] else { panic!("a block") };
-        assert!(body.is_empty());
-        let statements = parse("{\nx := 1\n}").expect("parses");
-        let Node::Block { body, .. } = &statements[0] else { panic!("a block") };
-        assert_eq!(body.len(), 1);
-        // The empty block may be written in one line.
-        parse("{}").expect("parses");
-        parse("{ }").expect("parses");
-        // The content may be on the line of the brace that opens it.
-        let statements = parse("{x := 1\n}").expect("parses");
-        let Node::Block { body, .. } = &statements[0] else { panic!("a block") };
-        assert_eq!(body.len(), 1);
-    }
+#[test]
+fn the_brace_that_opens_a_line_opens_a_block() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+    // opens a line is a block of its own, and the statements between the
+    // braces run. The content may be on the line of the brace that opens
+    // it, and the brace that closes it is alone in its line -- unless the
+    // block is empty, and then the brace may be written where it is.
+    let statements = parse("{\n}").expect("parses");
+    let Node::Block { body, .. } = &statements[0] else {
+        panic!("a block")
+    };
+    assert!(body.is_empty());
+    let statements = parse("{\nx := 1\n}").expect("parses");
+    let Node::Block { body, .. } = &statements[0] else {
+        panic!("a block")
+    };
+    assert_eq!(body.len(), 1);
+    // The empty block may be written in one line.
+    parse("{}").expect("parses");
+    parse("{ }").expect("parses");
+    // The content may be on the line of the brace that opens it.
+    let statements = parse("{x := 1\n}").expect("parses");
+    let Node::Block { body, .. } = &statements[0] else {
+        panic!("a block")
+    };
+    assert_eq!(body.len(), 1);
+}
 
-    #[test]
-    fn the_brace_that_closes_the_block_is_alone_in_its_line() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
-        // closes the block is alone in its line, and the v2 says so before it
-        // reads the content of the block. The text that is named is the line
-        // of the brace.
-        let error = parse("{x := 1}").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected \"}\"\n     Specifically: x := 1}");
-        let error = parse("{\nx := 1 }").expect_err("does not parse");
-        assert_eq!(error.message, "Unexpected \"}\"\n     Specifically: x := 1 }");
-        // The block that is not closed is named, and the line that is named
-        // is the line of the brace that opens it.
-        let error = parse("{\nx := 1").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"}\"");
-        assert_eq!(error.line, 1);
-    }
+#[test]
+fn the_brace_that_closes_the_block_is_alone_in_its_line() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the brace that
+    // closes the block is alone in its line, and the v2 says so before it
+    // reads the content of the block. The text that is named is the line
+    // of the brace.
+    let error = parse("{x := 1}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected \"}\"\n     Specifically: x := 1}"
+    );
+    let error = parse("{\nx := 1 }").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Unexpected \"}\"\n     Specifically: x := 1 }"
+    );
+    // The block that is not closed is named, and the line that is named
+    // is the line of the brace that opens it.
+    let error = parse("{\nx := 1").expect_err("does not parse");
+    assert_eq!(error.message, "Missing \"}\"");
+    assert_eq!(error.line, 1);
+}
 
-    #[test]
-    fn the_literal_of_an_object_is_closed_before_it_is_read() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 looks for
-        // the brace that closes the literal before it reads the properties
-        // of it, and the literal that is not closed swallows the rest of the
-        // script.
-        let error = parse("x := {\na: 1").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"}\"\n     Specifically: x := { a: 1");
-        assert_eq!(error.line, 1);
-        // The property that is not there does not hide the brace that is
-        // not there.
-        let error = parse("Send {\nEnter").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"}\"\n     Specifically: Send { Enter");
-        // The failures of the literal are named with the line of the brace
-        // that opens it, and not with the line of the property that failed.
-        let error = parse("x := {\na\n}").expect_err("does not parse");
-        assert_eq!(error.message, "Missing \"propertyname:\" in object literal.");
-        assert_eq!(error.line, 1);
-    }
+#[test]
+fn the_literal_of_an_object_is_closed_before_it_is_read() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the v2 looks for
+    // the brace that closes the literal before it reads the properties
+    // of it, and the literal that is not closed swallows the rest of the
+    // script.
+    let error = parse("x := {\na: 1").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Missing \"}\"\n     Specifically: x := { a: 1"
+    );
+    assert_eq!(error.line, 1);
+    // The property that is not there does not hide the brace that is
+    // not there.
+    let error = parse("Send {\nEnter").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Missing \"}\"\n     Specifically: Send { Enter"
+    );
+    // The failures of the literal are named with the line of the brace
+    // that opens it, and not with the line of the property that failed.
+    let error = parse("x := {\na\n}").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Missing \"propertyname:\" in object literal."
+    );
+    assert_eq!(error.line, 1);
+}
 
-    #[test]
-    fn the_or_maybe_wants_a_variable_on_its_left() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the v2 refuses
-        // the script at the load when the left side of the or-maybe is
-        // another value, and it names the operator.
-        let error = parse("x := 1 ?? 2").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: ?? 2");
-        let error = parse("x := o.a ?? 2").expect_err("does not parse");
-        assert_eq!(error.message, "Syntax error.\n     Specifically: ?? 2");
-        // The variable is the left side that the v2 accepts.
-        parse("x := y ?? 2").expect("parses");
-    }
+#[test]
+fn the_or_maybe_wants_a_variable_on_its_left() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the v2 refuses
+    // the script at the load when the left side of the or-maybe is
+    // another value, and it names the operator.
+    let error = parse("x := 1 ?? 2").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: ?? 2");
+    let error = parse("x := o.a ?? 2").expect_err("does not parse");
+    assert_eq!(error.message, "Syntax error.\n     Specifically: ?? 2");
+    // The variable is the left side that the v2 accepts.
+    parse("x := y ?? 2").expect("parses");
+}
 
-    #[test]
-    fn the_three_way_comparison_is_refused_with_the_text_of_the_signs() {
-        // Measured on the binary of v2.0.19 on 2026-11-01: the three signs
-        // are the `==` and the `=`, and the operand that the comparison
-        // wants is not there. The text that is named begins at the operator.
-        let error = parse("x := 1 === 1").expect_err("does not parse");
-        assert_eq!(error.message, "Missing operand.\n     Specifically: === 1");
-    }
+#[test]
+fn the_three_way_comparison_is_refused_with_the_text_of_the_signs() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the three signs
+    // are the `==` and the `=`, and the operand that the comparison
+    // wants is not there. The text that is named begins at the operator.
+    let error = parse("x := 1 === 1").expect_err("does not parse");
+    assert_eq!(error.message, "Missing operand.\n     Specifically: === 1");
+}
 
 /// The two bounds of the `between` of the legacy `if` of the v1.
 ///

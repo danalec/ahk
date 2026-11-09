@@ -14,7 +14,7 @@
 //! refuse it: the `EnvSub` lets the "abc" through, and the answer of it is
 //! zero.
 
-use crate::date::{days_in_month, day_of_week, day_of_year, DateTime};
+use crate::date::{DateTime, day_of_week, day_of_year, days_in_month};
 
 /// The date of the v1 that the text holds.
 ///

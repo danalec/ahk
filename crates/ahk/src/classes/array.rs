@@ -32,9 +32,25 @@ const PROPERTIES: [&str; 3] = ["length", "capacity", "__item"];
 /// The methods an array has: the ones of the class, and the ones every
 /// object has.
 const METHODS: [&str; 19] = [
-    "push", "pop", "insertat", "removeat", "delete", "get", "has", "clone",
-    "__new", "__enum", "ownprops", "hasownprop", "defineprop", "deleteprop",
-    "getownpropdesc", "hasprop", "hasmethod", "getmethod", "hasbase",
+    "push",
+    "pop",
+    "insertat",
+    "removeat",
+    "delete",
+    "get",
+    "has",
+    "clone",
+    "__new",
+    "__enum",
+    "ownprops",
+    "hasownprop",
+    "defineprop",
+    "deleteprop",
+    "getownpropdesc",
+    "hasprop",
+    "hasmethod",
+    "getmethod",
+    "hasbase",
 ];
 
 /// The names an array answers: its properties and its methods.
@@ -84,7 +100,10 @@ pub(crate) fn call(
 ) -> Option<Result<Value, RuntimeFailure>> {
     let method = method.to_lowercase();
     let failure = |message: &str| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
+        Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: message.to_string(),
+            line,
+        })))
     };
     // The failure of a member that complains about a value carries the
     // value in the `Extra` of the error.
@@ -95,7 +114,10 @@ pub(crate) fn call(
     // and a place that is not there is an invalid parameter.
     let invalid_place = |method: &str, index: i64| {
         failure_with(
-            &format!("Parameter #1 of {} is invalid.", crate::classes::the_name_of("array", method)),
+            &format!(
+                "Parameter #1 of {} is invalid.",
+                crate::classes::the_name_of("array", method)
+            ),
             &index.to_string(),
         )
     };
@@ -110,12 +132,18 @@ pub(crate) fn call(
             Some(Ok(this.clone()))
         }
         "pop" => {
-            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let Some(state) = state(this) else {
+                return failure("Invalid index.");
+            };
             let mut state = state.borrow_mut();
             let mut items = items(&state);
-            let Some(last) = items.pop() else { return failure("Array is empty.") };
+            let Some(last) = items.pop() else {
+                return failure("Array is empty.");
+            };
             set_items(&mut state, items);
-            Some(Ok(element_value(&last).unwrap_or(Value::Text(String::new()))))
+            Some(Ok(
+                element_value(&last).unwrap_or(Value::Text(String::new()))
+            ))
         }
         "insert" if rt.dialect().the_array_has_the_methods_of_the_v1() => {
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
@@ -123,7 +151,9 @@ pub(crate) fn call(
             // `a.Insert(1, 9)` puts the nine at the first place. A value on
             // its own goes to the end: the `a.Insert(9)` puts the nine at
             // the end of the array.
-            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let Some(state) = state(this) else {
+                return failure("Invalid index.");
+            };
             let mut state = state.borrow_mut();
             let mut items = items(&state);
             let length = items.len() as i64;
@@ -152,14 +182,20 @@ pub(crate) fn call(
             // the `Remove` of the v1 takes the index: the `a.Remove(1)`
             // takes the first one away. Without an index the last one goes
             // away: the `a.Remove()` is the `a.Pop()`.
-            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let Some(state) = state(this) else {
+                return failure("Invalid index.");
+            };
             let mut state = state.borrow_mut();
             let mut items = items(&state);
             let length = items.len() as i64;
             let Some(index) = arguments.first() else {
-                let Some(last) = items.pop() else { return failure("Array is empty.") };
+                let Some(last) = items.pop() else {
+                    return failure("Array is empty.");
+                };
                 set_items(&mut state, items);
-                return Some(Ok(element_value(&last).unwrap_or(Value::Text(String::new()))));
+                return Some(Ok(
+                    element_value(&last).unwrap_or(Value::Text(String::new()))
+                ));
             };
             let index = match rt.integer(index, line) {
                 Ok(number) => number,
@@ -170,10 +206,14 @@ pub(crate) fn call(
             };
             let removed = items.remove(place);
             set_items(&mut state, items);
-            Some(Ok(element_value(&removed).unwrap_or(Value::Text(String::new()))))
+            Some(Ok(
+                element_value(&removed).unwrap_or(Value::Text(String::new()))
+            ))
         }
         "insertat" => {
-            let Some(index) = arguments.first() else { return failure("Too few parameters passed to function.") };
+            let Some(index) = arguments.first() else {
+                return failure("Too few parameters passed to function.");
+            };
             // There is something to insert: an index on its own inserts
             // nothing.
             if arguments.len() < 2 {
@@ -183,7 +223,9 @@ pub(crate) fn call(
                 Ok(number) => number,
                 Err(failure) => return Some(Err(failure)),
             };
-            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let Some(state) = state(this) else {
+                return failure("Invalid index.");
+            };
             let mut state = state.borrow_mut();
             let mut items = items(&state);
             let length = items.len() as i64;
@@ -199,12 +241,16 @@ pub(crate) fn call(
             Some(Ok(Value::Text(String::new())))
         }
         "removeat" => {
-            let Some(index) = arguments.first() else { return failure("Too few parameters passed to function.") };
+            let Some(index) = arguments.first() else {
+                return failure("Too few parameters passed to function.");
+            };
             let index = match rt.integer(index, line) {
                 Ok(number) => number,
                 Err(failure) => return Some(Err(failure)),
             };
-            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let Some(state) = state(this) else {
+                return failure("Invalid index.");
+            };
             let mut state = state.borrow_mut();
             let mut items = items(&state);
             let length = items.len() as i64;
@@ -216,7 +262,9 @@ pub(crate) fn call(
                 None => {
                     let removed = items.remove(place);
                     set_items(&mut state, items);
-                    Some(Ok(element_value(&removed).unwrap_or(Value::Text(String::new()))))
+                    Some(Ok(
+                        element_value(&removed).unwrap_or(Value::Text(String::new()))
+                    ))
                 }
                 // A range: the answer is the number of the values that were
                 // in it.
@@ -241,12 +289,16 @@ pub(crate) fn call(
             }
         }
         "delete" => {
-            let Some(index) = arguments.first() else { return failure("Too few parameters passed to function.") };
+            let Some(index) = arguments.first() else {
+                return failure("Too few parameters passed to function.");
+            };
             let index = match rt.integer(index, line) {
                 Ok(number) => number,
                 Err(failure) => return Some(Err(failure)),
             };
-            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let Some(state) = state(this) else {
+                return failure("Invalid index.");
+            };
             let mut state = state.borrow_mut();
             let mut items = items(&state);
             let length = items.len() as i64;
@@ -260,12 +312,16 @@ pub(crate) fn call(
             Some(Ok(removed))
         }
         "get" => {
-            let Some(index) = arguments.first() else { return failure("Too few parameters passed to function.") };
+            let Some(index) = arguments.first() else {
+                return failure("Too few parameters passed to function.");
+            };
             let index = match rt.integer(index, line) {
                 Ok(number) => number,
                 Err(failure) => return Some(Err(failure)),
             };
-            let Some(state) = state(this) else { return failure("Invalid index.") };
+            let Some(state) = state(this) else {
+                return failure("Invalid index.");
+            };
             let state = state.borrow();
             let items = items(&state);
             let length = items.len() as i64;
@@ -286,12 +342,16 @@ pub(crate) fn call(
             }
         }
         "has" => {
-            let Some(index) = arguments.first() else { return failure("Too few parameters passed to function.") };
+            let Some(index) = arguments.first() else {
+                return failure("Too few parameters passed to function.");
+            };
             let index = match rt.integer(index, line) {
                 Ok(number) => number,
                 Err(failure) => return Some(Err(failure)),
             };
-            let Some(state) = state(this) else { return Some(Ok(Value::Int(0))) };
+            let Some(state) = state(this) else {
+                return Some(Ok(Value::Int(0)));
+            };
             let state = state.borrow();
             let items = items(&state);
             let length = items.len() as i64;
@@ -312,7 +372,10 @@ pub(crate) fn call(
         // the enumerator: it is the call that says how many it wants.
         "__enum" => {
             let Some(state) = state(this) else {
-                return Some(Ok(enumerator::make(Vec::new(), enumerator::Alone::TheValue)));
+                return Some(Ok(enumerator::make(
+                    Vec::new(),
+                    enumerator::Alone::TheValue,
+                )));
             };
             let state = state.borrow();
             let pairs: Vec<(Value, Value)> = items(&state)
@@ -447,7 +510,10 @@ pub(crate) fn set_property(
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
     let failure = |message: &str| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
+        Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: message.to_string(),
+            line,
+        })))
     };
     match name {
         "length" => {
@@ -534,7 +600,10 @@ pub(crate) fn item(
     let state = state.borrow();
     let items = items(&state);
     let length = items.len() as i64;
-    let place = if rt.dialect().the_item_of_an_array_that_is_not_there_is_the_empty_text() {
+    let place = if rt
+        .dialect()
+        .the_item_of_an_array_that_is_not_there_is_the_empty_text()
+    {
         the_place_of_the_v1(index, length)
     } else {
         place(index, length)
@@ -544,7 +613,10 @@ pub(crate) fn item(
         // v1 does not refuse the item of an array that is not there: the
         // `a[5]` of an array of two is the empty text, and the `a[0]` is the
         // property "0" of the array.
-        if rt.dialect().the_item_of_an_array_that_is_not_there_is_the_empty_text() {
+        if rt
+            .dialect()
+            .the_item_of_an_array_that_is_not_there_is_the_empty_text()
+        {
             if index < 1 {
                 let name = key.to_text();
                 return Some(rt.read_property(this, &name, line));
@@ -573,7 +645,9 @@ pub(crate) fn item(
 
 /// The state of an array.
 fn state(array: &Value) -> Option<Rc<RefCell<Object>>> {
-    let Value::Object(object) = array else { return None };
+    let Value::Object(object) = array else {
+        return None;
+    };
     let state = object.borrow().value_of(STATE)?;
     match state {
         Value::Object(state) => Some(state),
@@ -584,7 +658,10 @@ fn state(array: &Value) -> Option<Rc<RefCell<Object>>> {
 /// A new state: the items in the order of their places, and how many of
 /// them fit.
 fn new_state(items: Vec<Value>, capacity: i64) -> Value {
-    let mut state = Object { class: STATE_CLASS.to_string(), properties: BTreeMap::new() };
+    let mut state = Object {
+        class: STATE_CLASS.to_string(),
+        properties: BTreeMap::new(),
+    };
     set_items(&mut state, items);
     set_capacity(&mut state, capacity);
     Value::Object(Rc::new(RefCell::new(state)))
@@ -592,7 +669,9 @@ fn new_state(items: Vec<Value>, capacity: i64) -> Value {
 
 /// The items of an array: the elements in the order of their places.
 fn items(state: &Object) -> Vec<Value> {
-    let Some(Value::List(items)) = state.value_of("items") else { return Vec::new() };
+    let Some(Value::List(items)) = state.value_of("items") else {
+        return Vec::new();
+    };
     items.clone()
 }
 
@@ -602,7 +681,9 @@ fn items(state: &Object) -> Vec<Value> {
 /// the values of one. Neither of them may reach into the state of the
 /// array: the module that owns the class is the one that answers.
 pub(crate) fn the_items(array: &Value) -> Vec<Value> {
-    let Some(state) = state(array) else { return Vec::new() };
+    let Some(state) = state(array) else {
+        return Vec::new();
+    };
     let state = state.borrow();
     items(&state)
         .iter()
@@ -617,7 +698,10 @@ pub(crate) fn the_items(array: &Value) -> Vec<Value> {
 pub(crate) fn the_number_of_the_items(array: &Value) -> usize {
     let Some(state) = state(array) else { return 0 };
     let state = state.borrow();
-    items(&state).iter().filter(|item| element_value(item).is_some()).count()
+    items(&state)
+        .iter()
+        .filter(|item| element_value(item).is_some())
+        .count()
 }
 
 /// The number of the places of an array.
@@ -663,7 +747,9 @@ fn element(value: Option<Value>) -> Value {
 /// The value of an element, when it has one.
 fn element_value(element: &Value) -> Option<Value> {
     match element {
-        Value::List(items) if items.len() == 2 && items[0] == Value::Int(1) => Some(items[1].clone()),
+        Value::List(items) if items.len() == 2 && items[0] == Value::Int(1) => {
+            Some(items[1].clone())
+        }
         _ => None,
     }
 }
@@ -671,7 +757,9 @@ fn element_value(element: &Value) -> Option<Value> {
 /// The default of an array: the value the script gave to the `Default`
 /// property, when it gave one.
 fn default_property(array: &Value) -> Option<Value> {
-    let Value::Object(object) = array else { return None };
+    let Value::Object(object) = array else {
+        return None;
+    };
     object.borrow().value_of("default")
 }
 
@@ -720,7 +808,10 @@ fn clone(array: &Value) -> Value {
             }
         }
     }
-    Value::Object(Rc::new(RefCell::new(Object { class: "array".to_string(), properties })))
+    Value::Object(Rc::new(RefCell::new(Object {
+        class: "array".to_string(),
+        properties,
+    })))
 }
 
 // -- the places ---------------------------------------------------------------
@@ -781,7 +872,9 @@ fn base_method(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
-    let Value::Object(object) = this else { return None };
+    let Value::Object(object) = this else {
+        return None;
+    };
     // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
     // array of the v1 has no method of the base object of the v2: the
     // `a.HasOwnProp(1)` is ignored and the answer is the empty text.
@@ -789,9 +882,15 @@ fn base_method(
         return None;
     }
     let failure = |message: &str| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
+        Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: message.to_string(),
+            line,
+        })))
     };
-    let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+    let name = arguments
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let key = name.to_lowercase();
     match method {
         "ownprops" => {
@@ -836,7 +935,10 @@ fn base_method(
                 || key == "__init") as i64,
         ))),
         "getownpropdesc" => {
-            let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+            let name = arguments
+                .first()
+                .map(|value| value.to_text())
+                .unwrap_or_default();
             let value = object.borrow().value_of(&key);
             match value {
                 Some(value) => {
@@ -879,7 +981,11 @@ fn base_method(
             if key == STATE {
                 return Some(Ok(Value::Text(String::new())));
             }
-            let gone = object.borrow_mut().properties.remove(&key).map(|property| property.value);
+            let gone = object
+                .borrow_mut()
+                .properties
+                .remove(&key)
+                .map(|property| property.value);
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // is the value of the property that is taken away, and an
             // empty text when there was none.

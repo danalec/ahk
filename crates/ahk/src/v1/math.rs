@@ -80,7 +80,9 @@ pub(crate) fn ceil(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Int(crate::runtime::ceil(the_number_or_zero(rt, values, 0)) as i64))
+    Ok(Value::Int(
+        crate::runtime::ceil(the_number_or_zero(rt, values, 0)) as i64,
+    ))
 }
 
 /// `Floor(x)`: the whole number that is not greater than the number.
@@ -90,7 +92,9 @@ pub(crate) fn floor(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Int(crate::runtime::floor(the_number_or_zero(rt, values, 0)) as i64))
+    Ok(Value::Int(
+        crate::runtime::floor(the_number_or_zero(rt, values, 0)) as i64,
+    ))
 }
 
 /// `Round(x, n)`: the number rounded, and the digits when there are some.
@@ -125,7 +129,9 @@ pub(crate) fn exp(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Float(crate::runtime::exp(the_number_or_zero(rt, values, 0))))
+    Ok(Value::Float(crate::runtime::exp(the_number_or_zero(
+        rt, values, 0,
+    ))))
 }
 
 /// `Ln(x)`: the natural logarithm of the number.
@@ -193,13 +199,16 @@ pub(crate) fn modulo(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let (Some(dividend), Some(divisor)) =
-        (the_whole_number(rt, values, 0), the_whole_number(rt, values, 1))
-    else {
+    let (Some(dividend), Some(divisor)) = (
+        the_whole_number(rt, values, 0),
+        the_whole_number(rt, values, 1),
+    ) else {
         return Ok(Value::Text(String::new()));
     };
-    let (dividend_number, divisor_number) =
-        (dividend.to_number().unwrap_or(0.0), divisor.to_number().unwrap_or(0.0));
+    let (dividend_number, divisor_number) = (
+        dividend.to_number().unwrap_or(0.0),
+        divisor.to_number().unwrap_or(0.0),
+    );
     if divisor_number == 0.0 {
         return Ok(Value::Text(String::new()));
     }
@@ -216,7 +225,9 @@ pub(crate) fn sin(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Float(crate::runtime::sin(the_number_or_zero(rt, values, 0))))
+    Ok(Value::Float(crate::runtime::sin(the_number_or_zero(
+        rt, values, 0,
+    ))))
 }
 
 /// `Cos(x)`: the cosine of the number.
@@ -226,7 +237,9 @@ pub(crate) fn cos(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Float(crate::runtime::cos(the_number_or_zero(rt, values, 0))))
+    Ok(Value::Float(crate::runtime::cos(the_number_or_zero(
+        rt, values, 0,
+    ))))
 }
 
 /// `Tan(x)`: the tangent of the number.
@@ -236,7 +249,9 @@ pub(crate) fn tan(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Float(crate::runtime::tan(the_number_or_zero(rt, values, 0))))
+    Ok(Value::Float(crate::runtime::tan(the_number_or_zero(
+        rt, values, 0,
+    ))))
 }
 
 /// `ASin(x)`: the arc sine of the number.
@@ -280,7 +295,9 @@ pub(crate) fn atan(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Float(crate::runtime::atan(the_number_or_zero(rt, values, 0))))
+    Ok(Value::Float(crate::runtime::atan(the_number_or_zero(
+        rt, values, 0,
+    ))))
 }
 
 /// `Max(a, b, ...)`: the biggest of the numbers.

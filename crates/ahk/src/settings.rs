@@ -33,9 +33,9 @@
 
 use alloc::format;
 use alloc::string::{String, ToString};
-use core::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 #[cfg(test)]
 use core::sync::atomic::AtomicBool;
+use core::sync::atomic::{AtomicI32, AtomicU8, Ordering};
 
 use crate::desktop::TitleMatch;
 use crate::keys;
@@ -81,7 +81,14 @@ const SEND_MODES: [&str; 4] = ["Input", "Event", "Play", "InputThenPlay"];
 /// "ANSI"`, `FileEncoding "OEM"` and `FileEncoding "UTF8"` are refused.
 /// Measured on the binary of v2.0.19 on 2026-10-30: `FileEncoding
 /// "CP1252"` is carried too, and the variable keeps the name.
-const ENCODINGS: [&str; 6] = ["CP0", "CP1252", "UTF-8", "UTF-8-RAW", "UTF-16", "UTF-16-RAW"];
+const ENCODINGS: [&str; 6] = [
+    "CP0",
+    "CP1252",
+    "UTF-8",
+    "UTF-8-RAW",
+    "UTF-16",
+    "UTF-16-RAW",
+];
 
 /// The key that closes a menu.
 ///
@@ -283,7 +290,9 @@ pub fn the_defaults_of_the_v2() {
     STATE.mouse_speed.store(2, Ordering::Relaxed);
     STATE.caps_lock.store(1, Ordering::Relaxed);
     STATE.encoding.store(0, Ordering::Relaxed);
-    STATE.title_match_mode.store(MODE_CONTAINS, Ordering::Relaxed);
+    STATE
+        .title_match_mode
+        .store(MODE_CONTAINS, Ordering::Relaxed);
     STATE.title_match_speed.store(FAST, Ordering::Relaxed);
     STATE.detect_hidden_windows.store(0, Ordering::Relaxed);
     STATE.detect_hidden_text.store(1, Ordering::Relaxed);
@@ -370,12 +379,14 @@ pub fn value_of(name: &str) -> Option<Result<Value, &'static str>> {
         "windelay" => Value::Int(STATE.win_delay.load(Ordering::Relaxed) as i64),
         "controldelay" => Value::Int(STATE.control_delay.load(Ordering::Relaxed) as i64),
         "regview" => Value::Text(reg_view_text(STATE.reg_view.load(Ordering::Relaxed))),
-        "detecthiddenwindows" => Value::Int(STATE.detect_hidden_windows.load(Ordering::Relaxed) as i64),
+        "detecthiddenwindows" => {
+            Value::Int(STATE.detect_hidden_windows.load(Ordering::Relaxed) as i64)
+        }
         "detecthiddentext" => Value::Int(STATE.detect_hidden_text.load(Ordering::Relaxed) as i64),
         "titlematchmode" => mode_value(STATE.title_match_mode.load(Ordering::Relaxed)),
-        "titlematchmodespeed" => {
-            Value::Text(SPEEDS[STATE.title_match_speed.load(Ordering::Relaxed) as usize].to_string())
-        }
+        "titlematchmodespeed" => Value::Text(
+            SPEEDS[STATE.title_match_speed.load(Ordering::Relaxed) as usize].to_string(),
+        ),
         // The settings that the runtime does not keep: each one refuses
         // with the reason of its own name.
         "cursor" => return Some(Err(NO_CURSOR)),
@@ -484,10 +495,16 @@ fn the_send_mode(value: &Value) -> Result<Value, String> {
 /// way the table of the tree spells it.
 fn the_encoding(value: &Value) -> Result<Value, String> {
     let wanted = value.to_text();
-    let Some(encoding) = ENCODINGS.iter().find(|encoding| encoding.eq_ignore_ascii_case(&wanted)) else {
+    let Some(encoding) = ENCODINGS
+        .iter()
+        .find(|encoding| encoding.eq_ignore_ascii_case(&wanted))
+    else {
         return Err(INVALID_VALUE.to_string());
     };
-    let index = ENCODINGS.iter().position(|other| other == encoding).unwrap_or(0);
+    let index = ENCODINGS
+        .iter()
+        .position(|other| other == encoding)
+        .unwrap_or(0);
     STATE.encoding.store(index as u8, Ordering::Relaxed);
     Ok(Value::Text(encoding.to_string()))
 }
@@ -627,7 +644,9 @@ fn the_mode_of_the_matching(value: &Value) -> Option<u8> {
 /// The level is a number, and a text that holds no number is refused with
 /// the kind of the value that arrived.
 fn the_level_of_the_send(value: &Value) -> Result<Value, String> {
-    let number = value.to_number_strict().map_err(|_| runtime::expected_number(value))?;
+    let number = value
+        .to_number_strict()
+        .map_err(|_| runtime::expected_number(value))?;
     let level = number as i32;
     STATE.send_level.store(level, Ordering::Relaxed);
     Ok(Value::Int(level as i64))
@@ -689,7 +708,11 @@ pub fn coord_mode(
 ) -> Result<Value, RuntimeError> {
     let target = text_of(values, 0);
     let relative = text_of(values, 1);
-    let relative = if relative.is_empty() { "Screen".to_string() } else { relative };
+    let relative = if relative.is_empty() {
+        "Screen".to_string()
+    } else {
+        relative
+    };
     // The spelling of the two parameters is checked first: v2 says which
     // parameter is invalid before it says that the mode is not carried.
     let target_kind = match target.to_lowercase().as_str() {
@@ -702,7 +725,7 @@ pub fn coord_mode(
             return Err(RuntimeError {
                 message: runtime::invalid_parameter(1, "CoordMode"),
                 line,
-            })
+            });
         }
     };
     let mode = match relative.to_lowercase().as_str() {
@@ -713,7 +736,7 @@ pub fn coord_mode(
             return Err(RuntimeError {
                 message: runtime::invalid_parameter(2, "CoordMode"),
                 line,
-            })
+            });
         }
     };
     match target_kind {
@@ -872,7 +895,9 @@ pub fn set_detect_hidden_windows(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let wanted = values.first().map(|value| value.truthy()).unwrap_or(false);
-    let previous = STATE.detect_hidden_windows.swap(wanted as i32, Ordering::Relaxed);
+    let previous = STATE
+        .detect_hidden_windows
+        .swap(wanted as i32, Ordering::Relaxed);
     Ok(Value::Int(previous as i64))
 }
 
@@ -890,7 +915,9 @@ pub fn set_detect_hidden_text(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let wanted = values.first().map(|value| value.truthy()).unwrap_or(false);
-    let previous = STATE.detect_hidden_text.swap(wanted as i32, Ordering::Relaxed);
+    let previous = STATE
+        .detect_hidden_text
+        .swap(wanted as i32, Ordering::Relaxed);
     Ok(Value::Int(previous as i64))
 }
 
@@ -983,7 +1010,7 @@ pub fn set_reg_view(
             return Err(RuntimeError {
                 message: runtime::invalid_parameter(1, "SetRegView"),
                 line,
-            })
+            });
         }
     };
     let previous = STATE.reg_view.swap(wanted, Ordering::Relaxed);
@@ -1020,7 +1047,7 @@ pub fn set_mouse_delay(
             return Err(RuntimeError {
                 message: runtime::invalid_parameter(2, "SetMouseDelay"),
                 line,
-            })
+            });
         }
     };
     if play {
@@ -1031,7 +1058,10 @@ pub fn set_mouse_delay(
     // The pointer of the box pauses between two movements.
     rt.desktop()
         .set_mouse_delay(delay)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Int(previous as i64))
 }
 
@@ -1057,7 +1087,10 @@ pub fn set_default_mouse_speed(
     let previous = STATE.mouse_speed.swap(speed as i32, Ordering::Relaxed);
     rt.desktop()
         .set_mouse_speed(speed)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Int(previous as i64))
 }
 
@@ -1117,19 +1150,32 @@ pub fn get_key_vk(
 ///
 /// The braces of v2 are not read here: the text goes to the keyboard as
 /// it is written, one character at a time.
-pub fn send_text(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn send_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let text = rt.interpolate(&text_of(values, 0), line)?;
     rt.desktop()
         .type_text(&text)
         .map(Value::Text)
-        .map_err(|reason| RuntimeError { message: reason, line })
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })
 }
 
 /// `SendEvent`: the keys, sent the way the box sends them.
 ///
 /// The event method of v2 is the method of Windows, and the tree has one
 /// keyboard: the keys go through it, the way `Send` sends them.
-pub fn send_event(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn send_event(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     send_keys(rt, values, line)
 }
 
@@ -1137,7 +1183,12 @@ pub fn send_event(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u
 ///
 /// The input method of v2 is the method of the keyboard of the box: the
 /// keys go through it, the way `Send` sends them.
-pub fn send_input(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn send_input(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     send_keys(rt, values, line)
 }
 
@@ -1145,7 +1196,12 @@ pub fn send_input(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u
 ///
 /// The play method of v2 does not send keystrokes: it posts the
 /// messages to the active window, and there is no window here.
-pub fn send_play(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn send_play(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
         message: NO_PLAY.to_string(),
         line,
@@ -1157,7 +1213,12 @@ pub fn send_play(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: 
 /// The level tells the hotkeys which of the artificial events they are
 /// to ignore. The tree has no hotkeys yet, so the level is carried and
 /// reported, and nothing reads it yet.
-pub fn send_level(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn send_level(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let level = number_argument(values, 0, "SendLevel", line)?;
     if !(0.0..=100.0).contains(&level) {
         return Err(RuntimeError {
@@ -1223,7 +1284,7 @@ pub fn set_key_delay(
             return Err(RuntimeError {
                 message: runtime::invalid_parameter(2, "SetKeyDelay"),
                 line,
-            })
+            });
         }
     };
     Ok(Value::Int(key_delay_of(delay, play)))
@@ -1251,7 +1312,9 @@ fn key_delay_of(delay: i64, play: bool) -> i64 {
 /// and the suffix `-RAW` is kept.
 pub fn set_file_encoding(name: &str) -> Result<&'static str, String> {
     let wanted = name.trim().to_uppercase();
-    let found = ENCODINGS.iter().position(|encoding| *encoding == wanted.as_str());
+    let found = ENCODINGS
+        .iter()
+        .position(|encoding| *encoding == wanted.as_str());
     let found = match found {
         Some(found) => found,
         None => {
@@ -1275,13 +1338,18 @@ pub fn set_file_encoding(name: &str) -> Result<&'static str, String> {
 /// The name of a code page is `CP` and a number: `CP0` is the code page
 /// of the machine, and `CP1252` is the one that the tree carries.
 pub(crate) fn is_a_code_page(name: &str) -> bool {
-    let Some(number) = name.strip_prefix("CP") else { return false };
+    let Some(number) = name.strip_prefix("CP") else {
+        return false;
+    };
     !number.is_empty() && number.chars().all(|digit| digit.is_ascii_digit())
 }
 
 /// The text of the argument at this place, or the empty string.
 fn text_of(values: &[Value], index: usize) -> String {
-    values.get(index).map(|value| value.to_text()).unwrap_or_default()
+    values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
 }
 
 /// The number of the argument at this place, as the maths wants it.
@@ -1461,7 +1529,10 @@ fn find_key(name: &str) -> Option<Key> {
     // The name is not trimmed: the space is a key of its own.
     let wanted = name.to_lowercase();
     // The modifiers: the name the script wrote is the name it gets.
-    if let Some((_, answer, event, code)) = MODIFIERS.iter().find(|(spelling, _, _, _)| *spelling == wanted) {
+    if let Some((_, answer, event, code)) = MODIFIERS
+        .iter()
+        .find(|(spelling, _, _, _)| *spelling == wanted)
+    {
         return Some(Key {
             name: answer.to_string(),
             event: event_of(event),
@@ -1469,7 +1540,10 @@ fn find_key(name: &str) -> Option<Key> {
         });
     }
     // The name of v2.
-    if let Some((answer, event, code)) = KEYS.iter().find(|(key, _, _)| key.eq_ignore_ascii_case(&wanted)) {
+    if let Some((answer, event, code)) = KEYS
+        .iter()
+        .find(|(key, _, _)| key.eq_ignore_ascii_case(&wanted))
+    {
         return Some(Key {
             name: answer.to_string(),
             event: event_of(event),
@@ -1497,7 +1571,10 @@ fn find_key(name: &str) -> Option<Key> {
 
 /// The key of an event of the Linux input, when the tree knows it.
 fn key_of_event(event: u16) -> Option<Key> {
-    if let Some((_, answer, _, code)) = MODIFIERS.iter().find(|(_, _, name, _)| event_of(name) == event) {
+    if let Some((_, answer, _, code)) = MODIFIERS
+        .iter()
+        .find(|(_, _, name, _)| event_of(name) == event)
+    {
         return Some(Key {
             name: answer.to_string(),
             event,
@@ -1512,7 +1589,10 @@ fn key_of_event(event: u16) -> Option<Key> {
         });
     }
     // The letters and the digits are named after themselves.
-    let name = keys::EVDEV.iter().find(|(_, code)| *code == event).map(|(name, _)| *name)?;
+    let name = keys::EVDEV
+        .iter()
+        .find(|(_, code)| *code == event)
+        .map(|(name, _)| *name)?;
     let mut chars = name.chars();
     let first = chars.next()?;
     if chars.next().is_some() {
@@ -1588,8 +1668,8 @@ fn event_of(event: &str) -> u16 {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-        Processes, Screen, Sound, Timers, Windows,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+        Pointer, Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
     use core::time::Duration;
@@ -1611,8 +1691,8 @@ mod tests {
     impl Pictures for Fake {}
     impl Network for Fake {}
     impl Sound for Fake {}
-impl Machine for Fake {}
-impl Dialogs for Fake {}
+    impl Machine for Fake {}
+    impl Dialogs for Fake {}
 
     impl Files for Fake {}
 
@@ -1638,7 +1718,13 @@ impl Dialogs for Fake {}
     }
 
     impl Pointer for Fake {
-        fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        fn click(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _button: &str,
+            _count: u32,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
         fn set_mouse_speed(&mut self, speed: i64) -> Result<String, String> {
@@ -1705,7 +1791,9 @@ impl Dialogs for Fake {}
     fn value(name: &str) -> Value {
         match value_of(name) {
             Some(Ok(value)) => value,
-            Some(Err(reason)) => panic!("{name} answered with a reason instead of a value: {reason}"),
+            Some(Err(reason)) => {
+                panic!("{name} answered with a reason instead of a value: {reason}")
+            }
             None => panic!("{name} is not a setting of this module"),
         }
     }
@@ -1791,7 +1879,8 @@ impl Dialogs for Fake {}
             assert_eq!(value(name), Value::Text("Client".into()), "{name}");
         }
         with_runtime(|rt| {
-            let previous = coord_mode(rt, &[text("Caret"), text("Screen")], 1, 0).expect("the mode changes");
+            let previous =
+                coord_mode(rt, &[text("Caret"), text("Screen")], 1, 0).expect("the mode changes");
             assert_eq!(previous, Value::Text("Client".into()));
         });
         assert_eq!(value("coordmodecaret"), Value::Text("Screen".into()));
@@ -1809,19 +1898,22 @@ impl Dialogs for Fake {}
         // the mode that was there before.
         assert_eq!(value("titlematchmode"), Value::Int(2));
         with_runtime(|rt| {
-            let previous = set_title_match_mode(rt, &[Value::Int(3)], 1, 0).expect("the mode changes");
+            let previous =
+                set_title_match_mode(rt, &[Value::Int(3)], 1, 0).expect("the mode changes");
             assert_eq!(previous, Value::Int(2));
         });
         assert_eq!(value("titlematchmode"), Value::Int(3));
         // The pattern is the word of v2, and the answer is the word too.
         with_runtime(|rt| {
-            let previous = set_title_match_mode(rt, &[text("RegEx")], 1, 0).expect("the mode changes");
+            let previous =
+                set_title_match_mode(rt, &[text("RegEx")], 1, 0).expect("the mode changes");
             assert_eq!(previous, Value::Int(3));
         });
         assert_eq!(value("titlematchmode"), Value::Text("RegEx".into()));
         // The speed is a setting of its own.
         with_runtime(|rt| {
-            let previous = set_title_match_mode(rt, &[text("Slow")], 1, 0).expect("the speed changes");
+            let previous =
+                set_title_match_mode(rt, &[text("Slow")], 1, 0).expect("the speed changes");
             assert_eq!(previous, Value::Text("Fast".into()));
         });
         assert_eq!(value("titlematchmodespeed"), Value::Text("Slow".into()));
@@ -1844,7 +1936,9 @@ impl Dialogs for Fake {}
         // and the scan code alone is a mask whose key is zero.
         assert_eq!(value("menumaskkey"), Value::Text("vk11sc01D".into()));
         assert_eq!(
-            write_of("menumaskkey", &text("vk41sc01D")).unwrap().unwrap(),
+            write_of("menumaskkey", &text("vk41sc01D"))
+                .unwrap()
+                .unwrap(),
             Value::Text("vk41sc01D".into())
         );
         assert_eq!(value("menumaskkey"), Value::Text("vk41sc01D".into()));
@@ -1869,20 +1963,29 @@ impl Dialogs for Fake {}
         // to the speed when the speed takes it.
         assert_eq!(value("titlematchmode"), Value::Int(2));
         assert_eq!(value("titlematchmodespeed"), Value::Text("Fast".into()));
-        assert_eq!(write_of("titlematchmodespeed", &Value::Int(3)).unwrap().unwrap(), Value::Int(3));
+        assert_eq!(
+            write_of("titlematchmodespeed", &Value::Int(3))
+                .unwrap()
+                .unwrap(),
+            Value::Int(3)
+        );
         assert_eq!(value("titlematchmode"), Value::Int(3));
         // The speed is the one that was there.
         assert_eq!(value("titlematchmodespeed"), Value::Text("Fast".into()));
         // A name is the speed.
         assert_eq!(
-            write_of("titlematchmodespeed", &text("Slow")).unwrap().unwrap(),
+            write_of("titlematchmodespeed", &text("Slow"))
+                .unwrap()
+                .unwrap(),
             Value::Text("Slow".into())
         );
         assert_eq!(value("titlematchmodespeed"), Value::Text("Slow".into()));
         assert_eq!(value("titlematchmode"), Value::Int(3));
         // A value that neither of them takes is refused.
         assert_eq!(
-            write_of("titlematchmodespeed", &text("Bogus")).unwrap().unwrap_err(),
+            write_of("titlematchmodespeed", &text("Bogus"))
+                .unwrap()
+                .unwrap_err(),
             "Invalid value."
         );
     }
@@ -1895,7 +1998,8 @@ impl Dialogs for Fake {}
         // is 20 when the command is not used.
         assert_eq!(value("controldelay"), Value::Int(20));
         with_runtime(|rt| {
-            let previous = set_control_delay(rt, &[Value::Int(50)], 1, 0).expect("the delay changes");
+            let previous =
+                set_control_delay(rt, &[Value::Int(50)], 1, 0).expect("the delay changes");
             assert_eq!(previous, Value::Int(20));
         });
         assert_eq!(value("controldelay"), Value::Int(50));
@@ -2005,7 +2109,8 @@ impl Dialogs for Fake {}
         let _turn = Turn::take();
         reset();
         with_runtime(|rt| {
-            let previous = coord_mode(rt, &[text("Mouse"), text("Screen")], 1, 0).expect("the mode changes");
+            let previous =
+                coord_mode(rt, &[text("Mouse"), text("Screen")], 1, 0).expect("the mode changes");
             assert_eq!(previous, Value::Text("Client".into()));
         });
         assert_eq!(value("coordmodemouse"), Value::Text("Screen".into()));
@@ -2057,7 +2162,8 @@ impl Dialogs for Fake {}
         let _turn = Turn::take();
         reset();
         let desktop = with_runtime(|rt| {
-            let previous = set_mouse_delay(rt, &[Value::Int(50), text("Play")], 1, 0).expect("the delay changes");
+            let previous = set_mouse_delay(rt, &[Value::Int(50), text("Play")], 1, 0)
+                .expect("the delay changes");
             assert_eq!(previous, Value::Int(-1));
         });
         assert_eq!(value("mousedelayplay"), Value::Int(50));
@@ -2087,7 +2193,8 @@ impl Dialogs for Fake {}
         let _turn = Turn::take();
         reset();
         let desktop = with_runtime(|rt| {
-            let previous = set_default_mouse_speed(rt, &[Value::Int(20)], 1, 0).expect("the speed changes");
+            let previous =
+                set_default_mouse_speed(rt, &[Value::Int(20)], 1, 0).expect("the speed changes");
             assert_eq!(previous, Value::Int(2));
         });
         assert_eq!(value("defaultmousespeed"), Value::Int(20));
@@ -2116,12 +2223,14 @@ impl Dialogs for Fake {}
         let _turn = Turn::take();
         reset();
         with_runtime(|rt| {
-            let previous = set_store_caps_lock_mode(rt, &[Value::Int(0)], 1, 0).expect("the mode changes");
+            let previous =
+                set_store_caps_lock_mode(rt, &[Value::Int(0)], 1, 0).expect("the mode changes");
             assert_eq!(previous, Value::Int(1));
         });
         assert_eq!(value("storecapslockmode"), Value::Int(0));
         with_runtime(|rt| {
-            let previous = set_store_caps_lock_mode(rt, &[Value::Int(1)], 1, 0).expect("the mode changes");
+            let previous =
+                set_store_caps_lock_mode(rt, &[Value::Int(1)], 1, 0).expect("the mode changes");
             assert_eq!(previous, Value::Int(0));
         });
         assert_eq!(value("storecapslockmode"), Value::Int(1));

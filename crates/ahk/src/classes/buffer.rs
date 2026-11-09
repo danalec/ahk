@@ -27,8 +27,8 @@ use core::cell::RefCell;
 use crate::classes::enumerator;
 use crate::classes::object_with;
 use crate::dll::NativeType;
-use crate::runtime::{put,
-    Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_type,
+use crate::runtime::{
+    Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_type, put,
 };
 
 /// The key the state of a buffer lives under.
@@ -46,8 +46,16 @@ const PROPERTIES: [&str; 2] = ["size", "ptr"];
 /// The methods of a buffer: the constructor, and the ones every object
 /// has.
 const METHODS: [&str; 10] = [
-    "__new", "ownprops", "hasownprop", "defineprop", "deleteprop",
-    "getownpropdesc", "hasprop", "hasmethod", "getmethod", "hasbase",
+    "__new",
+    "ownprops",
+    "hasownprop",
+    "defineprop",
+    "deleteprop",
+    "getownpropdesc",
+    "hasprop",
+    "hasmethod",
+    "getmethod",
+    "hasbase",
 ];
 
 /// The state of a buffer: the bytes.
@@ -140,7 +148,10 @@ pub(crate) fn raw_bytes(value: &Value, line: u32) -> Result<Vec<u8>, RuntimeFail
     match value {
         Value::Object(_) => Ok(state(value, line)?.bytes),
         Value::Text(text) => Ok(text.as_bytes().to_vec()),
-        other => Err(fail(expected_type(TypeName::Object, other.type_name()), line)),
+        other => Err(fail(
+            expected_type(TypeName::Object, other.type_name()),
+            line,
+        )),
     }
 }
 
@@ -202,7 +213,12 @@ pub(crate) fn number_type(text: &str) -> Option<NativeType> {
 ///
 /// The type of the number says how wide it is, and the bytes of a
 /// buffer are read here because this module owns them.
-pub(crate) fn read_number(value: &Value, offset: i64, kind: NativeType, line: u32) -> Result<Value, RuntimeFailure> {
+pub(crate) fn read_number(
+    value: &Value,
+    offset: i64,
+    kind: NativeType,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
     let buffer = state(value, line)?;
     let start = start_of(offset, line)?;
     let end = start.saturating_add(kind.width());
@@ -216,7 +232,12 @@ pub(crate) fn read_number(value: &Value, offset: i64, kind: NativeType, line: u3
 ///
 /// The numbers go out one after the other, the way v2 writes them, and
 /// the answer is the address to the right of the last one of them.
-pub(crate) fn write_numbers(value: &Value, offset: i64, numbers: &[(NativeType, Value)], line: u32) -> Result<i64, RuntimeFailure> {
+pub(crate) fn write_numbers(
+    value: &Value,
+    offset: i64,
+    numbers: &[(NativeType, Value)],
+    line: u32,
+) -> Result<i64, RuntimeFailure> {
     let mut bytes = Vec::new();
     for (kind, number) in numbers {
         bytes.extend_from_slice(&number_bytes(number, *kind));
@@ -231,7 +252,10 @@ pub(crate) fn write_numbers(value: &Value, offset: i64, numbers: &[(NativeType, 
 
 /// The failure of a buffer, with the line the script was on.
 fn fail(message: impl Into<String>, line: u32) -> RuntimeFailure {
-    RuntimeFailure::Error(RuntimeError { message: message.into(), line })
+    RuntimeFailure::Error(RuntimeError {
+        message: message.into(),
+        line,
+    })
 }
 
 /// The whole number an argument holds.
@@ -248,7 +272,10 @@ fn whole(value: &Value, line: u32) -> Result<i64, RuntimeFailure> {
                 message: expected_type(TypeName::Number, other.type_name()),
                 line,
             },
-            Detail { what: String::new(), extra: other.to_text() },
+            Detail {
+                what: String::new(),
+                extra: other.to_text(),
+            },
         )),
     }
 }
@@ -336,7 +363,9 @@ fn new(arguments: &[Value], line: u32) -> Result<Buffer, RuntimeFailure> {
         Some(value) => whole_argument(value, 1, line)? as u8,
         None => 0,
     };
-    Ok(Buffer { bytes: vec![fill; size as usize] })
+    Ok(Buffer {
+        bytes: vec![fill; size as usize],
+    })
 }
 
 /// Make the buffer of another size, the way v2 does: the bytes that
@@ -386,8 +415,12 @@ fn start_of(offset: i64, line: u32) -> Result<usize, RuntimeFailure> {
 fn number_bytes(number: &Value, kind: NativeType) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(kind.width());
     match kind {
-        NativeType::Float => bytes.extend_from_slice(&(number.to_number().unwrap_or(0.0) as f32).to_le_bytes()),
-        NativeType::Double => bytes.extend_from_slice(&number.to_number().unwrap_or(0.0).to_le_bytes()),
+        NativeType::Float => {
+            bytes.extend_from_slice(&(number.to_number().unwrap_or(0.0) as f32).to_le_bytes())
+        }
+        NativeType::Double => {
+            bytes.extend_from_slice(&number.to_number().unwrap_or(0.0).to_le_bytes())
+        }
         _ => {
             let whole = match number {
                 Value::Int(number) => *number,
@@ -411,7 +444,9 @@ fn number_bytes(number: &Value, kind: NativeType) -> Vec<u8> {
 /// the width.
 fn number_from_bytes(bytes: &[u8], kind: NativeType) -> Value {
     match kind {
-        NativeType::Float => Value::Float(f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as f64),
+        NativeType::Float => {
+            Value::Float(f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as f64)
+        }
         NativeType::Double => {
             let mut whole = [0u8; 8];
             whole.copy_from_slice(&bytes[..8]);
@@ -450,11 +485,19 @@ fn base_method(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
-    let Value::Object(object) = this else { return None };
-    let failure = |message: &str| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
+    let Value::Object(object) = this else {
+        return None;
     };
-    let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+    let failure = |message: &str| {
+        Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: message.to_string(),
+            line,
+        })))
+    };
+    let name = arguments
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let key = name.to_lowercase();
     match method {
         "ownprops" => {
@@ -499,7 +542,10 @@ fn base_method(
                 || key == "__init") as i64,
         ))),
         "getownpropdesc" => {
-            let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+            let name = arguments
+                .first()
+                .map(|value| value.to_text())
+                .unwrap_or_default();
             let value = object.borrow().value_of(&key);
             match value {
                 Some(value) => {
@@ -542,7 +588,11 @@ fn base_method(
             if key == STATE {
                 return Some(Ok(Value::Text(String::new())));
             }
-            let gone = object.borrow_mut().properties.remove(&key).map(|property| property.value);
+            let gone = object
+                .borrow_mut()
+                .properties
+                .remove(&key)
+                .map(|property| property.value);
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // is the value of the property that is taken away, and an
             // empty text when there was none.

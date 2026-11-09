@@ -29,10 +29,16 @@ pub(crate) fn the_files_of_the_pattern(
     let folder = rt
         .desktop()
         .working_directory()
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     rt.desktop()
         .list_files(&folder, pattern, "")
-        .map_err(|reason| RuntimeError { message: reason, line })
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })
 }
 
 /// Whether the path is a pattern: it carries a wildcard.

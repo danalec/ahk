@@ -70,8 +70,23 @@ fn a_failing_script_answers_with_a_non_zero_exit() {
 #[test]
 fn the_report_carries_the_fields_the_client_reads() {
     let (_code, report) = run("MsgBox \"hello\"\n");
-    let fields: Vec<&str> = report.as_object().expect("the report is an object").keys().map(String::as_str).collect();
-    for field in ["ok", "steps", "output", "notes", "error", "error_line", "exit_code", "elapsed_ms", "variables"] {
+    let fields: Vec<&str> = report
+        .as_object()
+        .expect("the report is an object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    for field in [
+        "ok",
+        "steps",
+        "output",
+        "notes",
+        "error",
+        "error_line",
+        "exit_code",
+        "elapsed_ms",
+        "variables",
+    ] {
         assert!(fields.contains(&field), "the report has no {field}");
     }
 }
@@ -119,7 +134,10 @@ fn the_pid_file_is_written_while_the_script_runs_and_removed_after() {
 
     let output = child.wait_with_output().expect("the runner finishes");
     assert!(output.status.success());
-    assert!(!pid_file.exists(), "the pid file is removed when the script ends");
+    assert!(
+        !pid_file.exists(),
+        "the pid file is removed when the script ends"
+    );
     let _ = std::fs::remove_dir_all(&cache);
 }
 
@@ -226,8 +244,7 @@ fn surface_json(dialect: &str) -> (i32, serde_json::Value) {
         }
     };
     let status = child.wait().expect("the runner finishes");
-    let report: serde_json::Value =
-        serde_json::from_str(text.trim()).expect("the surface is json");
+    let report: serde_json::Value = serde_json::from_str(text.trim()).expect("the surface is json");
     (status.code().unwrap_or(-1), report)
 }
 
@@ -241,7 +258,9 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(report["refusals"], 190);
     assert_eq!(report["pending"], 0);
 
-    let entries = report["entries"].as_array().expect("the entries are a list");
+    let entries = report["entries"]
+        .as_array()
+        .expect("the entries are a list");
     assert_eq!(entries.len(), 828);
     // A name that the tree answers is a value, and a name that the tree
     // refuses carries the reason of the refusal.
@@ -269,7 +288,9 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     // them is pending: the surface of the v1 is complete.
     assert_eq!(report["values"], 299);
     assert_eq!(report["pending"], 0);
-    let entries = report["entries"].as_array().expect("the entries are a list");
+    let entries = report["entries"]
+        .as_array()
+        .expect("the entries are a list");
     let is_set = entries
         .iter()
         .find(|entry| entry["name"] == "IsSet")
@@ -356,7 +377,9 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
 fn names_of_the_surface() -> usize {
     SURFACE
         .lines()
-        .filter(|line| !line.trim().is_empty() && !line.starts_with('#') && !line.starts_with("kind\t"))
+        .filter(|line| {
+            !line.trim().is_empty() && !line.starts_with('#') && !line.starts_with("kind\t")
+        })
         .count()
 }
 
@@ -368,7 +391,10 @@ fn the_surface_flag_answers_without_a_script() {
         !text.trim_start().starts_with('{'),
         "the flag answered with a report of a script and not with the surface"
     );
-    assert!(text.contains("Abs function value"), "the surface is not in the report");
+    assert!(
+        text.contains("Abs function value"),
+        "the surface is not in the report"
+    );
 }
 
 #[test]

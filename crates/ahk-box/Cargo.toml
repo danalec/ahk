@@ -15,6 +15,12 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
+# The X11 backend (`src/x11.rs`, Linux and FreeBSD only) adds NO dependency:
+# it declares `dlopen`/`dlsym` by hand in `unsafe extern "C"`, resolves
+# libX11.so.6 / libXtst.so.6 at runtime, and encodes captures with the `png`
+# crate already listed above. It is selected with YOKO_DESKTOP=x11 and is
+# additive — the uinput/Wayland path and its dependencies are unchanged.
+
 # The Wayland protocols of the box are Linux-only: the crate of the client
 # is Unix-only, and the compositor is a Linux one. The dependency is
 # therefore declared for Linux alone, so that the crate keeps building on

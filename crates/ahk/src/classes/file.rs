@@ -24,7 +24,8 @@ use crate::classes::buffer;
 use crate::classes::enumerator;
 use crate::classes::object_with;
 use crate::runtime::{
-    Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_number, expected_type, put,
+    Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, expected_number, expected_type,
+    put,
 };
 
 /// The key the state of a file lives under.
@@ -44,13 +45,41 @@ const PROPERTIES: [&str; 5] = ["pos", "length", "ateof", "encoding", "handle"];
 /// The binary of v2.0.19 has no other: a file is not made again, and it
 /// has no unsigned number of sixty-four bits.
 const METHODS: [&str; 35] = [
-    "read", "readline", "readchar", "readuchar", "readshort", "readushort",
-    "readint", "readuint", "readint64", "readfloat", "readdouble",
-    "write", "writeline", "writechar", "writeuchar", "writeshort", "writeushort",
-    "writeint", "writeuint", "writeint64", "writefloat", "writedouble",
-    "rawread", "rawwrite", "seek", "close",
-    "ownprops", "hasownprop", "defineprop", "deleteprop", "getownpropdesc",
-    "hasprop", "hasmethod", "getmethod", "hasbase",
+    "read",
+    "readline",
+    "readchar",
+    "readuchar",
+    "readshort",
+    "readushort",
+    "readint",
+    "readuint",
+    "readint64",
+    "readfloat",
+    "readdouble",
+    "write",
+    "writeline",
+    "writechar",
+    "writeuchar",
+    "writeshort",
+    "writeushort",
+    "writeint",
+    "writeuint",
+    "writeint64",
+    "writefloat",
+    "writedouble",
+    "rawread",
+    "rawwrite",
+    "seek",
+    "close",
+    "ownprops",
+    "hasownprop",
+    "defineprop",
+    "deleteprop",
+    "getownpropdesc",
+    "hasprop",
+    "hasmethod",
+    "getmethod",
+    "hasbase",
 ];
 
 /// The handle of a file that is closed.
@@ -144,17 +173,27 @@ pub(crate) fn call(
     match method.as_str() {
         "read" => Some(read_text(this, arguments, rt, line)),
         "readline" => Some(read_line(this, rt, line)),
-        "readchar" => Some(read_number(rt, this, 1, line, |bytes| Value::Int(bytes[0] as i8 as i64))),
-        "readuchar" => Some(read_number(rt, this, 1, line, |bytes| Value::Int(bytes[0] as i64))),
+        "readchar" => Some(read_number(rt, this, 1, line, |bytes| {
+            Value::Int(bytes[0] as i8 as i64)
+        })),
+        "readuchar" => Some(read_number(rt, this, 1, line, |bytes| {
+            Value::Int(bytes[0] as i64)
+        })),
         "readshort" => Some(read_number(rt, this, 2, line, |bytes| {
             Value::Int(little(bytes) as u16 as i16 as i64)
         })),
-        "readushort" => Some(read_number(rt, this, 2, line, |bytes| Value::Int(little(bytes) as u16 as i64))),
+        "readushort" => Some(read_number(rt, this, 2, line, |bytes| {
+            Value::Int(little(bytes) as u16 as i64)
+        })),
         "readint" => Some(read_number(rt, this, 4, line, |bytes| {
             Value::Int(little(bytes) as u32 as i32 as i64)
         })),
-        "readuint" => Some(read_number(rt, this, 4, line, |bytes| Value::Int(little(bytes) as u32 as i64))),
-        "readint64" => Some(read_number(rt, this, 8, line, |bytes| Value::Int(little(bytes) as i64))),
+        "readuint" => Some(read_number(rt, this, 4, line, |bytes| {
+            Value::Int(little(bytes) as u32 as i64)
+        })),
+        "readint64" => Some(read_number(rt, this, 8, line, |bytes| {
+            Value::Int(little(bytes) as i64)
+        })),
         "readfloat" => Some(read_number(rt, this, 4, line, |bytes| {
             Value::Float(f32::from_bits(little(bytes) as u32) as f64)
         })),
@@ -217,9 +256,9 @@ pub(crate) fn property(
         })),
         "length" => Some(length(rt, this, line)),
         "ateof" => Some(at_eof(rt, this, line)),
-        "encoding" => Some(
-            state(this, line).map(|file| Value::Text(file.encoding.name().to_string())),
-        ),
+        "encoding" => {
+            Some(state(this, line).map(|file| Value::Text(file.encoding.name().to_string())))
+        }
         "handle" => Some(state(this, line).map(|file| Value::Int(file.handle))),
         _ => None,
     }
@@ -264,7 +303,10 @@ pub(crate) fn item(
 /// and v2 puts it in front.
 fn fail(message: impl Into<String>, line: u32) -> RuntimeFailure {
     let message = message.into();
-    RuntimeFailure::Error(RuntimeError { message: the_reason_of_the_machine(&message), line })
+    RuntimeFailure::Error(RuntimeError {
+        message: the_reason_of_the_machine(&message),
+        line,
+    })
 }
 
 /// The reason of the machine, the way v2 writes it.
@@ -291,13 +333,18 @@ fn whole(value: &Value, line: u32) -> Result<i64, RuntimeFailure> {
     match value {
         Value::Int(number) => Ok(*number),
         Value::Float(number) => Ok(*number as i64),
-        other => Err(fail(expected_type(TypeName::Integer, other.type_name()), line)),
+        other => Err(fail(
+            expected_type(TypeName::Integer, other.type_name()),
+            line,
+        )),
     }
 }
 
 /// The number an argument holds.
 fn number(value: &Value, line: u32) -> Result<f64, RuntimeFailure> {
-    value.to_number_strict().map_err(|_| fail(expected_number(value), line))
+    value
+        .to_number_strict()
+        .map_err(|_| fail(expected_number(value), line))
 }
 
 /// The state of a file, as the object holds it.
@@ -326,7 +373,12 @@ fn state(this: &Value, line: u32) -> Result<File, RuntimeFailure> {
         Some(value) => Encoding::of(&value.to_text()).map_err(|reason| fail(reason, line))?,
         None => Encoding::of(crate::files::encoding()).map_err(|reason| fail(reason, line))?,
     };
-    Ok(File { handle, pos, encoding, mode })
+    Ok(File {
+        handle,
+        pos,
+        encoding,
+        mode,
+    })
 }
 
 /// The state of a file, as the property table holds it.
@@ -411,7 +463,12 @@ fn open(arguments: &[Value], rt: &mut Runtime, line: u32) -> Result<File, Runtim
     // The star is the console of the machine: the standard output and
     // the standard input, and v2 opens them as files.
     if path == "*" {
-        return Ok(File { handle: CONSOLE, pos: 0, encoding, mode });
+        return Ok(File {
+            handle: CONSOLE,
+            pos: 0,
+            encoding,
+            mode,
+        });
     }
     let handle = rt
         .desktop()
@@ -425,7 +482,12 @@ fn open(arguments: &[Value], rt: &mut Runtime, line: u32) -> Result<File, Runtim
     } else {
         0
     };
-    let mut file = File { handle, pos, encoding, mode };
+    let mut file = File {
+        handle,
+        pos,
+        encoding,
+        mode,
+    };
     // The bytes of the file decide the encoding of it: a file that
     // begins with a byte order mark is read with the encoding of that
     // mark, whatever the script asked for. The desktop that cannot read
@@ -495,7 +557,8 @@ fn read_chars(
                 Encoding::Utf16 { .. } => count * 2,
             };
             let bytes = read_at(rt, handle, file.pos, wide, line)?;
-            let (text, used) = decode(&bytes, file.encoding).map_err(|reason| fail(reason, line))?;
+            let (text, used) =
+                decode(&bytes, file.encoding).map_err(|reason| fail(reason, line))?;
             match file.encoding {
                 // The characters of a UTF-8 text are counted by the
                 // bytes they take, so the cut is where the text says.
@@ -544,13 +607,15 @@ fn read_line(this: &Value, rt: &mut Runtime, line: u32) -> Result<Value, Runtime
         raw.extend_from_slice(&bytes);
         match line_of(&raw, file.encoding) {
             Some((end, after)) => {
-                let (text, _) = decode(&raw[..end], file.encoding).map_err(|reason| fail(reason, line))?;
+                let (text, _) =
+                    decode(&raw[..end], file.encoding).map_err(|reason| fail(reason, line))?;
                 file.pos += after as i64;
                 break text;
             }
             // The last line of a file has no newline after it.
             None if at_end => {
-                let (text, used) = decode(&raw, file.encoding).map_err(|reason| fail(reason, line))?;
+                let (text, used) =
+                    decode(&raw, file.encoding).map_err(|reason| fail(reason, line))?;
                 file.pos += used as i64;
                 break text;
             }
@@ -738,7 +803,10 @@ fn raw_write(
         Some(Value::Object(_)) => buffer::raw_bytes(&arguments[0], line)?,
         Some(Value::Text(text)) => encode(text, Encoding::Utf16 { raw: false }),
         Some(other) => {
-            return Err(fail(expected_type(TypeName::Object, other.type_name()), line));
+            return Err(fail(
+                expected_type(TypeName::Object, other.type_name()),
+                line,
+            ));
         }
         None => return Err(fail("Too few parameters passed to function.", line)),
     };
@@ -1196,7 +1264,11 @@ fn line_of(bytes: &[u8], encoding: Encoding) -> Option<(usize, usize)> {
             let at = bytes.iter().position(|byte| *byte == 0x0A)?;
             // A line that ends with a carriage return and a newline
             // does not carry the carriage return.
-            let end = if at > 0 && bytes[at - 1] == 0x0D { at - 1 } else { at };
+            let end = if at > 0 && bytes[at - 1] == 0x0D {
+                at - 1
+            } else {
+                at
+            };
             Some((end, at + 1))
         }
         Encoding::Utf16 { .. } => {
@@ -1215,7 +1287,9 @@ fn line_of(bytes: &[u8], encoding: Encoding) -> Option<(usize, usize)> {
 
 /// A whole number out of the bytes, little endian.
 fn little(bytes: &[u8]) -> u64 {
-    bytes.iter().fold(0u64, |acc, byte| (acc << 8) | *byte as u64)
+    bytes
+        .iter()
+        .fold(0u64, |acc, byte| (acc << 8) | *byte as u64)
 }
 
 /// The bytes of a whole number, little endian, as many as the type
@@ -1252,11 +1326,19 @@ fn base_method(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
-    let Value::Object(object) = this else { return None };
-    let failure = |message: &str| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
+    let Value::Object(object) = this else {
+        return None;
     };
-    let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+    let failure = |message: &str| {
+        Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: message.to_string(),
+            line,
+        })))
+    };
+    let name = arguments
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let key = name.to_lowercase();
     match method {
         "ownprops" => {
@@ -1301,7 +1383,10 @@ fn base_method(
                 || key == "__init") as i64,
         ))),
         "getownpropdesc" => {
-            let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+            let name = arguments
+                .first()
+                .map(|value| value.to_text())
+                .unwrap_or_default();
             let value = object.borrow().value_of(&key);
             match value {
                 Some(value) => {
@@ -1344,7 +1429,11 @@ fn base_method(
             if key == STATE {
                 return Some(Ok(Value::Text(String::new())));
             }
-            let gone = object.borrow_mut().properties.remove(&key).map(|property| property.value);
+            let gone = object
+                .borrow_mut()
+                .properties
+                .remove(&key)
+                .map(|property| property.value);
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // is the value of the property that is taken away, and an
             // empty text when there was none.

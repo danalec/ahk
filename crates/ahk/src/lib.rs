@@ -125,10 +125,10 @@ pub mod variables;
 pub mod warnings;
 
 pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, Parameter, UnaryOp};
+pub use desktop::{Desktop, WindowAnswer};
 pub use keys::{KeyStroke, UnknownKey, parse_spec, resolve_name};
 pub use lexer::{SyntaxError, Token, TokenKind, tokenize};
 pub use parser::{Parser, parse, parse_with, precedence};
-pub use desktop::{Desktop, WindowAnswer};
-pub use runtime::{Clock, Report, Runtime, RuntimeError, Step, Timeout, Value};
 #[cfg(feature = "std")]
 pub use runtime::SystemClock;
+pub use runtime::{Clock, Report, Runtime, RuntimeError, Step, Timeout, Value};

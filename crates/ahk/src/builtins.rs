@@ -26,25 +26,24 @@ use alloc::vec::Vec;
 
 pub(crate) use crate::date::{date_add, date_diff, format_time};
 pub(crate) use crate::dialogs::{dir_select, file_select, input_box};
+use crate::dll::{Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue};
 pub(crate) use crate::files::{
     dir_copy, dir_move, download, file_append, file_copy, file_encoding, file_get_attrib,
     file_get_size, file_get_time, file_install, file_move, file_open, file_read, file_set_attrib,
     file_set_time, ini_delete, ini_read, ini_write,
 };
-pub(crate) use crate::pictures::{image_search, load_picture};
 pub(crate) use crate::hotkeys::{
-    get_key_state, hotif, hotif_window, hotkey, hotstring, install_hook, key_history,
-    list_hotkeys,
+    get_key_state, hotif, hotif_window, hotkey, hotstring, install_hook, key_history, list_hotkeys,
+};
+pub(crate) use crate::pictures::{image_search, load_picture};
+use crate::runtime::{
+    Runtime, RuntimeError, RuntimeFailure, TypeName, Value, WindowAnswer, expected_type,
 };
 pub(crate) use crate::settings::{
-    coord_mode, get_key_name, get_key_sc, get_key_vk, send_event, send_input, send_level, send_play,
-    send_text, set_control_delay, set_default_mouse_speed, set_detect_hidden_text,
-    set_detect_hidden_windows, set_key_delay, set_mouse_delay, set_reg_view, set_store_caps_lock_mode,
-    set_title_match_mode, set_win_delay,
-};
-use crate::dll::{Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue};
-use crate::runtime::{
-    expected_type, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, WindowAnswer,
+    coord_mode, get_key_name, get_key_sc, get_key_vk, send_event, send_input, send_level,
+    send_play, send_text, set_control_delay, set_default_mouse_speed, set_detect_hidden_text,
+    set_detect_hidden_windows, set_key_delay, set_mouse_delay, set_reg_view,
+    set_store_caps_lock_mode, set_title_match_mode, set_win_delay,
 };
 use core::cmp::Ordering;
 use core::sync::atomic::{AtomicU32, Ordering as AtomicOrder};
@@ -138,363 +137,3185 @@ impl Builtin {
 /// arity the documentation gives.
 pub const BUILTINS: &[Builtin] = &[
     // -- the numbers -------------------------------------------------------------
-    Builtin { name: "Abs", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: abs },
-    Builtin { name: "ACos", kind: BuiltinKind::Function, min: 1, max: 1, variant: 1, parameters: &[Parameter::Value], handler: inverse_trigonometry },
-    Builtin { name: "ASin", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: inverse_trigonometry },
-    Builtin { name: "ATan", kind: BuiltinKind::Function, min: 1, max: 1, variant: 2, parameters: &[Parameter::Value], handler: inverse_trigonometry },
-    Builtin { name: "Ceil", kind: BuiltinKind::Function, min: 1, max: 1, variant: 1, parameters: &[Parameter::Value], handler: round_to },
-    Builtin { name: "Cos", kind: BuiltinKind::Function, min: 1, max: 1, variant: 1, parameters: &[Parameter::Value], handler: trigonometry },
-    Builtin { name: "Exp", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: exponential },
-    Builtin { name: "Floor", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: round_to },
-    Builtin { name: "Ln", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: logarithm },
-    Builtin { name: "Log", kind: BuiltinKind::Function, min: 1, max: 1, variant: 1, parameters: &[Parameter::Value], handler: logarithm },
-    Builtin { name: "Max", kind: BuiltinKind::Function, min: 1, max: 255, variant: 1, parameters: &[Parameter::Value], handler: extreme },
-    Builtin { name: "Min", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: extreme },
-    Builtin { name: "Mod", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, parameters: &[Parameter::Value], handler: modulo },
-    Builtin { name: "NumGet", kind: BuiltinKind::Function, min: 2, max: 3, variant: 0, parameters: &[Parameter::Value], handler: num_get },
-    Builtin { name: "NumPut", kind: BuiltinKind::Function, min: 3, max: 255, variant: 0, parameters: &[Parameter::Value], handler: num_put },
-    Builtin { name: "Random", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, parameters: &[Parameter::Value], handler: random },
-    Builtin { name: "Round", kind: BuiltinKind::Function, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: round_to_digits },
-    Builtin { name: "Sin", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: trigonometry },
-    Builtin { name: "Sqrt", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: square_root },
-    Builtin { name: "Tan", kind: BuiltinKind::Function, min: 1, max: 1, variant: 2, parameters: &[Parameter::Value], handler: trigonometry },
+    Builtin {
+        name: "Abs",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: abs,
+    },
+    Builtin {
+        name: "ACos",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: inverse_trigonometry,
+    },
+    Builtin {
+        name: "ASin",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: inverse_trigonometry,
+    },
+    Builtin {
+        name: "ATan",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 2,
+        parameters: &[Parameter::Value],
+        handler: inverse_trigonometry,
+    },
+    Builtin {
+        name: "Ceil",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: round_to,
+    },
+    Builtin {
+        name: "Cos",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: trigonometry,
+    },
+    Builtin {
+        name: "Exp",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: exponential,
+    },
+    Builtin {
+        name: "Floor",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: round_to,
+    },
+    Builtin {
+        name: "Ln",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: logarithm,
+    },
+    Builtin {
+        name: "Log",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: logarithm,
+    },
+    Builtin {
+        name: "Max",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 255,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: extreme,
+    },
+    Builtin {
+        name: "Min",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 255,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: extreme,
+    },
+    Builtin {
+        name: "Mod",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: modulo,
+    },
+    Builtin {
+        name: "NumGet",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: num_get,
+    },
+    Builtin {
+        name: "NumPut",
+        kind: BuiltinKind::Function,
+        min: 3,
+        max: 255,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: num_put,
+    },
+    Builtin {
+        name: "Random",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: random,
+    },
+    Builtin {
+        name: "Round",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: round_to_digits,
+    },
+    Builtin {
+        name: "Sin",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: trigonometry,
+    },
+    Builtin {
+        name: "Sqrt",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: square_root,
+    },
+    Builtin {
+        name: "Tan",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 2,
+        parameters: &[Parameter::Value],
+        handler: trigonometry,
+    },
     // -- the text ----------------------------------------------------------------
-    Builtin { name: "Chr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: chr },
-    Builtin { name: "Format", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: format },
-    Builtin { name: "InStr", kind: BuiltinKind::Function, min: 2, max: 5, variant: 0, parameters: &[Parameter::Value], handler: in_str },
-    Builtin { name: "LTrim", kind: BuiltinKind::Function, min: 1, max: 2, variant: 1, parameters: &[Parameter::Value], handler: trim },
-    Builtin { name: "Ord", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: ord },
-    Builtin { name: "RTrim", kind: BuiltinKind::Function, min: 1, max: 2, variant: 2, parameters: &[Parameter::Value], handler: trim },
-    Builtin { name: "Sort", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value], handler: sort },
-    Builtin { name: "StrCompare", kind: BuiltinKind::Function, min: 2, max: 3, variant: 0, parameters: &[Parameter::Value], handler: str_compare },
-    Builtin { name: "StrLen", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: str_len },
-    Builtin { name: "StrLower", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: change_case },
-    Builtin { name: "StrReplace", kind: BuiltinKind::Function, min: 2, max: 6, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Reference, Parameter::Value], handler: str_replace },
-    Builtin { name: "StrUpper", kind: BuiltinKind::Function, min: 1, max: 1, variant: 1, parameters: &[Parameter::Value], handler: change_case },
-    Builtin { name: "SubStr", kind: BuiltinKind::Function, min: 2, max: 3, variant: 0, parameters: &[Parameter::Value], handler: sub_str },
-    Builtin { name: "Trim", kind: BuiltinKind::Function, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: trim },
-// -- the predicates --------------------------------------------------------------
-    Builtin { name: "IsAlnum", kind: BuiltinKind::Function, min: 1, max: 2, variant: 7, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsAlpha", kind: BuiltinKind::Function, min: 1, max: 2, variant: 8, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsDigit", kind: BuiltinKind::Function, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsFloat", kind: BuiltinKind::Function, min: 1, max: 1, variant: 3, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsInteger", kind: BuiltinKind::Function, min: 1, max: 1, variant: 2, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsLower", kind: BuiltinKind::Function, min: 1, max: 2, variant: 10, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsNumber", kind: BuiltinKind::Function, min: 1, max: 1, variant: 1, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsObject", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: is_object },
-    Builtin { name: "IsSpace", kind: BuiltinKind::Function, min: 1, max: 1, variant: 11, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsTime", kind: BuiltinKind::Function, min: 1, max: 1, variant: 4, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsUpper", kind: BuiltinKind::Function, min: 1, max: 2, variant: 9, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "IsXDigit", kind: BuiltinKind::Function, min: 1, max: 1, variant: 6, parameters: &[Parameter::Value], handler: is_value },
-    Builtin { name: "Type", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: type_of },
-// -- the patterns ----------------------------------------------------------------
-    Builtin { name: "RegExMatch", kind: BuiltinKind::Function, min: 2, max: 4, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Reference, Parameter::Value], handler: regex_match },
-    Builtin { name: "RegExReplace", kind: BuiltinKind::Function, min: 2, max: 6, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Reference, Parameter::Value, Parameter::Value], handler: regex_replace },
+    Builtin {
+        name: "Chr",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: chr,
+    },
+    Builtin {
+        name: "Format",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 255,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: format,
+    },
+    Builtin {
+        name: "InStr",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 5,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: in_str,
+    },
+    Builtin {
+        name: "LTrim",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: trim,
+    },
+    Builtin {
+        name: "Ord",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: ord,
+    },
+    Builtin {
+        name: "RTrim",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 2,
+        parameters: &[Parameter::Value],
+        handler: trim,
+    },
+    Builtin {
+        name: "Sort",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sort,
+    },
+    Builtin {
+        name: "StrCompare",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: str_compare,
+    },
+    Builtin {
+        name: "StrLen",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: str_len,
+    },
+    Builtin {
+        name: "StrLower",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: change_case,
+    },
+    Builtin {
+        name: "StrReplace",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 6,
+        variant: 0,
+        parameters: &[
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Reference,
+            Parameter::Value,
+        ],
+        handler: str_replace,
+    },
+    Builtin {
+        name: "StrUpper",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: change_case,
+    },
+    Builtin {
+        name: "SubStr",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sub_str,
+    },
+    Builtin {
+        name: "Trim",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: trim,
+    },
+    // -- the predicates --------------------------------------------------------------
+    Builtin {
+        name: "IsAlnum",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 7,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsAlpha",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 8,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsDigit",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsFloat",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 3,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsInteger",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 2,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsLower",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 10,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsNumber",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsObject",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: is_object,
+    },
+    Builtin {
+        name: "IsSpace",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 11,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsTime",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsUpper",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 9,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "IsXDigit",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 6,
+        parameters: &[Parameter::Value],
+        handler: is_value,
+    },
+    Builtin {
+        name: "Type",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: type_of,
+    },
+    // -- the patterns ----------------------------------------------------------------
+    Builtin {
+        name: "RegExMatch",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 4,
+        variant: 0,
+        parameters: &[
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Reference,
+            Parameter::Value,
+        ],
+        handler: regex_match,
+    },
+    Builtin {
+        name: "RegExReplace",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 6,
+        variant: 0,
+        parameters: &[
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: regex_replace,
+    },
     // -- the screen --------------------------------------------------------------
-    Builtin { name: "Click", kind: BuiltinKind::Function, min: 0, max: 6, variant: 0, parameters: &[Parameter::Value], handler: click },
-    Builtin { name: "MouseGetPos", kind: BuiltinKind::Command, min: 0, max: 5, variant: 0, parameters: &[Parameter::Reference, Parameter::Reference, Parameter::Reference, Parameter::Reference, Parameter::Value], handler: mouse_get_pos },
-    Builtin { name: "MouseMove", kind: BuiltinKind::Command, min: 2, max: 4, variant: 0, parameters: &[Parameter::Value], handler: mouse_move },
-    Builtin { name: "PixelGetColor", kind: BuiltinKind::Command, min: 2, max: 3, variant: 0, parameters: &[Parameter::Value], handler: pixel_get_color },
-    Builtin { name: "PixelSearch", kind: BuiltinKind::Command, min: 7, max: 8, variant: 0, parameters: &[Parameter::Reference, Parameter::Reference, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value], handler: pixel_search },
-    Builtin { name: "Screenshot", kind: BuiltinKind::Command, min: 5, max: 5, variant: 0, parameters: &[Parameter::Value], handler: screenshot },
+    Builtin {
+        name: "Click",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 6,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: click,
+    },
+    Builtin {
+        name: "MouseGetPos",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+        ],
+        handler: mouse_get_pos,
+    },
+    Builtin {
+        name: "MouseMove",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 4,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: mouse_move,
+    },
+    Builtin {
+        name: "PixelGetColor",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: pixel_get_color,
+    },
+    Builtin {
+        name: "PixelSearch",
+        kind: BuiltinKind::Command,
+        min: 7,
+        max: 8,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: pixel_search,
+    },
+    Builtin {
+        name: "Screenshot",
+        kind: BuiltinKind::Command,
+        min: 5,
+        max: 5,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: screenshot,
+    },
     // -- the windows -------------------------------------------------------------
-    Builtin { name: "WinActive", kind: BuiltinKind::Function, min: 0, max: 4, variant: 1, parameters: &[Parameter::Value], handler: window_active },
-    Builtin { name: "WinExist", kind: BuiltinKind::Function, min: 0, max: 4, variant: 0, parameters: &[Parameter::Value], handler: window_exist },
-    Builtin { name: "WinGetTitle", kind: BuiltinKind::Command, min: 0, max: 4, variant: 0, parameters: &[Parameter::Value], handler: win_get_title },
+    Builtin {
+        name: "WinActive",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 4,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: window_active,
+    },
+    Builtin {
+        name: "WinExist",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 4,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: window_exist,
+    },
+    Builtin {
+        name: "WinGetTitle",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: win_get_title,
+    },
     // -- the rest ----------------------------------------------------------------
-    Builtin { name: "MsgBox", kind: BuiltinKind::Command, min: 0, max: 3, variant: 0, parameters: &[Parameter::Value], handler: msg_box },
-    Builtin { name: "Run", kind: BuiltinKind::Command, min: 1, max: 4, variant: 0, parameters: &[Parameter::Value], handler: run },
-    Builtin { name: "Send", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: send },
-    Builtin { name: "Sleep", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: sleep },
+    Builtin {
+        name: "MsgBox",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: msg_box,
+    },
+    Builtin {
+        name: "Run",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 4,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: run,
+    },
+    Builtin {
+        name: "Send",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: send,
+    },
+    Builtin {
+        name: "Sleep",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sleep,
+    },
     // -- the names this runtime answers -------------------------------------------
-    Builtin { name: "ClipWait", kind: BuiltinKind::Command, min: 0, max: 2, variant: 0, parameters: &[Parameter::Value], handler: clip_wait },
-    Builtin { name: "DirCreate", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: dir_create },
-    Builtin { name: "DirDelete", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: dir_delete },
-    Builtin { name: "DirExist", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: dir_exist },
-    Builtin { name: "EnvGet", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: env_get },
-    Builtin { name: "EnvSet", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: env_set },
-    Builtin { name: "Exit", kind: BuiltinKind::Command, min: 0, max: 1, variant: 0, parameters: &[Parameter::Value], handler: exit_script },
-    Builtin { name: "ExitApp", kind: BuiltinKind::Command, min: 0, max: 1, variant: 0, parameters: &[Parameter::Value], handler: exit_script },
-    Builtin { name: "FileAppend", kind: BuiltinKind::Command, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value], handler: file_append },
-    Builtin { name: "FileDelete", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: file_delete },
-    Builtin { name: "FileExist", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: file_exist },
-    Builtin { name: "FileRead", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: file_read },
-    Builtin { name: "GetMethod", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value], handler: get_method },
-    Builtin { name: "HasBase", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, parameters: &[Parameter::Value], handler: has_base },
-    Builtin { name: "HasMethod", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value], handler: has_method },
-    Builtin { name: "HasProp", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, parameters: &[Parameter::Value], handler: has_prop },
-    Builtin { name: "IsSetRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Reference], handler: is_set_ref },
-    Builtin { name: "KeyWait", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: key_wait },
-    Builtin { name: "RunWait", kind: BuiltinKind::Function, min: 1, max: 4, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Reference], handler: run },
-    Builtin { name: "SendMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: send_mode },
-    Builtin { name: "SetKeyDelay", kind: BuiltinKind::Command, min: 0, max: 3, variant: 0, parameters: &[Parameter::Value], handler: set_key_delay },
-    Builtin { name: "SetTimer", kind: BuiltinKind::Command, min: 0, max: 3, variant: 0, parameters: &[Parameter::Value], handler: set_timer },
-    Builtin { name: "SplitPath", kind: BuiltinKind::Function, min: 1, max: 6, variant: 0, parameters: &[Parameter::Value, Parameter::Reference, Parameter::Reference, Parameter::Reference, Parameter::Reference, Parameter::Reference], handler: split_path },
-    Builtin { name: "StrSplit", kind: BuiltinKind::Command, min: 1, max: 4, variant: 0, parameters: &[Parameter::Value], handler: str_split },
-    Builtin { name: "VarSetStrCapacity", kind: BuiltinKind::Function, min: 1, max: 2, variant: 0, parameters: &[Parameter::Reference, Parameter::Value], handler: var_set_str_capacity },
+    Builtin {
+        name: "ClipWait",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: clip_wait,
+    },
+    Builtin {
+        name: "DirCreate",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: dir_create,
+    },
+    Builtin {
+        name: "DirDelete",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: dir_delete,
+    },
+    Builtin {
+        name: "DirExist",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: dir_exist,
+    },
+    Builtin {
+        name: "EnvGet",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: env_get,
+    },
+    Builtin {
+        name: "EnvSet",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: env_set,
+    },
+    Builtin {
+        name: "Exit",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: exit_script,
+    },
+    Builtin {
+        name: "ExitApp",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: exit_script,
+    },
+    Builtin {
+        name: "FileAppend",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: file_append,
+    },
+    Builtin {
+        name: "FileDelete",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: file_delete,
+    },
+    Builtin {
+        name: "FileExist",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: file_exist,
+    },
+    Builtin {
+        name: "FileRead",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: file_read,
+    },
+    Builtin {
+        name: "GetMethod",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: get_method,
+    },
+    Builtin {
+        name: "HasBase",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: has_base,
+    },
+    Builtin {
+        name: "HasMethod",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: has_method,
+    },
+    Builtin {
+        name: "HasProp",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: has_prop,
+    },
+    Builtin {
+        name: "IsSetRef",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Reference],
+        handler: is_set_ref,
+    },
+    Builtin {
+        name: "KeyWait",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: key_wait,
+    },
+    Builtin {
+        name: "RunWait",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 4,
+        variant: 0,
+        parameters: &[
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Reference,
+        ],
+        handler: run,
+    },
+    Builtin {
+        name: "SendMode",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: send_mode,
+    },
+    Builtin {
+        name: "SetKeyDelay",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_key_delay,
+    },
+    Builtin {
+        name: "SetTimer",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_timer,
+    },
+    Builtin {
+        name: "SplitPath",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 6,
+        variant: 0,
+        parameters: &[
+            Parameter::Value,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+        ],
+        handler: split_path,
+    },
+    Builtin {
+        name: "StrSplit",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 4,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: str_split,
+    },
+    Builtin {
+        name: "VarSetStrCapacity",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Reference, Parameter::Value],
+        handler: var_set_str_capacity,
+    },
     // -- the names of Windows ------------------------------------------------
-    Builtin { name: "BlockInput", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "CallbackCreate", kind: BuiltinKind::Command, min: 1, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "CallbackFree", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "CaretGetPos", kind: BuiltinKind::Function, min: 0, max: 2, variant: 100, parameters: &[Parameter::Reference, Parameter::Value], handler: not_carried },
-    Builtin { name: "ComCall", kind: BuiltinKind::Function, min: 2, max: 255, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ComObjActive", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ComObjConnect", kind: BuiltinKind::Function, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ComObjFlags", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ComObjFromPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ComObjGet", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ComObjQuery", kind: BuiltinKind::Function, min: 2, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ComObjType", kind: BuiltinKind::Function, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ComObjValue", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlAddItem", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlChooseIndex", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlChooseString", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlClick", kind: BuiltinKind::Command, min: 0, max: 8, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlDeleteItem", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlFindItem", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlFocus", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetChecked", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetChoice", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetClassNN", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetEnabled", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetExStyle", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetFocus", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetHwnd", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetIndex", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetItems", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetPos", kind: BuiltinKind::Command, min: 0, max: 9, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetStyle", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetText", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlGetVisible", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlHide", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlHideDropDown", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlMove", kind: BuiltinKind::Command, min: 0, max: 9, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlSend", kind: BuiltinKind::Command, min: 1, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlSendText", kind: BuiltinKind::Command, min: 1, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlSetChecked", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlSetEnabled", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlSetExStyle", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlSetStyle", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlSetText", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlShow", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ControlShowDropDown", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DetectHiddenText", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: set_detect_hidden_text },
-    Builtin { name: "DetectHiddenWindows", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: set_detect_hidden_windows },
-    Builtin { name: "DllCall", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: dll_call },
-    Builtin { name: "DriveEject", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetCapacity", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetFilesystem", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetLabel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetList", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetSerial", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetSpaceFree", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetStatus", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetStatusCD", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveGetType", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveLock", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveRetract", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveSetLabel", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DriveUnlock", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "Edit", kind: BuiltinKind::Command, min: 0, max: 0, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "EditGetCurrentCol", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "EditGetCurrentLine", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "EditGetLine", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "EditGetLineCount", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "EditGetSelectedText", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "EditPaste", kind: BuiltinKind::Command, min: 2, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "FileCreateShortcut", kind: BuiltinKind::Command, min: 2, max: 9, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "FileGetShortcut", kind: BuiltinKind::Command, min: 1, max: 8, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "FileGetVersion", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "FileRecycle", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "FileRecycleEmpty", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "GroupActivate", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "GroupAdd", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "GroupClose", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "GroupDeactivate", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "GuiCtrlFromHwnd", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "GuiFromHwnd", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "IL_Add", kind: BuiltinKind::Command, min: 2, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "IL_Create", kind: BuiltinKind::Command, min: 0, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "IL_Destroy", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ListViewGetContent", kind: BuiltinKind::Command, min: 0, max: 6, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "MenuFromHandle", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "MenuSelect", kind: BuiltinKind::Command, min: 0, max: 11, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "MonitorGet", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "MonitorGetCount", kind: BuiltinKind::Command, min: 0, max: 0, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "MonitorGetName", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "MonitorGetPrimary", kind: BuiltinKind::Command, min: 0, max: 0, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "MonitorGetWorkArea", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ObjAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: obj_add_ref },
-    Builtin { name: "ObjBindMethod", kind: BuiltinKind::Function, min: 1, max: 255, variant: 0, parameters: &[Parameter::Value], handler: obj_bind_method },
+    Builtin {
+        name: "BlockInput",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "CallbackCreate",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "CallbackFree",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "CaretGetPos",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Reference, Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComCall",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 255,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComObjActive",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComObjConnect",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComObjFlags",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComObjFromPtr",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComObjGet",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComObjQuery",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComObjType",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ComObjValue",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlAddItem",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlChooseIndex",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlChooseString",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlClick",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 8,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlDeleteItem",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlFindItem",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlFocus",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetChecked",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetChoice",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetClassNN",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetEnabled",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetExStyle",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetFocus",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetHwnd",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetIndex",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetItems",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetPos",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 9,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetStyle",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetText",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlGetVisible",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlHide",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlHideDropDown",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlMove",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 9,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlSend",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlSendText",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlSetChecked",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlSetEnabled",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlSetExStyle",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlSetStyle",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlSetText",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlShow",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ControlShowDropDown",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DetectHiddenText",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_detect_hidden_text,
+    },
+    Builtin {
+        name: "DetectHiddenWindows",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_detect_hidden_windows,
+    },
+    Builtin {
+        name: "DllCall",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 255,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: dll_call,
+    },
+    Builtin {
+        name: "DriveEject",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetCapacity",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetFilesystem",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetLabel",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetList",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetSerial",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetSpaceFree",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetStatus",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetStatusCD",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveGetType",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveLock",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveRetract",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveSetLabel",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DriveUnlock",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "Edit",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "EditGetCurrentCol",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "EditGetCurrentLine",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "EditGetLine",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "EditGetLineCount",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "EditGetSelectedText",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "EditPaste",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "FileCreateShortcut",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 9,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "FileGetShortcut",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 8,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "FileGetVersion",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "FileRecycle",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "FileRecycleEmpty",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "GroupActivate",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "GroupAdd",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "GroupClose",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "GroupDeactivate",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "GuiCtrlFromHwnd",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "GuiFromHwnd",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "IL_Add",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "IL_Create",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "IL_Destroy",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ListViewGetContent",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 6,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "MenuFromHandle",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "MenuSelect",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 11,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "MonitorGet",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "MonitorGetCount",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "MonitorGetName",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "MonitorGetPrimary",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "MonitorGetWorkArea",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ObjAddRef",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_add_ref,
+    },
+    Builtin {
+        name: "ObjBindMethod",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 255,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_bind_method,
+    },
     // -- the object model ---------------------------------------------------------
-    Builtin { name: "ObjFromPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ObjFromPtrAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ObjGetBase", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: obj_get_base },
-    Builtin { name: "ObjGetCapacity", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: obj_get_capacity },
-    Builtin { name: "ObjHasOwnProp", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, parameters: &[Parameter::Value], handler: obj_has_own_prop },
-    Builtin { name: "ObjOwnPropCount", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: obj_own_prop_count },
-    Builtin { name: "ObjOwnProps", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: obj_own_props },
-    Builtin { name: "ObjPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ObjPtrAddRef", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ObjRelease", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ObjSetBase", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, parameters: &[Parameter::Value], handler: obj_set_base },
-    Builtin { name: "ObjSetCapacity", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, parameters: &[Parameter::Value], handler: obj_set_capacity },
-    Builtin { name: "OnClipboardChange", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "OnMessage", kind: BuiltinKind::Command, min: 2, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "OutputDebug", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "PostMessage", kind: BuiltinKind::Command, min: 1, max: 8, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ProcessClose", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ProcessExist", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ProcessGetName", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ProcessGetParent", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ProcessGetPath", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ProcessSetPriority", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ProcessWait", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ProcessWaitClose", kind: BuiltinKind::Command, min: 1, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "RegCreateKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 123, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "RegDelete", kind: BuiltinKind::Function, min: 0, max: 2, variant: 123, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "RegDeleteKey", kind: BuiltinKind::Function, min: 0, max: 1, variant: 123, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "RegRead", kind: BuiltinKind::Function, min: 0, max: 3, variant: 123, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "RegWrite", kind: BuiltinKind::Function, min: 0, max: 4, variant: 123, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "RunAs", kind: BuiltinKind::Command, min: 0, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SendMessage", kind: BuiltinKind::Command, min: 1, max: 9, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SetCapsLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SetControlDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: set_control_delay },
-    Builtin { name: "SetNumLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SetRegView", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: set_reg_view },
-    Builtin { name: "SetScrollLockState", kind: BuiltinKind::Command, min: 0, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SetTitleMatchMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: set_title_match_mode },
-    Builtin { name: "SetWinDelay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: set_win_delay },
-    Builtin { name: "Shutdown", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SoundBeep", kind: BuiltinKind::Command, min: 0, max: 2, variant: 0, parameters: &[Parameter::Value], handler: sound_beep },
-    Builtin { name: "SoundGetInterface", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SoundGetMute", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, parameters: &[Parameter::Value], handler: sound_get_mute },
-    Builtin { name: "SoundGetName", kind: BuiltinKind::Function, min: 0, max: 2, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SoundGetVolume", kind: BuiltinKind::Function, min: 0, max: 2, variant: 0, parameters: &[Parameter::Value], handler: sound_get_volume },
-    Builtin { name: "SoundPlay", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: sound_play },
-    Builtin { name: "SoundSetMute", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value], handler: sound_set_mute },
-    Builtin { name: "SoundSetVolume", kind: BuiltinKind::Function, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value], handler: sound_set_volume },
-    Builtin { name: "StatusBarGetText", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "StatusBarWait", kind: BuiltinKind::Command, min: 0, max: 8, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "StrGet", kind: BuiltinKind::Function, min: 1, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "StrPtr", kind: BuiltinKind::Function, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "StrPut", kind: BuiltinKind::Function, min: 1, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SysGet", kind: BuiltinKind::Command, min: 1, max: 1, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SysGetIPAddresses", kind: BuiltinKind::Command, min: 0, max: 0, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ToolTip", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "TraySetIcon", kind: BuiltinKind::Command, min: 0, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "TrayTip", kind: BuiltinKind::Command, min: 0, max: 3, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinActivate", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinActivateBottom", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinClose", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetClass", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetClientPos", kind: BuiltinKind::Command, min: 0, max: 8, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetControls", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetControlsHwnd", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetCount", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetExStyle", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetID", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetIDLast", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetList", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetMinMax", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetPID", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetPos", kind: BuiltinKind::Command, min: 0, max: 8, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetProcessName", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetProcessPath", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetStyle", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetText", kind: BuiltinKind::Command, min: 0, max: 4, variant: 121, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetTransColor", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinGetTransparent", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinHide", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinKill", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinMaximize", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinMinimize", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinMinimizeAll", kind: BuiltinKind::Command, min: 0, max: 0, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinMinimizeAllUndo", kind: BuiltinKind::Command, min: 0, max: 0, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinMove", kind: BuiltinKind::Command, min: 0, max: 8, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinMoveBottom", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinMoveTop", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinRedraw", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinRestore", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinSetAlwaysOnTop", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinSetEnabled", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinSetExStyle", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinSetRegion", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinSetStyle", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinSetTitle", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinSetTransColor", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinSetTransparent", kind: BuiltinKind::Command, min: 1, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinShow", kind: BuiltinKind::Command, min: 0, max: 4, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinWait", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinWaitActive", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinWaitClose", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "WinWaitNotActive", kind: BuiltinKind::Command, min: 0, max: 5, variant: 100, parameters: &[Parameter::Value], handler: not_carried },
+    Builtin {
+        name: "ObjFromPtr",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ObjFromPtrAddRef",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ObjGetBase",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_get_base,
+    },
+    Builtin {
+        name: "ObjGetCapacity",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_get_capacity,
+    },
+    Builtin {
+        name: "ObjHasOwnProp",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_has_own_prop,
+    },
+    Builtin {
+        name: "ObjOwnPropCount",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_own_prop_count,
+    },
+    Builtin {
+        name: "ObjOwnProps",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_own_props,
+    },
+    Builtin {
+        name: "ObjPtr",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ObjPtrAddRef",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ObjRelease",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ObjSetBase",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_set_base,
+    },
+    Builtin {
+        name: "ObjSetCapacity",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: obj_set_capacity,
+    },
+    Builtin {
+        name: "OnClipboardChange",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "OnMessage",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "OutputDebug",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "PostMessage",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 8,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ProcessClose",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ProcessExist",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ProcessGetName",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ProcessGetParent",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ProcessGetPath",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ProcessSetPriority",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ProcessWait",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ProcessWaitClose",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "RegCreateKey",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 1,
+        variant: 123,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "RegDelete",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 2,
+        variant: 123,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "RegDeleteKey",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 1,
+        variant: 123,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "RegRead",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 3,
+        variant: 123,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "RegWrite",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 4,
+        variant: 123,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "RunAs",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SendMessage",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 9,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SetCapsLockState",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SetControlDelay",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_control_delay,
+    },
+    Builtin {
+        name: "SetNumLockState",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SetRegView",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_reg_view,
+    },
+    Builtin {
+        name: "SetScrollLockState",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SetTitleMatchMode",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_title_match_mode,
+    },
+    Builtin {
+        name: "SetWinDelay",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_win_delay,
+    },
+    Builtin {
+        name: "Shutdown",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SoundBeep",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sound_beep,
+    },
+    Builtin {
+        name: "SoundGetInterface",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SoundGetMute",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sound_get_mute,
+    },
+    Builtin {
+        name: "SoundGetName",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 2,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SoundGetVolume",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sound_get_volume,
+    },
+    Builtin {
+        name: "SoundPlay",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sound_play,
+    },
+    Builtin {
+        name: "SoundSetMute",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sound_set_mute,
+    },
+    Builtin {
+        name: "SoundSetVolume",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: sound_set_volume,
+    },
+    Builtin {
+        name: "StatusBarGetText",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "StatusBarWait",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 8,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "StrGet",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "StrPtr",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "StrPut",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SysGet",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SysGetIPAddresses",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ToolTip",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "TraySetIcon",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "TrayTip",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 3,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinActivate",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinActivateBottom",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinClose",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetClass",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetClientPos",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 8,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetControls",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetControlsHwnd",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetCount",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetExStyle",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetID",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetIDLast",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetList",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetMinMax",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetPID",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetPos",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 8,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetProcessName",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetProcessPath",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetStyle",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetText",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 121,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetTransColor",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinGetTransparent",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinHide",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinKill",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinMaximize",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinMinimize",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinMinimizeAll",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinMinimizeAllUndo",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinMove",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 8,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinMoveBottom",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinMoveTop",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinRedraw",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinRestore",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinSetAlwaysOnTop",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinSetEnabled",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinSetExStyle",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinSetRegion",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinSetStyle",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinSetTitle",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinSetTransColor",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinSetTransparent",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinShow",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinWait",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinWaitActive",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinWaitClose",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "WinWaitNotActive",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 5,
+        variant: 100,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
     // -- the hotkeys --------------------------------------------------------
-    Builtin { name: "GetKeyState", kind: BuiltinKind::Command, min: 1, max: 2, variant: 1, parameters: &[Parameter::Value], handler: get_key_state },
-    Builtin { name: "HotIf", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, parameters: &[Parameter::Value], handler: hotif },
-    Builtin { name: "HotIfWinActive", kind: BuiltinKind::Command, min: 0, max: 2, variant: 0, parameters: &[Parameter::Value], handler: hotif_window },
-    Builtin { name: "HotIfWinExist", kind: BuiltinKind::Command, min: 0, max: 2, variant: 1, parameters: &[Parameter::Value], handler: hotif_window },
-    Builtin { name: "HotIfWinNotActive", kind: BuiltinKind::Command, min: 0, max: 2, variant: 2, parameters: &[Parameter::Value], handler: hotif_window },
-    Builtin { name: "HotIfWinNotExist", kind: BuiltinKind::Command, min: 0, max: 2, variant: 3, parameters: &[Parameter::Value], handler: hotif_window },
-    Builtin { name: "Hotkey", kind: BuiltinKind::Command, min: 1, max: 3, variant: 1, parameters: &[Parameter::Value], handler: hotkey },
-    Builtin { name: "Hotstring", kind: BuiltinKind::Command, min: 1, max: 3, variant: 1, parameters: &[Parameter::Value], handler: hotstring },
-    Builtin { name: "InstallKeybdHook", kind: BuiltinKind::Command, min: 0, max: 2, variant: 0, parameters: &[Parameter::Value], handler: install_hook },
-    Builtin { name: "InstallMouseHook", kind: BuiltinKind::Command, min: 0, max: 2, variant: 1, parameters: &[Parameter::Value], handler: install_hook },
-    Builtin { name: "KeyHistory", kind: BuiltinKind::Command, min: 0, max: 1, variant: 1, parameters: &[Parameter::Value], handler: key_history },
-    Builtin { name: "ListHotkeys", kind: BuiltinKind::Command, min: 0, max: 0, variant: 1, parameters: &[Parameter::Value], handler: list_hotkeys },
+    Builtin {
+        name: "GetKeyState",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: get_key_state,
+    },
+    Builtin {
+        name: "HotIf",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: hotif,
+    },
+    Builtin {
+        name: "HotIfWinActive",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: hotif_window,
+    },
+    Builtin {
+        name: "HotIfWinExist",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: hotif_window,
+    },
+    Builtin {
+        name: "HotIfWinNotActive",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 2,
+        parameters: &[Parameter::Value],
+        handler: hotif_window,
+    },
+    Builtin {
+        name: "HotIfWinNotExist",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 3,
+        parameters: &[Parameter::Value],
+        handler: hotif_window,
+    },
+    Builtin {
+        name: "Hotkey",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 3,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: hotkey,
+    },
+    Builtin {
+        name: "Hotstring",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 3,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: hotstring,
+    },
+    Builtin {
+        name: "InstallKeybdHook",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: install_hook,
+    },
+    Builtin {
+        name: "InstallMouseHook",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: install_hook,
+    },
+    Builtin {
+        name: "KeyHistory",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: key_history,
+    },
+    Builtin {
+        name: "ListHotkeys",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 1,
+        parameters: &[Parameter::Value],
+        handler: list_hotkeys,
+    },
     // -- the names of the script that this runtime cannot answer -----------------
-    Builtin { name: "CoordMode", kind: BuiltinKind::Command, min: 1, max: 2, variant: 5, parameters: &[Parameter::Value], handler: coord_mode },
-    Builtin { name: "Critical", kind: BuiltinKind::Command, min: 0, max: 1, variant: 108, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "DateAdd", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, parameters: &[Parameter::Value], handler: date_add },
-    Builtin { name: "DateDiff", kind: BuiltinKind::Command, min: 3, max: 3, variant: 2, parameters: &[Parameter::Value], handler: date_diff },
-    Builtin { name: "DirCopy", kind: BuiltinKind::Command, min: 2, max: 3, variant: 4, parameters: &[Parameter::Value], handler: dir_copy },
-    Builtin { name: "DirMove", kind: BuiltinKind::Command, min: 2, max: 3, variant: 4, parameters: &[Parameter::Value], handler: dir_move },
-    Builtin { name: "DirSelect", kind: BuiltinKind::Command, min: 0, max: 3, variant: 0, parameters: &[Parameter::Value], handler: dir_select },
-    Builtin { name: "Download", kind: BuiltinKind::Command, min: 2, max: 2, variant: 0, parameters: &[Parameter::Value], handler: download },
-    Builtin { name: "FileCopy", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, parameters: &[Parameter::Value], handler: file_copy },
-    Builtin { name: "FileEncoding", kind: BuiltinKind::Command, min: 1, max: 1, variant: 4, parameters: &[Parameter::Value], handler: file_encoding },
-    Builtin { name: "FileGetAttrib", kind: BuiltinKind::Command, min: 0, max: 1, variant: 4, parameters: &[Parameter::Value], handler: file_get_attrib },
-    Builtin { name: "FileGetSize", kind: BuiltinKind::Command, min: 0, max: 2, variant: 4, parameters: &[Parameter::Value], handler: file_get_size },
-    Builtin { name: "FileGetTime", kind: BuiltinKind::Command, min: 0, max: 2, variant: 4, parameters: &[Parameter::Value], handler: file_get_time },
-    Builtin { name: "FileInstall", kind: BuiltinKind::Command, min: 2, max: 3, variant: 4, parameters: &[Parameter::Value], handler: file_install },
-    Builtin { name: "FileMove", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, parameters: &[Parameter::Value], handler: file_move },
-    Builtin { name: "FileOpen", kind: BuiltinKind::Function, min: 2, max: 3, variant: 4, parameters: &[Parameter::Value], handler: file_open },
-    Builtin { name: "FileSelect", kind: BuiltinKind::Command, min: 0, max: 4, variant: 0, parameters: &[Parameter::Value], handler: file_select },
-    Builtin { name: "FileSetAttrib", kind: BuiltinKind::Command, min: 1, max: 3, variant: 4, parameters: &[Parameter::Value], handler: file_set_attrib },
-    Builtin { name: "FileSetTime", kind: BuiltinKind::Command, min: 0, max: 4, variant: 4, parameters: &[Parameter::Value], handler: file_set_time },
-    Builtin { name: "FormatTime", kind: BuiltinKind::Function, min: 0, max: 2, variant: 2, parameters: &[Parameter::Value], handler: format_time },
-    Builtin { name: "GetKeyName", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: get_key_name },
-    Builtin { name: "GetKeySC", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: get_key_sc },
-    Builtin { name: "GetKeyVK", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: get_key_vk },
-    Builtin { name: "ImageSearch", kind: BuiltinKind::Command, min: 7, max: 7, variant: 0, parameters: &[Parameter::Reference, Parameter::Reference, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value, Parameter::Value], handler: image_search },
-    Builtin { name: "IniDelete", kind: BuiltinKind::Command, min: 2, max: 3, variant: 6, parameters: &[Parameter::Value], handler: ini_delete },
-    Builtin { name: "IniRead", kind: BuiltinKind::Command, min: 1, max: 4, variant: 4, parameters: &[Parameter::Value], handler: ini_read },
-    Builtin { name: "IniWrite", kind: BuiltinKind::Command, min: 3, max: 4, variant: 4, parameters: &[Parameter::Value], handler: ini_write },
-    Builtin { name: "InputBox", kind: BuiltinKind::Command, min: 0, max: 4, variant: 0, parameters: &[Parameter::Value], handler: input_box },
-    Builtin { name: "IsLabel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: is_label },
-    Builtin { name: "ListLines", kind: BuiltinKind::Command, min: 0, max: 1, variant: 114, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "ListVars", kind: BuiltinKind::Command, min: 0, max: 0, variant: 115, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "LoadPicture", kind: BuiltinKind::Command, min: 1, max: 3, variant: 0, parameters: &[Parameter::Value, Parameter::Value, Parameter::Reference], handler: load_picture },
-    Builtin { name: "MouseClick", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, parameters: &[Parameter::Value], handler: mouse_click },
-    Builtin { name: "MouseClickDrag", kind: BuiltinKind::Command, min: 0, max: 7, variant: 0, parameters: &[Parameter::Value], handler: mouse_click_drag },
-    Builtin { name: "OnError", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: on_error },
-    Builtin { name: "OnExit", kind: BuiltinKind::Command, min: 1, max: 2, variant: 0, parameters: &[Parameter::Value], handler: on_exit },
-    Builtin { name: "Pause", kind: BuiltinKind::Command, min: 0, max: 1, variant: 110, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "Persistent", kind: BuiltinKind::Command, min: 0, max: 1, variant: 111, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "Reload", kind: BuiltinKind::Command, min: 0, max: 0, variant: 112, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "SendEvent", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: send_event },
-    Builtin { name: "SendInput", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: send_input },
-    Builtin { name: "SendLevel", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: send_level },
-    Builtin { name: "SendPlay", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: send_play },
-    Builtin { name: "SendText", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: send_text },
-    Builtin { name: "SetDefaultMouseSpeed", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: set_default_mouse_speed },
-    Builtin { name: "SetMouseDelay", kind: BuiltinKind::Command, min: 1, max: 2, variant: 5, parameters: &[Parameter::Value], handler: set_mouse_delay },
-    Builtin { name: "SetStoreCapsLockMode", kind: BuiltinKind::Command, min: 1, max: 1, variant: 5, parameters: &[Parameter::Value], handler: set_store_caps_lock_mode },
-    Builtin { name: "SetWorkingDir", kind: BuiltinKind::Command, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: set_working_dir },
-    Builtin { name: "StrTitle", kind: BuiltinKind::Function, min: 1, max: 1, variant: 0, parameters: &[Parameter::Value], handler: str_title },
-    Builtin { name: "Suspend", kind: BuiltinKind::Command, min: 0, max: 1, variant: 113, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "Thread", kind: BuiltinKind::Command, min: 1, max: 3, variant: 109, parameters: &[Parameter::Value], handler: not_carried },
-    Builtin { name: "VerCompare", kind: BuiltinKind::Function, min: 2, max: 2, variant: 0, parameters: &[Parameter::Value], handler: ver_compare },
+    Builtin {
+        name: "CoordMode",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: coord_mode,
+    },
+    Builtin {
+        name: "Critical",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 108,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "DateAdd",
+        kind: BuiltinKind::Command,
+        min: 3,
+        max: 3,
+        variant: 2,
+        parameters: &[Parameter::Value],
+        handler: date_add,
+    },
+    Builtin {
+        name: "DateDiff",
+        kind: BuiltinKind::Command,
+        min: 3,
+        max: 3,
+        variant: 2,
+        parameters: &[Parameter::Value],
+        handler: date_diff,
+    },
+    Builtin {
+        name: "DirCopy",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 3,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: dir_copy,
+    },
+    Builtin {
+        name: "DirMove",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 3,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: dir_move,
+    },
+    Builtin {
+        name: "DirSelect",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: dir_select,
+    },
+    Builtin {
+        name: "Download",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: download,
+    },
+    Builtin {
+        name: "FileCopy",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 3,
+        variant: 6,
+        parameters: &[Parameter::Value],
+        handler: file_copy,
+    },
+    Builtin {
+        name: "FileEncoding",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: file_encoding,
+    },
+    Builtin {
+        name: "FileGetAttrib",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: file_get_attrib,
+    },
+    Builtin {
+        name: "FileGetSize",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: file_get_size,
+    },
+    Builtin {
+        name: "FileGetTime",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 2,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: file_get_time,
+    },
+    Builtin {
+        name: "FileInstall",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 3,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: file_install,
+    },
+    Builtin {
+        name: "FileMove",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 3,
+        variant: 6,
+        parameters: &[Parameter::Value],
+        handler: file_move,
+    },
+    Builtin {
+        name: "FileOpen",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 3,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: file_open,
+    },
+    Builtin {
+        name: "FileSelect",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: file_select,
+    },
+    Builtin {
+        name: "FileSetAttrib",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 3,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: file_set_attrib,
+    },
+    Builtin {
+        name: "FileSetTime",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: file_set_time,
+    },
+    Builtin {
+        name: "FormatTime",
+        kind: BuiltinKind::Function,
+        min: 0,
+        max: 2,
+        variant: 2,
+        parameters: &[Parameter::Value],
+        handler: format_time,
+    },
+    Builtin {
+        name: "GetKeyName",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: get_key_name,
+    },
+    Builtin {
+        name: "GetKeySC",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: get_key_sc,
+    },
+    Builtin {
+        name: "GetKeyVK",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: get_key_vk,
+    },
+    Builtin {
+        name: "ImageSearch",
+        kind: BuiltinKind::Command,
+        min: 7,
+        max: 7,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: image_search,
+    },
+    Builtin {
+        name: "IniDelete",
+        kind: BuiltinKind::Command,
+        min: 2,
+        max: 3,
+        variant: 6,
+        parameters: &[Parameter::Value],
+        handler: ini_delete,
+    },
+    Builtin {
+        name: "IniRead",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 4,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: ini_read,
+    },
+    Builtin {
+        name: "IniWrite",
+        kind: BuiltinKind::Command,
+        min: 3,
+        max: 4,
+        variant: 4,
+        parameters: &[Parameter::Value],
+        handler: ini_write,
+    },
+    Builtin {
+        name: "InputBox",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 4,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: input_box,
+    },
+    Builtin {
+        name: "IsLabel",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: is_label,
+    },
+    Builtin {
+        name: "ListLines",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 114,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "ListVars",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 115,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "LoadPicture",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 3,
+        variant: 0,
+        parameters: &[Parameter::Value, Parameter::Value, Parameter::Reference],
+        handler: load_picture,
+    },
+    Builtin {
+        name: "MouseClick",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 7,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: mouse_click,
+    },
+    Builtin {
+        name: "MouseClickDrag",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 7,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: mouse_click_drag,
+    },
+    Builtin {
+        name: "OnError",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: on_error,
+    },
+    Builtin {
+        name: "OnExit",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: on_exit,
+    },
+    Builtin {
+        name: "Pause",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 110,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "Persistent",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 111,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "Reload",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 0,
+        variant: 112,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "SendEvent",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: send_event,
+    },
+    Builtin {
+        name: "SendInput",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: send_input,
+    },
+    Builtin {
+        name: "SendLevel",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: send_level,
+    },
+    Builtin {
+        name: "SendPlay",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: send_play,
+    },
+    Builtin {
+        name: "SendText",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: send_text,
+    },
+    Builtin {
+        name: "SetDefaultMouseSpeed",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: set_default_mouse_speed,
+    },
+    Builtin {
+        name: "SetMouseDelay",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 2,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: set_mouse_delay,
+    },
+    Builtin {
+        name: "SetStoreCapsLockMode",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 5,
+        parameters: &[Parameter::Value],
+        handler: set_store_caps_lock_mode,
+    },
+    Builtin {
+        name: "SetWorkingDir",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: set_working_dir,
+    },
+    Builtin {
+        name: "StrTitle",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: str_title,
+    },
+    Builtin {
+        name: "Suspend",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 1,
+        variant: 113,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "Thread",
+        kind: BuiltinKind::Command,
+        min: 1,
+        max: 3,
+        variant: 109,
+        parameters: &[Parameter::Value],
+        handler: not_carried,
+    },
+    Builtin {
+        name: "VerCompare",
+        kind: BuiltinKind::Function,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[Parameter::Value],
+        handler: ver_compare,
+    },
 ];
 
 /// The parameters of a command that may not be left out.
@@ -578,7 +3399,9 @@ pub fn decides_references(name: &str) -> bool {
 /// the case.
 pub fn find(name: &str) -> Option<&'static Builtin> {
     let wanted = name.to_lowercase();
-    BUILTINS.iter().find(|builtin| builtin.name.to_lowercase() == wanted)
+    BUILTINS
+        .iter()
+        .find(|builtin| builtin.name.to_lowercase() == wanted)
 }
 
 /// The value that a built-in complains about, when its message does
@@ -603,7 +3426,9 @@ pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<Strin
     // with the "Left" in the `Extra`, and "  nonsense  " with the
     // " nonsense" in it.
     if name == "MouseClick" && message == "Parameter #1 of MouseClick is invalid." {
-        return values.first().map(|value| value.to_text().trim_end().to_string());
+        return values
+            .first()
+            .map(|value| value.to_text().trim_end().to_string());
     }
     // The failure of a copy or of a move of a file carries the number of
     // the files that failed.
@@ -619,17 +3444,26 @@ pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<Strin
     }
     match name {
         "InputBox" => {
-            let options = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+            let options = values
+                .get(2)
+                .map(|value| value.to_text())
+                .unwrap_or_default();
             crate::dialogs::the_option_that_failed(&options)
         }
         // The options of a file are in the second parameter of the read and
         // in the third one of the write.
         "FileRead" => {
-            let options = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+            let options = values
+                .get(1)
+                .map(|value| value.to_text())
+                .unwrap_or_default();
             crate::files::the_option_that_failed(&options, true)
         }
         "FileAppend" => {
-            let options = values.get(2).map(|value| value.to_text()).unwrap_or_default();
+            let options = values
+                .get(2)
+                .map(|value| value.to_text())
+                .unwrap_or_default();
             crate::files::the_option_that_failed(&options, false)
         }
         _ => None,
@@ -650,7 +3484,6 @@ pub fn names() -> impl Iterator<Item = &'static str> {
 
 // -- the names that are carried, and that this runtime cannot answer ------------
 
-
 /// `DllCall`: a call into a library of the machine.
 ///
 /// v2 writes the library and the function in one string, the type of
@@ -658,7 +3491,12 @@ pub fn names() -> impl Iterator<Item = &'static str> {
 /// types and the values alternate, and the last parameter may be the
 /// type of the answer alone: the count of the parameters tells the two
 /// apart.
-pub(crate) fn dll_call(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn dll_call(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     dll_call_with_the_kind(rt, values, line).map_err(|(_, error)| error)
 }
 
@@ -673,21 +3511,45 @@ pub(crate) fn dll_call_with_the_kind(
     line: u32,
 ) -> Result<Value, (NativeFailureKind, RuntimeError)> {
     let Some(first) = values.first() else {
-        return Err((NativeFailureKind::Invalid, RuntimeError { message: "DllCall wants the library and the function.".into(), line }));
+        return Err((
+            NativeFailureKind::Invalid,
+            RuntimeError {
+                message: "DllCall wants the library and the function.".into(),
+                line,
+            },
+        ));
     };
     let Value::Text(target) = first else {
-        return Err((NativeFailureKind::Invalid, RuntimeError { message: expected_type(TypeName::String, first.type_name()), line }));
+        return Err((
+            NativeFailureKind::Invalid,
+            RuntimeError {
+                message: expected_type(TypeName::String, first.type_name()),
+                line,
+            },
+        ));
     };
     let (library, function) = crate::dll::split_target(target);
     let rest = &values[1..];
     let (returns, convention, rest) = if rest.len() % 2 == 1 {
         let last = rest.last().expect("there is one");
         let Value::Text(text) = last else {
-            return Err((NativeFailureKind::Invalid, RuntimeError { message: expected_type(TypeName::String, last.type_name()), line }));
+            return Err((
+                NativeFailureKind::Invalid,
+                RuntimeError {
+                    message: expected_type(TypeName::String, last.type_name()),
+                    line,
+                },
+            ));
         };
         let (convention, name) = split_convention(text);
         let Some((kind, _)) = crate::dll::parse_type(name) else {
-            return Err((NativeFailureKind::Invalid, RuntimeError { message: "Invalid return type.".into(), line }));
+            return Err((
+                NativeFailureKind::Invalid,
+                RuntimeError {
+                    message: "Invalid return type.".into(),
+                    line,
+                },
+            ));
         };
         (kind, convention, &rest[..rest.len() - 1])
     } else {
@@ -698,21 +3560,45 @@ pub(crate) fn dll_call_with_the_kind(
     let mut index = 0;
     while index < rest.len() {
         let Value::Text(text) = &rest[index] else {
-            return Err((NativeFailureKind::Invalid, RuntimeError { message: expected_type(TypeName::String, rest[index].type_name()), line }));
+            return Err((
+                NativeFailureKind::Invalid,
+                RuntimeError {
+                    message: expected_type(TypeName::String, rest[index].type_name()),
+                    line,
+                },
+            ));
         };
         let Some((kind, address)) = crate::dll::parse_type(text) else {
-            return Err((NativeFailureKind::Invalid, RuntimeError { message: "Invalid arg type.".into(), line }));
+            return Err((
+                NativeFailureKind::Invalid,
+                RuntimeError {
+                    message: "Invalid arg type.".into(),
+                    line,
+                },
+            ));
         };
-        let (argument, reference) = marshal(rt, kind, address, &rest[index + 1], line).map_err(|error| (NativeFailureKind::Invalid, error))?;
+        let (argument, reference) = marshal(rt, kind, address, &rest[index + 1], line)
+            .map_err(|error| (NativeFailureKind::Invalid, error))?;
         arguments.push(argument);
         references.push(reference);
         index += 2;
     }
-    let mut call = NativeCall { library, function, convention, returns, arguments };
-    let answer = rt
-        .desktop()
-        .call_native(&mut call)
-        .map_err(|failure| (failure.kind, RuntimeError { message: failure.reason, line }))?;
+    let mut call = NativeCall {
+        library,
+        function,
+        convention,
+        returns,
+        arguments,
+    };
+    let answer = rt.desktop().call_native(&mut call).map_err(|failure| {
+        (
+            failure.kind,
+            RuntimeError {
+                message: failure.reason,
+                line,
+            },
+        )
+    })?;
     // The arguments that are the address of a variable come back into
     // the variable.
     for (argument, reference) in call.arguments.iter().zip(references) {
@@ -721,7 +3607,9 @@ pub(crate) fn dll_call_with_the_kind(
             continue;
         }
         let Some(reference) = reference else { continue };
-        let NativeValue::Bytes(bytes) = &argument.value else { continue };
+        let NativeValue::Bytes(bytes) = &argument.value else {
+            continue;
+        };
         let written = if argument.kind.is_text() {
             Value::Text(crate::dll::decode(bytes, argument.kind))
         } else if argument.kind.is_float() {
@@ -753,7 +3641,10 @@ fn marshal(
     let (value, reference) = match value {
         Value::Reference(reference) => {
             let Some(current) = rt.read_reference(reference) else {
-                return Err(RuntimeError { message: rt.the_unassigned(&reference.name), line });
+                return Err(RuntimeError {
+                    message: rt.the_unassigned(&reference.name),
+                    line,
+                });
             };
             (current, Some(value.clone()))
         }
@@ -762,20 +3653,38 @@ fn marshal(
     // A text goes out as its bytes.
     if kind.is_text() {
         let Value::Text(text) = &value else {
-            return Err(RuntimeError { message: expected_type(TypeName::String, value.type_name()), line });
+            return Err(RuntimeError {
+                message: expected_type(TypeName::String, value.type_name()),
+                line,
+            });
         };
         let bytes = crate::dll::encode(text, kind);
-        return Ok((NativeArg { kind, address, value: NativeValue::Bytes(bytes) }, reference));
+        return Ok((
+            NativeArg {
+                kind,
+                address,
+                value: NativeValue::Bytes(bytes),
+            },
+            reference,
+        ));
     }
     // A pointer may be an object, and then it is the address of the
     // object that goes.
     if matches!(kind, NativeType::Ptr | NativeType::UPtr) {
         if let Value::Object(_) = &value {
             if let Some(place) = rt.property_of(&value, "ptr", line) {
-                let place = place
-                    .to_number_strict()
-                    .map_err(|got| RuntimeError { message: expected_type(TypeName::Integer, got), line })?;
-                return Ok((NativeArg { kind, address, value: NativeValue::Integer(place as i64) }, reference));
+                let place = place.to_number_strict().map_err(|got| RuntimeError {
+                    message: expected_type(TypeName::Integer, got),
+                    line,
+                })?;
+                return Ok((
+                    NativeArg {
+                        kind,
+                        address,
+                        value: NativeValue::Integer(place as i64),
+                    },
+                    reference,
+                ));
             }
         }
     }
@@ -785,7 +3694,14 @@ fn marshal(
     } else {
         NativeValue::Integer(number as i64)
     };
-    Ok((NativeArg { kind, address, value }, reference))
+    Ok((
+        NativeArg {
+            kind,
+            address,
+            value,
+        },
+        reference,
+    ))
 }
 
 /// The value as a number, the way a native call wants it.
@@ -795,15 +3711,18 @@ fn native_number(rt: &Runtime<'_>, value: &Value, line: u32) -> Result<f64, Runt
         Err(RuntimeFailure::Error(error)) => Err(error),
         Err(RuntimeFailure::Detailed(error, _)) => Err(error),
         Err(RuntimeFailure::Fatal(error)) => Err(error),
-        Err(RuntimeFailure::Timeout(_)) => {
-            Err(RuntimeError { message: "the script ran out of time.".into(), line })
-        }
-        Err(RuntimeFailure::Flow(_)) => {
-            Err(RuntimeError { message: "a number was expected.".into(), line })
-        }
-        Err(RuntimeFailure::Thrown(_)) => {
-            Err(RuntimeError { message: "a number was expected.".into(), line })
-        }
+        Err(RuntimeFailure::Timeout(_)) => Err(RuntimeError {
+            message: "the script ran out of time.".into(),
+            line,
+        }),
+        Err(RuntimeFailure::Flow(_)) => Err(RuntimeError {
+            message: "a number was expected.".into(),
+            line,
+        }),
+        Err(RuntimeFailure::Thrown(_)) => Err(RuntimeError {
+            message: "a number was expected.".into(),
+            line,
+        }),
     }
 }
 
@@ -861,10 +3780,14 @@ fn refusal_message(variant: u8) -> &'static str {
     match variant {
         0 => "this is a name of Windows, and this desktop is not Windows.",
         1 => "this runtime has no hotkeys yet.",
-        2 => "the clock of this runtime counts from an arbitrary origin, and it does not know the date.",
+        2 => {
+            "the clock of this runtime counts from an arbitrary origin, and it does not know the date."
+        }
         3 => "this runtime is one script that ends when it ends, and it cannot do that.",
         4 => "this desktop cannot serve that with the files it has.",
-        5 => "the pointer and the keyboard of this runtime are the ones of the box, and they have no setting of that kind.",
+        5 => {
+            "the pointer and the keyboard of this runtime are the ones of the box, and they have no setting of that kind."
+        }
         // The reason of a method: a name of a class that the tree does
         // not carry. The names of v2 that were in this slot were not
         // methods at all -- the tables that were read out of the binary
@@ -879,12 +3802,22 @@ fn refusal_message(variant: u8) -> &'static str {
         11 => "this runtime is a script that ends when it ends, and it cannot be kept alive.",
         12 => "this runtime runs one script once, and it cannot run itself again.",
         13 => "this runtime cannot stop itself: it would never end.",
-        14 => "the lines are listed in a window of v2, and this runtime has no window to show them in.",
-        15 => "the variables are listed in a window of v2, and this runtime has no window to show them in.",
-        16 => "the question of the user is asked in a window of v2, and this runtime has no window to ask in.",
+        14 => {
+            "the lines are listed in a window of v2, and this runtime has no window to show them in."
+        }
+        15 => {
+            "the variables are listed in a window of v2, and this runtime has no window to show them in."
+        }
+        16 => {
+            "the question of the user is asked in a window of v2, and this runtime has no window to ask in."
+        }
         17 => "the download is made by the desktop, and this desktop does not reach the network.",
-        18 => "the picture is read by the desktop, and this desktop does not read the images of the machine.",
-        19 => "the search of a picture is made by the desktop, and this desktop does not read the images of the machine.",
+        18 => {
+            "the picture is read by the desktop, and this desktop does not read the images of the machine."
+        }
+        19 => {
+            "the search of a picture is made by the desktop, and this desktop does not read the images of the machine."
+        }
         20 => "the handler of an error is not carried: this runtime ends the script when it fails.",
         21 => crate::settings::NO_TEXT_OF_A_WINDOW,
         23 => "the registry is a thing of Windows, and this runtime does not carry it.",
@@ -901,15 +3834,28 @@ fn refusal_message(variant: u8) -> &'static str {
 /// hotkey, or it is a name of the script that this runtime does not
 /// have. The script knows which name it called, so the reason names the
 /// group and not the name.
-pub(crate) fn not_carried(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn not_carried(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     let message = refusal_message(variant.saturating_sub(REFUSAL));
-    Err(RuntimeError { message: message.to_string(), line })
+    Err(RuntimeError {
+        message: message.to_string(),
+        line,
+    })
 }
 
 // -- the environment ---------------------------------------------------------------
 
 /// `EnvGet`: the value of an environment variable.
-pub(crate) fn env_get(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn env_get(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = text_of(values, 0);
     // Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the
     // variable that the environment does not have is an empty text, and it is
@@ -919,16 +3865,29 @@ pub(crate) fn env_get(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
     let value = rt
         .desktop()
         .env_get(&name)
-        .map_err(|reason| RuntimeError { message: reason, line })?
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?
         .unwrap_or_default();
     Ok(Value::Text(value))
 }
 
 /// `EnvSet`: set an environment variable, and answer its value.
-pub(crate) fn env_set(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn env_set(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = text_of(values, 0);
     let value = text_of(values, 1);
-    rt.desktop().env_set(&name, &value).map_err(|reason| RuntimeError { message: reason, line })?;
+    rt.desktop()
+        .env_set(&name, &value)
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(value))
 }
 
@@ -943,12 +3902,20 @@ pub(crate) fn env_set(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
 /// Measured on the binary of v2.0.19 on 2026-10-28 and on 2026-10-31:
 /// the pattern may carry the wildcards `*` and `?`, and the answer is
 /// the attributes of the first entry that matches, a folder among them.
-pub(crate) fn file_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn file_exist(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let pattern = text_of(values, 0);
     let attributes = rt
         .desktop()
         .attributes_of_the_pattern(&pattern, "")
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(attributes.concat()))
 }
 
@@ -957,31 +3924,59 @@ pub(crate) fn file_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 /// The answer of v2 is `D` when it is there, and the empty text when it
 /// is not. A file that matches the pattern is not a folder, and the
 /// answer is the empty text.
-pub(crate) fn dir_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn dir_exist(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let pattern = text_of(values, 0);
     let attributes = rt
         .desktop()
         .attributes_of_the_pattern(&pattern, "D")
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(attributes.concat()))
 }
 
 /// `FileDelete`: take a file away.
-pub(crate) fn file_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn file_delete(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = crate::files::the_name_of_a_file(values, 0, 1, "FileDelete", line)?;
     // The wildcards of v2 are not carried: the name of a file that is not
     // there is not a file.
     crate::files::refuse_the_wildcards(&path, line)?;
-    rt.desktop().delete_file(&path).map_err(|reason| RuntimeError { message: reason, line })?;
+    rt.desktop()
+        .delete_file(&path)
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     // Measured on the binary of v2.0.19 on 2026-11-01: the answer of the
     // command is an empty text.
     Ok(Value::Text(String::new()))
 }
 
 /// `DirCreate`: make a directory.
-pub(crate) fn dir_create(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn dir_create(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = text_of(values, 0);
-    rt.desktop().create_dir(&path).map_err(|reason| RuntimeError { message: reason, line })?;
+    rt.desktop()
+        .create_dir(&path)
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     // Measured on the binary of v2.0.19 on 2026-11-01: the answer of the
     // command is an empty text.
     Ok(Value::Text(String::new()))
@@ -991,12 +3986,20 @@ pub(crate) fn dir_create(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the second parameter
 /// is the recursion, and a folder that is not empty stays without it.
-pub(crate) fn dir_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn dir_delete(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = text_of(values, 0);
     let recurse = crate::files::flag_of(values, 1, "DirDelete", line)?;
     rt.desktop()
         .dir_delete(&path, recurse)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(path))
 }
 
@@ -1012,7 +4015,12 @@ pub(crate) fn dir_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 /// the last piece.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31.
-pub(crate) fn str_split(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn str_split(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let text = text_of(values, 0);
     let delimiters = the_delimiters(rt, values.get(1), line)?;
     let omit = text_of(values, 2);
@@ -1065,7 +4073,12 @@ fn the_delimiters(
                     .map(|item| match item {
                         Value::Text(text) => Ok(text.clone()),
                         other => Err(RuntimeError {
-                            message: crate::runtime::requires(2, "StrSplit", TypeName::String, other),
+                            message: crate::runtime::requires(
+                                2,
+                                "StrSplit",
+                                TypeName::String,
+                                other,
+                            ),
                             line,
                         }),
                     })
@@ -1141,7 +4154,9 @@ fn the_first_delimiter(text: &str, delimiters: &[String]) -> Option<(usize, usiz
         if delimiter.is_empty() {
             continue;
         }
-        let Some(at) = text.find(delimiter.as_str()) else { continue };
+        let Some(at) = text.find(delimiter.as_str()) else {
+            continue;
+        };
         match found {
             // The one that is there first wins, and the order of the
             // delimiters decides between the ones that are at the same
@@ -1160,7 +4175,9 @@ fn trim_the_omit(text: &str, omit: &str) -> String {
     }
     let mut start = 0;
     while start < text.len() {
-        let Some(character) = text[start..].chars().next() else { break };
+        let Some(character) = text[start..].chars().next() else {
+            break;
+        };
         if !omit.contains(character) {
             break;
         }
@@ -1168,7 +4185,9 @@ fn trim_the_omit(text: &str, omit: &str) -> String {
     }
     let mut end = text.len();
     while end > start {
-        let Some(character) = text[..end].chars().next_back() else { break };
+        let Some(character) = text[..end].chars().next_back() else {
+            break;
+        };
         if !omit.contains(character) {
             break;
         }
@@ -1183,11 +4202,18 @@ fn trim_the_omit(text: &str, omit: &str) -> String {
 /// answers with nothing. The pieces are the name of the file, the
 /// directory, the extension, the name without the extension and the
 /// drive.
-pub(crate) fn split_path(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn split_path(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = text_argument("SplitPath", values, 0, line)?;
     let pieces = split_the_path(&path);
     for (index, piece) in pieces.into_iter().enumerate() {
-        let Some(value) = values.get(index + 1) else { continue };
+        let Some(value) = values.get(index + 1) else {
+            continue;
+        };
         // The pieces are written into the variables of the caller, and
         // those are given by reference.
         if !matches!(value, Value::Reference(_)) {
@@ -1277,7 +4303,12 @@ fn the_extension(name: &str) -> (String, String) {
 ///
 /// A reference is not a text, and the built-in that wants one says
 /// which parameter got it.
-fn text_argument(name: &str, values: &[Value], index: usize, line: u32) -> Result<String, RuntimeError> {
+fn text_argument(
+    name: &str,
+    values: &[Value],
+    index: usize,
+    line: u32,
+) -> Result<String, RuntimeError> {
     match values.get(index) {
         None => Ok(String::new()),
         Some(Value::Reference(_)) => Err(RuntimeError {
@@ -1308,7 +4339,10 @@ pub(crate) fn obj_bind_method(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let object = values.first().cloned().unwrap_or(Value::Text(String::new()));
+    let object = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     if !matches!(object, Value::Object(_)) {
         return Err(RuntimeError {
             message: crate::runtime::requires(1, "ObjBindMethod", TypeName::Object, &object),
@@ -1320,14 +4354,26 @@ pub(crate) fn obj_bind_method(
 }
 
 /// `HasProp`: whether an object has a property.
-pub(crate) fn has_prop(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn has_prop(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let name = text_of(values, 1);
     // Measured on the binary of v2.0.19 on 2026-10-31: a value that is
     // not an object has no property, and the answer is zero and not a
     // refusal. The one property that every value has is its class.
     if !matches!(target, Value::Object(_)) {
-        return Ok(Value::Int(if name.eq_ignore_ascii_case("__class") { 1 } else { 0 }));
+        return Ok(Value::Int(if name.eq_ignore_ascii_case("__class") {
+            1
+        } else {
+            0
+        }));
     }
     // A class is not an instance of itself: the question is about the
     // class, and the properties of the instances are not its own.
@@ -1338,8 +4384,16 @@ pub(crate) fn has_prop(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
 }
 
 /// `HasMethod`: whether an object has a method.
-pub(crate) fn has_method(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn has_method(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let name = text_of(values, 1);
     // The third parameter of v2 is the number of parameters that would
     // be passed to the method, and the tree asks the method whether it
@@ -1366,8 +4420,16 @@ pub(crate) fn has_method(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 }
 
 /// `GetMethod`: the method of an object, as a value.
-pub(crate) fn get_method(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn get_method(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let name = text_of(values, 1);
     // The third parameter of v2 is the number of parameters that would
     // be passed to the method.
@@ -1380,15 +4442,26 @@ pub(crate) fn get_method(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 }
 
 /// `HasBase`: whether the base of an object is another object.
-pub(crate) fn has_base(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn has_base(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let base = values.get(1).cloned().unwrap_or(Value::Text(String::new()));
     // Measured on the binary of v2.0.19 on 2026-10-31: the base is an
     // object, and the refusal of a base that is not one comes before the
     // question of the object itself.
     if !matches!(base, Value::Object(_)) {
         return Err(RuntimeError {
-            message: format!("Expected an object but got {}.", crate::runtime::the_kind_of(&base)),
+            message: format!(
+                "Expected an object but got {}.",
+                crate::runtime::the_kind_of(&base)
+            ),
             line,
         });
     }
@@ -1404,9 +4477,17 @@ pub(crate) fn has_base(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
 /// v2 takes the variable by reference and answers one when the variable
 /// is set and zero when it is not. A variable that was never given a
 /// value is not set, and the reference to it is still a reference.
-pub(crate) fn is_set_ref(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn is_set_ref(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let Some(value) = values.first() else {
-        return Err(RuntimeError { message: crate::runtime::invalid_parameter(1, "IsSetRef"), line });
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "IsSetRef"),
+            line,
+        });
     };
     let Value::Reference(reference) = value else {
         return Err(RuntimeError {
@@ -1429,7 +4510,12 @@ pub(crate) fn is_set_ref(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 /// The keys of this runtime go through the keyboard of the box, one at
 /// a time, and that is the mode of the box. The other modes of v2 are
 /// the ones of Windows.
-pub(crate) fn send_mode(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn send_mode(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The method of v2 is the way the keys are sent, and there is one
     // way here.
     if values.len() > 1 {
@@ -1455,9 +4541,15 @@ pub(crate) fn send_mode(rt: &mut Runtime<'_>, values: &[Value], line: u32, _vari
 ///
 /// The runtime does not keep the keys that are down: the box does, and
 /// the runtime does not ask it.
-pub(crate) fn key_wait(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn key_wait(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
-        message: "this runtime does not keep the keys that are down, so it cannot wait for one.".into(),
+        message: "this runtime does not keep the keys that are down, so it cannot wait for one."
+            .into(),
         line,
     })
 }
@@ -1469,7 +4561,12 @@ pub(crate) fn key_wait(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _var
 /// The runtime is one thread, so the timer is not a thread of its own:
 /// it runs between the statements of the script, and its budget is the
 /// budget of the script.
-pub(crate) fn set_timer(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn set_timer(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The priority of v2 is the order of the timers, and the runtime
     // has one thread and one order.
     if values.len() > 2 {
@@ -1492,7 +4589,12 @@ pub(crate) fn set_timer(rt: &mut Runtime<'_>, values: &[Value], line: u32, _vari
 /// The frequency of v2 is between 37 and 32767, and it is 523 when the
 /// script does not say. The duration is in milliseconds, and it is 150
 /// when the script does not say.
-pub(crate) fn sound_beep(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sound_beep(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let frequency = match values.first() {
         Some(value) => value.to_number().unwrap_or(523.0),
         None => 523.0,
@@ -1508,7 +4610,9 @@ pub(crate) fn sound_beep(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
         None => 150.0,
     };
     let duration = if duration > 0.0 { duration as u64 } else { 150 };
-    rt.desktop().sound_beep(frequency, duration).map_err(|e| desktop_failure(e, line))?;
+    rt.desktop()
+        .sound_beep(frequency, duration)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Int(1))
 }
 
@@ -1517,7 +4621,12 @@ pub(crate) fn sound_beep(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 /// The other parameters of v2 -- the volume, the speed, the pitch, the
 /// wait and the options -- are not carried, and the desktop of the box
 /// plays the file as it is.
-pub(crate) fn sound_play(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sound_play(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     if values.len() > 1 {
         return Err(RuntimeError {
             message: "the volume, the speed and the pitch of a sound are not carried yet.".into(),
@@ -1531,7 +4640,9 @@ pub(crate) fn sound_play(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
             line,
         });
     }
-    rt.desktop().sound_play(&path).map_err(|e| desktop_failure(e, line))?;
+    rt.desktop()
+        .sound_play(&path)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Int(1))
 }
 
@@ -1539,16 +4650,26 @@ pub(crate) fn sound_play(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 ///
 /// The component of v2 is a part of a device -- the master volume, the
 /// microphone -- and the box has one volume per device.
-pub(crate) fn sound_get_volume(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sound_get_volume(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     if values.len() > 2 {
         return Err(RuntimeError {
-            message: "the component of a sound is not carried yet: the box has one volume per device.".into(),
+            message:
+                "the component of a sound is not carried yet: the box has one volume per device."
+                    .into(),
             line,
         });
     }
     component_of(values, 0, line)?;
     let device = device_of(values, 1);
-    let volume = rt.desktop().sound_volume(&device).map_err(|e| desktop_failure(e, line))?;
+    let volume = rt
+        .desktop()
+        .sound_volume(&device)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Float(volume))
 }
 
@@ -1556,10 +4677,17 @@ pub(crate) fn sound_get_volume(rt: &mut Runtime<'_>, values: &[Value], line: u32
 ///
 /// The setting of v2 is a percentage between -100 and 100, and a sign
 /// in front of it adjusts the volume instead of setting it.
-pub(crate) fn sound_set_volume(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sound_set_volume(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     if values.len() > 3 {
         return Err(RuntimeError {
-            message: "the component of a sound is not carried yet: the box has one volume per device.".into(),
+            message:
+                "the component of a sound is not carried yet: the box has one volume per device."
+                    .into(),
             line,
         });
     }
@@ -1586,26 +4714,43 @@ pub(crate) fn sound_set_volume(rt: &mut Runtime<'_>, values: &[Value], line: u32
     component_of(values, 1, line)?;
     let device = device_of(values, 2);
     if adjust {
-        let current = rt.desktop().sound_volume(&device).map_err(|e| desktop_failure(e, line))?;
+        let current = rt
+            .desktop()
+            .sound_volume(&device)
+            .map_err(|e| desktop_failure(e, line))?;
         let wanted = (current + number).clamp(0.0, 100.0);
-        rt.desktop().sound_set_volume(&device, wanted).map_err(|e| desktop_failure(e, line))?;
+        rt.desktop()
+            .sound_set_volume(&device, wanted)
+            .map_err(|e| desktop_failure(e, line))?;
     } else {
-        rt.desktop().sound_set_volume(&device, number).map_err(|e| desktop_failure(e, line))?;
+        rt.desktop()
+            .sound_set_volume(&device, number)
+            .map_err(|e| desktop_failure(e, line))?;
     }
     Ok(Value::Int(1))
 }
 
 /// `SoundGetMute`: whether a device is muted.
-pub(crate) fn sound_get_mute(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sound_get_mute(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     if values.len() > 2 {
         return Err(RuntimeError {
-            message: "the component of a sound is not carried yet: the box has one volume per device.".into(),
+            message:
+                "the component of a sound is not carried yet: the box has one volume per device."
+                    .into(),
             line,
         });
     }
     component_of(values, 0, line)?;
     let device = device_of(values, 1);
-    let muted = rt.desktop().sound_muted(&device).map_err(|e| desktop_failure(e, line))?;
+    let muted = rt
+        .desktop()
+        .sound_muted(&device)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Int(muted as i64))
 }
 
@@ -1613,10 +4758,17 @@ pub(crate) fn sound_get_mute(rt: &mut Runtime<'_>, values: &[Value], line: u32, 
 ///
 /// The setting of v2 is 1 to mute, 0 to unmute, and -1 to turn the
 /// mute of the device around.
-pub(crate) fn sound_set_mute(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sound_set_mute(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     if values.len() > 3 {
         return Err(RuntimeError {
-            message: "the component of a sound is not carried yet: the box has one volume per device.".into(),
+            message:
+                "the component of a sound is not carried yet: the box has one volume per device."
+                    .into(),
             line,
         });
     }
@@ -1630,12 +4782,17 @@ pub(crate) fn sound_set_mute(rt: &mut Runtime<'_>, values: &[Value], line: u32, 
     component_of(values, 1, line)?;
     let device = device_of(values, 2);
     let muted = if setting < 0.0 {
-        let current = rt.desktop().sound_muted(&device).map_err(|e| desktop_failure(e, line))?;
+        let current = rt
+            .desktop()
+            .sound_muted(&device)
+            .map_err(|e| desktop_failure(e, line))?;
         !current
     } else {
         setting != 0.0
     };
-    rt.desktop().sound_set_muted(&device, muted).map_err(|e| desktop_failure(e, line))?;
+    rt.desktop()
+        .sound_set_muted(&device, muted)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Int(1))
 }
 
@@ -1653,7 +4810,8 @@ fn component_of(values: &[Value], index: usize, line: u32) -> Result<String, Run
         return Ok(String::new());
     }
     Err(RuntimeError {
-        message: "the box has one volume per device: the master volume is the only one it has.".into(),
+        message: "the box has one volume per device: the master volume is the only one it has."
+            .into(),
         line,
     })
 }
@@ -1677,7 +4835,12 @@ fn device_of(values: &[Value], index: usize) -> String {
 ///
 /// The code is kept and the script stops at the end of the statement
 /// it was asked in, the way the statement of the same name stops it.
-pub(crate) fn exit_script(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn exit_script(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let code = number_of(values, 0) as i32;
     rt.exit_with(code);
     Ok(Value::Int(code as i64))
@@ -1692,7 +4855,12 @@ pub(crate) fn exit_script(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _v
 ///
 /// The callback is a function object, and its prototype has to take the two
 /// parameters of v2: the reason of the exit and the code.
-pub(crate) fn on_exit(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn on_exit(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let callback = rt.the_callback(values.first(), "OnExit", line)?;
     // The order of the callbacks: 1 calls it after the ones that are
     // registered, -1 before them, and 0 does not call it at all.
@@ -1708,10 +4876,13 @@ pub(crate) fn on_exit(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
                 message: format!(
                     "{}\n     Specifically: {}",
                     crate::runtime::invalid_parameter(2, "OnExit"),
-                    values.get(1).map(|value| value.to_text()).unwrap_or_default()
+                    values
+                        .get(1)
+                        .map(|value| value.to_text())
+                        .unwrap_or_default()
                 ),
                 line,
-            })
+            });
         }
     }
     Ok(Value::Int(1))
@@ -1723,7 +4894,12 @@ pub(crate) fn on_exit(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
 /// The callback is a function object, and its prototype has to take the two
 /// parameters of v2: the value that was thrown and the mode of the
 /// failure.
-pub(crate) fn on_error(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn on_error(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let callback = rt.the_callback(values.first(), "OnError", line)?;
     match the_order(values.get(1), "OnError", line)? {
         1 => rt.set_error_callback(&callback.name, line),
@@ -1737,10 +4913,13 @@ pub(crate) fn on_error(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
                 message: format!(
                     "{}\n     Specifically: {}",
                     crate::runtime::invalid_parameter(2, "OnError"),
-                    values.get(1).map(|value| value.to_text()).unwrap_or_default()
+                    values
+                        .get(1)
+                        .map(|value| value.to_text())
+                        .unwrap_or_default()
                 ),
                 line,
-            })
+            });
         }
     }
     Ok(Value::Int(1))
@@ -1938,7 +5117,7 @@ const THE_NUMBERS: &[(&str, &[u8])] = &[
 /// that wants a reference takes one, and it is not in this table: the
 /// table of the references is the one of the binary.
 const THE_REFUSED: &[(&str, usize, Wants)] = &[
-("BlockInput", 0, Wants::Declared(TypeName::String)),
+    ("BlockInput", 0, Wants::Declared(TypeName::String)),
     ("CallbackFree", 0, Wants::Declared(TypeName::Number)),
     ("CaretGetPos", 0, Wants::Reference("a variable reference")),
     ("CaretGetPos", 1, Wants::Reference("a variable reference")),
@@ -2384,20 +5563,31 @@ const THE_REFUSED: &[(&str, usize, Wants)] = &[
 
 pub fn wants(name: &str, index: usize) -> Wants {
     let place = index as u8;
-    if THE_TEXTS.iter().any(|(built_in, indexes)| *built_in == name && indexes.contains(&place)) {
+    if THE_TEXTS
+        .iter()
+        .any(|(built_in, indexes)| *built_in == name && indexes.contains(&place))
+    {
         return Wants::Declared(TypeName::String);
     }
-    if THE_NUMBERS.iter().any(|(built_in, indexes)| *built_in == name && indexes.contains(&place)) {
+    if THE_NUMBERS
+        .iter()
+        .any(|(built_in, indexes)| *built_in == name && indexes.contains(&place))
+    {
         return Wants::Declared(TypeName::Number);
     }
-    if let Some((_, _, kind)) = THE_REFUSED.iter().find(|(built_in, place, _)| *built_in == name && *place == index) {
+    if let Some((_, _, kind)) = THE_REFUSED
+        .iter()
+        .find(|(built_in, place, _)| *built_in == name && *place == index)
+    {
         return *kind;
     }
     match (name, place) {
         // Every parameter of the two is a number, and there is no telling
         // how many of them there are.
         ("Min" | "Max", _) => Wants::Declared(TypeName::Number),
-        ("ObjOwnProps" | "ObjOwnPropCount" | "ObjHasOwnProp" | "ObjSetBase", 0) => Wants::Checked(TypeName::Object),
+        ("ObjOwnProps" | "ObjOwnPropCount" | "ObjHasOwnProp" | "ObjSetBase", 0) => {
+            Wants::Checked(TypeName::Object)
+        }
         _ => Wants::Value,
     }
 }
@@ -2417,16 +5607,32 @@ pub fn refuses_itself(name: &str) -> bool {
 ///
 /// The names of v2 reach the object model from here: the base of an
 /// object, the properties it owns, and the room it has for them.
-pub(crate) fn obj_get_base(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn obj_get_base(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     rt.base_of(&target).ok_or_else(|| RuntimeError {
         message: crate::runtime::expected_type(TypeName::Object, target.type_name()),
         line,
     })
 }
 
-pub(crate) fn obj_set_base(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn obj_set_base(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let base = values.get(1).cloned().unwrap_or(Value::Text(String::new()));
     if !matches!(base, Value::Object(_)) {
         return Err(RuntimeError {
@@ -2436,32 +5642,66 @@ pub(crate) fn obj_set_base(rt: &mut Runtime<'_>, values: &[Value], line: u32, _v
     }
     // The answer is the base the object had, and an object of a script
     // has none until the script gives it one.
-    let old = rt.stored_base_of(&target).unwrap_or(Value::Text(String::new()));
+    let old = rt
+        .stored_base_of(&target)
+        .unwrap_or(Value::Text(String::new()));
     rt.set_base_of(&target, base, line)?;
     Ok(old)
 }
 
-pub(crate) fn obj_own_props(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn obj_own_props(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     rt.own_method(&target, "ownprops", &[], line)
 }
 
-pub(crate) fn obj_own_prop_count(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn obj_own_prop_count(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let names = rt.own_method(&target, "ownprops", &[], line)?;
     // The own properties of v2 are an enumerator, and the count of them is
     // the number of the turns it has left.
     Ok(Value::Int(crate::classes::enumerator::the_count(&names)))
 }
 
-pub(crate) fn obj_has_own_prop(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn obj_has_own_prop(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let name = values.get(1).cloned().unwrap_or(Value::Text(String::new()));
     rt.own_method(&target, "hasownprop", &[name], line)
 }
 
-pub(crate) fn obj_get_capacity(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn obj_get_capacity(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     if !matches!(target, Value::Object(_)) {
         return Err(RuntimeError {
             message: crate::runtime::expected_type(TypeName::Object, target.type_name()),
@@ -2470,11 +5710,21 @@ pub(crate) fn obj_get_capacity(rt: &mut Runtime<'_>, values: &[Value], line: u32
     }
     // The room an object has is the capacity of its properties, and an
     // object without any has none.
-    Ok(rt.property_of(&target, "capacity", line).unwrap_or(Value::Int(0)))
+    Ok(rt
+        .property_of(&target, "capacity", line)
+        .unwrap_or(Value::Int(0)))
 }
 
-pub(crate) fn obj_set_capacity(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let target = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub(crate) fn obj_set_capacity(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let capacity = values.get(1).cloned().unwrap_or(Value::Int(0));
     if !matches!(target, Value::Object(_)) {
         return Err(RuntimeError {
@@ -2490,7 +5740,12 @@ pub(crate) fn obj_set_capacity(rt: &mut Runtime<'_>, values: &[Value], line: u32
 ///
 /// v2 counts the references of a COM object, and an object of a script
 /// has no such count: the built-in says that the parameter is invalid.
-pub(crate) fn obj_add_ref(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn obj_add_ref(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
         message: crate::runtime::invalid_parameter(1, "ObjAddRef"),
         line,
@@ -2501,12 +5756,18 @@ pub(crate) fn obj_add_ref(_rt: &mut Runtime<'_>, _values: &[Value], line: u32, _
 
 /// The text of the argument at this place, or the empty string.
 fn text_of(values: &[Value], index: usize) -> String {
-    values.get(index).map(|value| value.to_text()).unwrap_or_default()
+    values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
 }
 
 /// The number of the argument at this place, or zero.
 fn number_of(values: &[Value], index: usize) -> f64 {
-    values.get(index).and_then(|value| value.to_number()).unwrap_or(0.0)
+    values
+        .get(index)
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0)
 }
 
 /// The number a value holds, and the kind it has.
@@ -2614,13 +5875,15 @@ fn compare_texts(left: &str, right: &str, case_sensitive: bool) -> Ordering {
 fn compare_values(left: &Value, right: &Value) -> Ordering {
     match (left, right) {
         (Value::Int(left), Value::Int(right)) => left.cmp(right),
-        (Value::Float(left), Value::Float(right)) => left.partial_cmp(right).unwrap_or(Ordering::Equal),
+        (Value::Float(left), Value::Float(right)) => {
+            left.partial_cmp(right).unwrap_or(Ordering::Equal)
+        }
         (Value::Int(left), Value::Float(right)) => {
             (*left as f64).partial_cmp(right).unwrap_or(Ordering::Equal)
         }
-        (Value::Float(left), Value::Int(right)) => {
-            left.partial_cmp(&(*right as f64)).unwrap_or(Ordering::Equal)
-        }
+        (Value::Float(left), Value::Int(right)) => left
+            .partial_cmp(&(*right as f64))
+            .unwrap_or(Ordering::Equal),
         _ => compare_texts(&left.to_text(), &right.to_text(), false),
     }
 }
@@ -2667,7 +5930,12 @@ fn desktop_failure(message: String, line: u32) -> RuntimeError {
 ///
 /// An integer stays an integer, which is what AutoHotkey v2 does: the
 /// handler keeps the whole number and only the rest becomes a float.
-pub(crate) fn abs(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn abs(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let value = values.first().cloned().unwrap_or(Value::Int(0));
     // The number is checked first, so that the message of v2 comes
     // before the answer.
@@ -2682,17 +5950,31 @@ pub(crate) fn abs(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
 /// `Ceil` and `Floor`: the whole number above or below.
 ///
 /// They share one handler, and the variant says which of the two it is.
-pub(crate) fn round_to(_rt: &mut Runtime<'_>, values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn round_to(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = if variant == 1 { "Ceil" } else { "Floor" };
     let number = number_argument(values, 0, line, name)?;
-    let rounded = if variant == 1 { crate::runtime::ceil(number) } else { crate::runtime::floor(number) };
+    let rounded = if variant == 1 {
+        crate::runtime::ceil(number)
+    } else {
+        crate::runtime::floor(number)
+    };
     Ok(Value::from_number(rounded))
 }
 
 /// `Max` and `Min`: the largest and the smallest of the numbers.
 ///
 /// They share one handler, and the variant says which of the two it is.
-pub(crate) fn extreme(_rt: &mut Runtime<'_>, values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn extreme(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = if variant == 1 { "Max" } else { "Min" };
     let numbers = numbers_argument(values, line, name)?;
     let mut result = numbers.first().copied().unwrap_or(0.0);
@@ -2708,16 +5990,27 @@ pub(crate) fn extreme(_rt: &mut Runtime<'_>, values: &[Value], line: u32, varian
 ///
 /// The sign of the remainder is the sign of the dividend, and the answer
 /// is a whole number when both of the arguments are.
-pub(crate) fn modulo(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn modulo(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let dividend = values.first().cloned().unwrap_or(Value::Int(0));
     let divisor = values.get(1).cloned().unwrap_or(Value::Int(0));
     // v2 does not name the type that was wrong here: it says that the
     // parameters are invalid.
-    let invalid = || RuntimeError { message: "Invalid parameter(s).".into(), line };
+    let invalid = || RuntimeError {
+        message: "Invalid parameter(s).".into(),
+        line,
+    };
     let left = number_value(&dividend).ok_or_else(invalid)?;
     let right = number_value(&divisor).ok_or_else(invalid)?;
     if right.to_number() == Some(0.0) {
-        return Err(RuntimeError { message: "Divide by zero.".into(), line });
+        return Err(RuntimeError {
+            message: "Divide by zero.".into(),
+            line,
+        });
     }
     Ok(match (left, right) {
         (Value::Int(left), Value::Int(right)) => Value::Int(left.wrapping_rem(right)),
@@ -2730,18 +6023,33 @@ pub(crate) fn modulo(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
 }
 
 /// `Round`: the number, with the digits the caller asks for.
-pub(crate) fn round_to_digits(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn round_to_digits(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let number = number_argument(values, 0, line, "Round")?;
     let digits = number_argument(values, 1, line, "Round")? as i32;
     let factor = crate::runtime::powi(10.0, digits);
-    Ok(Value::from_number(crate::runtime::round(number * factor) / factor))
+    Ok(Value::from_number(
+        crate::runtime::round(number * factor) / factor,
+    ))
 }
 
 /// `Sqrt`: the square root.
-pub(crate) fn square_root(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn square_root(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let number = number_argument(values, 0, line, "Sqrt")?;
     if number < 0.0 {
-        return Err(RuntimeError { message: crate::runtime::invalid_parameter(1, "Sqrt"), line });
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "Sqrt"),
+            line,
+        });
     }
     // AutoHotkey v2 always answers a float here, even for a square.
     Ok(Value::Float(crate::runtime::sqrt(number)))
@@ -2751,7 +6059,12 @@ pub(crate) fn square_root(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _v
 ///
 /// They share one handler, and the variant says which of the three it is.
 /// AutoHotkey v2 answers a float here, whatever went in.
-pub(crate) fn trigonometry(_rt: &mut Runtime<'_>, values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn trigonometry(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = match variant {
         0 => "Sin",
         1 => "Cos",
@@ -2768,7 +6081,12 @@ pub(crate) fn trigonometry(_rt: &mut Runtime<'_>, values: &[Value], line: u32, v
 
 /// `ASin`, `ACos` and `ATan`: the angle whose sine, cosine or tangent is
 /// the number.
-pub(crate) fn inverse_trigonometry(_rt: &mut Runtime<'_>, values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn inverse_trigonometry(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = match variant {
         0 => "ASin",
         1 => "ACos",
@@ -2778,7 +6096,10 @@ pub(crate) fn inverse_trigonometry(_rt: &mut Runtime<'_>, values: &[Value], line
     if variant != 2 && !(-1.0..=1.0).contains(&number) {
         // The sine and the cosine are not there outside the unit range,
         // and v2 says that the parameter is invalid.
-        return Err(RuntimeError { message: crate::runtime::invalid_parameter(1, name), line });
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, name),
+            line,
+        });
     }
     let result = match variant {
         0 => crate::runtime::asin(number),
@@ -2789,20 +6110,35 @@ pub(crate) fn inverse_trigonometry(_rt: &mut Runtime<'_>, values: &[Value], line
 }
 
 /// `Exp`: e raised to the number.
-pub(crate) fn exponential(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    Ok(Value::Float(crate::runtime::exp(number_argument(values, 0, line, "Exp")?)))
+pub(crate) fn exponential(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Float(crate::runtime::exp(number_argument(
+        values, 0, line, "Exp",
+    )?)))
 }
 
 /// `Ln` and `Log`: the logarithm of the number.
 ///
 /// `Ln` is the natural one and `Log` the one of base ten.
-pub(crate) fn logarithm(_rt: &mut Runtime<'_>, values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn logarithm(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = if variant == 1 { "Log" } else { "Ln" };
     let number = number_argument(values, 0, line, name)?;
     if number < 0.0 {
         // The logarithm of a negative number is not there, and v2 says
         // that the parameter is invalid.
-        return Err(RuntimeError { message: crate::runtime::invalid_parameter(1, name), line });
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, name),
+            line,
+        });
     }
     let result = if variant == 0 {
         crate::runtime::ln(number)
@@ -2844,7 +6180,12 @@ fn unit_random(now_ms: u64) -> f64 {
 /// Without arguments it is a number between zero and one; with one it is
 /// a whole number below it; with two it is a whole number between them,
 /// both ends counted.
-pub(crate) fn random(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn random(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let now = rt.now_ms();
     match values.len() {
         0 => Ok(Value::Float(unit_random(now))),
@@ -2864,10 +6205,15 @@ pub(crate) fn random(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
             if low > high {
                 core::mem::swap(&mut low, &mut high);
             }
-            let whole = values[0].type_name() != TypeName::Float && values[1].type_name() != TypeName::Float;
+            let whole = values[0].type_name() != TypeName::Float
+                && values[1].type_name() != TypeName::Float;
             if whole {
                 let span = (high - low) as u64;
-                let offset = if span == 0 { 0 } else { next_random(now) as u64 % (span + 1) };
+                let offset = if span == 0 {
+                    0
+                } else {
+                    next_random(now) as u64 % (span + 1)
+                };
                 Ok(Value::Int((low as i64).saturating_add(offset as i64)))
             } else {
                 Ok(Value::Float(low + unit_random(now) * (high - low)))
@@ -2881,7 +6227,12 @@ pub(crate) fn random(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
 /// v2 reads the memory of an address as well, and this runtime does
 /// not: the source of a number is a buffer, and the bytes of a buffer
 /// live in the runtime.
-pub(crate) fn num_get(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn num_get(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let source = values.first().cloned().unwrap_or(Value::Int(0));
     if !matches!(source, Value::Object(_)) {
         // The memory of an address is not read here: the source of a
@@ -2906,7 +6257,10 @@ pub(crate) fn num_get(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
         Ok(number) => Ok(number),
         Err(RuntimeFailure::Error(error)) => Err(error),
         Err(RuntimeFailure::Detailed(error, _)) => Err(error),
-        Err(_) => Err(RuntimeError { message: "the buffer did not answer.".into(), line }),
+        Err(_) => Err(RuntimeError {
+            message: "the buffer did not answer.".into(),
+            line,
+        }),
     }
 }
 
@@ -2914,10 +6268,18 @@ pub(crate) fn num_get(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
 ///
 /// The types and the numbers come in pairs, and the target and the
 /// offset come after them: v2 writes the target last.
-pub(crate) fn num_put(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn num_put(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The target is the last object of the arguments: the pairs come
     // before it, and the offset comes after it.
-    let Some(index) = values.iter().rposition(|value| matches!(value, Value::Object(_))) else {
+    let Some(index) = values
+        .iter()
+        .rposition(|value| matches!(value, Value::Object(_)))
+    else {
         let message = match values.last() {
             Some(Value::Int(_)) => "this runtime does not write to the memory of an address: the target of a number is a buffer.".to_string(),
             Some(other) => expected_type(TypeName::Object, other.type_name()),
@@ -2927,10 +6289,16 @@ pub(crate) fn num_put(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
     };
     let pairs = &values[..index];
     if pairs.len() % 2 != 0 {
-        return Err(RuntimeError { message: "the types and the numbers of a write come in pairs.".into(), line });
+        return Err(RuntimeError {
+            message: "the types and the numbers of a write come in pairs.".into(),
+            line,
+        });
     }
     if index + 2 < values.len() {
-        return Err(RuntimeError { message: "a write takes the target and the offset after the pairs.".into(), line });
+        return Err(RuntimeError {
+            message: "a write takes the target and the offset after the pairs.".into(),
+            line,
+        });
     }
     let offset = match values.get(index + 1) {
         Some(_) => integer_argument(values, index + 1, line)?,
@@ -2956,7 +6324,10 @@ pub(crate) fn num_put(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
         Ok(address) => Ok(Value::Int(address)),
         Err(RuntimeFailure::Error(error)) => Err(error),
         Err(RuntimeFailure::Detailed(error, _)) => Err(error),
-        Err(_) => Err(RuntimeError { message: "the buffer did not answer.".into(), line }),
+        Err(_) => Err(RuntimeError {
+            message: "the buffer did not answer.".into(),
+            line,
+        }),
     }
 }
 
@@ -2967,17 +6338,33 @@ pub(crate) fn num_put(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
 /// Measured on the binary of v2.0.19 on 2026-10-31: the parameter wants
 /// a number and not a whole one, and the point that is not whole is the
 /// one before it.
-pub(crate) fn chr(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn chr(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let code = number_argument(values, 0, line, "Chr")? as i64;
     let Some(character) = char::from_u32(code as u32) else {
-        return Err(RuntimeError { message: crate::runtime::invalid_parameter(1, "Chr"), line });
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "Chr"),
+            line,
+        });
     };
     Ok(Value::Text(character.to_string()))
 }
 
 /// `Format`: a pattern with the values in it.
-pub(crate) fn format(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    Ok(Value::Text(format_pattern(&text_of(values, 0), &values[1.min(values.len())..])))
+pub(crate) fn format(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(format_pattern(
+        &text_of(values, 0),
+        &values[1.min(values.len())..],
+    )))
 }
 
 /// `InStr`: where the needle is in the haystack.
@@ -2985,11 +6372,19 @@ pub(crate) fn format(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _varia
 /// The position counts from one, and it is zero when the needle is not
 /// there at all. The search may be limited to a part of the haystack, and
 /// the case sense says whether the letters are taken as they are.
-pub(crate) fn in_str(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn in_str(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let haystack: Vec<char> = text_of(values, 0).chars().collect();
     let needle: Vec<char> = text_of(values, 1).chars().collect();
     if needle.is_empty() {
-        return Err(RuntimeError { message: crate::runtime::invalid_parameter(2, "InStr"), line });
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(2, "InStr"),
+            line,
+        });
     }
     // Measured on the binary of v2.0.19 on 2026-10-31: the sense of the case
     // is the third parameter, the place where the search begins is the
@@ -3046,9 +6441,18 @@ pub(crate) fn in_str(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
 /// `Ord`: the code point of the first character.
 ///
 /// An empty text has no character, and the code point of it is zero.
-pub(crate) fn ord(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn ord(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let text = text_of(values, 0);
-    let code = text.chars().next().map(|character| character as i64).unwrap_or(0);
+    let code = text
+        .chars()
+        .next()
+        .map(|character| character as i64)
+        .unwrap_or(0);
     Ok(Value::Int(code))
 }
 
@@ -3056,10 +6460,18 @@ pub(crate) fn ord(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant:
 ///
 /// The list is sorted where it stands. The numbers go by their value and
 /// the text by its letters.
-pub(crate) fn sort(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sort(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     if values.len() > 1 {
         // The options of AutoHotkey are not carried yet.
-        return Err(RuntimeError { message: "the options of the sort are not carried yet.".into(), line });
+        return Err(RuntimeError {
+            message: "the options of the sort are not carried yet.".into(),
+            line,
+        });
     }
     match values.first() {
         Some(Value::List(items)) => {
@@ -3073,7 +6485,10 @@ pub(crate) fn sort(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
             lines.sort_by(|left, right| compare_texts(left, right, false));
             Ok(Value::Text(lines.join("\n")))
         }
-        _ => Err(RuntimeError { message: crate::runtime::invalid_parameter(1, "Sort"), line }),
+        _ => Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "Sort"),
+            line,
+        }),
     }
 }
 
@@ -3081,7 +6496,12 @@ pub(crate) fn sort(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
 ///
 /// The answer is -1, 0 or 1, and the case sense says whether the letters
 /// are taken as they are.
-pub(crate) fn str_compare(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn str_compare(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let left = text_of(values, 0);
     let right = text_of(values, 1);
     let order = compare_texts(&left, &right, case_sense(values, 2, "StrCompare", line)?);
@@ -3093,16 +6513,30 @@ pub(crate) fn str_compare(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _v
 }
 
 /// `StrLen`: how many characters the text has.
-pub(crate) fn str_len(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn str_len(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     Ok(Value::Int(text_of(values, 0).chars().count() as i64))
 }
 
 /// `StrLower` and `StrUpper`: the text in the other case.
 ///
 /// They share one handler, and the variant says which of the two it is.
-pub(crate) fn change_case(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn change_case(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     let text = text_of(values, 0);
-    Ok(Value::Text(if variant == 1 { text.to_uppercase() } else { text.to_lowercase() }))
+    Ok(Value::Text(if variant == 1 {
+        text.to_uppercase()
+    } else {
+        text.to_lowercase()
+    }))
 }
 
 /// `StrReplace`: the text with one part of it swapped for another.
@@ -3111,7 +6545,12 @@ pub(crate) fn change_case(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, v
 /// the limit says how many of them are swapped: none of them means all of
 /// them. The case sense says whether the letters are taken as they are,
 /// and it is off when the caller does not say.
-pub(crate) fn str_replace(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn str_replace(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let haystack = text_argument("StrReplace", values, 0, line)?;
     let needle = text_argument("StrReplace", values, 1, line)?;
     let replacement = text_argument("StrReplace", values, 2, line)?;
@@ -3164,9 +6603,17 @@ pub(crate) fn str_replace(rt: &mut Runtime<'_>, values: &[Value], line: u32, _va
 /// capacity. Without a capacity it answers the length of the string and
 /// leaves the string alone. The tree keeps no capacity of its own: it
 /// answers the capacity it is given.
-pub(crate) fn var_set_str_capacity(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn var_set_str_capacity(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let Some(value) = values.first() else {
-        return Err(RuntimeError { message: crate::runtime::invalid_parameter(1, "VarSetStrCapacity"), line });
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "VarSetStrCapacity"),
+            line,
+        });
     };
     let Value::Reference(reference) = value else {
         return Err(RuntimeError {
@@ -3185,14 +6632,19 @@ pub(crate) fn var_set_str_capacity(rt: &mut Runtime<'_>, values: &[Value], line:
     // Measured on the binary of v2.0.19 on 2026-10-31: the v2 takes the
     // reference of a variable that has no value and answers the capacity
     // that it was given.
-    let current = rt.read_reference(reference).unwrap_or(Value::Text(String::new()));
+    let current = rt
+        .read_reference(reference)
+        .unwrap_or(Value::Text(String::new()));
     let Some(capacity) = values.get(1) else {
         return Ok(Value::Int(current.to_text().chars().count() as i64));
     };
     let capacity = match capacity.to_number_strict() {
         Ok(number) => number as i64,
         Err(kind) => {
-            return Err(RuntimeError { message: crate::runtime::expected_type(TypeName::Integer, kind), line });
+            return Err(RuntimeError {
+                message: crate::runtime::expected_type(TypeName::Integer, kind),
+                line,
+            });
         }
     };
     rt.write_reference(value, Value::Text(String::new()));
@@ -3203,7 +6655,12 @@ pub(crate) fn var_set_str_capacity(rt: &mut Runtime<'_>, values: &[Value], line:
 ///
 /// AutoHotkey counts positions from one, and a negative position counts
 /// from the end: -1 is the last character.
-pub(crate) fn sub_str(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sub_str(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let text: Vec<char> = text_of(values, 0).chars().collect();
     let start = number_of(values, 1) as i64;
     let from = start_index(start, text.len()).min(text.len());
@@ -3244,7 +6701,12 @@ fn start_index(start: i64, length: usize) -> usize {
 /// They share one handler, and the variant says which end: `Trim` takes
 /// both of them, `LTrim` the left one and `RTrim` the right one. The
 /// characters are the space and the tab, unless the caller names others.
-pub(crate) fn trim(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn trim(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     let characters: Vec<char> = text_of(values, 0).chars().collect();
     let set: Vec<char> = values
         .get(1)
@@ -3275,7 +6737,12 @@ pub(crate) fn trim(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, variant:
 /// asked; the numbers are the ones the binary uses. The second argument
 /// of the ones that take one is the mode of AutoHotkey, and the letters
 /// of this tree are the Latin ones in either mode.
-pub(crate) fn is_value(_rt: &mut Runtime<'_>, values: &[Value], line: u32, variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn is_value(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
     // The second parameter of v2 is the code page the text is read
     // with, and the text of this tree is always the text it holds.
     if values.len() > 1 {
@@ -3284,7 +6751,10 @@ pub(crate) fn is_value(_rt: &mut Runtime<'_>, values: &[Value], line: u32, varia
             line,
         });
     }
-    let value = values.first().cloned().unwrap_or(Value::Text(String::new()));
+    let value = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     let answer = match variant {
         1 => is_number(&value),
         2 => is_integer(&value),
@@ -3305,7 +6775,12 @@ pub(crate) fn is_value(_rt: &mut Runtime<'_>, values: &[Value], line: u32, varia
 ///
 /// The objects of this tree are the lists and the class instances, and
 /// both of them are objects the way an array is one in AutoHotkey.
-pub(crate) fn is_object(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn is_object(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let value = values.first().cloned().unwrap_or(Value::Int(0));
     // Measured on the binary of v2.0.19 on 2026-10-31: everything that is
     // not a number and not a text is an object -- an array, a map, a class
@@ -3315,7 +6790,12 @@ pub(crate) fn is_object(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _va
 }
 
 /// `Type`: the name of the type of the value.
-pub(crate) fn type_of(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn type_of(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let value = values.first().cloned().unwrap_or(Value::Int(0));
     let name = match value.type_name() {
         TypeName::Integer => "Integer",
@@ -3391,7 +6871,10 @@ fn is_integer_text(text: &str) -> bool {
         return false;
     }
     if let Some(digits) = rest.strip_prefix("0x").or_else(|| rest.strip_prefix("0X")) {
-        return !digits.is_empty() && digits.chars().all(|character| character.is_ascii_hexdigit());
+        return !digits.is_empty()
+            && digits
+                .chars()
+                .all(|character| character.is_ascii_hexdigit());
     }
     rest.chars().all(|character| character.is_ascii_digit())
 }
@@ -3431,18 +6914,23 @@ fn is_digits(text: &str) -> bool {
 ///
 /// A prefix of `0x` is tolerated, the way AutoHotkey tolerates it.
 fn is_hex_digits(text: &str) -> bool {
-    let rest = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")).unwrap_or(text);
+    let rest = text
+        .strip_prefix("0x")
+        .or_else(|| text.strip_prefix("0X"))
+        .unwrap_or(text);
     rest.chars().all(|character| character.is_ascii_hexdigit())
 }
 
 /// Whether the text holds nothing but the letters.
 fn is_alpha(text: &str) -> bool {
-    text.chars().all(|character| character.is_ascii_alphabetic())
+    text.chars()
+        .all(|character| character.is_ascii_alphabetic())
 }
 
 /// Whether the text holds nothing but the letters and the digits.
 fn is_alnum(text: &str) -> bool {
-    text.chars().all(|character| character.is_ascii_alphanumeric())
+    text.chars()
+        .all(|character| character.is_ascii_alphanumeric())
 }
 
 /// Whether the text holds nothing but the capital letters.
@@ -3460,7 +6948,8 @@ fn is_lower(text: &str) -> bool {
 /// The white space of AutoHotkey is the space, the tab, the linefeed, the
 /// return, the vertical tab and the formfeed.
 fn is_space(text: &str) -> bool {
-    text.chars().all(|character| matches!(character, ' ' | '\t' | '\n' | '\r' | '\u{b}' | '\u{c}'))
+    text.chars()
+        .all(|character| matches!(character, ' ' | '\t' | '\n' | '\r' | '\u{b}' | '\u{c}'))
 }
 
 /// Whether the value is a time.
@@ -3488,7 +6977,12 @@ fn is_time(value: &Value) -> bool {
 /// The position counts from one, and it is zero when the pattern is not
 /// there at all. v2 writes the matches of the pattern into a variable of
 /// the caller, and this tree does not carry that yet.
-pub(crate) fn regex_match(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn regex_match(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     if values.len() > 2 {
         return Err(RuntimeError {
             message: "the matches of the pattern are not carried into a variable yet.".into(),
@@ -3497,9 +6991,17 @@ pub(crate) fn regex_match(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _v
     }
     let text = text_of(values, 0);
     let pattern = text_of(values, 1);
-    let regex = crate::regex::Regex::new(&pattern).map_err(|reason| RuntimeError { message: reason, line })?;
-    let found = regex.find(&text).map_err(|reason| RuntimeError { message: reason, line })?;
-    Ok(Value::Int(found.map(|found| found.span().0 as i64 + 1).unwrap_or(0)))
+    let regex = crate::regex::Regex::new(&pattern).map_err(|reason| RuntimeError {
+        message: reason,
+        line,
+    })?;
+    let found = regex.find(&text).map_err(|reason| RuntimeError {
+        message: reason,
+        line,
+    })?;
+    Ok(Value::Int(
+        found.map(|found| found.span().0 as i64 + 1).unwrap_or(0),
+    ))
 }
 
 /// `RegExReplace`: the text with the matches of the pattern replaced.
@@ -3508,7 +7010,12 @@ pub(crate) fn regex_match(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _v
 /// v2 writes the number of the swaps into the variable of the caller, and
 /// the case of the letters is the one of the options of the pattern: the
 /// pattern begins with `(?i)` when the case is not to be looked at.
-pub(crate) fn regex_replace(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn regex_replace(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let text = text_argument("RegExReplace", values, 0, line)?;
     let pattern = text_argument("RegExReplace", values, 1, line)?;
     let replacement = text_argument("RegExReplace", values, 2, line)?;
@@ -3516,14 +7023,20 @@ pub(crate) fn regex_replace(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
     // The place where the search starts counts from one, the way
     // AutoHotkey counts the places.
     let starting = (number_of(values, 5) as i64).max(1) as usize - 1;
-    let regex = crate::regex::Regex::new(&pattern).map_err(|reason| RuntimeError { message: reason, line })?;
+    let regex = crate::regex::Regex::new(&pattern).map_err(|reason| RuntimeError {
+        message: reason,
+        line,
+    })?;
     let characters: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len());
     let mut at = starting.min(characters.len());
     out.extend(characters[..at].iter());
     let mut replaced = 0i64;
     while at <= characters.len() {
-        let found = regex.find_at(&text, at).map_err(|reason| RuntimeError { message: reason, line })?;
+        let found = regex.find_at(&text, at).map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
         let Some(found) = found else {
             break;
         };
@@ -3569,7 +7082,11 @@ pub(crate) fn regex_replace(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
 /// Put the groups of the match into the replacement.
 ///
 /// A group is named with `$1` or `\1`, and `$$` is a dollar of its own.
-fn expand_replacement(replacement: &str, found: &crate::regex::Match, characters: &[char]) -> String {
+fn expand_replacement(
+    replacement: &str,
+    found: &crate::regex::Match,
+    characters: &[char],
+) -> String {
     let mut out = String::new();
     let mut rest = replacement;
     while let Some(at) = rest.find(['$', '\\']) {
@@ -3588,7 +7105,10 @@ fn expand_replacement(replacement: &str, found: &crate::regex::Match, characters
                 None => ("", tail),
             },
             None => {
-                let count = tail.chars().take_while(|character| character.is_ascii_digit()).count();
+                let count = tail
+                    .chars()
+                    .take_while(|character| character.is_ascii_digit())
+                    .count();
                 (&tail[..count], &tail[count..])
             }
         };
@@ -3621,7 +7141,12 @@ fn expand_replacement(replacement: &str, found: &crate::regex::Match, characters
 /// The place is two numbers, so a number that is not followed by another
 /// one is the number of clicks: `Click 2` is a double click where the
 /// pointer is, and not a click at (2, 0).
-pub(crate) fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn click(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The components are the words of the parameters, and a parameter
     // may hold more than one of them.
     let mut words: Vec<String> = Vec::new();
@@ -3639,8 +7164,10 @@ pub(crate) fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
         if let Ok(number) = word.parse::<f64>() {
             // The place is two numbers, and it comes before the number
             // of clicks.
-            let next_is_a_number =
-                words.get(at + 1).map(|next| next.parse::<f64>().is_ok()).unwrap_or(false);
+            let next_is_a_number = words
+                .get(at + 1)
+                .map(|next| next.parse::<f64>().is_ok())
+                .unwrap_or(false);
             if place.is_none() && next_is_a_number {
                 let y = words[at + 1].parse::<f64>().unwrap_or(0.0);
                 place = Some((number as i64, y as i64));
@@ -3661,13 +7188,13 @@ pub(crate) fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
                 return Err(RuntimeError {
                     message: "the fourth button is not carried yet.".into(),
                     line,
-                })
+                });
             }
             "x2" => {
                 return Err(RuntimeError {
                     message: "the fifth button is not carried yet.".into(),
                     line,
-                })
+                });
             }
             "down" | "d" | "up" | "u" => {
                 return Err(RuntimeError {
@@ -3681,8 +7208,12 @@ pub(crate) fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
                     line,
                 });
             }
-            other if other.starts_with("wheel") || other == "wu" || other == "wd" || other == "wl"
-                || other == "wr" =>
+            other
+                if other.starts_with("wheel")
+                    || other == "wu"
+                    || other == "wd"
+                    || other == "wl"
+                    || other == "wr" =>
             {
                 return Err(RuntimeError {
                     message: "the wheel is not carried yet.".into(),
@@ -3702,12 +7233,17 @@ pub(crate) fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
     let (x, y) = match place {
         Some(place) => place,
         None => {
-            let (pointer_x, pointer_y) =
-                rt.desktop().mouse_position().map_err(|e| desktop_failure(e, line))?;
+            let (pointer_x, pointer_y) = rt
+                .desktop()
+                .mouse_position()
+                .map_err(|e| desktop_failure(e, line))?;
             (pointer_x, pointer_y)
         }
     };
-    let detail = rt.desktop().click(x, y, &button, count).map_err(|e| desktop_failure(e, line))?;
+    let detail = rt
+        .desktop()
+        .click(x, y, &button, count)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Text(detail))
 }
 
@@ -3725,10 +7261,22 @@ pub(crate) fn click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
 ///
 /// The wheel and the fourth and the fifth button are the ones that the
 /// desktop of the tree does not carry, and the refusal says so.
-pub(crate) fn mouse_click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let spelled = values.first().map(|value| value.to_text()).unwrap_or_default();
+pub(crate) fn mouse_click(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let spelled = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     // A button that is not there is the left one.
-    let button = if spelled.is_empty() { "left".to_string() } else { spelled };
+    let button = if spelled.is_empty() {
+        "left".to_string()
+    } else {
+        spelled
+    };
     let name = match button.to_lowercase().as_str() {
         "left" | "l" => "left",
         "right" | "r" => "right",
@@ -3737,42 +7285,60 @@ pub(crate) fn mouse_click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _va
             return Err(RuntimeError {
                 message: "the fourth button is not carried yet.".into(),
                 line,
-            })
+            });
         }
         "x2" => {
             return Err(RuntimeError {
                 message: "the fifth button is not carried yet.".into(),
                 line,
-            })
+            });
         }
         "wheelup" | "wu" | "wheeldown" | "wd" | "wheelleft" | "wl" | "wheelright" | "wr" => {
             return Err(RuntimeError {
                 message: "the wheel is not carried yet.".into(),
                 line,
-            })
+            });
         }
         _ => {
             return Err(RuntimeError {
                 message: "Parameter #1 of MouseClick is invalid.".into(),
                 line,
-            })
+            });
         }
     };
     // The place is the second and the third parameters, and the number of
     // the clicks is the fourth. The speed is the fifth, and the tree does
     // not carry it.
-    let x = values.get(1).and_then(|value| value.to_number()).map(|number| number as i64);
-    let y = values.get(2).and_then(|value| value.to_number()).map(|number| number as i64);
-    let count = values.get(3).and_then(|value| value.to_number()).unwrap_or(1.0).max(1.0) as u32;
+    let x = values
+        .get(1)
+        .and_then(|value| value.to_number())
+        .map(|number| number as i64);
+    let y = values
+        .get(2)
+        .and_then(|value| value.to_number())
+        .map(|number| number as i64);
+    let count = values
+        .get(3)
+        .and_then(|value| value.to_number())
+        .unwrap_or(1.0)
+        .max(1.0) as u32;
     // The pressing and the releasing of the button are the sixth parameter,
     // and the place relative to the pointer is the seventh.
-    if values.get(5).map(|value| !value.to_text().trim().is_empty()).unwrap_or(false) {
+    if values
+        .get(5)
+        .map(|value| !value.to_text().trim().is_empty())
+        .unwrap_or(false)
+    {
         return Err(RuntimeError {
             message: "the pressing of the button is not carried yet.".into(),
             line,
         });
     }
-    if values.get(6).map(|value| !value.to_text().trim().is_empty()).unwrap_or(false) {
+    if values
+        .get(6)
+        .map(|value| !value.to_text().trim().is_empty())
+        .unwrap_or(false)
+    {
         return Err(RuntimeError {
             message: "the place relative to the pointer is not carried yet.".into(),
             line,
@@ -3782,12 +7348,17 @@ pub(crate) fn mouse_click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _va
     let (x, y) = match (x, y) {
         (Some(x), Some(y)) => (x, y),
         _ => {
-            let (pointer_x, pointer_y) =
-                rt.desktop().mouse_position().map_err(|e| desktop_failure(e, line))?;
+            let (pointer_x, pointer_y) = rt
+                .desktop()
+                .mouse_position()
+                .map_err(|e| desktop_failure(e, line))?;
             (pointer_x, pointer_y)
         }
     };
-    let detail = rt.desktop().click(x, y, name, count).map_err(|e| desktop_failure(e, line))?;
+    let detail = rt
+        .desktop()
+        .click(x, y, name, count)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Text(detail))
 }
 
@@ -3795,7 +7366,12 @@ pub(crate) fn mouse_click(rt: &mut Runtime<'_>, values: &[Value], line: u32, _va
 ///
 /// The button goes down at the first place, the pointer moves to the
 /// second one, and the button comes up there.
-pub(crate) fn mouse_click_drag(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn mouse_click_drag(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let words = words_of(values);
     let mut at = 0usize;
     let mut button = "left".to_string();
@@ -3839,9 +7415,15 @@ pub(crate) fn mouse_click_drag(rt: &mut Runtime<'_>, values: &[Value], line: u32
         });
     }
     let (x1, y1, x2, y2) = (numbers[0], numbers[1], numbers[2], numbers[3]);
-    rt.desktop().mouse_down(Some(x1), Some(y1), &button).map_err(|e| desktop_failure(e, line))?;
-    rt.desktop().move_pointer(x2, y2).map_err(|e| desktop_failure(e, line))?;
-    rt.desktop().mouse_up(None, None, &button).map_err(|e| desktop_failure(e, line))?;
+    rt.desktop()
+        .mouse_down(Some(x1), Some(y1), &button)
+        .map_err(|e| desktop_failure(e, line))?;
+    rt.desktop()
+        .move_pointer(x2, y2)
+        .map_err(|e| desktop_failure(e, line))?;
+    rt.desktop()
+        .mouse_up(None, None, &button)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Int(1))
 }
 
@@ -3849,7 +7431,12 @@ pub(crate) fn mouse_click_drag(rt: &mut Runtime<'_>, values: &[Value], line: u32
 ///
 /// The name of the directory is a subfolder of the working directory when
 /// it is not an absolute path, the way v2 says it.
-pub(crate) fn set_working_dir(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn set_working_dir(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let directory = text_of(values, 0);
     if directory.is_empty() {
         return Err(RuntimeError {
@@ -3857,7 +7444,9 @@ pub(crate) fn set_working_dir(rt: &mut Runtime<'_>, values: &[Value], line: u32,
             line,
         });
     }
-    rt.desktop().set_working_directory(&directory).map_err(|e| desktop_failure(e, line))?;
+    rt.desktop()
+        .set_working_directory(&directory)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Int(1))
 }
 
@@ -3867,7 +7456,12 @@ pub(crate) fn set_working_dir(rt: &mut Runtime<'_>, values: &[Value], line: u32,
 /// is uppercased and the rest of the word is lowercased. A word is a run
 /// of letters and of digits, so `GONE with the WIND` becomes `Gone With
 /// The Wind`.
-pub(crate) fn str_title(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn str_title(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let text = text_of(values, 0);
     let mut out = String::with_capacity(text.len());
     let mut first = true;
@@ -3896,7 +7490,12 @@ pub(crate) fn str_title(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _va
 ///
 /// The second version may carry an operator -- `<`, `<=`, `>`, `>=` or
 /// `=` -- and then the answer is whether the relation holds.
-pub(crate) fn ver_compare(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn ver_compare(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let first = text_of(values, 0);
     let second = text_of(values, 1);
     if let Some((operator, wanted)) = split_operator(&second) {
@@ -3920,7 +7519,12 @@ pub(crate) fn ver_compare(_rt: &mut Runtime<'_>, values: &[Value], _line: u32, _
 /// function or of the method. The answer is one when the label is there
 /// and zero when it is not, and the name of a label does not know its
 /// case. A name that is empty is a name that is not there.
-pub(crate) fn is_label(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn is_label(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = text_of(values, 0);
     Ok(Value::Int(if rt.has_label(&name) { 1 } else { 0 }))
 }
@@ -4041,8 +7645,16 @@ fn compare_pre(first: &str, second: &str) -> i32 {
 /// and it answers with nothing. The window and the control are empty: the
 /// box has no window to ask. The flag of v2 says how the control is to be
 /// found, and there is no control to find.
-pub(crate) fn mouse_get_pos(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let (x, y) = rt.desktop().mouse_position().map_err(|e| desktop_failure(e, line))?;
+pub(crate) fn mouse_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (x, y) = rt
+        .desktop()
+        .mouse_position()
+        .map_err(|e| desktop_failure(e, line))?;
     let places = [
         Value::Int(x),
         Value::Int(y),
@@ -4050,7 +7662,9 @@ pub(crate) fn mouse_get_pos(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
         Value::Text(String::new()),
     ];
     for (index, place) in places.into_iter().enumerate() {
-        let Some(value) = values.get(index) else { continue };
+        let Some(value) = values.get(index) else {
+            continue;
+        };
         // The place is written into the variables of the caller, and
         // those are given by reference.
         if !matches!(value, Value::Reference(_)) {
@@ -4070,7 +7684,12 @@ pub(crate) fn mouse_get_pos(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
 }
 
 /// `MouseMove`: the pointer to a place on the screen.
-pub(crate) fn mouse_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn mouse_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The relative place of the move is not carried: the box moves the
     // pointer to the place, and not from where it is.
     if values.len() > 3 {
@@ -4092,20 +7711,33 @@ pub(crate) fn mouse_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
     }
     let x = number_of(values, 0) as i64;
     let y = number_of(values, 1) as i64;
-    let detail = rt.desktop().move_pointer(x, y).map_err(|e| desktop_failure(e, line))?;
+    let detail = rt
+        .desktop()
+        .move_pointer(x, y)
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Text(detail))
 }
 
 /// `PixelGetColor`: the colour of one pixel.
-pub(crate) fn pixel_get_color(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn pixel_get_color(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let (x, y) = if values.len() >= 2 {
         (number_of(values, 0) as i64, number_of(values, 1) as i64)
     } else {
-        let (pointer_x, pointer_y) =
-            rt.desktop().mouse_position().map_err(|e| desktop_failure(e, line))?;
+        let (pointer_x, pointer_y) = rt
+            .desktop()
+            .mouse_position()
+            .map_err(|e| desktop_failure(e, line))?;
         (pointer_x, pointer_y)
     };
-    let colour = rt.desktop().pixel(x, y).map_err(|e| desktop_failure(e, line))?;
+    let colour = rt
+        .desktop()
+        .pixel(x, y)
+        .map_err(|e| desktop_failure(e, line))?;
     rt.set_global("pixel", Value::Text(colour.clone()));
     Ok(Value::Text(colour))
 }
@@ -4121,11 +7753,18 @@ pub(crate) fn pixel_get_color(rt: &mut Runtime<'_>, values: &[Value], line: u32,
 /// &OutputVarX, &OutputVarY, X1, Y1, X2, Y2, ColorID` -- and the
 /// documentation of the v2.0.19 says the two variables are made blank
 /// when the colour is not there.
-pub(crate) fn pixel_search(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn pixel_search(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The place of the colour is written in the first two parameters, and
     // they are given by reference.
     for index in 0..2 {
-        let Some(value) = values.get(index) else { continue };
+        let Some(value) = values.get(index) else {
+            continue;
+        };
         if !matches!(value, Value::Reference(_)) {
             return Err(RuntimeError {
                 message: crate::runtime::wants_a_reference(
@@ -4166,7 +7805,12 @@ pub(crate) fn pixel_search(rt: &mut Runtime<'_>, values: &[Value], line: u32, _v
 ///
 /// AutoHotkey v2 has no such built-in; this one is ours, and it is the
 /// only name in the language that v2 would not have.
-pub(crate) fn screenshot(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn screenshot(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let x = number_of(values, 0) as i64;
     let y = number_of(values, 1) as i64;
     let width = number_of(values, 2) as i64;
@@ -4183,7 +7827,12 @@ pub(crate) fn screenshot(rt: &mut Runtime<'_>, values: &[Value], line: u32, _var
 // -- the windows ----------------------------------------------------------------
 
 /// `WinActive`: whether the window with this title is the active one.
-pub(crate) fn window_active(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn window_active(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The other parameters of v2 are the text of the window and the two
     // exclusions, and the desktop of the box has none of them.
     if values.len() > 1 {
@@ -4194,7 +7843,11 @@ pub(crate) fn window_active(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
     }
     let title = text_of(values, 0);
     let mode = crate::settings::title_match_mode();
-    match rt.desktop().window_active(&title, mode).map_err(|e| desktop_failure(e, line))? {
+    match rt
+        .desktop()
+        .window_active(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?
+    {
         WindowAnswer::Active => Ok(Value::Int(1)),
         // A window that is not there is not the active one, and a window
         // that is there but is not in front is not the active one either.
@@ -4211,7 +7864,12 @@ pub(crate) fn window_active(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
 /// It shares its handler with `WinActive`, and the variant says which of
 /// the two it is: a window that exists is the answer, whether it is the
 /// active one or not.
-pub(crate) fn window_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn window_exist(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The other parameters of v2 are the text of the window and the two
     // exclusions, and the desktop of the box has none of them.
     if values.len() > 1 {
@@ -4222,7 +7880,11 @@ pub(crate) fn window_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _v
     }
     let title = text_of(values, 0);
     let mode = crate::settings::title_match_mode();
-    match rt.desktop().window_exists(&title, mode).map_err(|e| desktop_failure(e, line))? {
+    match rt
+        .desktop()
+        .window_exists(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?
+    {
         WindowAnswer::Active | WindowAnswer::NotActive => Ok(Value::Int(1)),
         // A window that is not there is not there: the answer is false,
         // and not a failure.
@@ -4235,7 +7897,12 @@ pub(crate) fn window_exist(rt: &mut Runtime<'_>, values: &[Value], line: u32, _v
 }
 
 /// `WinGetTitle`: the title of the active window.
-pub(crate) fn win_get_title(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn win_get_title(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // v2 asks for a window and for the text of it, and the box has only
     // the window that is in front.
     if !values.is_empty() {
@@ -4244,7 +7911,10 @@ pub(crate) fn win_get_title(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
             line,
         });
     }
-    let title = rt.desktop().active_window_title().map_err(|e| desktop_failure(e, line))?;
+    let title = rt
+        .desktop()
+        .active_window_title()
+        .map_err(|e| desktop_failure(e, line))?;
     // The pause of v2 follows a windowing function, and a delay of -1 is no
     // pause at all.
     let delay = crate::settings::the_win_delay();
@@ -4260,11 +7930,18 @@ pub(crate) fn win_get_title(rt: &mut Runtime<'_>, values: &[Value], line: u32, _
 ///
 /// The box has no window to show it in, so the message goes into the
 /// report instead. That is the box's answer, not a quiet `false`.
-pub(crate) fn msg_box(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn msg_box(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The box has no buttons, no title and no answer to give back.
     if values.len() > 1 {
         return Err(RuntimeError {
-            message: "the options, the title and the variable that takes the answer are not carried yet.".into(),
+            message:
+                "the options, the title and the variable that takes the answer are not carried yet."
+                    .into(),
             line,
         });
     }
@@ -4274,21 +7951,29 @@ pub(crate) fn msg_box(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
 }
 
 /// `Run`: a command, and what it answered.
-pub(crate) fn run(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn run(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The third parameter of v2 is the options of the window, and the
     // fourth is the variable that takes the pid of the process. The
     // desktop of the box has no options, and the reference operator is
     // not carried, so a call that asks for them fails with the reason.
     if values.len() > 2 {
         return Err(RuntimeError {
-            message: "the options of the window and the pid of the process are not carried yet.".into(),
+            message: "the options of the window and the pid of the process are not carried yet."
+                .into(),
             line,
         });
     }
     let command = text_of(values, 0);
     let working_dir = text_of(values, 1);
-    let (code, stdout, stderr) =
-        rt.desktop().run(&command, &working_dir).map_err(|e| desktop_failure(e, line))?;
+    let (code, stdout, stderr) = rt
+        .desktop()
+        .run(&command, &working_dir)
+        .map_err(|e| desktop_failure(e, line))?;
     if !stdout.trim().is_empty() {
         rt.push_output(stdout.trim_end().to_string());
     }
@@ -4299,7 +7984,12 @@ pub(crate) fn run(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u
 }
 
 /// `Send`: text and keys, the way AutoHotkey writes them.
-pub(crate) fn send(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn send(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let text = rt.interpolate(&text_of(values, 0), line)?;
     let mut parts = Vec::new();
     for part in split_send(&text) {
@@ -4321,7 +8011,12 @@ pub(crate) fn send(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
 }
 
 /// `Sleep`: the pause, in milliseconds.
-pub(crate) fn sleep(rt: &mut Runtime<'_>, values: &[Value], _line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn sleep(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let millis = number_of(values, 0).clamp(0.0, 60_000.0) as u64;
     rt.sleep_ms(millis);
     Ok(Value::Int(millis as i64))
@@ -4340,7 +8035,12 @@ const CLIP_POLL_MS: u64 = 50;
 /// The timeout is in seconds and may be a fraction of one. A wait with no
 /// timeout is for the time the script has left: the timeout of the run is
 /// checked between the statements, and this wait is inside one.
-pub(crate) fn clip_wait(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub(crate) fn clip_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     // The second parameter waits for the data of any kind, and the
     // clipboard of this runtime carries text only.
     if number_of(values, 1) != 0.0 {
@@ -4349,10 +8049,17 @@ pub(crate) fn clip_wait(rt: &mut Runtime<'_>, values: &[Value], line: u32, _vari
             line,
         });
     }
-    let limit = if values.is_empty() { None } else { Some(number_of(values, 0) * 1000.0) };
+    let limit = if values.is_empty() {
+        None
+    } else {
+        Some(number_of(values, 0) * 1000.0)
+    };
     let started = rt.now_ms();
     loop {
-        let text = rt.desktop().clipboard_read().map_err(|message| desktop_failure(message, line))?;
+        let text = rt
+            .desktop()
+            .clipboard_read()
+            .map_err(|message| desktop_failure(message, line))?;
         if !text.is_empty() {
             return Ok(Value::Int(1));
         }
@@ -4484,7 +8191,10 @@ enum SendPart {
     /// Text, typed as it stands.
     Text(String),
     /// A key, with the modifiers held while it is pressed.
-    Key { name: String, modifiers: Vec<String> },
+    Key {
+        name: String,
+        modifiers: Vec<String>,
+    },
     /// A key that goes down and stays down.
     Down(String),
     /// A key that comes up.
@@ -4573,7 +8283,9 @@ fn split_send(text: &str) -> Vec<SendPart> {
                     parts.push(SendPart::Text(core::mem::take(&mut buffer)));
                 }
                 // `{^}` is a literal character, not a modifier.
-                if name.chars().count() == 1 && modifier_name(name.chars().next().unwrap()).is_some() {
+                if name.chars().count() == 1
+                    && modifier_name(name.chars().next().unwrap()).is_some()
+                {
                     parts.push(SendPart::Text(name));
                 } else if name.eq_ignore_ascii_case("raw") {
                     // The raw mode: the rest of the text is text.
@@ -4595,7 +8307,10 @@ fn split_send(text: &str) -> Vec<SendPart> {
                         None => {
                             let modifiers = core::mem::take(&mut modifiers);
                             for _ in 0..times {
-                                parts.push(SendPart::Key { name: key.clone(), modifiers: modifiers.clone() });
+                                parts.push(SendPart::Key {
+                                    name: key.clone(),
+                                    modifiers: modifiers.clone(),
+                                });
                             }
                         }
                     }

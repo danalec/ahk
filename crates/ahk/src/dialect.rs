@@ -529,11 +529,7 @@ pub trait Dialect: Sync {
     ///
     /// `None` means the name is not a built-in variable of the dialect: the
     /// runtime keeps it in the table of the script.
-    fn lookup_variable(
-        &self,
-        name: &str,
-        rt: &mut Runtime,
-    ) -> Option<Result<Value, RuntimeError>>;
+    fn lookup_variable(&self, name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError>>;
 
     /// The value that the write of the built-in variable of this name leaves.
     ///
@@ -1247,7 +1243,12 @@ pub trait Dialect: Sync {
     /// Measured on the binary of AutoHotkey v2.0.19 on 2026-11-05: the method
     /// of the prototype is "A.Prototype.m", and the static method is "A.m".
     /// The getter of a property is "A.Prototype.p.get".
-    fn the_name_of_a_member_of_a_class(&self, class: &str, member: &str, is_static: bool) -> String {
+    fn the_name_of_a_member_of_a_class(
+        &self,
+        class: &str,
+        member: &str,
+        is_static: bool,
+    ) -> String {
         if is_static {
             format!("{class}.{member}")
         } else {
@@ -1413,11 +1414,7 @@ pub trait Dialect: Sync {
     /// name of a variable when the script loads, and the complaint of the v1
     /// is its own. The v2 has no command that writes into a variable of the
     /// script, and the parser keeps its own complaint.
-    fn the_refusal_of_the_name_of_a_variable(
-        &self,
-        _place: usize,
-        _text: &str,
-    ) -> Option<String> {
+    fn the_refusal_of_the_name_of_a_variable(&self, _place: usize, _text: &str) -> Option<String> {
         None
     }
 
@@ -1939,7 +1936,11 @@ impl Dialect for V2 {
         crate::variables::refusal_of(name)
     }
 
-    fn the_refusal_of_the_write_of_a_built_in_variable(&self, name: &str, op: AssignOp) -> Option<String> {
+    fn the_refusal_of_the_write_of_a_built_in_variable(
+        &self,
+        name: &str,
+        op: AssignOp,
+    ) -> Option<String> {
         // Measured on the binary of v2.0.19 on 2026-10-31: the dialect refuses
         // the name when the script writes it, and it names the name as the
         // script spelled it.
@@ -1965,11 +1966,7 @@ impl Dialect for V2 {
         false
     }
 
-    fn lookup_variable(
-        &self,
-        name: &str,
-        rt: &mut Runtime,
-    ) -> Option<Result<Value, RuntimeError>> {
+    fn lookup_variable(&self, name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError>> {
         crate::variables::lookup(name, rt)
     }
 
@@ -2281,11 +2278,7 @@ impl Dialect for V1 {
         true
     }
 
-    fn lookup_variable(
-        &self,
-        name: &str,
-        rt: &mut Runtime,
-    ) -> Option<Result<Value, RuntimeError>> {
+    fn lookup_variable(&self, name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError>> {
         // The v1 carries the variables of the v2, and the ones of its own:
         // the name is the one that the dialect spells. The ones that the v1
         // spells in its own way come first: the flag of the v1 is the "On"
@@ -2475,11 +2468,7 @@ impl Dialect for V1 {
     fn the_maximum_of_the_parameters(&self, max: u8) -> u32 {
         // The table of the v1 says 255 when the built-in takes any number of
         // arguments, and the v1 counts ten thousand there.
-        if max == 255 {
-            10000
-        } else {
-            max as u32
-        }
+        if max == 255 { 10000 } else { max as u32 }
     }
 
     fn a_member_that_is_not_there_is_answered(&self) -> bool {
@@ -2591,7 +2580,11 @@ impl Dialect for V1 {
         None
     }
 
-    fn the_refusal_of_the_write_of_a_built_in_variable(&self, name: &str, op: AssignOp) -> Option<String> {
+    fn the_refusal_of_the_write_of_a_built_in_variable(
+        &self,
+        name: &str,
+        op: AssignOp,
+    ) -> Option<String> {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 refuses
         // the write of every built-in variable of the dialect -- the ones that
         // the v2 lets a script write as well -- and the reason is the same
@@ -2603,7 +2596,9 @@ impl Dialect for V1 {
         if !crate::v1::is_read_only(name) {
             return None;
         }
-        Some(format!("Not allowed as an output variable.\n     Specifically: {name}"))
+        Some(format!(
+            "Not allowed as an output variable.\n     Specifically: {name}"
+        ))
     }
 
     fn the_refusal_of_the_increment_of_a_built_in_variable(&self, name: &str) -> Option<String> {
@@ -2613,10 +2608,16 @@ impl Dialect for V1 {
         if !crate::v1::is_read_only(name) {
             return None;
         }
-        Some(format!("Not allowed as an output variable.\n     Specifically: {name}"))
+        Some(format!(
+            "Not allowed as an output variable.\n     Specifically: {name}"
+        ))
     }
 
-    fn the_refusal_of_an_invalid_parameter(&self, name: &str, parameters: &[String]) -> Option<String> {
+    fn the_refusal_of_an_invalid_parameter(
+        &self,
+        name: &str,
+        parameters: &[String],
+    ) -> Option<String> {
         // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 checks
         // the parameter of its commands when the script loads, and the
         // complaint of the v1 is its own.
@@ -2655,11 +2656,7 @@ impl Dialect for V1 {
         "A Goto/Gosub must not jump into a block that doesn't enclose it."
     }
 
-    fn the_refusal_of_the_name_of_a_variable(
-        &self,
-        _place: usize,
-        text: &str,
-    ) -> Option<String> {
+    fn the_refusal_of_the_name_of_a_variable(&self, _place: usize, text: &str) -> Option<String> {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-02: the v1 checks
         // the name of a variable of the script when the script loads, and
         // the complaint of the v1 is its own.
@@ -3089,7 +3086,12 @@ impl Dialect for V1 {
         true
     }
 
-    fn the_name_of_a_member_of_a_class(&self, class: &str, member: &str, _is_static: bool) -> String {
+    fn the_name_of_a_member_of_a_class(
+        &self,
+        class: &str,
+        member: &str,
+        _is_static: bool,
+    ) -> String {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
         // spells the method "A.m" and the getter "A.p.get".
         format!("{class}.{member}")

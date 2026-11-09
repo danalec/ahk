@@ -10,11 +10,11 @@
 //! binary of v2.0.19 on 2026-10-27, with `HasProp` and `HasMethod`.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
-use ahk::runtime::{Report, Runtime, Value};
 use ahk::parse;
+use ahk::runtime::{Report, Runtime, Value};
 use std::time::Duration;
 
 /// A desktop that answers nothing: a buffer does not ask it anything.
@@ -119,7 +119,10 @@ fn a_buffer_of_a_negative_size_fails() {
         "try {\n    b := Buffer(-1)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
     );
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["Invalid value. | Buffer.Prototype.__New | "]);
+    assert_eq!(
+        report.output,
+        vec!["Invalid value. | Buffer.Prototype.__New | "]
+    );
 }
 
 #[test]
@@ -170,9 +173,7 @@ fn a_buffer_has_no_item() {
 fn the_fill_of_a_buffer_is_the_byte_of_the_number() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a number that is
     // not a byte is not refused, and the byte of it is the fill.
-    let report = run(
-        "b := Buffer(3, 0x414243)\nMsgBox b.Size \" \" NumGet(b, 0, \"UChar\")",
-    );
+    let report = run("b := Buffer(3, 0x414243)\nMsgBox b.Size \" \" NumGet(b, 0, \"UChar\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["3 67"]);
 }
@@ -219,8 +220,7 @@ fn a_number_goes_into_a_buffer_and_comes_back() {
 
 #[test]
 fn every_type_of_a_number_is_a_number() {
-    let report = run(
-        "b := Buffer(64)\n\
+    let report = run("b := Buffer(64)\n\
          NumPut(\"UInt\", 4294967295, b, 0)\n\
          NumPut(\"Int\", -2, b, 4)\n\
          NumPut(\"Int64\", -3, b, 8)\n\
@@ -239,10 +239,12 @@ fn every_type_of_a_number_is_a_number() {
          uc := NumGet(b, 21, \"UChar\")\n\
          f := NumGet(b, 22, \"Float\")\n\
          d := NumGet(b, 26, \"Double\")\n\
-         MsgBox \"%u% %i% %i64% %s% %us% %c% %uc% %f% %d%\"",
-    );
+         MsgBox \"%u% %i% %i64% %s% %us% %c% %uc% %f% %d%\"");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.output, vec!["4294967295 -2 -3 -4 65535 -5 255 1.5 2.25"]);
+    assert_eq!(
+        report.output,
+        vec!["4294967295 -2 -3 -4 65535 -5 255 1.5 2.25"]
+    );
 }
 
 #[test]
@@ -267,10 +269,8 @@ fn a_number_is_at_the_offset_it_is_written_at() {
 
 #[test]
 fn a_write_takes_several_numbers() {
-    let report = run(
-        "b := Buffer(8)\nNumPut(\"Int\", 1, \"Short\", 2, b)\n\
-         first := NumGet(b, 0, \"Int\")\nsecond := NumGet(b, 4, \"Short\")\nMsgBox \"%first% %second%\"",
-    );
+    let report = run("b := Buffer(8)\nNumPut(\"Int\", 1, \"Short\", 2, b)\n\
+         first := NumGet(b, 0, \"Int\")\nsecond := NumGet(b, 4, \"Short\")\nMsgBox \"%first% %second%\"");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 2"]);
 }
@@ -286,7 +286,10 @@ fn a_write_answers_the_address_to_the_right_of_the_last_number() {
 fn a_number_that_does_not_fit_in_the_buffer_fails() {
     let report = run("b := Buffer(2)\nNumPut(\"Int\", 42, b)");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the bytes do not fit in the buffer."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the bytes do not fit in the buffer.")
+    );
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -294,7 +297,10 @@ fn a_number_that_does_not_fit_in_the_buffer_fails() {
 fn a_number_that_is_not_in_the_buffer_fails() {
     let report = run("b := Buffer(2)\nNumGet(b, 0, \"Int\")");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the bytes do not fit in the buffer."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the bytes do not fit in the buffer.")
+    );
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -304,7 +310,9 @@ fn a_number_is_not_read_from_the_memory_of_an_address() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("this runtime does not read the memory of an address: the source of a number is a buffer.")
+        Some(
+            "this runtime does not read the memory of an address: the source of a number is a buffer."
+        )
     );
     assert_eq!(report.error_line, Some(1));
 }
@@ -315,7 +323,9 @@ fn a_number_is_not_written_to_the_memory_of_an_address() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("this runtime does not write to the memory of an address: the target of a number is a buffer.")
+        Some(
+            "this runtime does not write to the memory of an address: the target of a number is a buffer."
+        )
     );
     assert_eq!(report.error_line, Some(1));
 }
@@ -334,7 +344,9 @@ fn a_type_that_is_not_a_type_of_a_number_fails() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some("the type of a number is one of UInt, Int, Int64, Short, UShort, Char, UChar, Double, Float, Ptr or UPtr.")
+        Some(
+            "the type of a number is one of UInt, Int, Int64, Short, UShort, Char, UChar, Double, Float, Ptr or UPtr."
+        )
     );
     assert_eq!(report.error_line, Some(2));
 }
@@ -394,7 +406,9 @@ fn the_size_of_a_buffer_is_a_number() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["Parameter #1 of Buffer.Prototype.__New requires a Number, but received a String. | Buffer.Prototype.__New | x"]
+        vec![
+            "Parameter #1 of Buffer.Prototype.__New requires a Number, but received a String. | Buffer.Prototype.__New | x"
+        ]
     );
 }
 

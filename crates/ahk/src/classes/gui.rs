@@ -53,7 +53,10 @@ const GUI: &[(&str, &str)] = &[
     ("addupdown", "add an up-down control to the window"),
     ("destroy", "destroy the window"),
     ("flash", "flash the window"),
-    ("getclientpos", "read where the client area of the window is"),
+    (
+        "getclientpos",
+        "read where the client area of the window is",
+    ),
     ("getpos", "read where the window is"),
     ("hide", "hide the window"),
     ("maximize", "maximize the window"),
@@ -69,7 +72,10 @@ const GUI: &[(&str, &str)] = &[
     ("hwnd", "give the handle of the window"),
     ("title", "read or set the title of the window"),
     ("name", "read or set the name of the window"),
-    ("focusedctrl", "read which control of the window has the focus"),
+    (
+        "focusedctrl",
+        "read which control of the window has the focus",
+    ),
     ("backcolor", "read or set the back colour of the window"),
     ("marginx", "read or set the left margin of the window"),
     ("marginy", "read or set the top margin of the window"),
@@ -150,8 +156,14 @@ const MENU: &[(&str, &str)] = &[
     ("add", "add an item to the menu bar"),
     ("addstandard", "add the standard items to the menu bar"),
     ("check", "check an item of the menu bar"),
-    ("clickcount", "read or set how many clicks an item of the menu bar takes"),
-    ("default", "read or set which item of the menu bar is the default"),
+    (
+        "clickcount",
+        "read or set how many clicks an item of the menu bar takes",
+    ),
+    (
+        "default",
+        "read or set which item of the menu bar is the default",
+    ),
     ("delete", "delete an item of the menu bar"),
     ("disable", "disable an item of the menu bar"),
     ("enable", "enable an item of the menu bar"),
@@ -162,7 +174,10 @@ const MENU: &[(&str, &str)] = &[
     ("seticon", "set the icon of an item of the menu bar"),
     ("show", "show the menu bar"),
     ("togglecheck", "toggle the check of an item of the menu bar"),
-    ("toggleenable", "toggle whether an item of the menu bar is enabled"),
+    (
+        "toggleenable",
+        "toggle whether an item of the menu bar is enabled",
+    ),
     ("uncheck", "uncheck an item of the menu bar"),
 ];
 
@@ -200,13 +215,48 @@ struct Windows {
 /// whole family: a window is a Windows window, and this desktop is a
 /// Wayland session without one.
 const CLASSES: &[Windows] = &[
-    Windows { class: "gui", name: "Gui", surface: GUI, reason: "a window is a Windows window, and this desktop is a Wayland session without one" },
-    Windows { class: "menu", name: "Menu", surface: MENU, reason: "a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one" },
-    Windows { class: "gui.menu", name: "Menu", surface: MENU, reason: "a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one" },
-    Windows { class: "gui.control", name: "Gui.Control", surface: CONTROL, reason: "a control is a control of a Windows window, and this desktop is a Wayland session without one" },
-    Windows { class: "gui.listview", name: "Gui.ListView", surface: LISTVIEW, reason: "a list view is a control of a Windows window, and this desktop is a Wayland session without one" },
-    Windows { class: "gui.statusbar", name: "Gui.StatusBar", surface: STATUSBAR, reason: "a status bar is a control of a Windows window, and this desktop is a Wayland session without one" },
-    Windows { class: "gui.treeview", name: "Gui.TreeView", surface: TREEVIEW, reason: "a tree view is a control of a Windows window, and this desktop is a Wayland session without one" },
+    Windows {
+        class: "gui",
+        name: "Gui",
+        surface: GUI,
+        reason: "a window is a Windows window, and this desktop is a Wayland session without one",
+    },
+    Windows {
+        class: "menu",
+        name: "Menu",
+        surface: MENU,
+        reason: "a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one",
+    },
+    Windows {
+        class: "gui.menu",
+        name: "Menu",
+        surface: MENU,
+        reason: "a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one",
+    },
+    Windows {
+        class: "gui.control",
+        name: "Gui.Control",
+        surface: CONTROL,
+        reason: "a control is a control of a Windows window, and this desktop is a Wayland session without one",
+    },
+    Windows {
+        class: "gui.listview",
+        name: "Gui.ListView",
+        surface: LISTVIEW,
+        reason: "a list view is a control of a Windows window, and this desktop is a Wayland session without one",
+    },
+    Windows {
+        class: "gui.statusbar",
+        name: "Gui.StatusBar",
+        surface: STATUSBAR,
+        reason: "a status bar is a control of a Windows window, and this desktop is a Wayland session without one",
+    },
+    Windows {
+        class: "gui.treeview",
+        name: "Gui.TreeView",
+        surface: TREEVIEW,
+        reason: "a tree view is a control of a Windows window, and this desktop is a Wayland session without one",
+    },
 ];
 
 /// The names of a class of the windows.
@@ -236,7 +286,13 @@ pub(crate) fn construct(
     // the window, and v2 checks it before the options.
     if let Some(events) = arguments.get(2) {
         if !matches!(events, Value::Object(_)) {
-            return Err(the_type_failure(4, "Gui.Prototype.__New", TypeName::Object, events, line));
+            return Err(the_type_failure(
+                4,
+                "Gui.Prototype.__New",
+                TypeName::Object,
+                events,
+                line,
+            ));
         }
     }
     // The options are a text, or the number of a window that already
@@ -259,7 +315,13 @@ pub(crate) fn construct(
                 ));
             }
             other => {
-                return Err(the_type_failure(2, "Gui.Prototype.__New", TypeName::String, other, line));
+                return Err(the_type_failure(
+                    2,
+                    "Gui.Prototype.__New",
+                    TypeName::String,
+                    other,
+                    line,
+                ));
             }
         }
     }
@@ -347,7 +409,10 @@ fn the_options_are_read(options: &str, line: u32) -> Result<(), RuntimeFailure> 
                     ),
                     line,
                 },
-                Detail { what: "Gui.Prototype.__New".to_string(), extra: word.to_string() },
+                Detail {
+                    what: "Gui.Prototype.__New".to_string(),
+                    extra: word.to_string(),
+                },
             ));
         }
     }
@@ -402,7 +467,10 @@ fn the_failure_of_an_argument(
 ) -> RuntimeFailure {
     RuntimeFailure::Detailed(
         RuntimeError { message, line },
-        Detail { what: name.to_string(), extra: value.to_text() },
+        Detail {
+            what: name.to_string(),
+            extra: value.to_text(),
+        },
     )
 }
 
@@ -456,8 +524,14 @@ pub(crate) fn set_property(
 /// `None` means the class has no such name: the runtime then says the
 /// value has no such method.
 fn refused(class: &str, name: &str, line: u32) -> Option<RuntimeFailure> {
-    let entry = CLASSES.iter().find(|entry| entry.class == class.to_lowercase())?;
-    let what = entry.surface.iter().find(|entry| entry.0 == name.to_lowercase()).map(|entry| entry.1)?;
+    let entry = CLASSES
+        .iter()
+        .find(|entry| entry.class == class.to_lowercase())?;
+    let what = entry
+        .surface
+        .iter()
+        .find(|entry| entry.0 == name.to_lowercase())
+        .map(|entry| entry.1)?;
     Some(RuntimeFailure::Error(RuntimeError {
         message: format!("{} cannot {what}: {}.", entry.name, entry.reason),
         line,
@@ -505,7 +579,10 @@ mod tests {
         ] {
             let carried: Vec<&str> = table.iter().map(|(name, _)| *name).collect();
             for name in names_of(class) {
-                assert!(carried.contains(&name.as_str()), "{class} does not carry {name}");
+                assert!(
+                    carried.contains(&name.as_str()),
+                    "{class} does not carry {name}"
+                );
             }
             for name in &carried {
                 let binary = names_of(class);
@@ -535,7 +612,11 @@ mod tests {
     fn every_class_says_why_it_cannot_work_here() {
         for entry in CLASSES {
             assert!(!entry.surface.is_empty(), "{} has no names", entry.name);
-            assert!(entry.reason.contains("Wayland"), "{} says no reason", entry.name);
+            assert!(
+                entry.reason.contains("Wayland"),
+                "{} says no reason",
+                entry.name
+            );
         }
     }
 }

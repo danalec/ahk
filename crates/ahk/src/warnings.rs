@@ -202,8 +202,16 @@ pub fn the_kind_and_the_mode(
     dialect: &dyn Dialect,
 ) -> (Option<WarningType>, Option<WarningMode>) {
     let (kind, mode) = the_parts_of_the_argument(argument);
-    let kind = if kind.is_empty() { None } else { dialect.the_type_of_the_warning(kind) };
-    let mode = if mode.is_empty() { None } else { dialect.the_mode_of_the_warning(mode) };
+    let kind = if kind.is_empty() {
+        None
+    } else {
+        dialect.the_type_of_the_warning(kind)
+    };
+    let mode = if mode.is_empty() {
+        None
+    } else {
+        dialect.the_mode_of_the_warning(mode)
+    };
     (kind, mode)
 }
 
@@ -257,7 +265,11 @@ pub fn the_types_of_the_script(statements: &[Node], dialect: &dyn Dialect) -> Ve
     types
 }
 
-fn the_types_of_the_level(statements: &[Node], types: &mut Vec<WarningType>, dialect: &dyn Dialect) {
+fn the_types_of_the_level(
+    statements: &[Node],
+    types: &mut Vec<WarningType>,
+    dialect: &dyn Dialect,
+) {
     for statement in statements {
         if let Node::Directive { name, argument, .. } = statement {
             if name.eq_ignore_ascii_case("warn") {
@@ -336,33 +348,49 @@ fn the_word_that_leaves_the_level(statement: &Node) -> Option<&'static str> {
 fn the_bodies_of(statement: &Node) -> Vec<&[Node]> {
     match statement {
         Node::Block { body, .. } => vec![body],
-        Node::If { branches, otherwise, .. } => {
-            let mut bodies: Vec<&[Node]> =
-                branches.iter().map(|branch| branch.body.as_slice()).collect();
+        Node::If {
+            branches,
+            otherwise,
+            ..
+        } => {
+            let mut bodies: Vec<&[Node]> = branches
+                .iter()
+                .map(|branch| branch.body.as_slice())
+                .collect();
             bodies.push(otherwise);
             bodies
         }
-        Node::Switch { cases, .. } => {
-            cases.iter().map(|case| case.body.as_slice()).collect()
-        }
+        Node::Switch { cases, .. } => cases.iter().map(|case| case.body.as_slice()).collect(),
         Node::While { body, .. } => vec![body],
         Node::Loop { body, .. } => vec![body],
         Node::For { body, .. } => vec![body],
         Node::FunctionDef { body, .. } => vec![body],
-        Node::Try { body, catches, otherwise, finally, .. } => {
+        Node::Try {
+            body,
+            catches,
+            otherwise,
+            finally,
+            ..
+        } => {
             let mut bodies: Vec<&[Node]> = vec![body, otherwise, finally];
             bodies.extend(catches.iter().map(|catch| catch.body.as_slice()));
             bodies
         }
-        Node::ClassDef { methods, nested, .. } => {
-            let mut bodies: Vec<&[Node]> =
-                methods.iter().map(|method| method.body.as_slice()).collect();
+        Node::ClassDef {
+            methods, nested, ..
+        } => {
+            let mut bodies: Vec<&[Node]> = methods
+                .iter()
+                .map(|method| method.body.as_slice())
+                .collect();
             for class in nested {
                 bodies.extend(the_bodies_of(class));
             }
             bodies
         }
-        Node::LegacyIf { body, otherwise, .. } => vec![body, otherwise],
+        Node::LegacyIf {
+            body, otherwise, ..
+        } => vec![body, otherwise],
         Node::HotkeyDefinition { body, .. } => vec![body],
         _ => Vec::new(),
     }
@@ -398,7 +426,14 @@ fn the_warnings_of_the_locals_of_the_level(
 ) {
     for statement in statements {
         match statement {
-            Node::FunctionDef { name, parameters, body, declarations, body_line, .. } => {
+            Node::FunctionDef {
+                name,
+                parameters,
+                body,
+                declarations,
+                body_line,
+                ..
+            } => {
                 let scope = TheScope {
                     name,
                     parameters,
@@ -408,15 +443,15 @@ fn the_warnings_of_the_locals_of_the_level(
                 };
                 the_warnings_of_the_locals_of_a_scope(scope, globals, dialect, warnings);
             }
-            Node::ClassDef { name, methods, accessors, nested, .. } => {
+            Node::ClassDef {
+                name,
+                methods,
+                accessors,
+                nested,
+                ..
+            } => {
                 the_warnings_of_the_locals_of_a_class(
-                    name,
-                    methods,
-                    accessors,
-                    nested,
-                    globals,
-                    dialect,
-                    warnings,
+                    name, methods, accessors, nested, globals, dialect, warnings,
                 );
             }
             _ => {}
@@ -455,7 +490,13 @@ fn the_warnings_of_the_locals_of_a_scope(
     dialect: &dyn Dialect,
     warnings: &mut Vec<Warning>,
 ) {
-    let TheScope { name, parameters, body, declarations, body_line } = scope;
+    let TheScope {
+        name,
+        parameters,
+        body,
+        declarations,
+        body_line,
+    } = scope;
     let mut writes = Vec::new();
     the_writes_of_a_level(body, &mut writes, false);
     // The locals of the scope are the names that it writes, and the names
@@ -472,10 +513,17 @@ fn the_warnings_of_the_locals_of_a_scope(
         if !seen.insert(local.to_lowercase()) {
             continue;
         }
-        if declarations.globals.iter().any(|name| name.to_lowercase() == local.to_lowercase()) {
+        if declarations
+            .globals
+            .iter()
+            .any(|name| name.to_lowercase() == local.to_lowercase())
+        {
             continue;
         }
-        if parameters.iter().any(|parameter| parameter.name.to_lowercase() == local.to_lowercase()) {
+        if parameters
+            .iter()
+            .any(|parameter| parameter.name.to_lowercase() == local.to_lowercase())
+        {
             continue;
         }
         if !globals.contains(&local.to_lowercase()) {
@@ -486,7 +534,11 @@ fn the_warnings_of_the_locals_of_a_scope(
         }
         // The v1 names the line that opens the body of the function, and the
         // v2 names the line of the write of the local.
-        let line = if dialect.the_scope_of_a_function_is_its_own() { body_line } else { the_line };
+        let line = if dialect.the_scope_of_a_function_is_its_own() {
+            body_line
+        } else {
+            the_line
+        };
         warnings.push(Warning {
             line,
             message: format!(
@@ -526,8 +578,11 @@ fn the_warnings_of_the_locals_of_a_class(
     for accessor in accessors {
         for (kind, body) in [("get", &accessor.getter), ("set", &accessor.setter)] {
             let Some(body) = body else { continue };
-            let name =
-                dialect.the_name_of_a_member_of_a_class(path, &format!("{}.{kind}", accessor.name), accessor.is_static);
+            let name = dialect.the_name_of_a_member_of_a_class(
+                path,
+                &format!("{}.{kind}", accessor.name),
+                accessor.is_static,
+            );
             let scope = TheScope {
                 name: &name,
                 parameters: &accessor.parameters,
@@ -539,9 +594,18 @@ fn the_warnings_of_the_locals_of_a_class(
         }
     }
     for class in nested {
-        if let Node::ClassDef { name, methods, accessors, nested, .. } = class {
+        if let Node::ClassDef {
+            name,
+            methods,
+            accessors,
+            nested,
+            ..
+        } = class
+        {
             let path = format!("{path}.{name}");
-            the_warnings_of_the_locals_of_a_class(&path, methods, accessors, nested, globals, dialect, warnings);
+            the_warnings_of_the_locals_of_a_class(
+                &path, methods, accessors, nested, globals, dialect, warnings,
+            );
         }
     }
 }
@@ -577,7 +641,12 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
             the_reads_of_a_node(right, reads);
         }
         Node::Unset { .. } => {}
-        Node::Ternary { condition, then, otherwise, .. } => {
+        Node::Ternary {
+            condition,
+            then,
+            otherwise,
+            ..
+        } => {
             the_reads_of_a_node(condition, reads);
             the_reads_of_a_node(then, reads);
             the_reads_of_a_node(otherwise, reads);
@@ -595,11 +664,15 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
         }
         Node::Assign { value, .. } => the_reads_of_a_node(value, reads),
         Node::LegacyAssign { text, line, .. } => the_names_of_a_text(text, *line, reads),
-        Node::LegacyComparison { left, text, line, .. } => {
+        Node::LegacyComparison {
+            left, text, line, ..
+        } => {
             the_reads_of_a_node(left, reads);
             the_names_of_a_text(text, *line, reads);
         }
-        Node::LegacyMatch { left, texts, line, .. } => {
+        Node::LegacyMatch {
+            left, texts, line, ..
+        } => {
             the_reads_of_a_node(left, reads);
             for text in texts {
                 the_names_of_a_text(text, *line, reads);
@@ -620,7 +693,9 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
                 the_reads_of_a_node(argument, reads);
             }
         }
-        Node::LegacyCall { parameters, line, .. } => {
+        Node::LegacyCall {
+            parameters, line, ..
+        } => {
             for parameter in parameters {
                 match parameter {
                     crate::ast::LegacyParameter::Text(text) => {
@@ -632,7 +707,9 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
                 }
             }
         }
-        Node::LegacyIf { parameters, line, .. } => {
+        Node::LegacyIf {
+            parameters, line, ..
+        } => {
             for text in parameters {
                 the_names_of_a_text(text, *line, reads);
             }
@@ -657,7 +734,9 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
             }
         }
         Node::While { condition, .. } => the_reads_of_a_node(condition, reads),
-        Node::Loop { arguments, until, .. } => {
+        Node::Loop {
+            arguments, until, ..
+        } => {
             for argument in arguments {
                 the_reads_of_a_node(argument, reads);
             }
@@ -680,7 +759,9 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
         }
         Node::FunctionDef { .. } => {}
         Node::ClassDef { .. } => {}
-        Node::MethodCall { target, arguments, .. } => {
+        Node::MethodCall {
+            target, arguments, ..
+        } => {
             the_reads_of_a_node(target, reads);
             for argument in arguments {
                 the_reads_of_a_node(argument, reads);
@@ -690,12 +771,22 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
             the_reads_of_a_node(target, reads);
             the_reads_of_a_member_name(name, reads);
         }
-        Node::AssignProperty { target, name, value, .. } => {
+        Node::AssignProperty {
+            target,
+            name,
+            value,
+            ..
+        } => {
             the_reads_of_a_node(target, reads);
             the_reads_of_a_member_name(name, reads);
             the_reads_of_a_node(value, reads);
         }
-        Node::AssignIndex { target, index, value, .. } => {
+        Node::AssignIndex {
+            target,
+            index,
+            value,
+            ..
+        } => {
             the_reads_of_a_node(target, reads);
             the_reads_of_a_node(index, reads);
             the_reads_of_a_node(value, reads);
@@ -843,7 +934,12 @@ fn the_warnings_of_the_reads_of_the_script(
     let empty = std::collections::BTreeSet::new();
     for statement in statements {
         match statement {
-            Node::FunctionDef { body, declarations, parameters, .. } => {
+            Node::FunctionDef {
+                body,
+                declarations,
+                parameters,
+                ..
+            } => {
                 let mut own = TheNames::new();
                 // The parameters are declared, and they are not names that have
                 // no value.
@@ -867,7 +963,13 @@ fn the_warnings_of_the_reads_of_the_script(
                     warnings,
                 );
             }
-            Node::ClassDef { properties, methods, accessors, nested, .. } => {
+            Node::ClassDef {
+                properties,
+                methods,
+                accessors,
+                nested,
+                ..
+            } => {
                 // The body of the class: the values of the properties are read
                 // there, and the properties themselves are not variables of the
                 // scope.
@@ -922,9 +1024,10 @@ fn the_warnings_of_the_reads_of_the_script(
                     );
                 }
                 for accessor in accessors {
-                    for (body, is_the_setter) in
-                        [(accessor.getter.as_ref(), false), (accessor.setter.as_ref(), true)]
-                    {
+                    for (body, is_the_setter) in [
+                        (accessor.getter.as_ref(), false),
+                        (accessor.setter.as_ref(), true),
+                    ] {
                         let Some(body) = body else { continue };
                         let mut own = TheNames::new();
                         for parameter in &accessor.parameters {
@@ -1028,7 +1131,10 @@ fn the_warnings_of_the_reads_of_a_scope(
             Some(globals) if is_global => globals.insert(key),
             _ => own.insert(key),
         };
-        warnings.push(Warning { line: *line, message });
+        warnings.push(Warning {
+            line: *line,
+            message,
+        });
     }
 }
 
@@ -1094,21 +1200,23 @@ fn the_classes_of_the_script(
 /// The names that a function writes are the locals of it, and the walk does
 /// not go into the functions when the names that are wanted are the variables
 /// of the script.
-fn the_writes_of_a_level(
-    statements: &[Node],
-    writes: &mut Vec<(String, u32)>,
-    deep: bool,
-) {
+fn the_writes_of_a_level(statements: &[Node], writes: &mut Vec<(String, u32)>, deep: bool) {
     for statement in statements {
         match statement {
             Node::Assign { name, line, .. } => writes.push((name.clone(), *line)),
             Node::LegacyAssign { name, line, .. } => writes.push((name.clone(), *line)),
-            Node::For { variables, line, .. } => {
+            Node::For {
+                variables, line, ..
+            } => {
                 for name in variables {
                     writes.push((name.clone(), *line));
                 }
             }
-            Node::LegacyCall { name, parameters, line } if name.eq_ignore_ascii_case("VarSet") => {
+            Node::LegacyCall {
+                name,
+                parameters,
+                line,
+            } if name.eq_ignore_ascii_case("VarSet") => {
                 // The `VarSet` of the v1 writes the variable of its first
                 // parameter, and the parameter is a text.
                 if let Some(crate::ast::LegacyParameter::Text(text)) = parameters.first() {
@@ -1119,7 +1227,11 @@ fn the_writes_of_a_level(
             }
             _ => {}
         }
-        let bodies = if deep { the_bodies_of(statement) } else { the_bodies_of_the_level(statement) };
+        let bodies = if deep {
+            the_bodies_of(statement)
+        } else {
+            the_bodies_of_the_level(statement)
+        };
         for body in bodies {
             the_writes_of_a_level(body, writes, deep);
         }
@@ -1133,24 +1245,36 @@ fn the_writes_of_a_level(
 fn the_bodies_of_the_level(statement: &Node) -> Vec<&[Node]> {
     match statement {
         Node::Block { body, .. } => vec![body],
-        Node::If { branches, otherwise, .. } => {
-            let mut bodies: Vec<&[Node]> =
-                branches.iter().map(|branch| branch.body.as_slice()).collect();
+        Node::If {
+            branches,
+            otherwise,
+            ..
+        } => {
+            let mut bodies: Vec<&[Node]> = branches
+                .iter()
+                .map(|branch| branch.body.as_slice())
+                .collect();
             bodies.push(otherwise);
             bodies
         }
-        Node::Switch { cases, .. } => {
-            cases.iter().map(|case| case.body.as_slice()).collect()
-        }
+        Node::Switch { cases, .. } => cases.iter().map(|case| case.body.as_slice()).collect(),
         Node::While { body, .. } => vec![body],
         Node::Loop { body, .. } => vec![body],
         Node::For { body, .. } => vec![body],
-        Node::Try { body, catches, otherwise, finally, .. } => {
+        Node::Try {
+            body,
+            catches,
+            otherwise,
+            finally,
+            ..
+        } => {
             let mut bodies: Vec<&[Node]> = vec![body, otherwise, finally];
             bodies.extend(catches.iter().map(|catch| catch.body.as_slice()));
             bodies
         }
-        Node::LegacyIf { body, otherwise, .. } => vec![body, otherwise],
+        Node::LegacyIf {
+            body, otherwise, ..
+        } => vec![body, otherwise],
         Node::HotkeyDefinition { body, .. } => vec![body],
         _ => Vec::new(),
     }

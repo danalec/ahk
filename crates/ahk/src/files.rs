@@ -16,7 +16,7 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use crate::classes::file::{decode, encode, Encoding};
+use crate::classes::file::{Encoding, decode, encode};
 use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, TypeName, Value};
 
 /// The milliseconds of a day.
@@ -41,7 +41,12 @@ pub fn encoding() -> &'static str {
 // -- the copy and the move --------------------------------------------------------
 
 /// `DirCopy`: take a copy of a folder and of everything in it.
-pub fn dir_copy(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn dir_copy(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let from = the_name_of_a_file(values, 0, 1, "DirCopy", line)?;
     let to = the_name_of_a_file(values, 1, 2, "DirCopy", line)?;
     refuse_the_wildcards(&from, line)?;
@@ -49,12 +54,20 @@ pub fn dir_copy(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8)
     let overwrite = flag_of(values, 2, "DirCopy", line)?;
     rt.desktop()
         .copy_dir(&from, &to, overwrite)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
 /// `DirMove`: move a folder, with everything in it.
-pub fn dir_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn dir_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let from = the_name_of_a_file(values, 0, 1, "DirMove", line)?;
     let to = the_name_of_a_file(values, 1, 2, "DirMove", line)?;
     refuse_the_wildcards(&from, line)?;
@@ -62,12 +75,20 @@ pub fn dir_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8)
     let overwrite = flag_of(values, 2, "DirMove", line)?;
     rt.desktop()
         .move_dir(&from, &to, overwrite)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
 /// `FileCopy`: take a copy of a file.
-pub fn file_copy(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_copy(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let from = the_name_of_a_file(values, 0, 1, "FileCopy", line)?;
     let to = the_name_of_a_file(values, 1, 2, "FileCopy", line)?;
     refuse_the_wildcards(&from, line)?;
@@ -75,12 +96,20 @@ pub fn file_copy(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
     let overwrite = flag_of(values, 2, "FileCopy", line)?;
     rt.desktop()
         .copy_file(&from, &to, overwrite)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
 /// `FileMove`: move a file.
-pub fn file_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let from = the_name_of_a_file(values, 0, 1, "FileMove", line)?;
     let to = the_name_of_a_file(values, 1, 2, "FileMove", line)?;
     refuse_the_wildcards(&from, line)?;
@@ -88,7 +117,10 @@ pub fn file_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
     let overwrite = flag_of(values, 2, "FileMove", line)?;
     rt.desktop()
         .move_file(&from, &to, overwrite)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
@@ -97,7 +129,12 @@ pub fn file_move(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 ///
 /// The icon of the third parameter is the icon of the compiled script,
 /// and the runtime does not compile anything.
-pub fn file_install(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_install(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let from = text_of(values, 0);
     let to = text_of(values, 1);
     refuse_the_wildcards(&from, line)?;
@@ -105,19 +142,30 @@ pub fn file_install(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant:
     let overwrite = flag_of(values, 3, "FileInstall", line)?;
     rt.desktop()
         .copy_file(&from, &to, overwrite)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
 // -- the attributes ----------------------------------------------------------------
 
 /// `FileGetAttrib`: the attributes of a file, as the letters of v2.
-pub fn file_get_attrib(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_get_attrib(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = the_name_of_a_file(values, 0, 1, "FileGetAttrib", line)?;
     let letters = rt
         .desktop()
         .file_attributes(&path)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(letters.concat()))
 }
 
@@ -125,7 +173,12 @@ pub fn file_get_attrib(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
 ///
 /// The attributes come first and the name of the file second, the way
 /// the binary of v2.0.19 takes them.
-pub fn file_set_attrib(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_set_attrib(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let attributes = text_of(values, 0);
     let path = the_name_of_a_file(values, 1, 1, "FileSetAttrib", line)?;
     let mode = text_of(values, 2);
@@ -137,7 +190,10 @@ pub fn file_set_attrib(rt: &mut Runtime<'_>, values: &[Value], line: u32, _varia
     })?;
     rt.desktop()
         .set_file_attributes(&path, &groups)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
@@ -181,7 +237,12 @@ fn groups_of(attributes: &str) -> Option<Vec<String>> {
 // -- the size and the times --------------------------------------------------------
 
 /// `FileGetSize`: how big a file is.
-pub fn file_get_size(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_get_size(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = the_name_of_a_file(values, 0, 1, "FileGetSize", line)?;
     let unit = text_of(values, 1);
     // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
@@ -196,7 +257,7 @@ pub fn file_get_size(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
             return Err(RuntimeError {
                 message: "Parameter #2 of FileGetSize is invalid.".to_string(),
                 line,
-            })
+            });
         }
     };
     // A folder has no size: v2 answers zero for one, and the tree does
@@ -207,14 +268,23 @@ pub fn file_get_size(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
     let handle = rt
         .desktop()
         .open_file(&path, "r")
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     let size = rt
         .desktop()
         .file_size(handle)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     rt.desktop()
         .close_file(handle)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Int(size / divisor))
 }
 
@@ -222,7 +292,12 @@ pub fn file_get_size(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
 ///
 /// The answer is the stamp of v2: the fourteen digits of
 /// `YYYYMMDDHH24MISS`, in the local time of the machine.
-pub fn file_get_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_get_time(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = the_name_of_a_file(values, 0, 1, "FileGetTime", line)?;
     let which = text_of(values, 1);
     let which = which.trim().to_ascii_uppercase();
@@ -237,7 +312,10 @@ pub fn file_get_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
     let times = rt
         .desktop()
         .file_times(&path)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     let millis = match which.as_str() {
         "C" | "CUT" => times.0,
         "A" => times.2,
@@ -251,7 +329,12 @@ pub fn file_get_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
 ///
 /// The time comes first and the name of the file second, the way the
 /// binary of v2.0.19 takes them.
-pub fn file_set_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_set_time(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let stamp = text_of(values, 0);
     let path = the_name_of_a_file(values, 1, 2, "FileSetTime", line)?;
     let which = text_of(values, 2);
@@ -276,7 +359,7 @@ pub fn file_set_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
                 return Err(RuntimeError {
                     message: "Parameter #1 of FileSetTime is invalid.".to_string(),
                     line,
-                })
+                });
             }
         }
     };
@@ -294,7 +377,10 @@ pub fn file_set_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
     };
     rt.desktop()
         .set_file_times(&path, created, modified, accessed)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
@@ -304,7 +390,12 @@ pub fn file_set_time(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant
 ///
 /// The state is in the module of the settings, and the answer is the name
 /// of the encoding, the way v2 spells it.
-pub fn file_encoding(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_encoding(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let name = text_of(values, 0);
     crate::settings::set_file_encoding(&name)
         .map(|encoding| Value::Text(encoding.to_string()))
@@ -319,14 +410,24 @@ pub fn file_encoding(_rt: &mut Runtime<'_>, values: &[Value], line: u32, _varian
 /// of the file and not an array of its lines, and the second parameter is
 /// the options of the read: the encoding of the file, `RAW`, `m<n>` and a
 /// linefeed. The answer is a buffer when the script asks for the bytes.
-pub fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_read(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = the_name_of_a_file(values, 0, 1, "FileRead", line)?;
-    let options = the_options_of(&text_of(values, 1), true)
-        .map_err(|failure| RuntimeError { message: failure.message(), line })?;
+    let options = the_options_of(&text_of(values, 1), true).map_err(|failure| RuntimeError {
+        message: failure.message(),
+        line,
+    })?;
     let mut bytes = rt
         .desktop()
         .read_the_bytes_of_a_file(&path)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     // The size of the read is the number of bytes that are read.
     if let Some(limit) = options.limit {
         bytes.truncate(limit);
@@ -340,12 +441,21 @@ pub fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
     // script decides when the file has no mark.
     let (encoding, used) = match Encoding::detect(&bytes) {
         Some((encoding, used)) => (encoding, used),
-        None => (options.encoding.unwrap_or_else(the_encoding_of_the_script), 0),
+        None => (
+            options.encoding.unwrap_or_else(the_encoding_of_the_script),
+            0,
+        ),
     };
-    let (text, _) = decode(&bytes[used..], encoding)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+    let (text, _) = decode(&bytes[used..], encoding).map_err(|reason| RuntimeError {
+        message: reason,
+        line,
+    })?;
     // The linefeed of the options takes the carriage return away.
-    let text = if options.linefeed { text.replace("\r\n", "\n") } else { text };
+    let text = if options.linefeed {
+        text.replace("\r\n", "\n")
+    } else {
+        text
+    };
     Ok(Value::Text(text))
 }
 
@@ -355,8 +465,16 @@ pub fn file_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 /// the options of the write and not a flag: the encoding of the file, `RAW`
 /// and a linefeed. The mark of the encoding is written when the file is
 /// made, and a raw write writes the text of v2: the units of UTF-16.
-pub fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
-    let text = values.first().cloned().unwrap_or(Value::Text(String::new()));
+pub fn file_append(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Text(String::new()));
     // Measured on the binary of v1.1.37.02 on 2026-11-02: the text of an
     // object of the v1 is the empty text, and the v1 writes it.
     let text = if rt.an_object_has_no_text() && matches!(text, Value::Object(_)) {
@@ -394,14 +512,17 @@ pub fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
             Some(path) => path.to_string(),
             None => {
                 return Err(RuntimeError {
-                    message: "Parameter #2 of FileAppend must not be omitted in this case.".to_string(),
+                    message: "Parameter #2 of FileAppend must not be omitted in this case."
+                        .to_string(),
                     line,
-                })
+                });
             }
         },
     };
-    let options = the_options_of(&text_of(values, 2), false)
-        .map_err(|failure| RuntimeError { message: failure.message(), line })?;
+    let options = the_options_of(&text_of(values, 2), false).map_err(|failure| RuntimeError {
+        message: failure.message(),
+        line,
+    })?;
     // The star is the console of the machine, and the tree has no console of
     // its own: the output of the script is the output of the report.
     if path == "*" {
@@ -412,7 +533,10 @@ pub fn file_append(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: 
     let (bytes, mark) = the_bytes_of_the_write(&text, &options, line)?;
     rt.desktop()
         .append_file(&path, &bytes, &mark)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
@@ -459,7 +583,12 @@ impl TheFailure {
 /// The size of the part that is read is an option of a read and not of a
 /// write: v2 refuses it in a write with "Invalid option.".
 pub(crate) fn the_options_of(text: &str, read: bool) -> Result<TheOptions, TheFailure> {
-    let mut options = TheOptions { encoding: None, raw: false, limit: None, linefeed: false };
+    let mut options = TheOptions {
+        encoding: None,
+        raw: false,
+        limit: None,
+        linefeed: false,
+    };
     for word in text.split([' ', '\t']).filter(|word| !word.is_empty()) {
         if word.eq_ignore_ascii_case("RAW") {
             options.raw = true;
@@ -478,7 +607,10 @@ pub(crate) fn the_options_of(text: &str, read: bool) -> Result<TheOptions, TheFa
             if !read {
                 return Err(TheFailure::NotKnown(word.to_string()));
             }
-            let number = match number.strip_prefix("0x").or_else(|| number.strip_prefix("0X")) {
+            let number = match number
+                .strip_prefix("0x")
+                .or_else(|| number.strip_prefix("0X"))
+            {
                 Some(hex) => u64::from_str_radix(hex, 16).ok(),
                 None if number.is_empty() => Some(0),
                 None => number.parse::<u64>().ok(),
@@ -497,7 +629,7 @@ pub(crate) fn the_options_of(text: &str, read: bool) -> Result<TheOptions, TheFa
             // carries, and an option that is not an encoding at all is
             // refused with the words of v2.
             Err(reason) if crate::settings::is_a_code_page(word) => {
-                return Err(TheFailure::NotCarried(reason))
+                return Err(TheFailure::NotCarried(reason));
             }
             Err(_) => return Err(TheFailure::NotKnown(word.to_string())),
         }
@@ -529,7 +661,11 @@ fn the_bytes_of_the_write(
     if matches!(text, Value::Object(_)) {
         let bytes = crate::classes::buffer::raw_bytes(text, line)
             .map_err(|failure| crate::runtime::as_error(failure, line))?;
-        let mark = if options.raw { Vec::new() } else { encoding.mark().unwrap_or_default() };
+        let mark = if options.raw {
+            Vec::new()
+        } else {
+            encoding.mark().unwrap_or_default()
+        };
         return Ok((bytes, mark));
     }
     let mut text = text.to_text();
@@ -579,12 +715,20 @@ fn the_endings_of_windows(text: &str) -> String {
 /// Measured on the binary of v2.0.19 on 2026-10-29: the answer of the
 /// command is an empty text, and a url that is not one fails with a
 /// failure of the class `OSError`.
-pub fn download(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn download(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let url = the_url_of_the_download(&text_of(values, 0));
     let file = text_of(values, 1);
     rt.desktop()
         .download(&url, &file)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
@@ -607,7 +751,12 @@ fn the_url_of_the_download(url: &str) -> String {
 // -- the file itself ----------------------------------------------------------------
 
 /// `FileOpen`: open a file and answer it.
-pub fn file_open(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn file_open(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let mut arguments: Vec<Value> = values.to_vec();
     if arguments.len() < 3 {
         // The file is opened with the encoding of the script when the
@@ -631,7 +780,12 @@ pub fn file_open(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8
 ///
 /// The default of the script is the answer when the key is not there,
 /// and a key that is not there without a default is the failure of v2.
-pub fn ini_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn ini_read(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = text_of(values, 0);
     let section = text_of(values, 1);
     let key = text_of(values, 2);
@@ -646,7 +800,10 @@ pub fn ini_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8)
         // own.
         Err(reason) => match default {
             Some(default) => Ok(Value::Text(default)),
-            None => Err(RuntimeError { message: reason, line }),
+            None => Err(RuntimeError {
+                message: reason,
+                line,
+            }),
         },
     }
 }
@@ -655,27 +812,43 @@ pub fn ini_read(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8)
 ///
 /// The value comes first and the name of the file second, the way the
 /// binary of v2.0.19 takes them.
-pub fn ini_write(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn ini_write(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let value = text_of(values, 0);
     let path = text_of(values, 1);
     let section = text_of(values, 2);
     let key = text_of(values, 3);
     rt.desktop()
         .ini_write(&path, &section, &key, &value)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
 /// `IniDelete`: take a key of an ini file away.
 ///
 /// A key that is not given takes the whole section with it.
-pub fn ini_delete(rt: &mut Runtime<'_>, values: &[Value], line: u32, _variant: u8) -> Result<Value, RuntimeError> {
+pub fn ini_delete(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
     let path = text_of(values, 0);
     let section = text_of(values, 1);
     let key = text_of(values, 2);
     rt.desktop()
         .ini_delete(&path, &section, &key)
-        .map_err(|reason| RuntimeError { message: reason, line })?;
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
     Ok(Value::Text(String::new()))
 }
 
@@ -711,7 +884,10 @@ pub(crate) fn the_name_of_a_file(
 
 /// The text of the argument at this place, or the empty string.
 fn text_of(values: &[Value], index: usize) -> String {
-    values.get(index).map(|value| value.to_text()).unwrap_or_default()
+    values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
 }
 
 /// Whether the argument at this place asks for the thing to happen.
@@ -719,8 +895,15 @@ fn text_of(values: &[Value], index: usize) -> String {
 /// v2 has no boolean: the number one is true and the number zero is
 /// false. An argument that is not a number is the failure of v2, and the
 /// message of v2 names it.
-pub(crate) fn flag_of(values: &[Value], index: usize, name: &str, line: u32) -> Result<bool, RuntimeError> {
-    let Some(value) = values.get(index) else { return Ok(false) };
+pub(crate) fn flag_of(
+    values: &[Value],
+    index: usize,
+    name: &str,
+    line: u32,
+) -> Result<bool, RuntimeError> {
+    let Some(value) = values.get(index) else {
+        return Ok(false);
+    };
     let number = value.to_number_strict().map_err(|_| RuntimeError {
         message: crate::runtime::requires(index + 1, name, TypeName::Number, value),
         line,
@@ -911,8 +1094,8 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-        Processes, Screen, Sound, Timers, Windows,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+        Pointer, Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
     use crate::settings::Turn;
@@ -937,37 +1120,53 @@ mod tests {
     impl Pictures for Fake {}
     impl Network for Fake {}
     impl Sound for Fake {}
-impl Machine for Fake {}
-impl Dialogs for Fake {}
+    impl Machine for Fake {}
+    impl Dialogs for Fake {}
 
     impl Files for Fake {
         fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
-            self.calls.borrow_mut().push(format!("copy_file {from} {to} {overwrite}"));
+            self.calls
+                .borrow_mut()
+                .push(format!("copy_file {from} {to} {overwrite}"));
             Ok("copied".to_string())
         }
 
         fn move_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
-            self.calls.borrow_mut().push(format!("move_file {from} {to} {overwrite}"));
+            self.calls
+                .borrow_mut()
+                .push(format!("move_file {from} {to} {overwrite}"));
             Ok("moved".to_string())
         }
 
         fn copy_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
-            self.calls.borrow_mut().push(format!("copy_dir {from} {to} {overwrite}"));
+            self.calls
+                .borrow_mut()
+                .push(format!("copy_dir {from} {to} {overwrite}"));
             Ok("copied".to_string())
         }
 
         fn move_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
-            self.calls.borrow_mut().push(format!("move_dir {from} {to} {overwrite}"));
+            self.calls
+                .borrow_mut()
+                .push(format!("move_dir {from} {to} {overwrite}"));
             Ok("moved".to_string())
         }
 
         fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
-            self.calls.borrow_mut().push(format!("file_attributes {path}"));
+            self.calls
+                .borrow_mut()
+                .push(format!("file_attributes {path}"));
             Ok(self.attributes.clone())
         }
 
-        fn set_file_attributes(&mut self, path: &str, attributes: &[String]) -> Result<String, String> {
-            self.calls.borrow_mut().push(format!("set_file_attributes {path} {attributes:?}"));
+        fn set_file_attributes(
+            &mut self,
+            path: &str,
+            attributes: &[String],
+        ) -> Result<String, String> {
+            self.calls
+                .borrow_mut()
+                .push(format!("set_file_attributes {path} {attributes:?}"));
             Ok("set".to_string())
         }
 
@@ -983,13 +1182,19 @@ impl Dialogs for Fake {}
             modified: Option<i64>,
             accessed: Option<i64>,
         ) -> Result<String, String> {
-            self.calls
-                .borrow_mut()
-                .push(format!("set_file_times {path} {created:?} {modified:?} {accessed:?}"));
+            self.calls.borrow_mut().push(format!(
+                "set_file_times {path} {created:?} {modified:?} {accessed:?}"
+            ));
             Ok("set".to_string())
         }
 
-        fn ini_read(&mut self, path: &str, section: &str, key: &str, default: &str) -> Result<String, String> {
+        fn ini_read(
+            &mut self,
+            path: &str,
+            section: &str,
+            key: &str,
+            default: &str,
+        ) -> Result<String, String> {
             self.calls
                 .borrow_mut()
                 .push(format!("ini_read {path} {section} {key} {default}"));
@@ -999,7 +1204,13 @@ impl Dialogs for Fake {}
             Ok(self.value.clone())
         }
 
-        fn ini_write(&mut self, path: &str, section: &str, key: &str, value: &str) -> Result<String, String> {
+        fn ini_write(
+            &mut self,
+            path: &str,
+            section: &str,
+            key: &str,
+            value: &str,
+        ) -> Result<String, String> {
             self.calls
                 .borrow_mut()
                 .push(format!("ini_write {path} {section} {key} {value}"));
@@ -1007,7 +1218,9 @@ impl Dialogs for Fake {}
         }
 
         fn ini_delete(&mut self, path: &str, section: &str, key: &str) -> Result<String, String> {
-            self.calls.borrow_mut().push(format!("ini_delete {path} {section} {key}"));
+            self.calls
+                .borrow_mut()
+                .push(format!("ini_delete {path} {section} {key}"));
             Ok("deleted".to_string())
         }
 
@@ -1026,8 +1239,15 @@ impl Dialogs for Fake {}
             Ok(())
         }
 
-        fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
-            self.calls.borrow_mut().push(format!("list_files {folder} {pattern} {mode}"));
+        fn list_files(
+            &mut self,
+            folder: &str,
+            pattern: &str,
+            mode: &str,
+        ) -> Result<Vec<String>, String> {
+            self.calls
+                .borrow_mut()
+                .push(format!("list_files {folder} {pattern} {mode}"));
             Ok(self.folders.clone())
         }
 
@@ -1057,13 +1277,26 @@ impl Dialogs for Fake {}
     }
 
     impl Pointer for Fake {
-        fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        fn click(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _button: &str,
+            _count: u32,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
     }
 
     impl Screen for Fake {
-        fn capture(&mut self, _x: i64, _y: i64, _width: i64, _height: i64, _filename: &str) -> Result<String, String> {
+        fn capture(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _width: i64,
+            _height: i64,
+            _filename: &str,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
 
@@ -1191,7 +1424,10 @@ impl Dialogs for Fake {}
             file_copy,
             &[Value::Text("*.txt".into()), Value::Text("b.txt".into())],
         );
-        assert_eq!(reason_of(&answer), "the wildcards of v2 are not carried yet.");
+        assert_eq!(
+            reason_of(&answer),
+            "the wildcards of v2 are not carried yet."
+        );
         assert!(calls.is_empty());
     }
 
@@ -1267,7 +1503,10 @@ impl Dialogs for Fake {}
             file_set_attrib,
             &[Value::Text("Z".into()), Value::Text("a.txt".into())],
         );
-        assert_eq!(reason_of(&answer), "Parameter #1 of FileSetAttrib is invalid.");
+        assert_eq!(
+            reason_of(&answer),
+            "Parameter #1 of FileSetAttrib is invalid."
+        );
         assert!(calls.is_empty());
     }
 
@@ -1281,13 +1520,19 @@ impl Dialogs for Fake {}
                 Value::Text("R".into()),
             ],
         );
-        assert_eq!(reason_of(&answer), "the recursion of v2 is not carried yet.");
+        assert_eq!(
+            reason_of(&answer),
+            "the recursion of v2 is not carried yet."
+        );
         assert!(calls.is_empty());
     }
 
     #[test]
     fn file_get_size_asks_the_desktop_for_the_size() {
-        let mut desktop = Fake { size: 4096, ..Default::default() };
+        let mut desktop = Fake {
+            size: 4096,
+            ..Default::default()
+        };
         let mut clock = TheClock;
         let mut rt = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10));
         let answer = file_get_size(&mut rt, &[Value::Text("a.txt".into())], 1, 0);
@@ -1296,7 +1541,10 @@ impl Dialogs for Fake {}
 
     #[test]
     fn file_get_size_in_kilobytes_divides_the_size() {
-        let mut desktop = Fake { size: 4096, ..Default::default() };
+        let mut desktop = Fake {
+            size: 4096,
+            ..Default::default()
+        };
         let mut clock = TheClock;
         let mut rt = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10));
         let answer = file_get_size(
@@ -1364,7 +1612,10 @@ impl Dialogs for Fake {}
             file_get_time,
             &[Value::Text("a.txt".into()), Value::Text("Z".into())],
         );
-        assert_eq!(reason_of(&answer), "Parameter #2 of FileGetTime is invalid.");
+        assert_eq!(
+            reason_of(&answer),
+            "Parameter #2 of FileGetTime is invalid."
+        );
         assert!(calls.is_empty());
     }
 
@@ -1379,7 +1630,10 @@ impl Dialogs for Fake {}
             ],
         );
         assert_eq!(text_of_value(&answer), "");
-        assert_eq!(calls, vec!["set_file_times a.txt None Some(1577836800000) None"]);
+        assert_eq!(
+            calls,
+            vec!["set_file_times a.txt None Some(1577836800000) None"]
+        );
     }
 
     #[test]
@@ -1393,16 +1647,25 @@ impl Dialogs for Fake {}
             ],
         );
         assert_eq!(text_of_value(&answer), "");
-        assert_eq!(calls, vec!["set_file_times a.txt Some(1577836800000) None None"]);
+        assert_eq!(
+            calls,
+            vec!["set_file_times a.txt Some(1577836800000) None None"]
+        );
     }
 
     #[test]
     fn file_set_time_refuses_a_stamp_that_v2_does_not_know() {
         let (answer, calls) = run(
             file_set_time,
-            &[Value::Text("not a time".into()), Value::Text("a.txt".into())],
+            &[
+                Value::Text("not a time".into()),
+                Value::Text("a.txt".into()),
+            ],
         );
-        assert_eq!(reason_of(&answer), "Parameter #1 of FileSetTime is invalid.");
+        assert_eq!(
+            reason_of(&answer),
+            "Parameter #1 of FileSetTime is invalid."
+        );
         assert!(calls.is_empty());
     }
 
@@ -1416,7 +1679,10 @@ impl Dialogs for Fake {}
                 Value::Text("Z".into()),
             ],
         );
-        assert_eq!(reason_of(&answer), "Parameter #3 of FileSetTime is invalid.");
+        assert_eq!(
+            reason_of(&answer),
+            "Parameter #3 of FileSetTime is invalid."
+        );
         assert!(calls.is_empty());
     }
 
@@ -1434,7 +1700,10 @@ impl Dialogs for Fake {}
     fn file_encoding_refuses_an_encoding_the_tree_does_not_carry() {
         let _turn = Turn::take();
         let (answer, _calls) = run(file_encoding, &[Value::Text("ANSI".into())]);
-        assert_eq!(reason_of(&answer), "Parameter #1 of FileEncoding is invalid.");
+        assert_eq!(
+            reason_of(&answer),
+            "Parameter #1 of FileEncoding is invalid."
+        );
     }
 
     #[test]
@@ -1493,7 +1762,10 @@ impl Dialogs for Fake {}
                 Value::Text("Key".into()),
             ],
         );
-        assert_eq!(reason_of(&answer), "The requested key, section or file was not found.");
+        assert_eq!(
+            reason_of(&answer),
+            "The requested key, section or file was not found."
+        );
     }
 
     #[test]
@@ -1542,7 +1814,10 @@ impl Dialogs for Fake {}
         };
         assert_eq!(text_of_value(&answer), "");
         // The moment of the machine is two hours east of the UTC.
-        assert_eq!(calls, vec!["set_file_times a.txt None Some(1577836800000) None"]);
+        assert_eq!(
+            calls,
+            vec!["set_file_times a.txt None Some(1577836800000) None"]
+        );
     }
 
     #[test]

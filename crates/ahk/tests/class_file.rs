@@ -5,11 +5,11 @@
 //! the same methods, and the box is checked by hand.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
-use ahk::runtime::{Report, Runtime};
 use ahk::parse;
+use ahk::runtime::{Report, Runtime};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -34,12 +34,22 @@ impl Fake {
     fn with_bytes(path: &str, bytes: &[u8]) -> Fake {
         let mut disk = BTreeMap::new();
         disk.insert(path.to_string(), bytes.to_vec());
-        Fake { disk, open: BTreeMap::new(), next: 0 }
+        Fake {
+            disk,
+            open: BTreeMap::new(),
+            next: 0,
+        }
     }
 
     /// The text of a file of the fake.
     fn text(&self, path: &str) -> String {
-        String::from_utf8_lossy(self.disk.get(path).map(|file| file.as_slice()).unwrap_or(&[])).to_string()
+        String::from_utf8_lossy(
+            self.disk
+                .get(path)
+                .map(|file| file.as_slice())
+                .unwrap_or(&[]),
+        )
+        .to_string()
     }
 
     /// The bytes of a file of the fake.
@@ -127,7 +137,11 @@ impl Files for Fake {
             .get(&handle)
             .cloned()
             .ok_or_else(|| format!("the file {handle} is not open"))?;
-        Ok(self.disk.get(&path).map(|file| file.len() as i64).unwrap_or(0))
+        Ok(self
+            .disk
+            .get(&path)
+            .map(|file| file.len() as i64)
+            .unwrap_or(0))
     }
 
     fn close_file(&mut self, handle: i64) -> Result<(), String> {
@@ -192,21 +206,33 @@ fn run_with_file(path: &str, text: &str, source: &str) -> (Report, Fake) {
 
 #[test]
 fn a_file_reads_a_line() {
-    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := FileOpen(\"notes.txt\", \"r\")\nline := f.ReadLine()\nMsgBox \"%line%\"");
+    let (report, _desktop) = run_with_file(
+        "notes.txt",
+        "one\ntwo\n",
+        "f := FileOpen(\"notes.txt\", \"r\")\nline := f.ReadLine()\nMsgBox \"%line%\"",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one"]);
 }
 
 #[test]
 fn a_file_reads_a_number_of_characters() {
-    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := FileOpen(\"notes.txt\", \"r\")\ntext := f.Read(3)\nMsgBox \"%text%\"");
+    let (report, _desktop) = run_with_file(
+        "notes.txt",
+        "one\ntwo\n",
+        "f := FileOpen(\"notes.txt\", \"r\")\ntext := f.Read(3)\nMsgBox \"%text%\"",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one"]);
 }
 
 #[test]
 fn a_file_reads_the_rest_of_it() {
-    let (report, _desktop) = run_with_file("notes.txt", "one\ntwo\n", "f := FileOpen(\"notes.txt\", \"r\")\ntext := f.Read()\nMsgBox \"%text%\"");
+    let (report, _desktop) = run_with_file(
+        "notes.txt",
+        "one\ntwo\n",
+        "f := FileOpen(\"notes.txt\", \"r\")\ntext := f.Read()\nMsgBox \"%text%\"",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["one\ntwo\n"]);
 }
@@ -369,7 +395,10 @@ fn a_read_past_the_end_of_a_file_fails() {
         "f := FileOpen(\"notes.txt\", \"r\")\nf.Read(4)\nnumber := f.ReadUInt()",
     );
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("the read is past the end of the file."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("the read is past the end of the file.")
+    );
     assert_eq!(report.error_line, Some(3));
 }
 
@@ -612,7 +641,10 @@ fn a_file_has_no_unsigned_number_of_sixty_four_bits() {
     // `ReadUInt64` and no `WriteUInt64`, and the tree does not carry them
     // either.
     let mut desktop = Fake::default();
-    let report = run(&mut desktop, "f := FileOpen(\"out.txt\", \"w\")\nx := f.ReadUInt64()");
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"out.txt\", \"w\")\nx := f.ReadUInt64()",
+    );
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
@@ -623,7 +655,10 @@ fn a_file_has_no_unsigned_number_of_sixty_four_bits() {
 #[test]
 fn a_file_is_not_made_again() {
     let mut desktop = Fake::default();
-    let report = run(&mut desktop, "f := FileOpen(\"out.txt\", \"w\")\nx := f.__New()");
+    let report = run(
+        &mut desktop,
+        "f := FileOpen(\"out.txt\", \"w\")\nx := f.__New()",
+    );
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),

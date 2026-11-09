@@ -4,8 +4,8 @@
 //! answers nothing, because nothing is asked of it.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime};
@@ -158,5 +158,8 @@ fn the_bind_of_a_method_calls_it_with_the_object() {
 fn the_bind_of_a_builtin_is_made_and_its_call_fails() {
     let report = run("f := Abs.Bind(5)\nMsgBox f(3)");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Too many parameters passed to function."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too many parameters passed to function.")
+    );
 }

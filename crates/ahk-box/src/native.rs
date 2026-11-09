@@ -291,7 +291,10 @@ fn trampoline(call: Call) -> Answer {
     all(target_arch = "x86_64", target_os = "linux")
 )))]
 fn trampoline(_call: Call) -> Answer {
-    Answer { bits: 0, float_bits: 0 }
+    Answer {
+        bits: 0,
+        float_bits: 0,
+    }
 }
 
 /// Whether the machine has a trampoline.
@@ -472,7 +475,10 @@ impl Libraries {
 ///
 /// The library is loaded, the function is found in it, the arguments go
 /// in the registers the machine wants, and the answer comes back.
-pub fn call(libraries: &mut Libraries, native: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
+pub fn call(
+    libraries: &mut Libraries,
+    native: &mut NativeCall,
+) -> Result<NativeResult, NativeFailure> {
     if !SUPPORTED {
         return Err(NativeFailure::invalid(
             "this desktop cannot make a native call on this machine.",
@@ -534,7 +540,10 @@ pub fn call(libraries: &mut Libraries, native: &mut NativeCall) -> Result<Native
             }
         }
     }
-    let answer = trampoline(Call { target, arguments: slots });
+    let answer = trampoline(Call {
+        target,
+        arguments: slots,
+    });
     // The blocks come back into the arguments they belong to: the
     // argument is the way back to the variable of the script.
     for (argument, block) in writes {
@@ -554,7 +563,10 @@ pub fn call(libraries: &mut Libraries, native: &mut NativeCall) -> Result<Native
     } else {
         NativeValue::Integer(integer_answer(answer.bits, native.returns))
     };
-    Ok(NativeResult { kind: native.returns, value })
+    Ok(NativeResult {
+        kind: native.returns,
+        value,
+    })
 }
 
 /// The bits of a whole number, in the width its type asks for.
@@ -663,7 +675,8 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[test]
     fn the_tick_count_of_the_machine_is_not_zero() {
-        let answer = run("kernel32", "GetTickCount", NativeType::Int, Vec::new()).expect("the call");
+        let answer =
+            run("kernel32", "GetTickCount", NativeType::Int, Vec::new()).expect("the call");
         let NativeValue::Integer(number) = answer.value else {
             panic!("the answer is a number");
         };
@@ -701,8 +714,16 @@ mod tests {
         // `pow` is not in the C library: it is in the one of the
         // mathematics, which glibc keeps as a library of its own.
         let arguments = vec![
-            NativeArg { kind: NativeType::Double, address: false, value: NativeValue::Float(2.0) },
-            NativeArg { kind: NativeType::Double, address: false, value: NativeValue::Float(10.0) },
+            NativeArg {
+                kind: NativeType::Double,
+                address: false,
+                value: NativeValue::Float(2.0),
+            },
+            NativeArg {
+                kind: NativeType::Double,
+                address: false,
+                value: NativeValue::Float(10.0),
+            },
         ];
         let answer = run("libm.so.6", "pow", NativeType::Double, arguments).expect("the call");
         let NativeValue::Float(number) = answer.value else {
@@ -729,7 +750,11 @@ mod tests {
             address: false,
             value: NativeValue::Bytes(ahk::dll::encode("%d", NativeType::AStr)),
         };
-        let number = NativeArg { kind: NativeType::Int, address: false, value: NativeValue::Integer(42) };
+        let number = NativeArg {
+            kind: NativeType::Int,
+            address: false,
+            value: NativeValue::Integer(42),
+        };
         let mut libraries = Libraries::new();
         let mut native = NativeCall {
             library: "libc.so.6".to_string(),
@@ -752,8 +777,16 @@ mod tests {
         // reads it to know how many of them it has to save.
         let format = ahk::dll::encode("%f", NativeType::AStr);
         let arguments = vec![
-            NativeArg { kind: NativeType::AStr, address: false, value: NativeValue::Bytes(format) },
-            NativeArg { kind: NativeType::Double, address: false, value: NativeValue::Float(1.5) },
+            NativeArg {
+                kind: NativeType::AStr,
+                address: false,
+                value: NativeValue::Bytes(format),
+            },
+            NativeArg {
+                kind: NativeType::Double,
+                address: false,
+                value: NativeValue::Float(1.5),
+            },
         ];
         let answer = run("libc.so.6", "printf", NativeType::Int, arguments).expect("the call");
         let NativeValue::Integer(number) = answer.value else {
@@ -764,7 +797,13 @@ mod tests {
 
     #[test]
     fn a_library_that_is_not_there_fails() {
-        let error = run("ahk-no-such-library", "anything", NativeType::Int, Vec::new()).expect_err("it fails");
+        let error = run(
+            "ahk-no-such-library",
+            "anything",
+            NativeType::Int,
+            Vec::new(),
+        )
+        .expect_err("it fails");
         assert_eq!(error.reason, "Failed to load DLL.");
         assert_eq!(error.kind, ahk::dll::NativeFailureKind::NoLibrary);
     }
@@ -772,7 +811,13 @@ mod tests {
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     #[test]
     fn a_function_that_is_not_in_the_library_fails() {
-        let error = run(A_LIBRARY, "ahk_no_such_function", NativeType::Int, Vec::new()).expect_err("it fails");
+        let error = run(
+            A_LIBRARY,
+            "ahk_no_such_function",
+            NativeType::Int,
+            Vec::new(),
+        )
+        .expect_err("it fails");
         assert_eq!(error.reason, "Call to nonexistent function.");
         assert_eq!(error.kind, ahk::dll::NativeFailureKind::NoFunction);
     }

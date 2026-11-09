@@ -25,7 +25,7 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use crate::runtime::{invalid_parameter, requires, Runtime, RuntimeError, TypeName, Value};
+use crate::runtime::{Runtime, RuntimeError, TypeName, Value, invalid_parameter, requires};
 
 /// The reason the date and the time are not answered.
 ///
@@ -169,11 +169,7 @@ pub fn days_in_month(year: i64, month: i64) -> i64 {
 
 /// The days of a year.
 pub fn days_in_year(year: i64) -> i64 {
-    if is_leap_year(year) {
-        366
-    } else {
-        365
-    }
+    if is_leap_year(year) { 366 } else { 365 }
 }
 
 /// The day of the week, 1 being the Sunday, the way v2 counts it.
@@ -311,7 +307,10 @@ pub fn parse(text: &str) -> Parsed {
     if !text.starts_with(|letter: char| letter.is_ascii_digit()) {
         return Parsed::Nothing;
     }
-    let digits: String = text.chars().take_while(|letter| letter.is_ascii_digit()).collect();
+    let digits: String = text
+        .chars()
+        .take_while(|letter| letter.is_ascii_digit())
+        .collect();
     // What follows the digits is only a space and what the space
     // carries: the digits of the text are the date, and the rest of it
     // is not read. Something else right after the digits is something
@@ -326,8 +325,22 @@ pub fn parse(text: &str) -> Parsed {
         6 => (take(0, 4), take(4, 2), 1, 0, 0, 0),
         8 => (take(0, 4), take(4, 2), take(6, 2), 0, 0, 0),
         10 => (take(0, 4), take(4, 2), take(6, 2), take(8, 2), 0, 0),
-        12 => (take(0, 4), take(4, 2), take(6, 2), take(8, 2), take(10, 2), 0),
-        14 => (take(0, 4), take(4, 2), take(6, 2), take(8, 2), take(10, 2), take(12, 2)),
+        12 => (
+            take(0, 4),
+            take(4, 2),
+            take(6, 2),
+            take(8, 2),
+            take(10, 2),
+            0,
+        ),
+        14 => (
+            take(0, 4),
+            take(4, 2),
+            take(6, 2),
+            take(8, 2),
+            take(10, 2),
+            take(12, 2),
+        ),
         // The other lengths are not a date that v2 can read.
         _ => return Parsed::Malformed,
     };
@@ -335,7 +348,8 @@ pub fn parse(text: &str) -> Parsed {
         && (1..=12).contains(&month)
         && day >= 1
         && day <= days_in_month(year, month);
-    let time_ok = (0..=23).contains(&hour) && (0..=59).contains(&minute) && (0..=60).contains(&second);
+    let time_ok =
+        (0..=23).contains(&hour) && (0..=59).contains(&minute) && (0..=60).contains(&second);
     let date = DateTime {
         year,
         month,
@@ -344,10 +358,22 @@ pub fn parse(text: &str) -> Parsed {
         minute,
         second,
         millisecond: 0,
-        weekday: if date_ok { day_of_week(year, month, day) } else { 0 },
-        yday: if date_ok { day_of_year(year, month, day) } else { 0 },
+        weekday: if date_ok {
+            day_of_week(year, month, day)
+        } else {
+            0
+        },
+        yday: if date_ok {
+            day_of_year(year, month, day)
+        } else {
+            0
+        },
     };
-    Parsed::Date(Moment { date, date_ok, time_ok })
+    Parsed::Date(Moment {
+        date,
+        date_ok,
+        time_ok,
+    })
 }
 
 /// A code of the format of v2.
@@ -509,20 +535,32 @@ fn the_value(code: &Code, moment: &Moment) -> String {
 /// time. A group that is not a real one writes nothing at all, the
 /// codes of it and the text in between.
 pub fn format_moment(moment: &Moment, format: &str) -> String {
-    let format = if format.is_empty() { DEFAULT_FORMAT } else { format };
+    let format = if format.is_empty() {
+        DEFAULT_FORMAT
+    } else {
+        format
+    };
     let mut out = String::new();
     let mut in_time = false;
     for piece in pieces(format) {
         match piece {
             Piece::Literal(text) => {
                 // The text belongs to the group of the code in front of it.
-                let written = if in_time { moment.time_ok } else { moment.date_ok };
+                let written = if in_time {
+                    moment.time_ok
+                } else {
+                    moment.date_ok
+                };
                 if written {
                     out.push_str(&text);
                 }
             }
             Piece::Date(code) => {
-                let written = if in_time { moment.time_ok } else { moment.date_ok };
+                let written = if in_time {
+                    moment.time_ok
+                } else {
+                    moment.date_ok
+                };
                 if written {
                     out.push_str(&the_value(&code, moment));
                 }
@@ -565,11 +603,22 @@ impl Unit {
 /// The moment of an argument, the way v2 reads it.
 ///
 /// A date that v2 cannot read is not a date: the parameter is invalid.
-fn the_moment(values: &[Value], index: usize, name: &str, line: u32) -> Result<Moment, RuntimeError> {
-    let text = values.get(index).map(|value| value.to_text()).unwrap_or_default();
+fn the_moment(
+    values: &[Value],
+    index: usize,
+    name: &str,
+    line: u32,
+) -> Result<Moment, RuntimeError> {
+    let text = values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     match parse(&text) {
         Parsed::Date(moment) if moment.date_ok && moment.time_ok => Ok(moment),
-        _ => Err(RuntimeError { message: invalid_parameter(index + 1, name), line }),
+        _ => Err(RuntimeError {
+            message: invalid_parameter(index + 1, name),
+            line,
+        }),
     }
 }
 
@@ -584,28 +633,44 @@ fn the_number(values: &[Value], index: usize, name: &str, line: u32) -> Result<f
             message: requires(index + 1, name, TypeName::Number, other),
             line,
         }),
-        None => Err(RuntimeError { message: invalid_parameter(index + 1, name), line }),
+        None => Err(RuntimeError {
+            message: invalid_parameter(index + 1, name),
+            line,
+        }),
     }
 }
 
 /// The unit of an argument, the way v2 reads it.
 fn the_unit(values: &[Value], index: usize, name: &str, line: u32) -> Result<Unit, RuntimeError> {
-    let text = values.get(index).map(|value| value.to_text()).unwrap_or_default();
+    let text = values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     match text.as_str() {
         "d" | "D" => Ok(Unit::Day),
         "h" | "H" => Ok(Unit::Hour),
         "m" | "M" => Ok(Unit::Minute),
         "s" | "S" => Ok(Unit::Second),
-        _ => Err(RuntimeError { message: invalid_parameter(index + 1, name), line }),
+        _ => Err(RuntimeError {
+            message: invalid_parameter(index + 1, name),
+            line,
+        }),
     }
 }
 
 /// The date and the time of the machine, in the local time.
 fn the_now(rt: &Runtime<'_>, line: u32) -> Result<Moment, RuntimeError> {
     let Some(clock) = rt.wall_clock() else {
-        return Err(RuntimeError { message: NO_DATE.to_string(), line });
+        return Err(RuntimeError {
+            message: NO_DATE.to_string(),
+            line,
+        });
     };
-    Ok(Moment { date: clock.local, date_ok: true, time_ok: true })
+    Ok(Moment {
+        date: clock.local,
+        date_ok: true,
+        time_ok: true,
+    })
 }
 
 /// `DateAdd`: a moment, plus an amount of time.
@@ -661,12 +726,18 @@ pub fn format_time(
         Some(value) => match parse(&value.to_text()) {
             Parsed::Nothing => the_now(rt, line)?,
             Parsed::Malformed => {
-                return Err(RuntimeError { message: invalid_parameter(1, "FormatTime"), line })
+                return Err(RuntimeError {
+                    message: invalid_parameter(1, "FormatTime"),
+                    line,
+                });
             }
             Parsed::Date(moment) => moment,
         },
     };
-    let format = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let format = values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     Ok(Value::Text(format_moment(&moment, &format)))
 }
 
@@ -678,7 +749,10 @@ pub fn format_time(
 /// Every one of them is a text, the way v2 answers them.
 pub fn variable_value(name: &str, rt: &Runtime<'_>) -> Result<Value, RuntimeError> {
     let Some(clock) = rt.wall_clock() else {
-        return Err(RuntimeError { message: NO_DATE.to_string(), line: 0 });
+        return Err(RuntimeError {
+            message: NO_DATE.to_string(),
+            line: 0,
+        });
     };
     let local = &clock.local;
     let text = match name {
@@ -702,7 +776,7 @@ pub fn variable_value(name: &str, rt: &Runtime<'_>) -> Result<Value, RuntimeErro
             return Err(RuntimeError {
                 message: format!("this runtime does not carry the built-in variable {other}."),
                 line: 0,
-            })
+            });
         }
     };
     Ok(Value::Text(text))
@@ -751,7 +825,11 @@ fn the_offset_of_a_name(tz: &str) -> Option<i64> {
         Some(at) => (&text[..at], &text[at..]),
         None => (text, ""),
     };
-    if name.is_empty() || !name.chars().all(|letter| letter.is_ascii_alphabetic() || letter == '_') {
+    if name.is_empty()
+        || !name
+            .chars()
+            .all(|letter| letter.is_ascii_alphabetic() || letter == '_')
+    {
         return None;
     }
     if rest.is_empty() {
@@ -869,7 +947,13 @@ fn the_counts(bytes: &[u8], at: usize) -> Option<Counts> {
 #[cfg(feature = "std")]
 fn the_size_of_the_block(counts: Counts, time_size: usize) -> usize {
     let (isutcnt, isstdcnt, leapcnt, timecnt, typecnt, charcnt) = counts;
-    timecnt * time_size + timecnt + typecnt * 6 + charcnt + leapcnt * (time_size + 4) + isstdcnt + isutcnt
+    timecnt * time_size
+        + timecnt
+        + typecnt * 6
+        + charcnt
+        + leapcnt * (time_size + 4)
+        + isstdcnt
+        + isutcnt
 }
 
 /// The block of data of a TZif file.
@@ -907,15 +991,20 @@ fn the_block(bytes: &[u8], at: usize, counts: Counts, time_size: usize) -> Optio
         daylight.push(*bytes.get(at + 4)? != 0);
         at += 6;
     }
-    Some(Zone { offsets, daylight, transitions, kinds })
+    Some(Zone {
+        offsets,
+        daylight,
+        transitions,
+        kinds,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::desktop::{
-        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer,
-        Processes, Screen, Sound, Timers, Windows,
+        Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+        Pointer, Processes, Screen, Sound, Timers, Windows,
     };
     use crate::runtime::Clock;
     use alloc::string::String;
@@ -933,8 +1022,8 @@ mod tests {
     impl Pictures for Fake {}
     impl Network for Fake {}
     impl Sound for Fake {}
-impl Machine for Fake {}
-impl Dialogs for Fake {}
+    impl Machine for Fake {}
+    impl Dialogs for Fake {}
 
     impl Files for Fake {}
 
@@ -958,7 +1047,13 @@ impl Dialogs for Fake {}
     }
 
     impl Pointer for Fake {
-        fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        fn click(
+            &mut self,
+            _x: i64,
+            _y: i64,
+            _button: &str,
+            _count: u32,
+        ) -> Result<String, String> {
             Ok(String::new())
         }
     }
@@ -1034,14 +1129,7 @@ impl Dialogs for Fake {}
 
     /// A moment of the tests, with the day of the week and the day of
     /// the year of it.
-    fn a_moment(
-        year: i64,
-        month: i64,
-        day: i64,
-        hour: i64,
-        minute: i64,
-        second: i64,
-    ) -> Moment {
+    fn a_moment(year: i64, month: i64, day: i64, hour: i64, minute: i64, second: i64) -> Moment {
         let date = DateTime {
             year,
             month,
@@ -1053,7 +1141,11 @@ impl Dialogs for Fake {}
             weekday: day_of_week(year, month, day),
             yday: day_of_year(year, month, day),
         };
-        Moment { date, date_ok: true, time_ok: true }
+        Moment {
+            date,
+            date_ok: true,
+            time_ok: true,
+        }
     }
 
     #[test]
@@ -1137,7 +1229,10 @@ impl Dialogs for Fake {}
     fn the_format_of_v2_writes_the_date_the_way_v2_writes_it() {
         // Measured on the binary of v2.0.19 on 2026-10-28.
         let moment = a_moment(2024, 1, 2, 15, 4, 5);
-        assert_eq!(format_moment(&moment, "yyyy-MM-dd HH:mm:ss"), "2024-01-02 15:04:05");
+        assert_eq!(
+            format_moment(&moment, "yyyy-MM-dd HH:mm:ss"),
+            "2024-01-02 15:04:05"
+        );
         assert_eq!(format_moment(&moment, "y"), "24");
         assert_eq!(format_moment(&moment, "yy"), "24");
         assert_eq!(format_moment(&moment, "yyy"), "2024");
@@ -1187,7 +1282,10 @@ impl Dialogs for Fake {}
         // `FormatTime(20240102)` answers `12:00 AM Tuesday, January 2,
         // 2024`.
         let moment = a_moment(2024, 1, 2, 0, 0, 0);
-        assert_eq!(format_moment(&moment, ""), "12:00 AM Tuesday, January 2, 2024");
+        assert_eq!(
+            format_moment(&moment, ""),
+            "12:00 AM Tuesday, January 2, 2024"
+        );
     }
 
     #[test]
@@ -1255,7 +1353,12 @@ impl Dialogs for Fake {}
         // Measured on the binary of v2.0.19 on 2026-10-28:
         // `DateAdd(20240101, 1, "d")` answers `20240102000000`.
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Int(20240101), Value::Int(1), Value::Text("d".into())], 1, 0)
+            date_add(
+                rt,
+                &[Value::Int(20240101), Value::Int(1), Value::Text("d".into())],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Text("20240102000000".into()));
     }
@@ -1264,11 +1367,21 @@ impl Dialogs for Fake {}
     fn date_add_goes_over_the_end_of_a_month_and_of_a_year() {
         // Measured on the binary of v2.0.19 on 2026-10-28.
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Int(20240131), Value::Int(1), Value::Text("d".into())], 1, 0)
+            date_add(
+                rt,
+                &[Value::Int(20240131), Value::Int(1), Value::Text("d".into())],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Text("20240201000000".into()));
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Int(20241231), Value::Int(1), Value::Text("d".into())], 1, 0)
+            date_add(
+                rt,
+                &[Value::Int(20241231), Value::Int(1), Value::Text("d".into())],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Text("20250101000000".into()));
     }
@@ -1277,11 +1390,21 @@ impl Dialogs for Fake {}
     fn date_add_counts_the_leap_year_the_way_v2_counts_it() {
         // Measured on the binary of v2.0.19 on 2026-10-28.
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Int(20240228), Value::Int(1), Value::Text("d".into())], 1, 0)
+            date_add(
+                rt,
+                &[Value::Int(20240228), Value::Int(1), Value::Text("d".into())],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Text("20240229000000".into()));
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Int(20230228), Value::Int(1), Value::Text("d".into())], 1, 0)
+            date_add(
+                rt,
+                &[Value::Int(20230228), Value::Int(1), Value::Text("d".into())],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Text("20230301000000".into()));
     }
@@ -1291,7 +1414,16 @@ impl Dialogs for Fake {}
         // Measured on the binary of v2.0.19 on 2026-10-28: one day and a
         // half is a day and twelve hours.
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Int(20240101), Value::Float(1.5), Value::Text("d".into())], 1, 0)
+            date_add(
+                rt,
+                &[
+                    Value::Int(20240101),
+                    Value::Float(1.5),
+                    Value::Text("d".into()),
+                ],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Text("20240102120000".into()));
     }
@@ -1301,7 +1433,16 @@ impl Dialogs for Fake {}
         // Measured on the binary of v2.0.19 on 2026-10-28: the message is
         // "Parameter #1 of DateAdd is invalid.".
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Text("hello".into()), Value::Int(1), Value::Text("d".into())], 1, 0)
+            date_add(
+                rt,
+                &[
+                    Value::Text("hello".into()),
+                    Value::Int(1),
+                    Value::Text("d".into()),
+                ],
+                1,
+                0,
+            )
         });
         assert_eq!(
             answer.unwrap_err().message,
@@ -1314,7 +1455,12 @@ impl Dialogs for Fake {}
         // Measured on the binary of v2.0.19 on 2026-10-28: v2 has no
         // unit of years nor of months.
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Int(20240101), Value::Int(1), Value::Text("y".into())], 1, 0)
+            date_add(
+                rt,
+                &[Value::Int(20240101), Value::Int(1), Value::Text("y".into())],
+                1,
+                0,
+            )
         });
         assert_eq!(
             answer.unwrap_err().message,
@@ -1326,7 +1472,16 @@ impl Dialogs for Fake {}
     fn an_amount_that_is_not_a_number_is_refused_the_way_v2_refuses_it() {
         // Measured on the binary of v2.0.19 on 2026-10-28.
         let answer = with_clock(|rt| {
-            date_add(rt, &[Value::Int(20240101), Value::Text("d".into()), Value::Text("d".into())], 1, 0)
+            date_add(
+                rt,
+                &[
+                    Value::Int(20240101),
+                    Value::Text("d".into()),
+                    Value::Text("d".into()),
+                ],
+                1,
+                0,
+            )
         });
         assert_eq!(
             answer.unwrap_err().message,
@@ -1339,11 +1494,29 @@ impl Dialogs for Fake {}
         // Measured on the binary of v2.0.19 on 2026-10-28:
         // `DateDiff(20240101, 20240110, "d")` answers `-9`.
         let answer = with_clock(|rt| {
-            date_diff(rt, &[Value::Int(20240101), Value::Int(20240110), Value::Text("d".into())], 1, 0)
+            date_diff(
+                rt,
+                &[
+                    Value::Int(20240101),
+                    Value::Int(20240110),
+                    Value::Text("d".into()),
+                ],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Int(-9));
         let answer = with_clock(|rt| {
-            date_diff(rt, &[Value::Int(20240110), Value::Int(20240101), Value::Text("d".into())], 1, 0)
+            date_diff(
+                rt,
+                &[
+                    Value::Int(20240110),
+                    Value::Int(20240101),
+                    Value::Text("d".into()),
+                ],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Int(9));
     }
@@ -1355,7 +1528,11 @@ impl Dialogs for Fake {}
         let answer = with_clock(|rt| {
             date_diff(
                 rt,
-                &[Value::Int(20240101000000), Value::Int(20240101120000), Value::Text("d".into())],
+                &[
+                    Value::Int(20240101000000),
+                    Value::Int(20240101120000),
+                    Value::Text("d".into()),
+                ],
                 1,
                 0,
             )
@@ -1364,7 +1541,11 @@ impl Dialogs for Fake {}
         let answer = with_clock(|rt| {
             date_diff(
                 rt,
-                &[Value::Int(20240101000000), Value::Int(20240101013000), Value::Text("h".into())],
+                &[
+                    Value::Int(20240101000000),
+                    Value::Int(20240101013000),
+                    Value::Text("h".into()),
+                ],
                 1,
                 0,
             )
@@ -1376,7 +1557,12 @@ impl Dialogs for Fake {}
     fn format_time_writes_the_moment_the_way_v2_writes_it() {
         // Measured on the binary of v2.0.19 on 2026-10-28.
         let answer = with_clock(|rt| {
-            format_time(rt, &[Value::Int(20240102), Value::Text("yyyy-MM-dd".into())], 1, 0)
+            format_time(
+                rt,
+                &[Value::Int(20240102), Value::Text("yyyy-MM-dd".into())],
+                1,
+                0,
+            )
         });
         assert_eq!(answer.unwrap(), Value::Text("2024-01-02".into()));
     }
@@ -1386,7 +1572,12 @@ impl Dialogs for Fake {}
         // Measured on the binary of v2.0.19 on 2026-10-28: v2 refuses
         // the number with a millisecond.
         let answer = with_clock(|rt| {
-            format_time(rt, &[Value::Float(20240102030405.5), Value::Text("yyyy".into())], 1, 0)
+            format_time(
+                rt,
+                &[Value::Float(20240102030405.5), Value::Text("yyyy".into())],
+                1,
+                0,
+            )
         });
         assert_eq!(
             answer.unwrap_err().message,

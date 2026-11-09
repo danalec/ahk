@@ -4,8 +4,8 @@
 //! answers nothing, because nothing is asked of it.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime};
@@ -105,24 +105,20 @@ fn the_own_properties_are_an_enumerator() {
 
 #[test]
 fn the_call_of_an_enumerator_hands_out_the_next_value() {
-    let report = run(
-        "a := Array(\"x\", \"y\")\ne := a.__Enum()\n\
+    let report = run("a := Array(\"x\", \"y\")\ne := a.__Enum()\n\
          first := \"\"\nok := e.Call(&first)\n\
          second := \"\"\ne.Call(&second)\n\
          third := \"\"\nlast := e.Call(&third)\n\
-         MsgBox first . second . ok . last",
-    );
+         MsgBox first . second . ok . last");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["xy10"]);
 }
 
 #[test]
 fn the_call_of_an_enumerator_hands_out_the_key_and_the_value() {
-    let report = run(
-        "m := Map()\nm[\"k\"] := 7\ne := m.__Enum()\n\
+    let report = run("m := Map()\nm[\"k\"] := 7\ne := m.__Enum()\n\
          key := \"\"\nvalue := \"\"\ne.Call(&key, &value)\n\
-         MsgBox key . \"/\" . value",
-    );
+         MsgBox key . \"/\" . value");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["k/7"]);
 }
@@ -131,24 +127,20 @@ fn the_call_of_an_enumerator_hands_out_the_key_and_the_value() {
 fn the_call_of_an_enumerator_with_one_variable_gives_the_key_of_a_map() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the enumerator of
     // a map gives the key, and the enumerator of an array gives the value.
-    let report = run(
-        "m := Map()\nm[\"k\"] := 7\ne := m.__Enum()\n\
+    let report = run("m := Map()\nm[\"k\"] := 7\ne := m.__Enum()\n\
          key := \"\"\ne.Call(&key)\n\
          a := Array(\"v\")\ne2 := a.__Enum()\n\
          value := \"\"\ne2.Call(&value)\n\
-         MsgBox key . \"/\" . value",
-    );
+         MsgBox key . \"/\" . value");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["k/v"]);
 }
 
 #[test]
 fn the_own_properties_give_the_name_and_the_value() {
-    let report = run(
-        "o := {a: 1}\ne := o.OwnProps()\n\
+    let report = run("o := {a: 1}\ne := o.OwnProps()\n\
          name := \"\"\nvalue := \"\"\ne.Call(&name, &value)\n\
-         MsgBox name . \"=\" . value",
-    );
+         MsgBox name . \"=\" . value");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["a=1"]);
 }
@@ -157,17 +149,16 @@ fn the_own_properties_give_the_name_and_the_value() {
 fn the_enumerator_carries_the_values_of_a_function() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the enumerator is
     // a function of its own kind, and it carries the values of a function.
-    let report = run(
-        "e := Array(1).__Enum()\n\
-         MsgBox \"[\" e.Name \"]\" . \" \" . e.MinParams . \" \" . e.MaxParams . \" \" . e.IsBuiltin . \" \" . e.IsVariadic",
-    );
+    let report = run("e := Array(1).__Enum()\n\
+         MsgBox \"[\" e.Name \"]\" . \" \" . e.MinParams . \" \" . e.MaxParams . \" \" . e.IsBuiltin . \" \" . e.IsVariadic");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["[] 0 0 1 0"]);
 }
 
 #[test]
 fn the_enumerator_has_no_own_property() {
-    let report = run("e := Array(1).__Enum()\nMsgBox ObjOwnPropCount(e) . \" \" . e.HasOwnProp(\"Call\")");
+    let report =
+        run("e := Array(1).__Enum()\nMsgBox ObjOwnPropCount(e) . \" \" . e.HasOwnProp(\"Call\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["0 0"]);
 }
@@ -203,11 +194,9 @@ fn the_enumerator_has_no_enumeration_of_its_own() {
 
 #[test]
 fn a_loop_walks_an_enumerator() {
-    let report = run(
-        "e := Array(1, 2).__Enum()\ns := \"\"\n\
+    let report = run("e := Array(1, 2).__Enum()\ns := \"\"\n\
          for v in e\n    s .= v \";\"\n\
-         MsgBox s",
-    );
+         MsgBox s");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1;2;"]);
 }

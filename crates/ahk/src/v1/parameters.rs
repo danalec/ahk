@@ -33,10 +33,7 @@ use crate::runtime::{CaseSense, FloatFormat, IntegerFormat, Value};
 /// complaint the table of the v1 carries: the number of the parameters that
 /// it wants is the number of the table, and the name of the command is the
 /// name of the table.
-pub(crate) fn the_refusal_of_the_arity(
-    name: &str,
-    count: usize,
-) -> Option<TheRefusalOfTheArity> {
+pub(crate) fn the_refusal_of_the_arity(name: &str, count: usize) -> Option<TheRefusalOfTheArity> {
     let rule = RULES_OF_THE_ARITY
         .iter()
         .find(|rule| rule.name.eq_ignore_ascii_case(name))?;
@@ -88,10 +85,34 @@ struct Arity {
 /// and the "GuiControl" want two, and the "WinMenuSelectItem" wants three,
 /// and the complaint of the v1 names the parameter that is missing.
 const RULES_OF_THE_ARITY: &[Arity] = &[
-    Arity { name: "EnvSub", generic: 1, required: 2, together: None, spelled: None },
-    Arity { name: "ControlSend", generic: 0, required: 2, together: None, spelled: None },
-    Arity { name: "GuiControl", generic: 0, required: 2, together: None, spelled: None },
-    Arity { name: "WinMenuSelectItem", generic: 0, required: 3, together: None, spelled: None },
+    Arity {
+        name: "EnvSub",
+        generic: 1,
+        required: 2,
+        together: None,
+        spelled: None,
+    },
+    Arity {
+        name: "ControlSend",
+        generic: 0,
+        required: 2,
+        together: None,
+        spelled: None,
+    },
+    Arity {
+        name: "GuiControl",
+        generic: 0,
+        required: 2,
+        together: None,
+        spelled: None,
+    },
+    Arity {
+        name: "WinMenuSelectItem",
+        generic: 0,
+        required: 3,
+        together: None,
+        spelled: None,
+    },
     Arity {
         name: "SetStoreCapsLockMode",
         generic: 1,
@@ -120,7 +141,10 @@ const RULES_OF_THE_ARITY: &[Arity] = &[
 /// ones that it wants.
 pub(crate) fn the_refusal_of_a_parameter(name: &str, parameters: &[String]) -> Option<String> {
     // The command whose complaint is a message of its own comes first.
-    if let Some(rule) = MESSAGES.iter().find(|rule| rule.name.eq_ignore_ascii_case(name)) {
+    if let Some(rule) = MESSAGES
+        .iter()
+        .find(|rule| rule.name.eq_ignore_ascii_case(name))
+    {
         return (rule.message)(parameters);
     }
     // The command whose parameter names a sub-command comes next: the
@@ -129,11 +153,16 @@ pub(crate) fn the_refusal_of_a_parameter(name: &str, parameters: &[String]) -> O
     if let Some(refusal) = crate::v1::the_refusal_of_a_sub_command(name, parameters) {
         return Some(refusal);
     }
-    let rule = RULES.iter().find(|rule| rule.name.eq_ignore_ascii_case(name))?;
+    let rule = RULES
+        .iter()
+        .find(|rule| rule.name.eq_ignore_ascii_case(name))?;
     let texts = rule.the_texts(parameters);
     let place = (rule.check)(&texts)?;
     let text = the_text_at(&texts, place);
-    Some(format!("Parameter #{} invalid.\n     Specifically: {text}", place + 1))
+    Some(format!(
+        "Parameter #{} invalid.\n     Specifically: {text}",
+        place + 1
+    ))
 }
 
 /// The rule of a command of the v1 that checks a parameter.
@@ -162,35 +191,122 @@ impl Rule {
 
 /// The commands of the v1 that check a parameter, and the check of each.
 const RULES: &[Rule] = &[
-    Rule { name: "AutoTrim", check: the_switch },
-    Rule { name: "DetectHiddenText", check: the_switch },
-    Rule { name: "DetectHiddenWindows", check: the_switch },
-    Rule { name: "SetStoreCapsLockMode", check: the_switch },
-    Rule { name: "StringCaseSense", check: the_case_sense },
-    Rule { name: "SetTitleMatchMode", check: the_title_match_mode },
-    Rule { name: "SendMode", check: the_send_mode },
-    Rule { name: "SetRegView", check: the_reg_view },
-    Rule { name: "FileEncoding", check: the_encoding },
-    Rule { name: "FileAppend", check: the_encoding_of_the_append },
-    Rule { name: "SetBatchLines", check: the_batch_lines },
-    Rule { name: "SetFormat", check: the_format },
-    Rule { name: "Transform", check: the_transform },
-    Rule { name: "StringGetPos", check: the_occurrence },
-    Rule { name: "FileGetTime", check: the_time_of_a_file },
-    Rule { name: "FileGetSize", check: the_size_of_a_file },
-    Rule { name: "FileSetAttrib", check: the_attributes_of_a_file },
-    Rule { name: "EnvAdd", check: the_units_of_the_time },
-    Rule { name: "EnvSub", check: the_unit_and_the_date_of_the_subtraction },
-    Rule { name: "FileMoveDir", check: the_way_of_the_move_of_a_directory },
-    Rule { name: "GroupActivate", check: the_mode_of_a_group },
-    Rule { name: "GroupClose", check: the_mode_of_a_group },
-    Rule { name: "GroupDeactivate", check: the_mode_of_a_group },
-    Rule { name: "IfMsgBox", check: the_button_of_a_message_box },
-    Rule { name: "KeyHistory", check: the_command_without_a_parameter },
-    Rule { name: "StringMid", check: the_letter_of_the_string_mid },
-    Rule { name: "MouseClickDrag", check: the_button_of_the_mouse },
-    Rule { name: "MouseMove", check: the_speed_and_the_fourth_parameter_of_the_mouse_move },
-    Rule { name: "GetKeyState", check: the_name_of_a_key },
+    Rule {
+        name: "AutoTrim",
+        check: the_switch,
+    },
+    Rule {
+        name: "DetectHiddenText",
+        check: the_switch,
+    },
+    Rule {
+        name: "DetectHiddenWindows",
+        check: the_switch,
+    },
+    Rule {
+        name: "SetStoreCapsLockMode",
+        check: the_switch,
+    },
+    Rule {
+        name: "StringCaseSense",
+        check: the_case_sense,
+    },
+    Rule {
+        name: "SetTitleMatchMode",
+        check: the_title_match_mode,
+    },
+    Rule {
+        name: "SendMode",
+        check: the_send_mode,
+    },
+    Rule {
+        name: "SetRegView",
+        check: the_reg_view,
+    },
+    Rule {
+        name: "FileEncoding",
+        check: the_encoding,
+    },
+    Rule {
+        name: "FileAppend",
+        check: the_encoding_of_the_append,
+    },
+    Rule {
+        name: "SetBatchLines",
+        check: the_batch_lines,
+    },
+    Rule {
+        name: "SetFormat",
+        check: the_format,
+    },
+    Rule {
+        name: "Transform",
+        check: the_transform,
+    },
+    Rule {
+        name: "StringGetPos",
+        check: the_occurrence,
+    },
+    Rule {
+        name: "FileGetTime",
+        check: the_time_of_a_file,
+    },
+    Rule {
+        name: "FileGetSize",
+        check: the_size_of_a_file,
+    },
+    Rule {
+        name: "FileSetAttrib",
+        check: the_attributes_of_a_file,
+    },
+    Rule {
+        name: "EnvAdd",
+        check: the_units_of_the_time,
+    },
+    Rule {
+        name: "EnvSub",
+        check: the_unit_and_the_date_of_the_subtraction,
+    },
+    Rule {
+        name: "FileMoveDir",
+        check: the_way_of_the_move_of_a_directory,
+    },
+    Rule {
+        name: "GroupActivate",
+        check: the_mode_of_a_group,
+    },
+    Rule {
+        name: "GroupClose",
+        check: the_mode_of_a_group,
+    },
+    Rule {
+        name: "GroupDeactivate",
+        check: the_mode_of_a_group,
+    },
+    Rule {
+        name: "IfMsgBox",
+        check: the_button_of_a_message_box,
+    },
+    Rule {
+        name: "KeyHistory",
+        check: the_command_without_a_parameter,
+    },
+    Rule {
+        name: "StringMid",
+        check: the_letter_of_the_string_mid,
+    },
+    Rule {
+        name: "MouseClickDrag",
+        check: the_button_of_the_mouse,
+    },
+    Rule {
+        name: "MouseMove",
+        check: the_speed_and_the_fourth_parameter_of_the_mouse_move,
+    },
+    Rule {
+        name: "GetKeyState",
+        check: the_name_of_a_key,
+    },
 ];
 
 /// The commands of the v1 whose complaint is a message of its own.
@@ -208,11 +324,26 @@ struct Message {
 
 /// The commands of the v1 that refuse with a message of their own.
 const MESSAGES: &[Message] = &[
-    Message { name: "EnvDiv", message: the_division_by_zero },
-    Message { name: "ImageSearch", message: the_place_of_the_image },
-    Message { name: "PixelSearch", message: the_place_of_the_image },
-    Message { name: "WinWait", message: the_window_of_the_win_wait },
-    Message { name: "WinActivateBottom", message: the_window_of_the_win_activate_bottom },
+    Message {
+        name: "EnvDiv",
+        message: the_division_by_zero,
+    },
+    Message {
+        name: "ImageSearch",
+        message: the_place_of_the_image,
+    },
+    Message {
+        name: "PixelSearch",
+        message: the_place_of_the_image,
+    },
+    Message {
+        name: "WinWait",
+        message: the_window_of_the_win_wait,
+    },
+    Message {
+        name: "WinActivateBottom",
+        message: the_window_of_the_win_activate_bottom,
+    },
 ];
 
 /// The place of the image of the `ImageSearch` of the v1.
@@ -329,7 +460,9 @@ pub(crate) fn the_refusal_of_the_percent_sign_of_a_parameter(text: &str) -> Opti
 /// `FileAppend, % n, *` writes the number of the variable.
 pub(crate) fn the_text_is_an_expression_of_the_v1(text: &str) -> bool {
     let text = text.trim_start();
-    let Some(rest) = text.strip_prefix('%') else { return false };
+    let Some(rest) = text.strip_prefix('%') else {
+        return false;
+    };
     rest.starts_with(' ') || rest.starts_with('\t')
 }
 
@@ -347,7 +480,9 @@ pub(crate) fn the_refusal_of_the_percent_sign_of_an_expression(
     empty: bool,
 ) -> Option<String> {
     if empty {
-        return Some(format!("Empty variable reference (%%).\n     Specifically: {run}"));
+        return Some(format!(
+            "Empty variable reference (%%).\n     Specifically: {run}"
+        ));
     }
     Some(format!(
         "This parameter contains a variable name missing its ending percent sign.\n     Specifically: {run}"
@@ -361,7 +496,9 @@ pub(crate) fn the_refusal_of_the_percent_sign_of_an_expression(
 /// with "Ambiguous or invalid use of \".\"". The text that is named is the
 /// operand from its first point to its end.
 pub(crate) fn the_refusal_of_the_point_of_an_operand(text: &str) -> Option<String> {
-    Some(format!("Ambiguous or invalid use of \".\"\n     Specifically: {text}"))
+    Some(format!(
+        "Ambiguous or invalid use of \".\"\n     Specifically: {text}"
+    ))
 }
 
 /// The refusal of the text that is the name of a member of the v1.
@@ -370,7 +507,9 @@ pub(crate) fn the_refusal_of_the_point_of_an_operand(text: &str) -> Option<Strin
 /// a member may not be a text: the `x := a."b"` is refused with "This
 /// character is not allowed here." and the rest of the line, from the quote.
 pub(crate) fn the_refusal_of_the_text_of_a_member(text: &str) -> Option<String> {
-    Some(format!("This character is not allowed here.\n     Specifically: {text}"))
+    Some(format!(
+        "This character is not allowed here.\n     Specifically: {text}"
+    ))
 }
 
 /// The refusal of the name of a variable of the script.

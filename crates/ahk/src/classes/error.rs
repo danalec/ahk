@@ -147,8 +147,16 @@ const PROPERTIES: [&str; 6] = ["message", "what", "extra", "file", "line", "stac
 /// The methods an error has: the constructor, and the ones every object
 /// has.
 const METHODS: [&str; 10] = [
-    "__new", "ownprops", "hasownprop", "defineprop", "deleteprop",
-    "getownpropdesc", "hasprop", "hasmethod", "getmethod", "hasbase",
+    "__new",
+    "ownprops",
+    "hasownprop",
+    "defineprop",
+    "deleteprop",
+    "getownpropdesc",
+    "hasprop",
+    "hasmethod",
+    "getmethod",
+    "hasbase",
 ];
 
 /// The names an error answers: its properties and its methods.
@@ -172,9 +180,22 @@ pub(crate) fn construct(
         .first()
         .map(|value| value.to_text())
         .unwrap_or_else(|| the_spelling_of(class).unwrap_or_default());
-    let what = arguments.get(1).map(|value| value.to_text()).unwrap_or_default();
-    let extra = arguments.get(2).map(|value| value.to_text()).unwrap_or_default();
-    Ok(error_value_of(class, &message, &what, &extra, line, &rt.the_stack()))
+    let what = arguments
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let extra = arguments
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    Ok(error_value_of(
+        class,
+        &message,
+        &what,
+        &extra,
+        line,
+        &rt.the_stack(),
+    ))
 }
 
 /// The object of an error, with the properties of it.
@@ -205,7 +226,10 @@ pub(crate) fn error_value_of(
     // the name of the frame and the source of the line -- and the last
     // line names the section that starts the script.
     put(&mut properties, "Stack", Value::Text(stack.to_string()));
-    Value::Object(Rc::new(RefCell::new(Object { class: class.to_lowercase(), properties })))
+    Value::Object(Rc::new(RefCell::new(Object {
+        class: class.to_lowercase(),
+        properties,
+    })))
 }
 
 /// A method of an `Error`.

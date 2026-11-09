@@ -46,19 +46,17 @@ pub fn computer_name() -> Result<String, String> {
 #[cfg(target_os = "linux")]
 fn the_name_of_the_machine() -> Option<String> {
     let mut buffer = [0u8; 256];
-    let asked = unsafe {
-        libc::gethostname(buffer.as_mut_ptr() as *mut libc::c_char, buffer.len())
-    };
+    let asked =
+        unsafe { libc::gethostname(buffer.as_mut_ptr() as *mut libc::c_char, buffer.len()) };
     if asked != 0 {
         return None;
     }
-    let end = buffer.iter().position(|byte| *byte == 0).unwrap_or(buffer.len());
+    let end = buffer
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(buffer.len());
     let name = String::from_utf8_lossy(&buffer[..end]).trim().to_string();
-    if name.is_empty() {
-        None
-    } else {
-        Some(name)
-    }
+    if name.is_empty() { None } else { Some(name) }
 }
 
 /// The program that runs a command of the session.
@@ -76,7 +74,9 @@ pub fn shell() -> Result<String, String> {
 fn from_the_environment(name: &str, what: &str) -> Result<String, String> {
     match std::env::var(name) {
         Ok(value) if !value.is_empty() => Ok(value),
-        _ => Err(format!("the session does not carry the {what}: the environment has no {name}.")),
+        _ => Err(format!(
+            "the session does not carry the {what}: the environment has no {name}."
+        )),
     }
 }
 
@@ -114,16 +114,20 @@ pub fn language() -> Result<String, String> {
     if let Some(locale) = the_locale_of_the_system() {
         return Ok(locale);
     }
-    Err("the session does not carry the language: the environment has no LC_ALL, LANG or \
+    Err(
+        "the session does not carry the language: the environment has no LC_ALL, LANG or \
          LANGUAGE, and /etc/locale.conf is not there."
-        .to_string())
+            .to_string(),
+    )
 }
 
 /// The language of the system, from `/etc/locale.conf`.
 fn the_locale_of_the_system() -> Option<String> {
     let text = std::fs::read_to_string("/etc/locale.conf").ok()?;
     for line in text.lines() {
-        let Some((name, value)) = line.split_once('=') else { continue };
+        let Some((name, value)) = line.split_once('=') else {
+            continue;
+        };
         if name.trim() != "LANG" {
             continue;
         }
@@ -148,8 +152,10 @@ pub fn is_admin() -> Result<bool, String> {
     }
     #[cfg(not(target_os = "linux"))]
     {
-        Err("the rights of an administrator are the effective user id, and this is not Linux."
-            .to_string())
+        Err(
+            "the rights of an administrator are the effective user id, and this is not Linux."
+                .to_string(),
+        )
     }
 }
 
@@ -224,7 +230,9 @@ fn the_user_dir(text: &str, home: Option<&str>, key: &str) -> Option<String> {
         if trimmed.starts_with('#') {
             continue;
         }
-        let Some((name, value)) = trimmed.split_once('=') else { continue };
+        let Some((name, value)) = trimmed.split_once('=') else {
+            continue;
+        };
         if name.trim() != key {
             continue;
         }
@@ -238,7 +246,9 @@ fn the_user_dir(text: &str, home: Option<&str>, key: &str) -> Option<String> {
 
 /// A path with the home of the user put in it.
 fn expand_the_home(value: &str, home: Option<&str>) -> String {
-    let Some(home) = home else { return value.to_string() };
+    let Some(home) = home else {
+        return value.to_string();
+    };
     if let Some(rest) = value.strip_prefix("${HOME}") {
         return format!("{home}{rest}");
     }
@@ -266,9 +276,11 @@ fn on_the_disk(path: Option<String>) -> Option<String> {
 /// the box does not publish the `org.freedesktop.portal.Idle` interface,
 /// and there is no idle time to read.
 pub fn idle_times() -> Result<Idle, String> {
-    Err("the XDG portal of this box does not publish the Idle interface, and the session has no \
+    Err(
+        "the XDG portal of this box does not publish the Idle interface, and the session has no \
          idle monitor."
-        .to_string())
+            .to_string(),
+    )
 }
 
 #[cfg(test)]
@@ -279,7 +291,8 @@ mod tests {
     /// user in it, and the home is put in it.
     #[test]
     fn a_folder_of_the_user_carries_the_home() {
-        let text = "# This file is written by xdg-user-dir-update\nXDG_DESKTOP_DIR=\"$HOME/Desktop\"\n";
+        let text =
+            "# This file is written by xdg-user-dir-update\nXDG_DESKTOP_DIR=\"$HOME/Desktop\"\n";
         assert_eq!(
             the_user_dir(text, Some("/home/danalec"), "XDG_DESKTOP_DIR").as_deref(),
             Some("/home/danalec/Desktop")
@@ -290,6 +303,9 @@ mod tests {
     #[test]
     fn a_key_that_is_not_there_is_not_a_folder() {
         let text = "XDG_DESKTOP_DIR=\"$HOME/Desktop\"\n";
-        assert_eq!(the_user_dir(text, Some("/home/danalec"), "XDG_DOCUMENTS_DIR"), None);
+        assert_eq!(
+            the_user_dir(text, Some("/home/danalec"), "XDG_DOCUMENTS_DIR"),
+            None
+        );
     }
 }

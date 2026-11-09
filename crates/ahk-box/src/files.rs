@@ -57,7 +57,9 @@ impl ahk::desktop::Files for LabDesktop {
             }
             _ => return Err(format!("the mode {mode:?} is not one this desktop knows")),
         }
-        let file = options.open(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
+        let file = options
+            .open(path)
+            .map_err(|error| the_failure_of_the_machine(path, &error))?;
         self.files.push(Some(file));
         Ok((self.files.len() - 1) as i64)
     }
@@ -69,7 +71,8 @@ impl ahk::desktop::Files for LabDesktop {
             .get_mut(handle.max(0) as usize)
             .and_then(|file| file.as_mut())
             .ok_or_else(|| format!("the file {handle} is not open"))?;
-        file.seek(SeekFrom::Start(pos.max(0) as u64)).map_err(|error| error.to_string())?;
+        file.seek(SeekFrom::Start(pos.max(0) as u64))
+            .map_err(|error| error.to_string())?;
         let mut buffer = vec![0u8; count.max(0) as usize];
         let read = file.read(&mut buffer).map_err(|error| error.to_string())?;
         buffer.truncate(read);
@@ -83,7 +86,8 @@ impl ahk::desktop::Files for LabDesktop {
             .get_mut(handle.max(0) as usize)
             .and_then(|file| file.as_mut())
             .ok_or_else(|| format!("the file {handle} is not open"))?;
-        file.seek(SeekFrom::Start(pos.max(0) as u64)).map_err(|error| error.to_string())?;
+        file.seek(SeekFrom::Start(pos.max(0) as u64))
+            .map_err(|error| error.to_string())?;
         file.write_all(bytes).map_err(|error| error.to_string())?;
         Ok(bytes.len())
     }
@@ -152,11 +156,16 @@ impl ahk::desktop::Files for LabDesktop {
     fn initial_working_directory(&mut self) -> Result<String, String> {
         // The desktop read it when it was made, and it kept it: a script
         // that changes the working directory does not change this one.
-        self.initial_working_dir.clone().ok_or_else(|| {
-            "the directory where the run started cannot be read".to_string()
-        })
+        self.initial_working_dir
+            .clone()
+            .ok_or_else(|| "the directory where the run started cannot be read".to_string())
     }
-    fn list_files(&mut self, folder: &str, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
+    fn list_files(
+        &mut self,
+        folder: &str,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
         let mut files: Vec<String> = Vec::new();
         // v2 takes a path with a wildcard: the folder of the path is where
         // the files are, and the rest of it is the pattern of the names.
@@ -170,7 +179,12 @@ impl ahk::desktop::Files for LabDesktop {
         } else {
             PathBuf::from(folder).join(&where_to_look)
         };
-        crate::desktop::walk_the_folder(&where_to_look, &name, &mode.to_ascii_uppercase(), &mut files)?;
+        crate::desktop::walk_the_folder(
+            &where_to_look,
+            &name,
+            &mode.to_ascii_uppercase(),
+            &mut files,
+        )?;
         // The order of a directory is not the order of its name, and a
         // script that loops over the files wants the same order every
         // time. The walk sorts the entries of every folder that it visits.
@@ -206,9 +220,11 @@ impl ahk::desktop::Files for LabDesktop {
             .open(path)
             .map_err(|error| the_failure_of_the_machine(path, &error))?;
         if made && !mark.is_empty() {
-            file.write_all(mark).map_err(|error| the_failure_of_the_machine(path, &error))?;
+            file.write_all(mark)
+                .map_err(|error| the_failure_of_the_machine(path, &error))?;
         }
-        file.write_all(bytes).map_err(|error| the_failure_of_the_machine(path, &error))?;
+        file.write_all(bytes)
+            .map_err(|error| the_failure_of_the_machine(path, &error))?;
         Ok(bytes.len().to_string())
     }
     fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
@@ -221,7 +237,10 @@ impl ahk::desktop::Files for LabDesktop {
             return Err(FAILED.to_string());
         }
         fs::copy(source, &target).map_err(|_| FAILED.to_string())?;
-        Ok(format!("copied the file {from} to {}", target.to_string_lossy()))
+        Ok(format!(
+            "copied the file {from} to {}",
+            target.to_string_lossy()
+        ))
     }
 
     fn move_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
@@ -242,7 +261,10 @@ impl ahk::desktop::Files for LabDesktop {
             fs::copy(source, &target).map_err(|_| FAILED.to_string())?;
             fs::remove_file(source).map_err(|_| FAILED.to_string())?;
         }
-        Ok(format!("moved the file {from} to {}", target.to_string_lossy()))
+        Ok(format!(
+            "moved the file {from} to {}",
+            target.to_string_lossy()
+        ))
     }
 
     fn copy_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
@@ -295,28 +317,45 @@ impl ahk::desktop::Files for LabDesktop {
         Ok(format!("moved the folder {from} to {to}"))
     }
 
-    fn attributes_of_the_pattern(&mut self, pattern: &str, mode: &str) -> Result<Vec<String>, String> {
+    fn attributes_of_the_pattern(
+        &mut self,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
         let (folder, name) = split_the_pattern(pattern);
         // A name without a wildcard is the path itself: the entry is
         // there or it is not.
         if !name.contains('*') && !name.contains('?') {
-            let Ok(metadata) = fs::metadata(Path::new(pattern)) else { return Ok(Vec::new()) };
+            let Ok(metadata) = fs::metadata(Path::new(pattern)) else {
+                return Ok(Vec::new());
+            };
             if mode.contains('D') && !metadata.is_dir() {
                 return Ok(Vec::new());
             }
-            return Ok(letters_of(&metadata).into_iter().map(|letter| letter.to_string()).collect());
+            return Ok(letters_of(&metadata)
+                .into_iter()
+                .map(|letter| letter.to_string())
+                .collect());
         }
         // A pattern with a wildcard is looked for in the folder of it, and
         // the first entry that matches is the one that answers.
-        let folder = if folder.is_empty() { PathBuf::from(".") } else { PathBuf::from(&folder) };
-        let Ok(entries) = fs::read_dir(&folder) else { return Ok(Vec::new()) };
+        let folder = if folder.is_empty() {
+            PathBuf::from(".")
+        } else {
+            PathBuf::from(&folder)
+        };
+        let Ok(entries) = fs::read_dir(&folder) else {
+            return Ok(Vec::new());
+        };
         let mut found: Vec<(String, fs::Metadata)> = Vec::new();
         for entry in entries.flatten() {
             let name_of_the_entry = entry.file_name().to_string_lossy().to_string();
             if !crate::desktop::name_matches(&name, &name_of_the_entry) {
                 continue;
             }
-            let Ok(metadata) = fs::metadata(entry.path()) else { continue };
+            let Ok(metadata) = fs::metadata(entry.path()) else {
+                continue;
+            };
             if mode.contains('D') && !metadata.is_dir() {
                 continue;
             }
@@ -326,21 +365,32 @@ impl ahk::desktop::Files for LabDesktop {
         // name with the case taken away, and the names of a folder of NTFS
         // come in that order.
         found.sort_by(|one, other| {
-            one.0.to_uppercase().cmp(&other.0.to_uppercase()).then_with(|| one.0.cmp(&other.0))
+            one.0
+                .to_uppercase()
+                .cmp(&other.0.to_uppercase())
+                .then_with(|| one.0.cmp(&other.0))
         });
         Ok(match found.into_iter().next() {
-            Some((_, metadata)) => letters_of(&metadata).into_iter().map(|letter| letter.to_string()).collect(),
+            Some((_, metadata)) => letters_of(&metadata)
+                .into_iter()
+                .map(|letter| letter.to_string())
+                .collect(),
             None => Vec::new(),
         })
     }
 
     fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
-        let metadata = fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
-        Ok(letters_of(&metadata).into_iter().map(|letter| letter.to_string()).collect())
+        let metadata =
+            fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
+        Ok(letters_of(&metadata)
+            .into_iter()
+            .map(|letter| letter.to_string())
+            .collect())
     }
 
     fn the_size_of_a_file(&mut self, path: &str) -> Result<i64, String> {
-        let metadata = fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
+        let metadata =
+            fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
         // A folder has no size: the machine gives zero for one.
         if metadata.is_dir() {
             return Ok(0);
@@ -354,7 +404,9 @@ impl ahk::desktop::Files for LabDesktop {
         let metadata = match fs::metadata(path) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(format!("the attributes of the file {path:?} are not changed"))
+                return Ok(format!(
+                    "the attributes of the file {path:?} are not changed"
+                ));
             }
             Err(error) => return Err(the_failure_of_the_machine(path, &error)),
         };
@@ -394,7 +446,9 @@ impl ahk::desktop::Files for LabDesktop {
         }
         for letter in &letters {
             if !KNOWN.contains(letter) {
-                return Err(format!("the machine of this box has no such attribute: {letter}."));
+                return Err(format!(
+                    "the machine of this box has no such attribute: {letter}."
+                ));
             }
         }
         if letters.contains(&'D') && !metadata.is_dir() {
@@ -414,7 +468,8 @@ impl ahk::desktop::Files for LabDesktop {
     }
 
     fn file_times(&mut self, path: &str) -> Result<(i64, i64, i64), String> {
-        let metadata = fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
+        let metadata =
+            fs::metadata(path).map_err(|error| the_failure_of_the_machine(path, &error))?;
         let modified = millis_of(metadata.modified()).unwrap_or(0);
         // The machine that does not keep the time a file was made has
         // none: the time it was changed is the oldest it knows.
@@ -435,7 +490,7 @@ impl ahk::desktop::Files for LabDesktop {
         let file = match fs::OpenOptions::new().write(true).open(path) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(format!("the times of the file {path:?} are not changed"))
+                return Ok(format!("the times of the file {path:?} are not changed"));
             }
             Err(error) => return Err(the_failure_of_the_machine(path, &error)),
         };
@@ -449,12 +504,19 @@ impl ahk::desktop::Files for LabDesktop {
         if let Some(accessed) = accessed {
             times = times.set_accessed(when_of(accessed));
         }
-        file.set_times(times)
-            .map_err(|error| format!("the times of the file {path:?} cannot be changed: {error}"))?;
+        file.set_times(times).map_err(|error| {
+            format!("the times of the file {path:?} cannot be changed: {error}")
+        })?;
         Ok(format!("the times of the file {path:?} are set"))
     }
 
-    fn ini_read(&mut self, path: &str, section: &str, key: &str, default: &str) -> Result<String, String> {
+    fn ini_read(
+        &mut self,
+        path: &str,
+        section: &str,
+        key: &str,
+        default: &str,
+    ) -> Result<String, String> {
         let text = read_ini(path)?;
         // v2 reads the three of them with the same function: the value
         // of a key, the whole section, or the names of the sections.
@@ -477,7 +539,13 @@ impl ahk::desktop::Files for LabDesktop {
         }
     }
 
-    fn ini_write(&mut self, path: &str, section: &str, key: &str, value: &str) -> Result<String, String> {
+    fn ini_write(
+        &mut self,
+        path: &str,
+        section: &str,
+        key: &str,
+        value: &str,
+    ) -> Result<String, String> {
         let text = match fs::read(path) {
             Ok(bytes) => decode(&bytes),
             // A file that is not there is made.
@@ -527,7 +595,9 @@ impl ahk::desktop::Files for LabDesktop {
         }
         fs::write(path, written.as_bytes())
             .map_err(|error| format!("the file {path:?} cannot be written: {error}"))?;
-        Ok(format!("took the key {key:?} of the section {section:?} away"))
+        Ok(format!(
+            "took the key {key:?} of the section {section:?} away"
+        ))
     }
 }
 
@@ -553,8 +623,12 @@ fn target_of(source: &Path, destination: &Path) -> PathBuf {
 /// The paths are the ones that the machine gives, so that a folder that is
 /// reached in two ways is seen as one.
 fn is_inside(source: &Path, target: &Path) -> bool {
-    let Ok(source) = source.canonicalize() else { return false };
-    let Ok(target) = target.canonicalize() else { return false };
+    let Ok(source) = source.canonicalize() else {
+        return false;
+    };
+    let Ok(target) = target.canonicalize() else {
+        return false;
+    };
     target == source || target.starts_with(&source)
 }
 
@@ -563,8 +637,8 @@ fn is_inside(source: &Path, target: &Path) -> bool {
 /// The files that are already there are left alone unless the copy is
 /// told to overwrite them.
 fn copy_tree(source: &Path, target: &Path, overwrite: bool) -> Result<(), String> {
-    let entries =
-        fs::read_dir(source).map_err(|error| format!("the folder {source:?} cannot be read: {error}"))?;
+    let entries = fs::read_dir(source)
+        .map_err(|error| format!("the folder {source:?} cannot be read: {error}"))?;
     for entry in entries {
         let entry =
             entry.map_err(|error| format!("the folder {source:?} cannot be read: {error}"))?;
@@ -702,7 +776,10 @@ fn decode(bytes: &[u8]) -> String {
         return String::from_utf16_lossy(&units);
     }
     if bytes.starts_with(&[0xFE, 0xFF]) {
-        let units: Vec<u16> = bytes[2..].chunks_exact(2).map(|pair| u16::from_be_bytes([pair[0], pair[1]])).collect();
+        let units: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|pair| u16::from_be_bytes([pair[0], pair[1]]))
+            .collect();
         return String::from_utf16_lossy(&units);
     }
     String::from_utf8_lossy(bytes).to_string()
@@ -753,11 +830,7 @@ fn the_failure_of_the_machine(path: &str, error: &std::io::Error) -> String {
 /// files of the box with one: a file that is read and written again
 /// keeps the way it was written.
 fn ending_of(text: &str) -> &'static str {
-    if text.contains("\r\n") {
-        "\r\n"
-    } else {
-        "\n"
-    }
+    if text.contains("\r\n") { "\r\n" } else { "\n" }
 }
 
 /// The lines of a section of an ini file, and where the section ends.
@@ -790,7 +863,9 @@ fn value_of(text: &str, section: &str, key: &str) -> Option<String> {
         if trimmed.starts_with(';') {
             continue;
         }
-        let Some((name, value)) = trimmed.split_once('=') else { continue };
+        let Some((name, value)) = trimmed.split_once('=') else {
+            continue;
+        };
         if name.trim().eq_ignore_ascii_case(key) {
             return Some(value.trim().to_string());
         }
@@ -966,7 +1041,10 @@ mod tests {
         let from = folder.join("nope.txt").to_string_lossy().to_string();
         let to = folder.join("b.txt").to_string_lossy().to_string();
         let mut desktop = LabDesktop::new();
-        assert_eq!(desktop.copy_file(&from, &to, false), Err("Failed".to_string()));
+        assert_eq!(
+            desktop.copy_file(&from, &to, false),
+            Err("Failed".to_string())
+        );
         let _ = fs::remove_dir_all(&folder);
     }
 
@@ -990,7 +1068,9 @@ mod tests {
         let path = folder.join("lines.txt");
         fs::write(&path, "one\r\ntwo\r\n").expect("the file of the case");
         let mut desktop = LabDesktop::new();
-        let lines = desktop.read_file(&path.to_string_lossy()).expect("the lines");
+        let lines = desktop
+            .read_file(&path.to_string_lossy())
+            .expect("the lines");
         assert_eq!(lines, vec!["one".to_string(), "two".to_string()]);
         let _ = fs::remove_dir_all(&folder);
     }
@@ -1119,11 +1199,7 @@ mod tests {
         fs::write(source.join("inner/two.txt"), "two").expect("the file of the case");
         let target = folder.join("target");
         let mut desktop = LabDesktop::new();
-        let answer = desktop.copy_dir(
-            &source.to_string_lossy(),
-            &target.to_string_lossy(),
-            false,
-        );
+        let answer = desktop.copy_dir(&source.to_string_lossy(), &target.to_string_lossy(), false);
         assert!(answer.is_ok(), "{answer:?}");
         // v2 copies the contents of the folder, not the folder itself.
         assert!(target.join("one.txt").is_file());
@@ -1141,11 +1217,7 @@ mod tests {
         let target = folder.join("target");
         fs::create_dir_all(&target).expect("the folder of the case");
         let mut desktop = LabDesktop::new();
-        let answer = desktop.copy_dir(
-            &source.to_string_lossy(),
-            &target.to_string_lossy(),
-            false,
-        );
+        let answer = desktop.copy_dir(&source.to_string_lossy(), &target.to_string_lossy(), false);
         assert!(answer.is_err());
         let _ = fs::remove_dir_all(&folder);
     }
@@ -1158,11 +1230,7 @@ mod tests {
         fs::write(source.join("one.txt"), "one").expect("the file of the case");
         let target = folder.join("moved");
         let mut desktop = LabDesktop::new();
-        let answer = desktop.move_dir(
-            &source.to_string_lossy(),
-            &target.to_string_lossy(),
-            false,
-        );
+        let answer = desktop.move_dir(&source.to_string_lossy(), &target.to_string_lossy(), false);
         assert!(answer.is_ok(), "{answer:?}");
         assert!(!source.exists());
         assert!(target.join("one.txt").is_file());
@@ -1221,7 +1289,9 @@ mod tests {
         file_of(&folder, "a.txt");
         let pattern = folder.join("*.txt").to_string_lossy().to_string();
         let mut desktop = LabDesktop::new();
-        let answer = desktop.attributes_of_the_pattern(&pattern, "").expect("the attributes");
+        let answer = desktop
+            .attributes_of_the_pattern(&pattern, "")
+            .expect("the attributes");
         assert_eq!(answer, vec!["A".to_string()]);
         let _ = fs::remove_dir_all(&folder);
     }
@@ -1235,10 +1305,14 @@ mod tests {
         let mut desktop = LabDesktop::new();
         // The file comes first in the order of the names, and it is not a
         // folder: the mode "D" skips it, and the folder answers.
-        let answer = desktop.attributes_of_the_pattern(&pattern, "D").expect("the attributes");
+        let answer = desktop
+            .attributes_of_the_pattern(&pattern, "D")
+            .expect("the attributes");
         assert_eq!(answer, vec!["D".to_string()]);
         // Without the mode, the file is the one that answers.
-        let answer = desktop.attributes_of_the_pattern(&pattern, "").expect("the attributes");
+        let answer = desktop
+            .attributes_of_the_pattern(&pattern, "")
+            .expect("the attributes");
         assert_eq!(answer, vec!["A".to_string()]);
         let _ = fs::remove_dir_all(&folder);
     }
@@ -1248,7 +1322,9 @@ mod tests {
         let folder = scratch("pattern-empty");
         let pattern = folder.join("*.nope").to_string_lossy().to_string();
         let mut desktop = LabDesktop::new();
-        let answer = desktop.attributes_of_the_pattern(&pattern, "").expect("the attributes");
+        let answer = desktop
+            .attributes_of_the_pattern(&pattern, "")
+            .expect("the attributes");
         assert!(answer.is_empty(), "{answer:?}");
         let _ = fs::remove_dir_all(&folder);
     }
@@ -1318,7 +1394,9 @@ mod tests {
         let mut desktop = LabDesktop::new();
         let answer = desktop.ini_write(&path, "Sec", "Key", "the value");
         assert!(answer.is_ok(), "{answer:?}");
-        let read = desktop.ini_read(&path, "Sec", "Key", "").expect("the value");
+        let read = desktop
+            .ini_read(&path, "Sec", "Key", "")
+            .expect("the value");
         assert_eq!(read, "the value");
         // The file is the one of Windows: a section in brackets, and a
         // key with an equal sign.
@@ -1333,8 +1411,12 @@ mod tests {
         let folder = scratch("ini-default");
         let path = folder.join("a.ini").to_string_lossy().to_string();
         let mut desktop = LabDesktop::new();
-        desktop.ini_write(&path, "Sec", "Key", "the value").expect("the write");
-        let read = desktop.ini_read(&path, "Sec", "Nope", "fallback").expect("the value");
+        desktop
+            .ini_write(&path, "Sec", "Key", "the value")
+            .expect("the write");
+        let read = desktop
+            .ini_read(&path, "Sec", "Nope", "fallback")
+            .expect("the value");
         assert_eq!(read, "fallback");
         // Without a default the key that is not there is the failure of
         // v2.
@@ -1348,12 +1430,26 @@ mod tests {
         let folder = scratch("ini-delete");
         let path = folder.join("a.ini").to_string_lossy().to_string();
         let mut desktop = LabDesktop::new();
-        desktop.ini_write(&path, "Sec", "Key", "the value").expect("the write");
-        desktop.ini_write(&path, "Sec", "Other", "another").expect("the write");
+        desktop
+            .ini_write(&path, "Sec", "Key", "the value")
+            .expect("the write");
+        desktop
+            .ini_write(&path, "Sec", "Other", "another")
+            .expect("the write");
         let answer = desktop.ini_delete(&path, "Sec", "Key");
         assert!(answer.is_ok(), "{answer:?}");
-        assert_eq!(desktop.ini_read(&path, "Sec", "Key", "gone").expect("the value"), "gone");
-        assert_eq!(desktop.ini_read(&path, "Sec", "Other", "").expect("the value"), "another");
+        assert_eq!(
+            desktop
+                .ini_read(&path, "Sec", "Key", "gone")
+                .expect("the value"),
+            "gone"
+        );
+        assert_eq!(
+            desktop
+                .ini_read(&path, "Sec", "Other", "")
+                .expect("the value"),
+            "another"
+        );
         let _ = fs::remove_dir_all(&folder);
     }
 
@@ -1380,8 +1476,12 @@ mod tests {
         let folder = scratch("ini-sections");
         let path = folder.join("a.ini").to_string_lossy().to_string();
         let mut desktop = LabDesktop::new();
-        desktop.ini_write(&path, "One", "Key", "a").expect("the write");
-        desktop.ini_write(&path, "Two", "Key", "b").expect("the write");
+        desktop
+            .ini_write(&path, "One", "Key", "a")
+            .expect("the write");
+        desktop
+            .ini_write(&path, "Two", "Key", "b")
+            .expect("the write");
         let sections = desktop.ini_read(&path, "", "", "").expect("the sections");
         assert_eq!(sections, "One\nTwo");
         let _ = fs::remove_dir_all(&folder);
@@ -1393,7 +1493,9 @@ mod tests {
     #[test]
     fn the_files_of_a_folder_come_in_the_order_of_v2() {
         let folder = scratch("order");
-        for name in ["b.txt", "A.txt", "a1.txt", "ab.txt", "a_b.txt", "10.txt", "2.txt"] {
+        for name in [
+            "b.txt", "A.txt", "a1.txt", "ab.txt", "a_b.txt", "10.txt", "2.txt",
+        ] {
             file_of(&folder, name);
         }
         let mut desktop = LabDesktop::new();
@@ -1412,7 +1514,9 @@ mod tests {
             .collect();
         assert_eq!(
             names,
-            vec!["10.txt", "2.txt", "A.txt", "a1.txt", "ab.txt", "a_b.txt", "b.txt"]
+            vec![
+                "10.txt", "2.txt", "A.txt", "a1.txt", "ab.txt", "a_b.txt", "b.txt"
+            ]
         );
         let _ = fs::remove_dir_all(&folder);
     }

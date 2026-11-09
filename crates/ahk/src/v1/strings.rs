@@ -32,7 +32,10 @@ pub(crate) fn sub_str(
         .unwrap_or_default()
         .chars()
         .collect();
-    let start = values.get(1).and_then(|value| value.to_number()).unwrap_or(0.0) as i64;
+    let start = values
+        .get(1)
+        .and_then(|value| value.to_number())
+        .unwrap_or(0.0) as i64;
     let from = the_place_of_the_start(start, text.len());
     let answer = match values.get(2).and_then(|value| value.to_number()) {
         Some(length) => {
@@ -91,7 +94,12 @@ pub(crate) fn in_str(
         values[2] = Value::Int(if number == 0.0 { 0 } else { 1 });
     }
     // The needle that is empty is at the first character of the haystack.
-    if values.get(1).map(|value| value.to_text()).unwrap_or_default().is_empty() {
+    if values
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
+        .is_empty()
+    {
         return Ok(Value::Int(1));
     }
     crate::builtins::in_str(rt, &values, line, variant)

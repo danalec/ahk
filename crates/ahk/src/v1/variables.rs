@@ -88,7 +88,10 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     // "A_DetectHiddenWindows" is the "Off". The v2 answers the number one
     // and zero, and the v1 answers the word.
     ("A_DetectHiddenText", TheValue::TheFlag("detecthiddentext")),
-    ("A_DetectHiddenWindows", TheValue::TheFlag("detecthiddenwindows")),
+    (
+        "A_DetectHiddenWindows",
+        TheValue::TheFlag("detecthiddenwindows"),
+    ),
     // The reason of the exit: the script has not exited yet.
     ("A_ExitReason", TheValue::Text("")),
     // Measured: the empty text for the code page of the machine, and the
@@ -127,7 +130,10 @@ const THE_VARIABLES: &[(&str, TheValue)] = &[
     ("A_StringCaseSense", TheValue::TheCaseSense),
     // Measured: the "On". The command `SetStoreCapsLockMode` turns it off,
     // and the name of it follows it.
-    ("A_StoreCapsLockMode", TheValue::TheFlag("storecapslockmode")),
+    (
+        "A_StoreCapsLockMode",
+        TheValue::TheFlag("storecapslockmode"),
+    ),
     // The last error of the run: the name has no prefix, and it is the only
     // one of the v1 that has not. Measured: "0", and a script may write it.
     ("ErrorLevel", TheValue::Number(0)),
@@ -197,8 +203,7 @@ pub fn is_read_only(name: &str) -> bool {
 /// environment when the environment has it -- the `Temp` of the machine is
 /// the environment variable and not a built-in variable of the v1 -- and the
 /// environment has no `Cursor` of its own.
-const THE_WITHOUT_THE_PREFIX: &[&str] =
-    &["clipboard", "comspec", "errorlevel", "programfiles"];
+const THE_WITHOUT_THE_PREFIX: &[&str] = &["clipboard", "comspec", "errorlevel", "programfiles"];
 
 /// The names that the tree carries and the v1 does not have as a variable.
 ///
@@ -250,7 +255,9 @@ pub fn may_not_be_declared(name: &str) -> bool {
 /// gives to every built-in variable.
 pub fn carries(name: &str) -> bool {
     let wanted = name.to_lowercase();
-    THE_VARIABLES.iter().any(|(carried, _)| carried.to_lowercase() == wanted)
+    THE_VARIABLES
+        .iter()
+        .any(|(carried, _)| carried.to_lowercase() == wanted)
 }
 
 /// The reason the v1 does not answer the built-in variable of this name.
@@ -289,13 +296,11 @@ pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError
                 if rt.auto_trim() { "On" } else { "Off" }.to_string(),
             )),
             // The format of the numbers is a state of the run too.
-            TheValue::TheFormats => Ok(Value::Text(
-                if wanted.starts_with("a_formatfloat") {
-                    rt.float_format().name()
-                } else {
-                    rt.integer_format().name().to_string()
-                },
-            )),
+            TheValue::TheFormats => Ok(Value::Text(if wanted.starts_with("a_formatfloat") {
+                rt.float_format().name()
+            } else {
+                rt.integer_format().name().to_string()
+            })),
             // The sense of the case is a state of the run as well.
             TheValue::TheCaseSense => Ok(Value::Text(rt.case_sense().name().to_string())),
             // The number of the lines that the script runs at once is a state
@@ -320,9 +325,10 @@ pub fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError
                     Ok(Value::Text(encoding.to_string()))
                 }
             }
-            TheValue::Refused(reason) => {
-                Err(RuntimeError { message: (*reason).to_string(), line: 0 })
-            }
+            TheValue::Refused(reason) => Err(RuntimeError {
+                message: (*reason).to_string(),
+                line: 0,
+            }),
         });
     }
     None

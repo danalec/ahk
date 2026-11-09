@@ -217,7 +217,10 @@ fn is_the_name_of_a_controller(name: &str) -> bool {
         }
         None => return false,
     };
-    if CONTROLS.iter().any(|control| control.eq_ignore_ascii_case(rest)) {
+    if CONTROLS
+        .iter()
+        .any(|control| control.eq_ignore_ascii_case(rest))
+    {
         return true;
     }
     // The buttons: the `Joy1` up to the `Joy32`.

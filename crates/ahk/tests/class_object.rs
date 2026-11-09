@@ -6,8 +6,8 @@
 //! class value makes an object of the class.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime};
@@ -93,7 +93,13 @@ fn the_failure_of(source: &str) -> String {
         "try {{\n    {source}\n}} catch Any as e {{\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}}\n"
     ));
     assert!(report.ok, "{:?}", report.error);
-    report.output.first().cloned().unwrap_or_default().trim().to_string()
+    report
+        .output
+        .first()
+        .cloned()
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 /// The failure of the load of a script: the message of it.
@@ -107,8 +113,14 @@ fn the_load_failure_of(source: &str) -> String {
 #[test]
 fn the_base_of_an_object_is_the_prototype_of_its_class() {
     // Measured on the binary of v2.0.19 on 2026-10-31.
-    assert_eq!(the_answer_of("o := Object()\nMsgBox o.Base.__Class"), "Object");
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.Prototype.Base.__Class"), "Object");
+    assert_eq!(
+        the_answer_of("o := Object()\nMsgBox o.Base.__Class"),
+        "Object"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.Prototype.Base.__Class"),
+        "Object"
+    );
 }
 
 #[test]
@@ -122,7 +134,10 @@ fn the_base_of_a_class_is_the_class_that_it_extends() {
 #[test]
 fn the_copy_of_an_object_carries_the_state_of_it() {
     // Measured on the binary of v2.0.19 on 2026-10-31.
-    assert_eq!(the_answer_of("o := Object()\no.x := 1\nMsgBox o.Clone().x"), "1");
+    assert_eq!(
+        the_answer_of("o := Object()\no.x := 1\nMsgBox o.Clone().x"),
+        "1"
+    );
 }
 
 #[test]
@@ -137,7 +152,10 @@ fn the_call_of_a_class_value_makes_an_object() {
     // Measured on the binary of v2.0.19 on 2026-10-31: `c.Call()` makes
     // an object of the class, the way `c()` does.
     assert_eq!(the_answer_of("c := Map\nMsgBox c.Call().__Class"), "Map");
-    assert_eq!(the_answer_of("c := Error\nMsgBox c.Call().__Class"), "Error");
+    assert_eq!(
+        the_answer_of("c := Error\nMsgBox c.Call().__Class"),
+        "Error"
+    );
 }
 
 #[test]
@@ -145,7 +163,10 @@ fn the_static_methods_of_a_class_are_handed_over_as_values() {
     // Measured on the binary of v2.0.19 on 2026-10-31: every class has
     // the methods of the base object as static ones, and the call of the
     // class is one of them.
-    assert_eq!(the_answer_of("c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f.Name"), "HasProp");
+    assert_eq!(
+        the_answer_of("c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f.Name"),
+        "HasProp"
+    );
     assert_eq!(
         the_answer_of("c := Map\nf := c.GetMethod(\"OwnProps\")\nMsgBox f.Name"),
         "Object.Prototype.OwnProps"
@@ -156,10 +177,15 @@ fn the_static_methods_of_a_class_are_handed_over_as_values() {
     );
     // The object is one of the arguments of the call.
     assert_eq!(
-        the_answer_of("c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f.MinParams \" \" f.MaxParams"),
+        the_answer_of(
+            "c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f.MinParams \" \" f.MaxParams"
+        ),
         "2 2"
     );
-    assert_eq!(the_answer_of("c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f(Map(), \"x\")"), "0");
+    assert_eq!(
+        the_answer_of("c := Map\nf := c.GetMethod(\"HasProp\")\nMsgBox f(Map(), \"x\")"),
+        "0"
+    );
     assert_eq!(
         the_answer_of("c := Map\nf := c.GetMethod(\"Call\")\nMsgBox f(c).__Class"),
         "Map"
@@ -208,15 +234,30 @@ fn a_class_value_has_no_name() {
 fn a_name_that_a_script_writes_is_a_property_of_the_class_value() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the write makes an
     // own property of the class value, and the class keeps its identity.
-    assert_eq!(the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.Name"), "x");
+    assert_eq!(
+        the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.Name"),
+        "x"
+    );
     assert_eq!(
         the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.HasOwnProp(\"Name\")"),
         "1"
     );
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Name\")"), "0");
-    assert_eq!(the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.__Class"), "Class");
-    assert_eq!(the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.Base.__Class"), "Class");
-    assert_eq!(the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.Prototype.__Class"), "Map");
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Name\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.__Class"),
+        "Class"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.Base.__Class"),
+        "Class"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nc.Name := \"x\"\nMsgBox c.Prototype.__Class"),
+        "Map"
+    );
 }
 
 #[test]
@@ -264,7 +305,10 @@ fn the_base_of_a_class_is_written_the_way_objsetbase_writes_it() {
 fn the_prototype_of_a_class_is_written_by_a_script() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
     // class is a property that a script may write.
-    assert_eq!(the_answer_of("c := Map\nc.Prototype := 1\nMsgBox c.Prototype"), "1");
+    assert_eq!(
+        the_answer_of("c := Map\nc.Prototype := 1\nMsgBox c.Prototype"),
+        "1"
+    );
     assert_eq!(
         the_answer_of("class C {\n}\nC.Prototype := 1\nMsgBox C.Prototype"),
         "1"
@@ -306,11 +350,19 @@ fn the_base_of_a_class_of_the_script_is_the_class_that_it_extends() {
         the_answer_of("class D {\n}\nclass C extends D {\n}\nx := (C.Base == D)\nMsgBox x"),
         "1"
     );
-    assert_eq!(the_answer_of("class C {\n}\nMsgBox C.Base.__Class"), "Class");
-    assert_eq!(the_answer_of("class D {\n}\nclass C extends D {\n}\nMsgBox C.HasBase(D)"), "1");
+    assert_eq!(
+        the_answer_of("class C {\n}\nMsgBox C.Base.__Class"),
+        "Class"
+    );
+    assert_eq!(
+        the_answer_of("class D {\n}\nclass C extends D {\n}\nMsgBox C.HasBase(D)"),
+        "1"
+    );
     assert_eq!(the_answer_of("class C {\n}\nMsgBox C.HasBase(Object)"), "1");
     assert_eq!(
-        the_answer_of("class D {\n}\nclass C extends D {\n}\nC.Base := Object()\nMsgBox C.HasBase(D)"),
+        the_answer_of(
+            "class D {\n}\nclass C extends D {\n}\nC.Base := Object()\nMsgBox C.HasBase(D)"
+        ),
         "0"
     );
 }
@@ -320,12 +372,18 @@ fn two_objects_are_the_same_object_and_nothing_else() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the objects are
     // compared by their identity, and an object is never equal to a value
     // that is not an object.
-    assert_eq!(the_answer_of("m1 := Map()\nm2 := Map()\nMsgBox m1 == m2"), "0");
+    assert_eq!(
+        the_answer_of("m1 := Map()\nm2 := Map()\nMsgBox m1 == m2"),
+        "0"
+    );
     assert_eq!(the_answer_of("m1 := Map()\nMsgBox m1 == m1"), "1");
     assert_eq!(the_answer_of("m := Map()\nMsgBox m == Map"), "0");
     assert_eq!(the_answer_of("c := Map\nMsgBox c == Map"), "1");
     assert_eq!(the_answer_of("m := Map()\nMsgBox m == \"map\""), "0");
-    assert_eq!(the_answer_of("m1 := Map()\nm2 := Map()\nMsgBox m1 != m2"), "1");
+    assert_eq!(
+        the_answer_of("m1 := Map()\nm2 := Map()\nMsgBox m1 != m2"),
+        "1"
+    );
 }
 
 #[test]
@@ -333,8 +391,14 @@ fn the_static_methods_of_a_class_value_are_handed_over_as_values() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the static methods
     // of a class are its own properties, and v2 hands them over as
     // functions.
-    assert_eq!(the_answer_of("c := Map\nx := c.Call\nMsgBox x.Name"), "Map.Call");
-    assert_eq!(the_answer_of("c := Map\nx := c.HasProp\nMsgBox x.Name"), "HasProp");
+    assert_eq!(
+        the_answer_of("c := Map\nx := c.Call\nMsgBox x.Name"),
+        "Map.Call"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nx := c.HasProp\nMsgBox x.Name"),
+        "HasProp"
+    );
     assert_eq!(
         the_answer_of("class C {\n    static Say() {\n    }\n}\nx := C.Say\nMsgBox x.Name"),
         "C.Say"
@@ -351,8 +415,14 @@ fn a_class_value_has_the_static_methods_and_not_the_others() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the methods of the
     // instances of a class do not answer a class value, and the static
     // methods of a class of the script are its own.
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasMethod(\"Clear\")"), "0");
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasMethod(\"HasProp\")"), "1");
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasMethod(\"Clear\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasMethod(\"HasProp\")"),
+        "1"
+    );
     assert_eq!(the_answer_of("c := Map\nMsgBox c.HasMethod(\"Call\")"), "1");
     assert_eq!(
         the_answer_of("class C {\n    static Say() {\n    }\n}\nMsgBox C.HasMethod(\"Say\")"),
@@ -364,7 +434,10 @@ fn a_class_value_has_the_static_methods_and_not_the_others() {
     );
     // The static methods are properties of the class as well.
     assert_eq!(the_answer_of("c := Map\nMsgBox c.HasProp(\"Call\")"), "1");
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasProp(\"HasProp\")"), "1");
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasProp(\"HasProp\")"),
+        "1"
+    );
     assert_eq!(the_answer_of("c := Map\nMsgBox c.HasProp(\"Base\")"), "1");
     assert_eq!(the_answer_of("c := Map\nMsgBox c.HasProp(\"Clear\")"), "0");
 }
@@ -374,9 +447,18 @@ fn the_own_properties_of_a_class_value_are_the_call_and_the_prototype() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the call of a class
     // is its own property, and the methods of the base object are
     // inherited and not own.
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Call\")"), "1");
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"HasProp\")"), "0");
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Prototype\")"), "1");
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Call\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"HasProp\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Prototype\")"),
+        "1"
+    );
     assert_eq!(
         the_answer_of("class C {\n    static Say() {\n    }\n}\nMsgBox C.HasOwnProp(\"Say\")"),
         "1"
@@ -423,9 +505,18 @@ fn every_class_has_an_initialiser_and_it_is_a_member_of_the_class_value() {
     // class is a member of the class value, and the name of it is empty for
     // a class of the runtime and "C.__Init" for a class of the script.
     assert_eq!(the_answer_of("x := Map\ny := x.__Init\nMsgBox y.Name"), "");
-    assert_eq!(the_answer_of("x := Map\ny := x.__Init\nMsgBox y.MinParams"), "1");
-    assert_eq!(the_answer_of("x := Map\ny := x.__Init\nMsgBox y.MaxParams"), "1");
-    assert_eq!(the_answer_of("x := Map\ny := x.__Init\nMsgBox y.IsBuiltin"), "1");
+    assert_eq!(
+        the_answer_of("x := Map\ny := x.__Init\nMsgBox y.MinParams"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("x := Map\ny := x.__Init\nMsgBox y.MaxParams"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("x := Map\ny := x.__Init\nMsgBox y.IsBuiltin"),
+        "1"
+    );
     assert_eq!(
         the_answer_of("class C {\n}\ny := C.__Init\nMsgBox y.Name"),
         "C.__Init"
@@ -470,19 +561,32 @@ fn the_methods_of_the_base_object_are_inherited_and_not_own() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the call of a class
     // of the script is not own, and the initialiser of a class of the
     // runtime is not own either.
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Call\")"), "1");
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"__Init\")"), "0");
-    assert_eq!(the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Prototype\")"), "1");
-    assert_eq!(the_answer_of("class C {\n}\nMsgBox C.HasOwnProp(\"Call\")"), "0");
-    assert_eq!(the_answer_of("class C {\n}\nMsgBox C.HasOwnProp(\"__Init\")"), "1");
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Call\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"__Init\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("c := Map\nMsgBox c.HasOwnProp(\"Prototype\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n}\nMsgBox C.HasOwnProp(\"Call\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("class C {\n}\nMsgBox C.HasOwnProp(\"__Init\")"),
+        "1"
+    );
     assert_eq!(
         the_answer_of("class C {\n    Say() {\n    }\n}\nMsgBox C.HasOwnProp(\"Say\")"),
         "0"
     );
     assert_eq!(
-        the_answer_of(
-            "class C {\n    static Say() {\n    }\n}\nMsgBox C.HasOwnProp(\"Say\")"
-        ),
+        the_answer_of("class C {\n    static Say() {\n    }\n}\nMsgBox C.HasOwnProp(\"Say\")"),
         "1"
     );
 }
@@ -522,7 +626,9 @@ fn the_names_of_the_own_properties_are_the_ones_that_the_script_wrote() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the name of an own
     // property is the name as the script wrote it.
     assert_eq!(
-        the_answer_of("o := Object()\no.X := 1\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "o := Object()\no.X := 1\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "X"
     );
     assert_eq!(
@@ -530,7 +636,9 @@ fn the_names_of_the_own_properties_are_the_ones_that_the_script_wrote() {
         "X"
     );
     assert_eq!(
-        the_answer_of("m := Map()\nm.X := 1\ns := \"\"\nfor p in m.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "m := Map()\nm.X := 1\ns := \"\"\nfor p in m.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "X"
     );
     assert_eq!(
@@ -547,15 +655,22 @@ fn the_first_write_of_a_property_is_the_one_that_fixes_the_case_of_it() {
     // are the names in lower case, and the first write is the one that fixes
     // the case of the name.
     assert_eq!(
-        the_answer_of("o := Object()\no.X := 1\no.x := 2\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "o := Object()\no.X := 1\no.x := 2\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "X"
     );
     assert_eq!(
-        the_answer_of("o := Object()\no.x := 1\no.X := 2\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "o := Object()\no.x := 1\no.X := 2\ns := \"\"\nfor p in o.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "x"
     );
     // The value of the property is the one that was written last.
-    assert_eq!(the_answer_of("o := Object()\no.X := 1\no.x := 2\nMsgBox o.X"), "2");
+    assert_eq!(
+        the_answer_of("o := Object()\no.X := 1\no.x := 2\nMsgBox o.X"),
+        "2"
+    );
 }
 
 #[test]
@@ -619,7 +734,9 @@ fn the_own_properties_of_a_prototype_are_the_members_of_the_class() {
         "__Class"
     );
     assert_eq!(
-        the_answer_of("s := \"\"\nfor p in ClipboardAll.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "s := \"\"\nfor p in ClipboardAll.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "__Class__New"
     );
 }
@@ -648,13 +765,34 @@ fn the_prototype_answers_the_questions_about_the_class_of_it() {
     // Measured on the binary of v2.0.19 on 2026-10-31.
     assert_eq!(the_answer_of("MsgBox Map.Prototype.__Class"), "Map");
     assert_eq!(the_answer_of("MsgBox ObjOwnPropCount(Map.Prototype)"), "13");
-    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"__Class\")"), "1");
-    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"Count\")"), "1");
-    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"Nope\")"), "0");
-    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasProp(\"Count\")"), "1");
-    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasMethod(\"Get\")"), "1");
-    assert_eq!(the_answer_of("MsgBox Map.Prototype.HasMethod(\"Count\")"), "0");
-    assert_eq!(the_answer_of("MsgBox Map.Prototype.Get.Name"), "Map.Prototype.Get");
+    assert_eq!(
+        the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"__Class\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"Count\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("MsgBox Map.Prototype.HasOwnProp(\"Nope\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("MsgBox Map.Prototype.HasProp(\"Count\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("MsgBox Map.Prototype.HasMethod(\"Get\")"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("MsgBox Map.Prototype.HasMethod(\"Count\")"),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("MsgBox Map.Prototype.Get.Name"),
+        "Map.Prototype.Get"
+    );
     assert_eq!(
         the_answer_of("MsgBox Map.Prototype.GetMethod(\"Get\").Name"),
         "Map.Prototype.Get"
@@ -712,25 +850,43 @@ fn the_members_of_a_prototype_are_read_only() {
         the_failure_of("Map.Prototype.Get := 5"),
         "Property is read-only. |  | Get"
     );
-    assert_eq!(the_answer_of("Map.Prototype.Nope := 5\nMsgBox \"ok\""), "ok");
+    assert_eq!(
+        the_answer_of("Map.Prototype.Nope := 5\nMsgBox \"ok\""),
+        "ok"
+    );
     // The base of a prototype is written the way the base of an object is.
-    assert_eq!(the_answer_of("Map.Prototype.Base := Object()\nMsgBox \"ok\""), "ok");
+    assert_eq!(
+        the_answer_of("Map.Prototype.Base := Object()\nMsgBox \"ok\""),
+        "ok"
+    );
 }
 
 #[test]
 fn the_methods_are_values() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a method is handed
     // over as a function, and the name of it is the name of the member.
-    assert_eq!(the_answer_of("o := Object()\nMsgBox o.Clone.Name"), "Object.Prototype.Clone");
+    assert_eq!(
+        the_answer_of("o := Object()\nMsgBox o.Clone.Name"),
+        "Object.Prototype.Clone"
+    );
     assert_eq!(
         the_answer_of("o := Object()\nMsgBox o.OwnProps.Name"),
         "Object.Prototype.OwnProps"
     );
     // The four that the script asks about every day keep the name they
     // have.
-    assert_eq!(the_answer_of("o := Object()\nMsgBox o.HasProp.Name"), "HasProp");
-    assert_eq!(the_answer_of("m := Map()\nMsgBox m.Get.Name"), "Map.Prototype.Get");
-    assert_eq!(the_answer_of("f := Abs\nMsgBox f.Call.Name"), "Func.Prototype.Call");
+    assert_eq!(
+        the_answer_of("o := Object()\nMsgBox o.HasProp.Name"),
+        "HasProp"
+    );
+    assert_eq!(
+        the_answer_of("m := Map()\nMsgBox m.Get.Name"),
+        "Map.Prototype.Get"
+    );
+    assert_eq!(
+        the_answer_of("f := Abs\nMsgBox f.Call.Name"),
+        "Func.Prototype.Call"
+    );
 }
 
 #[test]
@@ -775,9 +931,18 @@ fn the_number_of_the_arguments_of_a_method_is_the_one_of_the_value() {
     // the arguments of the call.
     assert_eq!(the_answer_of("m := Map()\nMsgBox m.Get.MinParams"), "2");
     assert_eq!(the_answer_of("m := Map()\nMsgBox m.Get.MaxParams"), "3");
-    assert_eq!(the_answer_of("o := Object()\nMsgBox o.Clone.MinParams"), "1");
-    assert_eq!(the_answer_of("o := Object()\nMsgBox o.Clone.MaxParams"), "1");
-    assert_eq!(the_answer_of("o := Object()\nMsgBox o.DefineProp.MaxParams"), "3");
+    assert_eq!(
+        the_answer_of("o := Object()\nMsgBox o.Clone.MinParams"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("o := Object()\nMsgBox o.Clone.MaxParams"),
+        "1"
+    );
+    assert_eq!(
+        the_answer_of("o := Object()\nMsgBox o.DefineProp.MaxParams"),
+        "3"
+    );
 }
 
 #[test]
@@ -800,19 +965,27 @@ fn a_static_method_is_not_a_member_of_an_instance() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a static method
     // belongs to the class and not to its instances.
     assert_eq!(
-        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nobj.Say()"),
+        the_failure_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nobj.Say()"
+        ),
         "This value of type \"C\" has no method named \"Say\". |  |"
     );
     assert_eq!(
-        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.Say"),
+        the_failure_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.Say"
+        ),
         "This value of type \"C\" has no property named \"Say\". |  |"
     );
     assert_eq!(
-        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.HasMethod(\"Say\")"),
+        the_answer_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.HasMethod(\"Say\")"
+        ),
         "0"
     );
     assert_eq!(
-        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nobj.GetMethod(\"Say\")"),
+        the_failure_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nobj := C()\nobj.GetMethod(\"Say\")"
+        ),
         "This value of type \"C\" has no method named \"Say\". | GetMethod |"
     );
 }
@@ -822,19 +995,27 @@ fn a_static_method_is_not_a_member_of_the_prototype() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
     // class carries the methods of the class, and not the static ones.
     assert_eq!(
-        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.Say"),
+        the_failure_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.Say"
+        ),
         "This value of type \"Prototype\" has no property named \"Say\". |  |"
     );
     assert_eq!(
-        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nC.Prototype.Say()"),
+        the_failure_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nC.Prototype.Say()"
+        ),
         "This value of type \"Prototype\" has no method named \"Say\". |  |"
     );
     assert_eq!(
-        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.HasMethod(\"Say\")"),
+        the_answer_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.HasMethod(\"Say\")"
+        ),
         "0"
     );
     assert_eq!(
-        the_failure_of("class C {\n    static Say() {\n        return 1\n    }\n}\nC.Prototype.GetMethod(\"Say\")"),
+        the_failure_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nC.Prototype.GetMethod(\"Say\")"
+        ),
         "This value of type \"Prototype\" has no method named \"Say\". | GetMethod |"
     );
 }
@@ -862,19 +1043,27 @@ fn a_class_value_has_the_static_methods_of_the_class() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the static methods
     // are the own properties of the class value.
     assert_eq!(
-        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Say.Name"),
+        the_answer_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.Say.Name"
+        ),
         "C.Say"
     );
     assert_eq!(
-        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.GetMethod(\"Say\").Name"),
+        the_answer_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.GetMethod(\"Say\").Name"
+        ),
         "C.Say"
     );
     assert_eq!(
-        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.HasMethod(\"Say\")"),
+        the_answer_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.HasMethod(\"Say\")"
+        ),
         "1"
     );
     assert_eq!(
-        the_answer_of("class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.HasProp(\"Say\")"),
+        the_answer_of(
+            "class C {\n    static Say() {\n        return 1\n    }\n}\nMsgBox C.HasProp(\"Say\")"
+        ),
         "1"
     );
 }
@@ -884,19 +1073,27 @@ fn the_prototype_has_the_methods_of_the_class_and_of_the_base() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the prototype of a
     // class carries the methods of the class and the ones of its base.
     assert_eq!(
-        the_answer_of("class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.HasMethod(\"Say\")"),
+        the_answer_of(
+            "class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.HasMethod(\"Say\")"
+        ),
         "1"
     );
     assert_eq!(
-        the_answer_of("class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.HasProp(\"Say\")"),
+        the_answer_of(
+            "class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.HasProp(\"Say\")"
+        ),
         "1"
     );
     assert_eq!(
-        the_answer_of("class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.Say.Name"),
+        the_answer_of(
+            "class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.Say.Name"
+        ),
         "D.Prototype.Say"
     );
     assert_eq!(
-        the_answer_of("class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.GetMethod(\"Say\").Name"),
+        the_answer_of(
+            "class D {\n    Say() {\n        return 1\n    }\n}\nclass C extends D {\n}\nMsgBox C.Prototype.GetMethod(\"Say\").Name"
+        ),
         "D.Prototype.Say"
     );
 }
@@ -907,11 +1104,15 @@ fn the_method_of_a_class_runs_on_the_prototype_of_it() {
     // of a class of the script on the prototype, and `this` is the
     // prototype.
     assert_eq!(
-        the_answer_of("class C {\n    Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.Say()"),
+        the_answer_of(
+            "class C {\n    Say() {\n        return 1\n    }\n}\nMsgBox C.Prototype.Say()"
+        ),
         "1"
     );
     assert_eq!(
-        the_answer_of("class C {\n    Say() {\n        return this\n    }\n}\nMsgBox C.Prototype.Say().__Class"),
+        the_answer_of(
+            "class C {\n    Say() {\n        return this\n    }\n}\nMsgBox C.Prototype.Say().__Class"
+        ),
         "C"
     );
 }
@@ -921,7 +1122,9 @@ fn the_methods_of_a_class_are_the_properties_of_an_instance() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the `HasProp` of a
     // method of the class answers 1, and so do the initialiser and the base.
     assert_eq!(
-        the_answer_of("class C {\n    Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.HasProp(\"Say\")"),
+        the_answer_of(
+            "class C {\n    Say() {\n        return 1\n    }\n}\nobj := C()\nMsgBox obj.HasProp(\"Say\")"
+        ),
         "1"
     );
     assert_eq!(
@@ -937,7 +1140,10 @@ fn the_methods_of_a_class_are_the_properties_of_an_instance() {
         "0"
     );
     assert_eq!(the_answer_of("m := Map()\nMsgBox m.HasProp(\"Get\")"), "1");
-    assert_eq!(the_answer_of("m := Map()\nMsgBox m.HasMethod(\"__Init\")"), "1");
+    assert_eq!(
+        the_answer_of("m := Map()\nMsgBox m.HasMethod(\"__Init\")"),
+        "1"
+    );
 }
 
 #[test]
@@ -945,7 +1151,9 @@ fn a_static_variable_is_not_a_member_of_an_instance() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a static variable
     // belongs to the class and not to its instances.
     assert_eq!(
-        the_answer_of("class C {\n    static value := 1\n}\nobj := C()\nMsgBox obj.HasProp(\"value\")"),
+        the_answer_of(
+            "class C {\n    static value := 1\n}\nobj := C()\nMsgBox obj.HasProp(\"value\")"
+        ),
         "0"
     );
     assert_eq!(
@@ -964,15 +1172,21 @@ fn the_prototype_owns_the_automatic_init_of_the_class() {
     // `__Init` is own of the prototype when the class has variables of its
     // own: it is the one that carries them.
     assert_eq!(
-        the_answer_of("class C {\n    value := 1\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "class C {\n    value := 1\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "__Class__Init"
     );
     assert_eq!(
-        the_answer_of("class C {\n    __Init() {\n    }\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "class C {\n    __Init() {\n    }\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "__Class__Init"
     );
     assert_eq!(
-        the_answer_of("class C {\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "class C {\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "__Class"
     );
 }
@@ -987,15 +1201,21 @@ fn a_class_inside_a_class_is_an_own_property_of_the_class() {
         "Class"
     );
     assert_eq!(
-        the_answer_of("class Outer {\n    class Inner {\n    }\n}\ns := \"\"\nfor p in Outer.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "class Outer {\n    class Inner {\n    }\n}\ns := \"\"\nfor p in Outer.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "__InitInnerPrototype"
     );
     assert_eq!(
-        the_answer_of("class Outer {\n    class Inner {\n    }\n}\ns := \"\"\nfor p in Outer.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "class Outer {\n    class Inner {\n    }\n}\ns := \"\"\nfor p in Outer.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "__Class"
     );
     assert_eq!(
-        the_failure_of("class Outer {\n    class Inner {\n    }\n}\nobj := Outer()\nMsgBox obj.Inner"),
+        the_failure_of(
+            "class Outer {\n    class Inner {\n    }\n}\nobj := Outer()\nMsgBox obj.Inner"
+        ),
         "This value of type \"Outer\" has no property named \"Inner\". |  |"
     );
 }
@@ -1005,7 +1225,9 @@ fn the_name_of_the_class_inside_a_class_is_the_name_of_the_class_that_holds_it()
     // Measured on the binary of v2.0.19 on 2026-10-31: the class inside
     // `Outer` is "Outer.Inner".
     assert_eq!(
-        the_answer_of("class Outer {\n    class Inner {\n    }\n}\nobj := Outer.Inner()\nMsgBox obj.__Class"),
+        the_answer_of(
+            "class Outer {\n    class Inner {\n    }\n}\nobj := Outer.Inner()\nMsgBox obj.__Class"
+        ),
         "Outer.Inner"
     );
     assert_eq!(
@@ -1029,7 +1251,9 @@ fn the_call_of_a_class_inside_a_class_makes_an_object_of_it() {
     // Measured on the binary of v2.0.19 on 2026-10-31: `Outer.Inner()` is
     // an object of the class inside `Outer`.
     assert_eq!(
-        the_answer_of("class Outer {\n    class Inner {\n        Say() {\n            return 1\n        }\n    }\n}\nMsgBox Outer.Inner().Say()"),
+        the_answer_of(
+            "class Outer {\n    class Inner {\n        Say() {\n            return 1\n        }\n    }\n}\nMsgBox Outer.Inner().Say()"
+        ),
         "1"
     );
     assert_eq!(
@@ -1071,7 +1295,9 @@ fn a_property_of_a_class_may_have_a_getter_and_a_setter() {
     // property is the value of the getter, and the write of it calls the
     // setter.
     assert_eq!(
-        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value"),
+        the_answer_of(
+            "class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value"
+        ),
         "1"
     );
     assert_eq!(
@@ -1082,40 +1308,56 @@ fn a_property_of_a_class_may_have_a_getter_and_a_setter() {
     );
     // A property that has no getter is not read.
     assert_eq!(
-        the_failure_of("class C {\n    value {\n        set => this.stored := value\n    }\n}\nobj := C()\nMsgBox obj.value"),
+        the_failure_of(
+            "class C {\n    value {\n        set => this.stored := value\n    }\n}\nobj := C()\nMsgBox obj.value"
+        ),
         "This value of type \"C\" has no property named \"value\". |  |"
     );
     // A property that has no setter is not written.
     assert_eq!(
-        the_failure_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nobj.value := 5"),
+        the_failure_of(
+            "class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nobj.value := 5"
+        ),
         "Property is read-only. |  | value"
     );
     // The property is own of the prototype, and it is not a method.
     assert_eq!(
-        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"),
+        the_answer_of(
+            "class C {\n    value {\n        get => 1\n    }\n}\ns := \"\"\nfor p in C.Prototype.OwnProps()\n    s .= p\nMsgBox s"
+        ),
         "__Classvalue"
     );
     assert_eq!(
-        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasProp(\"value\")"),
+        the_answer_of(
+            "class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasProp(\"value\")"
+        ),
         "1"
     );
     assert_eq!(
-        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasMethod(\"value\")"),
+        the_answer_of(
+            "class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasMethod(\"value\")"
+        ),
         "0"
     );
     assert_eq!(
-        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasOwnProp(\"value\")"),
+        the_answer_of(
+            "class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.HasOwnProp(\"value\")"
+        ),
         "0"
     );
     // The getter of the prototype runs on the prototype.
     assert_eq!(
-        the_answer_of("class C {\n    value {\n        get => 1\n    }\n}\nMsgBox C.Prototype.value"),
+        the_answer_of(
+            "class C {\n    value {\n        get => 1\n    }\n}\nMsgBox C.Prototype.value"
+        ),
         "1"
     );
     // The property of an instance is not a method, and the property of the
     // class is not own of the class value.
     assert_eq!(
-        the_failure_of("class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value()"),
+        the_failure_of(
+            "class C {\n    value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value()"
+        ),
         "This value of type \"C\" has no method named \"value\". |  |"
     );
     assert_eq!(
@@ -1157,7 +1399,9 @@ fn a_static_property_of_a_class_may_have_a_getter() {
         "1"
     );
     assert_eq!(
-        the_failure_of("class C {\n    static value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value"),
+        the_failure_of(
+            "class C {\n    static value {\n        get => 1\n    }\n}\nobj := C()\nMsgBox obj.value"
+        ),
         "This value of type \"C\" has no property named \"value\". |  |"
     );
     assert_eq!(
@@ -1180,13 +1424,17 @@ fn the_item_of_a_class_is_the_property_that_is_named_item() {
     // object of a class of the script is the property `__Item` of it, and
     // the getter of it takes the index.
     assert_eq!(
-        the_answer_of("class C {\n    __Item[key] {\n        get => key\n    }\n}\nobj := C()\nMsgBox obj[\"a\"]"),
+        the_answer_of(
+            "class C {\n    __Item[key] {\n        get => key\n    }\n}\nobj := C()\nMsgBox obj[\"a\"]"
+        ),
         "a"
     );
     // A property that takes no parameter forwards the index to the `__Item`
     // of the value that it answers.
     assert_eq!(
-        the_failure_of("class C {\n    __Item {\n        get => 7\n    }\n}\nobj := C()\nMsgBox obj[\"a\"]"),
+        the_failure_of(
+            "class C {\n    __Item {\n        get => 7\n    }\n}\nobj := C()\nMsgBox obj[\"a\"]"
+        ),
         "This value of type \"Integer\" has no property named \"__Item\". |  |"
     );
     // A method of that name is not the item: the item is the method itself.
@@ -1204,7 +1452,9 @@ fn a_variable_of_a_class_that_has_a_getter_is_one_name_and_not_two() {
     // the class is refused with "Property is read-only." when the property
     // has no setter.
     assert_eq!(
-        the_failure_of("class C {\n    value := 1\n    value {\n        get => 2\n    }\n}\nobj := C()"),
+        the_failure_of(
+            "class C {\n    value := 1\n    value {\n        get => 2\n    }\n}\nobj := C()"
+        ),
         "Property is read-only. |  | value"
     );
 }
@@ -1287,7 +1537,10 @@ fn a_reserved_word_is_not_the_name_of_a_class() {
 fn a_brace_in_a_class_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a brace in a class
     // is a token that cannot be there, and the line of it is named.
-    assert_eq!(the_load_failure_of("class C {\n    {\n}"), "Unexpected \"{\"\n     Specifically: {");
+    assert_eq!(
+        the_load_failure_of("class C {\n    {\n}"),
+        "Unexpected \"{\"\n     Specifically: {"
+    );
 }
 
 #[test]
@@ -1359,8 +1612,14 @@ fn the_class_value_of_an_error_owns_the_prototype_alone() {
         the_answer_of("s := \"\"\nfor p in ObjOwnProps(Error)\n    s .= \"[\" p \"]\"\nMsgBox s"),
         "[Prototype]"
     );
-    assert_eq!(the_answer_of("FileAppend Error.HasOwnProp(\"Call\"), \"*\""), "0");
-    assert_eq!(the_answer_of("FileAppend Error.HasProp(\"Call\"), \"*\""), "1");
+    assert_eq!(
+        the_answer_of("FileAppend Error.HasOwnProp(\"Call\"), \"*\""),
+        "0"
+    );
+    assert_eq!(
+        the_answer_of("FileAppend Error.HasProp(\"Call\"), \"*\""),
+        "1"
+    );
 }
 
 #[test]
@@ -1368,7 +1627,10 @@ fn the_name_of_the_class_is_not_an_own_property_of_it() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the tree keeps the
     // name of the class under a key of its own, and the key is not a
     // property of the class value.
-    assert_eq!(the_answer_of("FileAppend Map.HasOwnProp(\"class name\"), \"*\""), "0");
+    assert_eq!(
+        the_answer_of("FileAppend Map.HasOwnProp(\"class name\"), \"*\""),
+        "0"
+    );
 }
 
 #[test]
@@ -1377,5 +1639,8 @@ fn the_base_of_a_class_may_be_declared_after_it() {
         the_answer_of("class C extends D {\n}\nclass D {\n}\nMsgBox C.Prototype.__Class"),
         "C"
     );
-    assert_eq!(the_answer_of("class C extends Map {\n}\nMsgBox C.Prototype.__Class"), "C");
+    assert_eq!(
+        the_answer_of("class C extends Map {\n}\nMsgBox C.Prototype.__Class"),
+        "C"
+    );
 }

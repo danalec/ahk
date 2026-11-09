@@ -66,7 +66,11 @@ pub(crate) fn the_text_of_the_number_that_fits(text: &str) -> String {
             // The number does not fit in the machine, and the v1 keeps the
             // one that fits: the largest, or the smallest when the sign is
             // the minus.
-            let number = if text.starts_with('-') { i64::MIN } else { i64::MAX };
+            let number = if text.starts_with('-') {
+                i64::MIN
+            } else {
+                i64::MAX
+            };
             number.to_string()
         }
     }
@@ -74,7 +78,9 @@ pub(crate) fn the_text_of_the_number_that_fits(text: &str) -> String {
 
 /// Whether the text is the hex of a number.
 pub(crate) fn the_text_is_a_hex(text: &str) -> bool {
-    text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")).is_some()
+    text.strip_prefix("0x")
+        .or_else(|| text.strip_prefix("0X"))
+        .is_some()
 }
 
 /// Whether the text is a number with a point or with an exponent.
@@ -120,7 +126,10 @@ pub(crate) fn the_text_is_the_count_of_a_loop(text: &str) -> bool {
 /// that does not fit in the machine is the largest whole number that
 /// fits: the `0xFFFFFFFFFFFFFFFF` is 9223372036854775807, and not -1.
 pub(crate) fn the_whole_number_of_a_hex(text: &str) -> i64 {
-    let digits = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")).unwrap_or(text);
+    let digits = text
+        .strip_prefix("0x")
+        .or_else(|| text.strip_prefix("0X"))
+        .unwrap_or(text);
     match u64::from_str_radix(digits, 16) {
         Ok(number) if number <= i64::MAX as u64 => number as i64,
         _ => i64::MAX,
@@ -162,20 +171,34 @@ pub(crate) fn the_whole_number_at_the_start_of_a_text(text: &str) -> Option<i64>
     }
     // The hex of the v1: 0x10 is 16.
     if let Some(hex) = the_hex_of(body) {
-        let digits: String = hex.chars().take_while(|character| character.is_ascii_hexdigit()).collect();
+        let digits: String = hex
+            .chars()
+            .take_while(|character| character.is_ascii_hexdigit())
+            .collect();
         if digits.is_empty() {
             return None;
         }
         let number = the_whole_number_of_a_hex(&digits);
-        return Some(if negative { number.wrapping_neg() } else { number });
+        return Some(if negative {
+            number.wrapping_neg()
+        } else {
+            number
+        });
     }
     // The whole number of base ten: the digits, and nothing else.
-    let digits: String = body.chars().take_while(|character| character.is_ascii_digit()).collect();
+    let digits: String = body
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .collect();
     if digits.is_empty() {
         return None;
     }
     let number: i64 = digits.parse().unwrap_or(i64::MAX);
-    Some(if negative { number.wrapping_neg() } else { number })
+    Some(if negative {
+        number.wrapping_neg()
+    } else {
+        number
+    })
 }
 
 /// The number that the text holds.
@@ -190,12 +213,19 @@ fn the_number_that_the_text_holds(text: &str, whole: bool) -> Option<Value> {
     }
     // The hex of the v1: 0x10 is 16.
     if let Some(hex) = the_hex_of(body) {
-        let digits: String = hex.chars().take_while(|character| character.is_ascii_hexdigit()).collect();
+        let digits: String = hex
+            .chars()
+            .take_while(|character| character.is_ascii_hexdigit())
+            .collect();
         if digits.is_empty() || (whole && digits.len() != hex.len()) {
             return None;
         }
         let number = the_whole_number_of_a_hex(&digits);
-        return Some(Value::Int(if negative { number.wrapping_neg() } else { number }));
+        return Some(Value::Int(if negative {
+            number.wrapping_neg()
+        } else {
+            number
+        }));
     }
     // A number of base ten: the digits, the point and the exponent.
     let mut number = String::new();
@@ -220,7 +250,10 @@ fn the_number_that_the_text_holds(text: &str, whole: bool) -> Option<Value> {
     // The exponent: the 'e', the sign and the digits. The exponent of the v1
     // needs the point of the number, and the way that takes the number that
     // the text starts with takes the exponent either way.
-    let rest = body.chars().skip(number.chars().count()).collect::<String>();
+    let rest = body
+        .chars()
+        .skip(number.chars().count())
+        .collect::<String>();
     let mut exponent = String::new();
     if rest.starts_with('e') || rest.starts_with('E') {
         let mut candidate = String::from("e");
@@ -231,12 +264,18 @@ fn the_number_that_the_text_holds(text: &str, whole: bool) -> Option<Value> {
                 _ => break,
             }
         }
-        let has_digits = candidate.chars().skip(1).any(|character| character.is_ascii_digit());
+        let has_digits = candidate
+            .chars()
+            .skip(1)
+            .any(|character| character.is_ascii_digit());
         if has_digits && (!whole || point) {
             exponent = candidate;
         }
     }
-    let rest = rest.chars().skip(exponent.chars().count()).collect::<String>();
+    let rest = rest
+        .chars()
+        .skip(exponent.chars().count())
+        .collect::<String>();
     if whole && !rest.is_empty() {
         return None;
     }

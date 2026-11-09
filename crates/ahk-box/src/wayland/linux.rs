@@ -20,19 +20,19 @@
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
-use wayland_client::globals::{registry_queue_init, BindError, GlobalList, GlobalListContents};
+use wayland_client::globals::{BindError, GlobalList, GlobalListContents, registry_queue_init};
 use wayland_client::protocol::wl_registry::{self, WlRegistry};
-use wayland_client::{event_created_child, Connection, Dispatch, EventQueue, Proxy, QueueHandle};
+use wayland_client::{Connection, Dispatch, EventQueue, Proxy, QueueHandle, event_created_child};
 use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
     ext_foreign_toplevel_handle_v1::{Event as HandleEvent, ExtForeignToplevelHandleV1},
     ext_foreign_toplevel_list_v1::{self, Event as ListEvent, ExtForeignToplevelListV1},
 };
 
+use super::Window;
 use super::protocols::client::{
     zcosmic_toplevel_handle_v1::{Event as CosmicEvent, ZcosmicToplevelHandleV1},
     zcosmic_toplevel_info_v1::{self, Event as CosmicInfoEvent, ZcosmicToplevelInfoV1},
 };
-use super::Window;
 
 /// The value of the state that says the window is the active one.
 ///
@@ -225,7 +225,10 @@ impl State {
 
     /// The window that has the focus.
     fn active(&self) -> Option<Window> {
-        self.toplevels.values().find(|toplevel| toplevel.active).map(Toplevel::window)
+        self.toplevels
+            .values()
+            .find(|toplevel| toplevel.active)
+            .map(Toplevel::window)
     }
 
     /// Whether the compositor still has to say the state of a window.
@@ -235,7 +238,11 @@ impl State {
 
     /// Why the state of a window is not known.
     fn pending_states(&self) -> Option<String> {
-        let waiting = self.toplevels.values().filter(|toplevel| !toplevel.state_seen).count();
+        let waiting = self
+            .toplevels
+            .values()
+            .filter(|toplevel| !toplevel.state_seen)
+            .count();
         if waiting == 0 {
             return None;
         }

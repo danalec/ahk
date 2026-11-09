@@ -24,7 +24,8 @@ pub fn download(url: &str, file: &str) -> Result<String, String> {
         .output()
         .map_err(|error| {
             if error.kind() == std::io::ErrorKind::NotFound {
-                "curl is not on this machine, and the box has no other way to the network".to_string()
+                "curl is not on this machine, and the box has no other way to the network"
+                    .to_string()
             } else {
                 format!("the download failed: {error}")
             }

@@ -4,8 +4,8 @@
 //! answers nothing, because nothing is asked of it.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime};
@@ -96,7 +96,10 @@ fn a_map_is_made_with_its_pairs() {
 fn a_map_with_an_odd_number_of_parameters_is_an_error() {
     let report = run("m := Map(\"a\")");
     assert!(!report.ok);
-    assert_eq!(report.error.as_deref(), Some("Invalid number of parameters."));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Invalid number of parameters.")
+    );
     assert_eq!(report.error_line, Some(1));
 }
 
@@ -144,9 +147,8 @@ fn the_item_of_a_key_that_is_not_there_is_an_error() {
 fn a_method_of_a_map_is_a_value() {
     // Measured on the binary of v2.0.19 on 2026-10-29: a method is handed
     // over as a function whose first parameter is `this`.
-    let report = run(
-        "m := Map()\nf := m.Clear\nMsgBox f.Name . \" \" . f.MinParams . \" \" . f.MaxParams",
-    );
+    let report =
+        run("m := Map()\nf := m.Clear\nMsgBox f.Name . \" \" . f.MinParams . \" \" . f.MaxParams");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Map.Prototype.Clear 1 1"]);
 }
@@ -294,11 +296,9 @@ fn the_capacity_can_be_set() {
 fn the_own_properties_of_a_map_are_the_ones_the_script_gave_it() {
     // The own properties of v2 are an enumerator, and the names are read
     // one by one.
-    let report = run(
-        "m := Map()\nm.DefineProp(\"x\", {Value: 7})\n\
+    let report = run("m := Map()\nm.DefineProp(\"x\", {Value: 7})\n\
          names := m.OwnProps()\nfirst := \"\"\nnames.Call(&first)\n\
-         MsgBox first . \" \" . m.x",
-    );
+         MsgBox first . \" \" . m.x");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x 7"]);
 }

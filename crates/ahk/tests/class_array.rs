@@ -4,8 +4,8 @@
 //! answers nothing, because nothing is asked of it.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime};
@@ -126,35 +126,44 @@ fn taking_away_the_last_value_of_an_empty_array_is_an_error() {
 
 #[test]
 fn a_value_can_be_inserted_in_the_middle() {
-    let report = run("a := Array(\"x\", \"y\")\na.InsertAt(2, \"z\")\nMsgBox a[1] . \" \" . a[2] . \" \" . a[3]");
+    let report = run(
+        "a := Array(\"x\", \"y\")\na.InsertAt(2, \"z\")\nMsgBox a[1] . \" \" . a[2] . \" \" . a[3]",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x z y"]);
 }
 
 #[test]
 fn a_value_can_be_inserted_at_the_end() {
-    let report = run("a := Array(\"x\")\na.InsertAt(0, \"z\")\nMsgBox a.Length . \" \" . a[1] . \" \" . a[2]");
+    let report = run(
+        "a := Array(\"x\")\na.InsertAt(0, \"z\")\nMsgBox a.Length . \" \" . a[1] . \" \" . a[2]",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2 x z"]);
 }
 
 #[test]
 fn a_value_can_be_taken_away_from_the_middle() {
-    let report = run("a := Array(\"x\", \"y\", \"z\")\nMsgBox a.RemoveAt(2) . \" \" . a[2] . \" \" . a.Length");
+    let report = run(
+        "a := Array(\"x\", \"y\", \"z\")\nMsgBox a.RemoveAt(2) . \" \" . a[2] . \" \" . a.Length",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["y z 2"]);
 }
 
 #[test]
 fn a_range_of_values_can_be_taken_away() {
-    let report = run("a := Array(\"x\", \"y\", \"z\")\nMsgBox a.RemoveAt(1, 2) . \" \" . a[1] . \" \" . a.Length");
+    let report = run(
+        "a := Array(\"x\", \"y\", \"z\")\nMsgBox a.RemoveAt(1, 2) . \" \" . a[1] . \" \" . a.Length",
+    );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2 z 1"]);
 }
 
 #[test]
 fn a_value_can_be_deleted_and_the_place_stays() {
-    let report = run("a := Array(\"x\", \"y\")\nMsgBox a.Delete(1) . \" \" . a.Length . \" \" . a.Has(1)");
+    let report =
+        run("a := Array(\"x\", \"y\")\nMsgBox a.Delete(1) . \" \" . a.Length . \" \" . a.Has(1)");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x 2 0"]);
 }
@@ -164,7 +173,8 @@ fn the_literal_of_an_array_may_have_a_place_without_a_value() {
     // Measured on the binary of v2.0.19 on 2026-11-01: the literal may have
     // a hole, and the hole is a comma that follows a comma. The hole is a
     // place of the array, and it has no value of its own.
-    let report = run("a := [1, , 3]\nMsgBox a.Length . \" \" . a.Has(2) . \" \" . a[1] . \" \" . a[3]");
+    let report =
+        run("a := [1, , 3]\nMsgBox a.Length . \" \" . a.Has(2) . \" \" . a[1] . \" \" . a[3]");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["3 0 1 3"]);
 }
@@ -212,7 +222,10 @@ fn the_enumeration_names_the_variable_that_has_no_value() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["1", "This global variable has not been assigned a value. | v"]
+        vec![
+            "1",
+            "This global variable has not been assigned a value. | v"
+        ]
     );
 }
 
@@ -254,9 +267,8 @@ fn the_enumerator_that_the_script_holds_leaves_the_variable_without_a_value() {
 #[test]
 fn a_method_of_an_array_is_a_value() {
     // Measured on the binary of v2.0.19 on 2026-10-29.
-    let report = run(
-        "a := [1]\nf := a.Get\nMsgBox f.Name . \" \" . f.MinParams . \" \" . f.MaxParams",
-    );
+    let report =
+        run("a := [1]\nf := a.Get\nMsgBox f.Name . \" \" . f.MinParams . \" \" . f.MaxParams");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Array.Prototype.Get 2 3"]);
 }
@@ -322,7 +334,8 @@ fn a_place_counts_from_the_end_when_it_is_negative() {
 
 #[test]
 fn a_clone_is_a_copy_of_the_array() {
-    let report = run("a := Array(\"x\")\nc := a.Clone()\nc.Push(\"y\")\nMsgBox a.Length . \" \" . c.Length");
+    let report =
+        run("a := Array(\"x\")\nc := a.Clone()\nc.Push(\"y\")\nMsgBox a.Length . \" \" . c.Length");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 2"]);
 }
@@ -336,7 +349,8 @@ fn the_length_can_be_set() {
 
 #[test]
 fn a_shorter_length_takes_the_places_at_the_end_away() {
-    let report = run("a := Array(\"x\", \"y\", \"z\")\na.Length := 1\nMsgBox a.Length . \" \" . a[1]");
+    let report =
+        run("a := Array(\"x\", \"y\", \"z\")\na.Length := 1\nMsgBox a.Length . \" \" . a[1]");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 x"]);
 }
@@ -359,12 +373,10 @@ fn a_capacity_below_the_length_takes_the_places_at_the_end_away() {
 fn the_enumeration_is_in_the_order_of_the_values() {
     // The enumeration of v2 is an enumerator, and it hands out the values
     // one by one: the `Call` of it writes into the variable of the caller.
-    let report = run(
-        "a := Array(\"x\", \"y\")\ne := a.__Enum()\n\
+    let report = run("a := Array(\"x\", \"y\")\ne := a.__Enum()\n\
          first := \"\"\ne.Call(&first)\n\
          second := \"\"\ne.Call(&second)\n\
-         MsgBox first . \",\" . second",
-    );
+         MsgBox first . \",\" . second");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x,y"]);
 }
@@ -385,18 +397,17 @@ fn the_enumeration_of_an_array_has_no_item_of_its_own() {
 fn the_own_properties_of_an_array_are_the_ones_the_script_gave_it() {
     // The own properties of v2 are an enumerator too, and the names are
     // read one by one.
-    let report = run(
-        "a := Array()\na.DefineProp(\"x\", {Value: 7})\n\
+    let report = run("a := Array()\na.DefineProp(\"x\", {Value: 7})\n\
          names := a.OwnProps()\nfirst := \"\"\nnames.Call(&first)\n\
-         MsgBox first . \" \" . a.x",
-    );
+         MsgBox first . \" \" . a.x");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["x 7"]);
 }
 
 #[test]
 fn an_array_knows_the_methods_it_has() {
-    let report = run("a := Array()\nMsgBox a.HasMethod(\"Push\") . \" \" . a.HasMethod(\"Nothing\")");
+    let report =
+        run("a := Array()\nMsgBox a.HasMethod(\"Push\") . \" \" . a.HasMethod(\"Nothing\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1 0"]);
 }

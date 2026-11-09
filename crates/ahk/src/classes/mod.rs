@@ -20,11 +20,11 @@
 
 use alloc::collections::BTreeMap;
 use alloc::format;
+use alloc::rc::Rc;
 use alloc::string::String;
+use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::cell::RefCell;
-use alloc::rc::Rc;
-use alloc::string::ToString;
 
 use crate::runtime::{Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, put};
 
@@ -201,12 +201,24 @@ const CONSTRUCTORS: [(&str, i64, i64, &str, &str); 11] = [
     ("array", 0, -1, "Array.Call", "Array.Prototype.__New"),
     ("buffer", 0, 2, "Buffer.Call", "Buffer.Prototype.__New"),
     ("class", 0, 0, "Object.Call", ""),
-    ("clipboardall", 0, 2, "ClipboardAll.Call", "ClipboardAll.Prototype.__New"),
+    (
+        "clipboardall",
+        0,
+        2,
+        "ClipboardAll.Call",
+        "ClipboardAll.Prototype.__New",
+    ),
     ("comobject", 1, 2, "", "ComObject.Call"),
     ("comvalue", 2, 3, "", "ComValue.Call"),
     ("error", 0, 3, "Object.Call", "Error.Prototype.__New"),
     ("gui", 0, 3, "Gui.Call", "Gui.Prototype.__New"),
-    ("inputhook", 0, 3, "InputHook.Call", "InputHook.Prototype.__New"),
+    (
+        "inputhook",
+        0,
+        3,
+        "InputHook.Call",
+        "InputHook.Prototype.__New",
+    ),
     ("menu", 0, 0, "Menu.Call", ""),
     ("object", 0, 0, "Object.Call", ""),
 ];
@@ -343,8 +355,14 @@ const PROPERTIES: [(&str, &str, &str); 28] = [
 const READ_ONLY: [(&str, &[&str]); 5] = [
     ("map", &["count"]),
     ("buffer", &["ptr"]),
-    ("func", &["name", "minparams", "maxparams", "isbuiltin", "isvariadic"]),
-    ("enumerator", &["name", "minparams", "maxparams", "isbuiltin", "isvariadic"]),
+    (
+        "func",
+        &["name", "minparams", "maxparams", "isbuiltin", "isvariadic"],
+    ),
+    (
+        "enumerator",
+        &["name", "minparams", "maxparams", "isbuiltin", "isvariadic"],
+    ),
     ("file", &["ateof", "handle"]),
 ];
 
@@ -367,51 +385,209 @@ pub(crate) fn the_property_is_read_only(class: &str, name: &str) -> bool {
 /// methods of it and the properties of it. The names are in the order of
 /// v2, and the case of them does not count.
 const PROTOTYPE_MEMBERS: [(&str, &[&str]); 16] = [
-    ("object", &["Clone", "DefineProp", "DeleteProp", "GetOwnPropDesc", "HasOwnProp", "OwnProps"]),
-    ("map", &[
-        "__Enum", "__Item", "__New", "Capacity", "CaseSense", "Clear", "Clone", "Count", "Delete",
-        "Get", "Has", "Set",
-    ]),
-    ("array", &[
-        "__Enum", "__Item", "__New", "Capacity", "Clone", "Delete", "Get", "Has", "InsertAt",
-        "Length", "Pop", "Push", "RemoveAt",
-    ]),
+    (
+        "object",
+        &[
+            "Clone",
+            "DefineProp",
+            "DeleteProp",
+            "GetOwnPropDesc",
+            "HasOwnProp",
+            "OwnProps",
+        ],
+    ),
+    (
+        "map",
+        &[
+            "__Enum",
+            "__Item",
+            "__New",
+            "Capacity",
+            "CaseSense",
+            "Clear",
+            "Clone",
+            "Count",
+            "Delete",
+            "Get",
+            "Has",
+            "Set",
+        ],
+    ),
+    (
+        "array",
+        &[
+            "__Enum", "__Item", "__New", "Capacity", "Clone", "Delete", "Get", "Has", "InsertAt",
+            "Length", "Pop", "Push", "RemoveAt",
+        ],
+    ),
     ("buffer", &["__New", "Ptr", "Size"]),
     ("error", &["__New"]),
-    ("file", &[
-        "AtEOF", "Close", "Encoding", "Handle", "Length", "Pos", "RawRead", "RawWrite", "Read",
-        "ReadChar", "ReadDouble", "ReadFloat", "ReadInt", "ReadInt64", "ReadLine", "ReadShort",
-        "ReadUChar", "ReadUInt", "ReadUShort", "Seek", "Write", "WriteChar", "WriteDouble",
-        "WriteFloat", "WriteInt", "WriteInt64", "WriteLine", "WriteShort", "WriteUChar", "WriteUInt",
-        "WriteUShort",
-    ]),
-    ("func", &[
-        "Bind", "Call", "IsBuiltIn", "IsByRef", "IsOptional", "IsVariadic", "MaxParams", "MinParams",
-        "Name",
-    ]),
+    (
+        "file",
+        &[
+            "AtEOF",
+            "Close",
+            "Encoding",
+            "Handle",
+            "Length",
+            "Pos",
+            "RawRead",
+            "RawWrite",
+            "Read",
+            "ReadChar",
+            "ReadDouble",
+            "ReadFloat",
+            "ReadInt",
+            "ReadInt64",
+            "ReadLine",
+            "ReadShort",
+            "ReadUChar",
+            "ReadUInt",
+            "ReadUShort",
+            "Seek",
+            "Write",
+            "WriteChar",
+            "WriteDouble",
+            "WriteFloat",
+            "WriteInt",
+            "WriteInt64",
+            "WriteLine",
+            "WriteShort",
+            "WriteUChar",
+            "WriteUInt",
+            "WriteUShort",
+        ],
+    ),
+    (
+        "func",
+        &[
+            "Bind",
+            "Call",
+            "IsBuiltIn",
+            "IsByRef",
+            "IsOptional",
+            "IsVariadic",
+            "MaxParams",
+            "MinParams",
+            "Name",
+        ],
+    ),
     ("enumerator", &[]),
-    ("menu", &[
-        "Add", "AddStandard", "Check", "ClickCount", "Default", "Delete", "Disable", "Enable",
-        "Handle", "Insert", "Rename", "SetColor", "SetIcon", "Show", "ToggleCheck", "ToggleEnable",
-        "Uncheck",
-    ]),
-    ("gui", &[
-        "__Enum", "__Item", "__New", "Add", "AddActiveX", "AddButton", "AddCheckBox", "AddComboBox",
-        "AddCustom", "AddDateTime", "AddDDL", "AddDropDownList", "AddEdit", "AddGroupBox",
-        "AddHotkey", "AddLink", "AddListBox", "AddListView", "AddMonthCal", "AddPic", "AddPicture",
-        "AddProgress", "AddRadio", "AddSlider", "AddStatusBar", "AddTab", "AddTab2", "AddTab3",
-        "AddText", "AddTreeView", "AddUpDown", "BackColor", "Destroy", "Flash", "FocusedCtrl",
-        "GetClientPos", "GetPos", "Hide", "Hwnd", "MarginX", "MarginY", "Maximize", "MenuBar",
-        "Minimize", "Move", "Name", "OnEvent", "Opt", "Restore", "SetFont", "Show", "Submit", "Title",
-    ]),
+    (
+        "menu",
+        &[
+            "Add",
+            "AddStandard",
+            "Check",
+            "ClickCount",
+            "Default",
+            "Delete",
+            "Disable",
+            "Enable",
+            "Handle",
+            "Insert",
+            "Rename",
+            "SetColor",
+            "SetIcon",
+            "Show",
+            "ToggleCheck",
+            "ToggleEnable",
+            "Uncheck",
+        ],
+    ),
+    (
+        "gui",
+        &[
+            "__Enum",
+            "__Item",
+            "__New",
+            "Add",
+            "AddActiveX",
+            "AddButton",
+            "AddCheckBox",
+            "AddComboBox",
+            "AddCustom",
+            "AddDateTime",
+            "AddDDL",
+            "AddDropDownList",
+            "AddEdit",
+            "AddGroupBox",
+            "AddHotkey",
+            "AddLink",
+            "AddListBox",
+            "AddListView",
+            "AddMonthCal",
+            "AddPic",
+            "AddPicture",
+            "AddProgress",
+            "AddRadio",
+            "AddSlider",
+            "AddStatusBar",
+            "AddTab",
+            "AddTab2",
+            "AddTab3",
+            "AddText",
+            "AddTreeView",
+            "AddUpDown",
+            "BackColor",
+            "Destroy",
+            "Flash",
+            "FocusedCtrl",
+            "GetClientPos",
+            "GetPos",
+            "Hide",
+            "Hwnd",
+            "MarginX",
+            "MarginY",
+            "Maximize",
+            "MenuBar",
+            "Minimize",
+            "Move",
+            "Name",
+            "OnEvent",
+            "Opt",
+            "Restore",
+            "SetFont",
+            "Show",
+            "Submit",
+            "Title",
+        ],
+    ),
     ("clipboardall", &["__New"]),
-    ("inputhook", &[
-        "__New", "BackspaceIsUndo", "CaseSensitive", "EndKey", "EndMods", "EndReason", "FindAnywhere",
-        "InProgress", "Input", "KeyOpt", "Match", "MinSendLevel", "NotifyNonText", "OnChar",
-        "OnEnd", "OnKeyDown", "OnKeyUp", "Start", "Stop", "Timeout", "VisibleNonText", "VisibleText",
-        "Wait",
-    ]),
-    ("regexmatchinfo", &["__Enum", "__Get", "__Item", "Count", "Len", "Mark", "Name", "Pos"]),
+    (
+        "inputhook",
+        &[
+            "__New",
+            "BackspaceIsUndo",
+            "CaseSensitive",
+            "EndKey",
+            "EndMods",
+            "EndReason",
+            "FindAnywhere",
+            "InProgress",
+            "Input",
+            "KeyOpt",
+            "Match",
+            "MinSendLevel",
+            "NotifyNonText",
+            "OnChar",
+            "OnEnd",
+            "OnKeyDown",
+            "OnKeyUp",
+            "Start",
+            "Stop",
+            "Timeout",
+            "VisibleNonText",
+            "VisibleText",
+            "Wait",
+        ],
+    ),
+    (
+        "regexmatchinfo",
+        &[
+            "__Enum", "__Get", "__Item", "Count", "Len", "Mark", "Name", "Pos",
+        ],
+    ),
     ("boundfunc", &[]),
     ("closure", &[]),
     ("class", &[]),
@@ -424,33 +600,133 @@ const PROTOTYPE_MEMBERS: [(&str, &[&str]); 16] = [
 /// class is not one of them, and the `__Class` of the value is not one
 /// either.
 const PROTOTYPE_METHODS: [(&str, &[&str]); 16] = [
-    ("object", &["Clone", "DefineProp", "DeleteProp", "GetOwnPropDesc", "HasOwnProp", "OwnProps"]),
-    ("map", &["__Enum", "__New", "Clear", "Clone", "Delete", "Get", "Has", "Set"]),
-    ("array", &[
-        "__Enum", "__New", "Clone", "Delete", "Get", "Has", "InsertAt", "Pop", "Push", "RemoveAt",
-    ]),
+    (
+        "object",
+        &[
+            "Clone",
+            "DefineProp",
+            "DeleteProp",
+            "GetOwnPropDesc",
+            "HasOwnProp",
+            "OwnProps",
+        ],
+    ),
+    (
+        "map",
+        &[
+            "__Enum", "__New", "Clear", "Clone", "Delete", "Get", "Has", "Set",
+        ],
+    ),
+    (
+        "array",
+        &[
+            "__Enum", "__New", "Clone", "Delete", "Get", "Has", "InsertAt", "Pop", "Push",
+            "RemoveAt",
+        ],
+    ),
     ("buffer", &["__New"]),
     ("error", &["__New"]),
-    ("file", &[
-        "Close", "RawRead", "RawWrite", "Read", "ReadChar", "ReadDouble", "ReadFloat", "ReadInt",
-        "ReadInt64", "ReadLine", "ReadShort", "ReadUChar", "ReadUInt", "ReadUShort", "Seek", "Write",
-        "WriteChar", "WriteDouble", "WriteFloat", "WriteInt", "WriteInt64", "WriteLine", "WriteShort",
-        "WriteUChar", "WriteUInt", "WriteUShort",
-    ]),
+    (
+        "file",
+        &[
+            "Close",
+            "RawRead",
+            "RawWrite",
+            "Read",
+            "ReadChar",
+            "ReadDouble",
+            "ReadFloat",
+            "ReadInt",
+            "ReadInt64",
+            "ReadLine",
+            "ReadShort",
+            "ReadUChar",
+            "ReadUInt",
+            "ReadUShort",
+            "Seek",
+            "Write",
+            "WriteChar",
+            "WriteDouble",
+            "WriteFloat",
+            "WriteInt",
+            "WriteInt64",
+            "WriteLine",
+            "WriteShort",
+            "WriteUChar",
+            "WriteUInt",
+            "WriteUShort",
+        ],
+    ),
     ("func", &["Bind", "Call", "IsByRef", "IsOptional"]),
     ("enumerator", &[]),
-    ("menu", &[
-        "Add", "AddStandard", "Check", "Delete", "Disable", "Enable", "Insert", "Rename", "SetColor",
-        "SetIcon", "Show", "ToggleCheck", "ToggleEnable", "Uncheck",
-    ]),
-    ("gui", &[
-        "__Enum", "__New", "Add", "AddActiveX", "AddButton", "AddCheckBox", "AddComboBox", "AddCustom",
-        "AddDateTime", "AddDDL", "AddDropDownList", "AddEdit", "AddGroupBox", "AddHotkey", "AddLink",
-        "AddListBox", "AddListView", "AddMonthCal", "AddPic", "AddPicture", "AddProgress", "AddRadio",
-        "AddSlider", "AddStatusBar", "AddTab", "AddTab2", "AddTab3", "AddText", "AddTreeView",
-        "AddUpDown", "Destroy", "Flash", "GetClientPos", "GetPos", "Hide", "Maximize", "Minimize",
-        "Move", "OnEvent", "Opt", "Restore", "SetFont", "Show", "Submit",
-    ]),
+    (
+        "menu",
+        &[
+            "Add",
+            "AddStandard",
+            "Check",
+            "Delete",
+            "Disable",
+            "Enable",
+            "Insert",
+            "Rename",
+            "SetColor",
+            "SetIcon",
+            "Show",
+            "ToggleCheck",
+            "ToggleEnable",
+            "Uncheck",
+        ],
+    ),
+    (
+        "gui",
+        &[
+            "__Enum",
+            "__New",
+            "Add",
+            "AddActiveX",
+            "AddButton",
+            "AddCheckBox",
+            "AddComboBox",
+            "AddCustom",
+            "AddDateTime",
+            "AddDDL",
+            "AddDropDownList",
+            "AddEdit",
+            "AddGroupBox",
+            "AddHotkey",
+            "AddLink",
+            "AddListBox",
+            "AddListView",
+            "AddMonthCal",
+            "AddPic",
+            "AddPicture",
+            "AddProgress",
+            "AddRadio",
+            "AddSlider",
+            "AddStatusBar",
+            "AddTab",
+            "AddTab2",
+            "AddTab3",
+            "AddText",
+            "AddTreeView",
+            "AddUpDown",
+            "Destroy",
+            "Flash",
+            "GetClientPos",
+            "GetPos",
+            "Hide",
+            "Maximize",
+            "Minimize",
+            "Move",
+            "OnEvent",
+            "Opt",
+            "Restore",
+            "SetFont",
+            "Show",
+            "Submit",
+        ],
+    ),
     ("clipboardall", &["__New"]),
     ("inputhook", &["__New", "KeyOpt", "Start", "Stop", "Wait"]),
     ("regexmatchinfo", &["__Enum", "__Get", "Len", "Name", "Pos"]),
@@ -485,7 +761,9 @@ pub(crate) fn the_name_of_a_method_of_the_base_object(method: &str) -> String {
 /// base object are the methods of every object, and they are inherited.
 pub(crate) fn the_base_object_has_the_method(name: &str) -> bool {
     let name = name.to_lowercase();
-    CALLS.iter().any(|(owner, member, _, _)| *owner == "object" && *member == name)
+    CALLS
+        .iter()
+        .any(|(owner, member, _, _)| *owner == "object" && *member == name)
 }
 
 /// The name and the number of the arguments of a method of a class.
@@ -507,11 +785,15 @@ pub(crate) fn the_method_of(class: &str, method: &str) -> Option<(&'static str, 
 pub(crate) fn the_arity_of(class: &str, method: &str) -> Option<(i64, i64)> {
     let class = class.to_lowercase();
     let method = method.to_lowercase();
-    let own = CALLS.iter().find(|(owner, name, _, _)| *owner == class && *name == method);
+    let own = CALLS
+        .iter()
+        .find(|(owner, name, _, _)| *owner == class && *name == method);
     let found = match own {
         Some(found) => Some(found),
         // Every object has the methods of the base object.
-        None => CALLS.iter().find(|(owner, name, _, _)| *owner == "object" && *name == method),
+        None => CALLS
+            .iter()
+            .find(|(owner, name, _, _)| *owner == "object" && *name == method),
     };
     found.map(|(_, _, min, max)| (*min, *max))
 }
@@ -639,7 +921,10 @@ pub(crate) fn named(failure: RuntimeFailure, what: &str) -> RuntimeFailure {
     match failure {
         RuntimeFailure::Error(error) => RuntimeFailure::Detailed(
             error,
-            Detail { what: what.to_string(), extra: String::new() },
+            Detail {
+                what: what.to_string(),
+                extra: String::new(),
+            },
         ),
         RuntimeFailure::Detailed(error, mut detail) => {
             if detail.what.is_empty() {
@@ -657,8 +942,14 @@ pub(crate) fn named(failure: RuntimeFailure, what: &str) -> RuntimeFailure {
 /// the error: the key of a map, the place of an array.
 pub(crate) fn the_failure_with(message: &str, extra: &str, line: u32) -> RuntimeFailure {
     RuntimeFailure::Detailed(
-        RuntimeError { message: message.to_string(), line },
-        Detail { what: String::new(), extra: extra.to_string() },
+        RuntimeError {
+            message: message.to_string(),
+            line,
+        },
+        Detail {
+            what: String::new(),
+            extra: extra.to_string(),
+        },
     )
 }
 
@@ -668,10 +959,21 @@ pub(crate) fn the_failure_with(message: &str, extra: &str, line: u32) -> Runtime
 /// v2 checks the number of the arguments when the script writes the
 /// call, and the name of the member goes in the `Extra` of the error,
 /// and nothing goes in the `What`.
-pub(crate) fn the_arity_failure(class: &str, method: &str, message: &str, line: u32) -> RuntimeFailure {
+pub(crate) fn the_arity_failure(
+    class: &str,
+    method: &str,
+    message: &str,
+    line: u32,
+) -> RuntimeFailure {
     RuntimeFailure::Detailed(
-        RuntimeError { message: message.to_string(), line },
-        Detail { what: String::new(), extra: the_full_name_of(class, method) },
+        RuntimeError {
+            message: message.to_string(),
+            line,
+        },
+        Detail {
+            what: String::new(),
+            extra: the_full_name_of(class, method),
+        },
     )
 }
 
@@ -687,7 +989,10 @@ pub(crate) fn the_arity_failure_of_a_method(
     line: u32,
 ) -> RuntimeFailure {
     RuntimeFailure::Detailed(
-        RuntimeError { message: message.to_string(), line },
+        RuntimeError {
+            message: message.to_string(),
+            line,
+        },
         Detail {
             what: the_name_of("func", "Call"),
             extra: the_full_name_of(class, method),
@@ -703,7 +1008,11 @@ pub(crate) fn the_arity_failure_of_a_method(
 fn the_constructor_of(class: &str) -> Option<(i64, i64, &'static str, &'static str)> {
     let class = class.to_lowercase();
     // The classes of the errors are made the way the root of them is.
-    let owner = if error::is_a_class(&class) { "error" } else { class.as_str() };
+    let owner = if error::is_a_class(&class) {
+        "error"
+    } else {
+        class.as_str()
+    };
     CONSTRUCTORS
         .iter()
         .find(|(name, _, _, _, _)| *name == owner)
@@ -716,8 +1025,14 @@ fn the_constructor_of(class: &str) -> Option<(i64, i64, &'static str, &'static s
 /// no such thing: "Invalid base.".
 fn the_failure_of_a_class_that_is_not_made(line: u32) -> RuntimeFailure {
     RuntimeFailure::Detailed(
-        RuntimeError { message: "Invalid base.".to_string(), line },
-        Detail { what: THE_CALL_OF_THE_BASE.to_string(), extra: String::new() },
+        RuntimeError {
+            message: "Invalid base.".to_string(),
+            line,
+        },
+        Detail {
+            what: THE_CALL_OF_THE_BASE.to_string(),
+            extra: String::new(),
+        },
     )
 }
 
@@ -732,8 +1047,14 @@ fn the_arity_failure_of_a_constructor(
     line: u32,
 ) -> RuntimeFailure {
     RuntimeFailure::Detailed(
-        RuntimeError { message: message.to_string(), line },
-        Detail { what: what.to_string(), extra: extra.to_string() },
+        RuntimeError {
+            message: message.to_string(),
+            line,
+        },
+        Detail {
+            what: what.to_string(),
+            extra: extra.to_string(),
+        },
     )
 }
 
@@ -748,8 +1069,25 @@ fn the_arity_failure_of_a_constructor(
 /// `Hotkey` is a function of the dialect, and the class of a hotkey is
 /// the class of the object that the function makes.
 pub(crate) const TYPES: [&str; 20] = [
-    "any", "array", "boundfunc", "buffer", "class", "clipboardall", "closure", "comobject", "comvalue",
-    "enumerator", "error", "file", "func", "gui", "hotkey", "inputhook", "map", "menu", "object",
+    "any",
+    "array",
+    "boundfunc",
+    "buffer",
+    "class",
+    "clipboardall",
+    "closure",
+    "comobject",
+    "comvalue",
+    "enumerator",
+    "error",
+    "file",
+    "func",
+    "gui",
+    "hotkey",
+    "inputhook",
+    "map",
+    "menu",
+    "object",
     "regexmatchinfo",
 ];
 
@@ -792,7 +1130,16 @@ pub fn the_class_types() -> Vec<String> {
 /// `Error` owns the prototype alone. The classes that a script calls are
 /// the ones that own the call.
 const THE_CLASSES_THAT_OWN_THE_CALL: [&str; 10] = [
-    "object", "map", "array", "buffer", "menu", "inputhook", "clipboardall", "gui", "comobject", "comvalue",
+    "object",
+    "map",
+    "array",
+    "buffer",
+    "menu",
+    "inputhook",
+    "clipboardall",
+    "gui",
+    "comobject",
+    "comvalue",
 ];
 
 /// Whether the class value of the class owns the call of it.
@@ -822,7 +1169,8 @@ const THE_CLASSES_THAT_ARE_NOT_HERE: [&str; 2] = ["comobject", "comvalue"];
 /// carry them.
 fn the_failure_of_a_class_that_is_not_here(line: u32) -> RuntimeFailure {
     RuntimeFailure::Error(RuntimeError {
-        message: "the COM objects are a thing of Windows, and this runtime does not carry them.".to_string(),
+        message: "the COM objects are a thing of Windows, and this runtime does not carry them."
+            .to_string(),
         line,
     })
 }
@@ -849,7 +1197,10 @@ fn the_kind_of_a_com_value_argument(
                 message: crate::runtime::requires(index, "ComValue.Call", TypeName::Number, other),
                 line,
             },
-            Detail { what: "ComValue.Call".to_string(), extra: other.to_text() },
+            Detail {
+                what: "ComValue.Call".to_string(),
+                extra: other.to_text(),
+            },
         )),
     }
 }
@@ -864,7 +1215,9 @@ fn the_kind_of_a_com_value_argument(
 fn the_failure_of_a_class_that_cannot_be_called(rt: &Runtime, line: u32) -> RuntimeFailure {
     // The class value of the runtime, so that the refusal names the kind
     // of it: a class is a "Class".
-    let value = rt.class_value_of("any").unwrap_or_else(|| class_value("any"));
+    let value = rt
+        .class_value_of("any")
+        .unwrap_or_else(|| class_value("any"));
     rt.no_method(&value, "Call", line)
 }
 
@@ -916,8 +1269,16 @@ pub(crate) fn class_value(name: &str) -> Value {
     // The name of the class is the one v2 spells: the name of the
     // runtime carries it in lower case. v2 does not show it, and the
     // tree keeps it under a key of its own.
-    put(&mut table, crate::runtime::CLASS_NAME, Value::Text(the_spelling_of(name)));
-    put(&mut table, "prototype", crate::runtime::prototype_value(name));
+    put(
+        &mut table,
+        crate::runtime::CLASS_NAME,
+        Value::Text(the_spelling_of(name)),
+    );
+    put(
+        &mut table,
+        "prototype",
+        crate::runtime::prototype_value(name),
+    );
     Value::Object(Rc::new(RefCell::new(Object {
         class: name.to_lowercase(),
         properties: table,
@@ -1003,7 +1364,9 @@ pub(crate) fn construct(
             } else {
                 "Too many parameters passed to function."
             };
-            return Some(Err(the_arity_failure_of_a_constructor(what, extra, message, line)));
+            return Some(Err(the_arity_failure_of_a_constructor(
+                what, extra, message, line,
+            )));
         }
     }
     // The `Any` is the type of any value, and it is not a class that can
@@ -1028,9 +1391,10 @@ pub(crate) fn construct(
     // The errors of v2 are a tree of classes, and every one of them is
     // made the way the root of it is.
     if error::is_a_class(class) {
-        return Some(error::construct(class, arguments, rt, line).map_err(|failure| {
-            named(failure, &the_name_of(class, "__New"))
-        }));
+        return Some(
+            error::construct(class, arguments, rt, line)
+                .map_err(|failure| named(failure, &the_name_of(class, "__New"))),
+        );
     }
     let made = match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
@@ -1061,7 +1425,10 @@ pub(crate) fn call(
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
     if method.eq_ignore_ascii_case("__item") {
-        let key = arguments.first().cloned().unwrap_or(Value::Text(String::new()));
+        let key = arguments
+            .first()
+            .cloned()
+            .unwrap_or(Value::Text(String::new()));
         if let Some(result) = item(class, &key, this, rt, line) {
             return Some(result);
         }
@@ -1071,9 +1438,9 @@ pub(crate) fn call(
     // the module matches the names of the table of the binary. The
     // second try is the name in lower case.
     match answer {
-        Some(result) => Some(result.map_err(|failure| {
-            named(failure, &the_full_name_of(class, method))
-        })),
+        Some(result) => {
+            Some(result.map_err(|failure| named(failure, &the_full_name_of(class, method))))
+        }
         None => {
             let lower = method.to_lowercase();
             if lower == method {
@@ -1186,7 +1553,10 @@ pub(crate) fn set_property(
         }
         _ => None,
     };
-    let what = the_name_of(class, &format!("{}.Set", the_spelling_of_the_property(class, name)));
+    let what = the_name_of(
+        class,
+        &format!("{}.Set", the_spelling_of_the_property(class, name)),
+    );
     written.map(|result| result.map_err(|failure| named(failure, &what)))
 }
 

@@ -14,8 +14,8 @@
 //! fails with the reason, and never answers `false`.
 
 use crate::dll::{NativeCall, NativeFailure, NativeResult};
-use alloc::vec::Vec;
 use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 
 /// The answer to a question about a window.
 #[derive(Debug, Clone, PartialEq)]
@@ -69,12 +69,22 @@ pub trait Pointer {
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String>;
 
     /// Put a mouse button down, and leave it down.
-    fn mouse_down(&mut self, _x: Option<i64>, _y: Option<i64>, _button: &str) -> Result<String, String> {
+    fn mouse_down(
+        &mut self,
+        _x: Option<i64>,
+        _y: Option<i64>,
+        _button: &str,
+    ) -> Result<String, String> {
         Err("this desktop cannot hold a mouse button down".to_string())
     }
 
     /// Let a mouse button come up.
-    fn mouse_up(&mut self, _x: Option<i64>, _y: Option<i64>, _button: &str) -> Result<String, String> {
+    fn mouse_up(
+        &mut self,
+        _x: Option<i64>,
+        _y: Option<i64>,
+        _button: &str,
+    ) -> Result<String, String> {
         Err("this desktop cannot hold a mouse button down".to_string())
     }
 
@@ -110,7 +120,14 @@ pub trait Pointer {
 /// The screen of the desktop.
 pub trait Screen {
     /// Capture a region of the screen into a file; return the path.
-    fn capture(&mut self, x: i64, y: i64, width: i64, height: i64, filename: &str) -> Result<String, String>;
+    fn capture(
+        &mut self,
+        x: i64,
+        y: i64,
+        width: i64,
+        height: i64,
+        filename: &str,
+    ) -> Result<String, String>;
 
     /// The colour of one pixel, as `#rrggbb`.
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String>;
@@ -178,8 +195,11 @@ impl TitleMatch {
                     Some(rest) => (rest, true),
                     None => (wanted, false),
                 };
-                let pattern =
-                    if ignore_case { alloc::format!("(?i){pattern}") } else { pattern.to_string() };
+                let pattern = if ignore_case {
+                    alloc::format!("(?i){pattern}")
+                } else {
+                    pattern.to_string()
+                };
                 let regex = crate::regex::Regex::new(&pattern)?;
                 Ok(regex.find(title)?.is_some())
             }
@@ -277,7 +297,12 @@ pub trait Files {
     /// gives the directories instead of the files. The "A" gives the files
     /// and the directories together, and it is the mode of the v1 that has
     /// the number one.
-    fn list_files(&mut self, _folder: &str, _pattern: &str, _mode: &str) -> Result<Vec<String>, String> {
+    fn list_files(
+        &mut self,
+        _folder: &str,
+        _pattern: &str,
+        _mode: &str,
+    ) -> Result<Vec<String>, String> {
         Err("this desktop cannot list the files of a directory".to_string())
     }
 
@@ -329,7 +354,11 @@ pub trait Files {
     /// that matches, a folder among them. The empty list is the answer
     /// when there is none. A folder is asked for with the mode "D", and
     /// any entry with the empty mode.
-    fn attributes_of_the_pattern(&mut self, _pattern: &str, _mode: &str) -> Result<Vec<String>, String> {
+    fn attributes_of_the_pattern(
+        &mut self,
+        _pattern: &str,
+        _mode: &str,
+    ) -> Result<Vec<String>, String> {
         Err("this desktop cannot look for a file".to_string())
     }
 
@@ -413,7 +442,11 @@ pub trait Files {
     }
 
     /// Change the attributes of a file.
-    fn set_file_attributes(&mut self, _path: &str, _attributes: &[String]) -> Result<String, String> {
+    fn set_file_attributes(
+        &mut self,
+        _path: &str,
+        _attributes: &[String],
+    ) -> Result<String, String> {
         Err("this desktop cannot change the attributes of a file".to_string())
     }
 
@@ -437,12 +470,24 @@ pub trait Files {
     }
 
     /// The value of a key of an ini file.
-    fn ini_read(&mut self, _path: &str, _section: &str, _key: &str, _default: &str) -> Result<String, String> {
+    fn ini_read(
+        &mut self,
+        _path: &str,
+        _section: &str,
+        _key: &str,
+        _default: &str,
+    ) -> Result<String, String> {
         Err("this desktop cannot read an ini file".to_string())
     }
 
     /// Write a key of an ini file.
-    fn ini_write(&mut self, _path: &str, _section: &str, _key: &str, _value: &str) -> Result<String, String> {
+    fn ini_write(
+        &mut self,
+        _path: &str,
+        _section: &str,
+        _key: &str,
+        _value: &str,
+    ) -> Result<String, String> {
         Err("this desktop cannot write an ini file".to_string())
     }
 
@@ -513,7 +558,9 @@ pub trait Hotkeys {
 pub trait Native {
     /// The call of a function of a library.
     fn call_native(&mut self, _call: &mut NativeCall) -> Result<NativeResult, NativeFailure> {
-        Err(NativeFailure::invalid("this desktop cannot make a native call."))
+        Err(NativeFailure::invalid(
+            "this desktop cannot make a native call.",
+        ))
     }
 }
 
@@ -527,7 +574,11 @@ pub trait Pictures {
     ///
     /// `None` is the answer when the picture is not there: v2 answers
     /// zero in that case, and not a failure.
-    fn load_picture(&mut self, _filename: &str, _options: &PictureOptions) -> Result<Option<u32>, String> {
+    fn load_picture(
+        &mut self,
+        _filename: &str,
+        _options: &PictureOptions,
+    ) -> Result<Option<u32>, String> {
         Err("the picture is read by the desktop, and this desktop does not read the images of the machine.".to_string())
     }
 
@@ -554,7 +605,10 @@ pub trait Network {
     ///
     /// The answer is the path of the file that was written.
     fn download(&mut self, _url: &str, _file: &str) -> Result<String, String> {
-        Err("the download is made by the desktop, and this desktop does not reach the network.".to_string())
+        Err(
+            "the download is made by the desktop, and this desktop does not reach the network."
+                .to_string(),
+        )
     }
 }
 
@@ -747,7 +801,12 @@ pub trait Dialogs {
     /// The options are the number of v2: 1 is the button that makes a
     /// new folder, 2 is the field where the name is written, and 4 is
     /// the old style of the dialog.
-    fn dir_select(&mut self, _starting: &str, _options: i64, _prompt: &str) -> Result<String, String> {
+    fn dir_select(
+        &mut self,
+        _starting: &str,
+        _options: i64,
+        _prompt: &str,
+    ) -> Result<String, String> {
         Err("this desktop cannot ask the user for a folder".to_string())
     }
 }

@@ -9,8 +9,8 @@
 //! the function.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures, Pointer, Processes,
-    Screen, Sound, Timers, Windows,
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
 use ahk::runtime::{Report, Runtime, Value};
@@ -94,7 +94,14 @@ impl Pointer for Fake {
 }
 
 impl Screen for Fake {
-    fn capture(&mut self, _x: i64, _y: i64, _width: i64, _height: i64, _filename: &str) -> Result<String, String> {
+    fn capture(
+        &mut self,
+        _x: i64,
+        _y: i64,
+        _width: i64,
+        _height: i64,
+        _filename: &str,
+    ) -> Result<String, String> {
         Ok(String::new())
     }
 

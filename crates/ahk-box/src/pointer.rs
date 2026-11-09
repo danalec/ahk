@@ -198,7 +198,12 @@ impl Pointer {
         #[cfg(target_os = "linux")]
         {
             let file = open_uinput()?;
-            let pointer = Self { file, width, height, last: (0, 0) };
+            let pointer = Self {
+                file,
+                width,
+                height,
+                last: (0, 0),
+            };
             pointer.configure()?;
             Ok(pointer)
         }
@@ -410,7 +415,9 @@ impl Pointer {
         setup[8..8 + name.len()].copy_from_slice(name);
         let result = unsafe { libc::ioctl(fd, abi::UI_DEV_SETUP, setup.as_ptr()) };
         if result < 0 {
-            return Err(PointerError::Setup(std::io::Error::last_os_error().to_string()));
+            return Err(PointerError::Setup(
+                std::io::Error::last_os_error().to_string(),
+            ));
         }
 
         // struct uinput_abs_setup { __u16 code; __u16 filler; struct input_absinfo absinfo; }
@@ -436,7 +443,10 @@ impl Pointer {
         let fd = self.file.as_raw_fd();
         let result = unsafe { libc::ioctl(fd, request, argument) };
         if result < 0 {
-            return Err(PointerError::Ioctl(request, std::io::Error::last_os_error().to_string()));
+            return Err(PointerError::Ioctl(
+                request,
+                std::io::Error::last_os_error().to_string(),
+            ));
         }
         Ok(())
     }
@@ -447,7 +457,10 @@ impl Pointer {
 /// The clamp is what keeps a stale or silly coordinate from wrapping around
 /// to the far corner of the screen.
 fn clamp_to_screen(x: i64, y: i64, width: i64, height: i64) -> (i64, i64) {
-    (x.clamp(0, (width - 1).max(0)), y.clamp(0, (height - 1).max(0)))
+    (
+        x.clamp(0, (width - 1).max(0)),
+        y.clamp(0, (height - 1).max(0)),
+    )
 }
 
 /// The speed of the pointer of the box.
@@ -487,7 +500,10 @@ fn read_axis(fd: libc::c_int, request: u64) -> Result<i64, PointerError> {
     let mut info = [0i32; 6];
     let result = unsafe { libc::ioctl(fd, request, info.as_mut_ptr()) };
     if result < 0 {
-        return Err(PointerError::Ioctl(request, std::io::Error::last_os_error().to_string()));
+        return Err(PointerError::Ioctl(
+            request,
+            std::io::Error::last_os_error().to_string(),
+        ));
     }
     Ok(info[0] as i64)
 }
@@ -501,7 +517,6 @@ fn open_uinput() -> Result<File, PointerError> {
         .open("/dev/uinput")
         .map_err(|error| PointerError::CannotOpen(error.to_string()))
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -566,7 +581,12 @@ mod tests {
 
     #[test]
     fn the_bit_operations_take_an_int() {
-        for request in [abi::UI_SET_EVBIT, abi::UI_SET_KEYBIT, abi::UI_SET_ABSBIT, abi::UI_SET_PROPBIT] {
+        for request in [
+            abi::UI_SET_EVBIT,
+            abi::UI_SET_KEYBIT,
+            abi::UI_SET_ABSBIT,
+            abi::UI_SET_PROPBIT,
+        ] {
             assert_eq!(request, iow((request & 0xFF) as u8, 4));
         }
     }

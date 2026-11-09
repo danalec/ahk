@@ -132,12 +132,21 @@ impl Entry {
     /// class of its row, because v2 spells the same name in two classes
     /// and the two are two places.
     pub fn full_name(&self) -> String {
-        if self.class.is_empty() { self.name.to_string() } else { format!("{}.{}", self.class, self.name) }
+        if self.class.is_empty() {
+            self.name.to_string()
+        } else {
+            format!("{}.{}", self.class, self.name)
+        }
     }
 
     /// The line of the report: the name, the kind and the state.
     pub fn line(&self) -> String {
-        format!("{} {} {}", self.full_name(), self.kind.as_str(), self.state.text())
+        format!(
+            "{} {} {}",
+            self.full_name(),
+            self.kind.as_str(),
+            self.state.text()
+        )
     }
 }
 
@@ -189,7 +198,12 @@ pub fn entries_of(dialect: &'static dyn Dialect) -> Vec<Entry> {
         .map(|row| {
             let kind = Kind::of(row[0]);
             let (class, name) = (row[1], row[2]);
-            Entry { kind, class, name, state: state_of(dialect, kind, class, name, pending) }
+            Entry {
+                kind,
+                class,
+                name,
+                state: state_of(dialect, kind, class, name, pending),
+            }
         })
         .collect()
 }
@@ -201,8 +215,13 @@ pub fn summary(entries: &[Entry]) -> Summary {
 
 /// The counts of the states of the surface of the dialect.
 pub fn summary_of(entries: &[Entry], dialect: &'static dyn Dialect) -> Summary {
-    let mut summary =
-        Summary { dialect: dialect.name(), total: entries.len(), values: 0, refusals: 0, pending: 0 };
+    let mut summary = Summary {
+        dialect: dialect.name(),
+        total: entries.len(),
+        values: 0,
+        refusals: 0,
+        pending: 0,
+    };
     for entry in entries {
         match entry.state {
             State::Value => summary.values += 1,
@@ -311,10 +330,7 @@ fn state_of(
 ///
 /// The name is matched the way AutoHotkey matches it: without regard to
 /// the case.
-fn the_builtin_of(
-    dialect: &'static dyn Dialect,
-    name: &str,
-) -> Option<&'static builtins::Builtin> {
+fn the_builtin_of(dialect: &'static dyn Dialect, name: &str) -> Option<&'static builtins::Builtin> {
     let wanted = name.to_lowercase();
     dialect
         .builtins()

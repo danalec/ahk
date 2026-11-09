@@ -30,9 +30,23 @@ const PROPERTIES: [&str; 4] = ["count", "capacity", "casesense", "__item"];
 /// The methods a map has: the ones of the class, and the ones every
 /// object has.
 const METHODS: [&str; 17] = [
-    "set", "get", "has", "delete", "clear", "clone", "__new", "__enum",
-    "ownprops", "hasownprop", "defineprop", "deleteprop", "getownpropdesc",
-    "hasprop", "hasmethod", "getmethod", "hasbase",
+    "set",
+    "get",
+    "has",
+    "delete",
+    "clear",
+    "clone",
+    "__new",
+    "__enum",
+    "ownprops",
+    "hasownprop",
+    "defineprop",
+    "deleteprop",
+    "getownpropdesc",
+    "hasprop",
+    "hasmethod",
+    "getmethod",
+    "hasbase",
 ];
 
 /// The names a map answers: its properties and its methods.
@@ -65,7 +79,10 @@ pub(crate) fn construct(
             line,
         }));
     }
-    let map = crate::classes::object_with("map", vec![(STATE, new_state(Vec::new(), CaseSense::On, 0))]);
+    let map = crate::classes::object_with(
+        "map",
+        vec![(STATE, new_state(Vec::new(), CaseSense::On, 0))],
+    );
     for pair in arguments.chunks(2) {
         set_pair(&map, &pair[0], pair[1].clone());
     }
@@ -82,7 +99,10 @@ pub(crate) fn call(
 ) -> Option<Result<Value, RuntimeFailure>> {
     let method = method.to_lowercase();
     let failure = |message: &str| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
+        Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: message.to_string(),
+            line,
+        })))
     };
     // The failure of a member that complains about a value carries the
     // value in the `Extra` of the error.
@@ -102,7 +122,9 @@ pub(crate) fn call(
             Some(Ok(this.clone()))
         }
         "get" => {
-            let Some(key) = arguments.first() else { return failure("Too few parameters passed to function.") };
+            let Some(key) = arguments.first() else {
+                return failure("Too few parameters passed to function.");
+            };
             match find(this, key) {
                 Some(value) => Some(Ok(value)),
                 // The default of the call comes first, and then the default
@@ -117,16 +139,25 @@ pub(crate) fn call(
             }
         }
         "has" => {
-            let Some(key) = arguments.first() else { return failure("Too few parameters passed to function.") };
+            let Some(key) = arguments.first() else {
+                return failure("Too few parameters passed to function.");
+            };
             Some(Ok(Value::Int(find(this, key).is_some() as i64)))
         }
         "delete" => {
-            let Some(key) = arguments.first() else { return failure("Too few parameters passed to function.") };
-            let Some(state) = state(this) else { return failure("Item has no value.") };
+            let Some(key) = arguments.first() else {
+                return failure("Too few parameters passed to function.");
+            };
+            let Some(state) = state(this) else {
+                return failure("Item has no value.");
+            };
             let mut state = state.borrow_mut();
             let sense = case_sense(&state);
             let mut pairs = entries(&state);
-            let Some(index) = pairs.iter().position(|(existing, _)| same_key(existing, key, sense)) else {
+            let Some(index) = pairs
+                .iter()
+                .position(|(existing, _)| same_key(existing, key, sense))
+            else {
                 return failure_with("Item has no value.", &key.to_text());
             };
             let (_, value) = pairs.remove(index);
@@ -151,7 +182,10 @@ pub(crate) fn call(
                 return Some(Ok(enumerator::make(Vec::new(), enumerator::Alone::TheKey)));
             };
             let state = state.borrow();
-            Some(Ok(enumerator::make(entries(&state), enumerator::Alone::TheKey)))
+            Some(Ok(enumerator::make(
+                entries(&state),
+                enumerator::Alone::TheKey,
+            )))
         }
         _ => base_method(&method, this, arguments, rt, line),
     }
@@ -183,7 +217,9 @@ pub(crate) fn property(
     match name {
         "count" => Some(Ok(Value::Int(entries(&state).len() as i64))),
         "capacity" => Some(Ok(Value::Int(capacity(&state)))),
-        "casesense" => Some(Ok(Value::Text(case_sense_text(case_sense(&state)).to_string()))),
+        "casesense" => Some(Ok(Value::Text(
+            case_sense_text(case_sense(&state)).to_string(),
+        ))),
         _ => None,
     }
 }
@@ -197,7 +233,10 @@ pub(crate) fn set_property(
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
     let failure = |message: &str| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
+        Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: message.to_string(),
+            line,
+        })))
     };
     // The failure of a member that complains about a value carries the
     // value in the `Extra` of the error.
@@ -267,7 +306,9 @@ pub(crate) fn item(
 
 /// The state of a map.
 fn state(map: &Value) -> Option<Rc<RefCell<Object>>> {
-    let Value::Object(object) = map else { return None };
+    let Value::Object(object) = map else {
+        return None;
+    };
     let state = object.borrow().value_of(STATE)?;
     match state {
         Value::Object(state) => Some(state),
@@ -278,7 +319,10 @@ fn state(map: &Value) -> Option<Rc<RefCell<Object>>> {
 /// A new state: the entries, the way the keys are compared, and how many
 /// of them fit.
 fn new_state(pairs: Vec<(Value, Value)>, sense: CaseSense, capacity: i64) -> Value {
-    let mut state = Object { class: STATE_CLASS.to_string(), properties: BTreeMap::new() };
+    let mut state = Object {
+        class: STATE_CLASS.to_string(),
+        properties: BTreeMap::new(),
+    };
     set_entries(&mut state, pairs);
     set_case_sense(&mut state, sense);
     set_capacity(&mut state, capacity);
@@ -287,7 +331,9 @@ fn new_state(pairs: Vec<(Value, Value)>, sense: CaseSense, capacity: i64) -> Val
 
 /// The entries of a map: the pairs, in the order they were put in.
 fn entries(state: &Object) -> Vec<(Value, Value)> {
-    let Some(Value::List(items)) = state.value_of("entries") else { return Vec::new() };
+    let Some(Value::List(items)) = state.value_of("entries") else {
+        return Vec::new();
+    };
     items
         .iter()
         .map(|entry| match entry {
@@ -308,7 +354,10 @@ fn set_entries(state: &mut Object, pairs: Vec<(Value, Value)>) {
 
 /// The way the keys of a map are compared.
 fn case_sense(state: &Object) -> CaseSense {
-    let setting = state.value_of("casesense").map(|value| value.to_text()).unwrap_or_default();
+    let setting = state
+        .value_of("casesense")
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     match setting.to_lowercase().as_str() {
         "off" => CaseSense::Off,
         "locale" => CaseSense::Locale,
@@ -318,7 +367,11 @@ fn case_sense(state: &Object) -> CaseSense {
 
 /// The way the keys of a map are compared, written.
 fn set_case_sense(state: &mut Object, sense: CaseSense) {
-    put(&mut state.properties, "casesense", Value::Text(case_sense_text(sense).to_string()));
+    put(
+        &mut state.properties,
+        "casesense",
+        Value::Text(case_sense_text(sense).to_string()),
+    );
 }
 
 /// How many entries a map holds before it has to grow.
@@ -375,7 +428,9 @@ fn find(map: &Value, key: &Value) -> Option<Value> {
 /// The default of a map: the value the script gave to the `Default`
 /// property, when it gave one.
 fn default_property(map: &Value) -> Option<Value> {
-    let Value::Object(object) = map else { return None };
+    let Value::Object(object) = map else {
+        return None;
+    };
     object.borrow().value_of("default")
 }
 
@@ -388,7 +443,10 @@ fn set_pair(map: &Value, key: &Value, value: Value) {
     let mut state = state.borrow_mut();
     let sense = case_sense(&state);
     let mut pairs = entries(&state);
-    match pairs.iter().position(|(existing, _)| same_key(existing, key, sense)) {
+    match pairs
+        .iter()
+        .position(|(existing, _)| same_key(existing, key, sense))
+    {
         Some(index) => pairs[index].1 = value,
         None => pairs.push((key.clone(), value)),
     }
@@ -423,7 +481,10 @@ fn clone(map: &Value) -> Value {
             }
         }
     }
-    Value::Object(Rc::new(RefCell::new(Object { class: "map".to_string(), properties })))
+    Value::Object(Rc::new(RefCell::new(Object {
+        class: "map".to_string(),
+        properties,
+    })))
 }
 
 // -- the keys -----------------------------------------------------------------
@@ -437,7 +498,9 @@ fn same_key(left: &Value, right: &Value, sense: CaseSense) -> bool {
     match (left, right) {
         (Value::Object(left), Value::Object(right)) => Rc::ptr_eq(left, right),
         (Value::Object(_), _) | (_, Value::Object(_)) => false,
-        (Value::Float(_), _) | (_, Value::Float(_)) => same_text(&left.to_text(), &right.to_text(), sense),
+        (Value::Float(_), _) | (_, Value::Float(_)) => {
+            same_text(&left.to_text(), &right.to_text(), sense)
+        }
         (Value::Int(left), Value::Int(right)) => left == right,
         (Value::Text(left), Value::Text(right)) => same_text(left, right, sense),
         // A string key is never an integer key.
@@ -468,11 +531,19 @@ fn base_method(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
-    let Value::Object(object) = this else { return None };
-    let failure = |message: &str| {
-        Some(Err(RuntimeFailure::Error(RuntimeError { message: message.to_string(), line })))
+    let Value::Object(object) = this else {
+        return None;
     };
-    let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+    let failure = |message: &str| {
+        Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: message.to_string(),
+            line,
+        })))
+    };
+    let name = arguments
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
     let key = name.to_lowercase();
     match method {
         "ownprops" => {
@@ -517,7 +588,10 @@ fn base_method(
                 || key == "__init") as i64,
         ))),
         "getownpropdesc" => {
-            let name = arguments.first().map(|value| value.to_text()).unwrap_or_default();
+            let name = arguments
+                .first()
+                .map(|value| value.to_text())
+                .unwrap_or_default();
             let value = object.borrow().value_of(&key);
             match value {
                 Some(value) => {
@@ -560,7 +634,11 @@ fn base_method(
             if key == STATE {
                 return Some(Ok(Value::Text(String::new())));
             }
-            let gone = object.borrow_mut().properties.remove(&key).map(|property| property.value);
+            let gone = object
+                .borrow_mut()
+                .properties
+                .remove(&key)
+                .map(|property| property.value);
             // Measured on the binary of v2.0.19 on 2026-10-31: the answer
             // is the value of the property that is taken away, and an
             // empty text when there was none.

@@ -78,7 +78,11 @@ pub(crate) fn the_refusal_of_a_goto(
     }
     // The jump that leaves the function: the label has to be inside the
     // function that the jump is in.
-    let function = chain.iter().rev().find(|block| block.function).map(|block| block.id);
+    let function = chain
+        .iter()
+        .rev()
+        .find(|block| block.function)
+        .map(|block| block.id);
     if let Some(function) = function {
         let inside = chain_of_the_label
             .iter()

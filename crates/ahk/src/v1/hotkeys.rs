@@ -81,7 +81,7 @@ pub(crate) struct TheName {
 /// The combination of two keys -- the `RCtrl & RShift` -- is a hotkey of its
 /// own: the two keys are the ones of it, and a modifier is not one of them.
 pub(crate) fn the_name_of_a_hotkey(name: &str) -> Option<TheName> {
-    let mut rest = name;    // The prefixes. The order of them does not matter, and the `$` and the
+    let mut rest = name; // The prefixes. The order of them does not matter, and the `$` and the
     // `~` do not make the hotkey another one.
     let mut wildcard = false;
     let mut tilde = false;
@@ -131,7 +131,10 @@ pub(crate) fn the_name_of_a_hotkey(name: &str) -> Option<TheName> {
         if up {
             identity.push('u');
         }
-        return Some(TheName { spelling: name.to_string(), identity });
+        return Some(TheName {
+            spelling: name.to_string(),
+            identity,
+        });
     }
     // The modifiers, with the side of the key that the `<` and the `>` name.
     let mut modifiers: Vec<String> = Vec::new();
@@ -185,7 +188,10 @@ pub(crate) fn the_name_of_a_hotkey(name: &str) -> Option<TheName> {
     if up {
         identity.push('u');
     }
-    Some(TheName { spelling: name.to_string(), identity })
+    Some(TheName {
+        spelling: name.to_string(),
+        identity,
+    })
 }
 
 /// The name of the key without the word "up", and whether the word was there.
