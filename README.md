@@ -8,6 +8,16 @@ and hotkeys.
 **The default dialect is AutoHotkey v2.** A second dialect, **AutoHotkey v1**,
 lives behind a flag and is described in detail below. One binary serves both.
 
+A script written for this tree can say so, and should:
+
+```ahk
+#Requires RustAhk v2
+```
+
+Mainline AutoHotkey refuses that line; this interpreter runs it. A script meant
+to run in both writes `#Requires AutoHotkey v2` instead. The whole of the rule
+is in [#Requires](#requires-telling-this-interpreter-apart).
+
 The names, the classes, the directives and the operators are read out of the
 reference binaries into tables under `crates/ahk/reference/`. Those tables are
 the contract: the test suite asks the tree about every name in them.
@@ -43,9 +53,10 @@ A v1 script needs `--dialect=v1`:
 printf 'MsgBox, hello\n' | ahk --dialect=v1
 ```
 
-## Telling this interpreter apart
+## #Requires: telling this interpreter apart
 
-A script can say which implementation it needs, at the top:
+A script says which implementation it needs, on a line of its own, before
+anything else:
 
 ```ahk
 #Requires RustAhk v2
@@ -62,8 +73,13 @@ answers to `RustAhk` and to `AutoHotkey`, so:
 
 The name of the interpreter is compared without regard to case, and an
 argument that names a dialect this run does not speak is refused with the
-whole line and the interpreter it is. The suggestion for the line came from
-g.ahk on Discord.
+whole line and the interpreter it is:
+
+```
+This script requires RustAhk v1. Current interpreter: RustAhk v2.
+```
+
+The suggestion for the line came from g.ahk on Discord.
 
 Other flags:
 
