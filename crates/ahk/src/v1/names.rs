@@ -950,6 +950,83 @@ pub(crate) fn func(
     Ok(Value::Int(0))
 }
 
+/// `OnError(Callback)`: the handler of the errors of the script.
+///
+/// Measured on the binary of v1.1.37.02: the callback of the v1 is a
+/// **name**, and the documentation says so -- `OnError("Handler")` takes
+/// the name of a function in quotes, and the old label form is refused.
+/// The v2 is the other way round: it takes the object of the function, and a
+/// text is refused with "requires an Object, but received a String.".
+///
+/// The name resolves to the function of the script, and the reference to it
+/// is kept the way the v2 keeps its own. A name that is not a function of the
+/// script is not a failure of the load, either: the handler is registered and
+/// it is the run that says so, as the v1 does.
+pub(crate) fn on_error(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = values.first();
+    // The v2 form is taken as it is, so that a script that hands over the
+    // object of the function still works.
+    if let Some(Value::Object(object)) = value {
+        if object.borrow().class == "func" {
+            let callback = rt.the_callback(value, "OnError", line)?;
+            let order = the_order_of_the_handler(values.get(1), line)?;
+            match order {
+                1 => rt.set_error_callback(&callback.name, line),
+                -1 => {
+                    rt.set_error_callback(&callback.name, line);
+                    rt.order_error_callback(&callback.name, true);
+                }
+                _ => rt.remove_error_callback(&callback.name),
+            }
+            return Ok(Value::Int(1));
+        }
+    }
+    let name = value.map(|value| value.to_text()).unwrap_or_default();
+    if name.is_empty() {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "OnError"),
+            line,
+        });
+    }
+    // The name of the callback is the name of the function as the script
+    // wrote it, and the order is the second parameter of the v2.
+    let order = the_order_of_the_handler(values.get(1), line)?;
+    match order {
+        1 => rt.set_error_callback(&name, line),
+        -1 => {
+            rt.set_error_callback(&name, line);
+            rt.order_error_callback(&name, true);
+        }
+        _ => rt.remove_error_callback(&name),
+    }
+    Ok(Value::Int(1))
+}
+
+/// The order of the handler of the v1: 1, -1 or 0.
+///
+/// The v1 has no order of its own, and the number is the one of the v2: the
+/// parameter that is not there is 1, and a value that is not a number is
+/// refused with the reason of the parameter.
+fn the_order_of_the_handler(
+    value: Option<&Value>,
+    line: u32,
+) -> Result<i32, RuntimeError> {
+    let Some(value) = value else { return Ok(1) };
+    if value.to_text().is_empty() {
+        return Ok(1);
+    }
+    let number = value.to_number_strict().map_err(|_| RuntimeError {
+        message: crate::runtime::wants_a_reference(2, "OnError", "a Number", value),
+        line,
+    })?;
+    Ok(number as i32)
+}
+
 /// `FileReadLine, name, file, n`: the n-th line of a file.
 ///
 /// Measured on the binary of v1.1.37.02 on 2026-11-02: the command wants

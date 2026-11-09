@@ -1068,7 +1068,7 @@ fn the_arity_failure_of_a_constructor(
 /// they. The hotkey is the one that is not a name of its own: the name
 /// `Hotkey` is a function of the dialect, and the class of a hotkey is
 /// the class of the object that the function makes.
-pub(crate) const TYPES: [&str; 20] = [
+pub(crate) const TYPES: [&str; 25] = [
     "any",
     "array",
     "boundfunc",
@@ -1081,14 +1081,19 @@ pub(crate) const TYPES: [&str; 20] = [
     "enumerator",
     "error",
     "file",
+    "float",
     "func",
     "gui",
     "hotkey",
     "inputhook",
+    "integer",
     "map",
     "menu",
+    "number",
     "object",
+    "primitive",
     "regexmatchinfo",
+    "string",
 ];
 
 /// Whether the name is a class type of the runtime.
@@ -1235,8 +1240,15 @@ pub(crate) fn the_base_class_of_a_class(class: &str) -> Option<&'static str> {
     if class == "any" {
         return None;
     }
-    if class == "object" {
+    if class == "object" || class == "primitive" {
         return Some("any");
+    }
+    // The primitive types of v2 are a tree of their own: the `Number` and the
+    // `String` are `Primitive`, and the `Integer` and the `Float` are
+    // `Number`. Measured on the binary of v2.0.19: `3 is Number` and `3 is
+    // Primitive` are one, and `1.5 is Integer` is zero.
+    if let Some(base) = the_base_of_the_primitive(&class) {
+        return Some(base);
     }
     // The errors of v2 are a tree of their own, and the enumerator is a
     // function of its own kind: the two have a base of their own.
@@ -1244,6 +1256,30 @@ pub(crate) fn the_base_class_of_a_class(class: &str) -> Option<&'static str> {
         return Some(base);
     }
     Some("object")
+}
+
+/// The base of a primitive type of v2.
+///
+/// Measured on the binary of the v2.0.19: the `Primitive` is under the
+/// `Any`, the `Number` and the `String` are under the `Primitive`, and the
+/// `Integer` and the `Float` are under the `Number`.
+fn the_base_of_the_primitive(class: &str) -> Option<&'static str> {
+    match class {
+        "number" | "string" => Some("primitive"),
+        "integer" | "float" => Some("number"),
+        "primitive" => Some("any"),
+        _ => None,
+    }
+}
+
+/// The base of a primitive type of v2, for the chain of the `is`.
+///
+/// It is the function the runtime walks the chain with when it meets a name
+/// that is not a class of the script and not a class type of the tree: the
+/// `Integer` and the `Float` are under the `Number`, the `Number` and the
+/// `String` under the `Primitive`, and the `Primitive` under the `Any`.
+pub(crate) fn the_base_of_the_primitive_of_the_class(class: &str) -> Option<&'static str> {
+    the_base_of_the_primitive(&class.to_lowercase())
 }
 
 /// The class a class type of the runtime derives from.

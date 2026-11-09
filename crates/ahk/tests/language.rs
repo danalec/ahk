@@ -3403,7 +3403,7 @@ fn every_value_carries_its_class() {
     // Measured on the binary of v2.0.19 on 2026-10-30: every value
     // carries its class, and the `__Class` of it is the name of it.
     let (report, _desktop) = run(
-        "number := 5\nfloat := 5.5\ntext := \"text\"\nlist := [1]\nMsgBox number.__Class \" \" float.__Class \" \" text.__Class \" \" list.__Class",
+        "whole := 5\nfrac := 5.5\ntext := \"text\"\nlist := [1]\nMsgBox whole.__Class \" \" frac.__Class \" \" text.__Class \" \" list.__Class",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["Integer Float String Array"]);

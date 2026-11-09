@@ -253,15 +253,15 @@ fn the_surface_flag_answers_with_json() {
     let (code, report) = surface_json("v2");
     assert_eq!(code, 0);
     assert_eq!(report["dialect"], "v2");
-    assert_eq!(report["total"], 828);
-    assert_eq!(report["values"], 638);
+    assert_eq!(report["total"], 833);
+    assert_eq!(report["values"], 643);
     assert_eq!(report["refusals"], 190);
     assert_eq!(report["pending"], 0);
 
     let entries = report["entries"]
         .as_array()
         .expect("the entries are a list");
-    assert_eq!(entries.len(), 828);
+    assert_eq!(entries.len(), 833);
     // A name that the tree answers is a value, and a name that the tree
     // refuses carries the reason of the refusal.
     let abs = entries

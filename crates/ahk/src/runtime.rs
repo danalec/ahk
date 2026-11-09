@@ -4507,7 +4507,12 @@ impl<'a> Runtime<'a> {
                 // The class types of the runtime have their own bases: the
                 // errors of v2 are a tree, and every one of them is an
                 // `Error`.
-                None => crate::classes::the_base_of(&class).map(|base| base.to_string()),
+                None => crate::classes::the_base_of(&class).or_else(|| {
+                    // The primitive types of v2 are a tree of their own,
+                    // and the chain of them is the one of the `is`.
+                    crate::classes::the_base_of_the_primitive_of_the_class(&class)
+                })
+                .map(|base| base.to_string()),
             };
         }
         chain
@@ -12081,8 +12086,18 @@ impl<'a> Runtime<'a> {
                                 // of the chain of the classes.
                                 class == "object" || self.class_chain(&name).contains(&class)
                             }
-                            // A number and a text are not objects.
-                            _ => false,
+                            // A number and a text are not objects, and v2
+                            // still knows their classes: `3 is Integer` is
+                            // one and `3 is Object` is zero. The class of the
+                            // value is the one of the kinds of v2, and the
+                            // chain of it goes up through the `Number` and
+                            // the `Primitive` to the `Any`.
+                            _ => {
+                                let name = left_value.type_name().name().to_lowercase();
+                                class == "any"
+                                    || class == name
+                                    || self.class_chain(&name).contains(&class)
+                            }
                         };
                         Value::Int(answer as i64)
                     }

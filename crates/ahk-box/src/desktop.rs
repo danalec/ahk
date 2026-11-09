@@ -793,6 +793,13 @@ impl ahk::desktop::Windows for LabDesktop {
             return self.wayland_exists(title, mode);
         }
 
+        // A host that is not Linux has neither the compositor nor an X
+        // server to ask, and it says that instead of running the X tools the
+        // box has.
+        if !cfg!(target_os = "linux") && x_display().is_none() {
+            return Ok(WindowAnswer::Unknown(no_window_list_reason()));
+        }
+
         // The X server of this box is the rootless Xwayland of gamescope,
         // and it reports an empty client list: there is no way to ask it
         // which windows exist.
@@ -823,11 +830,7 @@ impl ahk::desktop::Windows for LabDesktop {
 
         let display = x_display();
         let Some(display) = display else {
-            return Err(
-                "there is no X server on this box to ask: the session is Wayland, and the \
-                 compositor exposes no window list to D-Bus."
-                    .to_string(),
-            );
+            return Err(no_window_list_reason());
         };
         let command =
             format!("DISPLAY={display} xprop -root _NET_ACTIVE_WINDOW 2>/dev/null || true");
@@ -1421,6 +1424,22 @@ fn x_display() -> Option<String> {
 /// Whether the session is Wayland.
 fn wayland_session() -> bool {
     std::env::var_os("WAYLAND_DISPLAY").is_some()
+}
+
+/// The reason the windows of the session cannot be listed.
+///
+/// The window list is a thing of the Linux box: the compositor of a Wayland
+/// session publishes it, and X11 is the other path. A host that is not Linux
+/// has neither, and it says so instead of describing a session it is not in.
+fn no_window_list_reason() -> String {
+    if cfg!(target_os = "linux") {
+        return "there is no X server on this box to ask: the session is Wayland, and the \
+                compositor exposes no window list to D-Bus."
+            .to_string();
+    }
+    "the windows of the desktop are a thing of the Linux box: this host has neither the \
+     compositor of a Wayland session nor an X server to ask."
+        .to_string()
 }
 
 /// The client of the compositor, opened when it is first needed.

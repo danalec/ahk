@@ -310,7 +310,7 @@ fn a_file_writes_a_number_and_reads_it_back() {
     let mut desktop = Fake::default();
     let report = run(
         &mut desktop,
-        "f := FileOpen(\"nums.bin\", \"w\")\nwritten := f.WriteUInt(42)\nf.Close()\ng := FileOpen(\"nums.bin\", \"r\")\nnumber := g.ReadUInt()\nMsgBox \"%written% %number%\"",
+        "f := FileOpen(\"nums.bin\", \"w\")\nwritten := f.WriteUInt(42)\nf.Close()\ng := FileOpen(\"nums.bin\", \"r\")\nvalue := g.ReadUInt()\nMsgBox \"%written% %value%\"",
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["4 42"]);
@@ -392,7 +392,7 @@ fn a_read_past_the_end_of_a_file_fails() {
     let (report, _desktop) = run_with_file(
         "notes.txt",
         "one\n",
-        "f := FileOpen(\"notes.txt\", \"r\")\nf.Read(4)\nnumber := f.ReadUInt()",
+        "f := FileOpen(\"notes.txt\", \"r\")\nf.Read(4)\nvalue := f.ReadUInt()",
     );
     assert!(!report.ok);
     assert_eq!(

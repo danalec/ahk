@@ -174,10 +174,11 @@ pub fn folders() -> Result<Folders, String> {
         .ok()
         .filter(|value| !value.is_empty())
         .or_else(|| home.as_ref().map(|home| format!("{home}/.config")));
-    let temp = std::env::var("TMPDIR")
-        .ok()
-        .filter(|value| !value.is_empty())
-        .or_else(|| Some("/tmp".to_string()));
+    // The folder of the temporary files. On a Linux box it is `TMPDIR` and
+    // then `/tmp`; on another platform the machine knows its own folder, and
+    // the answer is the one of the platform: a Windows host that has a `/tmp`
+    // of its own (the one of the shell) still wants `%TEMP%` here.
+    let temp = the_folder_of_the_temporary_files();
     Ok(Folders {
         app_data: on_the_disk(data.clone()),
         app_data_common: on_the_disk(Some("/usr/share".to_string())),
@@ -268,6 +269,24 @@ fn on_the_disk(path: Option<String>) -> Option<String> {
     } else {
         None
     }
+}
+
+/// The folder of the temporary files of the machine.
+///
+/// `TMPDIR` is the one of the session on a Linux box, and `/tmp` is the
+/// folder every one of them has. Another machine -- a Windows host -- knows
+/// its own folder, and it is the answer there: a host that carries the
+/// `/tmp` of a shell is still a host whose temporary files are `%TEMP%`.
+fn the_folder_of_the_temporary_files() -> Option<String> {
+    if let Some(value) = std::env::var("TMPDIR").ok().filter(|value| !value.is_empty()) {
+        return Some(value);
+    }
+    if cfg!(target_os = "linux") {
+        return Some("/tmp".to_string());
+    }
+    let folder = std::env::temp_dir();
+    let folder = folder.to_string_lossy().to_string();
+    if folder.is_empty() { None } else { Some(folder) }
 }
 
 /// How long the session has been idle, in milliseconds.

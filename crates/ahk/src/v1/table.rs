@@ -1457,7 +1457,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 2,
         variant: 0,
         parameters: &[Parameter::Value, Parameter::Value],
-        handler: on_error,
+        handler: super::on_error,
     },
     Builtin {
         name: "OnMessage",

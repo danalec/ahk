@@ -35,6 +35,7 @@ mod sub_commands;
 mod table;
 mod variables;
 
+pub(crate) use names::on_error;
 pub(crate) use names::the_command_has_a_body;
 pub(crate) use names::the_command_is_the_else;
 pub(crate) use names::the_place_of_the_argument_that_wants_the_name;

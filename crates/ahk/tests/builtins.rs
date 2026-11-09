@@ -882,9 +882,9 @@ fn a_blank_delimiter_makes_a_piece_of_every_character() {
 fn a_text_that_is_empty_has_no_piece() {
     // Measured on the binary of v2.0.19 on 2026-10-31: a text that is empty
     // has no piece at all, and the piece that is empty is not a piece.
-    let report = run("pieces := StrSplit(\"\", \",\")\nnumber := pieces.Length");
+    let report = run("pieces := StrSplit(\"\", \",\")\ncount := pieces.Length");
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(int_of(&report, "number"), 0);
+    assert_eq!(int_of(&report, "count"), 0);
 }
 
 #[test]
