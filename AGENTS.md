@@ -1965,6 +1965,8 @@ with the reason.
 - **The sound is a capability of its own.** The trait `Sound` is in
   `ahk::desktop`, and the `Desktop` trait grew by naming it: the sum is
   twelve capabilities now, and every implementor writes the twelve.
+  (Twelve was the count of this block; three capabilities were added later,
+  and the sum is fifteen now -- see "Code style".)
 - **The mixer of the session is the source.** The box runs PulseAudio on
   PipeWire (measured on 2026-10-29), and `pactl` answers the volume and
   the mute of a sink. The device that the script does not name is the
@@ -2062,7 +2064,9 @@ coming.
 
 Measured on the box on 2026-10-29: the flag printed 725 lines and the
 summary `the surface of v2 has 725 entries: 506 answer with a value, 219
-are refused, 0 are pending`.
+are refused, 0 are pending`. (These are the numbers of this block; the
+surface grew after it, and it is 828 entries with 638 values and 190
+refusals now. `ahk --surface` prints the current numbers.)
 
 ## 30. The tables of the binary put seven names in the wrong place
 
@@ -2108,7 +2112,8 @@ computer, of the session and of the script.
   asks for the name of the user, the name of the computer, the shell of the
   session, the folders of the machine, the version of the operating system,
   the language of the session, whether the script is elevated and how long
-  the session has been idle.
+  the session has been idle. (Twelve was the count of this block; it is
+  fifteen now.)
 - **The folders of the machine are the XDG base directories.** A Linux machine
   has `~/.local/share`, `~/.config`, `/usr/share` and `/etc/xdg`, and the
   names of v2 that ask for a folder of Windows ask for the one that is

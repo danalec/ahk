@@ -10,10 +10,16 @@ The short version, and the one to read first: **the backend is a Linux
 desktop.** Its keyboard is a uinput device, its pointer is a uinput
 device, its screen is read with `grim`, its dialogs are `zenity`, its
 sound is `pactl`. On a host that is not Linux the crate still compiles and
-every one of those actions answers `NotLinux` or a reason of its own --
-it does not answer a wrong value and it does not answer `false`. That
-refusal is honest and it is worth knowing, because it is what a script
-gets on a Windows workstation.
+every one of those actions answers a reason -- `NotLinux` when the
+primitive is a kernel device, or the failure of the program the primitive
+shells out to (`grim failed: sh: line 0: grim: not found`) when it is
+not. It does not answer a wrong value and it does not answer `false`.
+That refusal is honest and it is worth knowing, because it is what a
+script gets on a Windows workstation.
+
+Three capabilities work on any host, because they are the program's and
+not the desktop's: the files, the network (`curl`) and the native calls
+(the library of the host itself). Everything else needs the box.
 
 - [The fifteen capabilities](#the-fifteen-capabilities)
 - [The keyboard](#the-keyboard)
@@ -372,12 +378,11 @@ the questions fall to the X11 path, which asks `xprop`:
 has no display to ask at all:
 
 ```json
-{"error":"there is no X server on this box to ask: the session is Wayland, and the compositor exposes no window list to D-Bus.","optimal":false,...}
+{"elapsed_ms":0,"error":"there is no X server on this box to ask: the session is Wayland, and the compositor exposes no window list to D-Bus.","error_line":1,"exit_code":null,"notes":["no uid on this platform; the session environment is unknown"],"ok":false,"output":[],"steps":[],"variables":{"a_linenumber":1},"warnings":[]}
 ```
 
-(That line is cut to the two fields that matter; the real report has all
-of them.) The reason is a Linux reason on a Windows host, because the X11
-fallback is the Linux one and it does not know that the host is Windows.
+The reason is a Linux reason on a Windows host, because the X11 fallback
+is the Linux one and it does not know that the host is Windows.
 That is one of the places where the report is honest about the backend
 and not about the host.
 
@@ -458,9 +463,13 @@ On a host without the mixer the reason is the shell's:
 
 and `SoundBeep` fails at the player, after it has written its tone:
 
-```json
-{"error":"the mixer could not play \"/tmp/ahk-tone-7194206897089.wav\": sh: line 0: paplay: not found",...}
 ```
+the mixer could not play "/tmp/ahk-tone-<millis>.wav": sh: line 0: paplay: not found
+```
+
+The name of the tone file carries the milliseconds since the epoch, so the
+reason is different on every run. The file is removed even when the
+player failed.
 
 ## The dialogs
 
@@ -555,7 +564,28 @@ encoding says so and UTF-8 otherwise.
 box does it with `curl`. The answer is the empty text, because that is
 what v2 answers.
 
-Two things are v2's and not the tool's:
+`curl` is a program of the machine and not of the desktop, so this is the
+second capability that works on a host that is not the box -- the first
+being the files. Measured on this workstation:
+
+```pwsh
+'Download("https://example.com/x", "dl-probe.html")' | target\debug\ahk.exe
+```
+
+```json
+{"elapsed_ms":66,"error":null,"error_line":null,"exit_code":null,"notes":["no uid on this platform; the session environment is unknown"],"ok":true,"output":[],"steps":[{"detail":"","elapsed_ms":66,"line":1,"ok":true,"op":"Download"}],"variables":{"a_linenumber":1},"warnings":[]}
+```
+
+The file was on the disk afterwards. The `detail` of the step is the empty
+text: the answer of the name is nothing.
+
+On a machine without `curl` the reason is its own:
+
+```
+curl is not on this machine, and the box has no other way to the network
+```
+
+Three things are v2's and not the tool's:
 
 - **A file that is not there on the network is not a failure.** The
   server sends its page of the error, and that page is what is written.
@@ -894,7 +924,7 @@ the one thing that differs, and it differs a lot.
 | Sound | `pactl` / `paplay` | The same commands | `pactl: not found` |
 | Dialogs | `zenity` | `zenity` | `zenity is not on this machine` |
 | Files | The filesystem | The filesystem | The filesystem -- works |
-| Network | `curl` | `curl` | Uses the desktop's network |
+| Network | `curl` | `curl` | `curl` -- works |
 | Hotkeys | A watched `/dev/input/eventN` | The X11 keys of the server | `the hotkeys of this box watch a Linux device; this is not Linux` |
 | Native calls | `dlopen` / `dlsym` | `dlopen` / `dlsym` | `LoadLibraryW` / `GetProcAddress` -- works |
 | Libraries of Windows | The raven | The raven | Called directly; there is no raven |

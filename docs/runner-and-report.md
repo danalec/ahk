@@ -9,8 +9,7 @@ This document is about the runner itself -- the command, the flags, the
 report, the guard rails, the surface command, the exit codes, the pid
 file and `#Include`. The language is `README.md` and the names are
 `docs/v2-reference.md` and `docs/v1-reference.md`; the machine the script
-drives is the `ahk-box` crate (`../crates/ahk-box/`), whose `desktop`
-module is the backend.
+drives is [the desktop backend](desktop-backend.md).
 
 - [The command](#the-command)
 - [The flags](#the-flags)
@@ -46,8 +45,10 @@ The report of that run is one line of JSON:
 {"elapsed_ms":0,"error":null,"error_line":null,"exit_code":null,"notes":["no uid on this platform; the session environment is unknown"],"ok":true,"output":["hello from the box"],"steps":[{"detail":"hello from the box","elapsed_ms":0,"line":1,"ok":true,"op":"MsgBox"}],"variables":{"a_linenumber":1},"warnings":[]}
 ```
 
-The keys of the object are in the order serde writes a `BTreeMap`, so
-they are alphabetical and not the order of the table below.
+The keys of the object come out in alphabetical order -- `elapsed_ms`,
+`error`, `error_line`, `exit_code`, `notes`, `ok`, `output`, `steps`,
+`variables`, `warnings` -- and that is the order of the examples here. Read
+a report by its keys and not by their places.
 
 ## The flags
 
@@ -578,15 +579,44 @@ thing to know about it:
 - **`error_line` is null.** The timeout stops the script between two
   statements, so it knows no line, and the report says so.
 
-A script that runs for longer than the timeout and is still running when
-a statement begins stops there:
+A script that runs for longer than the timeout stops when the next
+statement begins. This script is a loop that sleeps 50 ms a turn, under a
+timeout of one second:
 
-```json
-{"elapsed_ms":...,"error":"the script ran for more than 2s","error_line":null,"exit_code":null,"notes":["..."],"ok":false,"output":[],"steps":[...],"variables":{...},"warnings":[]}
+```ahk
+i := 0
+while true {
+  i := i + 1
+  Sleep 50
+}
 ```
 
-The number in the message is the timeout as a number of seconds with its
-fraction, so `--timeout=2.5` says `2.5s`.
+```pwsh
+@'
+i := 0
+while true {
+  i := i + 1
+  Sleep 50
+}
+'@ | target\debug\ahk.exe --timeout=1
+```
+
+The nineteen turns that completed are in `steps`, and the twentieth is
+not, because the check before it is the one that failed:
+
+```json
+{"elapsed_ms":1007,"error":"the script ran for more than 1s","error_line":null,"exit_code":null,"notes":["no uid on this platform; the session environment is unknown"],"ok":false,"output":[],"steps":[{"detail":"i = 0","elapsed_ms":0,"line":1,"ok":true,"op":"Assign"},{"detail":"i = 1","elapsed_ms":0,"line":3,"ok":true,"op":"Assign"},{"detail":"50","elapsed_ms":50,"line":4,"ok":true,"op":"Sleep"}],"variables":{"a_index":21,"a_linenumber":3,"i":20},"warnings":[]}
+```
+
+(The `steps` array above is cut to its first three members; the real run
+has 41.)
+
+The `elapsed_ms` of the run is 1007 and not 1000: the check happens at the
+start of a statement, so the run overshoots the timeout by the statement
+it had already started.
+
+The number in the message is the timeout as a number of seconds, with a
+fraction when the flag had one: `--timeout=2.5` says `2.5s`.
 
 The timeout is measured by the same clock as `A_TickCount` and as the
 `elapsed_ms` of the report. A host that embeds the runtime hands its own
@@ -597,5 +627,4 @@ clock in, and the timeout is measured by that one.
 The names of the dialect, and the state of each of them, are
 `docs/v2-reference.md` and `docs/v1-reference.md`. What the runner can do
 to the machine -- the keyboard, the pointer, the screen, the windows and
-the rest -- is the `ahk-box` crate (`../crates/ahk-box/`, the `desktop`
-module and the `wayland` and `x11` backends behind it).
+the rest -- is [the desktop backend](desktop-backend.md).
