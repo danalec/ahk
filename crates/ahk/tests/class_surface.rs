@@ -14,7 +14,7 @@
 //!
 //! The parts of a window -- a control, a list view, a status bar -- are
 //! not things a script can reach: the only way to one is a window, and a
-//! window is a Windows window. The module that owns them checks their
+//! window is made by a toolkit. The module that owns them checks their
 //! tables against the surface instead.
 
 use ahk::desktop::{

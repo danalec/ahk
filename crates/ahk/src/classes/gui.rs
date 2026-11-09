@@ -4,11 +4,14 @@
 //! `Gui.StatusBar` are the parts of one. The script calls the menu
 //! `Menu`, and the binary calls it `Gui.Menu`: they are one table.
 //!
-//! All of them are shaped for Windows. A window is a Windows window, and
-//! this desktop is a Wayland session without one, so the objects are made
-//! -- a script may hold them -- and every name of them answers with the
+//! All of them are shaped for a toolkit, and this runtime has none: a window
+//! is made by a GUI toolkit and not by a script runtime, so the objects are
+//! made -- a script may hold them -- and every name of them answers with the
 //! reason it cannot work here. A name that is not in the table is not a
 //! method of the class, and the runtime says so.
+//!
+//! The reason names no platform: the obstacle is the missing toolkit, and it
+//! is the same one on every system.
 
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -212,50 +215,53 @@ struct Windows {
 /// The classes of the windows.
 ///
 /// The reason is the same for all of them, and it is the reason of the
-/// whole family: a window is a Windows window, and this desktop is a
-/// Wayland session without one.
+/// whole family: a window is made by a toolkit, and this runtime has none.
+///
+/// The reason names no platform, because the obstacle is not one: the runtime
+/// makes no window on any system, and a message that said "this desktop is a
+/// Wayland session" was false on a Windows one.
 const CLASSES: &[Windows] = &[
     Windows {
         class: "gui",
         name: "Gui",
         surface: GUI,
-        reason: "a window is a Windows window, and this desktop is a Wayland session without one",
+        reason: "a window is made by a toolkit, and this runtime has no toolkit that makes one",
     },
     Windows {
         class: "menu",
         name: "Menu",
         surface: MENU,
-        reason: "a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a menu is the menu bar of a window, and this runtime has no toolkit that makes one",
     },
     Windows {
         class: "gui.menu",
         name: "Menu",
         surface: MENU,
-        reason: "a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a menu is the menu bar of a window, and this runtime has no toolkit that makes one",
     },
     Windows {
         class: "gui.control",
         name: "Gui.Control",
         surface: CONTROL,
-        reason: "a control is a control of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a control is a control of a window, and this runtime has no toolkit that makes one",
     },
     Windows {
         class: "gui.listview",
         name: "Gui.ListView",
         surface: LISTVIEW,
-        reason: "a list view is a control of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a list view is a control of a window, and this runtime has no toolkit that makes one",
     },
     Windows {
         class: "gui.statusbar",
         name: "Gui.StatusBar",
         surface: STATUSBAR,
-        reason: "a status bar is a control of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a status bar is a control of a window, and this runtime has no toolkit that makes one",
     },
     Windows {
         class: "gui.treeview",
         name: "Gui.TreeView",
         surface: TREEVIEW,
-        reason: "a tree view is a control of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a tree view is a control of a window, and this runtime has no toolkit that makes one",
     },
 ];
 
@@ -400,7 +406,7 @@ fn the_options_are_read(options: &str, line: u32) -> Result<(), RuntimeFailure> 
                 .iter()
                 .find(|entry| entry.class == "gui")
                 .map(|entry| entry.reason)
-                .unwrap_or("a window is a Windows window");
+                .unwrap_or("a window is made by a toolkit");
             return Err(RuntimeFailure::Detailed(
                 RuntimeError {
                     message: format!(
@@ -613,7 +619,7 @@ mod tests {
         for entry in CLASSES {
             assert!(!entry.surface.is_empty(), "{} has no names", entry.name);
             assert!(
-                entry.reason.contains("Wayland"),
+                entry.reason.contains("toolkit"),
                 "{} says no reason",
                 entry.name
             );

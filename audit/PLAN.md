@@ -788,6 +788,29 @@ Still wrong on Windows: `Gui.Show()` says *"this desktop is a Wayland session"*,
 which is a message of the `ahk` crate and not of the box. That is the rest of
 defect #7.
 
+### Round 18 — 2026-11-09: the GUI family stops naming a platform
+
+The rest of the audit's defect #7. Round 17 fixed the tools that the **box**
+shells out to; this is the other side of the crate boundary. The `Gui` family
+lives in the `ahk` crate, which is platform-agnostic and `no_std`, and its
+seven refusal reasons ended with *"and this desktop is a Wayland session
+without one"* — false on Windows, and false as a diagnosis on the box too,
+because the obstacle is not the compositor: there is **no GUI toolkit in the
+runtime at all**, on any system.
+
+The messages now say what is missing:
+
+```
+Gui cannot show the window: a window is made by a toolkit, and this runtime
+has no toolkit that makes one.
+```
+
+The same sentence on Windows and on the box, which is the point: a refusal
+that names a platform it cannot know is a guess, and this one was wrong.
+
+Eleven places carried the old wording — seven reasons, the module doc, and
+three assertions — and `tests/class_gui.rs` asserted the literal message.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

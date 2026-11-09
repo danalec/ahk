@@ -1,6 +1,6 @@
 //! The classes of the windows, against a fake desktop.
 //!
-//! A window is a Windows window, and this desktop is a Wayland session
+//! A window is made by a toolkit, and this runtime has none: the classes are
 //! without one. So what a script gets here is the object and the reason:
 //! the object is made, and every name of it says why it cannot work.
 
@@ -15,7 +15,7 @@ use std::time::Duration;
 /// A desktop that records what it was asked to do.
 ///
 /// The classes of the windows ask it nothing: a window is a Windows
-/// window, and this desktop is a Wayland session without one. The fake is
+/// window, and this runtime has no toolkit that makes one. The fake is
 /// here because `Desktop` is the sum of the twelve capabilities, and the
 /// runtime wants all of them.
 #[derive(Debug, Default)]
@@ -115,7 +115,7 @@ fn a_gui_that_shows_itself_says_why_it_cannot() {
     assert!(!report.ok);
     assert_eq!(
         error_of(&report),
-        "Gui cannot show the window: a window is a Windows window, and this desktop is a Wayland session without one."
+        "Gui cannot show the window: a window is made by a toolkit, and this runtime has no toolkit that makes one."
     );
     assert_eq!(report.error_line, Some(2));
 }
@@ -136,7 +136,7 @@ fn a_menu_that_adds_an_item_says_why_it_cannot() {
         error.contains("Menu cannot add an item to the menu bar"),
         "{error}"
     );
-    assert!(error.contains("Wayland session without one"), "{error}");
+    assert!(error.contains("no toolkit"), "{error}");
     assert_eq!(report.error_line, Some(2));
 }
 
@@ -280,7 +280,7 @@ fn the_owner_of_a_window_says_why_it_cannot() {
             )),
             "{error}"
         );
-        assert!(error.contains("Wayland session without one"), "{error}");
+        assert!(error.contains("no toolkit"), "{error}");
     }
 }
 
