@@ -3816,6 +3816,40 @@ a control the reference will not describe.
 the reason is the same both times: **a name is only work if its contract can be
 measured**, and that is a property of the reference, not of the tree.
 
+### Round 201 — 2026-11-09: the pointer pair measured, and it is not a Windows idea
+
+The 113 refusals were listed, and several names in it are **not** Windows-shaped at
+all -- `ObjPtr`, `ObjFromPtr`, `StrPtr`, `StrGet`, `ToolTip`, `SysGet`. The first pair
+was measured on the binary of v2.0.19 on 2026-11-09:
+
+| the call | the binary |
+|---|---|
+| `ObjPtr(o)` on a plain object | **`10713680`**, an Integer |
+| `ObjFromPtr(p) = o` | **`1`** -- the round trip works |
+| `StrPtr("hello")` | `10662984`, an Integer |
+| `StrPtr(Buffer(16))` | **refused**: *"Expected a String but got a Buffer."* |
+
+**`ObjPtr` and `ObjFromPtr` are a pair that round-trips**, and that is a feature a
+runtime can carry on any platform: the number is the identity of the object, and
+`ObjFromPtr` gives the object back. **It is not Windows-shaped** -- the id is an
+address in v2 because v2 is a C++ program, and this tree can answer an identity of its
+own as long as **the same object always gets the same number for the life of the run**.
+
+**`StrPtr` is the harder one**: it answers the address of the text, and the text of a
+value in this tree is not guaranteed to sit at one stable address. Answering a number
+that is not an address would be a value of the wrong **kind** -- the trap of round 178
+and of `GetPos` -- so it should be refused with that reason rather than answered with a
+counter that happens to look like a pointer.
+
+**What the pair needs, and it is a mechanism and not a capabilit**: a registry on the
+runtime mapping a value's identity to a number, like the list of the windows of round
+111. That is **state that survives between statements**, which the tree carries for
+windows and would carry for this -- three edits plus the two handlers and two rows.
+
+**Not written**, because it is a new registry and the session is at its end; it is
+written down instead, with the measurement, so that it is a decision rather than a
+question.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
