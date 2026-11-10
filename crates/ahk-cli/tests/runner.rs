@@ -266,8 +266,8 @@ fn the_surface_flag_answers_with_json() {
     // row stops carrying `REFUSAL` as its variant**, which is the last step of
     // that work and was found in round 171 of the audit: the handler alone
     // answers, and the surface reads the variant.
-    assert_eq!(report.number("values"), 701);
-    assert_eq!(report.number("refusals"), 132);
+    assert_eq!(report.number("values"), 702);
+    assert_eq!(report.number("refusals"), 131);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -298,7 +298,7 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     // them is pending: the surface of the v1 is complete. `A_AhkPath` answers
     // with a value since round 9, in both dialects, so the count of the values
     // moved with the one of the v2.
-    assert_eq!(report.number("values"), 302);
+    assert_eq!(report.number("values"), 303);
     assert_eq!(report.number("pending"), 0);
     let entries = report.array("entries");
     let is_set = entries

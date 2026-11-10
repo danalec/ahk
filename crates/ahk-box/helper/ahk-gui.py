@@ -392,6 +392,15 @@ def the_state_of(classnn, what, on):
     answer({"ok": False, "error": "there is no control named %s" % classnn})
 
 
+def the_scale():
+    """The scale factor of the output. `A_ScreenDPI` is 96 times this."""
+    try:
+        screen = Gdk.Display.get_default().get_monitors().get_item(0).get_scale_factor()
+        answer({"ok": True, "value": int(screen) if screen else 1})
+    except Exception:
+        answer({"ok": True, "value": 1})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -407,6 +416,8 @@ def handle(command):
                 command.get("classnn", ""), "visible", command.get("on", True)
             )
         )
+    elif op == "scale":
+        run_on_loop(the_scale)
     elif op == "state":
         run_on_loop(
             lambda: the_state_of(

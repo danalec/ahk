@@ -274,6 +274,12 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
             Err(message) => Err(reason(&message)),
         }),
         Kind::Hotkey => crate::hotkeys::variable(&name, rt),
+        // The scale of the output is a question of its own: the session reports a
+        // scale factor, and `A_ScreenDPI` is the 96 that v2 gives with it applied.
+        Kind::Screen if name == "screendpi" => Some(match rt.desktop().screen_scale() {
+            Ok(scale) => Ok(Value::Int(96 * scale)),
+            Err(message) => Err(reason(&message)),
+        }),
         Kind::Screen => Some(match rt.desktop().screen_size() {
             Ok((width, height)) => Ok(Value::Int(if name == "screenwidth" {
                 width
@@ -595,7 +601,7 @@ fn kind_of(name: &str) -> Option<Kind> {
         "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec" | "desktop"
         | "desktopcommon" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
         | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments"
-        | "osversion" | "programfiles" | "programs" | "programscommon" | "screendpi"
+        | "osversion" | "programfiles" | "programs" | "programscommon"
         | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu"
         | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle"
         | "timeidlekeyboard" | "timeidlemouse" | "timeidlephysical" | "traymenu" | "username"
@@ -603,7 +609,7 @@ fn kind_of(name: &str) -> Option<Kind> {
         // -- the clipboard -----------------------------------------------------------
         "clipboard" => Some(Kind::Clipboard),
         // -- the screen ---------------------------------------------------------------
-        "screenheight" | "screenwidth" => Some(Kind::Screen),
+        "screenheight" | "screenwidth" | "screendpi" => Some(Kind::Screen),
         // -- the hotkeys ------------------------------------------------------------
         "hotkeyinterval"
         | "hotkeymodifiertimeout"

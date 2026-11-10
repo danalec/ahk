@@ -757,6 +757,19 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         Ok(path.to_string_lossy().to_string())
     }
+    fn screen_scale(&mut self) -> Result<i64, String> {
+        // The scale is a question for the toolkit, which is the helper's, and it
+        // needs no window: the session's scale is the monitor's.
+        if self.gui.is_none() {
+            let helper = the_helper_of_the_window()?;
+            self.gui = Some(crate::gui::TheWindow::open(&helper)?);
+        }
+        let window = self.gui.as_mut().ok_or("the helper of the window did not start")?;
+        let answer = window.send("{\"op\": \"scale\"}")?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the session gave no scale: {answer}"))
+    }
+
     fn screen_size(&mut self) -> Result<(i64, i64), String> {
         LabDesktop::screen_size(self).map_err(|error| error.to_string())
     }

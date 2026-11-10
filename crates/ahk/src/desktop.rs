@@ -136,6 +136,14 @@ pub trait Screen {
     ///
     /// The width comes first and the height second, the way the two
     /// variables of v2 ask for them.
+    /// The scale factor of the output, as the session reports it.
+    ///
+    /// `A_ScreenDPI` is 96 times this, the number v2 gives with the scale of the
+    /// session applied.
+    fn screen_scale(&mut self) -> Result<i64, String> {
+        Err("this desktop does not know the scale of the output".to_string())
+    }
+
     fn screen_size(&mut self) -> Result<(i64, i64), String> {
         Err("this desktop cannot tell how big the screen is".to_string())
     }
