@@ -2197,7 +2197,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 2,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sound_get_name,
     },
     Builtin {
         name: "SoundGetVolume",
@@ -10058,6 +10058,24 @@ fn the_kind_of(value: &Value) -> &'static str {
         Value::Object(_) => "Object",
         _ => "value that is not an object",
     }
+}
+
+/// `SoundGetName(Component, Device)`: **refused, with a reason of its own.**
+///
+/// The name of an audio device belongs to the system that runs it, and this runtime
+/// answers the volume and the mute of the default device (`SoundGetMute` answers, and
+/// `SoundGetVolume` with it) and not the names the system gives them. Answering a name
+/// would be a name of this machine passed off as the one v2 would give on its own.
+pub(crate) fn sound_get_name(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the name of an audio device belongs to the system that runs it, and this runtime answers the volume and the mute of the default device and not the names the system gives them".to_string(),
+        line,
+    })
 }
 
 pub(crate) fn sleep(

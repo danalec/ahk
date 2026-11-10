@@ -864,10 +864,14 @@ fn a_sound_that_the_desktop_cannot_answer_fails_the_script() {
 
 #[test]
 fn the_names_of_the_sound_that_are_windows_fail_with_the_reason() {
+    // `SoundGetName` answered the blanket reason until round 211 gave it one of its
+    // own: the name of an audio device belongs to the system that runs it, and this
+    // runtime answers the volume and the mute of the default device, which
+    // `SoundGetMute` shows, and not the names the system gives them.
     let report = run("SoundGetName()");
     assert_eq!(
         failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
+        "the name of an audio device belongs to the system that runs it, and this runtime answers the volume and the mute of the default device and not the names the system gives them"
     );
 }
 
