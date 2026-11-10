@@ -10380,3 +10380,20 @@ code. The parser read `ExitApp` as the keyword of the machine and then took the
 `)`; the keyword path now hands a name that is followed by an unspaced `(` to
 the call parser, the way the name of a variable is handed over. The case is
 `the_exitapp_of_the_v2_takes_its_parentheses`.
+## 265. `#HotIf`, and what a condition of a hotkey is
+
+Measured on the binary of v2.0.19 on 2026-11-10: `#HotIf` takes an expression,
+the hotkeys that follow it carry the condition until the next `#HotIf`, and the
+empty directive clears it; `#HotIfTimeout` takes the milliseconds of the
+question about a window and is accepted. The runtime of the tree keeps the
+condition of the directive (`hotif_condition`) and registers every hotkey that
+comes after it with that condition, which is the same `Condition` the `HotIf`
+function sets for the next hotkey. The forms the runtime carries are the four
+window questions with a literal title -- `WinActive("...")`, `WinExist("...")`,
+`WinNotActive("...")` and `WinNotExist("...")` -- because those are the ones
+`Condition` can ask of a desktop through the window capability; any other
+expression is refused with the reason rather than registered without its
+condition, because a hotkey that fires outside its condition is worse than a
+script that says why it cannot run. Before this the directive was refused with
+the stale "the hotkeys are not carried by this runtime." of the table of the
+directives, while the functions of the family were already carried.

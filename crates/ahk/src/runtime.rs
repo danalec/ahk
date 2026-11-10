@@ -43,6 +43,7 @@ use core::time::Duration;
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
+use crate::hotkeys::Condition;
 use crate::ast::{
     AccessBody, AccessDef, AssignOp, BinaryOp, Declarations, DeclareKind, DynamicPiece, LegacyForm,
     LiteralValue, LoopKind, MemberName, MethodDef, Node, ObjectItem, Parameter, PropertyDef,
@@ -484,6 +485,31 @@ pub fn wants_a_reference(index: usize, name: &str, wants: &str, value: &Value) -
 /// `#SuspendExempt False` and `#SuspendExempt 0` turn it off, and a word that
 /// is none of them is the load failure "Parameter #1 invalid." with the whole
 /// line in the `Specifically:`.
+fn the_condition_of_a_hotif(argument: &str) -> Result<Option<Condition>, ()> {
+    let text = argument.trim();
+    if text.is_empty() {
+        return Ok(None);
+    }
+    let open = text.find('(').ok_or(())?;
+    let name = text[..open].trim().to_lowercase();
+    let inside = text[open + 1..].trim_end();
+    let inside = inside.strip_suffix(')').ok_or(())?.trim();
+    let title = inside
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .ok_or(())?;
+    if title.contains('"') {
+        return Err(());
+    }
+    let condition = match name.as_str() {
+        "winactive" => Condition::WindowActive(title.into()),
+        "winexist" => Condition::WindowExists(title.into()),
+        "winnotactive" => Condition::WindowNotActive(title.into()),
+        "winnotexist" => Condition::WindowNotExist(title.into()),
+        _ => return Err(()),
+    };
+    Ok(Some(condition))
+}
 fn the_boolean_of_a_directive(argument: &str) -> Option<bool> {
     let argument = argument.trim();
     if argument.is_empty() {
@@ -519,9 +545,6 @@ pub fn refusal_of_directive(name: &str) -> Option<&'static str> {
         | "hotkeymodifiertimeout"
         | "menumaskkey"
         | "usehook"
-        | "hotif"
-        | "hotiftimeout"
-        | "hotstring"
         | "maxthreads"
         | "maxthreadsperhotkey"
         | "maxthreadsbuffer" => Some("the hotkeys are not carried by this runtime."),
@@ -1461,6 +1484,10 @@ pub struct Runtime<'a> {
     /// Whether the desktop said it cannot watch the keyboard: the hotkeys of
     /// the v2 are then a note of the run, and the script goes on.
     hotkeys_are_not_watched: bool,
+    /// The condition of the hotkeys that follow, set by `#HotIf`: the
+    /// directive is read at the load, and every hotkey that comes after it
+    /// carries it until another `#HotIf` replaces it.
+    hotif_condition: Option<crate::hotkeys::Condition>,
     /// Whether the hotkeys of the script are suspended.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `Suspend 1` makes
@@ -1585,6 +1612,7 @@ impl<'a> Runtime<'a> {
             timers: Vec::new(),
             hotkeys: Vec::new(),
             hotkeys_are_not_watched: false,
+            hotif_condition: None,
             suspended: false,
             paused: false,
             suspend_exempt: false,
@@ -1657,6 +1685,7 @@ impl<'a> Runtime<'a> {
             timers: Vec::new(),
             hotkeys: Vec::new(),
             hotkeys_are_not_watched: false,
+            hotif_condition: None,
             suspended: false,
             paused: false,
             suspend_exempt: false,
@@ -1915,7 +1944,13 @@ impl<'a> Runtime<'a> {
                 if name.starts_with("::") {
                     continue;
                 }
-                crate::hotkeys::register_the_hotkey_of_the_v2(self, name, body.clone(), *line)
+                crate::hotkeys::register_the_hotkey_of_the_v2(
+                    self,
+                    name,
+                    body.clone(),
+                    *line,
+                    self.hotif_condition.clone(),
+                )
                     .map_err(|failure| match failure {
                         RuntimeFailure::Error(error) => error,
                         RuntimeFailure::Detailed(error, _) => error,
@@ -1936,12 +1971,28 @@ impl<'a> Runtime<'a> {
                 continue;
             }
             if let Node::Directive {
-                name, argument, ..
+                name, argument, line, ..
             } = statement
             {
                 if name.eq_ignore_ascii_case("suspendexempt") {
                     if let Some(exempt) = the_boolean_of_a_directive(argument) {
                         self.suspend_exempt = exempt;
+                    }
+                }
+                // Measured on the binary of v2.0.19 on 2026-11-10: `#HotIf`
+                // sets the condition of the hotkeys that follow it, and the
+                // condition that an empty directive leaves is none. The walk
+                // is in source order, which is the order the script writes
+                // them in.
+                if name.eq_ignore_ascii_case("hotif") {
+                    match the_condition_of_a_hotif(argument) {
+                        Ok(condition) => self.hotif_condition = condition,
+                        Err(()) => {
+                            return Err(RuntimeError {
+                                message: "The condition of #HotIf is not carried by this runtime: only the WinActive, WinExist, WinNotActive and WinNotExist forms with a literal title are.".to_string(),
+                                line: *line,
+                            })
+                        }
                     }
                 }
             }
@@ -8870,6 +8921,26 @@ impl<'a> Runtime<'a> {
             // `#Hotstring X`, `#Hotstring X0`, `#Hotstring *` and
             // `#Hotstring EndChars -` are all accepted at the load.
             "hotstring" => Ok("the options of the hotstrings are read when the script is read".into()),
+            // Measured on the binary of v2.0.19 on 2026-11-10: `#HotIf` takes
+            // an expression, and the hotkeys that follow it carry it. The
+            // forms this runtime carries are the four window questions with a
+            // literal title, and the empty directive that clears it; anything
+            // else is refused rather than registered without its condition.
+            "hotif" => match the_condition_of_a_hotif(argument) {
+                Ok(condition) => {
+                    self.hotif_condition = condition;
+                    Ok("the condition of the hotkeys that follow is set".into())
+                }
+                Err(()) => Err(RuntimeFailure::Error(RuntimeError {
+                    message: "The condition of #HotIf is not carried by this runtime: only the WinActive, WinExist, WinNotActive and WinNotExist forms with a literal title are.".to_string(),
+                    line,
+                })),
+            },
+            // Measured on the binary of v2.0.19 on 2026-11-10: the directive
+            // takes the milliseconds of the question about a window, and the
+            // question of this runtime answers at once: the timeout changes
+            // nothing here, and the directive says so.
+            "hotiftimeout" => Ok("the question of a window answers at once, so the timeout changes nothing".into()),
             // `#SuspendExempt` is read by the load, which marks the hotkeys
             // that follow it, and by the run, which keeps the flag for the
             // script: measured on the binary of v2.0.19 on 2026-11-09, the

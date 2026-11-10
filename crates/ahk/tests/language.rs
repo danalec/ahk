@@ -6161,6 +6161,38 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_hotif_directive_sets_the_condition_of_the_hotkeys() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `#HotIf` takes an
+    // expression, and the hotkeys that follow it carry the condition until
+    // the next `#HotIf`; the empty directive clears it. The forms this
+    // runtime carries are the four window questions with a literal title, and
+    // `#HotIfTimeout` is accepted (the question of this runtime answers at
+    // once, so the timeout changes nothing).
+    let (report, _desktop) = run(concat!(
+        "#HotIf WinActive(\"a window\")\n",
+        "F1::MsgBox \"one\"\n",
+        "#HotIf WinExist(\"a window\")\n",
+        "F2::MsgBox \"two\"\n",
+        "#HotIf\n",
+        "F3::MsgBox \"three\"\n",
+        "#HotIfTimeout 100\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["after"]);
+    // A condition that is not one of the four is refused rather than
+    // registered without its condition.
+    let (report, _desktop) = run("#HotIf 1\nF1::MsgBox \"x\"\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some(
+            "The condition of #HotIf is not carried by this runtime: only the WinActive, WinExist, WinNotActive and WinNotExist forms with a literal title are."
+        )
+    );
+}
+
+#[test]
 fn the_exitapp_of_the_v2_takes_its_parentheses() {
     // Measured on the binary of v2.0.19 on 2026-11-10: `ExitApp()` is a call
     // of the function with no code, and `ExitApp(3)` one that ends the script

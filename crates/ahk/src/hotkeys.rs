@@ -389,6 +389,7 @@ pub(crate) fn register_the_hotkey_of_the_v2(
     name: &str,
     body: Vec<Node>,
     line: u32,
+    condition: Option<Condition>,
 ) -> Result<(), RuntimeFailure> {
     if let Err(reason) = rt.desktop().register_hotkey(name) {
         rt.note(format!(
@@ -405,7 +406,7 @@ pub(crate) fn register_the_hotkey_of_the_v2(
         line,
         object: None,
         shared,
-        condition: None,
+        condition,
         takes_name: false,
         body: Some(body),
     });
