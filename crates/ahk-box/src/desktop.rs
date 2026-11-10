@@ -1019,7 +1019,7 @@ impl ahk::desktop::Windows for LabDesktop {
     fn gui_open(&mut self, title: &str) -> Result<u64, String> {
         box_tools_are_near()?;
         if self.gui.is_none() {
-            let helper = Path::new(env!("CARGO_MANIFEST_DIR")).join("helper/ahk-gui.py");
+            let helper = the_helper_of_the_window()?;
             self.gui = Some(crate::gui::TheWindow::open(&helper)?);
         }
         let window = self.gui.as_mut().ok_or("the helper of the window did not start")?;
@@ -1903,6 +1903,41 @@ fn the_text_in(answer: &str, name: &str) -> Option<String> {
 
 /// of letting the shell answer "not found": a failure that names a missing
 /// program of another platform tells the script nothing it can act on.
+/// Where the program that draws the windows of the script is.
+///
+/// Two places, in the order that works for a binary that has been moved and for
+/// one that has not:
+///
+/// 1. **beside the binary**, under `helper/` -- which is where a copy of the
+///    runner carries it, and the convention the raven's helper follows;
+/// 2. **under the crate** as it was compiled, which is right when the runner is
+///    built where the sources are (the box builds its own), and is a build path
+///    baked into the binary when it is not.
+///
+/// The first that exists wins. The answer when neither is there names both, so a
+/// failure says where it looked rather than that something is missing.
+fn the_helper_of_the_window() -> Result<std::path::PathBuf, String> {
+    let mut tried: Vec<String> = Vec::new();
+    if let Ok(program) = std::env::current_exe() {
+        if let Some(folder) = program.parent() {
+            let beside = folder.join("helper/ahk-gui.py");
+            if beside.is_file() {
+                return Ok(beside);
+            }
+            tried.push(beside.to_string_lossy().into_owned());
+        }
+    }
+    let under = Path::new(env!("CARGO_MANIFEST_DIR")).join("helper/ahk-gui.py");
+    if under.is_file() {
+        return Ok(under);
+    }
+    tried.push(under.to_string_lossy().into_owned());
+    Err(format!(
+        "the program that draws the windows of the script is not where it was looked for: {}",
+        tried.join(", ")
+    ))
+}
+
 #[cfg(target_os = "linux")]
 fn box_tools_are_near() -> Result<(), String> {
     Ok(())
