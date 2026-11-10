@@ -6161,6 +6161,27 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_prototype_of_a_primitive_supplies_the_enumerator() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a script puts an
+    // `__Enum` into the prototype of a class with
+    // `({}.DefineProp)(String.Prototype, "__Enum", {Call: (this, n) => ...})`,
+    // and the `for` over a text asks it -- the stub that answers a function
+    // that gives no turn leaves the loop with no turn at all -- and the
+    // `DeleteProp` takes it away.
+    let (report, _desktop) = run(concat!(
+        "({}.DefineProp)(String.Prototype, \"__Enum\", {Call: (this, n) => ((&c) => false)})\n",
+        "n := 0\n",
+        "for c in \"abc\"\n",
+        "    n++\n",
+        "MsgBox \"turns=\" n\n",
+        "({}.DeleteProp)(String.Prototype, \"__Enum\")\n",
+        "MsgBox \"deleted=\" (!String.Prototype.HasOwnProp(\"__Enum\"))\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["turns=0", "deleted=1"]);
+}
+
+#[test]
 fn the_reference_of_a_variable_is_a_class_of_the_dialect() {
     // Measured on the binary of v2.0.19 on 2026-11-10: `VarRef` is a class of
     // the dialect -- `Type(VarRef)` is Class and `IsObject(VarRef)` is one --

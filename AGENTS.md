@@ -10567,3 +10567,22 @@ The surface table of v2 does not carry `VarRef`, the way it does not carry the
 nine classes of the note in this file: the extraction read the class tables at
 the wrong place. `tests/surface.rs` carries the exemption, with the measurement
 behind it, and the tree carries the class.
+## 274. The prototype of a primitive supplies the enumerator
+
+Measured on the binary of v2.0.19 on 2026-11-10: a script may put an `__Enum`
+into the prototype of a class with
+`({}.DefineProp)(String.Prototype, "__Enum", {Call: (this, n) => ...})`, and a
+`for` over a value of that class asks it -- `for c in "abc"` -- with the value
+as `this` and the number of the variables of the loop. A stub whose `Call`
+answers a function that gives no turn leaves the loop with no turn at all, and
+the `DeleteProp` takes the property away again.
+
+The tree answered "Value not enumerable." for a text: it knew the enumerators
+of the objects of the runtime, and it did not ask the prototype of the class of
+a primitive. `the_enumerator` now asks it, walking the chain of the classes the
+way the `is` walks it (String -> Primitive -> Any, Integer -> Number ->
+Primitive -> Any), reading the `Call` of the descriptor of the property, and
+calling it with the value as `this`.
+
+The corpus case `flow-for-in.ahk` passes whole now, and the corpus is 74 of 162
+pure scripts (45.7 %).

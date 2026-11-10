@@ -4079,10 +4079,56 @@ impl<'a> Runtime<'a> {
         if crate::classes::enumerator::is_one(object) {
             return Ok(object.clone());
         }
+        // A primitive asks the prototype of its class for the enumerator: a
+        // script may put one there with `DefineProp`. Measured on the binary
+        // of v2.0.19 on 2026-11-10: after
+        // `({}.DefineProp)(String.Prototype, "__Enum", {Call: ...})`, the
+        // `for c in "abc"` asks it and walks what it answers.
+        if let Some(enumerator) = self.the_prototype_enum_of(object, wanted, line) {
+            return enumerator;
+        }
         Err(RuntimeFailure::Error(RuntimeError {
             message: "Value not enumerable.".into(),
             line,
         }))
+    }
+
+    /// The enumerator that the prototype of a primitive carries.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a script puts an
+    /// `__Enum` into the prototype of a class with
+    /// `({}.DefineProp)(String.Prototype, "__Enum", {Call: (this, n) => ...})`,
+    /// and the `for` over a value of that class asks it with the value as
+    /// `this` and the number of the variables of the loop. The chain of the
+    /// classes is walked the way the `is` walks it, so a prototype with the
+    /// enumerator on `Primitive` answers for the strings and the numbers
+    /// alike.
+    fn the_prototype_enum_of(
+        &mut self,
+        value: &Value,
+        wanted: usize,
+        line: u32,
+    ) -> Option<Result<Value, RuntimeFailure>> {
+        let mut class = Some(value.type_name().name().to_lowercase());
+        while let Some(name) = class {
+            let prototype = self.the_prototype_of(&name)?;
+            let stored = match &prototype {
+                Value::Object(object) => object
+                    .borrow()
+                    .properties
+                    .get("__enum")
+                    .map(|property| property.value.clone()),
+                _ => None,
+            };
+            if let Some(stored) = stored {
+                let members = self.the_members_of_a_descriptor(&stored)?;
+                let call = members.get("call")?.value.clone();
+                let values = vec![Value::Int(wanted as i64)];
+                return Some(self.call_the_function(&call, value, &values, line));
+            }
+            class = crate::classes::the_base_class_of_a_class(&name).map(|base| base.to_string());
+        }
+        None
     }
 
     /// Whether the enumerator is something that can be called.
