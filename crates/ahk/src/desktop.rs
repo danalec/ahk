@@ -595,6 +595,14 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// How many lines the text of a control of the script holds.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `EditGetLineCount` of a
+    /// control added with three lines answers 3.
+    fn gui_line_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the lines of a control of the script".to_string())
+    }
+
     /// Apply one option to a window of the script, with the sign the script wrote.
     ///
     /// The options a program controls under this compositor are `AlwaysOnTop`,

@@ -1122,6 +1122,14 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
     }
 
+    fn gui_line_count(&mut self, number: u64) -> Result<i64, String> {
+        let command = format!("{{\"op\": \"lines\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ").ok_or_else(|| {
+            format!("the control of the script gave no line count: {answer}")
+        })
+    }
+
     fn gui_option(&mut self, name: &str, on: bool) -> Result<(), String> {
         let command = format!(
             "{{\"op\": \"option\", \"name\": {}, \"on\": {}}}",

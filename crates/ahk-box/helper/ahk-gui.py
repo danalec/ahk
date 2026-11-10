@@ -299,6 +299,20 @@ def the_option(name, on):
     answer({"ok": True})
 
 
+def the_line_count(number):
+    """How many lines the text of a control holds. `EditGetLineCount` of v2.
+
+    The text of the entry carries its newlines (measured: three lines came back
+    as twenty-eight characters), so the count is the number of them plus one.
+    """
+    for held, _kind, control in state["controls"]:
+        if held != number:
+            continue
+        answer({"ok": True, "value": control.get_text().count("\n") + 1})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -308,6 +322,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "lines":
+        run_on_loop(lambda: the_line_count(command.get("id", 0)))
     elif op == "option":
         run_on_loop(
             lambda: the_option(command.get("name", ""), command.get("on", True))

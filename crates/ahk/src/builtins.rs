@@ -1575,7 +1575,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_line_count,
     },
     Builtin {
         name: "EditGetSelectedText",
@@ -9254,6 +9254,23 @@ pub(crate) fn send(
 }
 
 /// `Sleep`: the pause, in milliseconds.
+/// `EditGetLineCount(Hwnd)`: how many lines the text of a control holds.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a control added with three
+/// lines answers 3. The handle of the control is the number that names it.
+pub(crate) fn edit_get_line_count(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    rt.desktop()
+        .gui_line_count(number)
+        .map(Value::Int)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
 pub(crate) fn sleep(
     rt: &mut Runtime<'_>,
     values: &[Value],
