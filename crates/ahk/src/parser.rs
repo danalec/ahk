@@ -1475,7 +1475,12 @@ pub struct Parser {
     /// hotkey that is declared twice is refused when the script loads, and
     /// the names of the hotkeys are known only at the end of the parse.
     hotkeys: Vec<TheHotkeyOfTheScript>,
-    /// Whether the parser is reading the action of a hotkey of the v1.
+    /// The names of the hotkeys of the v2, for the refusal of a duplicate.
+    ///
+    /// The hotkey of the v2 is not the label of the v1, and the name of it is
+    /// kept as the script spelled it: the duplicate is refused without its
+    /// case.
+    hotkeys_of_the_v2: Vec<String>,    /// Whether the parser is reading the action of a hotkey of the v1.
     ///
     /// The action of a hotkey is a statement of the script, and the line of
     /// it is not the line of another hotkey.
@@ -1669,6 +1674,7 @@ impl Parser {
             labels: Vec::new(),
             label_names: BTreeSet::new(),
             hotkeys: Vec::new(),
+            hotkeys_of_the_v2: Vec::new(),
             in_the_action_of_a_hotkey: false,
             in_the_condition_of_an_if: false,
             assignments: vec![Vec::new()],
@@ -2045,7 +2051,14 @@ impl Parser {
         }
         // The body of a hotkey of the v1 is the code that comes after it, and
         // the code of the next hotkey is part of it.
-        let statements = the_bodies_of_the_hotkeys(statements);
+        // The body of a hotkey of the v1 is the code that comes after the
+        // line, and the one of the v2 is the statement or the block that the
+        // definition already carries: the rest of the script is not its body.
+        let statements = if self.dialect.the_hotkeys_are_labels() {
+            the_bodies_of_the_hotkeys(statements)
+        } else {
+            statements
+        };
         // The labels of the script are the scope of the script, and a label
         // that is written twice in it is refused.
         self.check_the_labels(&statements)?;
@@ -2666,7 +2679,11 @@ impl Parser {
                 }
                 self.position += 1;
                 self.statement_start = statement_start;
-                return Ok(the_bodies_of_the_hotkeys(body));
+                return Ok(if self.dialect.the_hotkeys_are_labels() {
+                    the_bodies_of_the_hotkeys(body)
+                } else {
+                    body
+                });
             }
             body.extend(self.parse_statement()?);
             self.skip_newlines();
@@ -3177,6 +3194,173 @@ impl Parser {
         })
     }
 
+    /// Whether the line is the line of a hotkey of the v2.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the two colons are
+    /// what says so, and the name is the text between the start of the line
+    /// and them. A line whose name holds a space is not the line of a hotkey,
+    /// and neither is the line of a directive: the lexer reads the `#` of the
+    /// `#HotIf` as a directive, and the `#` of a hotkey is not carried by it
+    /// yet.
+    fn the_line_carries_a_hotkey_of_the_v2(&self) -> bool {
+        let Some(at) = self.the_place_of_the_two_colons(self.statement_start) else {
+            return false;
+        };
+        // The two colons at the start of the line are a hotstring.
+        if at == self.statement_start {
+            return false;
+        }
+        let name = the_source_of_the_tokens(self, self.statement_start, at);
+        if name.is_empty() || name.contains(' ') || name.contains('\t') {
+            return false;
+        }
+        self.tokens[self.statement_start].kind != TokenKind::Directive
+    }
+
+    /// The hotkey of the v2: the line that defines it, and its action.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `F1::MsgBox "hi"` has
+    /// the statement of the line as its action, `F1::{ ... }` has the block,
+    /// `F1::` with the block on the line after it has that block, and
+    /// `F1::return` is a hotkey whose action is the `return`. The name that is
+    /// not a key is "Invalid key name.", the name declared twice is "Duplicate
+    /// hotkey.", and a `{` that does not end the line -- `F1::{}` or
+    /// `F1::{ MsgBox "x" }` -- is "This line does not contain a recognized
+    /// action.".
+    fn parse_the_hotkey_of_the_v2(&mut self) -> Result<Node, SyntaxError> {
+        let line = self.peek().line;
+        let at = self
+            .the_place_of_the_two_colons(self.statement_start)
+            .expect("the line carries a hotkey");
+        let name = the_source_of_the_tokens(self, self.statement_start, at);
+        // The name has to be the name of a key of the table of the hotkeys.
+        if crate::hotkeys::parse(&name).is_err() {
+            return Err(self.error(format!(
+                "Invalid key name.\n     Specifically: {name}"
+            )));
+        }
+        // The name that is declared twice is refused when the script loads.
+        if self
+            .hotkeys_of_the_v2
+            .iter()
+            .any(|other| other.eq_ignore_ascii_case(&name))
+        {
+            return Err(self.error(format!("Duplicate hotkey.\n     Specifically: {name}")));
+        }
+        self.hotkeys_of_the_v2.push(name.clone());
+        // The two colons separate the name from the action.
+        self.position = at + 1;
+        // A `{` opens the block of the hotkey only when it ends the line.
+        if self.at_op(&["{"]) {
+            let after = self.tokens.get(self.position + 1);
+            let ends_the_line = after
+                .map(|token| token.kind == TokenKind::Newline || token.kind == TokenKind::Eof)
+                .unwrap_or(true);
+            if !ends_the_line {
+                let end = self.the_end_of_the_line();
+                return Err(self.error(format!(
+                    "This line does not contain a recognized action.\n     Specifically: {}",
+                    the_source_of_the_tokens(self, self.position, end)
+                )));
+            }
+            let body = self.parse_block("Hotkey", line)?;
+            return Ok(Node::HotkeyDefinition {
+                name,
+                body,
+                on_the_line: false,
+                line,
+            });
+        }
+        // The line of the hotkey may end here, and the block of the action may
+        // be on the line that comes after it.
+        if self.at_end_of_statement() {
+            self.end_of_statement()?;
+            if self.at_op(&["{"]) {
+                let body = self.parse_block("Hotkey", line)?;
+                return Ok(Node::HotkeyDefinition {
+                    name,
+                    body,
+                    on_the_line: false,
+                    line,
+                });
+            }
+            return Ok(Node::HotkeyDefinition {
+                name,
+                body: Vec::new(),
+                on_the_line: false,
+                line,
+            });
+        }
+        // The action is the statement of the line.
+        self.in_the_action_of_a_hotkey = true;
+        let statements = self.parse_statement();
+        self.in_the_action_of_a_hotkey = false;
+        Ok(Node::HotkeyDefinition {
+            name,
+            body: statements?,
+            on_the_line: true,
+            line,
+        })
+    }
+
+    /// The hotstring of the v2: a line of its own that begins with the two
+    /// colons.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `::btw::by the way`
+    /// is a hotstring, the text of it may hold the two colons again
+    /// (`::1:::2`), and the line without the second pair of colons is
+    /// "Invalid hotkey." with the line itself. The runtime has no dispatcher
+    /// of a hotstring yet: the line is carried as the definition of a hotkey
+    /// whose name is the whole line, so that a script that writes one runs,
+    /// and the hotstring is not typed by this runner.
+    fn parse_the_hotstring_of_the_v2(&mut self) -> Result<Node, SyntaxError> {
+        let token = self.next();
+        // The line of the hotstring is the raw text of it: the lexer reads the
+        // rest of the line as one token, and the text of that token is not
+        // quoted.
+        let text = self.the_raw_text_of_the_line(token.line);
+        let second = text
+            .strip_prefix("::")
+            .map(|rest| rest.contains("::"))
+            .unwrap_or(false);
+        if !second {
+            return Err(self.error(format!("Invalid hotkey.\n     Specifically: {text}")));
+        }
+        // The whole line is the hotstring, and the parser goes to the end of
+        // it.
+        while self.peek().kind != TokenKind::Newline && self.peek().kind != TokenKind::Eof {
+            self.next();
+        }
+        self.end_of_statement()?;
+        Ok(Node::HotkeyDefinition {
+            name: text,
+            body: Vec::new(),
+            on_the_line: true,
+            line: token.line,
+        })
+    }
+
+    /// The raw text of the line of a token: the values of the tokens of the
+    /// line, with no quote added to them.
+    ///
+    /// The line of a hotstring is one line of raw text, and the lexer reads
+    /// the rest of it as one token; the text of the line is the two colons and
+    /// that token, which is what the binary names in "Invalid hotkey.".
+    fn the_raw_text_of_the_line(&self, line: u32) -> String {
+        let mut text = String::new();
+        for token in self.tokens.iter().filter(|token| token.line == line) {
+            // The newline that ends the line is not a part of its text.
+            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
+                continue;
+            }
+            if token.spaced && !text.is_empty() {
+                text.push(' ');
+            }
+            text.push_str(&token.value);
+        }
+        text.trim_end().to_string()
+    }
+
     /// The hotkey of the v1: the line that defines it, and its action.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1
@@ -3368,6 +3552,18 @@ impl Parser {
             && self.the_line_carries_a_hotkey()
         {
             return Ok(vec![self.parse_the_hotkey_of_the_v1()?]);
+        }
+        // Measured on the binary of v2.0.19 on 2026-11-09: the hotkey of the
+        // v2 is a line whose name is followed by two colons, and the action of
+        // it is the statement of the line or the block that comes after it.
+        // The line that begins with the two colons is a hotstring.
+        if self.dialect.the_hotkeys_are_of_the_v2() && !self.in_the_action_of_a_hotkey {
+            if self.at_op(&["::"]) && self.dialect.the_hotstrings_are_of_the_v2() {
+                return Ok(vec![self.parse_the_hotstring_of_the_v2()?]);
+            }
+            if self.the_line_carries_a_hotkey_of_the_v2() {
+                return Ok(vec![self.parse_the_hotkey_of_the_v2()?]);
+            }
         }
         if token.kind == TokenKind::Keyword {
             let word = token.value.to_lowercase();

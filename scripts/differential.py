@@ -150,6 +150,7 @@ FAMILIES = {
     "mi": "misc",
     "er": "errors",
     "di": "directives",
+    "hk": "hotkeys",
 }
 
 FAMILY_COVERAGE = {
@@ -165,6 +166,7 @@ FAMILY_COVERAGE = {
     "misc": "Sort, FormatTime, DateAdd/DateDiff, VarSetStrCapacity, StrPtr, Ord/Chr, VerCompare, A_AhkVersion",
     "errors": "divide by zero, bad index, missing Map key, unset variable, Chr(-1), type errors, wrong arity, unknown function, StrGet",
     "directives": "the directives a script may carry",
+    "hotkeys": "hotkey and hotstring definitions: one-line and block bodies, return, modifier chords, the doubled colon of a hotstring, the literal empty brace the binary refuses",
 }
 
 WARNING_BLOCK = re.compile(

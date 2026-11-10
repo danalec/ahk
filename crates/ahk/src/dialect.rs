@@ -637,6 +637,19 @@ pub trait Dialect: Sync {
     /// a function of the script.
     fn the_hotkeys_are_labels(&self) -> bool;
 
+    /// Whether the hotkeys of the dialect are written with the two colons of
+    /// the v2: `F1::`, and the action of the line or the block after it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `F1::MsgBox "hi"`,
+    /// `F1::{ ... }`, `F1::` with the block on the next line and
+    /// `F1::return` are all accepted, and a name that is not a key is
+    /// refused with "Invalid key name.".
+    fn the_hotkeys_are_of_the_v2(&self) -> bool;
+
+    /// Whether a hotstring of the dialect is a line of its own:
+    /// `::btw::by the way`.
+    fn the_hotstrings_are_of_the_v2(&self) -> bool;
+
     /// Whether the section of the script that runs ends at the first hotkey
     /// or at the first hotstring.
     ///
@@ -1962,6 +1975,14 @@ pub const NOT_CARRIED_YET: &str = "this runtime does not carry that name yet.";
 pub const NOT_A_WINDOWS: &str = "this name is about Windows, and this machine is not.";
 
 impl Dialect for V2 {
+    fn the_hotkeys_are_of_the_v2(&self) -> bool {
+        true
+    }
+
+    fn the_hotstrings_are_of_the_v2(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "v2"
     }
@@ -2118,6 +2139,13 @@ impl Dialect for V2 {
 }
 
 impl Dialect for V1 {
+    fn the_hotkeys_are_of_the_v2(&self) -> bool {
+        false
+    }
+
+    fn the_hotstrings_are_of_the_v2(&self) -> bool {
+        false
+    }
     fn name(&self) -> &'static str {
         "v1"
     }

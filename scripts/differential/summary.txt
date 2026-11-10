@@ -1,8 +1,8 @@
-cases: 96
+cases: 104
 
 verdict	count
-MATCH	84
-KEYS-DIFFERS	9
+MATCH	91
+KEYS-DIFFERS	10
 RUST-DIFFERS	0
 BOTH-DIFFER	3
 ERROR	0
@@ -14,6 +14,7 @@ errors	7	5	0	2	0	14
 expr	6	1	0	0	0	7
 fileio	8	0	0	0	0	8
 funcs	6	0	0	1	0	7
+hotkeys	7	1	0	0	0	8
 misc	9	2	0	0	0	11
 numbers	7	0	0	0	0	7
 objects	8	1	0	0	0	9

@@ -14,6 +14,13 @@ use ahk::parse;
 use ahk::runtime::{Report, Runtime, Value};
 use std::time::Duration;
 
+/// The turn of the cases that change the mode of the titles.
+///
+/// The mode is a setting of the crate, and the cases of one file run in
+/// threads: a case that reads the mode while another writes it would see the
+/// mode of the other one. The cases that change it take this turn.
+static THE_TITLE_MODE_TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// A desktop that records what it was asked to do.
 #[derive(Debug, Default)]
 struct Fake {
@@ -267,7 +274,53 @@ impl Files for Fake {
         // The machine says "Failed" when the file that is copied is not
         // there, and the number of the files that failed goes in the
         // `Extra` of the failure.
-        Err("Failed".to_string())
+        if from.contains("nope") {
+            return Err("Failed".to_string());
+        }
+        Ok(format!("copied the file {from} to {to}"))
+    }
+    fn move_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.calls
+            .push(("move-file".into(), format!("{from}|{to}|{overwrite}")));
+        if from.contains("nope") {
+            return Err("Failed".to_string());
+        }
+        Ok(format!("moved the file {from} to {to}"))
+    }
+    fn working_directory(&mut self) -> Result<String, String> {
+        Ok("/tmp".to_string())
+    }
+    // The files of a pattern of the fake: the two files of the pattern, as
+    // the full paths the desktop answers with. The pattern of v2 is the one
+    // of the last part of the path, and the mode "D" is the folders.
+    fn list_files(
+        &mut self,
+        folder: &str,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
+        self.calls
+            .push(("list-files".into(), format!("{folder}|{pattern}|{mode}")));
+        if mode.contains('D') {
+            return Ok(Vec::new());
+        }
+        let (where_it_is, name) = match pattern.rfind('/') {
+            Some(at) => (&pattern[..=at], &pattern[at + 1..]),
+            None => ("", pattern),
+        };
+        let where_it_is = if where_it_is.is_empty() {
+            format!("{folder}/")
+        } else {
+            where_it_is.to_string()
+        };
+        if !name.contains('*') && !name.contains('?') {
+            return Ok(Vec::new());
+        }
+        let extension = name.trim_start_matches('*');
+        Ok(["a", "b"]
+            .iter()
+            .map(|stem| format!("{where_it_is}{stem}{extension}"))
+            .collect())
     }
     fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
         self.calls.push((
@@ -1462,6 +1515,180 @@ fn a_window_is_named_by_its_id_in_the_window_family() {
         failure_of(&run("WinGetID(\"a\", \"b\")")),
         "the text of the window and the exclusions are not carried yet."
     );
+}
+
+#[test]
+fn the_files_of_a_pattern_are_copied_moved_and_taken_away() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the name of the file
+    // of `FileCopy`, `FileMove` and `FileDelete` may be a pattern whose last
+    // part holds a `*` (any run of characters) and a `?` (one character), and
+    // a destination that ends with a separator, or that is a folder, is the
+    // folder the files go into. The wildcards of v2 are in the names of the
+    // files -- a title of a window has none, and a `*` of a title is a
+    // character of the title.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := FileCopy(\"/tmp/*.txt\", \"/tmp/out/\")\n",
+            "b := FileMove(\"/tmp/*.md\", \"/tmp/out/\")\n",
+            "c := FileDelete(\"/tmp/*.log\")\n",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    let copies: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "copy-file")
+        .collect();
+    assert_eq!(
+        copies,
+        vec![
+            &(
+                "copy-file".to_string(),
+                "/tmp/a.txt|/tmp/out/a.txt|false".to_string()
+            ),
+            &(
+                "copy-file".to_string(),
+                "/tmp/b.txt|/tmp/out/b.txt|false".to_string()
+            ),
+        ]
+    );
+    let moves: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "move-file")
+        .collect();
+    assert_eq!(moves.len(), 2, "{:?}", desktop.calls);
+    let deletes: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "delete-file")
+        .collect();
+    assert_eq!(
+        deletes,
+        vec![
+            &("delete-file".to_string(), "/tmp/a.log".to_string()),
+            &("delete-file".to_string(), "/tmp/b.log".to_string()),
+        ]
+    );
+    // The destination may be a pattern too: measured on the binary of
+    // v2.0.19 on 2026-11-09, the `*` of the destination is the name of the
+    // file without its extension, and the literal after it is the extension
+    // the copies take.
+    let mut desktop = Fake::default();
+    let report = run_on("FileCopy(\"/tmp/*.txt\", \"/tmp/out/*.bak\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    let copies: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "copy-file")
+        .collect();
+    assert_eq!(
+        copies,
+        vec![
+            &(
+                "copy-file".to_string(),
+                "/tmp/a.txt|/tmp/out/a.bak|false".to_string()
+            ),
+            &(
+                "copy-file".to_string(),
+                "/tmp/b.txt|/tmp/out/b.bak|false".to_string()
+            ),
+        ]
+    );
+}
+
+#[test]
+fn the_mode_of_the_title_is_the_one_of_v2() {
+    let _turn = THE_TITLE_MODE_TURN
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    // Measured on the binary of v2.0.19 on 2026-11-09: the command answers
+    // the mode that was there before, the mode 1 is "the title starts with
+    // the text", the mode 2 "it has the text in it" and the mode 3 "it is
+    // the text", the word "RegEx" is the mode of the patterns, and a value
+    // that is none of them is "Parameter #1 of SetTitleMatchMode is invalid."
+    // with the value in the `Extra`.
+    let report = run(concat!(
+        "a := SetTitleMatchMode(1)\n",
+        "m1 := A_TitleMatchMode\n",
+        "b := SetTitleMatchMode(3)\n",
+        "c := SetTitleMatchMode(\"RegEx\")\n",
+        "d := A_TitleMatchMode\n",
+        "e := SetTitleMatchMode(\"Fast\")\n",
+        "f := SetTitleMatchMode(\"Slow\")\n",
+        "g := A_TitleMatchMode\n",
+        "try\n",
+        "    SetTitleMatchMode(\"Bogus\")\n",
+        "catch as e1\n",
+        "    bad := Type(e1) \"|\" e1.Message \"|\" e1.Extra\n",
+        "try\n",
+        "    SetTitleMatchMode(4)\n",
+        "catch as e2\n",
+        "    bad4 := e2.Extra\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 2);
+    assert_eq!(int_of(&report, "m1"), 1);
+    assert_eq!(int_of(&report, "b"), 1);
+    assert_eq!(int_of(&report, "c"), 3);
+    assert_eq!(value_of(&report, "d"), Value::Text("RegEx".into()));
+    assert_eq!(value_of(&report, "e"), Value::Text("Fast".into()));
+    assert_eq!(value_of(&report, "f"), Value::Text("Fast".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("RegEx".into()));
+    assert_eq!(value_of(&report, "g"), Value::Text("RegEx".into()));
+    assert_eq!(
+        value_of(&report, "bad"),
+        Value::Text("ValueError|Parameter #1 of SetTitleMatchMode is invalid.|Bogus".into())
+    );
+    assert_eq!(value_of(&report, "bad4"), Value::Text("4".into()));
+}
+
+#[test]
+fn the_title_of_a_window_is_matched_the_way_the_mode_says() {
+    let _turn = THE_TITLE_MODE_TURN
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    // Measured on the binary of v2.0.19 on 2026-11-09: the mode 1 wants the
+    // title to start with the text, the mode 2 to have it in it and the mode
+    // 3 to be the text; the `RegEx` mode reads the text as a pattern; and the
+    // `*` and the `?` of a title are characters of the title, and not
+    // wildcards -- v2.0.19 has no wildcard in a window title.
+    let report = run(concat!(
+        "SetTitleMatchMode(2)\n",
+        "c_start := WinExist(\"Ste\")\n",
+        "c_middle := WinExist(\"tea\")\n",
+        "c_star := WinExist(\"Steam*\")\n",
+        "c_question := WinExist(\"Ste?m\")\n",
+        "SetTitleMatchMode(1)\n",
+        "s_start := WinExist(\"Ste\")\n",
+        "s_middle := WinExist(\"tea\")\n",
+        "SetTitleMatchMode(3)\n",
+        "e_exact := WinExist(\"Steam\")\n",
+        "e_start := WinExist(\"Ste\")\n",
+        "SetTitleMatchMode(\"RegEx\")\n",
+        "r_start := WinExist(\"^Ste\")\n",
+        "r_any := WinExist(\"Fir.*\")\n",
+        "r_bad := WinExist(\"(unclosed\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "c_start"), 101);
+    assert_eq!(int_of(&report, "c_middle"), 101);
+    // The wildcards of v2 are in the names of the files, and not in a title.
+    assert_eq!(int_of(&report, "c_star"), 0);
+    assert_eq!(int_of(&report, "c_question"), 0);
+    assert_eq!(int_of(&report, "s_start"), 101);
+    assert_eq!(int_of(&report, "s_middle"), 0);
+    assert_eq!(int_of(&report, "e_exact"), 101);
+    assert_eq!(int_of(&report, "e_start"), 0);
+    assert_eq!(int_of(&report, "r_start"), 101);
+    assert_eq!(int_of(&report, "r_any"), 102);
+    // A pattern that does not compile is not a failure of the question about
+    // a window: measured on the binary of v2.0.19 on 2026-11-09, the answer
+    // is that no window matches, while a direct `RegExMatch` fails.
+    assert_eq!(int_of(&report, "r_bad"), 0);
 }
 
 #[test]
@@ -4974,16 +5201,19 @@ fn the_failure_of_a_copy_carries_the_number_of_the_files_that_failed() {
 
 #[test]
 fn the_wildcards_of_the_delete_are_not_carried() {
-    // The wildcards of v2 are not carried: the name of a file that is not
-    // there is not a file, and the tree says so.
-    let report = run(
-        "try {\n    x := FileDelete(\"*.txt\")\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What\n}",
-    );
+    // The name of a file of a delete may be a pattern of v2: the files that it
+    // names are taken away, and the answer is the empty text. Measured on the
+    // binary of v2.0.19 on 2026-11-09.
+    let mut desktop = Fake::default();
+    let report = run_on("x := FileDelete(\"*.txt\")", &mut desktop);
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        report.output,
-        vec!["the wildcards of v2 are not carried yet. | FileDelete"]
-    );
+    assert_eq!(value_of(&report, "x"), Value::Text(String::new()));
+    let deletes: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "delete-file")
+        .collect();
+    assert_eq!(deletes.len(), 2, "{:?}", desktop.calls);
 }
 /// The class that the cases of the binding use: a method that takes one
 /// argument and one that takes two.

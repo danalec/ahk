@@ -1439,6 +1439,9 @@ pub struct Runtime<'a> {
     /// The runtime owns the function that a hotkey runs; the desktop owns
     /// the watching of the keyboard, and says which hotkey was pressed.
     hotkeys: Vec<crate::hotkeys::Hotkey>,
+    /// Whether the desktop said it cannot watch the keyboard: the hotkeys of
+    /// the v2 are then a note of the run, and the script goes on.
+    hotkeys_are_not_watched: bool,
     /// The code the script asked to stop with.
     exit_requested: Option<i32>,
     /// The functions to call when the script ends.
@@ -1539,6 +1542,7 @@ impl<'a> Runtime<'a> {
             stack_budget: Self::MAX_STACK,
             timers: Vec::new(),
             hotkeys: Vec::new(),
+            hotkeys_are_not_watched: false,
             exit_requested: None,
             exit_callbacks: Vec::new(),
             error_callbacks: Vec::new(),
@@ -1605,6 +1609,7 @@ impl<'a> Runtime<'a> {
             stack_budget: Self::MAX_STACK,
             timers: Vec::new(),
             hotkeys: Vec::new(),
+            hotkeys_are_not_watched: false,
             exit_requested: None,
             exit_callbacks: Vec::new(),
             error_callbacks: Vec::new(),
@@ -1837,6 +1842,41 @@ impl<'a> Runtime<'a> {
         Ok(())
     }
 
+    /// The hotkeys of the v2 that the script writes in its own lines.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the hotkey of the v2
+    /// is registered when the script loads, the way the one of the v1 is, and
+    /// the desktop that cannot watch the keyboard does not make the script
+    /// fail -- it says so in a note and the script runs, because v2 has no
+    /// failure of the load for a hotkey.
+    fn register_the_hotkeys_of_the_v2(&mut self, statements: &[Node]) -> Result<(), RuntimeError> {
+        for statement in statements {
+            if let Node::HotkeyDefinition {
+                name, body, line, ..
+            } = statement
+            {
+                // The line of a hotstring is the whole line, and it is not a
+                // hotkey of the keyboard: the runtime has no dispatcher of a
+                // hotstring yet, and the definition is left alone.
+                if name.starts_with("::") {
+                    continue;
+                }
+                crate::hotkeys::register_the_hotkey_of_the_v2(self, name, body.clone(), *line)
+                    .map_err(|failure| match failure {
+                        RuntimeFailure::Error(error) => error,
+                        RuntimeFailure::Detailed(error, _) => error,
+                        RuntimeFailure::Fatal(error) => error,
+                        _ => RuntimeError {
+                            message: "the hotkey could not be registered.".to_string(),
+                            line: *line,
+                        },
+                    })?;
+                self.register_the_hotkeys_of_the_v2(body)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Run the script and report what happened.
     pub fn run(mut self, statements: &[Node]) -> Report {
         let mut error = None;
@@ -1861,7 +1901,11 @@ impl<'a> Runtime<'a> {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the
         // hotkey of the v1 is registered when the script loads, and not when
         // the code that comes before it runs.
-        let registered = self.register_the_hotkeys_of_the_v1(statements);
+        let registered = if self.dialect.the_hotkeys_are_of_the_v2() {
+            self.register_the_hotkeys_of_the_v2(statements)
+        } else {
+            self.register_the_hotkeys_of_the_v1(statements)
+        };
         // The labels of the script are the scope of the script.
         self.label_scopes.push(the_labels_of(statements));
         match registered {
@@ -2410,15 +2454,43 @@ impl<'a> Runtime<'a> {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-03: the body of a hotkey of the v1 may jump to a
                 // label of the script, and the jump goes on at the label.
-                match crate::hotkeys::run_fired(self) {
-                    Ok(()) => {}
-                    Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
-                        match the_place_of_the_label(statements, &name) {
-                            Some(place) => index = place,
-                            None => return Err(RuntimeFailure::Flow(Flow::Goto { name, line })),
+                if !self.hotkeys_are_not_watched {
+                    match crate::hotkeys::run_fired(self) {
+                        Ok(()) => {}
+                        Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
+                            match the_place_of_the_label(statements, &name) {
+                                Some(place) => index = place,
+                                None => {
+                                    return Err(RuntimeFailure::Flow(Flow::Goto {
+                                        name,
+                                        line,
+                                    }))
+                                }
+                            }
+                        }
+                        // Measured on the binary of v2.0.19 on 2026-11-09: a
+                        // hotkey is registered when the script loads, and the
+                        // script runs -- there is no failure of a run for a
+                        // keyboard the machine cannot watch. The tree says so
+                        // in a note and stops asking, and the rest of the
+                        // script runs.
+                        Err(failure) => {
+                            if self.dialect.the_hotkeys_are_of_the_v2() {
+                                let message = match &failure {
+                                    RuntimeFailure::Error(error) => error.message.clone(),
+                                    RuntimeFailure::Detailed(error, _) => error.message.clone(),
+                                    RuntimeFailure::Fatal(error) => error.message.clone(),
+                                    _ => "the keyboard cannot be watched".to_string(),
+                                };
+                                self.hotkeys_are_not_watched = true;
+                                self.note(format!(
+                                    "the hotkeys of this script are not watched on this desktop: {message}"
+                                ));
+                            } else {
+                                return Err(failure);
+                            }
                         }
                     }
-                    Err(failure) => return Err(failure),
                 }
                 // Measured on the binary of AutoHotkey v1.1.37.02 on
                 // 2026-11-03: the section of the script that runs ends at

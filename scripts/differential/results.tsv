@@ -52,6 +52,14 @@ fu04_func_object	funcs	BOTH-DIFFER	F5=ERR ValueError: Invalid base.	F5=ERR TypeE
 fu05_boundfunc	funcs	MATCH	F6=15\nF7=1|BoundFunc	F6=15\nF7=1|BoundFunc	F6=15\nF7=1|BoundFunc	
 fu06_fat_arrow	funcs	MATCH	F8=42\nF9=5	F8=42\nF9=5	F8=42\nF9=5	rust-warn-elements-dropped=3
 fu07_func_as_value	funcs	MATCH	F10=42|5	F10=42|5	F10=42|5	rust-warn-elements-dropped=1
+hk01_hotkey_one_line_body	hotkeys	MATCH	HK1	HK1	HK1	
+hk02_hotkey_brace_on_the_line	hotkeys	MATCH	HK2	HK2	HK2	
+hk03_hotkey_block_on_the_next_line	hotkeys	MATCH	HK3	HK3	HK3	
+hk04_hotkey_return_body	hotkeys	MATCH	HK4	HK4	HK4	
+hk05_hotkey_modifier_chord	hotkeys	MATCH	HK5	HK5	HK5	
+hk06_hotstring	hotkeys	MATCH	HK6	HK6	HK6	
+hk07_hotstring_with_colons	hotkeys	MATCH	HK7	HK7	HK7	
+hk08_hotkey_literal_empty_brace	hotkeys	KEYS-DIFFERS	STDERR:This line does not contain a recognized action.\n     Specifically: { }	HK8	ERROR:This line does not contain a recognized action.\n     Specifically: { }	real-err-loc-normalized; real-answer=stderr; rust-answer=report.error
 mi01_sort_string	misc	MATCH	M1=a|b|c\nM2=40|233\nM3=A|a|b\nM4=A|a|b\nM5=a|b\nM6=a|b|c	M1=a|b|c\nM2=40|233\nM3=A|a|b\nM4=A|a|b\nM5=a|b\nM6=a|b|c	M1=a|b|c\nM2=40|233\nM3=A|a|b\nM4=A|a|b\nM5=a|b\nM6=a|b|c	
 mi02_format_time	misc	MATCH	M7=2020-01-02 03:04:05|20200102\nM8=01/02/2020|1999-12-31	M7=2020-01-02 03:04:05|20200102\nM8=01/02/2020|1999-12-31	M7=2020-01-02 03:04:05|20200102\nM8=01/02/2020|1999-12-31	
 mi03_date_add	misc	MATCH	M9=20200201000000|20200101010000|20200101000130|20191231000000\nM9B=20200102000000|20200101010000|20200101000100|20200101000001	M9=20200201000000|20200101010000|20200101000130|20191231000000\nM9B=20200102000000|20200101010000|20200101000100|20200101000001	M9=20200201000000|20200101010000|20200101000130|20191231000000\nM9B=20200102000000|20200101010000|20200101000100|20200101000001	

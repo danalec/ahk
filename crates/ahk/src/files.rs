@@ -14,6 +14,7 @@
 
 use alloc::format;
 use alloc::string::{String, ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::classes::file::{Encoding, decode, encode};
@@ -82,7 +83,12 @@ pub fn dir_move(
     Ok(Value::Text(String::new()))
 }
 
-/// `FileCopy`: take a copy of a file.
+/// `FileCopy`: take a copy of a file, or of the files that a pattern names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the source may be the
+/// name of one file or a pattern whose last part holds a `*` and a `?`, and a
+/// destination that ends with a separator, or that is a folder, is the folder
+/// the files are copied into.
 pub fn file_copy(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -91,19 +97,29 @@ pub fn file_copy(
 ) -> Result<Value, RuntimeError> {
     let from = the_name_of_a_file(values, 0, 1, "FileCopy", line)?;
     let to = the_name_of_a_file(values, 1, 2, "FileCopy", line)?;
-    refuse_the_wildcards(&from, line)?;
-    refuse_the_wildcards(&to, line)?;
     let overwrite = flag_of(values, 2, "FileCopy", line)?;
-    rt.desktop()
-        .copy_file(&from, &to, overwrite)
-        .map_err(|reason| RuntimeError {
-            message: reason,
-            line,
-        })?;
+    let files = the_files_to_work_on(rt, &from, line)?;
+    let source_leaf = parent_and_name(&from).1;
+    let into_the_folder = to.ends_with('/') || to.ends_with('\\') || is_a_folder(rt, &to);
+    for file in files {
+        let destination = if into_the_folder {
+            format!("{}{}", the_folder_and_its_separator(&to), the_name_of_a_file_at_the_end(&file))
+        } else {
+            the_destination_for(&file, &source_leaf, &to)
+        };
+        rt.desktop()
+            .copy_file(&file, &destination, overwrite)
+            .map_err(|reason| RuntimeError {
+                message: reason,
+                line,
+            })?;
+    }
     Ok(Value::Text(String::new()))
 }
 
-/// `FileMove`: move a file.
+/// `FileMove`: move a file, or the files that a pattern names.
+///
+/// The source and the destination are the ones of `FileCopy`.
 pub fn file_move(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -112,16 +128,133 @@ pub fn file_move(
 ) -> Result<Value, RuntimeError> {
     let from = the_name_of_a_file(values, 0, 1, "FileMove", line)?;
     let to = the_name_of_a_file(values, 1, 2, "FileMove", line)?;
-    refuse_the_wildcards(&from, line)?;
-    refuse_the_wildcards(&to, line)?;
     let overwrite = flag_of(values, 2, "FileMove", line)?;
-    rt.desktop()
-        .move_file(&from, &to, overwrite)
+    let files = the_files_to_work_on(rt, &from, line)?;
+    let source_leaf = parent_and_name(&from).1;
+    let into_the_folder = to.ends_with('/') || to.ends_with('\\') || is_a_folder(rt, &to);
+    for file in files {
+        let destination = if into_the_folder {
+            format!("{}{}", the_folder_and_its_separator(&to), the_name_of_a_file_at_the_end(&file))
+        } else {
+            the_destination_for(&file, &source_leaf, &to)
+        };
+        rt.desktop()
+            .move_file(&file, &destination, overwrite)
+            .map_err(|reason| RuntimeError {
+                message: reason,
+                line,
+            })?;
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// The files a copy or a move works on: the one file of a plain name, or the
+/// files that a pattern names.
+fn the_files_to_work_on(
+    rt: &mut Runtime<'_>,
+    from: &str,
+    line: u32,
+) -> Result<Vec<String>, RuntimeError> {
+    if is_a_pattern(from) {
+        return the_files_of_the_pattern(rt, from, line);
+    }
+    Ok(vec![from.to_string()])
+}
+
+/// The destination of a file of a pattern.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a destination whose name
+/// is `*` or `*.*` keeps the name of the file as it is, a destination whose
+/// name is `*.bak` is the name of the file with its extension replaced by
+/// `.bak`, and a destination with no `*` is the one name for every file. A
+/// destination that ends with a separator, or that is a folder, is the folder
+/// the files go into, and it is not this function that answers it.
+fn the_destination_for(file: &str, source_leaf: &str, destination: &str) -> String {
+    if !is_a_pattern(source_leaf) || !destination.contains('*') {
+        return destination.to_string();
+    }
+    let name = the_name_of_a_file_at_the_end(file);
+    let leaf = the_name_of_a_file_at_the_end(destination);
+    let (folder, _) = parent_and_name(destination);
+    let stem = match name.rfind('.') {
+        Some(at) if at > 0 => &name[..at],
+        _ => name,
+    };
+    let new_leaf = if leaf == "*" || leaf == "*.*" {
+        name.to_string()
+    } else if let Some(rest) = leaf.strip_prefix('*') {
+        if rest.starts_with('.') {
+            format!("{stem}{rest}")
+        } else {
+            leaf.replacen('*', stem, 1)
+        }
+    } else {
+        leaf.replacen('*', stem, 1)
+    };
+    format!("{folder}{new_leaf}")
+}
+
+/// The files that a pattern of v2 names, as the paths of them.
+///
+/// The pattern is the one of v2: the last part of the path may hold a `*`,
+/// which is any run of characters, and a `?`, which is one character.
+/// Measured on the binary of v2.0.19 on 2026-11-09: a pattern that names no
+/// file is not a failure -- a pattern of a folder that is not there names no
+/// file, and the question does not fail -- and a `*` is a character of a name
+/// when the name has one.
+pub(crate) fn the_files_of_the_pattern(
+    rt: &mut Runtime<'_>,
+    pattern: &str,
+    line: u32,
+) -> Result<Vec<String>, RuntimeError> {
+    let folder = rt
+        .desktop()
+        .working_directory()
         .map_err(|reason| RuntimeError {
             message: reason,
             line,
         })?;
-    Ok(Value::Text(String::new()))
+    // The `*.` of Windows is every file of the folder: measured on the binary
+    // of v2.0.19 on 2026-11-09, `FileCopy("src\*.", "out\")` copies the files
+    // with an extension as well, and `*.` is the `*` of the machine it runs on.
+    let pattern = the_pattern_of_the_v2(pattern);
+    match rt.desktop().list_files(&folder, &pattern, "") {
+        Ok(files) => Ok(files),
+        // A pattern whose folder cannot be read names no file: measured on
+        // the binary of v2.0.19 on 2026-11-09, a copy of a pattern in a
+        // folder that is not there copies nothing and is not a failure.
+        Err(_) => Ok(Vec::new()),
+    }
+}
+
+/// The pattern of v2, with the `*.` of Windows turned into the `*` it means.
+fn the_pattern_of_the_v2(pattern: &str) -> String {
+    let (folder, leaf) = parent_and_name(pattern);
+    if leaf.ends_with("*.") {
+        return format!("{folder}{}", &leaf[..leaf.len() - 1]);
+    }
+    pattern.to_string()
+}
+
+/// The folder of a path, with the separator at its end.
+fn the_folder_and_its_separator(path: &str) -> String {
+    if path.ends_with('/') || path.ends_with('\\') || path.is_empty() {
+        return path.to_string();
+    }
+    format!("{path}/")
+}
+
+/// Whether a path is a pattern of files, and not the name of one file.
+pub(crate) fn is_a_pattern(path: &str) -> bool {
+    path.contains('*') || path.contains('?')
+}
+
+/// The name of the file at the end of a path.
+pub(crate) fn the_name_of_a_file_at_the_end(path: &str) -> &str {
+    match path.rfind(['/', '\\']) {
+        Some(index) => &path[index + 1..],
+        None => path,
+    }
 }
 
 /// `FileInstall`: take a copy of a file, the way the installer of a
@@ -1401,7 +1534,10 @@ mod tests {
             &[Value::Text("a.txt".into()), Value::Text("b.txt".into())],
         );
         assert_eq!(text_of_value(&answer), "");
-        assert_eq!(calls, vec!["copy_file a.txt b.txt false"]);
+        assert_eq!(
+            calls,
+            vec!["list_files C:\\work b.txt D", "copy_file a.txt b.txt false"]
+        );
     }
 
     #[test]
@@ -1415,20 +1551,42 @@ mod tests {
             ],
         );
         assert_eq!(text_of_value(&answer), "");
-        assert_eq!(calls, vec!["copy_file a.txt b.txt true"]);
+        assert_eq!(
+            calls,
+            vec!["list_files C:\\work b.txt D", "copy_file a.txt b.txt true"]
+        );
     }
 
     #[test]
-    fn file_copy_refuses_the_wildcards_of_v2() {
-        let (answer, calls) = run(
-            file_copy,
-            &[Value::Text("*.txt".into()), Value::Text("b.txt".into())],
+    fn file_copy_copies_the_files_of_a_pattern() {
+        // Measured on the binary of v2.0.19 on 2026-11-09: a source that is a
+        // pattern copies every file it names, and a destination that ends
+        // with a separator is the folder they go into.
+        let mut desktop = Fake {
+            folders: vec![
+                "C:\\work\\a.txt".to_string(),
+                "C:\\work\\b.txt".to_string(),
+            ],
+            ..Fake::default()
+        };
+        let mut clock = TheClock;
+        let mut rt = Runtime::with_clock(&mut desktop, &mut clock, Duration::from_secs(10));
+        let answer = file_copy(
+            &mut rt,
+            &[Value::Text("*.txt".into()), Value::Text("out/".into())],
+            1,
+            0,
         );
+        let calls = desktop.calls.into_inner();
+        assert_eq!(text_of_value(&answer), "");
         assert_eq!(
-            reason_of(&answer),
-            "the wildcards of v2 are not carried yet."
+            calls,
+            vec![
+                "list_files C:\\work *.txt ",
+                "copy_file C:\\work\\a.txt out/a.txt false",
+                "copy_file C:\\work\\b.txt out/b.txt false",
+            ]
         );
-        assert!(calls.is_empty());
     }
 
     #[test]
@@ -1438,7 +1596,10 @@ mod tests {
             &[Value::Text("a.txt".into()), Value::Text("b.txt".into())],
         );
         assert_eq!(text_of_value(&answer), "");
-        assert_eq!(calls, vec!["move_file a.txt b.txt false"]);
+        assert_eq!(
+            calls,
+            vec!["list_files C:\\work b.txt D", "move_file a.txt b.txt false"]
+        );
     }
 
     #[test]

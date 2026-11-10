@@ -11,6 +11,7 @@
 //! it, and the messages of the failures are the ones of v2.0.19, measured
 //! on the binary on 2026-10-28.
 
+use alloc::format;
 use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 use alloc::vec;
@@ -167,12 +168,18 @@ pub fn parse(spec: &str) -> Result<Spec, String> {
     let mut marks: Vec<char> = Vec::new();
     while let Some(first) = rest.chars().next() {
         match first {
-            '~' if modifiers.is_empty() && !tilde && !custom => {
+            '~' if modifiers.is_empty() && !tilde => {
                 tilde = true;
                 rest = &rest[1..];
             }
-            '*' if modifiers.is_empty() && !tilde && !custom => {
+            '*' if modifiers.is_empty() && !custom => {
                 custom = true;
+                rest = &rest[1..];
+            }
+            // The $ of the spelling asks for the keyboard hook, and the
+            // hook of the tree watches every key: the mark is taken and it
+            // changes nothing.
+            '$' if modifiers.is_empty() => {
                 rest = &rest[1..];
             }
             '<' | '>' => {
@@ -353,6 +360,42 @@ pub(crate) fn register_the_hotkey_of_the_v1(
     rt.desktop()
         .register_hotkey(name)
         .map_err(|reason| fail(&reason, line))?;
+    let shared = shared_of(rt);
+    rt.hotkeys().push(Hotkey {
+        name: name.to_string(),
+        function: String::new(),
+        enabled: true,
+        kind: Kind::Hotkey,
+        line,
+        object: None,
+        shared,
+        condition: None,
+        takes_name: false,
+        body: Some(body),
+    });
+    Ok(())
+}
+
+/// The hotkey of the v2 that the script writes in a line of its own.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `F1::MsgBox "hi"` is a
+/// hotkey whose action is the statement of the line, and `F1::{ ... }` one
+/// whose action is the block. A desktop that cannot watch the keyboard does
+/// not make the script fail: the v2 has no failure of the load for it, and a
+/// script of this tree is still a script -- the note says why the hotkey is
+/// not there, and the rest of it runs.
+pub(crate) fn register_the_hotkey_of_the_v2(
+    rt: &mut Runtime<'_>,
+    name: &str,
+    body: Vec<Node>,
+    line: u32,
+) -> Result<(), RuntimeFailure> {
+    if let Err(reason) = rt.desktop().register_hotkey(name) {
+        rt.note(format!(
+            "the hotkey {name} is not watched on this desktop: {reason}"
+        ));
+        return Ok(());
+    }
     let shared = shared_of(rt);
     rt.hotkeys().push(Hotkey {
         name: name.to_string(),

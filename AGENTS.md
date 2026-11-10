@@ -10191,3 +10191,48 @@ its text or its position -- stay refusals with the reason. The capability is
 `Windows::windows()` answering `WindowInfo { id, title, class, active }`, and
 the Wayland client keeps a per-process map from the compositor's stable
 identifier to the id, counting from one, so zero is never a window.
+## 259. The hotkey and the hotstring of the v2 are lines of the script
+
+Measured on the binary of v2.0.19 on 2026-11-09, with `/validate` on a
+one-line file and `#ErrorStdOut` for the refusals: the v2 writes a hotkey in
+a line of its own, the name before two colons and the action after them. The
+five action shapes the binary accepts are the statement of the line
+(`F1::MsgBox "hi"`), the block that begins at the end of the line
+(`F1::{ ... }`), the block on the line that comes after it (`F1::` then
+`{ ... }`), an empty action, and any statement (`F1::return`). The name may
+begin with `#` (the Win modifier) and `$` (the keyboard hook); the two
+prefixes of the action -- `~` and `*` -- are accepted in either order
+(`~*LButton`, `*~LButton`). The refusals are the ones of the binary: a name
+that is not a key is "Invalid key name." with the name, a name declared twice
+is "Duplicate hotkey." with it, and a `{` that does not end the line
+(`F1::{}`, `F1::{ MsgBox "x" }`) is "This line does not contain a recognized
+action." with the rest of the line.
+
+The line that begins with the two colons is a hotstring, and its text is raw:
+`::btw::by the way`, `::1:::2` (the text holds the colons again), `::5`:::6`
+(the backtick escapes the colon), `::arn't::aren't`, `::i"m::I'm`. The line
+without the second pair of colons is "Invalid hotkey." with the line. The
+lexer reads the rest of such a line as one token and the parser takes its
+value, so no character of the text is a token of the dialect.
+
+The lexer carries the marks: a `#` at the start of a line whose text holds the
+two colons is the Win modifier of the hotkey and not a directive, and a `$` at
+the start of a line is the mark of the hook. The parser gates the v1 wrapper
+(`the_bodies_of_the_hotkeys`) on the dialect: the body of a v2 hotkey is the
+statement or the block the definition carries, and the rest of the script is
+not its body -- before this a braced v2 hotkey swallowed every statement after
+it.
+
+The runtime registers the hotkeys of the v2 when the script loads, and a
+desktop that cannot watch the keyboard does not make the script fail: the v2
+has no failure of the load for it, and the script says so in a note and runs.
+The first question to the keyboard that fails sets `hotkeys_are_not_watched`
+and the script stops asking. The hotstring has no dispatcher yet: it is
+parsed and registered as nothing.
+
+Not carried yet: the options of a hotstring (`:*:`, `:?:`), a hotkey that is
+inside a `#HotIf` section (the directive is still refused), the multi-line
+replacement of a hotstring, and the corpus script that pins those
+(`hotstring-parsing2.ahk`). The key table of the tree also still refuses
+names the binary accepts (`LButton`, `F13`..`F24`, `WheelUp`, the numpad
+names); a worker carries the table this round.

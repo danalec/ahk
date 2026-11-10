@@ -249,6 +249,24 @@ const OPERATORS: &[&str] = &[
 /// know it.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04.
+/// Whether the line that begins at this place holds the two colons of a
+/// hotkey before it ends.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the `#` that begins a line
+/// is the `#` of the Win modifier when the line carries the two colons of a
+/// hotkey definition, and the `#` of a directive otherwise.
+fn the_line_from_has_the_two_colons(chars: &[char], from: usize) -> bool {
+    let mut at = from;
+    while at < chars.len() && chars[at] != '\n' {
+        if chars[at] == ':' && chars.get(at + 1) == Some(&':') {
+            return true;
+        }
+        at += 1;
+    }
+    false
+}
+
+/// The operators of the dialect.
 fn the_operators_of(dialect: &'static dyn crate::dialect::Dialect) -> Vec<&'static str> {
     if !dialect.the_lexer_knows_the_legacy_operators() {
         return OPERATORS.to_vec();
@@ -1165,6 +1183,25 @@ fn tokenize_the_source(
             continue;
         }
         if current == '#' {
+            // Measured on the binary of v2.0.19 on 2026-11-09: a `#` that
+            // begins a line of a hotkey is the `#` of the Win modifier and
+            // not the `#` of a directive -- `#z::MsgBox "x"` is a hotkey --
+            // and the two colons before the end of the line are what says so.
+            if tokens.len() == the_start_of_the_current_line_tokens
+                && the_line_from_has_the_two_colons(&chars, index)
+            {
+                tokens.push(Token {
+                    kind: TokenKind::Op,
+                    value: "#".into(),
+                    line,
+                    column,
+                    spaced: before,
+                    quote: None,
+                });
+                index += 1;
+                column += 1;
+                continue;
+            }
             // Measured on the binary of v2.0.19 on 2026-10-31: the hash is a
             // directive only at the start of a line. Anywhere else it is an
             // illegal character in an expression, and the parser is the one
@@ -1785,6 +1822,44 @@ fn tokenize_the_source(
             column += 1;
             continue;
         }
+        // Measured on the binary of v2.0.19 on 2026-11-09: the line of a hotstring
+        // is one line of raw text -- `::arn't::aren't` holds the apostrophe,
+        // and `::5`:::6` holds the backtick that escapes the colon -- and
+        // nothing in it is a token of the dialect. The two colons that begin
+        // it are a token of their own, so that the parser sees the line as the
+        // hotstring it is, and the rest of the line is one text.
+        if dialect.the_hotstrings_are_of_the_v2()
+            && current == ':'
+            && chars.get(index + 1) == Some(&':')
+            && tokens.len() == the_start_of_the_current_line_tokens
+        {
+            let start_column = column;
+            tokens.push(Token {
+                kind: TokenKind::Op,
+                value: "::".to_string(),
+                line,
+                column: start_column,
+                spaced: before,
+                quote: None,
+            });
+            index += 2;
+            column += 2;
+            let start = index;
+            while index < chars.len() && chars[index] != '\n' {
+                index += 1;
+                column += 1;
+            }
+            let text: String = chars[start..index].iter().collect();
+            tokens.push(Token {
+                kind: TokenKind::String,
+                value: text,
+                line,
+                column: start_column + 2,
+                spaced: false,
+                quote: None,
+            });
+            continue;
+        }
         let mut matched = false;
         for operator in operators.iter().copied() {
             // A `++` or a `--` right after a number is a subtraction: `5--3`
@@ -1818,6 +1893,23 @@ fn tokenize_the_source(
             }
         }
         if !matched {
+            // Measured on the binary of v2.0.19 on 2026-11-09: the `$` of the
+            // spelling of a hotkey is the mark of the keyboard hook, and it is
+            // the first character of the line of the hotkey: `$F1::MsgBox
+            // "x"` is a hotkey. Anywhere else it is an illegal character.
+            if current == '$' && tokens.len() == the_start_of_the_current_line_tokens {
+                tokens.push(Token {
+                    kind: TokenKind::Op,
+                    value: "$".into(),
+                    line,
+                    column,
+                    spaced: before,
+                    quote: None,
+                });
+                index += 1;
+                column += 1;
+                continue;
+            }
             return Err(SyntaxError::new(
                 format!("unexpected character {current:?}"),
                 line,

@@ -1621,10 +1621,20 @@ fn win_active_of_a_window_that_is_not_there_is_false() {
     assert_eq!(report.variables.get("active"), Some(&Value::Int(0)));
 }
 
+/// The turn of the cases that change the mode of the titles.
+///
+/// The mode is a setting of the crate, and the cases of one file run in
+/// threads: a case that reads the mode while another writes it would see the
+/// mode of the other one.
+static THE_TITLE_MODE_TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// The mode of the matching of the titles is a setting of the script,
 /// and the desktop is told it.
 #[test]
 fn the_mode_of_the_matching_of_the_titles_is_the_one_of_the_script() {
+    let _turn = THE_TITLE_MODE_TURN
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let mut desktop = Fake {
         windows: vec!["Steam Client".into()],
         ..Default::default()
@@ -6064,6 +6074,86 @@ fn the_name_that_the_script_builds_is_incremented_the_way_a_variable_is() {
 }
 
 #[test]
+fn the_hotkey_of_the_v2_is_a_line_of_its_own() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the hotkey of the v2
+    // is a line whose name is followed by two colons, and the action of it is
+    // the statement of the line, the block of the same line, the block of the
+    // line that comes after it, or any statement (`return`). The `#` of the
+    // Win modifier and the `$` of the hook are the first characters of the
+    // line, and the fake desktop of the tests cannot watch the keyboard: the
+    // script runs and says so in a note, because v2 has no failure of the load
+    // for a hotkey.
+    let (report, _desktop) = run(concat!(
+        "F1::MsgBox \"one\"\n",
+        "F2::{\n    MsgBox \"two\"\n}\n",
+        "F3::\n{\n    MsgBox \"three\"\n}\n",
+        "F4::return\n",
+        "^!a::MsgBox \"chord\"\n",
+        "#z::MsgBox \"hash\"\n",
+        "$F5::MsgBox \"hook\"\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    // The action of a hotkey does not run in this runner, and the statement
+    // after the definitions does.
+    assert_eq!(report.output, vec!["after"]);
+    assert!(
+        report.notes.iter().any(|note| note.contains("not watched")),
+        "{:?}",
+        report.notes
+    );
+}
+
+#[test]
+fn the_hotkey_of_the_v2_refuses_the_shapes_the_binary_refuses() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the name that is
+    // declared twice is "Duplicate hotkey.", the name that is not a key is
+    // "Invalid key name.", and the braces that do not end the line are "This
+    // line does not contain a recognized action.".
+    let error = parse("F1::MsgBox \"a\"\nF1::MsgBox \"b\"\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Duplicate hotkey.\n     Specifically: F1"
+    );
+    let error = parse("zzz::MsgBox \"a\"\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Invalid key name.\n     Specifically: zzz"
+    );
+    let error = parse("F1::{}\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: {}"
+    );
+    let error = parse("F1::{ MsgBox \"x\" }\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "This line does not contain a recognized action.\n     Specifically: { MsgBox \"x\" }"
+    );
+}
+
+#[test]
+fn the_hotstring_of_the_v2_is_a_line_of_raw_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `::btw::by the way` is
+    // a hotstring, the text of it may hold the two colons again (`::1:::2`),
+    // and the backtick escapes the colon (`::5`:::6`). The line without the
+    // second pair of colons is "Invalid hotkey." with the line itself.
+    let (report, _desktop) = run(concat!(
+        "::btw::by the way\n",
+        "::1:::2\n",
+        "::5`:::6\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["after"]);
+    let error = parse("::btw\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Invalid hotkey.\n     Specifically: ::btw"
+    );
+}
+
+#[test]
 fn a_text_that_holds_a_hexadecimal_number_is_a_number() {
     // Measured on the binary of v2.0.19 on 2026-11-09: "0x1" + 0 is 1,
     // "0X1F" + 0 is 31, "-0x10" + 0 is -16, " 0x10 " + 0 is 16, `~"0x1"` is
@@ -7755,4 +7845,36 @@ fn the_spread_of_a_class_enumerates_its_values() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["7/8"]);
+}
+#[test]
+fn the_mode_of_the_title_is_a_setting_of_the_script() {
+    let _turn = THE_TITLE_MODE_TURN
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    // Measured on the binary of v2.0.19 on 2026-11-09: the command may be
+    // written as a statement without the parentheses, and the mode that it
+    // sets is the one that the built-in variable `A_TitleMatchMode` answers.
+    let (report, _desktop) = run(concat!(
+        "SetTitleMatchMode 3\n",
+        "m := A_TitleMatchMode\n",
+        "SetTitleMatchMode 2\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("m"), Some(&Value::Int(3)));
+}
+
+#[test]
+fn the_mode_of_the_title_may_be_the_word_of_the_patterns() {
+    let _turn = THE_TITLE_MODE_TURN
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    // Measured on the binary of v2.0.19 on 2026-11-09: the word "RegEx" is the
+    // mode of the patterns, and the built-in variable answers the word.
+    let (report, _desktop) = run(concat!(
+        "SetTitleMatchMode \"RegEx\"\n",
+        "m := A_TitleMatchMode\n",
+        "SetTitleMatchMode 2\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("m"), Some(&Value::Text("RegEx".into())));
 }

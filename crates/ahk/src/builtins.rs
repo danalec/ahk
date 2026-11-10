@@ -3446,6 +3446,14 @@ pub fn find(name: &str) -> Option<&'static Builtin> {
 /// of an input box that v2 does not know does not: the value there is
 /// the option itself, and the built-in says which one it is.
 pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<String> {
+    // The failure of a mode of the window titles carries the value that was
+    // not a mode in the `Extra`: measured on the binary of v2.0.19 on
+    // 2026-11-09, `SetTitleMatchMode("Bogus")` carries "Bogus",
+    // `SetTitleMatchMode(4)` carries "4" and `SetTitleMatchMode(0)` carries
+    // "0".
+    if name == "SetTitleMatchMode" && message == "Parameter #1 of SetTitleMatchMode is invalid." {
+        return values.first().map(|value| value.to_text());
+    }
     // The failure of a window query carries the window it was asked about in
     // the `Extra`, and a window that was named by its id leaves it empty.
     //
@@ -4002,7 +4010,11 @@ pub(crate) fn dir_exist(
     Ok(Value::Text(attributes.concat()))
 }
 
-/// `FileDelete`: take a file away.
+/// `FileDelete`: take a file away, or the files that a pattern names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the name may be a pattern
+/// whose last part holds a `*`, which is any run of characters, and a `?`,
+/// which is one character; a pattern that names no file is not a failure.
 pub(crate) fn file_delete(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -4010,15 +4022,19 @@ pub(crate) fn file_delete(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let path = crate::files::the_name_of_a_file(values, 0, 1, "FileDelete", line)?;
-    // The wildcards of v2 are not carried: the name of a file that is not
-    // there is not a file.
-    crate::files::refuse_the_wildcards(&path, line)?;
-    rt.desktop()
-        .delete_file(&path)
-        .map_err(|reason| RuntimeError {
-            message: reason,
-            line,
-        })?;
+    let files = if crate::files::is_a_pattern(&path) {
+        crate::files::the_files_of_the_pattern(rt, &path, line)?
+    } else {
+        vec![path]
+    };
+    for file in files {
+        rt.desktop()
+            .delete_file(&file)
+            .map_err(|reason| RuntimeError {
+                message: reason,
+                line,
+            })?;
+    }
     // Measured on the binary of v2.0.19 on 2026-11-01: the answer of the
     // command is an empty text.
     Ok(Value::Text(String::new()))
@@ -9315,6 +9331,21 @@ fn the_windows_of(
         .map_err(|e| desktop_failure(e, line))
 }
 
+/// Whether a title matches the text that is wanted, the way v2 matches it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a pattern of the `RegEx`
+/// mode that does not compile is not a failure of the question about a
+/// window -- the question answers that no window matches -- while a direct
+/// `RegExMatch` of the same pattern is a failure. The error of the pattern is
+/// therefore dropped here, and only here.
+fn a_title_matches(
+    mode: crate::desktop::TitleMatch,
+    title: &str,
+    wanted: &str,
+) -> bool {
+    mode.matches(title, wanted).unwrap_or(false)
+}
+
 /// The window a call of the family names, inside a listing of the windows.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-09: a number is the id of a
@@ -9324,7 +9355,6 @@ fn the_windows_of(
 fn the_window_in(
     windows: &[crate::desktop::WindowInfo],
     value: Option<&Value>,
-    line: u32,
 ) -> Result<Option<crate::desktop::WindowInfo>, RuntimeError> {
     match value {
         Some(Value::Int(id)) => Ok(windows.iter().find(|window| window.id == *id).cloned()),
@@ -9332,10 +9362,7 @@ fn the_window_in(
             let wanted = value.to_text();
             let mode = crate::settings::title_match_mode();
             for window in windows {
-                if mode
-                    .matches(&window.title, &wanted)
-                    .map_err(|reason| RuntimeError { message: reason, line })?
-                {
+                if a_title_matches(mode, &window.title, &wanted) {
                     return Ok(Some(window.clone()));
                 }
             }
@@ -9376,10 +9403,7 @@ fn the_matching_windows(
     let mode = crate::settings::title_match_mode();
     let mut matched = Vec::new();
     for window in windows {
-        if mode
-            .matches(&window.title, &wanted)
-            .map_err(|reason| RuntimeError { message: reason, line })?
-        {
+        if a_title_matches(mode, &window.title, &wanted) {
             matched.push(window);
         }
     }
@@ -9459,7 +9483,7 @@ pub(crate) fn window_active(
     // active window, and not one.
     match rt.desktop().windows() {
         Ok(windows) => {
-            let window = the_window_in(&windows, values.first(), line)?;
+            let window = the_window_in(&windows, values.first())?;
             return Ok(Value::Int(
                 match window {
                     Some(window) if window.active => window.id,
@@ -9521,7 +9545,7 @@ pub(crate) fn window_exist(
     // id of the active window.
     match rt.desktop().windows() {
         Ok(windows) => {
-            let window = the_window_in(&windows, values.first(), line)?;
+            let window = the_window_in(&windows, values.first())?;
             return Ok(Value::Int(window.map(|window| window.id).unwrap_or(0)));
         }
         Err(reason) => {
@@ -9578,7 +9602,7 @@ pub(crate) fn win_get_title(
         },
     };
     if let Ok(windows) = rt.desktop().windows() {
-        let window = the_window_in(&windows, values.first(), line)?;
+        let window = the_window_in(&windows, values.first())?;
         let title = match window {
             Some(window) => window.title,
             None if asked => return Err(no_window(line)),
