@@ -4000,8 +4000,8 @@ their own.
 **all 140 rows of the AHK_X11 feature matrix**, **all four mechanisms**, **zero
 blanket refusals** (all 78 say what they are about), all seven `Edit*` names,
 twenty-four `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
-capability entire with `ComboBox`, `StatusBar`, `ListView`, `TreeView` and
-`UpDown` controls, and `DriveGet*`,
+capability entire with `ComboBox`, `StatusBar`, `ListView`, `TreeView`,
+`UpDown`, `Slider` and `Progress` controls, and `DriveGet*`,
 `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`,
 `FileRecycleEmpty`, `Group*`, `WinGetIDLast`, `OnClipboardChange` and
 `Persistent`.
@@ -4848,6 +4848,32 @@ parses the range. **Verified on the box** against every measured line:
 | edit3=[3] ud3=[3] | wintext=[3\n]`.
 
 The surface count does not move (UpDown is a control kind, not a builtin row):
+**755 / 78**, sum 833, both platforms green, clippy clean.
+
+### Round 269 — 2026-11-10: a Slider and a Progress, with a shared range
+
+**Measured on the binary of v2.0.19 on 2026-11-10**: `Add("Slider",
+"Range0-100", "50")` is `msctls_trackbar321` and `Add("Progress",
+"Range0-100", "40")` is `msctls_progress321`. Both have an Integer `Value`
+that starts at the NUMBER IN THE TEXT (50 and 40), or at the lower bound of the
+Range when there is no text; setting `Value` changes what is read back.
+`WinGetText` of a window with a Slider, a Progress and an Edit answers only the
+Edit's text -- the numeric controls contribute nothing, not even an empty line.
+
+**Built**: a shared `the_range_and_value` parser in the helper (the `Range`
+option and the starting number), a `Gtk.Scale` and a `Gtk.ProgressBar` with
+their numbers kept in `number_values`, a `Value` branch in `the_value`, the
+numeric controls skipped by `WinGetText`, and the class dispatcher's Integer
+arm widened from UpDown to all three kinds. The `Add` arm now hands BOTH the
+options and the text to the helper for the numeric controls, so the Range and
+the starting value survive together. **The UpDown was re-verified unchanged.**
+
+**One language case** covers both class names, both starting values, both
+Integer types and both writes. **Verified on the box**: `slider=
+msctls_trackbar321 [50] type=Integer | progress=msctls_progress321 [40]
+type=Integer | after sl=[75] pr=[80] | text=[hi\n]`.
+
+The surface count does not move (these are control kinds, not builtin rows):
 **755 / 78**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified

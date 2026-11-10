@@ -1521,16 +1521,27 @@ pub(crate) fn call(
             Some(value) => value.to_text(),
             None => String::new(),
         };
-        // An UpDown carries its `Range` in the OPTIONS (the second argument),
-        // not the text. Measured on the binary of v2.0.19 on 2026-11-10:
-        // `Add("UpDown", "Range1-10")` starts at 1, the range's lower bound.
-        // The helper reads the range from the text it is given, so the options
-        // are passed as that text when there is no text of its own.
-        let text = if kind.eq_ignore_ascii_case("updown") && text.is_empty() {
-            arguments
+        // The numeric controls (UpDown, Slider, Progress) carry a `Range` in
+        // the OPTIONS (the second argument) and, for a Slider or Progress, the
+        // starting value in the TEXT. Measured on the binary of v2.0.19 on
+        // 2026-11-10: `Add("UpDown", "Range1-10")` starts at 1, and
+        // `Add("Slider", "Range0-100", "50")` starts at 50. Both are handed
+        // to the helper as one string, which reads the range and the value.
+        let text = if matches!(
+            kind.to_lowercase().as_str(),
+            "updown" | "slider" | "progress"
+        ) {
+            let options = arguments
                 .get(1)
                 .map(|value| value.to_text())
-                .unwrap_or_default()
+                .unwrap_or_default();
+            if options.is_empty() {
+                text
+            } else if text.is_empty() {
+                options
+            } else {
+                format!("{options} {text}")
+            }
         } else {
             text
         };
@@ -1905,17 +1916,20 @@ fn the_control_of_the_gui(
     }
 }
 
-/// Whether the class of a control is an UpDown spinner.
+/// Whether a control's `Value` is an Integer rather than a text.
 ///
-/// Measured on the binary of v2.0.19 on 2026-11-10: its `ClassNN` is
-/// `msctls_updown321` and its `Value` is an Integer it shares with the Edit
-/// that was added before it.
-fn the_control_is_an_updown(class: &str) -> bool {
+/// Measured on the binary of v2.0.19 on 2026-11-10: an UpDown is
+/// `msctls_updown321` and shares its number with the Edit added before it; a
+/// Slider is `msctls_trackbar321` and a Progress `msctls_progress321`, and
+/// both start at the number in the text (or the lower bound of the Range).
+fn the_control_has_an_integer_value(class: &str) -> bool {
     let tail = match class.rsplit_once('.') {
         Some((_, tail)) => tail,
         None => class,
     };
     tail.eq_ignore_ascii_case("updown")
+        || tail.eq_ignore_ascii_case("slider")
+        || tail.eq_ignore_ascii_case("progress")
 }
 
 /// Whether the class of a control is one of the list-shaped kinds.
@@ -2029,10 +2043,10 @@ pub(crate) fn property(
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
-    // An UpDown's `Value` is an Integer shared with its buddy Edit. Measured
-    // on the binary of v2.0.19 on 2026-11-10: `ud.Value` answers a whole
-    // number, and setting it changes the Edit's text too.
-    if the_control_is_an_updown(class) && name.eq_ignore_ascii_case("value") {
+    // An UpDown, Slider or Progress has a `Value` that is an Integer; the
+    // UpDown shares it with its buddy Edit. Measured on the binary of v2.0.19
+    // on 2026-11-10.
+    if the_control_has_an_integer_value(class) && name.eq_ignore_ascii_case("value") {
         let number = the_number_of_a_control(this).unwrap_or(0);
         return Some(match rt.desktop().gui_value(number, None) {
             Ok(text) => Ok(Value::Int(text.parse().unwrap_or(0))),

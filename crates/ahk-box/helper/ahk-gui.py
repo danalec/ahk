@@ -74,6 +74,30 @@ def the_show():
     answer({"ok": True})
 
 
+def the_range_and_value(text):
+    """The lower bound, upper bound and starting value of a numeric control.
+
+    The options carry `RangeLOW-HIGH` and the text (for a Slider or a Progress)
+    carries the starting number. Measured on the binary of v2.0.19 on
+    2026-11-10: `Range0-100` with a text of 50 starts at 50, and with no text
+    starts at the lower bound.
+    """
+    low, high, start = 0, 100, None
+    for word in text.split():
+        if word.lower().startswith("range"):
+            try:
+                bounds = word[5:].split("-")
+                low, high = int(bounds[0]), int(bounds[-1])
+            except (ValueError, IndexError):
+                pass
+        else:
+            try:
+                start = int(word)
+            except ValueError:
+                pass
+    return low, high, low if start is None else max(low, min(high, start))
+
+
 def the_control(kind, text):
     """Add a control to the window, and give it the number that names it.
 
@@ -138,14 +162,7 @@ def the_control(kind, text):
         # `msctls_updown321`, its `Value` is an Integer, and it shares that
         # value with the buddy in BOTH directions -- setting the Edit's text
         # changes what the UpDown reads and the other way round.
-        low, high = 0, 100
-        for word in text.split():
-            if word.lower().startswith("range"):
-                try:
-                    bounds = word[5:].split("-")
-                    low, high = int(bounds[0]), int(bounds[-1])
-                except (ValueError, IndexError):
-                    pass
+        low, high, _start = the_range_and_value(text)
         control = Gtk.SpinButton()
         control.set_range(low, high)
         control.set_increments(1, 1)
@@ -163,6 +180,26 @@ def the_control(kind, text):
                 if held == buddy:
                     held_control.set_text(str(low))
                     break
+    elif kind == "Slider":
+        # `msctls_trackbar321`. Measured on the binary of v2.0.19 on 2026-11-10:
+        # `Value` is an Integer, it starts at the number in the text (or the
+        # lower bound), and setting it moves the thumb.
+        low, high, start = the_range_and_value(text)
+        control = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, low, high, 1
+        )
+        control.set_value(start)
+        state.setdefault("number_values", {})[state["next_id"]] = start
+        state.setdefault("number_ranges", {})[state["next_id"]] = (low, high)
+    elif kind == "Progress":
+        # `msctls_progress321`. Measured on the same day: `Value` is an Integer
+        # that starts at the number in the text (or the lower bound).
+        low, high, start = the_range_and_value(text)
+        control = Gtk.ProgressBar()
+        span = max(1, high - low)
+        control.set_fraction((start - low) / span)
+        state.setdefault("number_values", {})[state["next_id"]] = start
+        state.setdefault("number_ranges", {})[state["next_id"]] = (low, high)
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -244,6 +281,29 @@ def the_value(number, text):
     for held, kind, control in state["controls"]:
         if held != number:
             continue
+        if kind in ("Slider", "Progress"):
+            # Both hold an Integer `Value`. Measured on the binary of v2.0.19
+            # on 2026-11-10. The helper keeps the number so the toolkit widget
+            # and the script read the same thing.
+            if text is None:
+                answer({
+                    "ok": True,
+                    "value": str(state.get("number_values", {}).get(number, 0)),
+                })
+            else:
+                try:
+                    value = int(text)
+                except ValueError:
+                    value = 0
+                state.setdefault("number_values", {})[number] = value
+                if kind == "Slider":
+                    control.set_value(value)
+                else:
+                    low, high = state.get("number_ranges", {}).get(number, (0, 100))
+                    span = max(1, high - low)
+                    control.set_fraction(max(0.0, min(1.0, (value - low) / span)))
+                answer({"ok": True, "value": str(value)})
+            return
         if kind == "UpDown":
             # The spinner shares its number with the buddy Edit in both
             # directions. Measured on the binary of v2.0.19 on 2026-11-10.
@@ -619,11 +679,12 @@ def the_text_of_all():
         return
     parts = []
     for _number, kind, control in state["controls"]:
-        # An UpDown is a spinner and has no text of its own; v2 leaves it out
-        # of `WinGetText` entirely, and does not even give it an empty line.
-        # Measured on the binary of v2.0.19 on 2026-11-10: a window with an
-        # Edit holding 3 and an UpDown answers just "3" and a line break.
-        if kind == "UpDown":
+        # An UpDown, Slider or Progress is a numeric control and has no text
+        # of its own; v2 leaves it out of `WinGetText` entirely, and does not
+        # even give it an empty line. Measured on the binary of v2.0.19 on
+        # 2026-11-10: a window with an Edit holding 3 and an UpDown answers
+        # just "3" and a line break.
+        if kind in ("UpDown", "Slider", "Progress"):
             continue
         parts.append(the_text_of_a_control(kind, control))
         parts.append("\n")
@@ -654,9 +715,14 @@ def the_class_of(kind):
     if kind == "TreeView":
         return "SysTreeView32"
     # Measured on the binary of v2.0.19 on 2026-11-10: an UpDown is named
-    # `msctls_updown321`, the Win32 common-control class.
+    # `msctls_updown321`, a Slider `msctls_trackbar321` and a Progress
+    # `msctls_progress321` -- the Win32 common-control classes.
     if kind == "UpDown":
         return "msctls_updown32"
+    if kind == "Slider":
+        return "msctls_trackbar32"
+    if kind == "Progress":
+        return "msctls_progress32"
     return kind
 
 

@@ -378,18 +378,32 @@ impl Windows for Fake {
             "listview" => "SysListView321",
             "statusbar" => "msctls_statusbar321",
             "updown" => "msctls_updown321",
+            "slider" => "msctls_trackbar321",
+            "progress" => "msctls_progress321",
             _ => "ComboBox1",
         };
-        // An UpDown starts at the lower bound of its `Range` option. Measured
-        // on the binary of v2.0.19 on 2026-11-10: `Range1-10` starts at 1.
-        if kind.eq_ignore_ascii_case("updown") {
+        // The numeric controls start at the lower bound of their `Range`, or
+        // at the number in the text for a Slider or Progress. Measured on the
+        // binary of v2.0.19 on 2026-11-10: `Range1-10` starts at 1, and
+        // `Range0-100` with a text of 50 starts at 50.
+        if matches!(
+            kind.to_lowercase().as_str(),
+            "updown" | "slider" | "progress"
+        ) {
+            let mut low = 0;
+            let mut start = None;
             for word in text.split_whitespace() {
                 if word.to_lowercase().starts_with("range") {
-                    if let Some(low) = word[5..].split('-').next() {
-                        self.updown_value = low.parse().unwrap_or(0);
-                    }
+                    low = word[5..]
+                        .split('-')
+                        .next()
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0);
+                } else if let Ok(number) = word.parse::<i64>() {
+                    start = Some(number);
                 }
             }
+            self.updown_value = start.unwrap_or(low);
         }
         Ok((1, classnn.to_string()))
     }
@@ -405,6 +419,9 @@ impl Windows for Fake {
             || classnn.eq_ignore_ascii_case("msctls_statusbar321")
             || classnn.eq_ignore_ascii_case("SysListView321")
             || classnn.eq_ignore_ascii_case("SysTreeView321")
+            || classnn.eq_ignore_ascii_case("msctls_updown321")
+            || classnn.eq_ignore_ascii_case("msctls_trackbar321")
+            || classnn.eq_ignore_ascii_case("msctls_progress321")
         {
             Ok(1)
         } else {
@@ -4427,6 +4444,40 @@ fn an_up_down_shares_its_integer_value_with_the_buddy_edit() {
     assert_eq!(int_of(&report, "b"), 7);
     assert_eq!(value_of(&report, "c"), Value::Text("7".into()));
     assert_eq!(int_of(&report, "d"), 3);
+}
+
+#[test]
+fn a_slider_and_a_progress_hold_integer_values() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a Slider is
+    // `msctls_trackbar321`, a Progress is `msctls_progress321`, both have an
+    // Integer `Value` that starts at the number in the text, and setting it
+    // changes what is read back.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\nsl := g.Add(\"Slider\", \"Range0-100\", \"50\")\ncls := sl.ClassNN\na := sl.Value\nb := Type(sl.Value)\nsl.Value := 75\nc := sl.Value",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "cls"), Value::Text("msctls_trackbar321".into()));
+    assert_eq!(int_of(&report, "a"), 50);
+    assert_eq!(value_of(&report, "b"), Value::Text("Integer".into()));
+    assert_eq!(int_of(&report, "c"), 75);
+
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\npr := g.Add(\"Progress\", \"Range0-100\", \"40\")\ncls := pr.ClassNN\na := pr.Value\npr.Value := 80\nb := pr.Value",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "cls"), Value::Text("msctls_progress321".into()));
+    assert_eq!(int_of(&report, "a"), 40);
+    assert_eq!(int_of(&report, "b"), 80);
 }
 
 #[test]
