@@ -1557,7 +1557,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_current_line,
     },
     Builtin {
         name: "EditGetLine",
@@ -9292,6 +9292,31 @@ pub(crate) fn edit_get_line(
         .map_err(|reason| desktop_failure(reason, line))?;
     let found = text.split('\n').nth(wanted - 1).unwrap_or("");
     Ok(Value::Text(found.to_string()))
+}
+
+/// `EditGetCurrentLine(Hwnd)`: which line the cursor of a control is on.
+///
+/// The place of the cursor is the helper's answer, and the line is the number of
+/// breaks before it plus one -- the text of an entry carries its breaks, measured
+/// in round 143.
+pub(crate) fn edit_get_current_line(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    let cursor = rt
+        .desktop()
+        .gui_cursor(number)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let before: usize = (cursor.max(0) as usize).min(text.chars().count());
+    let breaks = text.chars().take(before).filter(|c| *c == '\n').count();
+    Ok(Value::Int(breaks as i64 + 1))
 }
 
 pub(crate) fn sleep(

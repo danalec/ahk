@@ -313,6 +313,16 @@ def the_line_count(number):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_cursor(number):
+    """Where the cursor of a control is, as a place in its text."""
+    for held, _kind, control in state["controls"]:
+        if held != number:
+            continue
+        answer({"ok": True, "value": control.get_position()})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -322,6 +332,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "cursor":
+        run_on_loop(lambda: the_cursor(command.get("id", 0)))
     elif op == "lines":
         run_on_loop(lambda: the_line_count(command.get("id", 0)))
     elif op == "option":

@@ -595,6 +595,11 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// Where the cursor of a control of the script is, as a place in its text.
+    fn gui_cursor(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot read the cursor of a control of the script".to_string())
+    }
+
     /// How many lines the text of a control of the script holds.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `EditGetLineCount` of a
