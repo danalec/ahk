@@ -3010,6 +3010,37 @@ the names whose state is a refusal, run each in a loop in one script, and collec
 the messages. That is one script and one run for a hundred and forty names, and it
 is the only reading of that list that has not been wrong.
 
+### Round 139 — 2026-11-09: the census of the 143, and the blanket that covers 125 of them
+
+The reasons are in the surface output itself -- a refused name is printed as
+`Name kind refusal: <reason>` -- so the census needed no execution at all. Grouped:
+
+| how many | the reason |
+|---|---|
+| **125** | *"this is a name of Windows, and this desktop is not Windows."* |
+| **5** | *"the registry is a thing of Windows, and this runtime does not carry it."* |
+| 3 | *"this runtime has no tray icon."* |
+| 1 each | the lines are listed in a window of v2; the shape of the cursor is not read; the scale of the output is not known; it cannot stop itself; it cannot wait for a key; it has no window of its own; it reads no text of a window; it cannot make the script critical; it cannot start another script; it cannot run itself again |
+
+**So the 143 is 130 Windows-shaped names, 3 about a tray icon, and 10 that are
+each their own measured limit.** That is a far better picture than a count, and it
+is the one this plan should have had a hundred rounds ago.
+
+**And it exposes the risk directly**: **125 names share ONE blanket reason**, which
+is exactly the shape that swept up the drives (nine names that worked) and the
+window names (five that worked) in rounds 134 to 138. A blanket reason is not a
+measurement of each name; it is a measurement of the *name's family*.
+
+**So the next work is an audit of that 125, in batches, asking the tree**: take
+twenty, run them, and see which answer and which refuse -- because a name that
+says *"this is a name of Windows"* while the thing it names exists on Linux is a
+wrong refusal, and the two clusters already checked were mostly wrong this way.
+
+**A caution to carry into it**: some of the 125 must not be *run* to find out --
+`ExitApp`, `Shutdown`, `Pause`, `Reload` and the like act on the script rather than
+answer a question. The surface's reason is the safe reading for those; the tree is
+the reading for the rest.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
