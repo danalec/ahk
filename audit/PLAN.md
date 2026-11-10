@@ -3551,6 +3551,32 @@ report. That is a round of its own, and it is small.
   procedure (round 173);
 - **8 variables**, of which **7 are correct refusals** and **1 is work**.
 
+### Round 175 — 2026-11-09: where A_ScreenDPI has to go, narrowed
+
+`A_ScreenDPI` is the one piece of variable work left (round 174). The round was spent
+finding **where a built-in variable is answered**, and it did not find it in the two
+places tried:
+
+- `variables.rs:509` has **`is_built_in`**, which decides *whether* a name is one of
+  the built-ins and carries the table without the `A_` prefix. That is the entry
+  point and not the answer;
+- the answer is **not** a `"a_screenwidth"` arm in `variables.rs` (the only match is a
+  test asserting the reason of a desktop that cannot answer) and **not** in
+  `runtime.rs` under `ScreenWidth` or `screen_size`.
+
+**So the dispatch is somewhere else**, and the next round should find it before
+planning the work: grep for the other built-ins that *do* answer through the desktop
+-- `A_TickCount`, `A_ComputerName`, `A_UserName` -- and see what they have in common.
+One of them will be beside the arm that `A_ScreenDPI` needs.
+
+**What is known about the shape of the fix** (round 174): the `Screen` capability
+reports the geometry and the monitors and not the scale, so the capability gains one
+method, the box answers it with the compositor's scale factor, and the variable
+answers `96 x scale`.
+
+**Not written**, and the honest reason: the round found the entry point and not the
+dispatch, and guessing a location is what this session has paid for five times.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
