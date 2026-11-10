@@ -1670,6 +1670,56 @@ toolkit channel, the class of `Gui`, the controls of `Add`, `Show`/`Destroy`, an
 the properties. Each is measurable against this table, which is why the table is
 worth the round on its own.
 
+### Round 40 — 2026-11-09: the channel of the toolkit, proven
+
+The first slice of the GUI build, and the architecture it takes: **a helper
+process**.
+
+`crates/ahk-box/helper/ahk-gui.py` is a GTK3 program that makes a window when it
+is told to over its standard input, and answers on its standard output:
+
+```
+in   {"op": "window", "title": "ahk-gui-helper-probe"}
+out  {"ok": true}
+```
+
+**Why a helper and not a binding.** The tree already reaches the desktop by
+running the tools of the box -- `grim`, `zenity`, `busctl`, `df` -- and a toolkit
+is the same kind of thing. A binding would put GTK inside the runner and a
+`Gtk.main` loop inside a runtime that deliberately has neither, and it would
+commit the tree to GTK for good. The helper keeps the language crate free of
+both, and it is reversible in one file.
+
+**Two things the helper had to get right**, and both were found by writing it:
+
+1. **The GTK loop owns the main thread.** A window made off it does not map.
+   So the pipe is read on a thread of its own and every command is handed to the
+   loop with `GLib.idle_add`.
+2. **The window goes when the pipe does.** The reader ends its loop when the
+   input closes, so a runner that dies does not leave a window on the screen.
+
+**Verified on the box** (`audit/gui-helper-test.sh`), with the accessibility bus
+on and the helper driven through a fifo:
+
+```
+=== the answer of the helper ===
+{"ok": true}
+=== the tree ===
+frame name=[ahk-gui-helper-probe]       role=[frame]
+  label name=[the label of the window]  text=[the label of the window]
+  text  name=[]                         text=[the text of the entry]
+```
+
+The window carries the title it was asked for, and **its controls are in the
+tree with their texts** -- so the same walk that the `Control*` family rides can
+reach a window this runtime made, which is what `Gui` will need to answer
+`Add`, `ClassNN` and `Value`.
+
+**What is not done, in the order it comes**: the protocol has one command and no
+window handle; the `Gui` class of the tree is not wired to the helper; `Add`,
+`Show`, `Destroy`, `Title`, `Value` and `GetPos` are not carried. Each is
+measurable against the shape table of round 39.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
