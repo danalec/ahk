@@ -29,7 +29,7 @@ control-flow	Loop (parse)	Loop Parse	yes	value	covered	language
 control-flow	Loop (read file contents)	Loop Read	yes	value	covered	language
 control-flow	SetTimer	SetTimer	yes	value	covered	v2 surface: SetTimer command value
 control-flow	Sleep	Sleep	yes	value	covered	language
-control-flow	#Persistent	Persistent	yes	refusal	lifecycle	refusal: ...cannot be kept alive.
+control-flow	#Persistent	Persistent	yes	value	covered	the drives of round 136, the monitors of round 55, and Persistent from the quick wins
 keyboard	Send	Send	yes	value	covered	v2 surface: Send command value
 keyboard	SendRaw	SendText	yes	value	covered	v2 surface: SendText command value
 keyboard	ControlSend	ControlSend	yes	refusal	GAP-controls	refusal: name of Windows
@@ -103,7 +103,7 @@ files	IniWrite	IniWrite	yes	value	covered	v2 surface value
 files	IniDelete	IniDelete	yes	value	covered	v2 surface value
 files	SplitPath	SplitPath	yes	value	covered	v2 surface value
 files	SetWorkingDir	SetWorkingDir	yes	value	covered	v2 surface value
-files	DriveSpaceFree	DriveGetSpaceFree	yes	refusal	GAP-machine-metrics	refusal: name of Windows (statvfs is the Linux route)
+files	DriveSpaceFree	DriveGetSpaceFree	yes	value	covered	the drives of round 136, the monitors of round 55, and Persistent from the quick wins
 files	FileCopyDir/FileMoveDir/FileRemoveDir	DirCopy/DirMove/DirDelete	yes	value	covered	(TODO in AHK_X11; ours already answers)
 sound	SoundPlay	SoundPlay	yes	value	covered	ffplay/paplay/aplay present on the box
 sound	SoundGet	SoundGetVolume/SoundGetMute	yes	value	covered	v2 surface value
@@ -131,7 +131,7 @@ screen	CoordMode	CoordMode	yes	value	covered	v2 surface value
 screen	-	ImageSearch	yes	value	covered	(beyond AHK_X11)
 screen	-	Screenshot	no	value	extra-beyond-both	NOT a v2 name: the tree's one deliberate invention (builtins.rs:665, allowlisted tests/surface.rs:38); --surface does not print it, so the 833 count omits it
 machine	-	SysGet	yes	refusal	GAP-machine-metrics	refusal: name of Windows; A_ScreenWidth already works
-machine	-	MonitorGet/MonitorGetCount/...	yes	refusal	GAP-machine-metrics	refusal: name of Windows (wl_output is the Linux route)
+machine	-	MonitorGet/MonitorGetCount/...	yes	value	covered	the drives of round 136, the monitors of round 55, and Persistent from the quick wins
 machine	-	Edit	yes	refusal	GAP-desktop-integration	refusal: name of Windows ($EDITOR is the Linux route)
 events	-	OnMessage	yes	refusal	windows-only	Win32 message loop; correct refusal
 events	-	OutputDebug	yes	refusal	GAP-events	refusal: name of Windows (stderr/DebugView substitute)
