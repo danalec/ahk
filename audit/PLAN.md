@@ -3103,6 +3103,45 @@ honest implementation is the helper answering about a control it made -- the
 `(N, Hwnd)` and that the count answers today in the reference, which is exactly what
 the implementation needs and what a guess would have got wrong.
 
+### Round 142 — 2026-11-09: the Edit we make is a single-line Entry, and v2's holds lines
+
+Before writing the `Edit*` family, the widget was read: the helper makes **three**
+kinds of control, and one of them is not like the reference's.
+
+```
+Edit    -> Gtk.Entry()      a SINGLE-LINE entry
+Button  -> Gtk.Button()
+Label   -> Gtk.Label()
+```
+
+**And round 141 measured the reference holding three lines in an `Edit`**: the text
+`"line one\nline two\nline three"` answered `EditGetLineCount` = **3**. A
+`Gtk.Entry` does not hold lines -- it holds one text, and a newline in it is a
+character, not a break.
+
+**So `EditGetLineCount` is not a question our `Edit` can answer the way v2 answers
+it**, and the gap is not in the `Edit*` functions: it is in **the control itself**.
+A script that writes three lines into an `Edit` gets a different thing here.
+
+**What that means, and it is two decisions, not one**:
+
+1. **the widget** -- `Gtk.Entry` for the single-line case and `Gtk.TextView` when
+   the `Multi` option is asked for, which is what v2's own `Edit` does. The helper
+   has no `Multi` handling at all today;
+2. **the family** -- `EditGetLine` and the line count become answerable *after*
+   (1), and are refused honestly until then, because the count on an `Entry` is a
+   number about a widget that is not the thing the script asked for.
+
+**This is the first time the audit has found a gap in what the tree MAKES rather
+than in what it ANSWERS** -- and it is the more important kind, because every
+`Add("Edit")` in every script is affected, while only the seven `Edit*` names are
+affected by the functions.
+
+**Not written**: it is a helper change with a new option, and a `TextView` is read
+and written differently from an `Entry` (`get_buffer` against `get_text`), so the
+`Value` arm of round 77 would have to know which it has. That is a round of its own
+and it is the right next one.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
