@@ -671,6 +671,13 @@ pub trait Windows {
         Err("this desktop cannot open the pop-up of a list-shaped control".to_string())
     }
 
+    /// The text of the status bar of the script's window. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: `StatusBarGetText(1, WinTitle)`
+    /// answers it.
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        Err("this desktop cannot read the text of a status bar".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())

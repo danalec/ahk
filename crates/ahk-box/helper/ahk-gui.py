@@ -96,6 +96,11 @@ def the_control(kind, text):
         control = Gtk.Label(label=text)
     elif kind == "CheckBox":
         control = Gtk.CheckButton(label=text)
+    elif kind == "StatusBar":
+        # A status bar of v2 is a row of text; this tree carries one part, the
+        # text the control was made with. Measured on the binary of v2.0.19 on
+        # 2026-11-10: `StatusBarGetText(1, WinTitle)` answers it.
+        control = Gtk.Label(label=text)
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -536,6 +541,10 @@ def the_class_of(kind):
     # are the same family to v2.
     if kind in ("DropDownList", "ComboBox", "ListBox"):
         return "ComboBox"
+    # Measured on the binary of v2.0.19 on 2026-11-10: a StatusBar is named
+    # `msctls_statusbar321` (the Win32 common-control class), not `StatusBar1`.
+    if kind == "StatusBar":
+        return "msctls_statusbar32"
     return kind
 
 
@@ -754,6 +763,20 @@ def the_combo_dropdown(number, show):
     answer({"ok": True})
 
 
+def the_status_text():
+    """The text of the status bar of the window.
+
+    `StatusBarGetText` of v2. Measured on the binary of v2.0.19 on 2026-11-10:
+    `StatusBarGetText(1, WinTitle)` answers the text the StatusBar was made
+    with. This tree carries one part, so the first StatusBar is the answer.
+    """
+    for _number, kind, control in state["controls"]:
+        if kind == "StatusBar":
+            answer({"ok": True, "value": control.get_text()})
+            return
+    answer({"ok": False, "error": "there is no status bar on the window"})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -862,6 +885,8 @@ def handle(command):
                 command.get("id", 0), command.get("show", True)
             )
         )
+    elif op == "status-text":
+        run_on_loop(the_status_text)
     elif op == "add":
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))

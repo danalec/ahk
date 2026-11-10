@@ -1260,6 +1260,11 @@ impl ahk::desktop::Windows for LabDesktop {
         }
     }
 
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        let said = self.the_gui_says("{\"op\": \"status-text\"}")?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }

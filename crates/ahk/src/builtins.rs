@@ -2240,9 +2240,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: status_bar_get_text,
     },
     Builtin {
         name: "StatusBarWait",
@@ -10962,6 +10962,26 @@ pub(crate) fn control_hide_drop_down(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     the_drop_down_of_a_combo(rt, values, line, false)
+}
+
+/// `StatusBarGetText(Part, WinTitle)`: the text of the status bar.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with part 1 and the title
+/// of a window holding a StatusBar, it answers the text the bar was made with.
+/// This tree carries one part. A window that is not the script's own is not
+/// asked of the accessibility layer, which has no status bar of its own.
+pub(crate) fn status_bar_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let title = text_of(values, 1);
+    the_window_of_the_script(rt, &title, line)?;
+    rt.desktop()
+        .gui_status_text()
+        .map(Value::Text)
+        .map_err(|e| desktop_failure(e, line))
 }
 
 pub(crate) fn sleep(
