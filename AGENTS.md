@@ -10358,3 +10358,25 @@ changes the options of the hotstrings that follow it, which has to be known
 while the lexer is reading those lines. That is the next block; the script also
 pins `:T:brace::{` -- a replacement that is text and not a block because the
 options say so.
+## 264. `#Hotstring`, and the `ExitApp()` of the v2
+
+Measured on the binary of v2.0.19 on 2026-11-10: `#Hotstring`, `#Hotstring X`,
+`#Hotstring X0`, `#Hotstring *` and `#Hotstring EndChars -` are all accepted at
+the load, and the options are read while the script is read -- the `X` says
+that the replacement of the hotstrings that follow is code, and `X0` says that
+it is text. The lexer keeps the flag: while it is on (the default) a
+replacement that ends with `{` is a block and its statements are the action;
+while it is off the `{` is the text of the hotstring and the lines after it are
+statements of the script. The directive itself is a no-op of the run: it
+answers "the options of the hotstrings are read when the script is read", which
+is what happens. The corpus case `hotstring-parsing2.ahk` pins both modes and
+passes now.
+
+**`ExitApp()` is a call, and the empty pair is not a group.** Measured on the
+binary of v2.0.19 on 2026-11-10: `ExitApp()` and `ExitApp(3)` are calls of the
+function, and `ExitApp` alone is the statement of the v2 that takes an optional
+code. The parser read `ExitApp` as the keyword of the machine and then took the
+`(` for the group of an expression, so `ExitApp()` was "Syntax error." with the
+`)`; the keyword path now hands a name that is followed by an unspaced `(` to
+the call parser, the way the name of a variable is handed over. The case is
+`the_exitapp_of_the_v2_takes_its_parentheses`.

@@ -8862,6 +8862,14 @@ impl<'a> Runtime<'a> {
             // There is no tray icon to hide, and the runner is one
             // process: both are already what the directive asks for.
             "notrayicon" => Ok("there is no tray icon to hide".into()),
+            // The options of the hotstrings that follow are read while the
+            // script is read: the lexer keeps them, and the run has nothing
+            // left to do with them.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-10: `#Hotstring`,
+            // `#Hotstring X`, `#Hotstring X0`, `#Hotstring *` and
+            // `#Hotstring EndChars -` are all accepted at the load.
+            "hotstring" => Ok("the options of the hotstrings are read when the script is read".into()),
             // `#SuspendExempt` is read by the load, which marks the hotkeys
             // that follow it, and by the run, which keeps the flag for the
             // script: measured on the binary of v2.0.19 on 2026-11-09, the

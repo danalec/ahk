@@ -1090,6 +1090,12 @@ fn tokenize_the_source(
     // Whether a section was merged into the current line: the line is the
     // one of the section, and its text was merged and read again.
     let mut a_section_was_merged = false;
+    // Whether a hotstring of this script reads its replacement as code.
+    // Measured on the binary of v2.0.19 on 2026-11-10: `#Hotstring X` turns it
+    // on for the hotstrings that follow and `#Hotstring X0` turns it off, and
+    // the block of a hotstring -- a replacement that ends with `{` -- is a
+    // block only while it is on, which is the default.
+    let mut the_hotstrings_read_code = true;
     while index < chars.len() {
         let current = chars[index];
         // The space belongs to the token that comes next, and to that one
@@ -1303,6 +1309,25 @@ fn tokenize_the_source(
                 argument.push(chars[index]);
                 index += 1;
                 column += 1;
+            }
+            // Measured on the binary of v2.0.19 on 2026-11-10: `#Hotstring`
+            // sets the options of the hotstrings that follow it. The options
+            // that change how the text of a hotstring is read are the `X`
+            // (the replacement is code) and its `X0` (it is text), and the
+            // directive with no argument goes back to the default.
+            if name.eq_ignore_ascii_case("hotstring") {
+                let argument = argument.trim();
+                if argument.is_empty() {
+                    the_hotstrings_read_code = true;
+                } else {
+                    for option in argument.split_whitespace() {
+                        if option.eq_ignore_ascii_case("x") {
+                            the_hotstrings_read_code = true;
+                        } else if option.eq_ignore_ascii_case("x0") {
+                            the_hotstrings_read_code = false;
+                        }
+                    }
+                }
             }
             // Measured on the binary of v2.0.19 on 2026-10-31: a name that
             // the v2 does not know is not a directive at all: the line holds
@@ -1962,7 +1987,8 @@ fn tokenize_the_source(
             // of the hotstring here: the runtime has no dispatcher of a
             // hotstring yet, and the lines of the block must not be read as
             // statements of the script.
-            if the_hotstring_of_the_v2_has_a_block(&the_text)
+            if the_hotstrings_read_code
+                && the_hotstring_of_the_v2_has_a_block(&the_text)
                 && the_block_of_the_hotstring_follows(&chars, &the_text, index)
             {
                 let mut end = index;

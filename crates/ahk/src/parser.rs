@@ -3821,7 +3821,20 @@ impl Parser {
                     // of the dialect, and its name may be the name of a
                     // variable. The refusal of the global one waits for the
                     // end of the parse.
-                    if self.the_word_is_the_name_of_a_variable() {
+                    //
+                    // Measured on the binary of v2.0.19 on 2026-11-10: the
+                    // call of it takes its parentheses -- `ExitApp()` and
+                    // `ExitApp(3)` are calls of the function, and the empty
+                    // pair is not the syntax error of a group.
+                    if self.the_word_is_the_name_of_a_variable()
+                        || self
+                            .tokens
+                            .get(self.position + 1)
+                            .map(|next| {
+                                next.kind == TokenKind::Op && next.value == "(" && !next.spaced
+                            })
+                            .unwrap_or(false)
+                    {
                         return self.parse_name_statement();
                     }
                     return Ok(vec![self.parse_exitapp()?]);

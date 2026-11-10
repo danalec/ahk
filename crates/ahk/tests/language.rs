@@ -6134,6 +6134,47 @@ fn the_hotkey_of_the_v2_refuses_the_shapes_the_binary_refuses() {
 }
 
 #[test]
+fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `#Hotstring X0` turns
+    // the code mode of the hotstrings off, so a replacement that ends with `{`
+    // is text and not a block, and the statements after the definition are the
+    // statements of the script.
+    let (report, _desktop) = run(concat!(
+        "#Hotstring X0\n",
+        ":T:brace::{\n",
+        "\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["after"]);
+    // And `#Hotstring X` turns the code mode back on: the block is the action.
+    let (report, _desktop) = run(concat!(
+        "#Hotstring X0\n",
+        "#Hotstring X\n",
+        "::block::{\n",
+        "    MsgBox \"in the block\"\n",
+        "}\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["after"]);
+}
+
+#[test]
+fn the_exitapp_of_the_v2_takes_its_parentheses() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `ExitApp()` is a call
+    // of the function with no code, and `ExitApp(3)` one that ends the script
+    // with the three: the empty pair is not the syntax error of a group.
+    let (report, _desktop) = run("MsgBox \"before\"\nExitApp()\nMsgBox \"after\"\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["before"]);
+    assert_eq!(report.exit_code, Some(0));
+    let (report, _desktop) = run("ExitApp(3)\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.exit_code, Some(3));
+}
+
+#[test]
 fn the_hotstring_of_the_v2_is_a_line_of_raw_text() {
     // Measured on the binary of v2.0.19 on 2026-11-09: `::btw::by the way` is
     // a hotstring, the text of it may hold the two colons again (`::1:::2`),
