@@ -1176,6 +1176,9 @@ fn the_program(command: &str, working_dir: &str) -> Command {
 }
 
 impl ahk::desktop::Machine for LabDesktop {
+    fn executable(&mut self) -> Result<String, String> {
+        crate::machine::executable()
+    }
     fn user_name(&mut self) -> Result<String, String> {
         crate::machine::user_name()
     }

@@ -61,6 +61,9 @@ impl Network for Fake {}
 impl Sound for Fake {}
 
 impl Machine for Fake {
+    fn executable(&mut self) -> Result<String, String> {
+        Ok("/usr/bin/ahk".to_string())
+    }
     fn user_name(&mut self) -> Result<String, String> {
         Ok("<user>".to_string())
     }
@@ -273,6 +276,15 @@ fn a_name_of_the_machine_answers_with_the_value_of_the_desktop() {
 }
 
 #[test]
+fn the_path_of_the_interpreter_is_the_path_of_the_executable() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `A_AhkPath` answers
+    // the path of the executable that runs the script.
+    let report = run("MsgBox A_AhkPath");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["/usr/bin/ahk"]);
+}
+
+#[test]
 fn a_script_that_asks_whether_it_is_elevated_is_told_a_number() {
     // The elevation of v2 is a number: one or zero.
     let report = run("MsgBox A_IsAdmin");
@@ -387,7 +399,6 @@ fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
         "A_WinDir",
         "A_ProgramFiles",
         "A_Cursor",
-        "A_AhkPath",
         "A_ScriptHwnd",
         "A_IconFile",
     ] {

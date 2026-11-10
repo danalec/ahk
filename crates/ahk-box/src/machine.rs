@@ -24,6 +24,16 @@ use ahk::desktop::{Folders, Idle};
 ///
 /// The session carries it in `USER`: the box has one session and one user,
 /// and the shell of the session sets the name.
+/// The path of the executable that is running the script.
+///
+/// It is what `A_AhkPath` answers. The path of the binary of the runner is
+/// the path of the process, and the process reads it out of itself.
+pub fn executable() -> Result<String, String> {
+    std::env::current_exe()
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(|error| format!("the machine did not say the path of the interpreter: {error}"))
+}
+
 pub fn user_name() -> Result<String, String> {
     from_the_environment("USER", "name of the user")
 }

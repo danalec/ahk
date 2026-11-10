@@ -253,8 +253,8 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 683);
-    assert_eq!(report.number("refusals"), 150);
+    assert_eq!(report.number("values"), 684);
+    assert_eq!(report.number("refusals"), 149);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -283,7 +283,7 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(report.number("total"), 408);
     // The names that the v1 has and the v2 does not are carried, and none of
     // them is pending: the surface of the v1 is complete.
-    assert_eq!(report.number("values"), 301);
+    assert_eq!(report.number("values"), 302);
     assert_eq!(report.number("pending"), 0);
     let entries = report.array("entries");
     let is_set = entries

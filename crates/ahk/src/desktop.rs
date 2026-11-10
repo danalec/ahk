@@ -952,6 +952,18 @@ pub trait Sound {
 /// does not have is not in the answer: the name that asks for it says
 /// so.
 pub trait Machine {
+    /// The path of the executable that is running the script.
+    ///
+    /// It is what `A_AhkPath` answers. A desktop that cannot tell says so,
+    /// and the variable is then a refusal and not an empty text: a script that
+    /// reads the path of the interpreter must be told that it is not known.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `A_AhkPath` answers
+    /// the path of the executable that runs the script.
+    fn executable(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the path of the interpreter".to_string())
+    }
+
     /// The name of the user that launched the session.
     fn user_name(&mut self) -> Result<String, String> {
         Err("this desktop cannot say the name of the user".to_string())

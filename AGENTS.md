@@ -11213,3 +11213,18 @@ This is the first family ported from the branch `audit-ahk-x11-parity`
 answers 683. The port is done family by family, each with its own cases,
 and the branch is not merged: a merge would replace the tree of `master`
 with the tree of the branch and lose the 125 files that only `master` has.
+
+## 300. The path of the interpreter is the path of the process
+
+Measured on the binary of AutoHotkey v2.0.19 on 2026-11-11, `A_AhkPath`
+answers the path of the executable that runs the script, and the tree
+refused it with "this runtime is not AutoHotkey, and it has no path of an
+executable.".
+
+The path is the path of the process, and the process reads it out of
+itself: `/proc/self/exe` on Linux, and the path of the binary of the runner.
+The name is a name of the machine, so it is asked of the desktop, and a
+desktop that cannot say it answers with the reason of the desktop.
+
+This is the second family ported from the branch `audit-ahk-x11-parity`
+(section 298). The tree answers 684 of the 833 names since 2026-11-11.

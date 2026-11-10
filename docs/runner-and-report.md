@@ -317,7 +317,7 @@ BlockInput command refusal: this is a name of Windows, and this desktop is not W
 CallbackCreate command refusal: this is a name of Windows, and this desktop is not Windows.
 ...
 ClipboardAll.Size method value
-the surface of v2 has 833 entries: 683 answer with a value, 150 are refused, 0 are pending.
+the surface of v2 has 833 entries: 684 answer with a value, 149 are refused, 0 are pending.
 ```
 
 A line is `name kind state`, and a name that is not answered with a
@@ -370,7 +370,7 @@ The JSON is for the CI, and it carries the numbers of the summary and
 the state of every name:
 
 ```json
-{"dialect":"v2","total":833,"values":683,"refusals":150,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
+{"dialect":"v2","total":833,"values":684,"refusals":149,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
 ```
 
 (The `entries` array above is cut to four of its 833 members, and the
@@ -387,7 +387,7 @@ target\debug\ahk.exe --surface --json --dialect=v1
 ```
 
 ```json
-{"dialect":"v1","total":408,"values":301,"refusals":107,"pending":0,"entries":[...]}
+{"dialect":"v1","total":408,"values":302,"refusals":106,"pending":0,"entries":[...]}
 ```
 
 Neither dialect has a pending name: both tables are empty, and the whole

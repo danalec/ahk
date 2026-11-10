@@ -70,8 +70,8 @@ echo '' | ahk --surface --dialect=v1 --json
 
 ```json
 ; the summary of the two dialects, measured with the two commands
-{"dialect": "v2", "total": 833, "values": 683, "refusals": 150, "pending": 0}
-{"dialect": "v1", "total": 408, "values": 301, "refusals": 107, "pending": 0}
+{"dialect": "v2", "total": 833, "values": 684, "refusals": 149, "pending": 0}
+{"dialect": "v1", "total": 408, "values": 302, "refusals": 106, "pending": 0}
 ```
 
 A name that the tree does not carry yet would be `pending`; neither table has
