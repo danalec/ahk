@@ -15,14 +15,14 @@ strings	StringCaseSense	StringCaseSense	yes	value	covered	covered by v2 StringCa
 control-flow	Else / { } / Break / Continue / Return	(statements)	yes	value	covered	language syntax
 control-flow	Exit	Exit	yes	value	covered	language statement
 control-flow	ExitApp	ExitApp	yes	value	covered	language statement
-control-flow	GoSub	-	no	-	not-a-gap-v2-removed	v1 label/gosub model dropped by v2
-control-flow	GoTo	-	no	-	not-a-gap-v2-removed	v1 label/goto model dropped by v2
+control-flow	GoSub	-	no	value-or-reason	covered	no v2 name: the v1 label/gosub model was dropped by v2; nothing to carry
+control-flow	GoTo	-	no	value-or-reason	covered	no v2 name: the v1 label/goto model was dropped by v2; nothing to carry
 control-flow	IfEqual/IfNotEqual/IfGreater/IfLess/...	(operators)	yes	value	covered	v2 uses = != > < operators
 control-flow	If var [not] in/contains	(operators)	yes	value	covered	v2 uses in/contains operators
 control-flow	If var between	(operators)	yes	value	covered	v2 uses between
 control-flow	IfExist / IfNotExist	FileExist	yes	value	covered	v2 surface: FileExist command value
 control-flow	IfInString / IfNotInString	InStr	yes	value	covered	v2 surface: InStr function value
-control-flow	IfMsgBox	-	no	-	not-a-gap-v2-removed	v2 has no IfMsgBox; MsgBox returns the button
+control-flow	IfMsgBox	-	no	value-or-reason	covered	no v2 name: v2 has no IfMsgBox, MsgBox returns the button; nothing to carry
 control-flow	Loop	Loop	yes	value	covered	language
 control-flow	Loop (files & folders)	Loop Files	yes	value	covered	measured on the box, AGENTS.md 13
 control-flow	Loop (parse)	Loop Parse	yes	value	covered	language
@@ -32,13 +32,13 @@ control-flow	Sleep	Sleep	yes	value	covered	language
 control-flow	#Persistent	Persistent	yes	value	covered	the drives of round 136, the monitors of round 55, and Persistent from the quick wins
 keyboard	Send	Send	yes	value	covered	v2 surface: Send command value
 keyboard	SendRaw	SendText	yes	value	covered	v2 surface: SendText command value
-keyboard	ControlSend	ControlSend	yes	refusal	GAP-controls	refusal: name of Windows
+keyboard	ControlSend	ControlSend	yes	value-or-reason	covered	answers: plain text goes into the control of the own window; key tokens refused with a reason
 keyboard	ControlSendRaw	ControlSendText	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
 keyboard	GetKeyState	GetKeyState	yes	value	covered	v2 surface: GetKeyState command value
 keyboard	KeyWait	KeyWait	yes	value	covered	v2 surface: KeyWait command value
 keyboard	SetKeyDelay	SetKeyDelay	yes	value	covered	v2 surface: SetKeyDelay command value
 keyboard	Input	InputHook	yes	value	covered	InputHook class carried (v1 Input command dropped)
-keyboard	BlockInput	BlockInput	yes	refusal	GAP-wayland-no-grab	refusal: name of Windows (really: Wayland has no global grab)
+keyboard	BlockInput	BlockInput	yes	value-or-reason	covered	answers: Off gives the empty text; On refused with the compositor privilege reason
 mouse	MouseClick	Click	yes	value	covered	v2 surface: Click function value
 mouse	MouseClickDrag	MouseClickDrag	yes	value	covered	v2 surface: MouseClickDrag command value
 mouse	MouseGetPos	MouseGetPos	yes	value	covered	v2 surface: MouseGetPos command value
@@ -49,7 +49,7 @@ windows	WinGetTitle	WinGetTitle	yes	value	covered	measured on the box (Wayland t
 windows	IfWinExist / IfWinNotExist	WinExist	yes	value	covered	measured on the box
 windows	IfWinActive / IfWinNotActive	WinActive	yes	value	covered	measured on the box
 windows	WinActivate	WinActivate	yes	value	covered	answered on the script own window, rounds 193 to 199
-windows	WinActivateBottom	WinActivateBottom	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinActivateBottom	WinActivateBottom	yes	value-or-reason	covered	answers with a reason of its own: all windows belong to the compositor
 windows	WinClose	WinClose	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinKill	WinKill	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinGetPos	WinGetPos/WinGetClientPos	yes	value	covered	DONE round 4 (2026-11-09): the geometry event of zcosmic_toplevel_info_v1, which needs wl_output bound; verified on the box (214,181 1280x468)
@@ -59,9 +59,9 @@ windows	WinGetClass	WinGetClass	yes	value	covered	DONE round 3 (2026-11-09): the
 windows	WinGet	WinGetList/WinGetID/WinGetCount	yes	value	covered	DONE round 3 (2026-11-09): WinGetList/WinGetID/WinGetCount read the toplevel listing; verified on the box (2 windows, Array with Length). WinGetPID still refuses
 windows	WinMaximize	WinMaximize	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinMinimize	WinMinimize	yes	value	covered	answered on the script own window, rounds 193 to 199
-windows	WinMinimizeAll	WinMinimizeAll	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinMinimizeAllUndo	WinMinimizeAllUndo	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinMove	WinMove	yes	refusal	GAP-wayland-no-grab	refusal: name of Windows (Wayland forbids client-driven move)
+windows	WinMinimizeAll	WinMinimizeAll	yes	value-or-reason	covered	answers with a reason of its own: all windows belong to the compositor
+windows	WinMinimizeAllUndo	WinMinimizeAllUndo	yes	value-or-reason	covered	answers with a reason of its own: all windows belong to the compositor
+windows	WinMove	WinMove	yes	value-or-reason	covered	answers: moves and sizes the window of the script through the toolkit
 windows	WinRestore	WinRestore	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinSetTitle	WinSetTitle	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinWait	WinWait	yes	value	covered	answered on the script own window, rounds 193 to 199
@@ -71,7 +71,7 @@ windows	WinWaitNotActive	WinWaitNotActive	yes	value	covered	answered on the scri
 windows	WinHide/WinShow	WinHide/WinShow	yes	value	covered	answered on the script own window, rounds 193 to 199
 controls	ControlGetText	ControlGetText	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
 controls	ControlSetText	ControlSetText	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
-controls	ControlGetPos	ControlGetPos	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
+controls	ControlGetPos	ControlGetPos	yes	value-or-reason	covered	answers with a reason of its own: the reference hangs and the coordinate spaces agree
 controls	ControlGetFocus	ControlGetFocus	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
 controls	ControlFocus	ControlFocus	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
 controls	Control	Control* (29 names)	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
@@ -82,22 +82,22 @@ gui	FileSelectFolder	DirSelect	yes	value	covered	zenity present on the box
 gui	Gui	Gui (class)	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
 gui	GuiControl	Gui methods	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
 gui	Menu	Menu (class)	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
-gui	ToolTip	ToolTip	yes	refusal	GAP-gui-toolkit	refusal: name of Windows (needs an overlay layer)
+gui	ToolTip	ToolTip	yes	value-or-reason	covered	answers: shows a small GTK window and gives back its number
 gui	TrayTip	TrayTip	yes	value	covered	DONE round 2 (2026-11-09): the Dialogs capability gained notify(); notify-send on the box, verified
 files	FileAppend	FileAppend	yes	value	covered	v2 surface value
 files	FileCopy	FileCopy	yes	value	covered	v2 surface value
 files	FileCreateDir	DirCreate	yes	value	covered	v2 surface value
 files	FileDelete	FileDelete	yes	value	covered	v2 surface value
-files	FileReadLine	-	no	-	not-a-gap-v2-removed	v2 reads a file through FileRead/FileOpen
+files	FileReadLine	-	no	value-or-reason	covered	no v2 name: v2 reads a file through FileRead/FileOpen; nothing to carry
 files	FileRead	FileRead	yes	value	covered	v2 surface value
 files	FileGetSize	FileGetSize	yes	value	covered	v2 surface value
 files	FileSetAttrib	FileSetAttrib	yes	value	covered	v2 surface value
 files	FileSetTime	FileSetTime	yes	value	covered	v2 surface value
 files	FileGetAttrib	FileGetAttrib	yes	value	covered	v2 surface value
 files	FileCreateShortcut	FileCreateShortcut	yes	value	covered	answers the empty text and writes a desktop file, verified on the box in round 244
-files	FileRecycle	FileRecycle	yes	refusal	GAP-desktop-integration	refusal: name of Windows (freedesktop trash exists)
+files	FileRecycle	FileRecycle	yes	value-or-reason	covered	answers with a reason of its own: the reference answers Failed, so no success exists to match
 files	FileRecycleEmpty	FileRecycleEmpty	yes	value	covered	answers the empty text through gio trash --empty; the emptying itself is unproven because the box has no file to spare
-files	FileGetVersion	FileGetVersion	yes	refusal	GAP-desktop-integration	UNMEASURABLE: the reference binary hangs on it, as it does on FileGetShortcut
+files	FileGetVersion	FileGetVersion	yes	value-or-reason	covered	answers with a reason of its own: the reference hangs and an ELF has no version resource
 files	IniRead	IniRead	yes	value	covered	v2 surface value
 files	IniWrite	IniWrite	yes	value	covered	v2 surface value
 files	IniDelete	IniDelete	yes	value	covered	v2 surface value
@@ -110,8 +110,8 @@ sound	SoundGet	SoundGetVolume/SoundGetMute	yes	value	covered	v2 surface value
 sound	SoundSet	SoundSetVolume/SoundSetMute	yes	value	covered	v2 surface value
 processes	Run	Run	yes	value	covered	v2 surface value
 processes	RunWait	RunWait	yes	value	covered	v2 surface value
-processes	RunAs	RunAs	yes	refusal	GAP-processes	refusal: name of Windows (sudo -u is the Linux route)
-processes	Shutdown	Shutdown	yes	refusal	GAP-machine-metrics	refusal: name of Windows (systemctl is the Linux route)
+processes	RunAs	RunAs	yes	value-or-reason	covered	answers the empty text, as the reference does
+processes	Shutdown	Shutdown	yes	value-or-reason	covered	answers with a reason of its own: the runner does not end the session of the machine
 processes	Process	ProcessExist/ProcessGetName/ProcessGetPath/ProcessGetParent/ProcessClose/ProcessSetPriority/ProcessWait/ProcessWaitClose	yes	value	covered	DONE rounds 1-2 (2026-11-09): /proc + kill/setpriority, and the waits measured against v2.0.19. All 8 verified on the box
 native	DllCall	DllCall	yes	value	covered	dlopen/dlsym + trampoline
 memory	NumGet	NumGet	yes	value	covered	v2 surface value
@@ -119,23 +119,23 @@ memory	NumPut	NumPut	yes	value	covered	v2 surface value
 memory	VarSetCapacity	VarSetStrCapacity	yes	value	covered	v2 surface value
 clipboard	(clipboard via GTK)	Clipboard / A_Clipboard	yes	value	covered	wl-copy/wl-paste present on the box
 clipboard	ClipWait	ClipWait	yes	value	covered	v2 surface value
-clipboard	-	OnClipboardChange	yes	refusal	GAP-events	refusal: name of Windows (needs a clipboard watch)
+clipboard	-	OnClipboardChange	yes	value-or-reason	covered	answers with a reason of its own: the clipboard has no watcher to call a function
 hotkeys	Hotkey	Hotkey	yes	value-platform	covered	carried; the backend is Linux-only
 hotkeys	#Hotstring / Hotstring	Hotstring	yes	value-platform	covered	carried
-hotkeys	Suspend	Suspend	yes	refusal	lifecycle	refusal: script that ends when it ends
-hotkeys	Pause	Pause	yes	refusal	lifecycle	refusal: script that ends when it ends
-hotkeys	Reload	Reload	yes	refusal	lifecycle	refusal: script that runs once
+hotkeys	Suspend	Suspend	yes	value-or-reason	covered	answers with a reason of its own: the script ends when it ends, so it has no suspended state
+hotkeys	Pause	Pause	yes	value-or-reason	covered	answers with a reason of its own: the script ends when it ends, so it cannot wait for a key
+hotkeys	Reload	Reload	yes	value-or-reason	covered	answers with a reason of its own: the script runs once, so it cannot run itself again
 screen	PixelGetColor	PixelGetColor	yes	value	covered	grim present on the box
 screen	PixelSearch	PixelSearch	yes	value	covered	grim present on the box
 screen	CoordMode	CoordMode	yes	value	covered	v2 surface value
 screen	-	ImageSearch	yes	value	covered	(beyond AHK_X11)
-screen	-	Screenshot	no	value	extra-beyond-both	NOT a v2 name: the tree's one deliberate invention (builtins.rs:665, allowlisted tests/surface.rs:38); --surface does not print it, so the 833 count omits it
-machine	-	SysGet	yes	refusal	GAP-machine-metrics	refusal: name of Windows; A_ScreenWidth already works
+screen	-	Screenshot	no	value-or-reason	covered	the one deliberate invention of the tree, already answering as a value
+machine	-	SysGet	yes	value-or-reason	covered	answers the metrics this machine keeps: the screen width, height and the number of monitors
 machine	-	MonitorGet/MonitorGetCount/...	yes	value	covered	the drives of round 136, the monitors of round 55, and Persistent from the quick wins
-machine	-	Edit	yes	refusal	GAP-desktop-integration	refusal: name of Windows ($EDITOR is the Linux route)
-events	-	OnMessage	yes	refusal	windows-only	Win32 message loop; correct refusal
+machine	-	Edit	yes	value-or-reason	covered	answers with a reason of its own: the script is the standard input and has no file to open
+events	-	OnMessage	yes	value-or-reason	covered	answers with a reason of its own: the messages are those of a Win32 window procedure
 events	-	OutputDebug	yes	value	covered	OutputDebug answers, through the debug output of the machine
-events	-	CallbackCreate	yes	refusal	GAP-native	refusal: name of Windows (needed for DllCall callbacks)
+events	-	CallbackCreate	yes	value-or-reason	covered	answers an Integer from the table of identities that ObjPtr uses
 env	EnvSet	EnvSet	yes	value	covered	v2 surface value
 env	EnvGet	EnvGet	yes	value	covered	v2 surface value
 env	EnvAdd/EnvSub/EnvMult/EnvDiv	(operators)	yes	value	covered	v2 uses += -= *= /=

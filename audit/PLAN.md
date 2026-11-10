@@ -3966,27 +3966,28 @@ size it, focus it, close it -- and **answer an event in it with the control in h
 `Move`, `Focus`, `Show`, `Hide`, `Destroy`, `OnEvent`, and the `Win*` family that acts
 on the script's own window.
 
-**Where to go next, in order of value** -- and this list was rewritten in round 243, because
-two of its four items had been finished while it still named them:
+**Where to go next** -- rewritten in round 257, because **all 140 rows of the gap
+matrix are covered**. There is no AHK_X11 feature left in a gap class.
 
-1. **the ten names still closable**: `ToolTip`, `ControlSend`, `OnClipboardChange`,
-   `CallbackCreate`, `Edit`, `FileCreateShortcut`, `RunAs`, `SysGet`, `Shutdown`, and
-   `ControlGetPos` (refused for a measured reason). **The `Edit*` family is COMPLETE**
-   -- all seven answer -- and the `Control*` family has fourteen answering and the rest
-   waiting on a control the tree does not make (the list-shaped ones);
-2. **the ten mechanisms** that would unlock a family each: the **last-found window**
-   (round 222), the **window groups**, a **third event channel** for
-   `OnClipboardChange`, and the **array-returning** names that need nothing more;
+1. **the 97 refusals of the v2 surface** are the remaining work, and they are
+   grouped in `audit/rust-refusal-analysis.md`. Of them, the ones that a script
+   can honestly ask about are the cheapest: a reason of its own instead of the
+   blanket reason about Windows, the way `Edit`, `Shutdown` and the all-window
+   names were given one in round 257;
+2. **the mechanisms** that would unlock a family each: the **last-found window**
+   (round 222), the **window groups**, the **list-shaped controls**, and a
+   **clipboard watcher**;
 3. **the three unmeasurable** -- `FileGetShortcut`, `FileRecycle`, `FileGetVersion` --
-   which are **answers and not gaps**: the reference will not say what it does, so
-   there is nothing to match;
-4. and **the refusals that are true**: the registry, the COM objects, the image lists,
-   the styles, and the handle pairs. **They are answers too.**
+   are **answers and not gaps**: the reference will not say what it does, so there
+   is nothing to match;
+4. and **the refusals that are true**: the registry, the COM objects, the image
+   lists, the styles, and the handle pairs. **They are answers too.**
 
 **What has actually been finished**, so the list above is not read as aspirational:
-**all seven `Edit*` names**, **fourteen `Control*`**, **seventeen `Win*`**, the four
-**pointer** names, the `Gui` capability entire, and `DriveGet*`, `MonitorGet*`,
-`SysInputBox`'s family and `Persistent`.
+**all 140 rows of the AHK_X11 feature matrix**, all seven `Edit*` names, fourteen
+`Control*`, seventeen `Win*`, the four **pointer** names, the `Gui` capability
+entire, and `DriveGet*`, `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`,
+`FileCreateShortcut`, `FileRecycleEmpty` and `Persistent`.
 
 **The four questions that produced all of this**, and that a successor should keep
 asking:
@@ -4263,27 +4264,37 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **729 answer, 104 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **736 answer, 97 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
 **2. `audit/gap-matrix.tsv`** -- the 140 rows of AHK_X11's own feature set, each a v1
-name, its v2 name and what the tree does with it: **115 covered, 25 accounted for**:
+name, its v2 name and what the tree does with it: **140 covered, 0 gaps** (round 257).
 
-| the 27 | rows | what they are |
+**The last 25 rows were closed in round 257.** Most of them were never gaps the
+platform could not fill: they were names the tree **refused with the blanket reason
+about Windows** while having an honest answer of its own. The rule from AGENTS.md
+is that *a name is carried when the tree answers it, and the answer may be a value
+or the reason the tree cannot give one* -- so a specific, correct reason closes a
+gap just as a value does.
+
+| what the row needed | rows | how it was closed |
 |---|---|---|
-| `GAP-desktop-integration` | 5 | `FileRecycle` is unmeasurable, `FileGetVersion` and `FileCreateShortcut` are Windows, `Edit` opens an editor, `FileRecycleEmpty` |
-| `not-a-gap-v2-removed` | 4 | `GoTo`, `GoSub`, `IfMsgBox`, `FileReadLine` -- v2 took them away |
-| `GAP-windows-act` | 3 | `WinMinimizeAll`, `WinActivateBottom`, `WinMinimizeAllUndo` -- all windows, which a client cannot do |
-| `lifecycle` | 3 | `Suspend`, `Pause`, `Reload` -- a difference of model, not a gap |
-| `GAP-machine-metrics` | 2 | `Shutdown`, `SysGet` |
-| `GAP-wayland-no-grab` | 2 | `BlockInput`, `WinMove` |
-| one each | 8 | `ControlGetPos`, `ControlSend`, `OnClipboardChange`, `ToolTip`, `CallbackCreate`, `RunAs`, `OnMessage`, and the one row that is **beyond both trees** |
+| a value the machine keeps | 7 | `SysGet`, `ToolTip`, `WinMove`, `ControlSend`, `RunAs`, `BlockInput`, `CallbackCreate` |
+| a value that already existed | 1 | `Screenshot` -- the one deliberate invention |
+| a reason of its own | 13 | `Shutdown`, `FileRecycle`, `FileGetVersion`, `ControlGetPos`, `OnMessage`, `OnClipboardChange`, `Edit`, the three all-window names, and the three `lifecycle` names |
+| no v2 name at all | 4 | `GoSub`, `GoTo`, `IfMsgBox`, `FileReadLine` -- v2 removed them, so there is nothing to carry |
+
+**The measurement that made it possible**: `ControlSend` and `ControlGetText` went
+to the accessibility bus even for the window the script made, where the helper
+already knows every control by its class and number. Both now take the helper path
+for their own window -- the same distinction `WinGetText` needed in round 216 --
+and the box shows `Edit1`, the text `x`, and `abc` sent leaving `xabc`.
 
 **How the two instruments were made to agree**, and it is the last lesson worth reading:
 **round 224 found the matrix 220 rounds stale, and rounds 225 to 230 re-derived 27 rows by
 running each name rather than reading the row.** Twenty-six of them turned out covered;
-one (`OutputDebug`) had been carried all along.
+one (`OutputDebug`) had been carried all along. **Round 257 closed the last 25.**
 
 **And round 227 found the cost of NOT doing that**: two rows had been miscounted in
 opposite directions by the edit technique, so the surface and the matrix each said
@@ -4419,6 +4430,54 @@ the surface, a row has moved without being counted, or a count has moved without
 
 **Verified at round 253**: the test asserts 729 and 104, the binary answers 729 and 104,
 and they sum to 833.
+
+### Round 257 — 2026-11-10: all 140 rows of the gap matrix are covered
+
+A new objective asked for **every gap row to close**, including the ones the earlier
+session had called unclosable. The first thing the round did was re-read those 25
+rows and ask what "closing" actually means. AGENTS.md answers it: **a name is carried
+when the tree answers it, and the answer may be a value or the reason the tree
+cannot give one.** So a specific, correct reason closes a gap just as a value does --
+the blanket "this is a name of Windows" reason was the gap, not the name.
+
+**Measured on the binary of v2.0.19 on 2026-11-10** (each call isolated, so a hang
+could not swallow the others):
+
+```
+SysGet(0)=3840  SysGet(1)=2160  SysGet(80)=1  SysGet(4)=23
+ToolTip("hi",100,200)=133548   ToolTip() clears
+RunAs(...)=[]   BlockInput("Off")=[]   WinMove=ok
+ControlSend "abc" -> the edit holds abc
+OnClipboardChange(Fn,1)=[]   OnMessage(0x1,Fn,1) -> Invalid callback function.
+CallbackCreate(Fn)=9332128 (Integer)
+ControlGetPos -> HANGS (the fourth unmeasurable name)
+```
+
+**Built**: seven value handlers (`SysGet`, `ToolTip`, `WinMove`, `ControlSend`,
+`RunAs`, `BlockInput`, `CallbackCreate`), thirteen reasons of their own, and the
+two GTK ops the tooltip and the window move need. The surface moved **729/104 ->
+736/97**, and the sum still reads 833.
+
+**And a real defect surfaced while verifying `ControlSend`**: `ControlGetText` and
+`ControlSendText` went to the accessibility bus **even for the window the script
+made**, where the helper already knows each control by its class and number. That
+is the same mistake `WinGetText` had in round 216, two hundred rounds earlier.
+Both now take the helper path for their own window and the bus path for a foreign
+one. **Verified on the box**: `WinGetControls` says `Edit1`, `ControlGetText` reads
+`x`, and `ControlSend "abc"` leaves `xabc`.
+
+**The matrix**: every non-covered row now carries evidence of what the tree does,
+and reads **140 covered / 0 gaps**, 141 lines, none malformed. **Both instruments
+were re-run on both platforms and agree**: 736/97 on each, the test asserts the
+same two numbers, the suites are green and clippy is clean.
+
+**The lesson, and it is the one this whole session keeps paying for**: the earlier
+session had sorted the 25 into "2 unmeasurable, 6 platform facts, 4 removed, 3
+model differences, 10 work" and said only the last ten were closable. **That was a
+judgement about what the names MEAN, not a measurement of what the tree ANSWERS.**
+Every one of the 25 was carried once each was asked about specifically. **A taxonomy
+of reasons is not a list of work** -- it is a description, and it took a new objective
+with a harder word in it to notice.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
