@@ -3350,6 +3350,34 @@ probed rather than written off (148), a structural bound was designed and built
 **test case for the bound** (152). **A reverted feature became the instrument that
 proved a fix under the whole family.**
 
+### Round 158 — 2026-11-09: three ways to clear a selection, none of them works
+
+Round 157 left one thing owed: a GTK entry selects its whole text when the text is
+set, where v2's control selects nothing. Three attempts were made to clear it, and
+**all three failed**:
+
+| the attempt | what happened |
+|---|---|
+| `set_position(-1)` on the value path | still the whole text |
+| `set_position(-1)` on the add path | still the whole text |
+| `select_region(0, 0)`, guarded so a missing method could not crash the helper | still the whole text |
+
+**So either GTK 4 has no way to clear it on an `Entry`, or the reading of the
+selection is what is odd** -- `get_selection_bounds` may report the whole range on a
+`Gtk.Entry` as a matter of course, in which case nothing is actually selected and
+what is wrong is the **question**, not the widget.
+
+**That distinction is the next thing to settle**, and it is one probe: ask the
+helper for `get_selection_bounds` **directly**, not through the answer of the
+`selection` operation. If the bounds are the whole range with nothing selected on
+screen, the operation should answer the empty text for that case rather than pass a
+number the toolkit invented.
+
+**All three attempts were reverted**, the tree builds clean, and the member keeps
+the divergence it was committed with. **A fix that does nothing is worse than no
+fix**: it makes the code claim something the behaviour does not do, and the next
+person reads it as handled.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
