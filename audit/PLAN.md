@@ -1563,6 +1563,31 @@ each failed on a fact that only the measurement could give. That is the honest
 state of this area, and it is worth more than three commands that would have
 been wrong.
 
+### Round 37 — 2026-11-09: the bytes of a text
+
+Away from the windows for a round, and a name with no platform in it at all.
+
+**`StrPut` ships.** Measured on the binary of v2.0.19 on 2026-11-09, all five
+answers:
+
+| call | the binary | this tree |
+|---|---|---|
+| `StrPut("hello")` | **12** | 12 |
+| `StrPut("hello", "UTF-8")` | **6** | 6 |
+| `StrPut("hello", "UTF-16")` | **12** | 12 |
+| `StrPut("héllo", "UTF-8")` | **7** | 7 |
+| `StrPut("hello", "Bogus")` | **"Invalid Encoding."** | the same |
+
+Twelve is five characters of two bytes and the two of the terminator; six is five
+and the one; seven is six bytes and the one, because the accent is two. **The
+form that writes the text takes a target address**, and this runtime has no
+pointers, so that form is refused with that reason instead of being answered
+wrongly.
+
+The surface moved **683 → 684 values, 150 → 149 refusals**.
+
+`StrGet` and `StrPtr` stay refused: both hand over or take an address.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

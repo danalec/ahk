@@ -3418,7 +3418,8 @@ fn an_empty_text_is_named_in_the_message_of_the_check() {
 
 #[test]
 fn a_name_that_the_tree_does_not_carry_says_the_reason_of_the_machine_when_the_kind_fits() {
-    let report = run("a := StrPut(\"x\", \"y\")");
+    // `StrPtr` answers an address, and this runtime has none to give.
+    let report = run("a := StrPtr(\"x\")");
     assert_eq!(
         failure_of(&report),
         "this is a name of Windows, and this desktop is not Windows."
@@ -4244,7 +4245,32 @@ fn the_work_area_is_the_monitor_when_the_panels_are_not_known() {
     assert_eq!(int_of(&report, "r"), 1920);
 }
 
-// -- what a script says to the debugger --------------------------------------------
+// -- the bytes of a text ------------------------------------------------------------
+
+#[test]
+fn the_bytes_of_a_text_are_the_ones_v2_counts() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the default encoding is
+    // the UTF-16 of the machine, so "hello" is twelve bytes -- five of two and
+    // the two of the terminator -- and the UTF-8 of it is six. The accent of
+    // "héllo" is two bytes, which makes seven.
+    let report = run(
+        "a := StrPut(\"hello\")\n\
+         b := StrPut(\"hello\", \"UTF-8\")\n\
+         c := StrPut(\"hello\", \"UTF-16\")\n\
+         d := StrPut(\"héllo\", \"UTF-8\")",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 12);
+    assert_eq!(int_of(&report, "b"), 6);
+    assert_eq!(int_of(&report, "c"), 12);
+    assert_eq!(int_of(&report, "d"), 7);
+}
+
+#[test]
+fn an_encoding_that_v2_does_not_know_is_refused() {
+    let report = run("x := StrPut(\"hello\", \"Bogus\")");
+    assert_eq!(failure_of(&report), "Invalid Encoding.");
+}
 
 #[test]
 fn the_output_debug_goes_to_the_output_and_answers_nothing() {

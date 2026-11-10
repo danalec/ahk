@@ -2276,9 +2276,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: str_put,
     },
     Builtin {
         name: "SysGet",
@@ -8352,6 +8352,50 @@ pub(crate) fn control_send_text(
             line,
         }),
     }
+}
+
+/// `StrPut`: how many bytes a text takes in an encoding, with its terminator.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `StrPut("hello")` is **12**
+/// and `StrPut("hello", "UTF-16")` is 12 -- five characters of two bytes and the
+/// two of the terminator -- and `StrPut("hello", "UTF-8")` is **6**, five and the
+/// one of the terminator. `StrPut("héllo", "UTF-8")` is **7**, because the accent
+/// is two bytes. An encoding that is not one of those is refused with "Invalid
+/// Encoding.".
+///
+/// The form that **writes** the text takes a target address, and this runtime has
+/// no pointers: that form is refused with that reason.
+pub(crate) fn str_put(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the form of StrPut that writes the text takes an address, and this runtime has no pointers.".into(),
+            line,
+        });
+    }
+    let text = text_of(values, 0);
+    let encoding = if values.len() > 1 {
+        text_of(values, 1)
+    } else {
+        "CP0".to_string()
+    };
+    let bytes = match encoding.to_ascii_uppercase().as_str() {
+        // The encoding of the machine is the UTF-16 of v2, and the terminator
+        // is one unit of it.
+        "CP0" | "UTF-16" => text.encode_utf16().count() * 2 + 2,
+        "UTF-8" | "CP65001" => text.len() + 1,
+        _ => {
+            return Err(RuntimeError {
+                message: "Invalid Encoding.".into(),
+                line,
+            })
+        }
+    };
+    Ok(Value::Int(bytes as i64))
 }
 
 // -- the monitors ------------------------------------------------------------------
