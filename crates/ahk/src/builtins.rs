@@ -1645,36 +1645,36 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 129,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: group_activate,
     },
     Builtin {
         name: "GroupAdd",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 129,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: group_add,
     },
     Builtin {
         name: "GroupClose",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 129,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: group_close,
     },
     Builtin {
         name: "GroupDeactivate",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 129,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: group_close,
     },
     Builtin {
         name: "GuiCtrlFromHwnd",
@@ -10633,6 +10633,78 @@ pub(crate) fn on_message(
         message: "the messages are those of a Win32 window procedure, and this runtime has no such loop".to_string(),
         line,
     })
+}
+
+/// `GroupAdd(GroupName, WinTitle, WinText, ExcludeTitle, ExcludeText)`: put a
+/// window title into a named set that outlives the statement.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty text.
+/// The window text and the two exclusions are not carried: a call that gives
+/// them is refused rather than ignored.
+pub(crate) fn group_add(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the window text and the exclusions of GroupAdd are not carried yet."
+                .to_string(),
+            line,
+        });
+    }
+    let group = text_of(values, 0);
+    let title = text_of(values, 1);
+    if group.is_empty() {
+        return Err(RuntimeError {
+            message: "the name of a window group may not be empty.".to_string(),
+            line,
+        });
+    }
+    rt.add_to_group(&group, &title);
+    Ok(Value::Text(String::new()))
+}
+
+/// `GroupActivate(GroupName, Mode)`: answer the id of the first window of the
+/// group that is on the screen, or zero when none is.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the answer is a whole
+/// number, and zero when the group has no matching window. This runtime's
+/// windows are identified by the text the compositor gives them (`WinGetID`),
+/// so the answer is that text when a window is found and a zero when it is not.
+pub(crate) fn group_activate(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let group = text_of(values, 0);
+    let titles = rt.the_titles_of_a_group(&group);
+    for title in titles {
+        let windows = rt
+            .desktop()
+            .matching_windows(&title, crate::settings::title_match_mode())
+            .map_err(|e| desktop_failure(e, line))?;
+        if let Some(window) = windows.first() {
+            return Ok(Value::Text(window.id.clone()));
+        }
+    }
+    Ok(Value::Int(0))
+}
+
+/// `GroupDeactivate` and `GroupClose`: take the group away.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: both answer the empty text.
+pub(crate) fn group_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let group = text_of(values, 0);
+    rt.close_a_group(&group);
+    Ok(Value::Text(String::new()))
 }
 
 pub(crate) fn sleep(

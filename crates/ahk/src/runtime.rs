@@ -1160,6 +1160,13 @@ pub struct Runtime<'a> {
     /// back, so the number has to be the SAME for the same object for the life of the
     /// run. Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips.
     pointers: Vec<(Value, i64)>,
+    /// The window groups a script has named, and the window titles in each.
+    ///
+    /// `GroupAdd` of v2 puts a window specification into a set that outlives the
+    /// statement, and `GroupActivate` reads that set later. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: Add, Deactivate and Close answer the
+    /// empty text, and Activate answers a whole number.
+    groups: Vec<(String, Vec<String>)>,
     /// The directory where the run started.
     ///
     /// The runtime asks the desktop for it when it is made, and it keeps
@@ -1351,6 +1358,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             guis: Vec::new(),
             pointers: Vec::new(),
+            groups: Vec::new(),
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -1417,6 +1425,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             guis: Vec::new(),
             pointers: Vec::new(),
+            groups: Vec::new(),
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -2111,6 +2120,44 @@ impl<'a> Runtime<'a> {
     /// The windows of the script that have been remembered.
     pub fn the_guis(&self) -> &[Value] {
         &self.guis
+    }
+
+    /// Put a window title into a group that outlives the statement.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `GroupAdd` answers the
+    /// empty text. The group is a set: the same title twice is one entry.
+    pub fn add_to_group(&mut self, group: &str, title: &str) {
+        let entry = self
+            .groups
+            .iter_mut()
+            .find(|(name, _)| name.eq_ignore_ascii_case(group));
+        match entry {
+            Some((_, titles)) => {
+                if !titles.iter().any(|held| held == title) {
+                    titles.push(title.to_string());
+                }
+            }
+            None => self
+                .groups
+                .push((group.to_string(), vec![title.to_string()])),
+        }
+    }
+
+    /// The titles of a group, in the order they were added.
+    pub fn the_titles_of_a_group(&self, group: &str) -> Vec<String> {
+        self.groups
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(group))
+            .map(|(_, titles)| titles.clone())
+            .unwrap_or_default()
+    }
+
+    /// Take a group away. `GroupClose` and `GroupDeactivate` both answer the
+    /// empty text; the difference v2 makes between them is which windows are
+    /// affected, and this runtime keeps no per-window state to tell them apart.
+    pub fn close_a_group(&mut self, group: &str) {
+        self.groups
+            .retain(|(name, _)| !name.eq_ignore_ascii_case(group));
     }
 
     /// The name of the variables of the script, with their values as text.
