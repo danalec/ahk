@@ -1826,9 +1826,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_from_ptr_add_ref,
     },
     Builtin {
         name: "ObjGetBase",
@@ -1889,9 +1889,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_ptr_add_ref,
     },
     Builtin {
         name: "ObjRelease",
@@ -9988,6 +9988,75 @@ pub(crate) fn obj_from_ptr(
             ),
             line,
         }),
+    }
+}
+
+/// `ObjPtrAddRef(Object)` and `ObjFromPtrAddRef(Ptr)`: the pair of `ObjPtr` that also
+/// keeps a reference.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips, and a value
+/// that is not an object is refused as *"Expected an object but got an Integer."*
+///
+/// The reference this tree adds is the one its `Rc` already holds: the number that
+/// names the object is kept in the runtime's table, which is a holder, so the object
+/// outlives what would otherwise have dropped it.
+pub(crate) fn obj_ptr_add_ref(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            })
+        }
+    };
+    if !matches!(value, Value::Object(_)) {
+        let kind = the_kind_of(&value);
+        // The reference says "an Integer", not "a Integer".
+        let article = if kind.starts_with(['A', 'E', 'I', 'O', 'U']) {
+            "an"
+        } else {
+            "a"
+        };
+        return Err(RuntimeError {
+            message: format!("Expected an object but got {article} {kind}."),
+            line,
+        });
+    }
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+pub(crate) fn obj_from_ptr_add_ref(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as i64;
+    match rt.the_object_of(number) {
+        Some(value) => Ok(value),
+        None => Err(RuntimeError {
+            message: format!(
+                "the number {number} does not name an object this script has asked about"
+            ),
+            line,
+        }),
+    }
+}
+
+/// The name of the kind of a value, for the message of a refusal.
+fn the_kind_of(value: &Value) -> &'static str {
+    match value {
+        Value::Int(_) => "Integer",
+        Value::Float(_) => "Float",
+        Value::Text(_) => "String",
+        Value::Object(_) => "Object",
+        _ => "value that is not an object",
     }
 }
 
