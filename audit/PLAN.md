@@ -3248,6 +3248,44 @@ does everywhere else.
 recorded as *"hangs the reference binary"* -- which is about v2, not this tree, but
 the same class of failure: **a wait with no bound**.
 
+### Round 149 — 2026-11-09: the bound on the transport, designed
+
+Round 148 found that every `the_gui_says` reads the helper's answer with **no
+bound**, so a helper that stops answering hangs the runner inside a statement,
+where the timeout cannot reach it. This is the design of the fix, and it needs no
+new dependency.
+
+**The shape of the code today**: `TheWindow` (`ahk-box/src/gui.rs`) holds
+`program`, `input`, `output` -- the child's stdin and stdout -- and `the_line()`
+reads one line from `output` with `BufReader`. `the_gui_says` writes the command
+and calls it.
+
+**The fix**: the reader stops being a call and becomes a **thread**.
+
+1. `TheWindow` starts one thread when it opens, and that thread **owns** the
+   `BufReader` around the child's stdout. It loops: read a line, send it down an
+   `mpsc::Sender<String>`.
+2. `the_line()` becomes `receiver.recv_timeout(a_second_or_two)`.
+3. A `RecvTimeoutError::Timeout` is **a failure with a reason** --
+   *"the window of the script stopped answering"* -- and the helper is killed on
+   the way out, so the next call does not inherit a dead process.
+
+**Why a thread and not a flag on the pipe**: `O_NONBLOCK` needs `libc`, and this
+crate does not carry it; `mpsc::recv_timeout` is `std`, and it gives exactly the
+semantics wanted -- the answer if it comes, the reason if it does not.
+
+**What it costs**: `TheWindow` gains a `Receiver` and a `JoinHandle`, `open` gains
+the thread, `the_line` loses its `BufReader`. **Three small changes in one file**,
+and every `Gui` member benefits, because they all go through `the_gui_says`.
+
+**How to verify it**: kill the helper by hand (`pkill -f ahk-gui.py`) in the middle
+of a script that asks for a `Value`, and check that **the runner reports a failure
+instead of hanging**. That is the test round 147 could not pass.
+
+**Not written**: three changes in one file at the end of this context, and the
+transport is what every `Gui` member rests on. It wants a round that can build,
+run the kill test, and keep it if it passes.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
