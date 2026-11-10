@@ -922,6 +922,13 @@ impl ahk::desktop::Windows for LabDesktop {
              Wayland"
             .to_string())
     }
+    fn control_text(&mut self, control: &str, title: &str) -> Result<Option<String>, String> {
+        // `busctl` is the tool of the accessibility bus, and the bus is a thing
+        // of a Linux session.
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_text(&address, title, control)
+    }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.

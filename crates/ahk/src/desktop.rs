@@ -407,6 +407,29 @@ pub trait Windows {
     ) -> Result<Option<String>, String> {
         Err("this desktop cannot wait for a window".to_string())
     }
+
+    /// The text of a named control of the window with this title.
+    ///
+    /// This is the **accessibility** layer: AT-SPI is a D-Bus protocol, and
+    /// D-Bus is what a Wayland session keeps, so it is the one way to reach the
+    /// controls of a window on the box. The AHK_X11 reaches the same layer
+    /// through `at-spi.cr`, and it is the most valuable piece it has.
+    ///
+    /// A control is named, and the name is what a script writes: the text of a
+    /// label, the caption of a button. The window is found by its title, which
+    /// is the `Name` of a window in the tree.
+    ///
+    /// It is a method here and not a capability trait of its own, because the
+    /// controls are the windows' and every fake desktop of the suite already
+    /// answers `Windows`. A trait of its own is the rule of this tree, and it
+    /// would have cost an empty `impl` in eighteen test files for no gain the
+    /// suite can see.
+    ///
+    /// `None` is a window or a control that is not there, and not a failure: a
+    /// script asks about a control that may be absent.
+    fn control_text(&mut self, _control: &str, _title: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
 }
 
 /// The processes of the desktop.

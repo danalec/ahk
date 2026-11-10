@@ -164,6 +164,17 @@ impl Dialogs for Fake {
 }
 
 impl Windows for Fake {
+    fn control_text(&mut self, control: &str, title: &str) -> Result<Option<String>, String> {
+        self.calls
+            .push(("control-text".into(), format!("{control}|{title}")));
+        // One control, in one window, and nothing else.
+        Ok(if control == "the label" && title == "the window" {
+            Some("the text of the label".to_string())
+        } else {
+            None
+        })
+    }
+
     fn matching_windows(
         &mut self,
         title: &str,

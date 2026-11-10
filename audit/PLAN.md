@@ -1084,6 +1084,56 @@ has no effect would be the worse answer.
 
 The surface moved **675 → 676 values, 158 → 157 refusals**.
 
+### Round 26 — 2026-11-09: the accessibility client, and a feature withheld
+
+The family started, and **the built-in was deliberately not shipped**. Both halves
+are the result.
+
+**What was built and is in the tree:**
+
+- `crates/ahk-box/src/atspi.rs` -- the client of the accessibility bus, over
+  `busctl`. `address()` reads `org.a11y.Bus.GetAddress`, `children()` and
+  `name()` read the tree, `text()` asks a node for its text, and
+  `control_text(title, control)` walks from the registry to a window by its
+  **title** and then to a control by its name or its text. The walk is bounded
+  in depth (8) and in nodes (200) so that a program with a tree that never ends
+  cannot hold the script.
+- `desktop.rs` -- `control_text` on the `Windows` trait, with a default that
+  says the desktop cannot read the controls. It is a method there and not a
+  capability trait of its own: a trait of its own is the rule of this tree, and
+  it would have cost an empty `impl` in **eighteen** test files.
+- The box implements it.
+
+**Three bugs were found by measuring, and one is the reason the feature is
+withheld:**
+
+1. `busctl call` takes the interface and the method as **two** arguments. Passing
+   `org.a11y.atspi.Accessible.GetChildren` as one made `busctl` answer
+   `Too few arguments.` -- a message that is not in this tree and not in the
+   binary, which is what made it hard to place.
+2. `org.a11y.Bus.Address` is a **method** (`GetAddress`), not a property.
+3. `Accessible.Role` is a **method** (`GetRoleName`), not a property, and
+   `org.a11y.atspi.Text` is not on every node.
+
+**Why `ControlGetText` is not shipped.** With the walk working and the dialog
+registered -- the registry listed `:1.18` (zenity) with a window whose `Name` is
+the title -- `ControlGetText("hello control", "ahk-ctrl-probe")` answered the
+empty text, and the label of that dialog is the control that should have been
+found. The walk reaches the application and does not reach the control, and the
+cause was not found inside the round.
+
+Shipping it would have been the worst outcome this project names: a name that
+`--surface` reports as `value` and that answers a **wrong empty** and says
+nothing. So the row stays `variant: 100` / `not_carried`, the surface stays
+**676 / 157**, and the module and the trait method stay in the tree as the
+groundwork the next round builds on.
+
+**The next step is exact**: walk one zenity dialog by hand, dump the `Name` and
+the `Text` of every node under the window, and find which call the walk gets
+wrong. The buses are named by the registry and change between dialogs --
+`:1.8` in one probe and `:1.18` minutes later -- so a probe that hard-codes one
+is measuring nothing.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

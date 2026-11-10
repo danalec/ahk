@@ -5,6 +5,7 @@
 //! commands. It runs **on the lab box**, because that is where the desktop
 //! is.
 
+pub mod atspi;
 pub mod desktop;
 pub mod files;
 pub mod hotkeys;
