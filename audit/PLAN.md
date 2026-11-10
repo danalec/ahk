@@ -2659,6 +2659,41 @@ on it.
 box disagrees with is not in it. `audit/probe-gui-ctrlevent.ahk` is kept, so the
 seven cases can be run again the moment the cause is known.
 
+### Round 115 — 2026-11-09: the hypothesis of round 114 was wrong, and that is the finding
+
+Round 114 guessed that the divergence came from **how a function is carried when it
+has a parameter** -- that a one-parameter function might not be an object of class
+`func`. That was tested directly and **it is false**:
+
+```ahk
+F()      { return 1 }
+G(the)   { return 2 }
+H(a, b)  { return 3 }
+```
+
+```
+F type=Func class=Func
+G type=Func class=Func
+H type=Func class=Func
+```
+
+**All three are `Func`, whatever their arity.** So the test the control's arm makes
+-- an `Object` whose class is `func` -- is not what rejected `G`, and the guess
+that it was has cost a round. What is left to explain is narrower: the same arm
+accepted `F` (answering *Invalid callback function.*, which is the check **after**
+the match) and rejected `G` (answering *Parameter #2 … invalid*, which is the
+`_` branch of the match itself) -- **two values that are the same kind of thing**.
+
+**That is not possible unless the two calls did not carry the same second
+argument**, so the next probe should print what the arm receives rather than what
+`Type()` says: the `class` string of `arguments[1]`'s object, and its length. A
+`Value::Text` of the name would explain it, and so would the argument list being
+shortened for a function that takes parameters.
+
+**The lesson is the one this session keeps relearning**: a hypothesis about
+*why* something failed is worth less than one measurement of *what it is*.
+`Type()` cost one run and would have saved round 114's attempt entirely.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
