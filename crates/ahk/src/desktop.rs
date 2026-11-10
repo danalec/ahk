@@ -595,6 +595,11 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// Show or hide a control of the script's window, named by its `ClassNN`.
+    fn gui_visibility(&mut self, _classnn: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot show or hide a control of the script".to_string())
+    }
+
     /// The number that names a control of the script's window, from its `ClassNN`.
     fn gui_number_named(&mut self, _classnn: &str) -> Result<i64, String> {
         Err("this desktop cannot find a control of the script by its name".to_string())

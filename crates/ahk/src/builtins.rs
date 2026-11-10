@@ -1278,7 +1278,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_visibility,
     },
     Builtin {
         name: "ControlHideDropDown",
@@ -1368,7 +1368,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_show,
     },
     Builtin {
         name: "ControlShowDropDown",
@@ -9406,6 +9406,45 @@ pub(crate) fn control_get_hwnd(
         .gui_number_named(&classnn)
         .map(Value::Int)
         .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `ControlHide(Control)` and `ControlShow(Control)`: hide or show a control of
+/// the script's window, named by its `ClassNN`.
+fn the_visibility_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    on: bool,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_visibility(&classnn, on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn control_visibility(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_a_control(rt, values, line, false)
+}
+
+pub(crate) fn control_show(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_a_control(rt, values, line, true)
 }
 
 pub(crate) fn sleep(

@@ -372,6 +372,17 @@ def the_number_named(classnn):
     answer({"ok": False, "error": "there is no control named %s" % classnn})
 
 
+def the_visibility_of(classnn, on):
+    """Show or hide a control named by its class and number. `ControlShow`/`Hide`."""
+    wanted = classnn.strip().lower()
+    for number, kind, control in state["controls"]:
+        if ("%s%d" % (kind, number)).lower() == wanted:
+            control.set_visible(on)
+            answer({"ok": True})
+            return
+    answer({"ok": False, "error": "there is no control named %s" % classnn})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -381,6 +392,12 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "visibility":
+        run_on_loop(
+            lambda: the_visibility_of(
+                command.get("classnn", ""), command.get("on", True)
+            )
+        )
     elif op == "resolve":
         run_on_loop(lambda: the_number_named(command.get("classnn", "")))
     elif op == "focused":
