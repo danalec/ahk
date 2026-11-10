@@ -21,12 +21,30 @@ spelling (`Add` and every `Add*`), read and write its `Value`, `Text`, `Enabled`
 and `Visible`, set the `Title`, `Show` and `Destroy` -- each verified on the box
 against a measurement of the reference.
 
-**The one architectural piece left is the EVENTS**: `g.OnEvent("Close", fn)`,
-`c.OnEvent("Click", fn)`. It is the only member that needs the helper to talk
-**back** -- a click in the window has to reach a function of the script -- and
-that is a different kind of channel from every one so far, which are all
-question-and-answer. It should be started fresh, not at the end of a long
-context.
+**The one architectural piece left is the EVENTS, and two of its three parts are
+built.** The channel was chosen (a file the helper appends to and the runtime
+looks at between statements), and:
+
+- **the producer is done and proven** (round 95): the helper writes `close` and
+  `click:<n>` when the window is destroyed or a control is clicked, proven by a
+  real click through the tree's own `ControlClick`;
+- **the registration is done and proven** (round 98): `g.OnEvent("Close", fn)`
+  answers the empty text, refuses an event the window does not have on the first
+  parameter and a non-function on the second, all four cases matching the
+  reference, and it keeps the function in the property table of the `Gui` object
+  under a key only the module reads;
+- **the dispatch is the last step**: the runtime reads what the file holds between
+  statements and calls the stored function. Two details are settled in round 96 --
+  `close` takes no argument because the window is not a control, and an event with
+  no handler is **dropped, not queued** -- and one is not: what a `click:<n>` is
+  called with, since v2 passes the control object and the control object of that
+  round is the one `Add` answered.
+
+**The two places that step touches**: the loop that already checks the timeout and
+the step count between statements (which is where the drain belongs, round 96),
+and the function-call path of the runtime, which is what turns a stored `Value`
+into a call. Both are deep and neither is small, which is why it is the one thing
+this session did not attempt at the end of a long context.
 
 **After that, the layout members** (`c.Move`, `c.Opt`, `g.Move`), and the ones the
 platform refuses with a reason already written down (`g.GetPos`, round 82: a
