@@ -504,6 +504,13 @@ fn put_on_the_clipboard(rt: &mut Runtime, text: &str, line: u32) -> Result<Value
     rt.desktop()
         .clipboard_write(text)
         .map_err(|message| RuntimeError { message, line })?;
+    // A change the runtime can see: its own write. `OnClipboardChange` of v2
+    // calls the registered function with 1 for it. Measured on the binary of
+    // v2.0.19 on 2026-11-10. Another program's clipboard is not watched: this
+    // runtime has no watcher of the desktop, and the refusal says so.
+    if let Some(name) = rt.the_clipboard_watcher().map(str::to_string) {
+        rt.call_a_function_for_a_built_in(&name, &[Value::Int(1)], line)?;
+    }
     Ok(Value::Text(text.to_string()))
 }
 

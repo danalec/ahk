@@ -3966,14 +3966,13 @@ size it, focus it, close it -- and **answer an event in it with the control in h
 `Move`, `Focus`, `Show`, `Hide`, `Destroy`, `OnEvent`, and the `Win*` family that acts
 on the script's own window.
 
-**Where to go next** -- rewritten in round 259. **All 140 rows of the gap
+**Where to go next** -- rewritten in round 260. **All 140 rows of the gap
 matrix are covered, and every refusal answers with a reason of its own** --
 there are no blanket refusals left in the built-in table.
 
-1. **the two mechanisms still open**: the **list-shaped controls** and a
-   **clipboard watcher**. The list controls are unmeasurable -- the reference
-   hangs on `Add("DropDownList")` -- and a clipboard watcher needs a second
-   event channel beside the one the helper writes for a `Gui`;
+1. **one mechanism still open**: the **list-shaped controls**. They are
+   unmeasurable -- the reference hangs on `Add("DropDownList")` -- so the
+   thirteen names that act on them answer with that reason rather than a value;
 2. **the three unmeasurable** -- `FileGetShortcut`, `FileRecycle`, `FileGetVersion` --
    are **answers and not gaps**: the reference will not say what it does, so there
    is nothing to match;
@@ -3982,14 +3981,16 @@ there are no blanket refusals left in the built-in table.
    gave each group a reason that names what it actually is, and round 259 gave
    the four handle names one more.
 
-**Two of the four mechanisms are DONE** (round 259): **window groups** (four names
-answering, a set on the runtime that outlives the statement) and the **last-found
-window** (`WinGetIDLast`, set by `WinGetID`). Both have language-level cases in
+**Three of the four mechanisms are DONE**: **window groups** (round 259, four
+names, a set on the runtime that outlives the statement), the **last-found
+window** (round 259, `WinGetIDLast` set by `WinGetID`), and the **clipboard
+watcher** (round 260, `OnClipboardChange` calls the registered function with 1
+when the script writes `A_Clipboard`). All three have language-level cases in
 `crates/ahk/tests/builtins.rs` and were verified on the box.
 
 **What has actually been finished**, so the list above is not read as aspirational:
-**all 140 rows of the AHK_X11 feature matrix**, **zero blanket refusals** (all 92
-say what they are about), **two of the four mechanisms**, all seven `Edit*` names,
+**all 140 rows of the AHK_X11 feature matrix**, **zero blanket refusals** (all 91
+say what they are about), **three of the four mechanisms**, all seven `Edit*` names,
 fourteen `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
 capability entire, and `DriveGet*`, `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`,
 `FileCreateShortcut`, `FileRecycleEmpty`, `Group*`, `WinGetIDLast` and `Persistent`.
@@ -4269,7 +4270,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **741 answer, 92 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **742 answer, 91 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -4577,6 +4578,33 @@ reference hangs on them) and a clipboard watcher (a second event channel).
 
 **Both platforms**: **741 answer / 92 refuse**, sum 833, suites green, clippy
 clean, the box's 28 suites green, source hashes matching.
+
+### Round 260 — 2026-11-10: the clipboard watcher, measured and built
+
+The third of the four mechanisms. **Measured on the binary of v2.0.19 on
+2026-11-10**: `OnClipboardChange(Handler, 1)` answers the empty text, and the
+function is called with `1` when the script itself writes `A_Clipboard`. A text
+where a function is wanted is refused, and a second argument of zero removes the
+callback.
+
+The runtime now holds `clipboard_watcher: Option<String>`; `OnClipboardChange`
+sets or clears it, and `put_on_the_clipboard` calls the named function with `1`
+after a successful write. **Another program's clipboard is not watched** -- this
+runtime has no watcher of the desktop -- but its own write is a change it can
+see, which is what the reference was measured doing.
+
+**One wrong turn**: the shared `the_callback` helper asks for a function of two
+parameters, because it serves `OnExit` and `OnError`. Using it here refused a
+valid one-parameter handler with "Invalid callback function." A second helper,
+`the_callback_with_one_argument`, asks for the shape this callback needs.
+
+**Verified on the box**: `called:1|register=[]|remove=[]|done` -- the function
+was called once for the write after registration and not for the write after
+removal. **Three new language-level cases** protect it.
+
+**Only one mechanism remains**: the list-shaped controls, which are unmeasurable
+because the reference hangs on them. Both platforms: **742 answer / 91 refuse**,
+sum 833, suites green, clippy clean.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in

@@ -1925,7 +1925,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: on_clipboard_change,
     },
@@ -10520,22 +10520,36 @@ pub(crate) fn block_input(
     })
 }
 
-/// `OnClipboardChange(Func, AddRemove)`: **refused, with a reason of its own.**
+/// `OnClipboardChange(Func, AddRemove)`: register a function for a change of
+/// the clipboard.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-10: a `Func` answers the empty
-/// text, a String is refused, and the callback has to be called whenever the
-/// clipboard changes. This runtime has no clipboard watcher: its clipboard is a
-/// pair of read and write calls with no event between them.
+/// text, a String is refused, and the function is called with 1 when the script
+/// itself writes `A_Clipboard`. This runtime has no watcher of ANOTHER program's
+/// clipboard -- its clipboard is a read and a write -- but its own write is a
+/// change it can see, so the function is called for that one.
 pub(crate) fn on_clipboard_change(
-    _rt: &mut Runtime<'_>,
-    _values: &[Value],
+    rt: &mut Runtime<'_>,
+    values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "the clipboard of this runtime is a read and a write, with no watcher to call a function when it changes".to_string(),
+    let callback = rt.the_callback_with_one_argument(
+        values.first(),
+        "OnClipboardChange",
         line,
-    })
+    )?;
+    // Measured on the binary of v2.0.19 on 2026-11-10: a second argument of
+    // zero removes the function, and one (or none) registers it. The name
+    // answers the empty text either way. The function is called with 1 when
+    // the script itself writes `A_Clipboard` -- the only change this runtime
+    // can see, since it has no watcher of another program's clipboard.
+    let remove = match values.get(1) {
+        Some(value) => value.to_number().unwrap_or(1.0) <= 0.0,
+        None => false,
+    };
+    rt.set_the_clipboard_watcher(if remove { None } else { Some(callback.name) });
+    Ok(Value::Text(String::new()))
 }
 
 /// `CallbackCreate(Func)`: answer a number that names the function.

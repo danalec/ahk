@@ -1174,6 +1174,13 @@ pub struct Runtime<'a> {
     /// binary of v2.0.19 on 2026-11-10: after `WinExist` finds a window,
     /// `WinGetIDLast()` answers the same number as `WinGetID()`.
     last_window: Option<String>,
+    /// The name of the function `OnClipboardChange` registered, if any.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a registered function
+    /// is called with 1 when the script itself writes `A_Clipboard`. This
+    /// runtime has no watcher of another program's clipboard, but its own
+    /// writes are a change it can see, so the callback is called for them.
+    clipboard_watcher: Option<String>,
     /// The directory where the run started.
     ///
     /// The runtime asks the desktop for it when it is made, and it keeps
@@ -1367,6 +1374,7 @@ impl<'a> Runtime<'a> {
             pointers: Vec::new(),
             groups: Vec::new(),
             last_window: None,
+            clipboard_watcher: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -1435,6 +1443,7 @@ impl<'a> Runtime<'a> {
             pointers: Vec::new(),
             groups: Vec::new(),
             last_window: None,
+            clipboard_watcher: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -2031,6 +2040,32 @@ impl<'a> Runtime<'a> {
             .map(|_answer| ())
     }
 
+    /// Call a function of the script by name, with the arguments, and give back
+    /// a `RuntimeError` -- the shape a built-in variable needs.
+    ///
+    /// `OnClipboardChange` uses this: a function registered for the clipboard
+    /// is called with `1` when the script itself writes `A_Clipboard`.
+    /// Measured on the binary of v2.0.19 on 2026-11-10.
+    pub(crate) fn call_a_function_for_a_built_in(
+        &mut self,
+        name: &str,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<(), RuntimeError> {
+        self.call_named(name, arguments, line, Route::Written)
+            .map(|_| ())
+            .map_err(|failure| match failure {
+                RuntimeFailure::Error(error) => error,
+                RuntimeFailure::Detailed(error, _) => error,
+                RuntimeFailure::Fatal(error) => error,
+                _ => RuntimeError {
+                    message: "the function of the clipboard change could not be called."
+                        .to_string(),
+                    line,
+                },
+            })
+    }
+
     /// Answer the events of the windows of the script that have happened.
     ///
     /// The helper speaks first, and what it said is read here -- one name each:
@@ -2177,6 +2212,20 @@ impl<'a> Runtime<'a> {
     /// The identifier of the window a `Win*` call last found, if one was found.
     pub fn the_last_window(&self) -> Option<&str> {
         self.last_window.as_deref()
+    }
+
+    /// Register the function `OnClipboardChange` named, or take it away.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a second argument of
+    /// zero removes the callback, and one adds it; the name answers the empty
+    /// text either way.
+    pub fn set_the_clipboard_watcher(&mut self, name: Option<String>) {
+        self.clipboard_watcher = name;
+    }
+
+    /// The function to call when the script writes the clipboard, if any.
+    pub fn the_clipboard_watcher(&self) -> Option<&str> {
+        self.clipboard_watcher.as_deref()
     }
 
     /// The name of the variables of the script, with their values as text.
@@ -11527,6 +11576,64 @@ fn split_the_version_operator(constraint: &str) -> (&'static str, &str) {
             }
         };
         if !takes_two {
+            return Err(RuntimeError {
+                message: "Invalid callback function.".into(),
+                line,
+            });
+        }
+        Ok(Callback {
+            name: function_name,
+            line,
+        })
+    }
+
+    /// The name of a `Func` that takes at least ONE parameter, for a callback
+    /// that is called with one value. `OnClipboardChange` is that shape:
+    /// measured on the binary of v2.0.19 on 2026-11-10, the function is called
+    /// with 1. `the_callback` asks for two, which is the shape of OnExit and
+    /// OnError, so this one is asked here instead.
+    pub(crate) fn the_callback_with_one_argument(
+        &self,
+        value: Option<&Value>,
+        name: &str,
+        line: u32,
+    ) -> Result<Callback, RuntimeError> {
+        let Some(value) = value else {
+            return Err(RuntimeError {
+                message: format!(
+                    "Parameter #1 of {name} requires an Object, but received nothing."
+                ),
+                line,
+            });
+        };
+        let Value::Object(object) = value else {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(1, name, "an Object", value),
+                line,
+            });
+        };
+        let object = object.borrow();
+        if object.class != "func" {
+            return Err(RuntimeError {
+                message: format!(
+                    "This value of type \"{}\" has no method named \"Call\".",
+                    value.type_name().name()
+                ),
+                line,
+            });
+        }
+        let function_name = match object.value_of("name") {
+            Some(Value::Text(text)) => text.clone(),
+            _ => String::new(),
+        };
+        let takes_one = match self.functions.get(&function_name.to_lowercase()) {
+            Some(function) => {
+                !function.parameters.is_empty()
+                    || function.parameters.iter().any(|parameter| parameter.variadic)
+            }
+            None => number_of(&object.properties, "maxparams") >= 1,
+        };
+        if !takes_one {
             return Err(RuntimeError {
                 message: "Invalid callback function.".into(),
                 line,

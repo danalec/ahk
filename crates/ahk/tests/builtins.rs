@@ -3977,6 +3977,45 @@ fn the_last_window_with_no_win_call_before_it_fails() {
     assert_eq!(failure_of(&report), "Target window not found.");
 }
 
+// -- the clipboard watcher ---------------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-10: `OnClipboardChange(Func, 1)`
+// answers the empty text and the function is called with 1 when the script
+// itself writes `A_Clipboard`; a second argument of 0 removes it.
+
+#[test]
+fn a_clipboard_change_calls_the_function_with_one() {
+    let report = run(concat!(
+        "Handler(Type) {\n    MsgBox \"called:\" Type\n}\n",
+        "r := OnClipboardChange(Handler, 1)\n",
+        "A_Clipboard := \"the new text\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("r"), Some(&Value::Text(String::new())));
+    assert_eq!(report.output, vec!["called:1"]);
+}
+
+#[test]
+fn a_clipboard_change_that_is_removed_is_not_called() {
+    let report = run(concat!(
+        "Handler(Type) {\n    MsgBox \"called:\" Type\n}\n",
+        "OnClipboardChange(Handler, 1)\n",
+        "OnClipboardChange(Handler, 0)\n",
+        "A_Clipboard := \"the new text\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty(), "{:?}", report.output);
+}
+
+#[test]
+fn a_clipboard_change_wants_a_function_not_a_text() {
+    let report = run("OnClipboardChange(\"Handler\", 1)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of OnClipboardChange requires an Object, but received a String."
+    );
+}
+
 #[test]
 fn win_get_class_answers_the_class_of_the_window() {
     let report = run("x := WinGetClass(\"second\")");
