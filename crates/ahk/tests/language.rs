@@ -5326,8 +5326,64 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn the_maybe_of_a_dynamic_name_is_skipped_when_the_name_has_no_value() {
+fn a_property_may_take_the_parameters_of_its_access() {
     // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the property that
+    // takes parameters -- `Items[Index] => unset`, `Pair[a, b] => ...` and the
+    // accessor that has a setter -- is read and written with them, and the
+    // brackets after the name of a property that has none are the item of the
+    // value of the property.
+    let (report, _desktop) = run_in(
+        concat!(
+            "class OptHolder\n",
+            "{\n",
+            "    Stored := 0\n",
+            "    Items[Index] => unset\n",
+            "    Writable[Index]\n",
+            "    {\n",
+            "        get\n",
+            "        {\n",
+            "            return this.Stored\n",
+            "        }\n",
+            "        set => this.Stored := Value\n",
+            "    }\n",
+            "    Pair[a, b] => a . \"|\" . b\n",
+            "}\n",
+            "o := OptHolder()\n",
+            "v := o.Items[1]\n",
+            "MsgBox \"a\" IsSet(v)\n",
+            "o.Writable[1] := 7\n",
+            "MsgBox \"b\" o.Stored \" \" o.Writable[2]\n",
+            "MsgBox \"c\" o.Pair[1, 2]\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a0", "b7 7", "c1|2"]);
+}
+
+#[test]
+fn a_property_of_the_v2_1_may_hold_the_absent_value() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: `{prop: unset}`
+    // keeps the property with the absent value in the object of the v2.1 -- the
+    // v2.0.19 leaves it out -- and the read of it is the absent value, so the
+    // chain of the v2.1 that follows it is the absent value as well.
+    let (report, _desktop) = run_in(
+        concat!(
+            "o := { prop: unset }\n",
+            "MsgBox \"a\" ObjOwnPropCount(o) \" \" (o.prop is unset)\n",
+            "v := o?.prop?.inner\n",
+            "MsgBox \"b\" IsSet(v)\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a1 1", "b0"]);
+}
+
+#[test]
+fn the_maybe_of_a_dynamic_name_is_skipped_when_the_name_has_no_value() {    // Measured on the test suite of KeySharp (the corpus script
     // `assign-unset.ahk`) and on the notes of v2.1-alpha: the `?` before the
     // percent that closes a name the script builds marks the name as one that
     // may be absent. The member is not read and the parameters of the call and

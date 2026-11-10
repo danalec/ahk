@@ -10917,3 +10917,26 @@ The corpus under `--dialect=v2.1` is 92 of the 162 pure scripts (56.8 %) against
 the 91 (56.2 %) of the round before: `assign-unset.ahk` passes whole now.
 `op-null-assign.ahk` runs to a property with parameters and `class-ownprops.ahk`
 to the function held in a property that is called as a method.
+## 288. The property that takes parameters, and the item of one
+
+Measured on the test suite of KeySharp (the corpus script `op-null-assign.ahk`)
+and on the notes of v2.1-alpha: the class of the v2.1 lets a property take
+parameters of its own -- `Items[Index] => unset`, `Pair[a, b] => a . "|" . b`,
+and `Writable[Index] { get { ... } set => this.Stored := Value }` -- and the
+brackets after the name are those parameters when the property declares them.
+The read is the getter with them (`o.Items[1]`, `o.Pair[1, 2]`), the write is
+the setter with them (`o.Writable[1] := 7`), and the item of a property that
+declares none is the item of its value (`o.p[1]`), which is the rule that the
+class.ahk case of the corpus pins. The accessor of a property that takes the
+parameters is answered with the parameters of the access, and the caller does
+not index the value after them.
+
+The object literal of the v2.1 keeps a property whose value is the absent value
+-- `{prop: unset}` is an object with one property in the v2.1, and the v2.0.19
+leaves it out -- and the read of it is the absent value, so the chain after it
+is the absent value too (`optObj?.prop?.inner`).
+
+`op-null-assign.ahk` runs from line 300 to line 263: what is left there is the
+operator that has the absent value for an operand -- `missing?.value + Bump2()`
+must not call `Bump2()` and must be the absent value -- which is the next
+mechanism of the v2.1 that the corpus asks for.

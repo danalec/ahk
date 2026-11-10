@@ -9638,6 +9638,36 @@ impl Parser {
             parameters = self.parse_parameters()?;
             self.expect_op("]")?;
         }
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the body of the
+        // property that takes parameters may begin on the line after the
+        // parameters -- `Writable[Index]` and then `{` -- so the newline after
+        // the closing bracket is not the end of the member.
+        self.skip_newlines();
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the property
+        // that takes parameters may be written with the arrow of the v2.1
+        // instead of the braces -- `Items[Index] => unset` is a getter of one
+        // statement, and the parameters are the ones between the brackets.
+        if self.at_op(&["=>"]) {
+            let arrow = self.next();
+            let value = self.the_expression_of_a_statement()?;
+            return Ok(AccessDef {
+                name: name_token.value,
+                parameters,
+                getter: Some(AccessBody {
+                    body: vec![Node::Return {
+                        value: Some(Box::new(value)),
+                        line: arrow.line,
+                    }],
+                    declarations: Declarations::default(),
+                    line: arrow.line,
+                }),
+                setter: None,
+                is_static,
+                line: name_token.line,
+            });
+        }
         self.expect_op("{")?;
         let mut getter = None;
         let mut setter = None;

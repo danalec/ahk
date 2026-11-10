@@ -3299,12 +3299,24 @@ impl<'a> Runtime<'a> {
                 value,
                 line,
             } => {
-                let target_value = self.evaluate(target)?;
-                let keys = self.the_keys_of_an_index(index, also)?;
-                let value = self.evaluate(value)?;
-                let stored = self.set_item(&target_value, &keys, *op, value, *line)?;
-                let key = keys.first().map(Value::to_text).unwrap_or_default();
-                detail = format!("{key} = {}", stored.to_text());
+                // Measured on the test suite of KeySharp (the corpus script
+                // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
+                // brackets of a property that takes parameters are the
+                // parameters of the property -- `o.Writable[1] := v` writes the
+                // property -- and not the item of the value of it.
+                if let Node::Property { .. } = &**target {
+                    let stored = self.write_the_property_of_a_parameterised_item(
+                        target, index, also, *op, value, *line,
+                    )?;
+                    detail = stored.to_text();
+                } else {
+                    let target_value = self.evaluate(target)?;
+                    let keys = self.the_keys_of_an_index(index, also)?;
+                    let value = self.evaluate(value)?;
+                    let stored = self.set_item(&target_value, &keys, *op, value, *line)?;
+                    let key = keys.first().map(Value::to_text).unwrap_or_default();
+                    detail = format!("{key} = {}", stored.to_text());
+                }
             }            Node::Call {
                 name,
                 arguments,
@@ -5801,7 +5813,7 @@ impl<'a> Runtime<'a> {
             // construction of the class is refused with "Property is
             // read-only." when the property has no setter.
             if self.the_accessor_of(object, &property.name).is_some() {
-                self.the_write_of_an_accessor(object, &property.name, value, 0)?;
+                self.the_write_of_an_accessor(object, &property.name, &[], value, 0)?;
                 continue;
             }
             put(&mut cell.borrow_mut().properties, &property.name, value);
@@ -8574,8 +8586,23 @@ impl<'a> Runtime<'a> {
         // Measured on the binary of v2.0.19 on 2026-10-31: `obj.value` is
         // the value of the getter of the property, and a property that has
         // no getter is not read.
-        if let Some(value) = self.the_value_of_an_accessor(target, &written, line)? {
-            return Ok((value, false));
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the parameters
+        // of the access belong to the getter of a property that declares them,
+        // and they are the index of the value of the property that declares
+        // none -- `o.Items[1]` asks the getter of `Items` with one, and
+        // `o.p[1]` is the item one of the value of `p`.
+        let the_parameters_are_the_getters = self
+            .the_accessor_of(target, &written)
+            .map(|access| !access.parameters.is_empty())
+            .unwrap_or(false);
+        let given = if the_parameters_are_the_getters {
+            params
+        } else {
+            &[][..]
+        };
+        if let Some(value) = self.the_value_of_an_accessor(target, &written, given, line)? {
+            return Ok((value, the_parameters_are_the_getters));
         }
         if let Some(value) = object.borrow().value_of(&name) {
             // A property may be a descriptor: the getter of it is asked
@@ -8847,7 +8874,7 @@ impl<'a> Runtime<'a> {
         // Measured on the binary of v2.0.19 on 2026-10-31: a property that
         // has no setter is not written, and the write of it is refused with
         // "Property is read-only.".
-        if self.the_write_of_an_accessor(target, &written, value.clone(), line)? {
+        if self.the_write_of_an_accessor(target, &written, params, value.clone(), line)? {
             return Ok(());
         }
         // A property that is a descriptor has a setter of its own, and a
@@ -8962,7 +8989,7 @@ impl<'a> Runtime<'a> {
         //
         // Measured on the binary of v2.0.19 on 2026-10-31: the static
         // property of a class that has a setter is written through it.
-        if self.the_write_of_an_accessor(target, written, value.clone(), line)? {
+        if self.the_write_of_an_accessor(target, written, &[], value.clone(), line)? {
             return Ok(());
         }
         // A property that is a descriptor has a setter of its own, and a
@@ -9085,6 +9112,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         target: &Value,
         name: &str,
+        params: &[Value],
         line: u32,
     ) -> Result<Option<Value>, RuntimeFailure> {
         let Some(access) = self.the_accessor_of(target, name) else {
@@ -9093,7 +9121,12 @@ impl<'a> Runtime<'a> {
         let Some(getter) = &access.getter else {
             return Err(self.no_property(target, name, line));
         };
-        let value = self.call_the_body_of_an_accessor(target, &access, getter, line, &[], None)?;
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the property
+        // that takes parameters -- `Items[Index] => unset` -- is read with the
+        // parameters of the access, and they are the parameters of the getter.
+        let value =
+            self.call_the_body_of_an_accessor(target, &access, getter, line, params, None)?;
         Ok(Some(value))
     }
 
@@ -9107,6 +9140,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         target: &Value,
         name: &str,
+        params: &[Value],
         value: Value,
         line: u32,
     ) -> Result<bool, RuntimeFailure> {
@@ -9125,7 +9159,7 @@ impl<'a> Runtime<'a> {
                 },
             ));
         };
-        self.call_the_body_of_an_accessor(target, &access, setter, line, &[], Some(&value))?;
+        self.call_the_body_of_an_accessor(target, &access, setter, line, params, Some(&value))?;
         Ok(true)
     }
 
@@ -12950,6 +12984,11 @@ impl<'a> Runtime<'a> {
                 value,
                 line,
             } => {
+                if let Node::Property { .. } = &**target {
+                    return self.write_the_property_of_a_parameterised_item(
+                        target, index, also, *op, value, *line,
+                    );
+                }
                 let target_value = self.evaluate(target)?;
                 let keys = self.the_keys_of_an_index(index, also)?;
                 let value = self.evaluate(value)?;
@@ -13006,8 +13045,15 @@ impl<'a> Runtime<'a> {
                                 // Measured on the binary of v2.0.19 on
                                 // 2026-11-10: a property whose value is the
                                 // absent value is not a property of the object
-                                // at all.
-                                if matches!(value, Value::Unset) {
+                                // at all. Measured on the test suite of KeySharp
+                                // (the corpus script `op-null-assign.ahk`) and on
+                                // the notes of v2.1-alpha: the object of the
+                                // v2.1 keeps it, and the read of it is the absent
+                                // value -- `{prop: unset}` is read by
+                                // `optObj?.prop?.inner` as the absent value.
+                                if matches!(value, Value::Unset)
+                                    && !self.dialect.the_chain_may_be_skipped()
+                                {
                                     continue;
                                 }
                                 put(&mut cell.borrow_mut().properties, &name, value);
@@ -14015,6 +14061,67 @@ impl<'a> Runtime<'a> {
             index += 1;
         }
         Ok(out)
+    }
+
+    /// The write of a property that takes parameters, when the target of an
+    /// item write is a property: `o.Writable[1] := v`.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `op-null-assign.ahk`) and on the notes of v2.1-alpha: the brackets after
+    /// the name of a property that takes parameters are the parameters of the
+    /// property, and the write of them is the write of the property -- the
+    /// setter is run with them -- and not the write of an item of the value of
+    /// the property.
+    fn write_the_property_of_a_parameterised_item(
+        &mut self,
+        property: &Node,
+        index: &Node,
+        also: &[Node],
+        op: AssignOp,
+        value: &Node,
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        let Node::Property {
+            target,
+            name,
+            line: property_line,
+        } = property
+        else {
+            return Err(RuntimeFailure::Error(RuntimeError {
+                message: "the target of the write is not a property".into(),
+                line,
+            }));
+        };
+        let object_value = self.evaluate(target)?;
+        let name = self.the_name_of_the_member(name, *property_line)?;
+        // The property that declares no parameters holds the value whose item
+        // the brackets name: `o.p[1] := v` writes the item of the value of `p`.
+        if !self
+            .the_accessor_of(&object_value, &name)
+            .map(|access| !access.parameters.is_empty())
+            .unwrap_or(false)
+        {
+            let (held, _) =
+                self.read_property_fully(&object_value, &name, &[], *property_line)?;
+            let keys = self.the_keys_of_an_index(index, also)?;
+            let value = self.evaluate(value)?;
+            return self.set_item(&held, &keys, op, value, line);
+        }
+        let keys = self.the_keys_of_an_index(index, also)?;
+        let value = self.evaluate(value)?;
+        let current = match self.read_property_fully(&object_value, &name, &keys, *property_line) {
+            Ok((value, _)) => Some(value),
+            Err(failure) => {
+                if matches!(op, AssignOp::Set) {
+                    None
+                } else {
+                    return Err(failure);
+                }
+            }
+        };
+        let stored = self.apply_assign(op, &name, current, value, line)?;
+        self.write_property_with(&object_value, &name, &keys, stored.clone(), line)?;
+        Ok(stored)
     }
 
     /// Write an item of a value: `obj[key] := value`.
