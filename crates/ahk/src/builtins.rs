@@ -2681,9 +2681,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_title,
     },
     Builtin {
         name: "WinSetTransColor",
@@ -9597,6 +9597,46 @@ pub(crate) fn control_move(
         message: "the window of this tree lays its controls out in order, so the place of a control cannot be set, and this name has no form that asks for a size alone".to_string(),
         line,
     })
+}
+
+/// `WinSetTitle(NewTitle, WinTitle)`: rename a window of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text after
+/// renaming, and a window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's**: renaming someone else's
+/// window is not something a Wayland client can do, and the title of its own window
+/// is the `Title` this tree already answers (round 71).
+pub(crate) fn win_set_title(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let new_title = text_of(values, 0);
+    let target = text_of(values, 1);
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    let current = rt
+        .desktop()
+        .gui_title(0, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    // The default match mode of v2 is that the title CONTAINS the text, and the
+    // case matters; a window that does not match is not there.
+    if !target.is_empty() && !current.contains(&target) {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    rt.desktop()
+        .gui_title(0, Some(&new_title))
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
 }
 
 pub(crate) fn sleep(
