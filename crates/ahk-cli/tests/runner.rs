@@ -259,8 +259,15 @@ fn the_surface_flag_answers_with_json() {
     // it, through the notification of the session, then the four `WinGet*`
     // that read the listing of the windows, then the two that read where
     // a window is, and the one that reads whether it is maximized.
-    assert_eq!(report.number("values"), 690);
-    assert_eq!(report.number("refusals"), 143);
+    //
+    // Then the eleven of the blanket that were answered through the window of a
+    // script -- the five `Edit*` that read its controls and the six `Control*`
+    // that name, show, hide and set them. **A name counts as a value when its
+    // row stops carrying `REFUSAL` as its variant**, which is the last step of
+    // that work and was found in round 171 of the audit: the handler alone
+    // answers, and the surface reads the variant.
+    assert_eq!(report.number("values"), 701);
+    assert_eq!(report.number("refusals"), 132);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
