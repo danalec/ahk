@@ -2385,11 +2385,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "this runtime cannot wait for a key to continue: the script ends when it ends.",
         ),
         (
-            "Persistent",
-            "Persistent",
-            "this runtime is a script that ends when it ends, and it cannot be kept alive.",
-        ),
-        (
             "Reload",
             "Reload",
             "this runtime runs one script once, and it cannot run itself again.",

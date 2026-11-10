@@ -2483,18 +2483,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_process,
     },
     Builtin {
         name: "WinGetProcessPath",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_process,
     },
     Builtin {
         name: "WinGetStyle",
@@ -3204,9 +3204,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 111,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: persistent,
     },
     Builtin {
         name: "Reload",
@@ -8436,6 +8436,79 @@ pub(crate) fn win_get_pid(
             line,
         }),
     }
+}
+
+/// `WinGetProcessName` and `WinGetProcessPath`: the program of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the name is the file name of
+/// the program (`AutoHotkey64.exe`) and the path is the whole of it, and a title
+/// that no window has is "Target window not found.".
+///
+/// They ride the chain of `WinGetPID`: the window's title names an application on
+/// the accessibility bus, the bus answers its process, and the process table
+/// answers the name and the path -- which the `Processes` capability already
+/// reads.
+pub(crate) fn win_get_process(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    let pid = match rt
+        .desktop()
+        .window_pid(&title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(pid) => pid,
+        None => {
+            return Err(RuntimeError {
+                message: TARGET_WINDOW.into(),
+                line,
+            })
+        }
+    };
+    let number = pid.to_string();
+    let answer = if variant == 0 {
+        rt.desktop().process_name(&number)
+    } else {
+        rt.desktop().process_path(&number)
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        Some(text) => Ok(Value::Text(text)),
+        None => Err(RuntimeError {
+            message: "Target process not found.".into(),
+            line,
+        }),
+    }
+}
+
+/// `Persistent`: whether the script keeps running after its auto-execute ends.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the Integer **0**.
+/// A script of this runtime is persistent by its nature -- the run is one script
+/// from its first line to its last, and there is no message loop for it to stay
+/// for -- so the answer is the zero v2 gives and the setting changes nothing.
+pub(crate) fn persistent(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(0))
 }
 
 // -- the monitors ------------------------------------------------------------------
