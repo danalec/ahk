@@ -26,6 +26,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import Gdk  # noqa: E402
 
 state = {"window": None, "box": None, "controls": [], "next_id": 1}
 
@@ -57,6 +58,10 @@ def the_window(title):
     # The two events of v2 that a window of a script has: it is closed, or a
     # control in it is clicked.
     window.connect("destroy", lambda *_args: an_event("close"))
+    # And the one it has when a key is pressed in it, which for v2 is `Escape`
+    # and nothing else: the reference accepts `Escape` as a window event and not
+    # the other keys.
+    window.connect("key-press-event", the_key_of_the_window)
     answer({"ok": True})
 
 
@@ -210,6 +215,13 @@ def the_watch(path):
     """
     state["events"] = path
     answer({"ok": True})
+
+
+def the_key_of_the_window(_window, event):
+    """A key pressed in the window. `Escape` is an event of v2; keys are not."""
+    if event.keyval == Gdk.KEY_Escape:
+        an_event("escape")
+    return False
 
 
 def an_event(name):
