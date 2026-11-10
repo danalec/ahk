@@ -237,6 +237,21 @@ def an_event(name):
         pass
 
 
+def the_size(number, width, height):
+    """The size of a control. The place is not this: a child of a box has none.
+
+    `Move` of v2 is a place and a size, and the window this helper makes is a
+    vertical box, so only the size can be honoured here.
+    """
+    for held, _kind, control in state["controls"]:
+        if held != number:
+            continue
+        control.set_size_request(width, height)
+        answer({"ok": True, "value": [width, height]})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -246,6 +261,12 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "size":
+        run_on_loop(
+            lambda: the_size(
+                command.get("id", 0), command.get("w", -1), command.get("h", -1)
+            )
+        )
     elif op == "watch":
         run_on_loop(lambda: the_watch(command.get("path", "")))
     elif op == "geometry":

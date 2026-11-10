@@ -1122,6 +1122,19 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
     }
 
+    fn gui_size(&mut self, number: u64, width: i64, height: i64) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"size\", \"id\": {}, \"w\": {}, \"h\": {}}}",
+            number, width, height
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the control of the script was not sized: {answer}"))
+        }
+    }
+
     fn gui_events(&mut self) -> Result<Vec<String>, String> {
         // The file the helper was told to write to. Its name is derived from the
         // process, so that two runners on one machine do not read each other's

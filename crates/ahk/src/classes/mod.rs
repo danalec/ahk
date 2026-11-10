@@ -1625,6 +1625,39 @@ pub(crate) fn call(
         }
         return Some(Ok(Value::Text(String::new())));
     }
+    // `Move` of a control: a place and a size, and only the size can be honoured.
+    // Measured on 2026-11-09: v2 answers the empty text and numbers the first
+    // parameter 2, because the first is the control the method is asked of. The
+    // window of this tree lays its controls out in order, so a place is refused
+    // with the reason rather than ignored -- a control that answers as if it had
+    // moved and had not is the worst kind of answer.
+    if class.to_lowercase().starts_with("gui.") && method.eq_ignore_ascii_case("move") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let given = |index: usize| {
+            arguments
+                .get(index)
+                .map(|value| !value.to_text().trim().is_empty())
+                .unwrap_or(false)
+        };
+        if given(0) || given(1) {
+            return Some(Err(the_failure_with(
+                "the window of this tree lays its controls out in order, so the place of a control cannot be set",
+                "",
+                line,
+            )));
+        }
+        if !given(2) && !given(3) {
+            return Some(Ok(Value::Text(String::new())));
+        }
+        let width = arguments.get(2).map(|v| v.to_text()).unwrap_or_default();
+        let height = arguments.get(3).map(|v| v.to_text()).unwrap_or_default();
+        let width: i64 = width.trim().parse().unwrap_or(-1);
+        let height: i64 = height.trim().parse().unwrap_or(-1);
+        return Some(match rt.desktop().gui_size(number, width, height) {
+            Ok(()) => Ok(Value::Text(String::new())),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
     if method.eq_ignore_ascii_case("__item") {

@@ -595,6 +595,15 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// Set the size of a control of a window of the script.
+    ///
+    /// The **size** and not the place: measured on 2026-11-09, the window this
+    /// tree makes lays its controls out in order, and GTK gives a child of a
+    /// layout no place of its own.
+    fn gui_size(&mut self, _number: u64, _width: i64, _height: i64) -> Result<(), String> {
+        Err("this desktop cannot size a control of the script".to_string())
+    }
+
     /// Read the events of the windows of the script that have happened.
     ///
     /// The answer is the events **since the last time it was asked**, one name
