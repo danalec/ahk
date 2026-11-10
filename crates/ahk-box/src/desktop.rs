@@ -922,7 +922,11 @@ impl ahk::desktop::Windows for LabDesktop {
              Wayland"
             .to_string())
     }
-    fn control_text(&mut self, control: &str, title: &str) -> Result<Option<String>, String> {
+    fn control_text(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlAnswer, String> {
         // `busctl` is the tool of the accessibility bus, and the bus is a thing
         // of a Linux session.
         box_tools_are_near()?;

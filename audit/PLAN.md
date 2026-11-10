@@ -1181,6 +1181,37 @@ registered -- `ok: true`, the walk took 83 ms, the answer was the empty text.
 
 The surface moved **676 → 677 values, 157 → 156 refusals**.
 
+### Round 28 — 2026-11-09: two failures, not one empty text
+
+Round 27 shipped `ControlGetText` answering the empty text for a control that is
+not there. **Measured, that is wrong twice.** On the binary of v2.0.19:
+
+| call | the binary |
+|---|---|
+| `ControlGetText("x", "zzz-no-such-window-zzz")` | **fails** *"Target window not found."*, `Extra` = the title |
+| `ControlGetText("x", "A")` — a window that is there | **fails** *"Target control not found."* |
+| `ControlGetFocus("zzz-no-such-window-zzz")` | *"Target window not found."* |
+| `ControlGetChecked("x", "A")` | *"Target control not found."* |
+
+Neither is an empty text, and the two are different facts. The walk now says
+which: `ControlAnswer::Found`, `NoSuchWindow` or `NoSuchControl`, and the
+handler turns the last two into the two failures of v2.
+
+**Verified on the box**, with a zenity dialog registered:
+
+```
+missing_window=[Target window not found.]
+no_such_control=[Target control not found.]
+```
+
+and the timings are the proof that the walk really walks: **15 ms** when no
+window matches (it looks at each application in turn and gives up) and **185 ms**
+when it finds the dialog by title and searches inside it. The error the script
+catches carries `What: "ControlGetText"`, the way v2's does.
+
+An empty title is refused rather than treated as a wildcard: v2 reads it as the
+active window, and this tree has no active window to read.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

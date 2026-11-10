@@ -7962,6 +7962,12 @@ pub(crate) fn win_get_title(
 /// `WinGetCount` answers the zero.
 const TARGET_WINDOW: &str = "Target window not found.";
 
+/// The failure of a question about a control, when the window is there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ControlGetText("x", "A")`
+/// -- a window that is there -- fails with this, and not with an empty text.
+const TARGET_CONTROL: &str = "Target control not found.";
+
 /// The window that a `WinGet*` command asks about.
 ///
 /// The parameters after the first are the text of the window and the two
@@ -8140,13 +8146,26 @@ pub(crate) fn control_get_text(
     }
     let control = text_of(values, 0);
     let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
     match rt
         .desktop()
         .control_text(&control, &title)
         .map_err(|e| desktop_failure(e, line))?
     {
-        Some(text) => Ok(Value::Text(text)),
-        None => Ok(Value::Text(String::new())),
+        crate::desktop::ControlAnswer::Found(text) => Ok(Value::Text(text)),
+        crate::desktop::ControlAnswer::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlAnswer::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
     }
 }
 

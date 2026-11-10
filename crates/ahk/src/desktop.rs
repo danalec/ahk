@@ -307,6 +307,24 @@ pub struct Monitor {
     pub scale: i64,
 }
 
+/// What became of a question about a control of a window.
+///
+/// The two failures are different facts and v2 tells them apart. Measured on the
+/// binary of v2.0.19 on 2026-11-09: `ControlGetText("x", "zzz-no-such-window-zzz")`
+/// fails with **"Target window not found."** and the title in the `Extra`, and
+/// `ControlGetText("x", "A")` -- a window that is there -- fails with **"Target
+/// control not found."**. Neither of them answers an empty text, which is what
+/// this tree answered before the measurement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ControlAnswer {
+    /// The control is there, and this is its text.
+    Found(String),
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
 /// The windows of the desktop.
 pub trait Windows {
     /// Whether the window with this title is the active one.
@@ -427,7 +445,7 @@ pub trait Windows {
     ///
     /// `None` is a window or a control that is not there, and not a failure: a
     /// script asks about a control that may be absent.
-    fn control_text(&mut self, _control: &str, _title: &str) -> Result<Option<String>, String> {
+    fn control_text(&mut self, _control: &str, _title: &str) -> Result<ControlAnswer, String> {
         Err("this desktop cannot read the controls of a window".to_string())
     }
 }

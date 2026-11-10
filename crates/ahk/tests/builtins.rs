@@ -5,10 +5,10 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
-    ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network, PictureOptions,
-    Pictures, Pointer, Processes, Screen, Sound, Timers, WaitFor, WindowGeometry, WindowRef,
-    Windows, DriveSpace, Monitor,
+    Clipboard, Desktop, Dialogs, ControlAnswer, FileAnswer, FileOptions, Files, Hotkeys, Image,
+    ImageOptions, ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network,
+    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WaitFor, WindowGeometry,
+    WindowRef, Windows, DriveSpace, Monitor,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -164,14 +164,16 @@ impl Dialogs for Fake {
 }
 
 impl Windows for Fake {
-    fn control_text(&mut self, control: &str, title: &str) -> Result<Option<String>, String> {
+    fn control_text(&mut self, control: &str, title: &str) -> Result<ControlAnswer, String> {
         self.calls
             .push(("control-text".into(), format!("{control}|{title}")));
         // One control, in one window, and nothing else.
         Ok(if control == "the label" && title == "the window" {
-            Some("the text of the label".to_string())
+            ControlAnswer::Found("the text of the label".to_string())
+        } else if title == "the window" {
+            ControlAnswer::NoSuchControl
         } else {
-            None
+            ControlAnswer::NoSuchWindow
         })
     }
 

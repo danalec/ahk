@@ -30,6 +30,8 @@
 
 use std::process::Command;
 
+use ahk::desktop::ControlAnswer;
+
 /// One node of the tree: the connection that holds it, and its object path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Node {
@@ -125,28 +127,36 @@ pub fn text(address: &str, node: &Node) -> Option<String> {
 /// The text of a control of a window.
 ///
 /// The window is found by its **title**, which is the `Name` of a window in the
-/// tree, and the control is found by its name inside that window. `None` is a
-/// window or a control that is not there.
-pub fn control_text(address: &str, title: &str, control: &str) -> Result<Option<String>, String> {
-    if title.is_empty() || control.is_empty() {
-        return Ok(None);
-    }
+/// tree, and the control is found by its name inside that window. The two
+/// failures are told apart, because v2 tells them apart: a title that no window
+/// has is not the same fact as a window that has no such control.
+pub fn control_text(
+    address: &str,
+    title: &str,
+    control: &str,
+) -> Result<ControlAnswer, String> {
     let root = Node {
         bus: "org.a11y.atspi.Registry".to_string(),
         path: "/org/a11y/atspi/accessible/root".to_string(),
     };
+    let mut the_window_is_there = false;
     for application in children(address, &root)? {
         // The window is a child of the application, and its name is its title.
         for window in children(address, &application).unwrap_or_default() {
             if !name(address, &window).contains(title) {
                 continue;
             }
+            the_window_is_there = true;
             if let Some(found) = the_control(address, &window, control, 0) {
-                return Ok(Some(found));
+                return Ok(ControlAnswer::Found(found));
             }
         }
     }
-    Ok(None)
+    if the_window_is_there {
+        Ok(ControlAnswer::NoSuchControl)
+    } else {
+        Ok(ControlAnswer::NoSuchWindow)
+    }
 }
 
 /// The text of the first node under one that has this name.
