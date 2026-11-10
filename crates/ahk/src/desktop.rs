@@ -573,6 +573,15 @@ pub trait Windows {
         Err("this desktop cannot take away a window of the script".to_string())
     }
 
+    /// Read the text of a control of a window of the script, or write it.
+    ///
+    /// The number is the one `gui_add` answered, which is the `Hwnd` of the
+    /// control. Measured on the binary of v2.0.19 on 2026-11-09: `Value` of a
+    /// control is read and written as text.
+    fn gui_value(&mut self, _number: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop cannot read the text of a control of the script".to_string())
+    }
+
     /// Read the title of a window of the script, or write it.
     fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
         Err("this desktop cannot say the title of a window of the script".to_string())

@@ -1607,6 +1607,21 @@ pub(crate) fn call_the_value(
 ///
 /// `None` means the name is not a property of this class: the runtime then
 /// looks in the property table of the object.
+/// The number that names a control of a window of the script.
+///
+/// It is the `Hwnd` the control object carries, which is the number `gui_add`
+/// answered. A value that is not such an object has none.
+fn the_number_of_a_control(this: &Value) -> Option<u64> {
+    if let Value::Object(object) = this {
+        if let Some(property) = object.borrow().properties.get("hwnd") {
+            if let Value::Int(number) = property.value {
+                return Some(number as u64);
+            }
+        }
+    }
+    None
+}
+
 /// The title of the window of a `Gui`: read it, or write it.
 ///
 /// The window is opened on the first question about it, because the construction
@@ -1641,6 +1656,15 @@ pub(crate) fn property(
     if class.eq_ignore_ascii_case("gui") && name.eq_ignore_ascii_case("title") {
         return Some(the_title_of_the_gui(rt, None, line));
     }
+    // `Value` of a control of a window of the script. Measured on the binary of
+    // v2.0.19 on 2026-11-09: it is read and written as text.
+    if class.to_lowercase().starts_with("gui.") && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_value(number, None) {
+            Ok(text) => Ok(Value::Text(text)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     match class.to_lowercase().as_str() {
         "array" => array::property(name, this, rt, line),
         "buffer" => buffer::property(name, this, rt, line),
@@ -1674,6 +1698,14 @@ pub(crate) fn set_property(
         return Some(match the_title_of_the_gui(rt, Some(&text), line) {
             Ok(_) => Ok(()),
             Err(failure) => Err(failure),
+        });
+    }
+    if class.to_lowercase().starts_with("gui.") && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let text = value.to_text();
+        return Some(match rt.desktop().gui_value(number, Some(&text)) {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(the_failure_with(&failure, "", line)),
         });
     }
     let written = match class.to_lowercase().as_str() {
