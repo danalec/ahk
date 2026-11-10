@@ -2348,9 +2348,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_close,
     },
     Builtin {
         name: "WinGetClass",
@@ -2546,9 +2546,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_kill,
     },
     Builtin {
         name: "WinMaximize",
@@ -9855,6 +9855,42 @@ pub(crate) fn win_move_bottom(
         message: "the toolkit of this desktop can raise a window and has no call that lowers one, and the order of the windows is the compositor's".to_string(),
         line,
     })
+}
+
+/// `WinClose(WinTitle)` and `WinKill(WinTitle)`: close the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the empty text, and a
+/// window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's**: round 31 reverted a
+/// `WinClose` because the compositor's toplevel listing publishes no close request,
+/// and that is still true of a foreign window. Its own is the `close` word of the
+/// option channel -- the helper made the window and can close it.
+fn the_close_of_the_window(rt: &mut Runtime<'_>, values: &[Value], line: u32) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option("close", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn win_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_close_of_the_window(rt, values, line)
+}
+
+pub(crate) fn win_kill(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_close_of_the_window(rt, values, line)
 }
 
 pub(crate) fn sleep(
