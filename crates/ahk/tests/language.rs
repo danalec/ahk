@@ -6161,6 +6161,53 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_body_of_a_property_may_begin_on_the_line_after_its_name() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the name of a property,
+    // the brace of its body and the brace of its getter may each be a line of
+    // their own.
+    let (report, _desktop) = run(concat!(
+        "class B {\n",
+        "    c\n",
+        "    {\n",
+        "        get\n",
+        "        {\n",
+        "            return 1\n",
+        "        }\n",
+        "    }\n",
+        "}\n",
+        "MsgBox B().c\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_increment_of_a_property_reads_the_object_that_holds_it_once() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `a.b.c.d++` calls the
+    // getter of `c` one time, and the write goes to the value that was read.
+    let (report, _desktop) = run(concat!(
+        "class Inner {\n",
+        "    d := 5\n",
+        "}\n",
+        "class Outer {\n",
+        "    _i := Inner()\n",
+        "    n := 0\n",
+        "    c {\n",
+        "        get {\n",
+        "            this.n += 1\n",
+        "            return this._i\n",
+        "        }\n",
+        "    }\n",
+        "}\n",
+        "o := Outer()\n",
+        "o.c.d++\n",
+        "MsgBox o._i.d \" \" o.n\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["6 1"]);
+}
+
+#[test]
 fn the_parse_loop_reads_a_comma_separated_text_the_way_a_csv_file_is() {
     // Measured on the binary of v2.0.19 on 2026-11-10: the delimiters of the
     // text "csv" read the text as a comma-separated file. A field that begins

@@ -2937,8 +2937,20 @@ impl<'a> Runtime<'a> {
     /// The detail is the name of the thing that raised the failure, and
     /// the detail that goes with it.
     fn error_value_with(&self, error: &RuntimeError, detail: &Detail) -> Value {
+        // Measured on the binary of v2.0.19 on 2026-11-10: the class of a
+        // failure is not the class of its message alone -- the "Invalid
+        // parameter(s)." of a `Mod` is a `TypeError`, and the same words of a
+        // `FileOpen` are a `ValueError` -- so the name of the thing that
+        // raised it is read beside the message.
+        let class = if error.message == "Invalid parameter(s)."
+            && detail.what.eq_ignore_ascii_case("Mod")
+        {
+            "TypeError"
+        } else {
+            crate::classes::error::the_class_of(&error.message)
+        };
         crate::classes::error::error_value_of(
-            crate::classes::error::the_class_of(&error.message),
+            class,
             &error.message,
             &detail.what,
             &detail.extra,
@@ -10309,13 +10321,11 @@ impl<'a> Runtime<'a> {
                 let name = self.the_name_of_the_member(name, *property_line)?;
                 let current = self.read_property(&target_value, &name, *property_line)?;
                 let stored = self.the_number_after(&current, step, *property_line)?;
-                self.write_a_property(
-                    target,
-                    &name,
-                    AssignOp::Set,
-                    stored.clone(),
-                    *property_line,
-                )?;
+                // Measured on the binary of v2.0.19 on 2026-11-10: the object
+                // that holds the property is read once -- `a.b.c.d++` calls the
+                // getter of `c` one time -- and the write goes to the value that
+                // was read, and not through the expression again.
+                self.write_property(&target_value, &name, stored.clone(), *property_line)?;
                 Ok(match op {
                     UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
                     _ => current,

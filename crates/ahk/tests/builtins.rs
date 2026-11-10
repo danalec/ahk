@@ -5380,3 +5380,28 @@ fn the_named_codes_of_the_format_of_a_time_are_the_whole_of_the_format() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["7 7", "186 7", "202027", "A_WDa20_B"]);
 }
+#[test]
+fn the_failure_of_mod_is_a_type_error_while_the_same_words_of_fileopen_are_a_value_error() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the class of a failure
+    // is not the class of its message alone -- the "Invalid parameter(s)." of
+    // a `Mod` is a `TypeError`, and the same words of a `FileOpen` are a
+    // `ValueError`.
+    let report = run(concat!(
+        "try\n",
+        "    Mod(\"abc\", 2)\n",
+        "catch as e\n",
+        "    MsgBox Type(e) \"|\" e.Message \"|\" e.What\n",
+        "try\n",
+        "    FileOpen(\"nothing.txt\", \"z\")\n",
+        "catch as e\n",
+        "    MsgBox Type(e) \"|\" e.Message \"|\" e.What\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "TypeError|Invalid parameter(s).|Mod",
+            "ValueError|Invalid parameter(s).|FileOpen",
+        ]
+    );
+}

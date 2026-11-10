@@ -9233,7 +9233,15 @@ impl Parser {
             // Specifically: x { get => 1 }", and the getter that is in a block
             // with "Not a valid property getter/setter.\n     Specifically:
             // get => 1".
-            if self.at_op(&["[", "{"]) {
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-10: the name of the
+            // property may be a line of its own, and the brace that opens the
+            // body may be the line after it -- `c` and then `{` on the next
+            // line -- so the newline after the name is not the end of it.
+            if self.at_op(&["[", "{"]) || self.the_brace_of_the_body_comes_on_a_line_of_its_own() {
+                if !self.at_op(&["["]) {
+                    self.skip_newlines();
+                }
                 // The body of the property begins on the line that comes after
                 // the name of it.
                 //
@@ -9549,6 +9557,25 @@ impl Parser {
         }
     }
 
+    /// Whether the brace of the body of a property comes on a line of its own.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: the name of the
+    /// property may be the whole of its line, and the brace of the body may be
+    /// the next one.
+    fn the_brace_of_the_body_comes_on_a_line_of_its_own(&self) -> bool {
+        let mut at = self.position;
+        let mut saw_a_newline = false;
+        while let Some(token) = self.tokens.get(at) {
+            if token.kind == TokenKind::Newline {
+                saw_a_newline = true;
+                at += 1;
+                continue;
+            }
+            return saw_a_newline && token.kind == TokenKind::Op && token.value == "{";
+        }
+        false
+    }
+
     /// The place of the brace that opens the body of the property.
     fn the_brace_that_opens_the_body_of_the_accessor(&self) -> Option<usize> {
         let mut at = self.position;
@@ -9655,6 +9682,13 @@ impl Parser {
         member: &Token,
     ) -> Result<AccessBody, SyntaxError> {
         let line = member.line;
+        // Measured on the binary of v2.0.19 on 2026-11-10: the brace of the
+        // body may be on the line after the getter or the setter -- `get` and
+        // then `{` on the next line -- so the newlines after the member are not
+        // the end of it.
+        if self.the_brace_of_the_body_comes_on_a_line_of_its_own() {
+            self.skip_newlines();
+        }
         let (body, declarations, body_line) = if self.at_op(&["=>"]) {
             // The v1 does not have the expression after the arrow.
             //
@@ -9698,6 +9732,11 @@ impl Parser {
             //
             // Measured on the binary of v2.0.19 on 2026-11-05: o `return` do
             // corpo do getter responde o valor da propriedade.
+            // Measured on the binary of v2.0.19 on 2026-11-10: the brace of
+            // the body may be on the line after the getter or the setter --
+            // `get` and then `{` on the next line -- so the newline after the
+            // member is not the end of it.
+            self.skip_newlines();
             let was_in_a_function = self.in_function;
             self.in_function = true;
             self.parameters.push(Vec::new());

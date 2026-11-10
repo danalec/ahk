@@ -10679,3 +10679,29 @@ the "csv" was read as the three characters `c`, `s` and `v`, and an empty text
 was one empty field. Both are the measured rules now, and the corpus case
 `flow-loop-parse.ahk` passes whole: the corpus is 79 of 162 pure scripts
 (48.8 %).
+## 279. The class of a failure, the line of a property, and the object of an increment
+
+Measured on the binary of v2.0.19 on 2026-11-10, three rules of the dialect
+that the tree answered by its own:
+
+- **The class of a failure is not the class of its message alone.** The
+  "Invalid parameter(s)." of `Mod("abc", 2)` is a `TypeError`, and the same
+  words of `FileOpen(path, "z")` are a `ValueError`; the name of the thing that
+  raised the failure is read beside the message (`Mod` is the one that is
+  measured to differ).
+- **The name of a property may be a line of its own.** `c` and then `{` on the
+  next line, and `get` and then `{` on the next line, are the property with a
+  getter: the newline after the name and after the member is not the end of it.
+  The tree answered "This line does not contain a recognized action." for the
+  name and "Not a valid property getter/setter." for the member.
+- **The object of an increment is read once.** `a.b.c.d++` calls the getter of
+  `c` one time: the object that holds `d` is the value that was read, and the
+  write goes to it. The tree evaluated the expression of the object a second
+  time for the write, so the getter counted twice.
+
+The corpus is 82 of 162 pure scripts (50.6 %): `math-mod.ahk`,
+`op-combined-assign.ahk` and `op-inc-dec.ahk` pass whole now. The scripts that
+fail here and pass on the binary were found by running every one of them on the
+binary: `func-var-params.ahk` and `string-strreplace.ahk` wait for `unset` as a
+value, and `string-chr.ahk` and `string-ord.ahk` wait for the code units of
+UTF-16.
