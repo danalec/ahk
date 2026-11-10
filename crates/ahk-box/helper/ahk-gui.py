@@ -54,6 +54,9 @@ def the_window(title):
     state["box"] = box
     state["controls"] = []
     state["next_id"] = 1
+    # The two events of v2 that a window of a script has: it is closed, or a
+    # control in it is clicked.
+    window.connect("destroy", lambda *_args: an_event("close"))
     answer({"ok": True})
 
 
@@ -93,6 +96,10 @@ def the_control(kind, text):
     state["next_id"] += 1
     state["controls"].append((number, kind, control))
     state["box"].pack_start(control, False, False, 0)
+    if kind == "Button":
+        control.connect(
+            "clicked", lambda *_args, held=number: an_event("click:%d" % held)
+        )
     # The control is not shown on its own: `show_all` on the window shows the
     # window and everything in it, the way `Show()` does.
     control.show()
@@ -189,6 +196,35 @@ def the_geometry():
     answer({"ok": True, "value": [x, y, width, height]})
 
 
+def the_watch(path):
+    """Start writing the events of the window to a file.
+
+    This is the first half of the channel that an `OnEvent` of v2 needs. Every
+    channel built before it is question and answer -- one line in, one line out
+    -- and an **event is the opposite**: the helper speaks first, at a moment the
+    runtime is not waiting. So the events go somewhere the runtime can look
+    between its statements, and a file is the plainest such place.
+
+    One line per event, and the event is named the way the member that catches it
+    is: `close` for the window and `click:<number>` for a control.
+    """
+    state["events"] = path
+    answer({"ok": True})
+
+
+def an_event(name):
+    """Write one event, if a watch has been asked for."""
+    path = state.get("events")
+    if not path:
+        return
+    try:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(name + "\n")
+    except OSError:
+        # An event that cannot be written is not worth stopping the window for.
+        pass
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -198,6 +234,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "watch":
+        run_on_loop(lambda: the_watch(command.get("path", "")))
     elif op == "geometry":
         run_on_loop(the_geometry)
     elif op == "add":
