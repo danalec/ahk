@@ -3682,6 +3682,38 @@ precise finding. That is the honest cost of a member whose **value and text are 
 different things on one control** -- and it is the first kind of the family where
 that is true.
 
+### Round 188 — 2026-11-09: the declaration answers before the handler, and that is worth knowing
+
+`ControlMove` of round 187 was verified on the box, and the first run answered with
+the **declaration's** wording rather than the handler's:
+
+```
+ControlMove(, , 200, 80, "Edit1")
+  -> Parameter #1 of ControlMove requires a Number, but received an empty string.
+ControlMove(10, 20, 200, 80, "Edit1")
+  -> the window of this tree lays its controls out in order, so the place of a
+     control cannot be set, and this name has no form that asks for a size alone
+```
+
+**So there are two checks, in this order**, and it matters for every handler of the
+family:
+
+1. **the declaration** -- the numbers of `classes::CALLS` / the parameter types of the
+   table -- refuses a call whose arguments do not fit, **before the handler runs**,
+   and says so in v2's words;
+2. **the handler** -- reached only by a call that fits, and free to refuse with its
+   own narrower reason.
+
+**That is why `ControlMove` answers two different reasons for two different calls,
+and both are right**: the shape of the call is the declaration's business, and the
+meaning of it is the handler's. Round 187's narrow reason is reached exactly when it
+should be.
+
+**And it is a rule for the five-step procedure**: a handler that refuses should be
+**tested with a well-formed call**, because a malformed one never reaches it. Several
+rounds of this session have tested a refusal with the wrong call and read the
+declaration's wording as the handler's.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
