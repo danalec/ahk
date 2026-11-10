@@ -6002,6 +6002,13 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the test suite of KeySharp and on the notes of v2.1-alpha:
+        // the method of the absent value is the absent value in the dialect that
+        // carries the chain of the v2.1 -- `o?.m()` does not ask for the method
+        // when `o` has no value.
+        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
+            return Ok(Value::Unset);
+        }
         if let Some((defining, method)) = self.find_method_on(target, name) {
             return self.call_method(&defining, &method, target, arguments, line);
         }
@@ -8476,6 +8483,16 @@ impl<'a> Runtime<'a> {
         params: &[Value],
         line: u32,
     ) -> Result<(Value, bool), RuntimeFailure> {
+        // Measured on the test suite of KeySharp (the corpus scripts
+        // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
+        // v2.1-alpha: in the dialect that carries the chain of the v2.1 the
+        // member of the absent value is the absent value, and the read of it
+        // does not fail. The chain `a?.b.c` short-circuits through every step
+        // this way: each one answers the absent value, and the next one reads
+        // the absent value of the one before it.
+        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
+            return Ok((Value::Unset, false));
+        }
         // The name is written as the script wrote it, and the lookup is in
         // lower case: the tree does not know the case of a property.
         let written = name.to_string();
@@ -8701,6 +8718,14 @@ impl<'a> Runtime<'a> {
         value: Value,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the write of a
+        // member of the absent value is not written at all in the dialect that
+        // carries the chain of the v2.1 -- `o?.w := 7` writes nothing when `o`
+        // has no value, and it does not fail.
+        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
+            return Ok(());
+        }
         let written = name.to_string();
         let name = name.to_lowercase();
         let Value::Object(object) = target else {
@@ -9886,6 +9911,14 @@ impl<'a> Runtime<'a> {
         keys: &[Value],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the test suite of KeySharp (the corpus scripts
+        // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
+        // v2.1-alpha: the item of the absent value is the absent value in the
+        // dialect that carries the chain of the v2.1 -- `x?[1]` asks whether
+        // `x` has a value, and answers the absent value when it has none.
+        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
+            return Ok(Value::Unset);
+        }
         if let Value::Object(_) = target {
             return self.read_item(target, keys, line);
         }
@@ -10585,6 +10618,14 @@ impl<'a> Runtime<'a> {
         arguments: &[Node],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the test suite of KeySharp (the corpus scripts
+        // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
+        // v2.1-alpha: the call of the absent value is the absent value in the
+        // dialect that carries the chain of the v2.1 -- `f?()` asks whether
+        // the name has a value, and answers the absent value when it has none.
+        if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
+            return Ok(Value::Unset);
+        }
         if let Value::Object(object) = &value {
             // A class is a value, and the call of it makes an object of that
             // class. Measured on the binary of v2.0.19 on 2026-10-31:
@@ -13923,6 +13964,13 @@ impl<'a> Runtime<'a> {
         value: Value,
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the item of the
+        // absent value is written to nothing, and the value of the write is the
+        // value that was written.
+        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
+            return Ok(value);
+        }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // write of the item of a value that is not an object is dropped by
         // the v1.
@@ -14007,6 +14055,13 @@ impl<'a> Runtime<'a> {
         keys: &[Value],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
+        // Measured on the test suite of KeySharp (the corpus scripts
+        // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
+        // v2.1-alpha: the item of the absent value is the absent value in the
+        // dialect that carries the chain of the v2.1.
+        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
+            return Ok(Value::Unset);
+        }
         let Value::Object(object) = target else {
             if self.dialect.a_member_that_is_not_there_is_answered() {
                 return Ok(Value::Text(String::new()));

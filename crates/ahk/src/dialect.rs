@@ -1915,6 +1915,20 @@ pub trait Dialect: Sync {
         crate::settings::the_defaults_of_the_v2();
     }
 
+    /// Whether the chain of accesses may be skipped when the left side has no
+    /// value, the `?.`, `?[` and `?(` of the v2.1.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus scripts
+    /// `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
+    /// v2.1-alpha: the `?` that is glued to the access asks whether the left
+    /// side has a value, and the chain is the absent value when it has none --
+    /// the read of the member, of the item and of the call of the absent value
+    /// answers the absent value instead of failing, and a write through it is
+    /// not written at all. The v2.0.19 has no such mark.
+    fn the_chain_may_be_skipped(&self) -> bool {
+        false
+    }
+
     /// Whether the lexer knows the null assignment of the v2.1, `??=`.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-10: `x ??= 5` is refused
@@ -2055,6 +2069,10 @@ impl Dialect for V2 {
     }
 
     fn the_lexer_knows_the_null_assignment(&self) -> bool {
+        self.extended
+    }
+
+    fn the_chain_may_be_skipped(&self) -> bool {
         self.extended
     }
 

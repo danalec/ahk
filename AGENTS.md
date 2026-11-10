@@ -10867,3 +10867,29 @@ of the tree takes a path and does not keep the file of each line, and the corpus
 script `props-linefile.ahk` asks for exactly that.
 The two cases of the round are `the_setter_of_a_descriptor_writes_the_object_it_holds`
 and `the_file_of_the_line_is_the_script_of_the_run`.
+## 286. The chain of the v2.1, `?.`, `?[` and `?(`
+
+Measured on the test suite of KeySharp (the corpus scripts `op-null-assign.ahk`
+and `class-ownprops.ahk`) and on the notes of v2.1-alpha: the `?` that is glued
+to the `.`, the `[` or the `(` asks whether the left side has a value. When it has
+none the chain is the absent value: the steps after it are not read, a write
+through it is not written, and a step whose left side does have a value answers
+it. `o?.a?.b` is the member of the member when `o` is an object, `x?[1]` is the
+absent value when `x` has none, `f?()` is the absent value when the name has no
+value, and `o?.p := v` writes nothing when `o` has none.
+
+The parser glues the mark to the access: the `?` that is followed by the `.`, the
+`[` or the `(` with no space between them wraps the value it follows in the node
+of the value that may be absent -- the same node that `(v?)` makes -- and the
+runtime of the dialect then answers the absent value for a member, an item, a
+call or a method of the absent value, and does not write a member or an item of
+one. The chain short-circuits through every step because each one answers the
+absent value and the next one reads the absent value of the one before it. The
+v2.0.19 keeps refusing the mark: the gate is `the_chain_may_be_skipped()`, and
+the dialect that carries it is the `--dialect=v2.1`.
+
+The corpus is unchanged at 91 of the 162 pure scripts (56.2 %) under the v2.1,
+and the scripts that the chain moves are the ones that need the mechanisms after
+it: `op-null-assign.ahk` runs to line 300 now (`Items[Index] => unset`, a property
+with parameters), `class-ownprops.ahk` to the function held in a property that is
+called as a method, and `assign-unset.ahk` to the `?%` of a dynamic name.

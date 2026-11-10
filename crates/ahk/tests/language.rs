@@ -5326,8 +5326,44 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn the_setter_of_a_descriptor_writes_the_object_it_holds() {
-    // Measured on the test suite of KeySharp (the corpus script
+fn the_chain_of_the_v2_1_is_skipped_when_the_value_is_absent() {
+    // Measured on the test suite of KeySharp (the corpus scripts
+    // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
+    // v2.1-alpha: the `?` that is glued to the `.`, the `[` or the `(` asks
+    // whether the left side has a value. The chain is the absent value when it
+    // has none, the steps after it are not read, a write through it is not
+    // written, and a step whose left side has a value answers it.
+    let (report, _desktop) = run_in(
+        concat!(
+            "o := {a: {b: 2}}\n",
+            "MsgBox \"a\" o?.a?.b\n",
+            "x := unset\n",
+            "MsgBox \"b\" (x?.a is unset)\n",
+            "MsgBox \"c\" (x?[1] is unset)\n",
+            "F(a?) {\n",
+            "    return a\n",
+            "}\n",
+            "MsgBox \"d\" (F()?.z is unset)\n",
+            "MsgBox \"e\" (F({z: 5})?.z)\n",
+            "h := {w: {i: 1}}\n",
+            "h?.w.i := 7\n",
+            "MsgBox \"f\" h.w.i\n",
+            "y := unset\n",
+            "y?.w.i := 9\n",
+            "G(a?) => a\n",
+            "MsgBox \"g\" (G()?() is unset)\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["a2", "b1", "c1", "d1", "e5", "f7", "g1"]
+    );
+}
+
+#[test]
+fn the_setter_of_a_descriptor_writes_the_object_it_holds() {    // Measured on the test suite of KeySharp (the corpus script
     // `class-ownprops.ahk`) on 2026-11-10: the write of a property that is a
     // descriptor calls its setter, and the setter writes the same object. The
     // write kept the `Ref` of the object alive and panicked with "RefCell

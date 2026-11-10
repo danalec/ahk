@@ -4505,8 +4505,9 @@ impl Parser {
             return Ok(statements);
         }
         // `obj.Prop := value` and `obj[key] := value`: the left side is a
-        // value and not a name.
-        if self.at_member_dot() || self.at_member_bracket() {
+        // value and not a name. The chain of the v2.1 is one of them: the
+        // `o?.p := v` writes the member of `o` when it has a value.
+        if self.at_member_dot() || self.at_member_bracket() || self.the_maybe_chain_starts_here() {
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
             // the name of the v1 may not carry an illegal character, and the
             // value that holds the member is a variable: the `a"b".Prop := 5`
@@ -12825,6 +12826,35 @@ impl Parser {
     ) -> Result<Node, SyntaxError> {
         let mut node = target;
         loop {
+            // Measured on the test suite of KeySharp (the corpus scripts
+            // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
+            // v2.1-alpha: the `?` that is glued to the `.`, the `[` or the `(`
+            // asks whether the left side has a value, and the chain is the
+            // absent value when it has none. The node of the value that may be
+            // absent is the same node that `(v?)` makes: the read of a name that
+            // has no value is the absent value, and not a failure.
+            if self.dialect.the_chain_may_be_skipped()
+                && self.at_op(&["?"])
+                && !self.peek().spaced
+            {
+                let glued = self
+                    .tokens
+                    .get(self.position + 1)
+                    .map(|token| {
+                        token.kind == TokenKind::Op
+                            && matches!(token.value.as_str(), "." | "[" | "(")
+                    })
+                    .unwrap_or(false);
+                if glued {
+                    let line = node.line();
+                    self.next();
+                    node = Node::Maybe {
+                        value: Box::new(node),
+                        line,
+                    };
+                    continue;
+                }
+            }
             // Measured on the binary of v2.0.19 on 2026-11-10: the
             // parenthesis that is not spaced after a value is the list of the
             // arguments of the call of that value -- `(f)(2, 3)`, `(o)(7)` and
@@ -13186,6 +13216,26 @@ impl Parser {
     fn at_an_assignment_operator(&self) -> bool {
         let token = self.peek();
         token.kind == TokenKind::Op && the_assignment_operator(&token.value).is_some()
+    }
+
+    /// Whether the name of the statement is followed by the chain of the v2.1.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `op-null-assign.ahk`) and on the notes of v2.1-alpha: the `?` that is
+    /// glued to the `.` or the `[` makes the name one of the left sides of an
+    /// assignment -- `o?.p := v` -- and the write of it is skipped when `o` has
+    /// no value.
+    fn the_maybe_chain_starts_here(&self) -> bool {
+        self.dialect.the_chain_may_be_skipped()
+            && self.at_op(&["?"])
+            && !self.peek().spaced
+            && self
+                .tokens
+                .get(self.position + 1)
+                .map(|token| {
+                    token.kind == TokenKind::Op && matches!(token.value.as_str(), "." | "[")
+                })
+                .unwrap_or(false)
     }
 
     /// The assignment of a value, when the value is an expression.
