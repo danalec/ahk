@@ -11909,6 +11909,24 @@ impl<'a> Runtime<'a> {
     /// writes the variable "i" and the condition is true.
     ///
     /// The v2 has no such statement, and the loop has no condition.
+    /// Whether the expression has no value, without reading it as a value.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `assign-unset.ahk`) and on the notes of v2.1-alpha: the comparison with
+    /// the keyword of the absent value asks whether the other side has one, and
+    /// a name that has none answers that question and does not fail.
+    fn the_expression_is_absent(&mut self, node: &Node) -> Result<bool, RuntimeFailure> {
+        if let Node::Var { name, .. } = node {
+            return Ok(self.lookup(name).is_none());
+        }
+        match self.evaluate(node) {
+            Ok(Value::Unset) => Ok(true),
+            Ok(_) => Ok(false),
+            Err(failure) if the_failure_is_an_unset_variable(&failure) => Ok(true),
+            Err(failure) => Err(failure),
+        }
+    }
+
     fn the_until_ends_the_loop(
         &mut self,
         until: &Option<Box<Node>>,
@@ -13357,6 +13375,39 @@ impl<'a> Runtime<'a> {
                         Err(failure) => Err(failure),
                     };
                 }
+                // Measured on the test suite of KeySharp (the corpus script
+                // `assign-unset.ahk`) and on the notes of v2.1-alpha: the
+                // comparison with the keyword of the absent value asks whether
+                // the other side has a value, and that side is not read as a
+                // value of its own -- `x = unset` is one when `x` has no value,
+                // and `unset = x` is the same question.
+                if self.dialect.the_absent_value_may_be_the_class_of_the_is()
+                    && matches!(
+                        op,
+                        BinaryOp::Equal
+                            | BinaryOp::StrictEqual
+                            | BinaryOp::NotEqual
+                            | BinaryOp::StrictNotEqual
+                    )
+                {
+                    let the_keyword_of_the_absent_value =
+                        |node: &Node| matches!(node, Node::Var { name, .. } if name.eq_ignore_ascii_case("unset"));
+                    let right_is_the_keyword = the_keyword_of_the_absent_value(right);
+                    let left_is_the_keyword = the_keyword_of_the_absent_value(left);
+                    if right_is_the_keyword || left_is_the_keyword {
+                        let other = if right_is_the_keyword {
+                            left.as_ref()
+                        } else {
+                            right.as_ref()
+                        };
+                        let absent = self.the_expression_is_absent(other)?;
+                        let answer = match op {
+                            BinaryOp::Equal | BinaryOp::StrictEqual => absent,
+                            _ => !absent,
+                        };
+                        return Ok(Value::Int(answer as i64));
+                    }
+                }
                 // Measured on the test suite of KeySharp (the corpus scripts
                 // `flow-if.ahk`, `func-global-static.ahk` and
                 // `op-logical-not.ahk`) and on the notes of v2.1-alpha: the
@@ -13785,6 +13836,23 @@ impl<'a> Runtime<'a> {
                 also,
                 line,
             } => {
+                // Measured on the test suite of KeySharp (the corpus script
+                // `assign-unset.ahk`) and on the notes of v2.1-alpha: the item
+                // of the chain that has no value is the absent value, and the
+                // parameters of the item are not evaluated when the left side
+                // has none -- `o.%n?%[f()]` does not call `f`. The target is
+                // read before the parameters here, and the two are read in the
+                // order that the plain item uses when the chain is not marked.
+                if matches!(&**target, Node::Maybe { .. })
+                    && self.dialect.the_chain_may_be_skipped()
+                {
+                    let value = self.evaluate(target)?;
+                    if matches!(value, Value::Unset) {
+                        return Ok(Value::Unset);
+                    }
+                    let keys = self.the_keys_of_an_index(index, also)?;
+                    return self.index_a_value(&value, &keys, *line);
+                }
                 let keys = self.the_keys_of_an_index(index, also)?;
                 // `super["value"]`: the item of the base.
                 if let Node::Super { .. } = &**target {
@@ -15280,6 +15348,7 @@ fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
 }
 
 /// The message of a failure, the way the report carries it.
+
 /// Whether the failure is the one of a name that has no value.
 ///
 /// The class of the failure is the one of the dialect: the read of a variable

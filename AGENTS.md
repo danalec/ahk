@@ -10893,3 +10893,27 @@ and the scripts that the chain moves are the ones that need the mechanisms after
 it: `op-null-assign.ahk` runs to line 300 now (`Items[Index] => unset`, a property
 with parameters), `class-ownprops.ahk` to the function held in a property that is
 called as a method, and `assign-unset.ahk` to the `?%` of a dynamic name.
+## 287. The name that may be absent, and the comparison with the absent value
+
+Measured on the test suite of KeySharp (the corpus script `assign-unset.ahk`)
+and on the notes of v2.1-alpha, two mechanisms of the v2.1 are carried behind
+`--dialect=v2.1` now:
+
+- `o.%name?%` is the member of `o` whose name the value of `name` builds when it
+  has one, and the absent value when it has none. The member is not read and the
+  parameters of the call and of the item are not evaluated -- `o.%n?%(f())` does
+  not call `f` -- and the name that has a value is read the way it always was.
+  The `?` is read by the expression parser as the value that may be absent and
+  taken off the name; the closing percent is the one the parser reaches, because
+  the name of the v2.1 is an expression and may be a list of them
+  (`%(order .= " target", named).%(...)?%`). The v2.0.19 keeps refusing the word.
+- `x = unset` is one when `x` has no value and zero when it has one, `unset = x`
+  asks the same question, and `x != unset` is the other way round. The side that
+  is not the keyword is not read as a value of its own: a name that has no value
+  is the answer and not a failure. The comparison of the v2.0.19 refuses the
+  keyword at the load, and it keeps refusing it.
+
+The corpus under `--dialect=v2.1` is 92 of the 162 pure scripts (56.8 %) against
+the 91 (56.2 %) of the round before: `assign-unset.ahk` passes whole now.
+`op-null-assign.ahk` runs to a property with parameters and `class-ownprops.ahk`
+to the function held in a property that is called as a method.

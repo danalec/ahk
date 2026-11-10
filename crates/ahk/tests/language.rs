@@ -5326,8 +5326,59 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn the_chain_of_the_v2_1_is_skipped_when_the_value_is_absent() {
-    // Measured on the test suite of KeySharp (the corpus scripts
+fn the_maybe_of_a_dynamic_name_is_skipped_when_the_name_has_no_value() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `assign-unset.ahk`) and on the notes of v2.1-alpha: the `?` before the
+    // percent that closes a name the script builds marks the name as one that
+    // may be absent. The member is not read and the parameters of the call and
+    // of the item are not evaluated when the name has no value, and the name
+    // that has one is read the way it was.
+    let (report, _desktop) = run_in(
+        concat!(
+            "named := {X: 1, __Item: 9}\n",
+            "missingName := unset\n",
+            "evaluated := false\n",
+            "MsgBox \"a\" (named.%missingName?% ?? \"none\")\n",
+            "MsgBox \"b\" (named.%missingName?%(evaluated := true) ?? \"none\")\n",
+            "MsgBox \"c\" (named.%missingName?%[evaluated := true] ?? \"none\")\n",
+            "MsgBox \"d\" evaluated\n",
+            "MsgBox \"e\" (%missingName?% ?? \"none\")\n",
+            "presentName := \"X\"\n",
+            "MsgBox \"f\" (named.%presentName?% ?? \"none\")\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["anone", "bnone", "cnone", "d0", "enone", "f1"]
+    );
+}
+
+#[test]
+fn the_comparison_with_the_absent_value_asks_whether_the_other_side_has_one() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `assign-unset.ahk`) and on the notes of v2.1-alpha: `x = unset` is one
+    // when `x` has no value and zero when it has one, `unset = x` asks the same
+    // question, and a name that has no value is the answer and not a failure.
+    let (report, _desktop) = run_in(
+        concat!(
+            "x := 123\n",
+            "MsgBox \"a\" (x = unset)\n",
+            "x := unset\n",
+            "MsgBox \"b\" (x = unset)\n",
+            "MsgBox \"c\" (unset = x)\n",
+            "MsgBox \"d\" (x != unset)\n",
+            "MsgBox \"e\" (1 = unset)\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a0", "b1", "c1", "d0", "e0"]);
+}
+
+#[test]
+fn the_chain_of_the_v2_1_is_skipped_when_the_value_is_absent() {    // Measured on the test suite of KeySharp (the corpus scripts
     // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
     // v2.1-alpha: the `?` that is glued to the `.`, the `[` or the `(` asks
     // whether the left side has a value. The chain is the absent value when it

@@ -191,7 +191,7 @@ fn the_source_of_a_token(parser: &Parser, token: &Token) -> String {
 fn the_operand_of_the_percent_sign(parser: &Parser, at: usize) -> (usize, usize) {
     let mut start = at;
     while start > 0
-        && the_token_is_of_an_operand(&parser.tokens[start - 1])
+        && the_token_is_of_an_operand(parser, &parser.tokens[start - 1])
         && !parser.tokens[start].spaced
         && !the_text_ends_the_operand(parser, start - 1)
     {
@@ -199,7 +199,7 @@ fn the_operand_of_the_percent_sign(parser: &Parser, at: usize) -> (usize, usize)
     }
     let mut end = at;
     while end + 1 < parser.tokens.len()
-        && the_token_is_of_an_operand(&parser.tokens[end + 1])
+        && the_token_is_of_an_operand(parser, &parser.tokens[end + 1])
         && !parser.tokens[end + 1].spaced
     {
         end += 1;
@@ -231,10 +231,18 @@ fn the_closing_is_in_the_operand(parser: &Parser, open: usize, close: usize) -> 
 /// operand is made of the names, of the numbers, of the words and of the
 /// texts, and the percent sign and the point are a part of it: the `a.b%c`
 /// is one operand.
-fn the_token_is_of_an_operand(token: &Token) -> bool {
+fn the_token_is_of_an_operand(parser: &Parser, token: &Token) -> bool {
     match token.kind {
         TokenKind::Name | TokenKind::Number | TokenKind::Keyword | TokenKind::String => true,
-        TokenKind::Op => matches!(token.value.as_str(), "%" | "."),
+        TokenKind::Op => {
+            matches!(token.value.as_str(), "%" | ".")
+                // Measured on the test suite of KeySharp (the corpus script
+                // `assign-unset.ahk`) and on the notes of v2.1-alpha: the `?`
+                // of the name that may be absent is glued to the name that the
+                // script builds -- `o.%n?%` is one operand -- so it is a part of
+                // the operand in the dialect that carries the chain of the v2.1.
+                || (token.value == "?" && parser.dialect.the_chain_may_be_skipped())
+        }
         _ => false,
     }
 }
@@ -259,7 +267,7 @@ fn the_text_ends_the_operand(parser: &Parser, at: usize) -> bool {
         .and_then(|before| parser.tokens.get(before))
     {
         None => true,
-        Some(token) => !the_token_is_of_an_operand(token),
+        Some(token) => !the_token_is_of_an_operand(parser, token),
     }
 }
 
@@ -10607,8 +10615,16 @@ impl Parser {
                 if token.kind == TokenKind::Eof {
                     return false;
                 }
+                // Measured on the test suite of KeySharp (the corpus script
+                // `assign-unset.ahk`) and on the notes of v2.1-alpha: the
+                // percent sign that closes a name the script builds is not an
+                // expression, so the `?` before it is the mark of the name that
+                // may be absent and not the question of a ternary.
                 !(token.kind == TokenKind::Op
-                    && matches!(token.value.as_str(), ")" | "]" | "}" | "," | ":" | "?"))
+                    && matches!(
+                        token.value.as_str(),
+                        ")" | "]" | "}" | "," | ":" | "?" | "%"
+                    ))
             }
         }
     }
@@ -12184,16 +12200,31 @@ impl Parser {
                     return Err(self.the_error_of_a_percent_inside(self.position));
                 }
                 let value = self.the_expression_of_a_dynamic_name(open)?;
-                if !self.at_op(&["%"]) || !the_closing_is_in_the_operand(self, open, self.position)
+                let (value, maybe) = match value {
+                    Node::Maybe { value, .. } if self.dialect.the_chain_may_be_skipped() => {
+                        (*value, true)
+                    }
+                    other => (other, false),
+                };
+                if !self.at_op(&["%"])
+                    || (!self.dialect.the_chain_may_be_skipped()
+                        && !the_closing_is_in_the_operand(self, open, self.position))
                 {
                     return Err(self.the_error_of_a_missing_ending(open));
                 }
                 self.next();
                 let pieces = self.the_pieces_after_the_percent(value)?;
-                Node::DynamicName {
+                let name = Node::DynamicName {
                     pieces,
                     line: token.line,
+                };
+                if maybe {
+                    return Ok(Node::Maybe {
+                        value: Box::new(name),
+                        line: token.line,
+                    });
                 }
+                name
             }
             TokenKind::Op if token.value == "(" => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: a
@@ -12818,6 +12849,7 @@ impl Parser {
     /// the `command` says that the parser is there: a member that is
     /// followed by a space and a parenthesis is a command of v2, and the
     /// parenthesis is one parameter of it.
+
     fn parse_suffixes(
         &mut self,
         target: Node,
@@ -12922,26 +12954,59 @@ impl Parser {
                         return Err(self.the_error_of_a_percent_inside(self.position));
                     }
                     let value = self.the_expression_of_a_dynamic_name(open)?;
+                    // Measured on the test suite of KeySharp (the corpus script
+                    // `assign-unset.ahk`) and on the notes of v2.1-alpha: the
+                    // `?` before the percent that closes the name marks the name
+                    // as one that may be absent, and the parser reads it as the
+                    // value that may be absent -- `o.%n?%` is the member whose
+                    // name the value of `n` builds when `n` has one -- so the
+                    // mark is taken off here and the access is wrapped.
+                    let (value, maybe) = match value {
+                        Node::Maybe { value, .. } if self.dialect.the_chain_may_be_skipped() => {
+                            (*value, true)
+                        }
+                        other => (other, false),
+                    };
+                    // Measured on the test suite of KeySharp (the corpus script
+                    // `assign-unset.ahk`) and on the notes of v2.1-alpha: the
+                    // name of the v2.1 is the expression between the two percent
+                    // signs and it may be any expression -- a list of them too,
+                    // `%(a, b)?%` -- so the closing sign is the one the parser
+                    // reaches, and the scan of the operand of the v1 is not used
+                    // there.
                     if !self.at_op(&["%"])
-                        || !the_closing_is_in_the_operand(self, open, self.position)
+                        || (!self.dialect.the_chain_may_be_skipped()
+                            && !the_closing_is_in_the_operand(self, open, self.position))
                     {
                         return Err(self.the_error_of_a_missing_ending(open));
                     }
                     self.next();
                     let pieces = self.the_pieces_after_the_percent(value)?;
                     let name = MemberName::Dynamic(pieces);
-                    if self.at_op(&["("]) {
+                    let built = if self.at_op(&["("]) {
                         self.next();
                         let arguments = self.parse_arguments()?;
                         self.expect_op(")")?;
                         self.the_method_of_the_v1_is_recorded(&arguments, at_the_dot);
-                        node = self.the_method_call(node, name, arguments, dot.line);
-                        continue;
-                    }
-                    node = Node::Property {
-                        target: Box::new(node),
-                        name,
-                        line: dot.line,
+                        self.the_method_call(node, name, arguments, dot.line)
+                    } else {
+                        Node::Property {
+                            target: Box::new(node),
+                            name,
+                            line: dot.line,
+                        }
+                    };
+                    let line = built.line();
+                    // The name that may be absent wraps the access: the read of
+                    // a name that has no value is the absent value, and the
+                    // member and the parameters of the call are not read.
+                    node = if maybe {
+                        Node::Maybe {
+                            value: Box::new(built),
+                            line,
+                        }
+                    } else {
+                        built
                     };
                     continue;
                 }
