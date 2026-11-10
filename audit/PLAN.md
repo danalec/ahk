@@ -3577,6 +3577,39 @@ answers `96 x scale`.
 **Not written**, and the honest reason: the round found the entry point and not the
 dispatch, and guessing a location is what this session has paid for five times.
 
+### Round 176 — 2026-11-09: A_ScreenDPI located exactly, and the attempt reverted
+
+Round 175 could not find where a built-in variable is answered. This round did:
+
+```
+variables.rs:277
+    Kind::Screen => Some(match rt.desktop().screen_size() {
+        Ok((width, height)) => Ok(Value::Int(if name == "screenwidth" { width } else { height })),
+        Err(message) => Err(reason(&message)),
+    }),
+```
+
+**A built-in variable is answered by its `Kind`**, the arm asks the desktop, and
+the name decides between width and height at the end. So `A_ScreenDPI` is a third
+branch of that same arm, and the shape of the whole change is now known:
+
+1. the **helper** gains a scale operation -- `Gdk.Screen.get_monitor_scale_factor(0)`,
+   which needs no window;
+2. the **`Screen` capability** gains `screen_scale`, so the `Kind::Screen` arm can ask;
+3. the **box** answers it through the helper;
+4. the **arm** in `variables.rs:277` gains the third branch, answering `96 x scale`;
+5. the **table row** for the variable moves off `REFUSAL`, which round 171 showed is
+   what the surface reads.
+
+**The attempt was made and reverted**: two of the three edits missed their anchors --
+the doc comment beside `screen_size` is not the one guessed -- and the third landed,
+which left the tree referencing a method that did not exist. Reverted, builds clean.
+
+**Three anchors missed in two rounds** (`builtins.rs` in round 165, two here). The
+cause is the same each time: **an anchor written from memory of a file rather than
+from a read of it**. The rule that would have prevented all three: **read the exact
+lines first, then write the anchor from what was printed.**
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
