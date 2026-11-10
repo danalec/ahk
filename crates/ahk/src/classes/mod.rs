@@ -1508,6 +1508,47 @@ pub(crate) fn call(
             .unwrap_or_default();
         return Some(the_control_of_the_gui(&kind, &text, rt, line));
     }
+    // `OnEvent` of a `Gui`: keep the function that answers an event of the
+    // window. Measured on the binary of v2.0.19 on 2026-11-09: it answers the
+    // empty text, an event the window does not have fails on the first
+    // parameter, and a second parameter that is not a function fails on the
+    // second. `Click` is an event of a control and not of the window.
+    if class == "gui" && method.eq_ignore_ascii_case("onevent") {
+        let event = arguments
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        let known = event.eq_ignore_ascii_case("close") || event.eq_ignore_ascii_case("escape");
+        if !known {
+            return Some(Err(the_failure_with(
+                "Parameter #1 of Gui.Prototype.OnEvent is invalid.",
+                "",
+                line,
+            )));
+        }
+        let handler = match arguments.get(1) {
+            Some(Value::Object(object)) if object.borrow().class.eq_ignore_ascii_case("func") => {
+                arguments[1].clone()
+            }
+            _ => {
+                return Some(Err(the_failure_with(
+                    "Parameter #2 of Gui.Prototype.OnEvent is invalid.",
+                    "",
+                    line,
+                )))
+            }
+        };
+        if let Value::Object(object) = this {
+            object.borrow_mut().properties.insert(
+                format!("on:{}", event.to_lowercase()),
+                crate::runtime::Property {
+                    name: format!("On{event}"),
+                    value: handler,
+                },
+            );
+        }
+        return Some(Ok(Value::Text(String::new())));
+    }
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
     if method.eq_ignore_ascii_case("__item") {
