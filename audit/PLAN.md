@@ -1625,6 +1625,51 @@ file parsed back. The first step is to establish the write path through `Files`
 `.desktop` and reads it, so that the pair is verified on both sides rather than
 only the writer.
 
+### Round 39 — 2026-11-09: the shape of a Gui, measured
+
+The measurement phase of the one remaining frontier, and **nothing was written**:
+the contract is the deliverable of the round.
+
+Measured on the binary of v2.0.19 with a window it makes itself:
+
+| the call | the binary |
+|---|---|
+| `g := Gui("+AlwaysOnTop", "ahk-gui-probe")` | an object of class **`Gui`** |
+| `ed := g.Add("Edit", "vField w200", "hello")` | an object of class **`Gui.Edit`** |
+| `ed.Hwnd` | an **Integer** (4064076 in the run) |
+| `ed.Value` | `hello` |
+| `ed.ClassNN` | `Edit1` |
+| `g.Show()` | **`""`** |
+| `g.GetPos(&x, &y, &w, &h)` | writes the screen rectangle |
+| `g.Title` | read **and** written |
+| `g.Destroy()` | **`""`** |
+
+**What that says about the build**, and why it is not a round-sized thing:
+
+1. A `Gui` is an **object of the tree**, with a class of its own (`Gui`,
+   `Gui.Edit`) and properties that are read and written -- `Title`, `Value`,
+   `ClassNN`, `Hwnd`. The class machinery for that exists; what does not is
+   anything behind it.
+2. `Hwnd` is an **Integer**, and this desktop has no window handles: the windows
+   it knows are Wayland toplevels with token identifiers and accessibility nodes
+   with object paths. Something has to be named by an Integer before `Hwnd` can
+   be answered, and inventing one is the first decision of the build.
+3. `ClassNN` (`Edit1`) is the same Windows-shaped value the `Control*` family has
+   already been refused for. It would have to be **made up** by the runtime --
+   `Edit1`, `Edit2` in order of `Add` -- which is defensible *because the window
+   would be ours*, unlike a foreign window's.
+4. The window itself needs a **toolkit**. The box has GTK3 (`gi` is installed and
+   the fixture publishes a proper tree), so a GTK3 window is the way in, and the
+   question the next round must answer is **how the runtime reaches it**: a
+   helper process driven over a pipe, a GTK3 window in the runner, or a binding.
+   That is an architecture decision with a dependency consequence, and it is the
+   one thing this round deliberately did not take.
+
+So the frontier is scoped rather than started. It is **several rounds**: the
+toolkit channel, the class of `Gui`, the controls of `Add`, `Show`/`Destroy`, and
+the properties. Each is measurable against this table, which is why the table is
+worth the round on its own.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
