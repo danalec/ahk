@@ -6161,6 +6161,38 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_absent_value_gives_a_parameter_no_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: an argument that is
+    // `unset` gives its parameter no value at all -- a required parameter is
+    // missing, a parameter with a default takes the default, a property of an
+    // object literal is left out, and an assignment leaves the variable
+    // without a value.
+    let (report, _desktop) = run(concat!(
+        "F(a) {\n",
+        "    MsgBox \"f=\" a\n",
+        "}\n",
+        "try {\n",
+        "    F(unset)\n",
+        "} catch as e {\n",
+        "    MsgBox Type(e) \": \" e.Message\n",
+        "}\n",
+        "G(a := 7) {\n",
+        "    MsgBox \"g=\" IsSet(a) \" \" a\n",
+        "}\n",
+        "G(unset)\n",
+        "o := {a: unset}\n",
+        "MsgBox \"obj=\" ObjOwnPropCount(o)\n",
+        "x := unset\n",
+        "MsgBox \"x=\" IsSet(x)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Error: Missing a required parameter.", "g=1 7", "obj=0", "x=0"]
+    );
+}
+
+#[test]
 fn the_body_of_a_property_may_begin_on_the_line_after_its_name() {
     // Measured on the binary of v2.0.19 on 2026-11-10: the name of a property,
     // the brace of its body and the brace of its getter may each be a line of

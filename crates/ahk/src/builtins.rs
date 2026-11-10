@@ -4388,6 +4388,9 @@ fn text_argument(
 ) -> Result<String, RuntimeError> {
     match values.get(index) {
         None => Ok(String::new()),
+        // Measured on the binary of v2.0.19 on 2026-11-10: the absent value is
+        // no argument, and the text of no argument is the empty text.
+        Some(Value::Unset) => Ok(String::new()),
         Some(Value::Reference(_)) => Err(RuntimeError {
             message: format!(
                 "Parameter #{} of {} requires a String, but received a VarRef.",
@@ -6354,6 +6357,7 @@ fn case_sense(
     };
     match values.get(index) {
         None => Ok(CaseSense::Insensitive),
+        Some(Value::Unset) => Ok(CaseSense::Insensitive),
         Some(Value::Int(1)) => Ok(CaseSense::Sensitive),
         Some(Value::Int(0)) => Ok(CaseSense::Insensitive),
         Some(Value::Text(text)) => case_sense_of_a_text(text).ok_or_else(invalid),
@@ -7551,6 +7555,9 @@ pub(crate) fn sort(
 fn sort_text(values: &[Value], index: usize, line: u32) -> Result<String, RuntimeError> {
     match values.get(index) {
         None => Ok(String::new()),
+        // Measured on the binary of v2.0.19 on 2026-11-10: the absent value is
+        // no argument, and the text of no argument is the empty text.
+        Some(Value::Unset) => Ok(String::new()),
         Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => {
             Err(RuntimeError {
                 message: crate::runtime::requires(index + 1, "Sort", TypeName::String, value),
@@ -7659,7 +7666,15 @@ pub(crate) fn str_replace(
     let haystack = text_argument("StrReplace", values, 0, line)?;
     let needle = text_argument("StrReplace", values, 1, line)?;
     let replacement = text_argument("StrReplace", values, 2, line)?;
-    let sense = case_sense(values, 3, "StrReplace", line)?;
+    // Measured on the binary of v2.0.19 on 2026-11-10: the fourth parameter of
+    // the call is the sense of the case, the fifth is the variable that takes
+    // the number of the swaps, and the sixth is the limit. An argument that is
+    // the absent value is no argument: the case is the one of the dialect, the
+    // number of the swaps is not written, and the limit is all of them.
+    let sense = match values.get(3) {
+        Some(Value::Unset) | None => CaseSense::Insensitive,
+        Some(_) => case_sense(values, 3, "StrReplace", line)?,
+    };
     // The logical order is not a sense of the case that a replacement can
     // use, and the binary refuses it here.
     if sense == CaseSense::Logical {
@@ -7668,7 +7683,10 @@ pub(crate) fn str_replace(
             line,
         });
     }
-    let limit = number_of(values, 5) as i64;
+    let limit = match values.get(5) {
+        Some(Value::Unset) | None => 0,
+        Some(_) => number_of(values, 5) as i64,
+    };
     let mut out = String::with_capacity(haystack.len());
     let mut rest = haystack.as_str();
     let mut replaced = 0i64;
@@ -7690,6 +7708,9 @@ pub(crate) fn str_replace(
     out.push_str(rest);
     // The number of the swaps goes into the variable of the caller.
     if let Some(value) = values.get(4) {
+        if matches!(value, Value::Unset) {
+            return Ok(Value::Text(out));
+        }
         if !matches!(value, Value::Reference(_)) {
             return Err(RuntimeError {
                 message: crate::runtime::wants_a_reference(
@@ -8545,6 +8566,9 @@ fn regex_text(
 ) -> Result<String, RuntimeError> {
     match values.get(index) {
         None => Ok(String::new()),
+        // Measured on the binary of v2.0.19 on 2026-11-10: the absent value is
+        // no argument, and the text of no argument is the empty text.
+        Some(Value::Unset) => Ok(String::new()),
         Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => Err(RuntimeError {
             message: crate::runtime::requires(index + 1, name, TypeName::String, value),
             line,
@@ -10788,6 +10812,12 @@ fn format_argument(
     parameter: usize,
     line: u32,
 ) -> Result<FormatValue, RuntimeError> {
+    // Measured on the binary of v2.0.19 on 2026-11-10: an argument that is the
+    // absent value -- the hole between two commas, or the keyword `unset` -- is
+    // the empty text in a format, whatever the specifier wants.
+    if matches!(value, Value::Unset) {
+        return Ok(FormatValue::Text(String::new()));
+    }
     match spec.kind {
         FormatKind::Str(_) => match value {
             Value::Int(number) => Ok(FormatValue::Text(number.to_string())),

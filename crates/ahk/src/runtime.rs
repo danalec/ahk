@@ -768,6 +768,15 @@ pub enum Value {
     /// The operator is carried by the arguments of a call, and the
     /// value of a reference is the value of the variable it points at.
     Reference(Reference),
+    /// The absent value of the keyword `unset`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a parameter that
+    /// is given `unset` is given no value at all -- a required parameter
+    /// answers "Missing a required parameter.", a parameter with a default
+    /// takes the default, and a parameter that holds an output variable is
+    /// not written -- and the value of a property of an object literal is
+    /// left out when it is `unset`.
+    Unset,
 }
 
 /// An object: an instance of a class.
@@ -888,6 +897,10 @@ impl Value {
             Value::Int(number) => *number != 0,
             Value::Float(number) => *number != 0.0,
             Value::List(items) => !items.is_empty(),
+            // The absent value is refused before a condition reads it -- the
+            // dialect has no operator that takes it -- and it counts as false
+            // here.
+            Value::Unset => false,
             // An object is always true.
             Value::Object(_) => true,
             // A reference points at something, and that is true.
@@ -902,6 +915,9 @@ impl Value {
             Value::Float(_) => TypeName::Float,
             Value::Text(_) => TypeName::String,
             Value::List(_) | Value::Object(_) => TypeName::Object,
+            // The kind of the absent value is never named: the dialect
+            // refuses it before a message names it.
+            Value::Unset => TypeName::String,
             Value::Reference(_) => TypeName::VarRef,
         }
     }
@@ -916,6 +932,9 @@ impl Value {
             // same number; the rule is in `float_text`.
             Value::Float(number) => crate::float_text::the_text_of(*number),
             Value::Text(text) => text.clone(),
+            // The text of the absent value is never asked: the dialect
+            // refuses it before.
+            Value::Unset => String::new(),
             Value::List(items) => items
                 .iter()
                 .map(|item| item.to_text())
@@ -953,6 +972,8 @@ impl Value {
             Value::Text(_) => "String".to_string(),
             Value::List(_) => "Array".to_string(),
             Value::Reference(_) => "VarRef".to_string(),
+            // The absent value is never named: the dialect refuses it before.
+            Value::Unset => String::new(),
             Value::Object(object) => {
                 let borrowed = object.borrow();
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -990,6 +1011,7 @@ impl Value {
             Value::Float(number) => Some(*number),
             Value::Text(text) => text.trim().parse::<f64>().ok(),
             Value::List(_) | Value::Object(_) | Value::Reference(_) => None,
+            Value::Unset => None,
         }
     }
 
@@ -1014,6 +1036,7 @@ impl Value {
             }
             Value::List(_) | Value::Object(_) => Err(TypeName::Object),
             Value::Reference(_) => Err(TypeName::VarRef),
+            Value::Unset => Err(TypeName::String),
         }
     }
 
@@ -7801,6 +7824,8 @@ impl<'a> Runtime<'a> {
             Value::Text(_) => "String".to_string(),
             Value::List(_) => "Array".to_string(),
             Value::Reference(_) => "VarRef".to_string(),
+            // The absent value is never named: the dialect refuses it before.
+            Value::Unset => String::new(),
             Value::Object(_) => self.the_type_of(value),
         }
     }
@@ -10603,6 +10628,14 @@ impl<'a> Runtime<'a> {
                     continue;
                 }
             }
+            // Measured on the binary of v2.0.19 on 2026-11-10: an argument that
+            // the call leaves out -- the hole between two commas -- is the
+            // absent value, the way a parameter that the call does not give a
+            // value to has none.
+            if matches!(argument, Node::Empty { .. }) {
+                values.push(Value::Unset);
+                continue;
+            }
             values.push(self.evaluate(argument)?);
         }
         self.call_builtin(name, &values, line, Route::Written)
@@ -10755,10 +10788,19 @@ impl<'a> Runtime<'a> {
         // call is refused with "Missing a required parameter." -- the name
         // of the parameter is in the `Extra`. The number of the arguments
         // is checked before it.
+        // Measured on the binary of v2.0.19 on 2026-11-10: an argument that is
+        // the absent value `unset` gives its parameter no value at all, the way
+        // a parameter that the call leaves out has none.
+        let unset: Vec<bool> = values
+            .iter()
+            .map(|value| matches!(value, Value::Unset))
+            .collect();
+        let the_parameter_is_missing = |index: usize| {
+            missing.get(index).copied().unwrap_or(false)
+                || unset.get(index).copied().unwrap_or(false)
+        };
         for (index, parameter) in function.parameters.iter().enumerate() {
-            if missing.get(index).copied().unwrap_or(false)
-                && parameter.is_required()
-            {
+            if the_parameter_is_missing(index) && parameter.is_required() {
                 return Err(self.the_missing_parameter(&parameter.name, line));
             }
         }
@@ -10768,7 +10810,7 @@ impl<'a> Runtime<'a> {
             // A parameter that the command does not give a value to is a
             // missing one: the default of it is taken, and one that has no
             // default at all was refused above.
-            let is_missing = missing.get(index).copied().unwrap_or(false);
+            let is_missing = the_parameter_is_missing(index);
             // Measured on the binary of v2.0.19 on 2026-11-09: an optional
             // parameter that the call leaves out is unset -- the name is not
             // in the scope of the call at all, so a read of it fails the way
@@ -12033,6 +12075,25 @@ impl<'a> Runtime<'a> {
         // not check the kind of the arguments -- the built-in of the v1
         // takes the text that holds a number, and it does not fail -- so the
         // two checks below are the ones of the v2.
+        // Measured on the binary of v2.0.19 on 2026-11-10: an argument that is
+        // the absent value `unset` gives the parameter no value at all -- a
+        // required parameter is missing, and a parameter that is left out takes
+        // its default. A parameter that the call leaves out is the absent value
+        // too: the hole between two commas. The built-in reads it the way it
+        // reads a parameter that is not there -- the text of it is the empty
+        // text and the number of it is none -- and the one that has a default
+        // of its own for a parameter (`StrReplace` for the case of the case and
+        // for the limit) reads the default.
+        if values.iter().any(|value| matches!(value, Value::Unset)) {
+            for (index, value) in values.iter().enumerate() {
+                if !matches!(value, Value::Unset) {
+                    continue;
+                }
+                if index < builtin.min as usize {
+                    return Err(self.the_missing_parameter("", line));
+                }
+            }
+        }
         let checks_the_kind = self.dialect.the_built_in_checks_the_kind_of_its_arguments();
         // The v1 does not check the kind of the arguments, and the parameter
         // that wants a number takes the number that the text of it starts
@@ -12819,6 +12880,13 @@ impl<'a> Runtime<'a> {
                             ObjectItem::Property(name, value) => {
                                 let name = self.the_name_of_the_member(name, *line)?;
                                 let value = self.evaluate(value)?;
+                                // Measured on the binary of v2.0.19 on
+                                // 2026-11-10: a property whose value is the
+                                // absent value is not a property of the object
+                                // at all.
+                                if matches!(value, Value::Unset) {
+                                    continue;
+                                }
                                 put(&mut cell.borrow_mut().properties, &name, value);
                             }
                             ObjectItem::LegacyKey(key, value) => {
@@ -12959,7 +13027,13 @@ impl<'a> Runtime<'a> {
                     line: *line,
                 }))
             }
-            Node::Var { name, line } => match self.lookup(name) {
+            Node::Var { name, line } => {
+                // `unset` names the absent value, and it is not a variable of
+                // the script. Measured on the binary of v2.0.19 on 2026-11-10.
+                if name.eq_ignore_ascii_case("unset") {
+                    return Ok(Value::Unset);
+                }
+                match self.lookup(name) {
                 Some(value) => {
                     // A class of v2 is initialised when it is first used.
                     if let Value::Object(object) = &value {
@@ -13016,8 +13090,9 @@ impl<'a> Runtime<'a> {
                             }
                         }
                     }
-                },
-            },
+                }
+                }
+            }
             Node::Unary { op, operand, line } => match op {
                 // The four increments move a variable and answer a value.
                 UnaryOp::PreIncrement
@@ -14442,6 +14517,9 @@ pub(crate) fn the_extra_of_the_value(value: &Value) -> String {
         Value::Text(text) => text.clone(),
         Value::Int(_) | Value::Float(_) => value.to_text(),
         Value::List(_) | Value::Object(_) | Value::Reference(_) => String::new(),
+        // The absent value has no text of its own, and the dialect refuses it
+        // before an Extra carries it.
+        Value::Unset => String::new(),
     }
 }
 

@@ -5405,3 +5405,24 @@ fn the_failure_of_mod_is_a_type_error_while_the_same_words_of_fileopen_are_a_val
         ]
     );
 }
+#[test]
+fn the_absent_value_is_no_argument_to_the_builtin() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `StrReplace` writes the
+    // number of the swaps into the fifth parameter, the limit is the sixth, the
+    // fourth is the sense of the case, and an argument that is `unset` -- or a
+    // hole between two commas -- is no argument at all: the case is the one of
+    // the dialect, the number is written, and the limit is all of the swaps.
+    let report = run(concat!(
+        "n := 0\n",
+        "y := StrReplace(\"a,b,c,d,e,f\", \",\", \".\", unset, &n)\n",
+        "MsgBox y \" \" n\n",
+        "m := 0\n",
+        "y := StrReplace(\"a,b,c,d,e,f\", \",\", \".\", , &m, 3)\n",
+        "MsgBox y \" \" m\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["a.b.c.d.e.f 5", "a.b.c.d,e,f 3"]
+    );
+}

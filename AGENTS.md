@@ -10705,3 +10705,38 @@ fail here and pass on the binary were found by running every one of them on the
 binary: `func-var-params.ahk` and `string-strreplace.ahk` wait for `unset` as a
 value, and `string-chr.ahk` and `string-ord.ahk` wait for the code units of
 UTF-16.
+## 280. The absent value of the keyword `unset`
+
+Measured on the binary of v2.0.19 on 2026-11-10: `unset` is a keyword of the
+language and not a variable, and an argument that is `unset` gives its parameter
+**no value at all**, the way a parameter that the call leaves out has none. A
+required parameter answers "Missing a required parameter."; a parameter with a
+default takes the default (`G(a := 7)` answers 7 and `IsSet` is one); a parameter
+that holds an output variable is not written; `{a: unset}` is an object with no
+property at all, and `x := unset` leaves the variable without a value. The
+argument still occupies its place -- `StrLen(unset, "x")` is "Too many
+parameters", and `SubStr("abcdef", 3, unset)` answers "cdef" -- so it is the
+*value* of the parameter that is absent and not the argument itself. The
+operators refuse it at load (`unset = unset` is a syntax error), and so do the
+`return` of it and the ternary.
+
+The tree read the name as a variable and failed with "This global variable has
+not been assigned a value.". It has the value `Value::Unset` now, which is not a
+value the dialect can carry into an operator: the text of it is the empty text
+and the number of it is none, and the uses that would name it are refused before
+they reach it. A call that the script writes gives the parameter the absent value
+when the argument is a hole between two commas, which is how the built-in of v2
+takes an argument that is left out (measured on the same day: the sixth parameter
+of `StrReplace` is the limit, and `StrReplace(s, ",", ".", , &n, 3)` writes 3
+swaps and the count).
+
+A built-in reads an absent argument the way it reads a parameter that the call
+leaves out: the text of it is the empty text and the number of it is none, and
+the built-in that has a default of its own for a parameter reads that default --
+`StrReplace` reads the default sense of the case and the limit that is all of
+them, and `Format` writes the empty text into its placeholder. The argument that
+is `unset` keeps the place it has in the list, and the parameter that is
+required in the table is refused as missing before the handler runs.
+
+The corpus is 84 of 162 pure scripts (51.9 %): `func-var-params.ahk` and
+`string-strreplace.ahk` pass whole now.
