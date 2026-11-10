@@ -215,53 +215,55 @@ struct Windows {
 /// The classes of the windows.
 ///
 /// The reason is the same for all of them, and it is the reason of the
-/// whole family: a window is made by a toolkit, and this runtime has none.
+/// whole family: a window is made by a toolkit, and the toolkit is there -- the
+/// helper `crates/ahk-box/helper/ahk-gui.py` draws a GTK3 window when it is told
+/// to over a pipe, and that was proven on the box in round 40 -- and **the class
+/// is not joined to it yet**. The reason says that, and not that no toolkit
+/// exists, which stopped being true when the helper landed.
 ///
-/// The reason names no platform, because the obstacle is not one: the runtime
-/// makes no window on any system, and a message that said "this desktop is a
-/// Wayland session" was false on a Windows one.
+/// The reason names no platform, because the obstacle is not one.
 const CLASSES: &[Windows] = &[
     Windows {
         class: "gui",
         name: "Gui",
         surface: GUI,
-        reason: "a window is made by a toolkit, and this runtime has no toolkit that makes one",
+        reason: "a window is made by a toolkit, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "menu",
         name: "Menu",
         surface: MENU,
-        reason: "a menu is the menu bar of a window, and this runtime has no toolkit that makes one",
+        reason: "a menu is the menu bar of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.menu",
         name: "Menu",
         surface: MENU,
-        reason: "a menu is the menu bar of a window, and this runtime has no toolkit that makes one",
+        reason: "a menu is the menu bar of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.control",
         name: "Gui.Control",
         surface: CONTROL,
-        reason: "a control is a control of a window, and this runtime has no toolkit that makes one",
+        reason: "a control is a control of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.listview",
         name: "Gui.ListView",
         surface: LISTVIEW,
-        reason: "a list view is a control of a window, and this runtime has no toolkit that makes one",
+        reason: "a list view is a control of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.statusbar",
         name: "Gui.StatusBar",
         surface: STATUSBAR,
-        reason: "a status bar is a control of a window, and this runtime has no toolkit that makes one",
+        reason: "a status bar is a control of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.treeview",
         name: "Gui.TreeView",
         surface: TREEVIEW,
-        reason: "a tree view is a control of a window, and this runtime has no toolkit that makes one",
+        reason: "a tree view is a control of a window, and the toolkit this tree draws with is not joined to it yet",
     },
 ];
 
