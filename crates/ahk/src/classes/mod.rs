@@ -2043,6 +2043,20 @@ pub(crate) fn property(
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
+    // A Link's `Value` is always empty and writing it is refused; its `Text`
+    // is the caption and goes through the ordinary `gui_value` below. A
+    // Hotkey's `Text` is a SECOND, INDEPENDENT text -- measured on the binary
+    // of v2.0.19 on 2026-11-10: writing `hk.Text` leaves `hk.Value` alone.
+    if class.eq_ignore_ascii_case("gui.link") && name.eq_ignore_ascii_case("value") {
+        return Some(Ok(Value::Text(String::new())));
+    }
+    if class.eq_ignore_ascii_case("gui.hotkey") && name.eq_ignore_ascii_case("text") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_second_value(number, None) {
+            Ok(text) => Ok(Value::Text(text)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     // An UpDown, Slider or Progress has a `Value` that is an Integer; the
     // UpDown shares it with its buddy Edit. Measured on the binary of v2.0.19
     // on 2026-11-10.
@@ -2134,6 +2148,20 @@ pub(crate) fn set_property(
         return Some(match rt.desktop().gui_checked(number, Some(on)) {
             Ok(_) => Ok(()),
             Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // Writing a Link's `Value` is refused by v2 with "Invalid usage."; a
+    // Hotkey's `Text` writes the second, independent string. Measured on the
+    // binary of v2.0.19 on 2026-11-10.
+    if class.eq_ignore_ascii_case("gui.link") && name.eq_ignore_ascii_case("value") {
+        return Some(Err(the_failure_with("Invalid usage.", "", line)));
+    }
+    if class.eq_ignore_ascii_case("gui.hotkey") && name.eq_ignore_ascii_case("text") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let text = value.to_text();
+        return Some(match rt.desktop().gui_second_value(number, Some(&text)) {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(the_failure_with(&failure, "", line)),
         });
     }
     // Setting `Value` of a list-shaped control chooses by the 1-based index,

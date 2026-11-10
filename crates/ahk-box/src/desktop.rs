@@ -1386,6 +1386,19 @@ impl ahk::desktop::Windows for LabDesktop {
         the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not deleted: {said}"))
     }
 
+    fn gui_second_value(&mut self, number: u64, setting: Option<&str>) -> Result<String, String> {
+        let command = match setting {
+            Some(text) => format!(
+                "{{\"op\": \"second-value\", \"id\": {}, \"text\": {}}}",
+                number,
+                quoted(text)
+            ),
+            None => format!("{{\"op\": \"second-value\", \"id\": {}}}", number),
+        };
+        let said = self.the_gui_says(&command)?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }

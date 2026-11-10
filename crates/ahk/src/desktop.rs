@@ -760,6 +760,18 @@ pub trait Windows {
         Err("this desktop cannot delete an item of a tree view".to_string())
     }
 
+    /// A second, independent text slot on a control.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: on an Edit or a Text
+    /// control `Value` and `Text` are the SAME text, but a Hotkey keeps them
+    /// apart -- writing `hk.Text` does not change `hk.Value` and the other way
+    /// round. A Link is the other shape: its `Value` is always empty and
+    /// writing it is refused with "Invalid usage.", while `Text` is its
+    /// caption. This slot is the second string for those two kinds.
+    fn gui_second_value(&mut self, _number: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop has no second text slot for a control".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())

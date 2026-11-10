@@ -4001,8 +4001,8 @@ their own.
 blanket refusals** (all 78 say what they are about), all seven `Edit*` names,
 twenty-four `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
 capability entire with `ComboBox`, `StatusBar`, `ListView`, `TreeView`,
-`UpDown`, `Slider`, `Progress`, `DateTime` and `MonthCal` controls, and
-`DriveGet*`,
+`UpDown`, `Slider`, `Progress`, `DateTime`, `MonthCal`, `Link` and `Hotkey`
+controls, and `DriveGet*`,
 `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`,
 `FileRecycleEmpty`, `Group*`, `WinGetIDLast`, `OnClipboardChange` and
 `Persistent`.
@@ -4902,6 +4902,36 @@ type=String | mcclass=SysMonthCal321 [20261110] type=String | dtShort=
 [20260101000000] | mcShort=[20261231] | text=[1/1/2026\n]` -- every line
 matching the reference, the clock digits differing only because the two
 probes ran at different moments.
+
+The surface count does not move (control kinds, not builtin rows):
+**755 / 78**, sum 833, both platforms green, clippy clean.
+
+### Round 271 — 2026-11-10: a Link and a Hotkey, where Value and Text part ways
+
+**Measured on the binary of v2.0.19 on 2026-11-10**: a Link is `SysLink1` and a
+Hotkey `msctls_hotkey321`. On an Edit or a Text control `Value` and `Text` are
+the SAME string -- the generic arm of the tree was right -- but these two are
+different:
+
+| kind | `Value` | `Text` |
+|---|---|---|
+| Link | always empty; writing it is refused with "Invalid usage." | the caption markup, read and written |
+| Hotkey | the hotkey string (`^a`), read and written | a SECOND, INDEPENDENT string; writing `hk.Text := "xyz"` leaves `hk.Value` alone, and the other way round |
+
+`WinGetText` shows the Link's raw markup and leaves the Hotkey out entirely.
+
+**Built**: a `Gtk.Label` for the Link and a `Gtk.Entry` for the Hotkey (both
+served by the ordinary `gui_value`), a `second-value` helper op and a
+`gui_second_value` trait method + box impl for the Hotkey's `Text`, special
+read and write arms in the class dispatcher for the Link's read-only `Value`
+and the Hotkey's second string, and the Hotkey skipped by `WinGetText`.
+**Two language cases** cover both shapes, including the "Invalid usage."
+refusal and the independence of the two Hotkey strings.
+
+**Verified on the box** against every measured line: `link=SysLink1 v=[]
+t=[click <a>here</a>] | hotkey=msctls_hotkey321 v=[^a] t=[] | lkAfterText
+t=[third <a>two</a>] v=[] | lkValueWrite=[Invalid usage.] | hkAfter v=[!b]
+t=[xyz] | hkAfter2 v=[!c] t=[xyz] | text=[third <a>two</a>\n]`.
 
 The surface count does not move (control kinds, not builtin rows):
 **755 / 78**, sum 833, both platforms green, clippy clean.

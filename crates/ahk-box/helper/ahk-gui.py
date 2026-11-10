@@ -243,6 +243,16 @@ def the_control(kind, text):
         control.set_editable(False)
         state.setdefault("date_values", {})[state["next_id"]] = value
         state.setdefault("date_kind", {})[state["next_id"]] = kind
+    elif kind == "Link":
+        # A Link's caption is its raw markup, which is what `WinGetText` shows.
+        # `Value` is always empty and writing it is refused by v2; the class
+        # dispatcher handles that, while `Text` reads and writes this label.
+        control = Gtk.Label(label=text)
+        control.set_text(text)
+    elif kind == "Hotkey":
+        # A Hotkey holds the hotkey string in `Value`; `Text` is always empty.
+        control = Gtk.Entry()
+        control.set_text(text)
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -742,7 +752,7 @@ def the_text_of_all():
         # DateTime is different: its M/D/YYYY display IS its text, which the
         # entry it is made of already holds. Measured on the binary of v2.0.19
         # on 2026-11-10.
-        if kind in ("UpDown", "Slider", "Progress", "MonthCal"):
+        if kind in ("UpDown", "Slider", "Progress", "MonthCal", "Hotkey"):
             continue
         parts.append(the_text_of_a_control(kind, control))
         parts.append("\n")
@@ -787,6 +797,12 @@ def the_class_of(kind):
         return "SysDateTimePick32"
     if kind == "MonthCal":
         return "SysMonthCal32"
+    # Measured on the binary of v2.0.19 on 2026-11-10: a Link is `SysLink1`
+    # and a Hotkey `msctls_hotkey321`.
+    if kind == "Hotkey":
+        return "msctls_hotkey32"
+    if kind == "Link":
+        return "SysLink"
     return kind
 
 
@@ -1297,6 +1313,21 @@ def the_tree_delete(number, item_id):
     answer({"ok": True, "value": 1})
 
 
+def the_second_value(number, setting):
+    """The second, independent text of a control.
+
+    A Hotkey keeps `Value` and `Text` apart; a Link's `Value` is always empty.
+    Measured on the binary of v2.0.19 on 2026-11-10. The other controls have
+    no such slot and their Value and Text are the same text.
+    """
+    held = state.setdefault("second_values", {})
+    if setting is None:
+        answer({"ok": True, "value": held.get(number, "")})
+        return
+    held[number] = setting
+    answer({"ok": True, "value": setting})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -1471,6 +1502,10 @@ def handle(command):
     elif op == "tree-delete":
         run_on_loop(
             lambda: the_tree_delete(command.get("id", 0), command.get("item", 0))
+        )
+    elif op == "second-value":
+        run_on_loop(
+            lambda: the_second_value(command.get("id", 0), command.get("text"))
         )
     elif op == "add":
         run_on_loop(

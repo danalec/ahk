@@ -48,6 +48,10 @@ struct Fake {
     date_control: bool,
     date_value: String,
     date_month_only: bool,
+    /// The primary and second text of the one Link or Hotkey the fake carries.
+    text_control: bool,
+    text_value: String,
+    second_text: String,
     /// Whether the fake has a window of the script at all.
     gui_open: bool,
 }
@@ -386,8 +390,14 @@ impl Windows for Fake {
             "progress" => "msctls_progress321",
             "datetime" => "SysDateTimePick321",
             "monthcal" => "SysMonthCal321",
+            "link" => "SysLink1",
+            "hotkey" => "msctls_hotkey321",
             _ => "ComboBox1",
         };
+        if matches!(kind.to_lowercase().as_str(), "link" | "hotkey") {
+            self.text_control = true;
+            self.text_value = text.to_string();
+        }
         if matches!(
             kind.to_lowercase().as_str(),
             "datetime" | "monthcal"
@@ -436,6 +446,12 @@ impl Windows for Fake {
         Ok((1, classnn.to_string()))
     }
     fn gui_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if self.text_control {
+            if let Some(text) = setting {
+                self.text_value = text.to_string();
+            }
+            return Ok(self.text_value.clone());
+        }
         if self.date_control {
             if let Some(text) = setting {
                 let wanted = if self.date_month_only { 8 } else { 14 };
@@ -454,6 +470,12 @@ impl Windows for Fake {
         }
         Ok(self.updown_value.to_string())
     }
+    fn gui_second_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if let Some(text) = setting {
+            self.second_text = text.to_string();
+        }
+        Ok(self.second_text.clone())
+    }
     fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
         self.calls.push(("resolve".into(), classnn.to_string()));
         if classnn.eq_ignore_ascii_case("ComboBox1")
@@ -465,6 +487,8 @@ impl Windows for Fake {
             || classnn.eq_ignore_ascii_case("msctls_progress321")
             || classnn.eq_ignore_ascii_case("SysDateTimePick321")
             || classnn.eq_ignore_ascii_case("SysMonthCal321")
+            || classnn.eq_ignore_ascii_case("SysLink1")
+            || classnn.eq_ignore_ascii_case("msctls_hotkey321")
         {
             Ok(1)
         } else {
@@ -4487,6 +4511,59 @@ fn an_up_down_shares_its_integer_value_with_the_buddy_edit() {
     assert_eq!(int_of(&report, "b"), 7);
     assert_eq!(value_of(&report, "c"), Value::Text("7".into()));
     assert_eq!(int_of(&report, "d"), 3);
+}
+
+#[test]
+fn a_link_has_a_read_only_empty_value_and_a_writable_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a Link is `SysLink1`,
+    // its `Value` is always empty and writing it is refused with
+    // "Invalid usage.", and `Text` is its caption, read and written.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\nlk := g.Add(\"Link\", \"\", \"click <a>here</a>\")\ncls := lk.ClassNN\nv := lk.Value\nt := lk.Text\nlk.Text := \"third <a>two</a>\"\nafter := lk.Text",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "cls"), Value::Text("SysLink1".into()));
+    assert_eq!(value_of(&report, "v"), Value::Text(String::new()));
+    assert_eq!(
+        value_of(&report, "t"),
+        Value::Text("click <a>here</a>".into())
+    );
+    assert_eq!(value_of(&report, "after"), Value::Text("third <a>two</a>".into()));
+
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on("g := Gui()\nlk := g.Add(\"Link\", \"\", \"x\")\nlk.Value := \"y\"", &mut desktop);
+    assert_eq!(failure_of(&report), "Invalid usage.");
+}
+
+#[test]
+fn a_hotkey_keeps_its_value_and_text_apart() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a Hotkey is
+    // `msctls_hotkey321`, `Value` is the hotkey string, `Text` is a SECOND
+    // independent string, and writing either leaves the other alone.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\nhk := g.Add(\"Hotkey\", \"\", \"^a\")\ncls := hk.ClassNN\nv := hk.Value\nt := hk.Text\nhk.Value := \"!b\"\nhk.Text := \"xyz\"\nv2 := hk.Value\nt2 := hk.Text\nhk.Value := \"!c\"\nv3 := hk.Value\nt3 := hk.Text",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "cls"), Value::Text("msctls_hotkey321".into()));
+    assert_eq!(value_of(&report, "v"), Value::Text("^a".into()));
+    assert_eq!(value_of(&report, "t"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "v2"), Value::Text("!b".into()));
+    assert_eq!(value_of(&report, "t2"), Value::Text("xyz".into()));
+    assert_eq!(value_of(&report, "v3"), Value::Text("!c".into()));
+    assert_eq!(value_of(&report, "t3"), Value::Text("xyz".into()));
 }
 
 #[test]
