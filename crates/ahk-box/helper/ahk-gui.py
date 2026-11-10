@@ -28,7 +28,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk  # noqa: E402
 from gi.repository import Gdk  # noqa: E402
 
-state = {"window": None, "box": None, "controls": [], "next_id": 1}
+state = {"window": None, "box": None, "controls": [], "next_id": 1, "tooltip": None, "tip_no": 0}
 
 
 def answer(what):
@@ -548,6 +548,46 @@ def the_controls():
     answer({"ok": True, "value": "\n".join(names)})
 
 
+def the_tooltip(text, x, y):
+    """Show a small window of text, or take it away with an empty text.
+
+    `ToolTip` of v2. Measured on the binary of v2.0.19 on 2026-11-10: showing one
+    answers a number and `ToolTip()` clears it. The number here is an identity,
+    which is what a script can hold and compare; the address v2 answers is a
+    pointer of its own process and would mean nothing here.
+    """
+    if state["tooltip"] is not None:
+        state["tooltip"].destroy()
+        state["tooltip"] = None
+    if text == "":
+        answer({"ok": True, "value": 0})
+        return
+    state["tip_no"] += 1
+    window = Gtk.Window(type=Gtk.WindowType.POPUP)
+    window.set_title("tooltip")
+    window.add(Gtk.Label(label=text))
+    window.move(x, y)
+    window.show_all()
+    state["tooltip"] = window
+    answer({"ok": True, "value": state["tip_no"]})
+
+
+def the_window_move(x, y, width, height):
+    """Move and size the window of the script.
+
+    `WinMove` of v2, measured on the binary on 2026-11-10. A Wayland compositor
+    places the windows itself, so `move` is the call the toolkit offers and the
+    compositor need not honour it; the size is the one thing a client can ask for.
+    """
+    if state["window"] is None:
+        answer({"ok": False, "error": "there is no window"})
+        return
+    state["window"].move(x, y)
+    if width > 0 and height > 0:
+        state["window"].resize(width, height)
+    answer({"ok": True})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -611,6 +651,21 @@ def handle(command):
         run_on_loop(lambda: the_watch(command.get("path", "")))
     elif op == "geometry":
         run_on_loop(the_geometry)
+    elif op == "tooltip":
+        run_on_loop(
+            lambda: the_tooltip(
+                command.get("text", ""), command.get("x", 0), command.get("y", 0)
+            )
+        )
+    elif op == "window-move":
+        run_on_loop(
+            lambda: the_window_move(
+                command.get("x", 0),
+                command.get("y", 0),
+                command.get("w", 0),
+                command.get("h", 0),
+            )
+        )
     elif op == "add":
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))

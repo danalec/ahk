@@ -821,6 +821,23 @@ impl ahk::desktop::Screen for LabDesktop {
     fn screen_size(&mut self) -> Result<(i64, i64), String> {
         LabDesktop::screen_size(self).map_err(|error| error.to_string())
     }
+    fn tooltip_show(&mut self, text: &str, x: i64, y: i64) -> Result<i64, String> {
+        let command = format!(
+            "{{\"op\": \"tooltip\", \"text\": {}, \"x\": {}, \"y\": {}}}",
+            quoted(text),
+            x,
+            y
+        );
+        let said = self.the_gui_says(&command)?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| "the helper said nothing".to_string())
+    }
+    fn window_move(&mut self, x: i64, y: i64, width: i64, height: i64) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"window-move\", \"x\": {}, \"y\": {}, \"w\": {}, \"h\": {}}}",
+            x, y, width, height
+        );
+        self.the_gui_says(&command).map(|_| ())
+    }
     fn monitors(&mut self) -> Result<Vec<ahk::desktop::Monitor>, String> {
         // The monitors are the outputs of the compositor, and the compositor of
         // a Wayland session is the one that knows them. The X server beside it
@@ -999,6 +1016,13 @@ impl ahk::desktop::Windows for LabDesktop {
         control: &str,
         title: &str,
     ) -> Result<ahk::desktop::ControlAnswer, String> {
+        // The window the script made is known to the helper by the class and
+        // number of each control. A foreign window needs the accessibility bus;
+        // the script's own window does not, and asking the bus about it would
+        // invent a second route to something already in hand (round 216).
+        if self.gui_is_open() && self.gui_title_is(title) {
+            return self.own_control_text(control);
+        }
         // `busctl` is the tool of the accessibility bus, and the bus is a thing
         // of a Linux session.
         box_tools_are_near()?;
@@ -1060,6 +1084,9 @@ impl ahk::desktop::Windows for LabDesktop {
         title: &str,
         text: &str,
     ) -> Result<ahk::desktop::ControlEdit, String> {
+        if self.gui_is_open() && self.gui_title_is(title) {
+            return self.own_control_send_text(control, text);
+        }
         box_tools_are_near()?;
         let address = crate::atspi::address()?;
         // The focus first, through the accessibility layer, and then the keys
@@ -2105,6 +2132,70 @@ impl LabDesktop {
             return Err(format!("the window of the script refused: {answer}"));
         }
         Ok(answer)
+    }
+
+    /// Whether the title names the window the script made.
+    fn gui_title_is(&mut self, title: &str) -> bool {
+        if title.is_empty() {
+            return true;
+        }
+        let command = "{\"op\": \"title\"}".to_string();
+        match self.the_gui_says(&command) {
+            Ok(said) => the_text_in(&said, "\"title\": ")
+                .map(|t| t.eq_ignore_ascii_case(title))
+                .unwrap_or(false),
+            Err(_) => false,
+        }
+    }
+
+    /// The number of a control of the script's own window, from its `ClassNN`.
+    fn own_control_number(&mut self, control: &str) -> Result<i64, String> {
+        let command = format!(
+            "{{\"op\": \"resolve\", \"classnn\": {}}}",
+            quoted(control)
+        );
+        let said = self.the_gui_says(&command)?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the window of the script has no control named {control}"))
+    }
+
+    /// The text of a control of the script's own window.
+    fn own_control_text(&mut self, control: &str) -> Result<ahk::desktop::ControlAnswer, String> {
+        let number = match self.own_control_number(control) {
+            Ok(number) => number,
+            Err(_) => return Ok(ahk::desktop::ControlAnswer::NoSuchControl),
+        };
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"value\", \"id\": {}}}",
+            number
+        ))?;
+        Ok(ahk::desktop::ControlAnswer::Found(
+            the_text_in(&said, "\"value\": ").unwrap_or_default(),
+        ))
+    }
+
+    /// Put text into a control of the script's own window, at its cursor.
+    fn own_control_send_text(
+        &mut self,
+        control: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        let number = match self.own_control_number(control) {
+            Ok(number) => number,
+            Err(_) => return Ok(ahk::desktop::ControlEdit::NoSuchControl),
+        };
+        let command = format!(
+            "{{\"op\": \"paste\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        );
+        match self.the_gui_says(&command) {
+            Ok(_) => Ok(ahk::desktop::ControlEdit::Done),
+            Err(reason) if reason.contains("is not an edit") => {
+                Ok(ahk::desktop::ControlEdit::NoSuchControl)
+            }
+            Err(reason) => Err(reason),
+        }
     }
 }
 

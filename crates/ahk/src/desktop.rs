@@ -189,6 +189,21 @@ pub trait Screen {
         Err("this desktop cannot tell how big the screen is".to_string())
     }
 
+    /// Show a small window of text, and answer the number that names it. An empty
+    /// text takes it away. Measured on the binary of v2.0.19 on 2026-11-10:
+    /// showing one answers an Integer and `ToolTip()` clears it.
+    fn tooltip_show(&mut self, _text: &str, _x: i64, _y: i64) -> Result<i64, String> {
+        Err("this desktop cannot show a tooltip".to_string())
+    }
+
+    /// Move and size the window of the script. Measured on the binary of v2.0.19
+    /// on 2026-11-10: `WinMove` of the window the script made works and answers
+    /// nothing. A Wayland compositor places windows itself, so the call is the
+    /// one the toolkit offers and need not be honoured on the screen.
+    fn window_move(&mut self, _x: i64, _y: i64, _width: i64, _height: i64) -> Result<(), String> {
+        Err("this desktop cannot move the window of the script".to_string())
+    }
+
     /// The monitors of the desktop, in the order it lists them.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `MonitorGetCount`

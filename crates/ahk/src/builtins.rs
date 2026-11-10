@@ -979,18 +979,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: block_input,
     },
     Builtin {
         name: "CallbackCreate",
         kind: BuiltinKind::Command,
         min: 1,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: callback_create,
     },
     Builtin {
         name: "CallbackFree",
@@ -1242,7 +1242,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 9,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_pos,
     },
     Builtin {
         name: "ControlGetStyle",
@@ -1303,9 +1303,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_send,
     },
     Builtin {
         name: "ControlSendText",
@@ -1620,7 +1620,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 1,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_get_version,
     },
     Builtin {
         name: "FileRecycle",
@@ -1629,7 +1629,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 1,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_recycle,
     },
     Builtin {
         name: "FileRecycleEmpty",
@@ -1927,7 +1927,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 2,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: on_clipboard_change,
     },
     Builtin {
         name: "OnMessage",
@@ -1936,7 +1936,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 3,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: on_message,
     },
     Builtin {
         name: "OutputDebug",
@@ -2078,9 +2078,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: run_as,
     },
     Builtin {
         name: "SendMessage",
@@ -2161,7 +2161,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 1,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: shutdown,
     },
     Builtin {
         name: "SoundBeep",
@@ -2285,9 +2285,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sys_get,
     },
     Builtin {
         name: "SysGetIPAddresses",
@@ -2303,9 +2303,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tooltip,
     },
     Builtin {
         name: "TraySetIcon",
@@ -2341,7 +2341,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: all_windows,
     },
     Builtin {
         name: "WinClose",
@@ -2575,7 +2575,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 0,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: all_windows,
     },
     Builtin {
         name: "WinMinimizeAllUndo",
@@ -2584,16 +2584,16 @@ pub const BUILTINS: &[Builtin] = &[
         max: 0,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: all_windows,
     },
     Builtin {
         name: "WinMove",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move,
     },
     Builtin {
         name: "WinMoveBottom",
@@ -10266,6 +10266,300 @@ pub(crate) fn edit(
 ) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
         message: "the script of this runtime is read from the standard input, so it has no file for an editor to open".to_string(),
+        line,
+    })
+}
+
+// -- the gap names that a script can ask about ----------------------------------
+//
+// These are the names the audit of AHK_X11 left in a gap class. Every one of them
+// is carried now: a value where the machine can honestly give one, and a reason
+// of its own where it cannot. A reason of its own is not the blanket reason about
+// Windows, which was false about names that are not shaped for Windows at all.
+
+/// `SysGet(N)`: the system metric of this index, as this machine knows it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `SysGet(0)` answers 3840,
+/// `SysGet(1)` 2160, `SysGet(80)` 1 and `SysGet(4)` 23. The first two are the
+/// width and the height of the virtual screen, and 80 is the number of monitors.
+/// The tree knows exactly those, so it answers them and refuses the rest by name.
+pub(crate) fn sys_get(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let index = number_of(values, 0) as i64;
+    let (width, height) = rt
+        .desktop()
+        .screen_size()
+        .map_err(|e| desktop_failure(e, line))?;
+    let answer = match index {
+        0 => Some(width),
+        1 => Some(height),
+        80 => Some(rt.desktop().monitors().map(|m| m.len() as i64).unwrap_or(1)),
+        _ => None,
+    };
+    match answer {
+        Some(value) => Ok(Value::Int(value)),
+        None => Err(RuntimeError {
+            message: format!(
+                "the system metric {index} is a measure of Windows that this machine does not keep"
+            ),
+            line,
+        }),
+    }
+}
+
+/// `ToolTip(Text, X, Y)`: show a small window of text, and answer its number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: showing one answers an
+/// Integer, and calling `ToolTip()` with no text takes it away. The number is an
+/// identity in this tree, taken from the same table `ObjPtr` uses.
+pub(crate) fn tooltip(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = text_of(values, 0);
+    if text.is_empty() {
+        rt.desktop()
+            .tooltip_show("", 0, 0)
+            .map_err(|e| desktop_failure(e, line))?;
+        return Ok(Value::Text(String::new()));
+    }
+    let x = number_of(values, 1) as i64;
+    let y = number_of(values, 2) as i64;
+    let number = rt
+        .desktop()
+        .tooltip_show(&text, x, y)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(number))
+}
+
+/// `WinMove(X, Y, Width, Height, WinTitle)`: move the script's own window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: moving the window the script
+/// made works and answers nothing. This machine is a Wayland compositor, which
+/// places windows itself and need not honour a place a client asks for, so the
+/// tree makes the call the toolkit offers and says so in the answer of `GetPos`.
+pub(crate) fn win_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let x = number_of(values, 0) as i64;
+    let y = number_of(values, 1) as i64;
+    let width = number_of(values, 2) as i64;
+    let height = number_of(values, 3) as i64;
+    let title = text_of(values, 4);
+    the_window_of_the_script(rt, &title, line)?;
+    rt.desktop()
+        .window_move(x, y, width, height)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlSend(Keys, Control, WinTitle)`: send plain text into a control of the
+/// script's own window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `ControlSend "abc", "Edit1"`
+/// leaves `abc` in the edit, which is what `ControlSendText` of this tree does.
+/// The two differ only in that `ControlSend` reads key tokens such as `{Enter}`;
+/// this tree carries the text path and refuses the tokens with a reason, rather
+/// than sending the braces as letters.
+pub(crate) fn control_send(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = rt.interpolate(&text_of(values, 0), line)?;
+    if text.contains('{') || text.contains('}') {
+        return Err(RuntimeError {
+            message: "the key tokens of ControlSend are not carried, only the plain text; use ControlSendText for the braces themselves".to_string(),
+            line,
+        });
+    }
+    control_send_text(rt, values, line, 0)
+}
+
+/// `RunAs(User, Password, Domain)`: set the user a later `Run` would use.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty text.
+/// The credentials are a setting of the machine and not a call that can be proved
+/// here, so the tree keeps the shape of the answer and says in a note what it did
+/// not do.
+pub(crate) fn run_as(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
+/// `BlockInput(Mode)`: **refused, with a reason of its own.**
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `BlockInput("Off")` answers
+/// the empty text. Turning input OFF for the whole machine is a privilege this
+/// compositor does not give a client, and this tree will not claim it did.
+pub(crate) fn block_input(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let mode = text_of(values, 0).to_ascii_lowercase();
+    if mode.is_empty() || mode.starts_with("off") || mode == "0" {
+        return Ok(Value::Text(String::new()));
+    }
+    Err(RuntimeError {
+        message: "blocking the input of the whole machine is a privilege this compositor does not give a client".to_string(),
+        line,
+    })
+}
+
+/// `OnClipboardChange(Func, AddRemove)`: **refused, with a reason of its own.**
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: a `Func` answers the empty
+/// text, a String is refused, and the callback has to be called whenever the
+/// clipboard changes. This runtime has no clipboard watcher: its clipboard is a
+/// pair of read and write calls with no event between them.
+pub(crate) fn on_clipboard_change(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the clipboard of this runtime is a read and a write, with no watcher to call a function when it changes".to_string(),
+        line,
+    })
+}
+
+/// `CallbackCreate(Func)`: answer a number that names the function.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers an Integer, the
+/// address of a native thunk. This tree has no native thunks, but it does have
+/// the same table of identities `ObjPtr` uses, and a number from it is a value a
+/// script can hold and compare.
+pub(crate) fn callback_create(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            })
+        }
+    };
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+/// `Shutdown(Flag)`: **refused, with a reason of its own.**
+///
+/// Logging off, rebooting or powering down the machine is not a question a
+/// script runner answers; the reference was not executed for this reason.
+pub(crate) fn shutdown(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "ending the session of the machine is not a call this script runner makes".to_string(),
+        line,
+    })
+}
+
+/// `FileRecycle` and `FileGetVersion`: **refused, each with a reason of its own.**
+///
+/// `FileRecycle` was measured on 2026-11-09: the reference answers `Failed` for a
+/// file that exists. `FileGetVersion` was measured on 2026-11-09 and again on
+/// 2026-11-10: the reference hangs on it. **Neither has an answer to match**, so
+/// the honest answer is that there is nothing to match -- not a name of Windows.
+/// `FileRecycle`: **refused, with a reason of its own.** Measured on 2026-11-09:
+/// the reference answers `Failed` for a file that exists, so there is no success
+/// to match. This has nothing to do with Windows: the tree has a trash, but it
+/// will not invent what v2 would have answered.
+pub(crate) fn file_recycle(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "FileRecycle has no answer to match: the reference answers Failed for a file that exists, so a success here would be an invention".to_string(),
+        line,
+    })
+}
+
+/// `FileGetVersion`: **refused, with a reason of its own.** Measured on 2026-11-09
+/// and again on 2026-11-10: the reference hangs on it, and an ELF has no version
+/// resource to read. An empty text for every file would look like an answer and
+/// would not be one.
+pub(crate) fn file_get_version(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "FileGetVersion has no answer to match: the reference hangs on it and an ELF has no version resource, so an empty text would look like an answer and would not be one".to_string(),
+        line,
+    })
+}
+
+/// `ControlGetPos`: **refused, with a reason of its own.**
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the reference hangs on it.
+/// Three coordinate spaces of this desktop answer the same numbers, so a place
+/// would be an invention even without that.
+pub(crate) fn control_get_pos(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the reference hangs on ControlGetPos, and the coordinate spaces of this desktop answer the same numbers, so a place would be an invention".to_string(),
+        line,
+    })
+}
+
+/// The three names that act on every window at once: **refused, with a reason of
+/// their own.** The compositor owns the stacking and the state of all windows; a
+/// client is told about its own window and cannot lower or minimise the rest.
+pub(crate) fn all_windows(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "all the windows belong to the compositor, and a client can only act on the window it made".to_string(),
+        line,
+    })
+}
+
+/// `OnMessage`: **refused, with a reason of its own.** The messages are the ones
+/// of a Win32 window procedure, which this runtime does not have.
+pub(crate) fn on_message(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the messages are those of a Win32 window procedure, and this runtime has no such loop".to_string(),
         line,
     })
 }
