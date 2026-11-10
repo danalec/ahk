@@ -21,6 +21,7 @@ made off the main thread does not map, and that is the whole reason for the two.
 import json
 import sys
 import threading
+from datetime import datetime
 
 import gi
 
@@ -72,6 +73,29 @@ def the_show():
         return
     state["window"].show_all()
     answer({"ok": True})
+
+
+def the_date_value(text, month_only):
+    """The timestamp of a DateTime or MonthCal, normalised.
+
+    Measured on the binary of v2.0.19 on 2026-11-10: a DateTime's `Value` is
+    fourteen digits (yyyyMMddHHmmss) and a MonthCal's eight (yyyyMMdd). A
+    short write is padded with zeros, and an empty one means "now".
+    """
+    wanted = 8 if month_only else 14
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if not digits:
+        digits = datetime.now().strftime("%Y%m%d" if month_only else "%Y%m%d%H%M%S")
+    return digits[:wanted].ljust(wanted, "0")
+
+
+def the_date_display(value):
+    """The `M/D/YYYY` text a DateTime shows in `WinGetText`.
+
+    Measured on the binary of v2.0.19 on 2026-11-10: after setting the value
+    to 20260101, `WinGetText` answers "1/1/2026".
+    """
+    return "%d/%d/%s" % (int(value[4:6]), int(value[6:8]), value[0:4])
 
 
 def the_range_and_value(text):
@@ -200,6 +224,25 @@ def the_control(kind, text):
         control.set_fraction((start - low) / span)
         state.setdefault("number_values", {})[state["next_id"]] = start
         state.setdefault("number_ranges", {})[state["next_id"]] = (low, high)
+    elif kind in ("DateTime", "MonthCal"):
+        # Both hold a timestamp STRING. Measured on the binary of v2.0.19 on
+        # 2026-11-10: DateTime is SysDateTimePick321 (14 digits) and MonthCal
+        # SysMonthCal321 (8 digits), short writes are padded, and the DateTime
+        # shows M/D/YYYY in WinGetText while the MonthCal shows nothing.
+        month_only = kind == "MonthCal"
+        digits = "".join(ch for ch in text if ch.isdigit())
+        if not month_only and digits and len(digits) <= 8:
+            # Measured on the binary of v2.0.19 on 2026-11-10: giving Add a
+            # date-only text fills the time with the CURRENT clock, while
+            # writing `Value` later pads it with zeros instead.
+            value = digits.ljust(8, "0") + datetime.now().strftime("%H%M%S")
+        else:
+            value = the_date_value(text, month_only)
+        control = Gtk.Entry()
+        control.set_text(the_date_display(value) if not month_only else "")
+        control.set_editable(False)
+        state.setdefault("date_values", {})[state["next_id"]] = value
+        state.setdefault("date_kind", {})[state["next_id"]] = kind
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -281,6 +324,21 @@ def the_value(number, text):
     for held, kind, control in state["controls"]:
         if held != number:
             continue
+        if kind in ("DateTime", "MonthCal"):
+            # Both hold a timestamp STRING read and written through `Value`.
+            # Measured on the binary of v2.0.19 on 2026-11-10.
+            if text is None:
+                answer({
+                    "ok": True,
+                    "value": state.get("date_values", {}).get(number, ""),
+                })
+            else:
+                value = the_date_value(text, kind == "MonthCal")
+                state.setdefault("date_values", {})[number] = value
+                if kind == "DateTime":
+                    control.set_text(the_date_display(value))
+                answer({"ok": True, "value": value})
+            return
         if kind in ("Slider", "Progress"):
             # Both hold an Integer `Value`. Measured on the binary of v2.0.19
             # on 2026-11-10. The helper keeps the number so the toolkit widget
@@ -679,12 +737,12 @@ def the_text_of_all():
         return
     parts = []
     for _number, kind, control in state["controls"]:
-        # An UpDown, Slider or Progress is a numeric control and has no text
-        # of its own; v2 leaves it out of `WinGetText` entirely, and does not
-        # even give it an empty line. Measured on the binary of v2.0.19 on
-        # 2026-11-10: a window with an Edit holding 3 and an UpDown answers
-        # just "3" and a line break.
-        if kind in ("UpDown", "Slider", "Progress"):
+        # An UpDown, Slider, Progress or MonthCal has no text of its own in
+        # `WinGetText`; v2 leaves it out entirely, not even an empty line. A
+        # DateTime is different: its M/D/YYYY display IS its text, which the
+        # entry it is made of already holds. Measured on the binary of v2.0.19
+        # on 2026-11-10.
+        if kind in ("UpDown", "Slider", "Progress", "MonthCal"):
             continue
         parts.append(the_text_of_a_control(kind, control))
         parts.append("\n")
@@ -723,6 +781,12 @@ def the_class_of(kind):
         return "msctls_trackbar32"
     if kind == "Progress":
         return "msctls_progress32"
+    # Measured on the binary of v2.0.19 on 2026-11-10: a DateTime is
+    # `SysDateTimePick321` and a MonthCal `SysMonthCal321`.
+    if kind == "DateTime":
+        return "SysDateTimePick32"
+    if kind == "MonthCal":
+        return "SysMonthCal32"
     return kind
 
 

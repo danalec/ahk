@@ -4001,7 +4001,8 @@ their own.
 blanket refusals** (all 78 say what they are about), all seven `Edit*` names,
 twenty-four `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
 capability entire with `ComboBox`, `StatusBar`, `ListView`, `TreeView`,
-`UpDown`, `Slider` and `Progress` controls, and `DriveGet*`,
+`UpDown`, `Slider`, `Progress`, `DateTime` and `MonthCal` controls, and
+`DriveGet*`,
 `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`,
 `FileRecycleEmpty`, `Group*`, `WinGetIDLast`, `OnClipboardChange` and
 `Persistent`.
@@ -4874,6 +4875,35 @@ msctls_trackbar321 [50] type=Integer | progress=msctls_progress321 [40]
 type=Integer | after sl=[75] pr=[80] | text=[hi\n]`.
 
 The surface count does not move (these are control kinds, not builtin rows):
+**755 / 78**, sum 833, both platforms green, clippy clean.
+
+### Round 270 — 2026-11-10: a DateTime and a MonthCal
+
+**Measured on the binary of v2.0.19 on 2026-11-10**: `Add("DateTime", "",
+"20261110")` is `SysDateTimePick321` with a fourteen-digit STRING `Value`
+(yyyyMMddHHmmss); `Add("MonthCal", "", "20261110")` is `SysMonthCal321` with
+an eight-digit one. Both default to the current date and time, and a short
+write is padded with zeros. **A subtle split the measurement caught**: giving
+`Add` a date-only text fills the time with the CURRENT CLOCK
+(`20261110153920`), while writing `Value := "20260101"` later pads with ZEROS
+(`20260101000000`). `WinGetText` answers the DateTime's `M/D/YYYY` display
+(`1/1/2026`) and leaves the MonthCal out entirely.
+
+**Built**: a shared `the_date_value` normaliser and `the_date_display`
+formatter in the helper, two `Gtk.Entry` controls holding the timestamp in
+`date_values`, a `Value` branch, MonthCal skipped by `WinGetText` while the
+DateTime's entry supplies its display, and the generic String `Value` arm of
+the class dispatcher (no special arm needed, unlike the numeric controls).
+**One language case** covers both class names, the String type, both starting
+values and both padded writes; the Fake gained a `date_control` state.
+
+**Verified on the box**: `dtclass=SysDateTimePick321 [20261110153920]
+type=String | mcclass=SysMonthCal321 [20261110] type=String | dtShort=
+[20260101000000] | mcShort=[20261231] | text=[1/1/2026\n]` -- every line
+matching the reference, the clock digits differing only because the two
+probes ran at different moments.
+
+The surface count does not move (control kinds, not builtin rows):
 **755 / 78**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified

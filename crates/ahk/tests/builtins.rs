@@ -44,6 +44,10 @@ struct Fake {
     tree_selected: i64,
     /// The number of the one UpDown the fake carries, shared with its buddy.
     updown_value: i64,
+    /// Whether the fake's control is a date control, and its timestamp string.
+    date_control: bool,
+    date_value: String,
+    date_month_only: bool,
     /// Whether the fake has a window of the script at all.
     gui_open: bool,
 }
@@ -380,8 +384,32 @@ impl Windows for Fake {
             "updown" => "msctls_updown321",
             "slider" => "msctls_trackbar321",
             "progress" => "msctls_progress321",
+            "datetime" => "SysDateTimePick321",
+            "monthcal" => "SysMonthCal321",
             _ => "ComboBox1",
         };
+        if matches!(
+            kind.to_lowercase().as_str(),
+            "datetime" | "monthcal"
+        ) {
+            // The timestamp is a STRING: fourteen digits for a DateTime, eight
+            // for a MonthCal, padded with zeros. Measured on the binary of
+            // v2.0.19 on 2026-11-10.
+            let wanted = if kind.eq_ignore_ascii_case("monthcal") { 8 } else { 14 };
+            let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
+            self.date_control = true;
+            self.date_month_only = wanted == 8;
+            self.date_value = if digits.is_empty() {
+                "0".repeat(wanted)
+            } else {
+                let mut held = digits;
+                held.truncate(wanted);
+                while held.len() < wanted {
+                    held.push('0');
+                }
+                held
+            };
+        }
         // The numeric controls start at the lower bound of their `Range`, or
         // at the number in the text for a Slider or Progress. Measured on the
         // binary of v2.0.19 on 2026-11-10: `Range1-10` starts at 1, and
@@ -408,6 +436,19 @@ impl Windows for Fake {
         Ok((1, classnn.to_string()))
     }
     fn gui_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if self.date_control {
+            if let Some(text) = setting {
+                let wanted = if self.date_month_only { 8 } else { 14 };
+                let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
+                let mut held = digits;
+                held.truncate(wanted);
+                while held.len() < wanted {
+                    held.push('0');
+                }
+                self.date_value = held;
+            }
+            return Ok(self.date_value.clone());
+        }
         if let Some(text) = setting {
             self.updown_value = text.parse().unwrap_or(0);
         }
@@ -422,6 +463,8 @@ impl Windows for Fake {
             || classnn.eq_ignore_ascii_case("msctls_updown321")
             || classnn.eq_ignore_ascii_case("msctls_trackbar321")
             || classnn.eq_ignore_ascii_case("msctls_progress321")
+            || classnn.eq_ignore_ascii_case("SysDateTimePick321")
+            || classnn.eq_ignore_ascii_case("SysMonthCal321")
         {
             Ok(1)
         } else {
@@ -4444,6 +4487,43 @@ fn an_up_down_shares_its_integer_value_with_the_buddy_edit() {
     assert_eq!(int_of(&report, "b"), 7);
     assert_eq!(value_of(&report, "c"), Value::Text("7".into()));
     assert_eq!(int_of(&report, "d"), 3);
+}
+
+#[test]
+fn a_date_time_and_a_month_cal_hold_timestamp_strings() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a DateTime is
+    // `SysDateTimePick321` with a fourteen-digit Value, a MonthCal is
+    // `SysMonthCal321` with an eight-digit one, both Strings, and a short
+    // write is padded with zeros.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\ndt := g.Add(\"DateTime\", \"\", \"20261110120000\")\ncls := dt.ClassNN\na := dt.Value\nb := Type(dt.Value)\ndt.Value := \"20260101\"\nc := dt.Value",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "cls"),
+        Value::Text("SysDateTimePick321".into())
+    );
+    assert_eq!(value_of(&report, "a"), Value::Text("20261110120000".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("String".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("20260101000000".into()));
+
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\nmc := g.Add(\"MonthCal\", \"\", \"20261110\")\ncls := mc.ClassNN\na := mc.Value\nmc.Value := \"20261231\"\nb := mc.Value",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "cls"), Value::Text("SysMonthCal321".into()));
+    assert_eq!(value_of(&report, "a"), Value::Text("20261110".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("20261231".into()));
 }
 
 #[test]
