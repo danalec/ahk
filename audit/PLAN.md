@@ -2095,6 +2095,38 @@ how this session has gone wrong before. The plan is now: settle 1 (a documented
 single-window limitation, or a window map in the helper) and 2 (option 1 if the
 reserved-key helper is found quickly), then write the four steps.
 
+### Round 67 — 2026-11-09: the title, decided
+
+Round 66 left one divergence open and set the condition for choosing: take the
+proper-state answer if a reserved-key helper turns up in the first look, else the
+documented second. **It did not turn up.** The shared helpers of
+`classes/mod.rs` are the names, the arities, the prototypes, the read-only names
+and the failures -- there is no "the state of this object" among them, and the
+class modules reach their own state privately.
+
+**So divergence 2 takes option 2, and it is decided rather than deferred:**
+
+- the window opens **on the first `Title` write and on the first member that
+  needs one** (`Show`, `Add`, `Destroy`);
+- a `Gui` that is **never given a title has none**, and `g.Title` reads the empty
+  text -- which is what a `Gui` with no title has in v2 as well, so the loss is
+  only for a title given **at construction**: `Gui("", "MyTitle")` loses `MyTitle`
+  where `g.Title := "MyTitle"` keeps it.
+
+**The loss is narrow and it is stated**: one form of setting the title
+(construction) is not carried, the other (the property) is. Writing that in the
+member's documentation is the honest answer; inventing a state store to close it
+would be the kind of change that needs a round of its own.
+
+**What that leaves**: the four steps of round 64, with no decisions left inside
+them --
+
+1. on the first member that needs a window, `gui_open` with the title the object
+   carries (empty when none);
+2. the members answer through `rt.desktop()` instead of the refusal;
+3. `Title` as a property and a write, over `gui_title`;
+4. the second `Gui` is refused by the desktop, which round 66 already does.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
