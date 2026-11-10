@@ -1088,6 +1088,30 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the control of the script gave no value: {answer}"))
     }
 
+    fn gui_flag(
+        &mut self,
+        number: u64,
+        name: &str,
+        setting: Option<bool>,
+    ) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!(
+                "{{\"op\": \"flag\", \"id\": {}, \"name\": {}, \"on\": {}}}",
+                number,
+                quoted(name),
+                if on { "true" } else { "false" }
+            ),
+            None => format!(
+                "{{\"op\": \"flag\", \"id\": {}, \"name\": {}}}",
+                number,
+                quoted(name)
+            ),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
+    }
+
     fn gui_title(&mut self, _handle: u64, setting: Option<&str>) -> Result<String, String> {
         let command = match setting {
             Some(title) => format!("{{\"op\": \"title\", \"set\": {}}}", quoted(title)),

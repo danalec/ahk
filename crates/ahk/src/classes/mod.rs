@@ -1607,6 +1607,17 @@ pub(crate) fn call_the_value(
 ///
 /// `None` means the name is not a property of this class: the runtime then
 /// looks in the property table of the object.
+/// The flag of a control that a name of a property asks about.
+fn the_flag_of(name: &str) -> Option<&'static str> {
+    if name.eq_ignore_ascii_case("enabled") {
+        Some("enabled")
+    } else if name.eq_ignore_ascii_case("visible") {
+        Some("visible")
+    } else {
+        None
+    }
+}
+
 /// The number that names a control of a window of the script.
 ///
 /// It is the `Hwnd` the control object carries, which is the number `gui_add`
@@ -1665,6 +1676,16 @@ pub(crate) fn property(
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
+    // `Enabled` and `Visible` of a control: integers of nought and one, read and
+    // written. Measured on the binary of v2.0.19 on 2026-11-09.
+    if class.to_lowercase().starts_with("gui.") && the_flag_of(name).is_some() {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let flag = the_flag_of(name).unwrap_or("enabled");
+        return Some(match rt.desktop().gui_flag(number, flag, None) {
+            Ok(value) => Ok(Value::Int(value)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     match class.to_lowercase().as_str() {
         "array" => array::property(name, this, rt, line),
         "buffer" => buffer::property(name, this, rt, line),
@@ -1704,6 +1725,18 @@ pub(crate) fn set_property(
         let number = the_number_of_a_control(this).unwrap_or(0);
         let text = value.to_text();
         return Some(match rt.desktop().gui_value(number, Some(&text)) {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(the_failure_with(&failure, "", line)),
+        });
+    }
+    if class.to_lowercase().starts_with("gui.") && the_flag_of(name).is_some() {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let flag = the_flag_of(name).unwrap_or("enabled");
+        // v2 reads a written flag by its truth: nought and the empty text are
+        // false, and anything else is true.
+        let text = value.to_text();
+        let on = !(text.is_empty() || text == "0" || text.eq_ignore_ascii_case("false"));
+        return Some(match rt.desktop().gui_flag(number, flag, Some(on)) {
             Ok(_) => Ok(()),
             Err(failure) => Err(the_failure_with(&failure, "", line)),
         });
