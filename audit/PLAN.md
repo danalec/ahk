@@ -3743,6 +3743,39 @@ of the same call on a machine where it succeeds. Neither is in reach of this ses
 and inventing the answer would be the `"0"`-is-truthy trap of round 178 in a new
 place.
 
+### Round 191 — 2026-11-09: the largest single seam left, named
+
+The 128 refusals are worked one at a time, but **one of them unlocks eight** and it is
+worth naming before anything else is picked:
+
+**the list-shaped controls.** These eight names all ask about a `DropDownList`, a
+`ComboBox` or a `ListBox`, and the tree makes none of the three:
+
+```
+ControlAddItem   ControlChooseIndex   ControlChooseString   ControlDeleteItem
+ControlFindItem  ControlGetChoice     ControlGetIndex       ControlGetItems
+```
+
+**They are one control kind away** -- `Gtk.ComboBoxText` holds items, answers how many
+there are, which is chosen, and takes an item added, removed or chosen -- and the
+helper already has the two things they need: the lookup by `ClassNN` (round 164) and a
+kind of its own in `the_control` (round 181 showed how a kind is added and what it
+costs).
+
+**What the kind costs, measured on the check box** (rounds 178 to 181): a kind is
+**one line**, and **the properties are where the work is** -- `Value` and `Text` were
+two different things on a check box and needed two channels and two arms. A
+`ComboBoxText` will be the same shape: `Text` is the chosen item, `Value` is its
+number, and the eight `Control*` names are a lookup and a call each.
+
+**So the honest estimate is three to four rounds** for the kind plus the eight names,
+which is the best ratio left in the 128.
+
+**And the alternative worth knowing**: the `Group*` family (four names) needs a set of
+windows, which the compositor's toplevel list already gives -- but it needs **state
+that survives between statements**, which this runtime does not carry for windows. That
+is a mechanism, not a kind, and it is a worse trade.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
