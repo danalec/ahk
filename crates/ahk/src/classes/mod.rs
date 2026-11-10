@@ -1458,6 +1458,26 @@ pub(crate) fn call(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // The two members of a `Gui` that only need a window to be there. Measured
+    // on the binary of v2.0.19 on 2026-11-09: `Show` and `Destroy` answer the
+    // **empty text**, and the window is opened on the first of them, because the
+    // construction is generic and cannot make one.
+    if class == "gui" && (method.eq_ignore_ascii_case("show") || method.eq_ignore_ascii_case("destroy")) {
+        if !rt.desktop().gui_is_open() {
+            if let Err(reason) = rt.desktop().gui_open("") {
+                return Some(Err(the_failure_with(&reason, "", line)));
+            }
+        }
+        let answer = if method.eq_ignore_ascii_case("show") {
+            rt.desktop().gui_show(0)
+        } else {
+            rt.desktop().gui_destroy(0)
+        };
+        return Some(match answer {
+            Ok(()) => Ok(Value::Text(String::new())),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
     if method.eq_ignore_ascii_case("__item") {
