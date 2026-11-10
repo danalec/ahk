@@ -341,7 +341,7 @@ pub(crate) fn construct(
 /// Measured on the binary of v2.0.19 on 2026-10-31: the options are the
 /// styles of the window, and the name of one is written in full and it
 /// does not know the case -- "Always" is not an option, and "caption" is.
-const THE_OPTIONS: [&str; 18] = [
+pub(super) const THE_OPTIONS: [&str; 18] = [
     "AlwaysOnTop",
     "Border",
     "Caption",
@@ -381,7 +381,7 @@ const THE_OPTIONS_THAT_NAME_A_WINDOW: [&str; 2] = ["Owner", "Parent"];
 /// `12x34` is not. The name of the option that is refused is the word
 /// without its sign, and the owner of a window and the parent of it are
 /// refused with the reason of the machine.
-fn the_options_are_read(options: &str, line: u32) -> Result<(), RuntimeFailure> {
+pub(super) fn the_options_are_read(options: &str, line: u32) -> Result<(), RuntimeFailure> {
     for word in options.split([' ', '\t']) {
         if word.is_empty() {
             continue;
