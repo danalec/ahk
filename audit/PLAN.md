@@ -3966,27 +3966,27 @@ size it, focus it, close it -- and **answer an event in it with the control in h
 `Move`, `Focus`, `Show`, `Hide`, `Destroy`, `OnEvent`, and the `Win*` family that acts
 on the script's own window.
 
-**Where to go next** -- rewritten in round 257, because **all 140 rows of the gap
-matrix are covered**. There is no AHK_X11 feature left in a gap class.
+**Where to go next** -- rewritten in round 258. **All 140 rows of the gap
+matrix are covered, and every one of the 97 refusals now answers with a reason
+of its own** -- there are no blanket refusals left in the built-in table.
 
-1. **the 97 refusals of the v2 surface** are the remaining work, and they are
-   grouped in `audit/rust-refusal-analysis.md`. Of them, the ones that a script
-   can honestly ask about are the cheapest: a reason of its own instead of the
-   blanket reason about Windows, the way `Edit`, `Shutdown` and the all-window
-   names were given one in round 257;
-2. **the mechanisms** that would unlock a family each: the **last-found window**
-   (round 222), the **window groups**, the **list-shaped controls**, and a
-   **clipboard watcher**;
-3. **the three unmeasurable** -- `FileGetShortcut`, `FileRecycle`, `FileGetVersion` --
+1. **the mechanisms** that would unlock a family each, and are the only work
+   that would turn a refusal into a value: the **last-found window** (round 222),
+   the **window groups**, the **list-shaped controls**, and a **clipboard
+   watcher**. Each is one field or one event channel on the runtime, and each
+   would answer several names at once;
+2. **the three unmeasurable** -- `FileGetShortcut`, `FileRecycle`, `FileGetVersion` --
    are **answers and not gaps**: the reference will not say what it does, so there
    is nothing to match;
-4. and **the refusals that are true**: the registry, the COM objects, the image
-   lists, the styles, and the handle pairs. **They are answers too.**
+3. and **the refusals that are true**: the registry, the COM objects, the image
+   lists, the styles, and the handle pairs. **They are answers too.** Round 258
+   gave each group a reason that names what it actually is.
 
 **What has actually been finished**, so the list above is not read as aspirational:
-**all 140 rows of the AHK_X11 feature matrix**, all seven `Edit*` names, fourteen
-`Control*`, seventeen `Win*`, the four **pointer** names, the `Gui` capability
-entire, and `DriveGet*`, `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`,
+**all 140 rows of the AHK_X11 feature matrix**, **zero blanket refusals** (all 97
+say what they are about), all seven `Edit*` names, fourteen `Control*`,
+seventeen `Win*`, the four **pointer** names, the `Gui` capability entire, and
+`DriveGet*`, `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`,
 `FileCreateShortcut`, `FileRecycleEmpty` and `Persistent`.
 
 **The four questions that produced all of this**, and that a successor should keep
