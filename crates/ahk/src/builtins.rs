@@ -1600,9 +1600,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_create_shortcut,
     },
     Builtin {
         name: "FileGetShortcut",
@@ -10217,6 +10217,37 @@ pub(crate) fn file_recycle_empty(
 ) -> Result<Value, RuntimeError> {
     rt.desktop()
         .empty_the_trash()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `FileCreateShortcut(Target, LinkFile, WorkingDir, Args, Description, IconFile, …)`:
+/// make a shortcut.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text and makes
+/// the file, and it makes it even for a target that is not there. On this platform a
+/// shortcut is a `.desktop` file.
+pub(crate) fn file_create_shortcut(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    let shortcut = text_of(values, 1);
+    let working_directory = text_of(values, 2);
+    let arguments = text_of(values, 3);
+    let description = text_of(values, 4);
+    let icon = text_of(values, 5);
+    rt.desktop()
+        .create_shortcut(
+            &target,
+            &shortcut,
+            &working_directory,
+            &arguments,
+            &description,
+            &icon,
+        )
         .map_err(|reason| desktop_failure(reason, line))?;
     Ok(Value::Text(String::new()))
 }

@@ -38,6 +38,54 @@ const FAILED: &str = "Failed";
 const KNOWN: [char; 4] = ['R', 'A', 'N', 'D'];
 
 impl ahk::desktop::Files for LabDesktop {
+    fn create_shortcut(
+        &mut self,
+        target: &str,
+        shortcut: &str,
+        working_directory: &str,
+        arguments: &str,
+        description: &str,
+        icon: &str,
+    ) -> Result<(), String> {
+        // A shortcut on this platform is a `.desktop` file, which is what the freedesktop
+        // specifications make of one. The name of it is the description when there is
+        // one and the target when there is not.
+        let name = if description.is_empty() {
+            target
+        } else {
+            description
+        };
+        let exec = if arguments.is_empty() {
+            target.to_string()
+        } else {
+            format!("{target} {arguments}")
+        };
+        let mut text = String::new();
+        text.push_str("[Desktop Entry]\n");
+        text.push_str("Type=Application\n");
+        text.push_str(&format!("Name={name}\n"));
+        text.push_str(&format!("Exec={exec}\n"));
+        if !working_directory.is_empty() {
+            text.push_str(&format!("Path={working_directory}\n"));
+        }
+        if !icon.is_empty() {
+            text.push_str(&format!("Icon={icon}\n"));
+        }
+        text.push_str("Terminal=false\n");
+        std::fs::write(shortcut, text).map_err(|error| error.to_string())?;
+        // A `.desktop` file that is not executable is not a shortcut.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(metadata) = std::fs::metadata(shortcut) {
+                let mut permissions = metadata.permissions();
+                permissions.set_mode(0o755);
+                let _ = std::fs::set_permissions(shortcut, permissions);
+            }
+        }
+        Ok(())
+    }
+
     fn empty_the_trash(&mut self) -> Result<(), String> {
         // The freedesktop way, which the box has: `gio trash --empty`.
         let output = std::process::Command::new("gio")

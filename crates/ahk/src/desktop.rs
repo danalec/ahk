@@ -888,6 +888,23 @@ pub trait Processes {
 
 /// The files of the desktop.
 pub trait Files {
+    /// Create a shortcut to a program, the way this platform makes one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `FileCreateShortcut` answers the
+    /// empty text and makes the file, and it makes it even for a target that is not
+    /// there.
+    fn create_shortcut(
+        &mut self,
+        _target: &str,
+        _shortcut: &str,
+        _working_directory: &str,
+        _arguments: &str,
+        _description: &str,
+        _icon: &str,
+    ) -> Result<(), String> {
+        Err("this desktop cannot create a shortcut".to_string())
+    }
+
     /// Empty the trash of the machine.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `FileRecycleEmpty` answers the
