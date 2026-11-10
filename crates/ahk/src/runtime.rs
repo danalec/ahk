@@ -1167,6 +1167,13 @@ pub struct Runtime<'a> {
     /// binary of v2.0.19 on 2026-11-10: Add, Deactivate and Close answer the
     /// empty text, and Activate answers a whole number.
     groups: Vec<(String, Vec<String>)>,
+    /// The identifier of the window a `Win*` call last found.
+    ///
+    /// `WinGetIDLast` of v2 reads a piece of state that a `WinExist`,
+    /// `WinActivate` or `WinGetID` sets as a side effect. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: after `WinExist` finds a window,
+    /// `WinGetIDLast()` answers the same number as `WinGetID()`.
+    last_window: Option<String>,
     /// The directory where the run started.
     ///
     /// The runtime asks the desktop for it when it is made, and it keeps
@@ -1359,6 +1366,7 @@ impl<'a> Runtime<'a> {
             guis: Vec::new(),
             pointers: Vec::new(),
             groups: Vec::new(),
+            last_window: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -1426,6 +1434,7 @@ impl<'a> Runtime<'a> {
             guis: Vec::new(),
             pointers: Vec::new(),
             groups: Vec::new(),
+            last_window: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -2158,6 +2167,16 @@ impl<'a> Runtime<'a> {
     pub fn close_a_group(&mut self, group: &str) {
         self.groups
             .retain(|(name, _)| !name.eq_ignore_ascii_case(group));
+    }
+
+    /// Remember the window a `Win*` call just found.
+    pub fn remember_the_last_window(&mut self, id: &str) {
+        self.last_window = Some(id.to_string());
+    }
+
+    /// The identifier of the window a `Win*` call last found, if one was found.
+    pub fn the_last_window(&self) -> Option<&str> {
+        self.last_window.as_deref()
     }
 
     /// The name of the variables of the script, with their values as text.

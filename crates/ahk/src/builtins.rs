@@ -1683,7 +1683,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 1,
         variant: 130,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: from_hwnd,
     },
     Builtin {
         name: "GuiFromHwnd",
@@ -1692,7 +1692,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 2,
         variant: 130,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: from_hwnd,
     },
     Builtin {
         name: "IL_Add",
@@ -1737,7 +1737,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 1,
         variant: 130,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: from_hwnd,
     },
     Builtin {
         name: "MenuSelect",
@@ -1746,7 +1746,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 11,
         variant: 130,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: from_hwnd,
     },
     Builtin {
         name: "MonitorGet",
@@ -2411,9 +2411,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 130,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_id_last,
     },
     Builtin {
         name: "WinGetList",
@@ -8028,7 +8028,34 @@ pub(crate) fn win_get_id(
         .matching_windows(&title, mode)
         .map_err(|e| desktop_failure(e, line))?;
     match windows.first() {
-        Some(window) => Ok(Value::Text(window.id.clone())),
+        Some(window) => {
+            rt.remember_the_last_window(&window.id);
+            Ok(Value::Text(window.id.clone()))
+        }
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetIDLast()`: the identifier of the window a `Win*` call last found.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: after `WinGetID()` finds a
+/// window, `WinGetIDLast()` answers that window's id, and with no `Win*` call
+/// before it, it answers "Target window not found." (round 222). On this
+/// platform a window id is the text the compositor gives, so that is what is
+/// answered. `WinExist` cannot set it: its desktop call says only whether a
+/// window is there, not which one, and the fake desktop of the language tests
+/// carries that call alone.
+pub(crate) fn win_get_id_last(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match rt.the_last_window() {
+        Some(id) => Ok(Value::Text(id.to_string())),
         None => Err(RuntimeError {
             message: TARGET_WINDOW.to_string(),
             line,
@@ -10705,6 +10732,23 @@ pub(crate) fn group_close(
     let group = text_of(values, 0);
     rt.close_a_group(&group);
     Ok(Value::Text(String::new()))
+}
+
+/// `GuiFromHwnd`, `GuiCtrlFromHwnd`, `MenuFromHandle` and `MenuSelect`:
+/// **refused, with a reason of their own.** These take a Win32 HWND and give
+/// back the object that owns it. This runtime has no HWND table: the windows
+/// are identified by the text the compositor gives (`WinGetID`), so there is
+/// no number to look an object up by.
+pub(crate) fn from_hwnd(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "this runtime has no HWND table: the windows are identified by the text the compositor gives, so there is no number to look an object up by".to_string(),
+        line,
+    })
 }
 
 pub(crate) fn sleep(
