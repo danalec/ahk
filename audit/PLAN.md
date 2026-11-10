@@ -2343,6 +2343,32 @@ it; it is not wired to `GetPos`.
 toggle is not a set) -- and the first where the temptation was strongest, because
 the helper **had** an answer ready and it looked like the right one.
 
+### Round 87 — 2026-11-09: the cheapest thing left, named
+
+No code. The `Gui` family is verified and the next member that costs almost
+nothing is now identified, so it is not lost.
+
+**`g.AddText`, `g.AddEdit`, `g.AddButton`, `g.AddCheckBox` and the rest are the
+same question as `g.Add` with the kind already written.** v2 has both spellings,
+and this tree carries the long one. The short ones are members of the class named
+in the table of `classes/gui.rs`, and every one of them would be:
+
+```rust
+// in classes::call, beside the "add" arm
+let kind = &method[3..];   // AddText -> Text
+// then exactly the code of Add, with that kind
+```
+
+**The one thing to do first** is to take the code of the `add` arm out of the
+`if` and into a small function, `the_control_of_the_gui(kind, arguments, rt,
+line)`, so that both spellings call it rather than one copying the other. That is
+the whole work: a function extraction, then a second condition beside the first.
+
+**Why it was not done here**: an extraction touches the arm that is working and
+verified, and this session's remaining budget is better spent not breaking it. A
+fresh round does it in three steps -- extract, add the alias, verify both
+spellings on the box with one script.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
