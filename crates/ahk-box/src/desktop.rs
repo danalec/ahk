@@ -107,6 +107,13 @@ pub struct LabDesktop {
     /// input pipe, and the helper ends its own loop when its input closes, so
     /// every way out of the runner closes it without a shutdown hook.
     gui: Option<crate::gui::TheWindow>,
+    /// The program that draws tooltips, which is NOT the window of a `Gui`.
+    ///
+    /// `ToolTip` of v2 works with no window of the script at all, so the helper
+    /// that draws it is a process of its own. Keeping it apart from `gui` is what
+    /// lets a script show a tooltip and then make a `Gui` without being told
+    /// that a window is already there.
+    tooltip: Option<crate::gui::TheWindow>,
     notes: Vec<String>,
     /// The files that are open. A handle is the place of the file in
     /// this list, and a closed file is a hole in it.
@@ -156,6 +163,7 @@ impl LabDesktop {
             pointer: None,
             screen: None,
             gui: None,
+            tooltip: None,
             notes: Vec::new(),
             files: Vec::new(),
             pictures: Vec::new(),
@@ -828,8 +836,22 @@ impl ahk::desktop::Screen for LabDesktop {
             x,
             y
         );
-        let said = self.the_gui_says(&command)?;
-        the_number_in(&said, "\"value\": ").ok_or_else(|| "the helper said nothing".to_string())
+        // A tooltip needs no window of the script, so it has a helper of its own
+        // and is started the first time one is shown. Measured on the binary of
+        // v2.0.19 on 2026-11-10: showing one answers a number even with no Gui.
+        if self.tooltip.is_none() {
+            let helper = the_helper_of_the_window()?;
+            self.tooltip = Some(crate::gui::TheWindow::open(&helper)?);
+        }
+        let window = self
+            .tooltip
+            .as_mut()
+            .ok_or("the helper of the tooltip did not start")?;
+        let said = window.send(&command)?;
+        if !said.contains("\"ok\": true") {
+            return Err(format!("the tooltip was not shown: {said}"));
+        }
+        the_number_in(&said, "\"value\": ").ok_or_else(|| "the tooltip gave no number".to_string())
     }
     fn window_move(&mut self, x: i64, y: i64, width: i64, height: i64) -> Result<(), String> {
         let command = format!(
