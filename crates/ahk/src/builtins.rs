@@ -2537,9 +2537,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_hide,
     },
     Builtin {
         name: "WinKill",
@@ -2708,9 +2708,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_show,
     },
     Builtin {
         name: "WinWait",
@@ -9676,6 +9676,75 @@ pub(crate) fn win_set_always_on_top(
         .gui_option("alwaysontop", on)
         .map_err(|reason| desktop_failure(reason, line))?;
     Ok(Value::Text(String::new()))
+}
+
+/// The window of the script, if the title the script named is that window.
+///
+/// The default match of v2 is that the title **contains** the text and the case
+/// matters, and a window that does not match is not there: *"Target window not
+/// found."* Shared by the names that act on the script's own window.
+fn the_window_of_the_script(
+    rt: &mut Runtime<'_>,
+    target: &str,
+    line: u32,
+) -> Result<(), RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    let current = rt
+        .desktop()
+        .gui_title(0, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    if !target.is_empty() && !current.contains(target) {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    Ok(())
+}
+
+/// `WinHide(WinTitle)` and `WinShow(WinTitle)`: take the script's window off the
+/// screen and put it back.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the empty text, and
+/// a window that is not there answers *"Target window not found."*
+fn the_visibility_of_the_window(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    shown: bool,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let answer = if shown {
+        rt.desktop().gui_show(0)
+    } else {
+        rt.desktop().gui_hide()
+    };
+    answer.map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn win_hide(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_the_window(rt, values, line, false)
+}
+
+pub(crate) fn win_show(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_the_window(rt, values, line, true)
 }
 
 pub(crate) fn sleep(
