@@ -13227,19 +13227,89 @@ impl<'a> Runtime<'a> {
             Node::Maybe { value, .. } => {
                 // Measured on the binary of v2.0.19 on 2026-11-10: the value
                 // of the name that has none is the absent value, and every
-                // other failure is the failure. Measured on the test suite of
-                // KeySharp (the corpus script `op-null-assign.ahk`) and on the
-                // notes of v2.1-alpha: the member that is not there is the
-                // absent value too in the dialect that carries the chain of the
-                // v2.1 -- `holder.Missing?.Inner` is the absent value, and the
-                // `?.` after it is skipped.
+                // other failure is the failure.
+                //
+                // Measured on the test suite of KeySharp (the corpus script
+                // `op-null-assign.ahk`) and on the notes of v2.1-alpha, the
+                // mark of the chain tolerates the one access it follows and no
+                // other: `holder.Missing?.Inner` is the absent value, and
+                // `holder.Missing.Inner?.Value` is the `PropertyError` of the
+                // access before the mark, which is not the one the mark
+                // follows. The access of the marked value is read here with its
+                // target read the ordinary way, so the failure of the target is
+                // the failure, and the failure of the access itself is the
+                // absent value.
+                if self.dialect.the_chain_may_be_skipped() {
+                    match &**value {
+                        Node::Property {
+                            target,
+                            name,
+                            line,
+                        } => {
+                            let target_value = self.evaluate(target)?;
+                            let name = self.the_name_of_the_member(name, *line)?;
+                            return match self.read_property(&target_value, &name, *line) {
+                                Ok(value) => Ok(value),
+                                Err(failure) if the_member_is_not_there(&failure) => {
+                                    Ok(Value::Unset)
+                                }
+                                Err(failure) => Err(failure),
+                            };
+                        }
+                        Node::Index {
+                            target,
+                            index,
+                            also,
+                            line,
+                        } => {
+                            // The brackets of the marked access: the target is
+                            // read the way the item reads it -- a property that
+                            // takes parameters is read with them, and its
+                            // failure is the failure -- and the item itself is
+                            // the one the mark tolerates.
+                            if let Node::Property {
+                                target: object,
+                                name,
+                                line: property_line,
+                            } = &**target
+                            {
+                                let object_value = self.evaluate(object)?;
+                                let name = self.the_name_of_the_member(name, *property_line)?;
+                                let keys = self.the_keys_of_an_index(index, also)?;
+                                let (held, by_meta) = self.read_property_fully(
+                                    &object_value,
+                                    &name,
+                                    &keys,
+                                    *property_line,
+                                )?;
+                                if by_meta {
+                                    return Ok(held);
+                                }
+                                return match self.index_a_value(&held, &keys, *line) {
+                                    Ok(value) => Ok(value),
+                                    Err(failure) if the_member_is_not_there(&failure) => {
+                                        Ok(Value::Unset)
+                                    }
+                                    Err(failure) => Err(failure),
+                                };
+                            }
+                            let target_value = self.evaluate(target)?;
+                            let keys = self.the_keys_of_an_index(index, also)?;
+                            return match self.index_a_value(&target_value, &keys, *line) {
+                                Ok(value) => Ok(value),
+                                Err(failure) if the_member_is_not_there(&failure) => {
+                                    Ok(Value::Unset)
+                                }
+                                Err(failure) => Err(failure),
+                            };
+                        }
+                        _ => {}
+                    }
+                }
                 match self.evaluate(value) {
                     Ok(value) => Ok(value),
                     Err(failure) => {
-                        if the_failure_is_an_unset_variable(&failure)
-                            || (self.dialect.the_chain_may_be_skipped()
-                                && the_member_is_not_there(&failure))
-                        {
+                        if the_failure_is_an_unset_variable(&failure) {
                             Ok(Value::Unset)
                         } else {
                             Err(failure)

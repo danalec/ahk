@@ -10987,3 +10987,25 @@ which access the mark follows. The tree wraps the whole left side in the value
 that may be absent, so it cannot tell the two apart yet; the mark has to be
 carried on the access it follows, which is a change of the node of the member and
 not a rule of the runtime. It is the next block, and it is not guessed here.
+## 291. The mark tolerates the access it follows
+
+Measured on the test suite of KeySharp (the corpus script `op-null-assign.ahk`),
+which states the rule as "only the access the maybe operator follows is
+lenient": the mark of the chain tolerates the one access it follows, and the
+access before it is read the ordinary way. The tree reads the marked access in
+the node of the value that may be absent now: the target of the access is
+evaluated the ordinary way -- its failure is the failure, so
+`holder.Missing.Inner?.Value` is the `PropertyError` of `holder.Missing` -- and
+only the failure of the access itself is the absent value, so
+`holder.Missing?.Inner` is the absent value. The brackets of the marked access
+read a property that takes parameters with them, and the item of the absent
+value is the absent value as it was.
+
+The next case of the same script is the other half of the rule, and it is where
+the tree stops: `(holder?.Prop)?.Inner` is an `UnsetError` and `holder.Prop?.Inner`
+is the absent value. The two differ by where the absence came from -- an access
+that the mark converted, which is silent, and the absent value of the property,
+which is not -- so the tree needs two kinds of absence: the value the script may
+hold (`unset`), and the result of a skipped access, which every access after it
+passes over. The tree has one of them today, and it uses it as the silent one.
+That split is the next block, and it is not guessed here.

@@ -5326,8 +5326,38 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn a_member_that_is_not_there_is_asked_by_isset_but_its_holder_is_read() {
+fn only_the_access_the_mark_follows_is_lenient() {
     // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the mark of the
+    // chain tolerates the one access it follows -- `holder.Prop?.Inner` is the
+    // absent value -- and the access that comes before it is read the ordinary
+    // way: `holder.Missing.Inner?.Value` is the `PropertyError` of the access
+    // before the mark.
+    let (report, _desktop) = run_in(
+        concat!(
+            "class Holder {\n",
+            "    Prop => unset\n",
+            "}\n",
+            "h := Holder()\n",
+            "v := h.Prop?.Inner\n",
+            "MsgBox \"a\" IsSet(v)\n",
+            "try {\n",
+            "    v := h.Missing.Inner?.Value\n",
+            "    MsgBox \"no throw\"\n",
+            "} catch as e {\n",
+            "    MsgBox \"b\" Type(e)\n",
+            "}\n",
+            "w := (h.Prop?)[1]\n",
+            "MsgBox \"c\" IsSet(w)\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a0", "bPropertyError", "c0"]);
+}
+
+#[test]
+fn a_member_that_is_not_there_is_asked_by_isset_but_its_holder_is_read() {    // Measured on the test suite of KeySharp (the corpus script
     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: `IsSet` of a member
     // that is not there answers zero -- `holder.Present.Missing` has no value --
     // and the expression that holds the member is read: the failure of
