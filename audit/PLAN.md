@@ -3484,6 +3484,45 @@ table was damaged, and the honest state is `HEAD` with nothing of it. The two na
 stay in the blanket, and they are a round of their own with the one-row-at-a-time
 rule.
 
+### Round 173 — 2026-11-09: the table audited, and the count reconciles
+
+Round 171 found that the surface reads a row's **variant** and not its handler. The
+obvious question follows: **is anything else answering while marked refused?** The
+table was parsed and every row checked.
+
+```
+rows with a handler of their own: 222
+rows that are not carried:        124
+total rows:                       346
+
+answering but marked refused:     0
+marked refused but answering:     0
+```
+
+**Both directions are clean.** The eleven of round 171 were the only ones, and
+nothing else is silently answering.
+
+**And the arithmetic reconciles exactly**, which is the first time this session has
+had a count whose parts add up:
+
+| | |
+|---|---|
+| rows that are not carried | **124** |
+| the refused **variables** (a different table) | **8** |
+| total | **132** -- the surface's own number |
+
+124 commands and functions plus 8 variables is 132, and the surface says 132. **The
+count is now honest for the built-ins**, which it was not when this round began.
+
+**What that changes about the 132**: they are not a mixture of "answering but
+unreported" and "genuinely not carried" -- they are **all genuinely not carried**,
+and each one needs the five-step procedure to move. There is no remaining
+mechanical work; only the per-name work.
+
+**Where the 8 variables are**: a table of their own, and 8 of them refuse. That is
+where a variable-shaped name would go, and it is the same procedure with a different
+file.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
