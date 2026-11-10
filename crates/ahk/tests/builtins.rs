@@ -3923,6 +3923,60 @@ fn win_get_id_of_a_window_that_is_not_there_fails() {
     assert_eq!(failure_of(&report), "Target window not found.");
 }
 
+// -- the state that outlives a statement ------------------------------------------
+//
+// Two mechanisms of v2 are sets a script builds in one statement and reads in a
+// later one. Measured on the binary of v2.0.19 on 2026-11-10: `GroupAdd`,
+// `GroupDeactivate` and `GroupClose` answer the empty text, `GroupActivate`
+// answers a whole number, and `WinGetIDLast` answers the window a `Win*` call
+// last found.
+
+#[test]
+fn a_group_added_in_one_statement_is_read_in_a_later_one() {
+    let report = run(concat!(
+        "a := GroupAdd(\"mine\", \"first\")\n",
+        "b := GroupActivate(\"mine\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text(String::new())));
+    assert_eq!(report.variables.get("b"), Some(&Value::Text("0x1".into())));
+}
+
+#[test]
+fn a_group_that_was_not_added_answers_zero() {
+    let report = run("x := GroupActivate(\"missing\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn closing_a_group_takes_it_away() {
+    let report = run(concat!(
+        "GroupAdd(\"mine\", \"first\")\n",
+        "GroupClose(\"mine\")\n",
+        "x := GroupActivate(\"mine\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn the_last_window_is_the_one_a_wingetid_found() {
+    let report = run(concat!(
+        "a := WinGetID(\"first\")\n",
+        "b := WinGetIDLast()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text("0x1".into())));
+    assert_eq!(report.variables.get("b"), Some(&Value::Text("0x1".into())));
+}
+
+#[test]
+fn the_last_window_with_no_win_call_before_it_fails() {
+    let report = run("x := WinGetIDLast()");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
 #[test]
 fn win_get_class_answers_the_class_of_the_window() {
     let report = run("x := WinGetClass(\"second\")");

@@ -3966,28 +3966,33 @@ size it, focus it, close it -- and **answer an event in it with the control in h
 `Move`, `Focus`, `Show`, `Hide`, `Destroy`, `OnEvent`, and the `Win*` family that acts
 on the script's own window.
 
-**Where to go next** -- rewritten in round 258. **All 140 rows of the gap
-matrix are covered, and every one of the 97 refusals now answers with a reason
-of its own** -- there are no blanket refusals left in the built-in table.
+**Where to go next** -- rewritten in round 259. **All 140 rows of the gap
+matrix are covered, and every refusal answers with a reason of its own** --
+there are no blanket refusals left in the built-in table.
 
-1. **the mechanisms** that would unlock a family each, and are the only work
-   that would turn a refusal into a value: the **last-found window** (round 222),
-   the **window groups**, the **list-shaped controls**, and a **clipboard
-   watcher**. Each is one field or one event channel on the runtime, and each
-   would answer several names at once;
+1. **the two mechanisms still open**: the **list-shaped controls** and a
+   **clipboard watcher**. The list controls are unmeasurable -- the reference
+   hangs on `Add("DropDownList")` -- and a clipboard watcher needs a second
+   event channel beside the one the helper writes for a `Gui`;
 2. **the three unmeasurable** -- `FileGetShortcut`, `FileRecycle`, `FileGetVersion` --
    are **answers and not gaps**: the reference will not say what it does, so there
    is nothing to match;
 3. and **the refusals that are true**: the registry, the COM objects, the image
-   lists, the styles, and the handle pairs. **They are answers too.** Round 258
-   gave each group a reason that names what it actually is.
+   lists, the styles, and the HWND table. **They are answers too.** Round 258
+   gave each group a reason that names what it actually is, and round 259 gave
+   the four handle names one more.
+
+**Two of the four mechanisms are DONE** (round 259): **window groups** (four names
+answering, a set on the runtime that outlives the statement) and the **last-found
+window** (`WinGetIDLast`, set by `WinGetID`). Both have language-level cases in
+`crates/ahk/tests/builtins.rs` and were verified on the box.
 
 **What has actually been finished**, so the list above is not read as aspirational:
-**all 140 rows of the AHK_X11 feature matrix**, **zero blanket refusals** (all 97
-say what they are about), all seven `Edit*` names, fourteen `Control*`,
-seventeen `Win*`, the four **pointer** names, the `Gui` capability entire, and
-`DriveGet*`, `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`,
-`FileCreateShortcut`, `FileRecycleEmpty` and `Persistent`.
+**all 140 rows of the AHK_X11 feature matrix**, **zero blanket refusals** (all 92
+say what they are about), **two of the four mechanisms**, all seven `Edit*` names,
+fourteen `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
+capability entire, and `DriveGet*`, `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`,
+`FileCreateShortcut`, `FileRecycleEmpty`, `Group*`, `WinGetIDLast` and `Persistent`.
 
 **The four questions that produced all of this**, and that a successor should keep
 asking:
@@ -4264,7 +4269,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **736 answer, 97 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **741 answer, 92 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -4535,6 +4540,43 @@ ABOVE it is already a refusal and maps to a reason. **The two halves of the
 fix were both already in the table** -- a reason per group and a variant per
 reason -- and the only work was to see that the mechanism had been there since
 the beginning.
+
+### Round 259 — 2026-11-10: two of the four mechanisms are built
+
+The objective was one phrase, **"keep implementing"**, and the four mechanisms of
+section zero were the only work named as open. Two of them are now built.
+
+**Window groups.** Measured on the binary of v2.0.19 on 2026-11-10:
+`GroupAdd`, `GroupDeactivate` and `GroupClose` answer the empty text, and
+`GroupActivate` answers a whole number that is zero when no window matches. The
+runtime now holds `groups: Vec<(String, Vec<String>)>` -- a set of window titles
+under a name, which outlives the statement -- and the four names answer. Verified
+on the box: adding answers `""`, activating answers the id the compositor gave
+the real window, a group that is not there answers `0`, and deactivating makes
+the next activation answer `0`.
+
+**The last-found window.** Measured on the same day: `WinGetIDLast()` after a
+`Win*` call answers that window's id, and with no call before it, answers
+"Target window not found." (which is what round 222 measured, before it knew
+which call sets the state). A `last_window: Option<String>` on the runtime is
+set by `WinGetID` and read by `WinGetIDLast`. The four HWND names of the family
+were given a reason of their own: there is no HWND table here.
+
+**One wrong turn, caught by the tests**: the first attempt set `last_window` from
+`WinExist` by switching it to `matching_windows`. Three language cases broke,
+because `WinExist`'s desktop call says only WHETHER a window is there, not WHICH
+one, and the fake desktop of those cases carries that call alone. Reverted;
+`WinGetID` is now the recorder. **A change to a shared handler is a change to
+every test that leans on it** -- the same lesson as round 204's stale box.
+
+**Five new language-level cases** in `crates/ahk/tests/builtins.rs` protect the
+two mechanisms, so they do not depend on a box probe to stay true.
+
+**Two mechanisms remain**: the list-shaped controls (unmeasurable -- the
+reference hangs on them) and a clipboard watcher (a second event channel).
+
+**Both platforms**: **741 answer / 92 refuse**, sum 833, suites green, clippy
+clean, the box's 28 suites green, source hashes matching.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
