@@ -3178,6 +3178,35 @@ along: run it.
 **What is left is unchanged and small**: the `Edit*` family is answerable from the
 helper's text, and `EditGetLine(N, Hwnd)` takes the number first (round 141).
 
+### Round 147 — 2026-11-09: EditPaste hung the helper, and it is reverted
+
+`EditPaste(Text, Hwnd)` was built the same way the two names before it were -- the
+helper inserting at the cursor with `insert_at_cursor`, a desktop method over it,
+the row of the table pointed at a handler of its own -- and **the box run hung**.
+The runner did not answer within ten minutes, the box had to be swept of the
+processes, and **the change was reverted**.
+
+**The contract is measured and stands** (round 141 and the reference): `EditPaste`
+takes the **text first** and the handle second, like the whole family.
+
+**What is not known**, and is now the point of the whole thing:
+
+- whether the hang is `insert_at_cursor` on a `Gtk.Entry` called from the idle
+  callback of the helper,
+- whether it is the transport, since the helper answers the whole text after the
+  insertion and that answer may be the one that never arrives,
+- or whether the script itself waited on something else.
+
+**A hang is the worst outcome this tree can produce** -- worse than a wrong value
+and worse than a refusal -- because there is no answer at all and the runner's own
+timeout is what ends it. So the next step is not to try it another way; it is to
+**find which of the three it was**, with a probe that puts a timeout around each
+half: the helper's `paste` operation answered on its own, through the fifo, with
+the test harness of rounds 76 and 80.
+
+**The two names that DID work stay**: `EditGetLineCount` and `EditGetLine`, both
+verified on the box. The family is not poisoned; this one path is.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
