@@ -48,6 +48,9 @@ struct Fake {
     shortcut: Option<(String, String, String, String, String)>,
     /// The number of the one UpDown the fake carries, shared with its buddy.
     updown_value: i64,
+    /// The pages of the one Tab the fake carries, and the chosen page.
+    tab_pages: i64,
+    tab_chosen: i64,
     /// Whether the fake's control is a date control, and its timestamp string.
     date_control: bool,
     date_value: String,
@@ -399,6 +402,7 @@ impl Windows for Fake {
             "link" => "SysLink1",
             "hotkey" => "msctls_hotkey321",
             "pic" => "Static1",
+            "tab" => "SysTabControl321",
             _ => "ComboBox1",
         };
         if matches!(kind.to_lowercase().as_str(), "link" | "hotkey") {
@@ -409,6 +413,14 @@ impl Windows for Fake {
             // Measured on the binary of v2.0.19 on 2026-11-10: the Value of a
             // Pic is the file it shows, and a write changes nothing.
             self.pic_path = Some(text.to_string());
+        }
+        if kind.eq_ignore_ascii_case("tab") {
+            // One page per item; the first page is chosen from the start.
+            self.tab_pages = text
+                .split('\n')
+                .filter(|name| !name.is_empty())
+                .count() as i64;
+            self.tab_chosen = 1;
         }
         if matches!(
             kind.to_lowercase().as_str(),
@@ -458,6 +470,18 @@ impl Windows for Fake {
         Ok((1, classnn.to_string()))
     }
     fn gui_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if self.tab_pages > 0 {
+            // A Tab's Value is the chosen page; a page that is not there is
+            // refused. Measured on the binary of v2.0.19 on 2026-11-10.
+            if let Some(text) = setting {
+                let page = text.parse().unwrap_or(0);
+                if page < 1 || page > self.tab_pages {
+                    return Err("Invalid value.".to_string());
+                }
+                self.tab_chosen = page;
+            }
+            return Ok(self.tab_chosen.to_string());
+        }
         if self.text_control {
             if let Some(text) = setting {
                 self.text_value = text.to_string();
@@ -4649,6 +4673,36 @@ fn a_link_has_a_read_only_empty_value_and_a_writable_text() {
     };
     let report = run_on("g := Gui()\nlk := g.Add(\"Link\", \"\", \"x\")\nlk.Value := \"y\"", &mut desktop);
     assert_eq!(failure_of(&report), "Invalid usage.");
+}
+
+#[test]
+fn a_tab_holds_the_page_number_and_refuses_a_page_that_is_not_there() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a Tab is
+    // `SysTabControl321`, `Value` is the 1-based page number, and a page that
+    // is not there is refused with "Invalid value.", not clamped.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\ntab := g.Add(\"Tab\", \"w400 h300\", [\"First\", \"Second\"])\ncls := tab.ClassNN\na := tab.Value\ntab.Value := 2\nb := tab.Value",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "cls"), Value::Text("SysTabControl321".into()));
+    assert_eq!(int_of(&report, "a"), 1);
+    assert_eq!(int_of(&report, "b"), 2);
+
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\ntab := g.Add(\"Tab\", \"w400 h300\", [\"First\", \"Second\"])\ntab.Value := 9",
+        &mut desktop,
+    );
+    assert!(!report.ok);
+    assert_eq!(failure_of(&report), "Invalid value.");
 }
 
 #[test]

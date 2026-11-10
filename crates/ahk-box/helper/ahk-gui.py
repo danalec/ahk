@@ -262,6 +262,22 @@ def the_control(kind, text):
         if text:
             control.set_from_file(text)
         state.setdefault("pic_paths", {})[state["next_id"]] = text
+    elif kind == "Tab":
+        # A Tab is a notebook with one page per item. Measured on the binary
+        # of v2.0.19 on 2026-11-10: it is `SysTabControl321`, `Value` is the
+        # 1-based number of the chosen page, and a page that is not there is
+        # refused with "Invalid value.". The chosen page is kept HERE rather
+        # than read out of the widget: on an unrealized notebook GTK answers
+        # -1 for the current page even after it is set (measured 2026-11-10),
+        # and v2's first tab is chosen from the start.
+        control = Gtk.Notebook()
+        pages = 0
+        for name in text.split("\n"):
+            if name:
+                control.append_page(Gtk.Label(label=name), Gtk.Label(label=name))
+                pages += 1
+        control.set_current_page(0)
+        state.setdefault("tab_pages", {})[state["next_id"]] = 1 if pages else 0
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -361,6 +377,26 @@ def the_value(number, text):
                 if kind == "DateTime":
                     control.set_text(the_date_display(value))
                 answer({"ok": True, "value": value})
+            return
+        if kind == "Tab":
+            # A Tab's `Value` is the 1-based page number, kept in the state
+            # because an unrealized notebook answers -1 for its current page.
+            # A page that is not there is refused with "Invalid value.".
+            pages = control.get_n_pages()
+            held = state.setdefault("tab_pages", {})
+            if text is None:
+                answer({"ok": True, "value": str(held.get(number, 1))})
+            else:
+                try:
+                    page = int(text)
+                except ValueError:
+                    page = 0
+                if page < 1 or page > pages:
+                    answer({"ok": False, "error": "Invalid value."})
+                    return
+                held[number] = page
+                control.set_current_page(page - 1)
+                answer({"ok": True, "value": text})
             return
         if kind in ("Slider", "Progress"):
             # Both hold an Integer `Value`. Measured on the binary of v2.0.19
@@ -826,6 +862,9 @@ def the_class_of(kind):
     # -- it shares the counter with Text -- and shows the file it was given.
     if kind == "Pic":
         return "Static"
+    # A Tab is `SysTabControl321`.
+    if kind == "Tab":
+        return "SysTabControl32"
     return kind
 
 

@@ -1916,6 +1916,19 @@ fn the_control_of_the_gui(
     }
 }
 
+/// Whether the class of a control is a Tab notebook.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: its `ClassNN` is
+/// `SysTabControl321` and its `Value` is the 1-based page number, with an
+/// out-of-range write refused as "Invalid value.".
+fn the_control_is_a_tab(class: &str) -> bool {
+    let tail = match class.rsplit_once('.') {
+        Some((_, tail)) => tail,
+        None => class,
+    };
+    tail.eq_ignore_ascii_case("tab")
+}
+
 /// Whether a control's `Value` is an Integer rather than a text.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-10: an UpDown is
@@ -2057,6 +2070,16 @@ pub(crate) fn property(
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
+    // A Tab's `Value` is the 1-based page number. Measured on the binary of
+    // v2.0.19 on 2026-11-10. The helper answers it as a text of digits; the
+    // script sees the whole number v2 sees.
+    if the_control_is_a_tab(class) && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_value(number, None) {
+            Ok(text) => Ok(Value::Int(text.parse().unwrap_or(0))),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     // An UpDown, Slider or Progress has a `Value` that is an Integer; the
     // UpDown shares it with its buddy Edit. Measured on the binary of v2.0.19
     // on 2026-11-10.
@@ -2162,6 +2185,28 @@ pub(crate) fn set_property(
         return Some(match rt.desktop().gui_second_value(number, Some(&text)) {
             Ok(_) => Ok(()),
             Err(failure) => Err(the_failure_with(&failure, "", line)),
+        });
+    }
+    // Setting `Value` of a Tab chooses the page. Measured on the binary of
+    // v2.0.19 on 2026-11-10: a page that is not there is refused with
+    // "Invalid value.", not clamped. The helper does the bounds check and the
+    // transport wraps its answer, so the wording is unwrapped here -- v2 says
+    // exactly "Invalid value.".
+    if the_control_is_a_tab(class) && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let wanted = value.to_text();
+        return Some(match rt.desktop().gui_value(number, Some(&wanted)) {
+            Ok(_) => Ok(()),
+            Err(reason) => {
+                // The transport wraps the helper's answer; v2 says exactly
+                // "Invalid value." for a page that is not there.
+                let message = if reason.contains("Invalid value.") {
+                    "Invalid value.".to_string()
+                } else {
+                    reason
+                };
+                Err(the_failure_with(&message, "", line))
+            }
         });
     }
     // Setting `Value` of a list-shaped control chooses by the 1-based index,

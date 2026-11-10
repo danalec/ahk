@@ -4002,8 +4002,8 @@ re-measurement.
 blanket refusals** (all 78 say what they are about), all seven `Edit*` names,
 twenty-four `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
 capability entire with `ComboBox`, `StatusBar`, `ListView`, `TreeView`,
-`UpDown`, `Slider`, `Progress`, `DateTime`, `MonthCal`, `Link` and `Hotkey`
-controls, and `DriveGet*`,
+`UpDown`, `Slider`, `Progress`, `DateTime`, `MonthCal`, `Link`, `Hotkey`,
+`Pic` and `Tab` controls, and `DriveGet*`,
 `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`,
 `FileRecycleEmpty`, `Group*`, `WinGetIDLast`, `OnClipboardChange` and
 `Persistent`.
@@ -5053,6 +5053,36 @@ changed with a bulk replace, the same tool that corrupted two rows in round
 227. **A bulk replace edits what matches, not what is meant.**
 
 The surface count does not move (Pic is a control kind, not a builtin row):
+**759 / 74**, sum 833, both platforms green, clippy clean.
+
+### Round 276 — 2026-11-10: a Tab notebook, and a GTK quirk the helper had to hide
+
+**Measured on the binary of v2.0.19 on 2026-11-10**: `Add("Tab", "w400 h300",
+["First", "Second", "Third"])` is `SysTabControl321`; `Value` is the 1-based
+page number (1 at first); setting it to 2 works; and setting it to 9 -- a page
+that is not there -- is refused with **"Invalid value."**, not clamped.
+
+**Built**: a `Gtk.Notebook` in the helper with one page per item, the class
+dispatcher given a Tab read arm (the page as an Integer) and a Tab write arm,
+and **one language case** covering both the choice and the refusal, backed by a
+`tab_pages`/`tab_chosen` pair on the Fake.
+
+**A GTK quirk the helper had to hide**: `get_current_page()` on an unrealized
+notebook answers **-1 even after `set_current_page(0)`** -- measured directly
+on the box with a two-page notebook (`pages: 2 current: -1`, and still -1 after
+the set). So the chosen page is kept in the helper's own state rather than read
+out of the widget, exactly like the tree keeps its window list and pointer
+table: **the widget is the display, the state is the truth.**
+
+**And the transport's wrapping was unwrapped for one refusal**: the helper's
+non-ok answer comes back as "the window of the script refused: {json}", but v2
+says exactly "Invalid value." -- so the Tab write arm strips the wrapper for
+that one wording.
+
+**Verified on the box**: `classnn=SysTabControl321 type=Integer value=[1]
+| after2=[2] | beyond=[Invalid value.]` -- every line matching the reference.
+
+The surface count does not move (Tab is a control kind, not a builtin row):
 **759 / 74**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified
