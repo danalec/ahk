@@ -2383,6 +2383,44 @@ verified, and this session's remaining budget is better spent not breaking it. A
 fresh round does it in three steps -- extract, add the alias, verify both
 spellings on the box with one script.
 
+### Round 92 — 2026-11-09: the contract of the events, measured before the channel
+
+The one architectural piece left is the events, and round 54's lesson says a
+contract is worth banking before the work that needs it. Measured on the binary
+of v2.0.19 on 2026-11-09, against a window it makes itself:
+
+| the call | the binary |
+|---|---|
+| `g.OnEvent("Close", fn)` | **`""`**, a String |
+| `g.OnEvent("Escape", fn)` | **`""`** |
+| `g.OnEvent("Click", fn)` on the Gui | **fails**: *"Parameter #1 of Gui.Prototype.OnEvent is invalid."* |
+| `g.OnEvent("Bogus", fn)` | the same failure |
+| `g.OnEvent("Close", 5)` | **fails**: *"Parameter #2 of Gui.Prototype.OnEvent is invalid."* |
+
+**So the member answers the empty text and validates two things**: that the event
+is one the **Gui** has (not one a control has -- `Click` belongs to a control),
+and that the second parameter is a function. Both failures name the member and the
+parameter, which is the shape of v2's arity failures already carried.
+
+**What that says about the channel, which is the real work**: the answer is
+nothing, so nothing about the return needs the helper to talk back. What needs it
+is the **event itself** -- a click or a close in the window has to reach a
+function of the script. Every channel built so far is question-and-answer, one
+line in and one line out, and an event is the opposite: the helper speaks first,
+at a moment the runtime is not waiting.
+
+**Two ways to make the helper speak**, to be settled before the writing:
+
+1. **a second pipe** the helper writes to and the runtime polls between
+   statements -- cheap, and it fits the runner, which already checks its timeout
+   and step count between statements;
+2. **a blocking read with a timeout** on the existing pipe, turned into a poll --
+   simpler to build, but it puts a wait inside a statement, and `Sleep` is the
+   only thing in this runtime allowed to wait.
+
+The first is nearer to how the runner already works, and it is what a fresh
+session should cost out first.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
