@@ -11,7 +11,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib  # noqa: E402
 
 window = Gtk.Window(title="ahk-gtk-probe")
-window.set_default_size(320, 140)
+window.set_default_size(320, 200)
 
 box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
 label = Gtk.Label(label="hello control")
@@ -19,6 +19,10 @@ box.pack_start(label, True, True, 0)
 entry = Gtk.Entry()
 entry.set_text("entry value")
 box.pack_start(entry, False, False, 0)
+# A check button, so the family of the checked state has something to read and
+# to toggle.
+check = Gtk.CheckButton(label="tick me")
+box.pack_start(check, False, False, 0)
 window.add(box)
 
 window.connect("destroy", Gtk.main_quit)

@@ -1464,6 +1464,57 @@ the frame, silently. It stays refused.
 
 The surface moved **682 → 683 values, 151 → 150 refusals**.
 
+### Round 35 — 2026-11-09: the checked pair, and a toggle is not a set
+
+`ControlGetChecked` and `ControlSetChecked` were the next pair, and **both are
+refused**, for a reason that only a measurement could give.
+
+Measured on the binary of v2.0.19 first:
+
+| call | the binary |
+|---|---|
+| `ControlGetChecked("Button1", title)` on a fresh check box | **`0`**, an Integer |
+| `ControlSetChecked(1, "Button1", title)` | **`""`**, and `ControlGetChecked` answers `1` after it |
+| `ControlSetChecked(0, …)` | `""`, and it answers `0` after it |
+
+Then the fixture grew a `Gtk.CheckButton`, and the tree was read:
+
+```
+/accessible/14 name=[tick me] role=[check box] state=[[1124075776,0]]
+                acts=[[["Click","Clicks the button",""]]]
+```
+
+The role is right and the action is there. **The state is not**: `1124075776` is
+`0x43000800`-ish, and the bits that matter are absent -- `ATSPI_STATE_CHECKED`
+is **4** and `ATSPI_STATE_CHECKABLE` is **41** (the enum has been read from the
+header), and neither is set, in either of the two words.
+
+**And clicking it does not change the state.** The tree was dumped before and
+after a `ControlClick` on the check box, and the state is the same number both
+times:
+
+```
+before: state=[[1124075776,0]]
+after:  state=[[1124075776,0]]
+```
+
+So this desktop offers no way to **read** whether a check box is checked, and
+therefore no way to **set** it either: the only act available is a click, and a
+click **toggles**. `ControlSetChecked(1, …)` implemented as a click would be
+`ControlToggle`, which is a different command wearing the same name -- and the
+silent-wrong shape this plan refuses at every turn.
+
+The fixture keeps its check box (it is the record of the measurement), the dump
+keeps the three coordinate spaces and the actions, and the surface is unchanged.
+
+**This is the shape of what is left.** Of the 25 control names still refused, the
+ones measured so far fall into two groups: AT-SPI has no call for the thing
+(`ControlSetEnabled`, `ControlSetVisible`, `ControlGetPos`, `ControlMove`,
+`ControlHide`, `ControlShow`), or v2 answers a Windows-shaped value that the tree
+does not carry (`ControlGetClassNN`, `ControlGetHwnd`, `ControlGetStyle`,
+`ControlGetExStyle`, `ControlGetFocus`, and now the checked pair). Neither group
+is a matter of effort.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
