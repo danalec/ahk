@@ -2734,3 +2734,48 @@ mod tests {
         assert!(!title_matches("<host>/Login - Chromium", "", mode).expect("it does not match"));
     }
 }
+
+#[cfg(test)]
+mod the_pipe_of_the_window_tests {
+    //! The three pure pieces of the pipe to the window helper: the quoting of a
+    //! text into the JSON of a command, and the reading back of the two fields of
+    //! an answer. They are the parts that break without a sound, so they are
+    //! pinned here rather than found on the box.
+
+    use super::{quoted, the_number_in, the_text_in};
+
+    #[test]
+    fn a_text_of_the_pipe_is_a_json_string() {
+        assert_eq!(quoted("plain"), "\"plain\"");
+        assert_eq!(quoted("a\"b"), "\"a\\\"b\"");
+        assert_eq!(quoted("a\\b"), "\"a\\\\b\"");
+        assert_eq!(quoted("a\nb"), "\"a\\nb\"");
+    }
+
+    #[test]
+    fn the_number_and_the_text_of_an_answer_are_read_back() {
+        let answer = "{\"ok\": true, \"id\": 3, \"classnn\": \"Edit2\"}";
+        assert_eq!(the_number_in(answer, "\"id\": "), Some(3));
+        assert_eq!(
+            the_text_in(answer, "\"classnn\": "),
+            Some("Edit2".to_string())
+        );
+    }
+
+    #[test]
+    fn a_title_with_a_quote_survives_the_round_of_the_pipe() {
+        // The helper answers the title it holds, and the two readings have to be
+        // each other's inverse for that to mean anything.
+        let title = "say \"hi\"";
+        let command = format!("{{\"op\": \"title\", \"set\": {}}}", quoted(title));
+        assert_eq!(
+            command,
+            "{\"op\": \"title\", \"set\": \"say \\\"hi\\\"\"}"
+        );
+        let answer = format!("{{\"ok\": true, \"title\": {}}}", quoted(title));
+        assert_eq!(
+            the_text_in(&answer, "\"title\": "),
+            Some(title.to_string())
+        );
+    }
+}
