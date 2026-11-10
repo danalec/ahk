@@ -323,6 +323,23 @@ def the_cursor(number):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_selection(number):
+    """The text a control has selected. `EditGetSelectedText` of v2."""
+    for held, _kind, control in state["controls"]:
+        if held != number:
+            continue
+        bounds = control.get_selection_bounds()
+        if not bounds or len(bounds) < 2:
+            answer({"ok": True, "value": ""})
+            return
+        text = control.get_text()
+        start = max(0, int(bounds[0]))
+        end = min(len(text), int(bounds[1]))
+        answer({"ok": True, "value": text[start:end]})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -332,6 +349,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "selection":
+        run_on_loop(lambda: the_selection(command.get("id", 0)))
     elif op == "cursor":
         run_on_loop(lambda: the_cursor(command.get("id", 0)))
     elif op == "lines":

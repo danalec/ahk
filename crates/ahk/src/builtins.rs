@@ -1584,7 +1584,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_selected_text,
     },
     Builtin {
         name: "EditPaste",
@@ -9346,6 +9346,20 @@ pub(crate) fn edit_get_current_col(
         None => seen.len() + 1,
     };
     Ok(Value::Int(column as i64))
+}
+
+/// `EditGetSelectedText(Hwnd)`: the text a control of the script has selected.
+pub(crate) fn edit_get_selected_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    rt.desktop()
+        .gui_selection(number)
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
 }
 
 pub(crate) fn sleep(

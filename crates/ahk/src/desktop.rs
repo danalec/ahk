@@ -595,6 +595,11 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// The text a control of the script has selected.
+    fn gui_selection(&mut self, _number: u64) -> Result<String, String> {
+        Err("this desktop cannot read the selection of a control of the script".to_string())
+    }
+
     /// Where the cursor of a control of the script is, as a place in its text.
     fn gui_cursor(&mut self, _number: u64) -> Result<i64, String> {
         Err("this desktop cannot read the cursor of a control of the script".to_string())
