@@ -3523,6 +3523,34 @@ mechanical work; only the per-name work.
 where a variable-shaped name would go, and it is the same procedure with a different
 file.
 
+### Round 174 — 2026-11-09: the eight variables, resolved
+
+The last unexamined group of the 132, listed and read:
+
+| the variable | its reason | verdict |
+|---|---|---|
+| `A_Cursor` | the shape of the cursor is not read | **true** -- a cursor shape is a Windows idea, and the pointer here is one this runtime drives |
+| `A_IconFile`, `A_IconNumber`, `A_TrayMenu` | this runtime has no tray icon | **true** -- there is no tray in this session, and the tree has said so since the menu work |
+| `A_ProgramFiles`, `A_WinDir` | a name of Windows | **true** -- there is no `C:\Program Files` and no `C:\Windows` here, and inventing a mapping would be a lie of shape |
+| `A_ScriptHwnd` | this runtime has no window of its own | **true** -- measured: the script is a process that runs and ends |
+| **`A_ScreenDPI`** | this desktop does not know the scale of the output | **the one candidate** |
+
+**So seven of the eight are correct and the eighth is a question.** `A_ScreenDPI` is
+the scale of the output, and this box **does** have one: a Wayland session reports a
+scale factor, and the guest is 1920x1080 with the scale the compositor gives. The
+honest answer is `96 x scale` -- the number v2 gives, with the scale of the session
+applied -- and it is one capability method and one variable, not a new subsystem.
+
+**Not written**: it belongs with the `Screen` capability, which already answers the
+geometry and the monitors, and the scale is the one thing that capability does not
+report. That is a round of its own, and it is small.
+
+**So the 132 are now resolved into groups**, which is what an audit is for:
+
+- **124 built-in rows** that are genuinely not carried, each needing the five-step
+  procedure (round 173);
+- **8 variables**, of which **7 are correct refusals** and **1 is work**.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
