@@ -676,6 +676,7 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
         }
         Node::Unset { .. } => {}
         Node::GotoComputed { value, .. } => the_reads_of_a_node(value, reads),
+        Node::Maybe { value, .. } => the_reads_of_a_node(value, reads),
         Node::CallValue {
             target, arguments, ..
         } => {

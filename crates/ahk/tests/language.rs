@@ -6161,6 +6161,43 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_value_that_may_be_absent_is_the_absent_value_when_it_has_none() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `(v?)` is the value of
+    // `v` when it has one and the absent value when it has none; a parameter
+    // `v?` is left without a value when the call does not give it; a property
+    // of an object literal is left out when its value is the absent value; and
+    // `x := (v?)` leaves the variable without a value.
+    let (report, _desktop) = run(concat!(
+        "F(v?) {\n",
+        "    MsgBox \"isset=\" IsSet(v)\n",
+        "}\n",
+        "F()\n",
+        "F(7)\n",
+        "LiteralOf(v?) => {a: 1, b: (v?)}\n",
+        "MsgBox \"props0=\" ObjOwnPropCount(LiteralOf()) \" has_b0=\" LiteralOf().HasProp(\"b\")\n",
+        "MsgBox \"props1=\" ObjOwnPropCount(LiteralOf(5)) \" b1=\" LiteralOf(5).b\n",
+        "G(v?) {\n",
+        "    x := (v?)\n",
+        "    MsgBox \"g=\" IsSet(x)\n",
+        "}\n",
+        "G()\n",
+        "G(1)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "isset=0",
+            "isset=1",
+            "props0=1 has_b0=0",
+            "props1=2 b1=5",
+            "g=0",
+            "g=1",
+        ]
+    );
+}
+
+#[test]
 fn the_absent_value_gives_a_parameter_no_value() {
     // Measured on the binary of v2.0.19 on 2026-11-10: an argument that is
     // `unset` gives its parameter no value at all -- a required parameter is

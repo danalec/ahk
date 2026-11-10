@@ -10740,3 +10740,27 @@ required in the table is refused as missing before the handler runs.
 
 The corpus is 84 of 162 pure scripts (51.9 %): `func-var-params.ahk` and
 `string-strreplace.ahk` pass whole now.
+## 281. The value that may be absent
+
+Measured on the binary of v2.0.19 on 2026-11-10: the `?` that has no expression
+after it marks the value that may be absent. `x := (v?)` leaves `x` without a
+value when `v` has none and gives it the value when it has one; `{a: 1, b: (v?)}`
+is an object with no `b` when `v` has none; and a parameter written `v?` is
+optional, so a call that does not give it a value leaves the parameter without
+one -- which the tree carried already. The `?` of the ternary is the one that has
+an expression after it, and the parser tells the two apart by the token that
+comes after the mark: a bracket, a comma, a colon, a question mark or the end of
+the line means the absent value.
+
+The value of the expression is the value of the name, and a name that has no
+value is the absent value -- the failure of a variable that has not been assigned
+a value of the dialect -- and every other failure is the failure. The absent
+value leaves the variable without a value when it is assigned, and the property
+of an object literal is left out, which the tree carried since the block of the
+`unset` keyword.
+
+Measured on the same day: the absent value has no class, and `y := x is unset`
+is a "Syntax error." at the load, so the parser refuses the `is` whose right side
+is the keyword. The coalesce was measured again as well: `f() ?? 1` is a syntax
+error of the dialect, and only a variable may be on the left of the `??`, which
+is what the tree carries.

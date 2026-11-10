@@ -3151,8 +3151,16 @@ impl<'a> Runtime<'a> {
                     detail = format!("{name} = ");
                 } else {
                     let value = self.evaluate(value)?;
-                    let stored = self.write_a_variable(name, *op, value, *line)?;
-                    detail = format!("{name} = {}", stored.to_text());
+                    // Measured on the binary of v2.0.19 on 2026-11-10: the
+                    // value that is absent takes the value of the variable
+                    // away, the way the `unset` keyword does.
+                    if *op == AssignOp::Set && matches!(value, Value::Unset) {
+                        self.unset_variable(name);
+                        detail = format!("{name} = ");
+                    } else {
+                        let stored = self.write_a_variable(name, *op, value, *line)?;
+                        detail = format!("{name} = {}", stored.to_text());
+                    }
                 }
             }
             // The call of a value as a statement: the value is computed and
@@ -3978,6 +3986,7 @@ impl<'a> Runtime<'a> {
             | Node::Unset { .. }
             | Node::Ternary { .. }
             | Node::Group { .. }
+            | Node::Maybe { .. }
             | Node::LegacyComparison { .. }
             | Node::LegacyMatch { .. }
             | Node::LegacyControl { .. }
@@ -12966,6 +12975,23 @@ impl<'a> Runtime<'a> {
                     &values, self, *line,
                 ))
             }
+            Node::Maybe { value, .. } => {
+                // Measured on the binary of v2.0.19 on 2026-11-10: the value
+                // of the name that has none is the absent value, and every
+                // other failure is the failure.
+                match self.evaluate(value) {
+                    Ok(value) => Ok(value),
+                    Err(failure) => {
+                        if crate::classes::error::the_class_of(&the_message_of(&failure))
+                            == "UnsetError"
+                        {
+                            Ok(Value::Unset)
+                        } else {
+                            Err(failure)
+                        }
+                    }
+                }
+            }
             Node::Group { items, .. } => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the value
                 // of a parenthesized list is the last of its items, and
@@ -15337,6 +15363,7 @@ pub fn op_name_in<'a>(
         Node::AssignDynamic { .. } => "AssignDynamic",
         Node::Index { .. } => "Index",
         Node::Group { .. } => "Group",
+        Node::Maybe { .. } => "Maybe",
         Node::Empty { .. } => "Empty",
         Node::Legacy { .. } => "Legacy",
         Node::LegacyExpression { .. } => "LegacyExpression",

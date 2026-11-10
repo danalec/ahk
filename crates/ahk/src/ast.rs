@@ -810,6 +810,13 @@ pub enum Node {
     /// is kept, and the parameter has no value: one that has a default
     /// takes it, and one that has none is a missing parameter.
     Empty { line: u32 },
+    /// `expr?`: the value of the expression, or the absent value when the
+    /// expression has none.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `x := (v?)` leaves
+    /// `x` without a value when `v` has none, and `{a: (v?)}` is an object
+    /// with no property when `v` has none.
+    Maybe { value: Box<Node>, line: u32 },
     /// `expr*`: the argument of a call that is every item of the value.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: the star spreads
@@ -1018,6 +1025,7 @@ impl Node {
             | Node::AssignProperty { line, .. }
             | Node::ArrayLiteral { line, .. }
             | Node::Group { line, .. }
+            | Node::Maybe { line, .. }
             | Node::Empty { line }
             | Node::Spread { line, .. }
             | Node::Legacy { line, .. }

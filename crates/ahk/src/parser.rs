@@ -10583,11 +10583,53 @@ impl Parser {
     /// a statement may begin with a value that is already read -- the call
     /// of a statement, for instance -- and the operators that follow it
     /// are a part of it.
+    /// Whether an expression begins after the operator that is here.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: the `?` of a ternary
+    /// is followed by the value of the arm that is taken, and the `?` of the
+    /// absent value is followed by the end of the expression -- a bracket, a
+    /// comma, a colon or the end of the line.
+    fn an_expression_follows_the_question(&self) -> bool {
+        let mut at = self.position + 1;
+        while self
+            .tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
+            at += 1;
+        }
+        match self.tokens.get(at) {
+            None => false,
+            Some(token) => {
+                if token.kind == TokenKind::Eof {
+                    return false;
+                }
+                !(token.kind == TokenKind::Op
+                    && matches!(token.value.as_str(), ")" | "]" | "}" | "," | ":" | "?"))
+            }
+        }
+    }
+
     fn parse_binary_after(&mut self, mut left: Node, min: u8) -> Result<Node, SyntaxError> {
         loop {
             // The ternary is not in the table: it takes two expressions
             // and a colon, and the colon belongs to it.
             if self.at_op(&["?"]) && precedence::TERNARY >= min {
+                // Measured on the binary of v2.0.19 on 2026-11-10: the `?`
+                // that has no expression after it marks the value that may be
+                // absent -- `x := (v?)` is the value of `v` when it has one and
+                // the absent value when it has none -- and it is not the
+                // ternary.
+                if !self.an_expression_follows_the_question() {
+                    let line = left.line();
+                    self.next();
+                    left = Node::Maybe {
+                        value: Box::new(left),
+                        line,
+                    };
+                    continue;
+                }
                 let at = self.position;
                 let token = self.next();
                 let then = self.parse_binary(precedence::COALESCE)?;
@@ -10743,6 +10785,21 @@ impl Parser {
             }
             let next = if right_associative { prec } else { prec + 1 };
             let right = self.parse_binary(next)?;
+            // Measured on the binary of v2.0.19 on 2026-11-10: the keyword of
+            // the absent value may not be the class of the `is` -- `x is unset`
+            // is a "Syntax error." at the load -- because the absent value has
+            // no class.
+            if op == BinaryOp::Is {
+                if let Node::Var { name, .. } = &right {
+                    if name.eq_ignore_ascii_case("unset") {
+                        return Err(SyntaxError {
+                            message: "Syntax error.".into(),
+                            line: token.line,
+                            column: token.column,
+                        });
+                    }
+                }
+            }
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
             // the operand that is not there poisons the operation that holds
             // it: the `1 +` is the empty text. The `&&` and the `||` are the
@@ -13795,6 +13852,17 @@ fn the_assignment_operator(value: &str) -> Option<AssignOp> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The absent value has no class, and the `is` of it is refused at the
+    /// load.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `x is unset` is a
+    /// "Syntax error." at the load.
+    #[test]
+    fn the_class_of_the_absent_value_is_refused() {
+        let error = parse("y := x is unset").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.");
+    }
 
     #[test]
     fn a_syntax_error_carries_the_line_and_the_column() {
