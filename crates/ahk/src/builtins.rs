@@ -2618,9 +2618,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_redraw,
     },
     Builtin {
         name: "WinRestore",
@@ -9932,6 +9932,20 @@ pub(crate) fn win_get_transparent(
         .gui_opacity(None)
         .map(Value::Int)
         .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `WinRedraw(WinTitle)`: ask the script's window to draw itself again.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It is the `redraw`
+/// word of the option channel.
+pub(crate) fn win_redraw(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "redraw")
 }
 
 pub(crate) fn sleep(

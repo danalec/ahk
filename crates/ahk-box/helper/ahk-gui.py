@@ -312,6 +312,8 @@ def the_option(name, on):
         window.deiconify()
     elif low == "close":
         window.close()
+    elif low == "redraw":
+        window.queue_draw()
     else:
         answer({"ok": False, "error": "%s is not an option this window can set" % name})
         return
