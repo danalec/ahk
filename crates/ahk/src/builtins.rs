@@ -1566,7 +1566,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 6,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_line,
     },
     Builtin {
         name: "EditGetLineCount",
@@ -9269,6 +9269,29 @@ pub(crate) fn edit_get_line_count(
         .gui_line_count(number)
         .map(Value::Int)
         .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `EditGetLine(N, Hwnd)`: the text of the Nth line of a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: **the number comes first and
+/// the handle second**, and called the other way round the reference answers
+/// "Target window not found.", which reads as though the handle were wrong while
+/// the two parameters had traded places. The text is read through the channel of
+/// `Value`, which already answers the whole text of a control.
+pub(crate) fn edit_get_line(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = number_of(values, 0).max(1.0) as usize;
+    let number = number_of(values, 1) as u64;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let found = text.split('\n').nth(wanted - 1).unwrap_or("");
+    Ok(Value::Text(found.to_string()))
 }
 
 pub(crate) fn sleep(
