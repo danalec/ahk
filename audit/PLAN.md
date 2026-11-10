@@ -3998,9 +3998,10 @@ their own.
 
 **What has actually been finished**, so the list above is not read as aspirational:
 **all 140 rows of the AHK_X11 feature matrix**, **all four mechanisms**, **zero
-blanket refusals** (all 80 say what they are about), all seven `Edit*` names,
+blanket refusals** (all 78 say what they are about), all seven `Edit*` names,
 twenty-four `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
-capability entire with `ComboBox` and `StatusBar` controls, and `DriveGet*`,
+capability entire with `ComboBox`, `StatusBar` and `ListView` controls, a
+`TreeView` control, and `DriveGet*`,
 `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`,
 `FileRecycleEmpty`, `Group*`, `WinGetIDLast`, `OnClipboardChange` and
 `Persistent`.
@@ -4789,6 +4790,36 @@ found and fixed: `GetNext()` with no args means "first SELECTED row", not
 "row 1".
 
 **Surface 754/79 -> 755/78**, sum 833, both platforms green, clippy clean.
+
+### Round 267 — 2026-11-10: a TreeView, and a table read at the wrong place
+
+The sibling of the ListView. **Measured on the binary of v2.0.19 on
+2026-11-10**: `g.Add("TreeView", "w400")` is `SysTreeView321`,
+`tv.Add("Child", parent)` answers an item id, `GetCount`, `GetText`,
+`GetParent`, `GetChild`, `GetNext`, `GetPrev`, `GetSelection`, `Modify` and
+`Delete` all work by those ids. The ids v2 gives are arbitrary addresses; this
+tree numbers its items sequentially from one, which is an identity a script can
+hold and compare.
+
+**A wrong turn, caught by the box**: the first run answered "This value of type
+Gui.TreeView has no method named Add" -- `call_once` listed the gui classes but
+had left `gui.treeview` out. **Four match arms** needed the name, not one.
+
+**And the extracted table was wrong again**: `TREEVIEW` lists `SetText`,
+`SetIcon`, `SetImageList`, `SetParts` and `Get`, but the binary has no such
+methods -- `tv.SetText(...)` answers "has no method named SetText". Like the
+Buffer and Func tables before it, the extraction read part of the table at the
+wrong place. Those names keep the refusal, and the true methods are implemented.
+
+**Built**: a `Gtk.TreeStore` + `Gtk.TreeView` in the helper with seven ops,
+seven trait methods and box implementations, a `gui::call` arm for the
+`Gui.TreeView` family (which used to refuse every name), and **one language
+case** that builds a tree and walks it. **Verified on the box**: `p1=1 p2=2
+c1=3 | count=3 | text=[Parent one] | parent=1 child=3 next=2 prev=1 sel=1
+afterDelete=2` -- every line matching the reference's semantics.
+
+The surface count does not move (these are class methods, not builtin rows):
+**755 / 78**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in

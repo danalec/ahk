@@ -1438,7 +1438,7 @@ pub(crate) fn construct(
         "clipboardall" => Some(clipboard::construct(arguments, rt, line)),
         "hotkey" => Some(hotkey::construct(arguments, rt, line)),
         "map" => Some(map::construct(arguments, rt, line)),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
+        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.menu" | "gui.statusbar" => {
             Some(gui::construct(class, arguments, rt, line))
         }
         _ => None,
@@ -1802,7 +1802,8 @@ fn call_once(
         // The methods of the base object are the methods of every object,
         // and they are answered by the runtime.
         "object" => rt.base_method(this, method, arguments, line),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
+        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.treeview"
+        | "gui.menu" | "gui.statusbar" => {
             gui::call(class, method, this, arguments, rt, line)
         }
         _ => None,
@@ -2047,7 +2048,7 @@ pub(crate) fn property(
         "func" => func::property(name, this, rt, line),
         "hotkey" => hotkey::property(name, this, rt, line),
         "map" => map::property(name, this, rt, line),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
+        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.menu" | "gui.statusbar" => {
             gui::property(class, name, this, rt, line)
         }
         _ => None,
@@ -2133,7 +2134,7 @@ pub(crate) fn set_property(
         "func" => func::set_property(name, this, value, rt, line),
         "hotkey" => hotkey::set_property(name, this, value, rt, line),
         "map" => map::set_property(name, this, value, rt, line),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
+        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.menu" | "gui.statusbar" => {
             gui::set_property(class, name, this, value, rt, line)
         }
         _ => None,

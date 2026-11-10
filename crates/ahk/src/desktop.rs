@@ -718,6 +718,48 @@ pub trait Windows {
         Err("this desktop cannot read the next row of a list view".to_string())
     }
 
+    // -- the tree view ------------------------------------------------------------
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-10: a TreeView is
+    // `SysTreeView321`, `tv.Add(text, parent)` answers an item id, and the
+    // Get* family walks the tree by those ids. This runtime numbers its items
+    // sequentially from one, which is an identity a script can hold and compare.
+
+    /// Add an item under a parent (0 = a root); answers its id.
+    fn gui_tree_add(&mut self, _number: u64, _text: &str, _parent: i64, _options: &str) -> Result<i64, String> {
+        Err("this desktop cannot add an item to a tree view".to_string())
+    }
+
+    /// The number of items.
+    fn gui_tree_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the items of a tree view".to_string())
+    }
+
+    /// The text of an item.
+    fn gui_tree_text(&mut self, _number: u64, _item: i64) -> Result<String, String> {
+        Err("this desktop cannot read the text of an item of a tree view".to_string())
+    }
+
+    /// A related item's id: "parent", "child", "next" or "prev".
+    fn gui_tree_relation(&mut self, _number: u64, _item: i64, _relation: &str) -> Result<i64, String> {
+        Err("this desktop cannot walk a tree view".to_string())
+    }
+
+    /// The id of the selected item, or zero.
+    fn gui_tree_selection(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot read the selection of a tree view".to_string())
+    }
+
+    /// Select or expand an item; answers its id.
+    fn gui_tree_modify(&mut self, _number: u64, _item: i64, _options: &str) -> Result<i64, String> {
+        Err("this desktop cannot change an item of a tree view".to_string())
+    }
+
+    /// Remove an item.
+    fn gui_tree_delete(&mut self, _number: u64, _item: i64) -> Result<i64, String> {
+        Err("this desktop cannot delete an item of a tree view".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())

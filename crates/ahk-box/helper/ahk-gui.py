@@ -119,6 +119,22 @@ def the_control(kind, text):
         control.set_headers_visible(True)
         control.get_selection().set_mode(Gtk.SelectionMode.SINGLE)
         state.setdefault("list_columns", {})[state["next_id"]] = len(columns)
+    elif kind == "TreeView":
+        # `Add("TreeView", options)` -- one column of item texts, with parents.
+        # Measured on the binary of v2.0.19 on 2026-11-10: a TreeView is
+        # `SysTreeView321`, `tv.Add("text", parent)` answers an item id, and
+        # GetParent/GetChild/GetNext/GetPrev/GetSelection walk the tree by ids.
+        store = Gtk.TreeStore(str, int)
+        control = Gtk.TreeView(model=store)
+        control.append_column(
+            Gtk.TreeViewColumn("Item", Gtk.CellRendererText(), text=0)
+        )
+        control.set_headers_visible(False)
+        control.get_selection().set_mode(Gtk.SelectionMode.SINGLE)
+        state.setdefault("tree_items", {})[state["next_id"]] = {
+            "next": 1,
+            "by_id": {},
+        }
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -189,6 +205,9 @@ def the_text_of_a_control(kind, control):
         # The text of a list view is its rows, which `ListViewGetContent` reads.
         model = control.get_model()
         return "\n".join("\t".join(list(row)) for row in model)
+    if kind == "TreeView":
+        model = control.get_model()
+        return "\n".join(row[0] for row in model)
     return control.get_text()
 
 
@@ -570,6 +589,8 @@ def the_class_of(kind):
     # A ListView is `SysListView321`, and a TreeView is `SysTreeView321`.
     if kind == "ListView":
         return "SysListView32"
+    if kind == "TreeView":
+        return "SysTreeView32"
     return kind
 
 
@@ -923,6 +944,163 @@ def the_list_next(number, start):
     answer({"ok": True, "value": start + 1 if start + 1 <= count else 0})
 
 
+def the_tree(number):
+    """The TreeView and its table of items, if this number is a tree."""
+    for held, kind, control in state["controls"]:
+        if held == number and kind == "TreeView":
+            return control, state.get("tree_items", {}).get(number)
+    return None, None
+
+
+def the_tree_iter(table, item_id):
+    """The GtkTreeIter of an item id, or None when the id is not there."""
+    entry = table.get("by_id", {}).get(item_id) if table else None
+    return entry.get("iter") if entry else None
+
+
+def the_tree_add(number, text, parent, options):
+    """Add an item to a tree, and answer its id. `tv.Add` of v2.
+
+    Measured on the binary of v2.0.19 on 2026-11-10: `tv.Add("Child", parent)`
+    answers an id that GetParent and GetChild use. The ids here are sequential
+    integers from one, which is an identity a script can hold and compare.
+    """
+    control, table = the_tree(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a tree view" % number})
+        return
+    item_id = table["next"]
+    table["next"] += 1
+    parent_iter = the_tree_iter(table, parent) if parent else None
+    row = control.get_model().append(parent_iter, [text, item_id])
+    table["by_id"][item_id] = {
+        "text": text,
+        "parent": parent if parent else 0,
+        "iter": row,
+        "order": item_id,
+    }
+    if "select" in options.lower():
+        control.get_selection().select_iter(row)
+    answer({"ok": True, "value": item_id})
+
+
+def the_tree_count(number):
+    """The number of items. `tv.GetCount` of v2."""
+    _control, table = the_tree(number)
+    if table is None:
+        answer({"ok": False, "error": "%d is not a tree view" % number})
+        return
+    answer({"ok": True, "value": len(table["by_id"])})
+
+
+def the_tree_text(number, item_id):
+    """The text of an item, or the empty text. `tv.GetText` of v2."""
+    _control, table = the_tree(number)
+    if table is None:
+        answer({"ok": False, "error": "%d is not a tree view" % number})
+        return
+    entry = table["by_id"].get(item_id)
+    answer({"ok": True, "value": entry["text"] if entry else ""})
+
+
+def the_tree_relation(number, item_id, relation):
+    """The id of a related item: parent, child, next or previous.
+
+    Measured on the binary of v2.0.19 on 2026-11-10: GetParent of a child is
+    the parent's id, GetChild of a parent is its first child, GetNext is the
+    next sibling (or the next root) and GetPrev the one before. A missing
+    relation answers zero.
+    """
+    _control, table = the_tree(number)
+    if table is None:
+        answer({"ok": False, "error": "%d is not a tree view" % number})
+        return
+    by_id = table["by_id"]
+    entry = by_id.get(item_id)
+    if entry is None:
+        answer({"ok": True, "value": 0})
+        return
+    if relation == "parent":
+        answer({"ok": True, "value": entry["parent"]})
+        return
+    if relation == "child":
+        for other in by_id.values():
+            if other["parent"] == item_id:
+                answer({"ok": True, "value": other["order"]})
+                return
+        answer({"ok": True, "value": 0})
+        return
+    # Next and previous among the items with the same parent.
+    siblings = sorted(
+        (other for other in by_id.values() if other["parent"] == entry["parent"]),
+        key=lambda held: held["order"],
+    )
+    places = [other["order"] for other in siblings]
+    at = places.index(item_id)
+    if relation == "next" and at + 1 < len(places):
+        answer({"ok": True, "value": places[at + 1]})
+        return
+    if relation == "prev" and at > 0:
+        answer({"ok": True, "value": places[at - 1]})
+        return
+    # Past the last sibling, GetNext continues with the next root item.
+    if relation == "next":
+        roots = sorted(
+            (other for other in by_id.values() if other["parent"] == 0),
+            key=lambda held: held["order"],
+        )
+        for other in roots:
+            if other["order"] > item_id:
+                answer({"ok": True, "value": other["order"]})
+                return
+    answer({"ok": True, "value": 0})
+
+
+def the_tree_selection(number):
+    """The id of the selected item, or zero. `tv.GetSelection` of v2."""
+    control, table = the_tree(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a tree view" % number})
+        return
+    selected = control.get_selection().get_selected()[1]
+    if selected is None:
+        answer({"ok": True, "value": 0})
+        return
+    item_id = control.get_model().get_value(selected, 1)
+    answer({"ok": True, "value": item_id})
+
+
+def the_tree_modify(number, item_id, options):
+    """Select an item (and optionally expand it). `tv.Modify` of v2."""
+    control, table = the_tree(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a tree view" % number})
+        return
+    row = the_tree_iter(table, item_id)
+    if row is None:
+        answer({"ok": False, "error": "there is no item %d" % item_id})
+        return
+    if "select" in options.lower():
+        control.get_selection().select_iter(row)
+    if "expand" in options.lower():
+        control.expand_to_path(control.get_model().get_path(row))
+    answer({"ok": True, "value": item_id})
+
+
+def the_tree_delete(number, item_id):
+    """Remove an item. `tv.Delete` of v2."""
+    control, table = the_tree(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a tree view" % number})
+        return
+    entry = table["by_id"].pop(item_id, None)
+    if entry is None:
+        answer({"ok": True, "value": 1})
+        return
+    control.get_model().remove(entry["iter"])
+    answer({"ok": True, "value": 1})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -1060,6 +1238,43 @@ def handle(command):
     elif op == "list-next":
         run_on_loop(
             lambda: the_list_next(command.get("id", 0), command.get("start", 0))
+        )
+    elif op == "tree-add":
+        run_on_loop(
+            lambda: the_tree_add(
+                command.get("id", 0),
+                command.get("text", ""),
+                command.get("parent", 0),
+                command.get("options", ""),
+            )
+        )
+    elif op == "tree-count":
+        run_on_loop(lambda: the_tree_count(command.get("id", 0)))
+    elif op == "tree-text":
+        run_on_loop(
+            lambda: the_tree_text(command.get("id", 0), command.get("item", 0))
+        )
+    elif op == "tree-relation":
+        run_on_loop(
+            lambda: the_tree_relation(
+                command.get("id", 0),
+                command.get("item", 0),
+                command.get("relation", ""),
+            )
+        )
+    elif op == "tree-selection":
+        run_on_loop(lambda: the_tree_selection(command.get("id", 0)))
+    elif op == "tree-modify":
+        run_on_loop(
+            lambda: the_tree_modify(
+                command.get("id", 0),
+                command.get("item", 0),
+                command.get("options", ""),
+            )
+        )
+    elif op == "tree-delete":
+        run_on_loop(
+            lambda: the_tree_delete(command.get("id", 0), command.get("item", 0))
         )
     elif op == "add":
         run_on_loop(

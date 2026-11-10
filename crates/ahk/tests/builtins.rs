@@ -38,6 +38,10 @@ struct Fake {
     /// The rows of the one list view the fake carries.
     list_rows: Vec<Vec<String>>,
     list_selected: i64,
+    /// The items of the one tree view the fake carries: (id, text, parent).
+    tree_items: Vec<(i64, String, i64)>,
+    tree_next: i64,
+    tree_selected: i64,
     /// Whether the fake has a window of the script at all.
     gui_open: bool,
 }
@@ -365,11 +369,22 @@ impl Windows for Fake {
     fn gui_is_open(&mut self) -> bool {
         self.gui_open
     }
+    fn gui_add(&mut self, _handle: u64, kind: &str, _text: &str) -> Result<(u64, String), String> {
+        self.calls.push(("add".into(), kind.to_string()));
+        let classnn = match kind.to_lowercase().as_str() {
+            "treeview" => "SysTreeView321",
+            "listview" => "SysListView321",
+            "statusbar" => "msctls_statusbar321",
+            _ => "ComboBox1",
+        };
+        Ok((1, classnn.to_string()))
+    }
     fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
         self.calls.push(("resolve".into(), classnn.to_string()));
         if classnn.eq_ignore_ascii_case("ComboBox1")
             || classnn.eq_ignore_ascii_case("msctls_statusbar321")
             || classnn.eq_ignore_ascii_case("SysListView321")
+            || classnn.eq_ignore_ascii_case("SysTreeView321")
         {
             Ok(1)
         } else {
@@ -489,6 +504,64 @@ impl Windows for Fake {
         } else {
             0
         })
+    }
+    fn gui_tree_add(&mut self, _number: u64, text: &str, parent: i64, _options: &str) -> Result<i64, String> {
+        let id = self.tree_next;
+        self.tree_next += 1;
+        self.tree_items.push((id, text.to_string(), parent));
+        Ok(id)
+    }
+    fn gui_tree_count(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.tree_items.len() as i64)
+    }
+    fn gui_tree_text(&mut self, _number: u64, item: i64) -> Result<String, String> {
+        Ok(self
+            .tree_items
+            .iter()
+            .find(|(id, _, _)| *id == item)
+            .map(|(_, text, _)| text.clone())
+            .unwrap_or_default())
+    }
+    fn gui_tree_relation(&mut self, _number: u64, item: i64, relation: &str) -> Result<i64, String> {
+        let entry = self.tree_items.iter().find(|(id, _, _)| *id == item).cloned();
+        let Some((_id, _text, parent)) = entry else {
+            return Ok(0);
+        };
+        Ok(match relation {
+            "parent" => parent,
+            "child" => self
+                .tree_items
+                .iter()
+                .find(|(_, _, held)| *held == item)
+                .map(|(id, _, _)| *id)
+                .unwrap_or(0),
+            "next" => self
+                .tree_items
+                .iter()
+                .filter(|(_, _, held)| *held == parent)
+                .map(|(id, _, _)| *id)
+                .find(|id| *id > item)
+                .unwrap_or(0),
+            "prev" => self
+                .tree_items
+                .iter()
+                .rev()
+                .find(|(id, _, held)| *held == parent && *id < item)
+                .map(|(id, _, _)| *id)
+                .unwrap_or(0),
+            _ => 0,
+        })
+    }
+    fn gui_tree_selection(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.tree_selected)
+    }
+    fn gui_tree_modify(&mut self, _number: u64, item: i64, _options: &str) -> Result<i64, String> {
+        self.tree_selected = item;
+        Ok(item)
+    }
+    fn gui_tree_delete(&mut self, _number: u64, item: i64) -> Result<i64, String> {
+        self.tree_items.retain(|(id, _, _)| *id != item);
+        Ok(1)
     }
 }
 impl Files for Fake {
@@ -4307,6 +4380,37 @@ fn list_view_get_content_of_the_selected_row() {
     );
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "c"), Value::Text("alpha\t10".into()));
+}
+
+// -- the tree view -----------------------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-10: a TreeView is
+// `SysTreeView321`, `tv.Add(text, parent)` answers an item id, and the Get*
+// family walks the tree by those ids.
+
+#[test]
+fn a_tree_view_is_built_and_walked_by_its_items() {
+    let mut desktop = Fake {
+        gui_open: true,
+        tree_next: 1,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\ntv := g.Add(\"TreeView\", \"w400\")\np1 := tv.Add(\"Parent one\")\np2 := tv.Add(\"Parent two\")\nc1 := tv.Add(\"Child one\", p1)\nn := tv.GetCount()\nt := tv.GetText(p1)\nparent := tv.GetParent(c1)\nchild := tv.GetChild(p1)\nnext := tv.GetNext(p1)\nprev := tv.GetPrev(p2)\ntv.Modify(p1, \"Select\")\nsel := tv.GetSelection()\ntv.Delete(c1)\nafter := tv.GetCount()",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "p1"), 1);
+    assert_eq!(int_of(&report, "p2"), 2);
+    assert_eq!(int_of(&report, "c1"), 3);
+    assert_eq!(int_of(&report, "n"), 3);
+    assert_eq!(value_of(&report, "t"), Value::Text("Parent one".into()));
+    assert_eq!(int_of(&report, "parent"), 1);
+    assert_eq!(int_of(&report, "child"), 3);
+    assert_eq!(int_of(&report, "next"), 2);
+    assert_eq!(int_of(&report, "prev"), 1);
+    assert_eq!(int_of(&report, "sel"), 1);
+    assert_eq!(int_of(&report, "after"), 2);
 }
 
 #[test]

@@ -1323,6 +1323,69 @@ impl ahk::desktop::Windows for LabDesktop {
         the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the next row was not read: {said}"))
     }
 
+    fn gui_tree_add(&mut self, number: u64, text: &str, parent: i64, options: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-add\", \"id\": {}, \"text\": {}, \"parent\": {}, \"options\": {}}}",
+            number,
+            quoted(text),
+            parent,
+            quoted(options)
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not added: {said}"))
+    }
+
+    fn gui_tree_count(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-count\", \"id\": {}}}",
+            number
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the items were not counted: {said}"))
+    }
+
+    fn gui_tree_text(&mut self, number: u64, item: i64) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-text\", \"id\": {}, \"item\": {}}}",
+            number, item
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    fn gui_tree_relation(&mut self, number: u64, item: i64, relation: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-relation\", \"id\": {}, \"item\": {}, \"relation\": {}}}",
+            number,
+            item,
+            quoted(relation)
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the tree was not walked: {said}"))
+    }
+
+    fn gui_tree_selection(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-selection\", \"id\": {}}}",
+            number
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the selection was not read: {said}"))
+    }
+
+    fn gui_tree_modify(&mut self, number: u64, item: i64, options: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-modify\", \"id\": {}, \"item\": {}, \"options\": {}}}",
+            number,
+            item,
+            quoted(options)
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not changed: {said}"))
+    }
+
+    fn gui_tree_delete(&mut self, number: u64, item: i64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-delete\", \"id\": {}, \"item\": {}}}",
+            number, item
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not deleted: {said}"))
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }
