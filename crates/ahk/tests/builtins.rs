@@ -966,10 +966,23 @@ fn a_drag_goes_down_in_one_place_and_comes_up_in_another() {
 
 #[test]
 fn a_name_of_windows_fails_with_the_reason() {
+    // `StrGet` used to be the example of the blanket reason. On 2026-11-10 it
+    // was given a reason of its own: the reference hangs on it, so there is no
+    // answer for this runtime to match. `RegRead` is a name of Windows in the
+    // plain sense, and it still says so.
+    let report = run("RegRead(\"HKLM\", \"Software\")");
+    assert_eq!(
+        failure_of(&report),
+        "the registry is a thing of Windows, and this runtime does not carry it."
+    );
+}
+
+#[test]
+fn a_name_with_no_answer_to_match_says_so() {
     let report = run("StrGet(\"a\")");
     assert_eq!(
         failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
+        "the reference hangs or fails on this name, so there is no answer for this runtime to match."
     );
 }
 
@@ -1798,7 +1811,7 @@ fn the_names_of_com_fail_with_the_reason() {
     let report = run("a := ComObjActive(\"Excel.Application\")");
     assert_eq!(
         failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
+        "COM objects belong to the component model of Windows, and this runtime has no COM."
     );
 }
 
@@ -3416,11 +3429,13 @@ fn an_empty_text_is_named_in_the_message_of_the_check() {
 
 #[test]
 fn a_name_that_the_tree_does_not_carry_says_the_reason_of_the_machine_when_the_kind_fits() {
-    // `StrPtr` answers an address, and this runtime has none to give.
+    // `StrPtr` used to answer the blanket reason. On 2026-11-10 it was given
+    // one of its own: a pointer to a string is a value at a stable address, and
+    // the values of this runtime have none.
     let report = run("a := StrPtr(\"x\")");
     assert_eq!(
         failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
+        "a pointer to a string would be a value at a stable address, and the values of this runtime have none."
     );
 }
 

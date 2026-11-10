@@ -4479,6 +4479,63 @@ Every one of the 25 was carried once each was asked about specifically. **A taxo
 of reasons is not a list of work** -- it is a description, and it took a new objective
 with a harder word in it to notice.
 
+### Round 258 — 2026-11-10: the last blanket refusal is gone
+
+An objective of one word, **"complete"**, was read as finishing what the last
+handover had named as unfinished. Two things were done.
+
+**1. The key tokens of `ControlSend`.** Measured on the binary of v2.0.19 on
+2026-11-10: `ControlSend "a{Enter}b"` leaves `ab` in a single-line edit and
+`a` + a line break + `b` in a multi-line one. The tree used to refuse every
+brace token with one blanket message. It now reads the tokens through the same
+splitter `Send` uses and expands the ones whose effect is text -- Enter to a
+line break, Tab to a tab, Backspace to a removed letter. A key with a modifier,
+a held key, or one with no text effect is refused with a reason that names it.
+**Verified on the box**: `xa` + line break + `b`, then a tab, then `{F5}` saying
+it has no text effect on a control.
+
+**2. All 60 blanket refusals were given reasons of their own.** Before this
+round, 60 names had `variant: 100` and `handler: not_carried`, so every one
+answered *"this is a name of Windows, and this desktop is not Windows"* --
+which was false for COM objects (Windows, yes, but the reason is COM), for the
+list controls (the reference hangs), for the drive tools (Linux has them), for
+window groups (cross-statement state), and for `StrPtr` (no stable address).
+
+The mechanism already existed: `not_carried` maps `variant - REFUSAL` into
+`refusal_message`, so ten new arms (indices 24 to 33) and ten group variants
+gave each of the 60 a true statement **without a new handler per name**:
+
+| index | reason | names |
+|---|---|---|
+| 24 | COM objects are the component model of Windows | the 9 `Com*` |
+| 25 | image lists are Win32 `IL_*` handles | 3 |
+| 26 | Win32 window procedure messages | 3 |
+| 27 | list controls and status bars; the reference cannot be asked | 17 |
+| 28 | the drive tools of the machine | 9 `Drive*` |
+| 29 | window groups need cross-statement state | 4 `Group*` |
+| 30 | no handle table and no last-found window | 5 |
+| 31 | the lock lights of the keyboard | 3 |
+| 32 | the reference hangs or fails | 5 incl. `CaretGetPos`, `FileGetShortcut`, `StrGet` |
+| 33 | no stable address for a value | `StrPtr` |
+
+**Verified on the box**: eleven calls, one per group, each answering its own
+reason; `CaretGetPos` was stopped by its declaration (a VarRef is wanted), which
+is correct. **There are now zero variant-100 blanket refusals in the table.**
+Three tests that asserted the old blanket wording were moved to the specific
+reason of the name they use, and one new test was added for the unmeasurable
+group.
+
+**Surface unchanged at 736 / 97** -- a variant is still a refusal, only the
+reason it prints is now true. Sum 833, suites green, clippy clean on both
+platforms.
+
+**The lesson**: round 214 said a new variant would count as a value and was
+therefore the wrong fix. That was true for a variant BELOW `REFUSAL`; a variant
+ABOVE it is already a refusal and maps to a reason. **The two halves of the
+fix were both already in the table** -- a reason per group and a variant per
+reason -- and the only work was to see that the mechanism had been there since
+the beginning.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
