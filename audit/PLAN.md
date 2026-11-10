@@ -3988,19 +3988,21 @@ index and the chosen text), and `ControlGetItems`, `ControlAddItem`,
 `ControlGetIndex`, `ControlDeleteItem` and `ControlFindItem`. **Verified on the
 box against every measured contract.**
 
-**What remains**: the nine names of the same family that act on a control this
-tree still does not make (the drop-down show/hide, the styles, `ListViewGetContent`
-and the status bar), and the three unmeasurable file names. Those are answers
-with reasons of their own, not gaps. The registry, COM objects, image lists,
-styles and HWND table are true refusals, also with reasons.
+**What remains**: `ListViewGetContent` and `StatusBarWait` need a real list-view
+and a wait loop; the style names are Win32 bitmasks this platform has no
+equivalent for (`ControlGetStyle` answers 1342242944 on the reference); and
+`ControlMove` was measured to have **no size-only form**, so its refusal is
+true. The registry, COM objects, image lists, HWND table, drive letters and
+the three unmeasurable file names are answers with reasons of their own.
 
 **What has actually been finished**, so the list above is not read as aspirational:
 **all 140 rows of the AHK_X11 feature matrix**, **all four mechanisms**, **zero
-blanket refusals** (all 83 say what they are about), all seven `Edit*` names,
-twenty-two `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
-capability entire with a `ComboBox` control, and `DriveGet*`, `MonitorGet*`,
-`SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`, `FileRecycleEmpty`,
-`Group*`, `WinGetIDLast`, `OnClipboardChange` and `Persistent`.
+blanket refusals** (all 80 say what they are about), all seven `Edit*` names,
+twenty-four `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
+capability entire with `ComboBox` and `StatusBar` controls, and `DriveGet*`,
+`MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`,
+`FileRecycleEmpty`, `Group*`, `WinGetIDLast`, `OnClipboardChange` and
+`Persistent`.
 
 **The four questions that produced all of this**, and that a successor should keep
 asking:
@@ -4277,7 +4279,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **750 answer, 83 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **753 answer, 80 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -4684,6 +4686,32 @@ says a ComboBox IS made and those calls are about a different control.
 
 **All four mechanisms are done.** Both platforms: 750/83, sum 833, suites green,
 clippy clean, the box's 28 suites green, source hashes matching.
+
+### Round 263 — 2026-11-10: three more names that a ComboBox made possible
+
+With the `ComboBox` of round 262 in place, three names of the same family were
+measured and answered.
+
+**Measured on the binary of v2.0.19 on 2026-11-10**: `ControlShowDropDown` and
+`ControlHideDropDown` both answer the empty text; a `StatusBar` is named
+**`msctls_statusbar321`** (not `StatusBar1`) and `StatusBarGetText(1, WinTitle)`
+answers the text the bar was made with. `ListViewGetContent("", "SysListView321",
+title)` answers a tab-separated string of rows, and a real `ListView` needs a
+`Gtk.TreeView` with columns -- a piece of its own, not a quick win.
+
+**The style names were measured too**: `ControlGetStyle` answers 1342242944 and
+`ControlGetExStyle` 512, both Win32 bitmasks; `ControlSetStyle` and
+`ControlSetExStyle` answer the empty text. A GTK widget has no such number, so
+answering a fabricated constant would be a lie and the specific refusal stays.
+`ControlMove` was measured to have **no size-only form** -- every call asks for a
+place, which a box layout cannot set -- so its refusal is true as well.
+
+**Built**: a `StatusBar` kind in the helper (a `Gtk.Label`), a `status-text`
+operation, `popup`/`popdown` on the ComboBox, two trait methods, and three
+handlers. **Verified on the box**: `show=[]|hide=[]`, `classnn=msctls_statusbar321`,
+`text=[the status]`.
+
+**Surface 750/83 -> 753/80**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
