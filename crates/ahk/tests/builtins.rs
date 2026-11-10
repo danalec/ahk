@@ -1724,6 +1724,26 @@ fn is_set_ref_wants_a_reference() {
 }
 
 #[test]
+fn is_set_takes_the_variable_itself_and_not_a_reference_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `IsSet(x)` answers one
+    // when `x` has a value and zero when it does not, and the variable is
+    // handed over as a reference by the parameter shape alone. A value that
+    // is not a variable is refused. Ported from master on 2026-11-10, where
+    // this was the one name the master carried and this branch did not.
+    let report = run(concat!(
+        "x := 1",
+        "\na := IsSet(x)",
+        "\nb := IsSet(nothere)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 1);
+    assert_eq!(int_of(&report, "b"), 0);
+
+    let report = run("a := IsSet(1)");
+    assert_eq!(failure_of(&report), "IsSet requires a variable.");
+}
+
+#[test]
 fn the_commands_of_the_settings_answer_with_the_value_that_was_there() {
     // Measured on the binary of v2.0.19 on 2026-10-31: every one of them
     // answers the value that was there before. The script sets the mode of

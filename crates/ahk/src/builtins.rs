@@ -881,6 +881,15 @@ pub const BUILTINS: &[Builtin] = &[
         handler: has_prop,
     },
     Builtin {
+        name: "IsSet",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Reference],
+        handler: is_set,
+    },
+    Builtin {
         name: "IsSetRef",
         kind: BuiltinKind::Function,
         min: 1,
@@ -4549,6 +4558,33 @@ pub(crate) fn is_set_ref(
         });
     };
     Ok(Value::Int(rt.read_reference(reference).is_some() as i64))
+}
+
+/// `IsSet`: whether the variable of the caller has a value.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a variable that has no
+/// value is zero and not a failure, a name that was never written is zero,
+/// and an argument that is not a variable is refused with "IsSet requires a
+/// variable.". Ported from master on 2026-11-10, where the row was the one
+/// name the master carried and this branch did not.
+pub(crate) fn is_set(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match values.first() {
+        // The runtime hands the argument over as a reference only when the
+        // script wrote a variable: a reference of its own -- `&x` -- is a
+        // value, and v2 refuses it.
+        Some(Value::Reference(reference)) if reference.alias => {
+            Ok(Value::Int(rt.read_reference(reference).is_some() as i64))
+        }
+        _ => Err(RuntimeError {
+            message: "IsSet requires a variable.".to_string(),
+            line,
+        }),
+    }
 }
 
 // -- the keys ----------------------------------------------------------------------

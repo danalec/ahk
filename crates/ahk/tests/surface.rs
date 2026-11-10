@@ -30,12 +30,14 @@ const PENDING: &str = include_str!("../reference/ahk-v2.0.19.pending.tsv");
 const SURFACE_V1: &str = include_str!("../reference/ahk-v1.1.37.02.surface.tsv");
 const PENDING_V1: &str = include_str!("../reference/ahk-v1.1.37.02.pending.tsv");
 
-/// The names the dialect carries that v2.0.19 does not have.
+/// The names the dialect carries that the table of v2.0.19 does not name.
 ///
-/// `Screenshot` is the one: the dialect writes a picture of the screen
-/// to a file, and v2 has no such name. It is listed here so that a name
-/// the tree invents by accident still fails the test.
-const DIALECT: &[&str] = &["Screenshot"];
+/// `Screenshot` is the one the dialect has and v2 does not: it writes a
+/// picture of the screen to a file. `IsSet` is the other way round -- v2
+/// has it and the extraction missed it, measured on the binary of v2.0.19
+/// on 2026-11-09 with `IsSet(unset)`, which answers 0 -- and it is listed
+/// here so that a name the tree invents by accident still fails the test.
+const DIALECT: &[&str] = &["Screenshot", "IsSet"];
 
 /// The reasons a pending row may carry.
 const REASONS: &[&str] = &["windows", "hotkey", "class", "variable", "not-yet"];

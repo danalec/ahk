@@ -140,6 +140,13 @@ pub trait Dialect: Sync {
     /// number of the replacements into the variable of the fourth argument.
     /// The v2 writes the reference in the call itself (`&y`).
     fn the_place_of_the_argument_that_wants_the_variable(&self, name: &str) -> Option<usize> {
+        // `IsSet(x)` of the v2 asks about the variable itself, and the
+        // runtime hands it over as a reference when the script wrote a
+        // variable. Measured on the binary of v2.0.19 on 2026-11-09:
+        // `IsSet(unset)` answers 0 and `IsSet(x)` with a value answers 1.
+        if name.eq_ignore_ascii_case("IsSet") {
+            return Some(0);
+        }
         let _ = name;
         None
     }
