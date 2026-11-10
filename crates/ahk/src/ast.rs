@@ -648,6 +648,16 @@ pub enum Node {
     While {
         condition: Box<Node>,
         body: Vec<Node>,
+        /// The `Until` of the loop: the condition that is read after every
+        /// turn, and the loop ends when it is true.
+        ///
+        /// Measured on the test suite of KeySharp (the corpus script
+        /// `flow-until.ahk`) and on the notes of v2.1-alpha: the `Until`
+        /// clause of a `while` is a mechanism of v2.1, and the binary of
+        /// v2.0.19 refuses it with "Unexpected \"Until\"". It is carried
+        /// behind the dialect that carries the mechanisms of the v2.1, and
+        /// the v2.0.19 keeps refusing it.
+        until: Option<Box<Node>>,
         /// The `Else` of the loop: the statements that run when the loop
         /// took no turn at all.
         ///

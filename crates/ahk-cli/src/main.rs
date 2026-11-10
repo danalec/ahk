@@ -198,10 +198,14 @@ fn the_dialect() -> &'static dyn Dialect {
     });
     match asked.as_deref() {
         Some("v1") => dialect::v1(),
+        // The mechanisms of v2.1 beside the v2.0.19: the names and the tables
+        // are the ones of the v2, and the mechanisms that the v2.1 adds are the
+        // ones that the gate turns on.
+        Some("v2.1") | Some("v2_1") => dialect::v2_1(),
         Some("v2") | None => dialect::v2(),
         Some(other) => {
             eprintln!(
-                "the dialect {other} is not one this tree speaks: the tree speaks v1 and v2."
+                "the dialect {other} is not one this tree speaks: the tree speaks v1, v2 and v2.1."
             );
             std::process::exit(2);
         }

@@ -8517,6 +8517,44 @@ impl Parser {
         })
     }
 
+    /// The `Until` of a `while`, when the dialect that carries the mechanisms
+    /// of the v2.1 is the one that runs.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `flow-until.ahk`) and on the notes of v2.1-alpha: the word is the
+    /// statement that comes right after the body of the loop, and the
+    /// condition is read after every turn of it. The word that the script
+    /// uses as the name of a variable is not the condition.
+    fn the_until_of_a_while(&mut self) -> Result<Option<Box<Node>>, SyntaxError> {
+        let mut at = self.position;
+        while self
+            .tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
+            at += 1;
+        }
+        let Some(token) = self.tokens.get(at) else {
+            return Ok(None);
+        };
+        if token.kind != TokenKind::Keyword || !token.value.eq_ignore_ascii_case("until") {
+            return Ok(None);
+        }
+        let line = token.line;
+        self.position = at;
+        self.next();
+        if self.at_end_of_statement() {
+            return Err(self.error(format!(
+                "\"Until\" requires at least 1 parameter.\n     Specifically: {}",
+                the_source_of_the_line(self, line)
+            )));
+        }
+        let condition = self.the_expression_of_a_statement()?;
+        self.end_of_statement()?;
+        Ok(Some(Box::new(condition)))
+    }
+
     fn parse_while(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
@@ -8550,6 +8588,15 @@ impl Parser {
         };
         self.end_of_block()?;
         let body = self.the_body_of_a_loop("While", token.line)?;
+        // Measured on the test suite of KeySharp (the corpus script
+        // `flow-until.ahk`) and on the notes of v2.1-alpha: the `Until` of a
+        // `while` comes after the body, and the v2.0.19 refuses the word. The
+        // dialect that carries the mechanisms of the v2.1 takes it.
+        let until = if self.dialect.a_while_may_carry_an_until() {
+            self.the_until_of_a_while()?
+        } else {
+            None
+        };
         let otherwise = self.the_else_of_a_loop()?;
         let Some(condition) = condition else {
             return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
@@ -8557,6 +8604,7 @@ impl Parser {
         Ok(Node::While {
             condition: Box::new(condition),
             body,
+            until,
             otherwise,
             line: token.line,
         })

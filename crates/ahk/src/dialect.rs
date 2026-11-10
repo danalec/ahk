@@ -1915,6 +1915,17 @@ pub trait Dialect: Sync {
         crate::settings::the_defaults_of_the_v2();
     }
 
+    /// Whether a `while` may carry the `Until` clause of the v2.1.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `flow-until.ahk`) and on the notes of v2.1-alpha: the `until` of a
+    /// `while` comes after the body, the body runs before the condition is
+    /// read on every turn, and the loop ends when it is true. The binary of
+    /// v2.0.19 refuses the word with "Unexpected \"Until\"".
+    fn a_while_may_carry_an_until(&self) -> bool {
+        false
+    }
+
     /// Whether the space separates the increment from the name.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the space is what
@@ -1948,7 +1959,27 @@ pub trait Dialect: Sync {
 }
 
 /// The dialect of the tree: AutoHotkey v2.0.19.
-pub struct V2;
+///
+/// The struct carries the mechanisms of v2.1 as well, because the tree speaks
+/// the v2.1 beside the v2.0.19: the `--dialect=v2.1` asks for them, and the
+/// `extended` says which of the two is spoken. The names and the tables are
+/// the ones of the v2 either way -- the v2.1 does not rename what the v2 has --
+/// and only the mechanisms that the v2.1 adds are gated.
+pub struct V2 {
+    /// Whether the mechanisms of v2.1 are carried.
+    pub extended: bool,
+}
+
+/// The v2.0.19 of the tree, which is the dialect of every script that does not
+/// ask for another one.
+pub static THE_V2: V2 = V2 { extended: false };
+
+/// The v2.1 mechanisms beside the v2.0.19, behind the `--dialect=v2.1`.
+///
+/// Measured on the test suite of KeySharp and on the notes of v2.1-alpha: the
+/// `Until` clause of a `while` is a mechanism that the v2.1 adds and that the
+/// binary of v2.0.19 refuses.
+pub static THE_V2_1: V2 = V2 { extended: true };
 
 /// The legacy dialect: AutoHotkey v1.1.37.02.
 pub struct V1;
@@ -1956,7 +1987,12 @@ pub struct V1;
 /// The dialect of the tree, which is the one of every script that does not
 /// ask for another one.
 pub fn v2() -> &'static dyn Dialect {
-    &V2
+    &THE_V2
+}
+
+/// The v2.1 mechanisms beside the v2.0.19, behind the `--dialect=v2.1`.
+pub fn v2_1() -> &'static dyn Dialect {
+    &THE_V2_1
 }
 
 /// The legacy dialect, behind the gate of the `--dialect=v1`.
@@ -1983,12 +2019,23 @@ impl Dialect for V2 {
         true
     }
 
+    fn a_while_may_carry_an_until(&self) -> bool {
+        self.extended
+    }
+
     fn name(&self) -> &'static str {
         "v2"
     }
 
     fn version(&self) -> (u16, u16, u16, u16) {
-        (2, 0, 19, 0)
+        // The mechanisms of the v2.1 are of the v2.1, and the version that the
+        // script reads is the one of the dialect that runs: `A_AhkVersion` is
+        // "2.0.19" in the v2.0.19 and "2.1.0" behind the gate of the v2.1.
+        if self.extended {
+            (2, 1, 0, 0)
+        } else {
+            (2, 0, 19, 0)
+        }
     }
 
     fn builtins(&self) -> &'static [Builtin] {

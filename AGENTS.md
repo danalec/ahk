@@ -10788,3 +10788,25 @@ module.
 The corpus is 86 of 162 pure scripts (53.1 %): `string-chr.ahk` and
 `string-ord.ahk` pass whole now, and they were the last of the six scripts that
 the sweep of the binary left open.
+## 283. The v2.1 beside the v2.0.19: the `Until` of a `while`
+
+Measured on the test suite of KeySharp (the corpus script `flow-until.ahk`) and
+on the notes of v2.1-alpha: the v2.1 lets a `while` carry the `Until` clause that
+the `Loop` of the v2.0.19 already carries -- the word comes after the body, the
+condition is read after every turn of the body, and the loop ends when it is
+true. The binary of v2.0.19 refuses it with `Unexpected "Until"`, so the tree
+carries it behind a dialect of its own: `--dialect=v2.1` runs the same names and
+the same tables as the v2 with the mechanisms of the v2.1 turned on, and
+`A_AhkVersion` answers "2.1.0" there. The gate is `a_while_may_carry_an_until()`,
+which is a default of the dialect trait and reads the `extended` field of the
+`V2` struct, so the v2.0.19 keeps refusing the word exactly as it did.
+
+Measured on the binary of v2.0.19 on 2026-11-10, and carried now: the `Until` of
+a `Loop` is read after the turn that `Continue` cut short as well. The loop of
+the tree answered `continue` before it read the condition, so `Loop { x++;
+continue } Until x = 3` -- which the binary ends at three -- never ended, and the
+script died of the step count. The corpus script `flow-until.ahk` is what found
+it: under `--dialect=v2.1` it passes whole now, and `flow-loop-return.ahk` with
+it -- 88 of the 162 pure scripts (54.3 %) against the 86 (53.1 %) of the v2.0.19.
+The triage harness takes the dialect from `AHK_TRIAGE_DIALECT`, so the same
+corpus is measured under both.

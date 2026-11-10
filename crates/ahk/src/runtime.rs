@@ -3376,6 +3376,7 @@ impl<'a> Runtime<'a> {
             Node::While {
                 condition,
                 body,
+                until,
                 otherwise,
                 ..
             } => {
@@ -3425,6 +3426,15 @@ impl<'a> Runtime<'a> {
                             self.the_index_is_given_back(saved);
                             return Err(failure);
                         }
+                    }
+                    // Measured on the test suite of KeySharp (the corpus script
+                    // `flow-until.ahk`) and on the notes of v2.1-alpha: the
+                    // condition of the `Until` is read after every turn of the
+                    // body -- the turn that used `Continue` included -- and the
+                    // loop ends when it is true. The v2.0.19 has no field to
+                    // carry it, and its parser refuses the word.
+                    if self.the_until_ends_the_loop(until)? {
+                        break;
                     }
                     turn += 1;
                 }
@@ -3601,7 +3611,18 @@ impl<'a> Runtime<'a> {
                                     match the_flow_of_a_loop_body(self.run_block(body)) {
                                         TheFlowOfALoop::Next => {}
                                         TheFlowOfALoop::Break => break,
-                                        TheFlowOfALoop::Continue => continue,
+                                        TheFlowOfALoop::Continue => {
+                                            // Measured on the binary of v2.0.19 on
+                                            // 2026-11-10: the `Until` is read
+                                            // after the turn that `Continue`
+                                            // cut short as well -- `Loop { x++;
+                                            // continue } Until x = 3` ends with
+                                            // x at three.
+                                            if self.the_until_ends_the_loop(until)? {
+                                                break;
+                                            }
+                                            continue;
+                                        }
                                         TheFlowOfALoop::Out(failure) => {
                                             self.the_index_is_given_back(saved);
                                             return Err(failure);

@@ -5326,8 +5326,35 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn the_word_until_is_reserved_in_v2_and_not_in_a_property() {
-    // Measured on the binary of v2.0.19 on 2026-11-09: the word is not the
+fn the_until_of_a_while_is_the_mechanism_of_the_v2_1() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `flow-until.ahk`) and on the notes of v2.1-alpha: the `Until` of a
+    // `while` comes after the body, the body runs before the condition is read
+    // on every turn, and the loop ends when it is true. The x of the script is
+    // six when the fifth turn ends, and the index of the turn is five.
+    let (report, _desktop) = run_in(
+        "x := 1\nwhile true\n{\n    x++\n}\nUntil (A_Index == 5)\nMsgBox x",
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["6"]);
+}
+
+#[test]
+fn the_until_is_read_after_a_turn_that_continue_cut_short() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the `Until` is read
+    // after the turn that `Continue` cut short as well, and the loop ends with
+    // the variable at three. The v2.0.19 carries the `Until` of a `Loop`, and
+    // the tree did not read it on that turn: the loop ran forever.
+    let (report, _desktop) = run(
+        "z := 0\nLoop\n{\n    z++\n    continue\n}\nUntil z = 3\nMsgBox z",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3"]);
+}
+
+#[test]
+fn the_word_until_is_reserved_in_v2_and_not_in_a_property() {    // Measured on the binary of v2.0.19 on 2026-11-09: the word is not the
     // name of a variable, and it is the name of a property.
     let error = parse("until := 2").expect_err("does not parse");
     assert_eq!(
