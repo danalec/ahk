@@ -1955,6 +1955,40 @@ The three ways out, when it matters:
 it is recorded because a build path in a binary is the kind of thing that works
 for a year and then does not, and because the choice is the caller's.
 
+### Round 62 — 2026-11-09: where the wiring has to go, found by reading it
+
+No code. The class wiring was deferred for several rounds on the grounds that it
+was "multi-file against an unfamiliar mechanism"; this round read the mechanism,
+and the guess was right.
+
+**What `crates/ahk/src/classes/gui.rs` actually is**: a table of the seven class
+names of the family, the options of a `Gui`, the argument checks, and one
+dispatch function --
+
+```rust
+fn refused(class: &str, name: &str, line: u32) -> Option<RuntimeFailure>
+```
+
+-- which answers the reason a member cannot work. **It is private**, and the
+caller that reaches it is outside the module, so a wired member cannot be added
+here alone: the `Some(failure)` answer has to become "handle it" somewhere the
+runtime and the desktop are both in hand.
+
+**So the wiring is exactly three places, and all three are now named:**
+
+1. `classes/gui.rs` -- a member of `gui`/`gui.control` stops being a refusal and
+   becomes a name the module says it handles;
+2. the caller of `refused` -- which is where the runtime and its desktop are
+   available, and therefore the only place `gui_open`/`gui_add`/`gui_show`/
+   `gui_destroy`/`gui_title` can be reached;
+3. `builtins.rs`/its table only if the five members are answered as built-ins
+   rather than as members -- which they are not, they are methods of the class.
+
+**What that means for a round that takes it**: read the caller first (one grep
+for `refused(` outside the module), then the handle the class object keeps in its
+reserved key, then the five members. The desktop side is done and verified; the
+contract is round 39's shape table; nothing else is open.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
