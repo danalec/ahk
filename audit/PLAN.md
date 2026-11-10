@@ -2024,6 +2024,39 @@ per the note in `AGENTS.md`). So the wiring is:
 constructed.** The desktop side is done and verified; the contract is round 39's
 shape table.
 
+### Round 64 — 2026-11-09: the construction is generic, so the window opens lazily
+
+Round 63 said step 4 of the wiring was "the construction calling `gui_open`".
+Reading it, there is no such place: a `Gui` is made by the **generic** machinery --
+
+```rust
+("gui", 0, 3, "Gui.Call", "Gui.Prototype.__New"),
+```
+
+a row of the constructor table, checked for its argument count and its types and
+then made the way every other object is. **There is no gui-specific construction
+function to hook**, and the member dispatch of round 63 does not see the
+arguments of the construction, so it does not see the title either.
+
+**The answer is to open the window lazily, on the first member that needs one.**
+`Show`, `Destroy`, `Add` and `Title` all run through `call`/`property`, which
+have the object in hand; the first of them that finds no handle in the object's
+reserved key calls `gui_open` with the title the object carries (and the empty
+text if it carries none, which is what a `Gui` with no title has), stores the
+handle, and carries on. That is also **the lazy behaviour the desktop was built
+with** -- a script that never touches a `Gui` never starts a process.
+
+**The four steps become:**
+
+1. a state helper in `classes/gui.rs` -- the handle in the object's reserved key;
+2. the first `call`/`property` that needs a window opens it, with the title read
+   from the object;
+3. the members answer through `rt.desktop()` instead of the refusal;
+4. `Title` as a property and a write, over `gui_title`.
+
+Steps 1 to 4 are inside `classes/gui.rs`. **The construction registers nothing
+and changes nothing**, which is smaller than round 63 said.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
