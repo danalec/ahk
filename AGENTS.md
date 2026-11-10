@@ -11188,3 +11188,28 @@ committed on the branch as `91c23c2`, so that they are not lost.
 and not reset.** The work of the other session is committed on its own
 branch, and the two lines are brought together by porting one name family
 at a time, each with its own cases.
+
+## 299. A shortcut is a `.desktop` file on this platform
+
+Measured on the binary of AutoHotkey v2.0.19 on 2026-11-10 and on 2026-11-11,
+`FileCreateShortcut` and `FileGetShortcut` are names of v2 that the tree
+refused, and they are not names of Windows: the freedesktop specification
+makes a shortcut a `.desktop` file, and that is what this tree writes and
+reads.
+
+The order of the parameters is the one the binary has, measured on
+2026-11-11: the **second** argument is the file of the shortcut and the first
+is the target -- `FileCreateShortcut("C:\Windows\notepad.exe", p)` made the
+file `p` and not `notepad.exe`. The `FileGetShortcut` answers the target, the
+working directory, the arguments, the description and the icon of it, and the
+icon NUMBER and the run state have no counterpart in a `.desktop` file, so
+those two answers are the empty text.
+
+The file is written with the mode of an executable, because a `.desktop`
+file that is not one is not a shortcut.
+
+This is the first family ported from the branch `audit-ahk-x11-parity`
+(section 298): the branch answered 759 of the 833 names and this tree
+answers 683. The port is done family by family, each with its own cases,
+and the branch is not merged: a merge would replace the tree of `master`
+with the tree of the branch and lose the 125 files that only `master` has.

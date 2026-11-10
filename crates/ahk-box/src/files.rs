@@ -614,6 +614,88 @@ impl ahk::desktop::Files for LabDesktop {
         // volume: the drive of the call names nothing to empty here.
         crate::trash::empty()
     }
+
+    fn create_shortcut(
+        &mut self,
+        target: &str,
+        shortcut: &str,
+        working_directory: &str,
+        arguments: &str,
+        description: &str,
+        icon: &str,
+    ) -> Result<(), String> {
+        // A shortcut on this platform is a `.desktop` file, which is what the
+        // freedesktop specifications make of one. The name of it is the
+        // description when there is one and the target when there is not.
+        let name = if description.is_empty() {
+            target
+        } else {
+            description
+        };
+        let exec = if arguments.is_empty() {
+            target.to_string()
+        } else {
+            format!("{target} {arguments}")
+        };
+        let mut text = String::new();
+        text.push_str("[Desktop Entry]\n");
+        text.push_str("Type=Application\n");
+        text.push_str(&format!("Name={name}\n"));
+        text.push_str(&format!("Exec={exec}\n"));
+        if !working_directory.is_empty() {
+            text.push_str(&format!("Path={working_directory}\n"));
+        }
+        if !icon.is_empty() {
+            text.push_str(&format!("Icon={icon}\n"));
+        }
+        text.push_str("Terminal=false\n");
+        std::fs::write(shortcut, text).map_err(|error| error.to_string())?;
+        // A `.desktop` file that is not executable is not a shortcut.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(metadata) = std::fs::metadata(shortcut) {
+                let mut permissions = metadata.permissions();
+                permissions.set_mode(0o755);
+                let _ = std::fs::set_permissions(shortcut, permissions);
+            }
+        }
+        Ok(())
+    }
+
+    fn read_shortcut(&mut self, shortcut: &str) -> Result<(String, String, String, String, String), String> {
+        // The inverse of create_shortcut: read the desktop file back. The
+        // Exec line carries the target and the arguments together, split at
+        // the first space outside quotes; v2 keeps them apart.
+        let text = std::fs::read_to_string(shortcut)
+            .map_err(|error| format!("the shortcut {shortcut} could not be read: {error}"))?;
+        let mut name = String::new();
+        let mut exec = String::new();
+        let mut path = String::new();
+        let mut icon = String::new();
+        for line in text.lines() {
+            if let Some(value) = line.strip_prefix("Name=") {
+                name = value.to_string();
+            } else if let Some(value) = line.strip_prefix("Exec=") {
+                exec = value.to_string();
+            } else if let Some(value) = line.strip_prefix("Path=") {
+                path = value.to_string();
+            } else if let Some(value) = line.strip_prefix("Icon=") {
+                icon = value.to_string();
+            }
+        }
+        if exec.is_empty() {
+            return Err(format!(
+                "the shortcut {shortcut} has no Exec line, so it is not a shortcut this tree made"
+            ));
+        }
+        // The arguments are everything after the first space of the Exec line.
+        let (target, arguments) = match exec.split_once(' ') {
+            Some((target, rest)) if !rest.is_empty() => (target.to_string(), rest.to_string()),
+            _ => (exec, String::new()),
+        };
+        Ok((target, path, arguments, name, icon))
+    }
 }
 
 // -- the helpers -------------------------------------------------------------------

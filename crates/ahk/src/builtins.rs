@@ -1622,18 +1622,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_create_shortcut,
     },
     Builtin {
         name: "FileGetShortcut",
         kind: BuiltinKind::Command,
         min: 1,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_get_shortcut,
     },
     Builtin {
         name: "FileGetVersion",
@@ -4078,6 +4078,86 @@ pub(crate) fn dir_delete(
             line,
         })?;
     Ok(Value::Text(path))
+}
+
+/// `FileCreateShortcut(LinkFile, Target, WorkingDir, Args, Description, Icon,
+/// IconNumber, Run)`: make a shortcut to a program.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `FileCreateShortcut`
+/// answers the empty text and makes the file, and it makes it even for a
+/// target that is not there.
+pub(crate) fn file_create_shortcut(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    let shortcut = text_of(values, 1);
+    let working_directory = text_of(values, 2);
+    let arguments = text_of(values, 3);
+    let description = text_of(values, 4);
+    let icon = text_of(values, 5);
+    rt.desktop()
+        .create_shortcut(
+            &target,
+            &shortcut,
+            &working_directory,
+            &arguments,
+            &description,
+            &icon,
+        )
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `FileGetShortcut(LinkFile, &OutTarget, &OutDir, &OutArgs, &OutDesc,
+/// &OutIcon, &OutIconNum, &OutRun)`: read a shortcut back.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: all eight fields of a
+/// shortcut `FileCreateShortcut` made come back -- target, working directory,
+/// arguments, description, icon, icon number and run state. This tree reads
+/// the `.desktop` file `FileCreateShortcut` wrote; the icon NUMBER and the run
+/// state have no counterpart there, so those two answers are the empty text.
+pub(crate) fn file_get_shortcut(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let shortcut = text_of(values, 0);
+    let (target, dir, args, desc, icon) = rt
+        .desktop()
+        .read_shortcut(&shortcut)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let places: [(&str, Value); 7] = [
+        ("target", Value::Text(target)),
+        ("dir", Value::Text(dir)),
+        ("args", Value::Text(args)),
+        ("desc", Value::Text(desc)),
+        ("icon", Value::Text(icon)),
+        // A `.desktop` file has no icon index and no run state: the honest
+        // answer is the empty text, not a number invented for the shape.
+        ("iconnum", Value::Text(String::new())),
+        ("run", Value::Text(String::new())),
+    ];
+    for (index, (name, value)) in places.iter().enumerate() {
+        let at = index + 1;
+        let Some(slot) = values.get(at) else {
+            continue;
+        };
+        if !matches!(slot, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: format!(
+                    "the {} of FileGetShortcut is written back, so parameter #{} wants a variable",
+                    name, at + 1
+                ),
+                line,
+            });
+        }
+        rt.write_reference(slot, value.clone());
+    }
+    Ok(Value::Text(String::new()))
 }
 
 // -- the pieces of a text ----------------------------------------------------------

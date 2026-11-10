@@ -482,6 +482,31 @@ pub trait Files {
     ///
     /// The name of the directory is a subfolder of the working directory
     /// when it is not an absolute path.
+    /// Create a shortcut to a program, the way this platform makes one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `FileCreateShortcut`
+    /// answers the empty text and makes the file, and it makes it even for a
+    /// target that is not there.
+    fn create_shortcut(
+        &mut self,
+        _target: &str,
+        _shortcut: &str,
+        _working_directory: &str,
+        _arguments: &str,
+        _description: &str,
+        _icon: &str,
+    ) -> Result<(), String> {
+        Err("this desktop cannot create a shortcut".to_string())
+    }
+
+    /// Read a shortcut back: (target, dir, args, description, icon).
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `FileGetShortcut` of a
+    /// shortcut answers all eight of its fields.
+    fn read_shortcut(&mut self, _shortcut: &str) -> Result<(String, String, String, String, String), String> {
+        Err("this desktop cannot read a shortcut".to_string())
+    }
+
     fn set_working_directory(&mut self, _directory: &str) -> Result<String, String> {
         Err("this desktop cannot change the working directory".to_string())
     }

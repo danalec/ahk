@@ -44,6 +44,9 @@ struct Fake {
     trash_emptied: bool,
     /// The texts the script sent to the debugger.
     debugged: Vec<String>,
+    /// The shortcut the fake made, when it made one: the target, the working
+    /// directory, the arguments, the description and the icon.
+    shortcut: Option<(String, String, String, String, String)>,
 }
 
 impl Desktop for Fake {}
@@ -226,6 +229,32 @@ impl Files for Fake {
     fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
         self.calls.push(("working-dir".into(), directory.into()));
         Ok(format!("the working directory is now {directory}"))
+    }
+    fn create_shortcut(
+        &mut self,
+        target: &str,
+        shortcut: &str,
+        working_directory: &str,
+        arguments: &str,
+        description: &str,
+        icon: &str,
+    ) -> Result<(), String> {
+        self.calls.push(("create-shortcut".into(), shortcut.into()));
+        self.shortcut = Some((
+            target.to_string(),
+            working_directory.to_string(),
+            arguments.to_string(),
+            description.to_string(),
+            icon.to_string(),
+        ));
+        Ok(())
+    }
+    fn read_shortcut(&mut self, shortcut: &str) -> Result<(String, String, String, String, String), String> {
+        self.calls.push(("read-shortcut".into(), shortcut.into()));
+        let Some(shortcut) = self.shortcut.clone() else {
+            return Err("there is no shortcut".to_string());
+        };
+        Ok(shortcut)
     }
     fn attributes_of_the_pattern(
         &mut self,
@@ -5443,4 +5472,37 @@ fn a_text_is_counted_and_cut_in_the_code_units_of_utf16() {
         report.output,
         vec!["1 2", "55357 128512 56832", "5 0"]
     );
+}
+#[test]
+fn a_shortcut_is_made_and_read_back() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `FileCreateShortcut`
+    // answers the empty text and makes the file, and `FileGetShortcut` gives
+    // back the target, the working directory, the arguments, the description
+    // and the icon of it.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "FileCreateShortcut(\"/usr/bin/gedit\", \"/tmp/a.desktop\", \"/tmp\", ",
+            "\"--new-window\", \"A text editor\", \"gedit\")\n",
+            "FileGetShortcut(\"/tmp/a.desktop\", &target, &dir, &args, &desc, ",
+            "&icon, &num, &runstate)\n",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![
+            ("create-shortcut".to_string(), "/tmp/a.desktop".to_string()),
+            ("read-shortcut".to_string(), "/tmp/a.desktop".to_string()),
+        ]
+    );
+    assert_eq!(
+        value_of(&report, "target"),
+        Value::Text("/usr/bin/gedit".into())
+    );
+    assert_eq!(value_of(&report, "dir"), Value::Text("/tmp".into()));
+    assert_eq!(value_of(&report, "args"), Value::Text("--new-window".into()));
+    assert_eq!(value_of(&report, "desc"), Value::Text("A text editor".into()));
+    assert_eq!(value_of(&report, "icon"), Value::Text("gedit".into()));
 }
