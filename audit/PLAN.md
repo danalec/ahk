@@ -2157,6 +2157,36 @@ answering a bool with a default of `false`, and the box answering it from the
 round 64 actually composable, which an attempt at the code found and the plan
 did not.
 
+### Round 72 — 2026-11-09: Add needs a constructed object, and that is a different road
+
+`Add` is not like `Show`, `Destroy` and `Title`. Those answer text; measured on
+the binary of v2.0.19 on 2026-11-09, **`g.Add("Edit", …)` answers an object of
+class `Gui.Edit`**, and the object carries `Value`, `ClassNN` and `Hwnd`. So the
+member has to **construct** something, not just dispatch to the desktop.
+
+**The construction road, found**: `classes::construct(class, arguments, rt, line)`
+is the one every class type of the runtime is made through, and it begins by
+checking `NOT_MADE` -- the classes that v2 does not make -- before it reaches the
+tables.
+
+**What that means, and why the round stopped there**: `gui.edit` is a row of
+`CLASSES` in `classes/gui.rs`, and those rows answer with `refused`. A
+`construct("gui.edit", …)` would therefore be answered by the refusal of that
+class rather than by a new object, unless the class is taken out of that table's
+answer and given a real constructor.
+
+**So `Add` needs one design answer before it needs code**: is a control of a
+script's own window a **class type of the runtime** (made by `construct`, with a
+row that stops refusing), or an **ordinary object with a class name** (made some
+other way, and then `Value`/`ClassNN` are properties of it)? The measurement says
+v2 reports a class -- `Gui.Edit` -- and the tree's own rule is that a class type
+is a class the script cannot extend, which a control of a window is not.
+
+**The next round should try it the cheap way first**, which is round 69's lesson:
+wire `Add` to `construct("gui.edit", …)`, run it on the box, and let the answer
+say whether the class table is in the way. It is one edit and one run, and it
+settles in minutes what reasoning has not.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
