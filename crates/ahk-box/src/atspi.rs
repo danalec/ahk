@@ -175,10 +175,14 @@ fn the_control(address: &str, node: &Node, control: &str, depth: usize) -> Optio
         // text is the only name it has. Measured on the box on 2026-11-09, the
         // label of a `zenity` dialog answers an empty `Name` and the text of
         // the dialog through `Text`.
-        if name(address, child).contains(control) {
-            if let Some(text) = text(address, child) {
-                return Some(text);
-            }
+        let named = name(address, child);
+        if named.contains(control) {
+            // Measured on the box on 2026-11-09 with a GTK3 window: a `label` is
+            // named with its text, and it has **no** `Text` interface --
+            // `Text.GetText` on one answers `impl_GetText: assertion
+            // 'ATK_IS_TEXT (user_data)' failed`. So the name of a control that
+            // has no text is the text of it.
+            return Some(text(address, child).unwrap_or(named));
         }
         if let Some(text) = text(address, child) {
             if text.contains(control) {

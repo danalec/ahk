@@ -1259,6 +1259,46 @@ none here. Two ways forward, both honest:
 **Nothing was shipped this round**, and the plan's wording from round 28 is
 corrected here rather than left standing.
 
+### Round 30 — 2026-11-09: the fixture, and the first control read
+
+Round 29 said the family was blocked on a program that publishes its controls.
+**The fixture was written, and the read works.**
+
+`audit/gtk3-probe.py` is a GTK3 window with a label and an entry. GTK3 publishes
+what GTK4 on this box does not:
+
+```
+gtk3-probe.py                                          role=[application]
+  /org/a11y/atspi/accessible/1 name=[ahk-gtk-probe]     role=[frame]
+    …/accessible/10            name=[ahk-gtk-probe]     role=[label]
+    …/accessible/12            name=[hello control]     role=[label]
+    …/accessible/13            name=[]                  role=[text]
+    …/accessible/7             name=[Minimize]          role=[button]
+```
+
+The window's `Name` is the title, the label's `Name` is its text, and the buttons
+are named. That is a tree a control command can be measured against.
+
+**One finding made it work.** `Text.GetText` on a `label` **fails** -- the GTK
+side answers `impl_GetText: assertion 'ATK_IS_TEXT (user_data)' failed`, because
+a label is not a text *interface*, it is named with its text. So a control whose
+name matches and which has no `Text` answers **its name**, which for a label is
+the text a script is asking for.
+
+**Verified end to end on the box:**
+
+```
+ControlGetText("hello control", "ahk-gtk-probe")  ->  "hello control"   (95 ms)
+```
+
+with the two failures already verified in round 28. `ControlGetText` is now the
+first name of the family that answers a real control on this desktop, and it is
+the piece AHK_X11 has and this tree lacked.
+
+The fixture is the way the rest of the family gets done: `ControlGetVisible`,
+`ControlGetEnabled`, `ControlGetFocus` and the `ControlSet*` half all read the
+same tree, and each now has something to be measured against.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
