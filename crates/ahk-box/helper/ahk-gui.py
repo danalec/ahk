@@ -372,12 +372,21 @@ def the_number_named(classnn):
     answer({"ok": False, "error": "there is no control named %s" % classnn})
 
 
-def the_visibility_of(classnn, on):
-    """Show or hide a control named by its class and number. `ControlShow`/`Hide`."""
+def the_state_of(classnn, what, on):
+    """Set a state of a control named by its class and number.
+
+    `ControlShow`/`Hide` for the visibility and `ControlSetEnabled` for the
+    sensitivity. Round 35 refused the enabled one because the accessibility layer
+    has no call to change another program's control state -- which is true, and is
+    not this case: the window is the helper's own.
+    """
     wanted = classnn.strip().lower()
     for number, kind, control in state["controls"]:
         if ("%s%d" % (kind, number)).lower() == wanted:
-            control.set_visible(on)
+            if what == "enabled":
+                control.set_sensitive(on)
+            else:
+                control.set_visible(on)
             answer({"ok": True})
             return
     answer({"ok": False, "error": "there is no control named %s" % classnn})
@@ -394,8 +403,16 @@ def handle(command):
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
     elif op == "visibility":
         run_on_loop(
-            lambda: the_visibility_of(
-                command.get("classnn", ""), command.get("on", True)
+            lambda: the_state_of(
+                command.get("classnn", ""), "visible", command.get("on", True)
+            )
+        )
+    elif op == "state":
+        run_on_loop(
+            lambda: the_state_of(
+                command.get("classnn", ""),
+                command.get("what", "visible"),
+                command.get("on", True),
             )
         )
     elif op == "resolve":

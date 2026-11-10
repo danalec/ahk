@@ -1332,7 +1332,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 6,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_enabled,
     },
     Builtin {
         name: "ControlSetExStyle",
@@ -9469,6 +9469,42 @@ pub(crate) fn control_get_classnn(
         .gui_number_named(&classnn)
         .map_err(|reason| desktop_failure(reason, line))?;
     Ok(Value::Text(classnn))
+}
+
+/// `ControlSetEnabled(Value, Control)`: set the sensitivity of a control of the
+/// script's window.
+///
+/// Round 35 refused this because the accessibility layer has no call to change
+/// another program's control state -- true, and not this case: the control is the
+/// helper's own, and `set_sensitive` is one call.
+fn the_state_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    what: &str,
+    on: bool,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 1);
+    rt.desktop()
+        .gui_control_state(&classnn, what, on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn control_set_enabled(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    the_state_of_a_control(rt, values, line, "enabled", on)
 }
 
 pub(crate) fn sleep(

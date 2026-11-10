@@ -595,6 +595,13 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// Set a state of a control of the script's window, named by its `ClassNN`.
+    ///
+    /// The states are `"visible"` and `"enabled"`.
+    fn gui_control_state(&mut self, _classnn: &str, _what: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot set a state of a control of the script".to_string())
+    }
+
     /// Show or hide a control of the script's window, named by its `ClassNN`.
     fn gui_visibility(&mut self, _classnn: &str, _on: bool) -> Result<(), String> {
         Err("this desktop cannot show or hide a control of the script".to_string())

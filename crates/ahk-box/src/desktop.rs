@@ -1122,6 +1122,21 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
     }
 
+    fn gui_control_state(&mut self, classnn: &str, what: &str, on: bool) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"state\", \"classnn\": {}, \"what\": {}, \"on\": {}}}",
+            quoted(classnn),
+            quoted(what),
+            if on { "true" } else { "false" }
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the state of the control was not set: {answer}"))
+        }
+    }
+
     fn gui_visibility(&mut self, classnn: &str, on: bool) -> Result<(), String> {
         let command = format!(
             "{{\"op\": \"visibility\", \"classnn\": {}, \"on\": {}}}",
