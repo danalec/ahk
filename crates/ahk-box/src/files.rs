@@ -100,6 +100,29 @@ impl ahk::desktop::Files for LabDesktop {
         }
     }
 
+    fn recycle_a_file(&mut self, path: &str) -> Result<(), String> {
+        // `gio trash <path>` is the same tool that empties the trash. A file
+        // that is not there is not a failure of the tool: v2 answers the empty
+        // text for it, and this tree does the same with a note rather than a
+        // made-up success.
+        if !std::path::Path::new(path).exists() {
+            return Err(format!("the file {path} is not there"));
+        }
+        let output = std::process::Command::new("gio")
+            .arg("trash")
+            .arg(path)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "the file was not recycled: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ))
+        }
+    }
+
     fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
         let mut options = std::fs::OpenOptions::new();
         match mode.to_lowercase().as_str() {

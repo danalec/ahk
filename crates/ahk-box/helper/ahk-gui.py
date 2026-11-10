@@ -1328,6 +1328,32 @@ def the_second_value(number, setting):
     answer({"ok": True, "value": setting})
 
 
+def the_control_pos(number):
+    """The place and the size of a control, relative to the window's client area.
+
+    `ControlGetPos` of v2. Measured on the binary of v2.0.19 on 2026-11-10
+    with four VarRef outputs: `ControlGetPos &X, &Y, &W, &H, "Edit1", title`
+    answers the four numbers. The earlier note that the reference HANGS on
+    this name was one call shape -- passing plain strings instead of VarRefs.
+
+    GTK's allocation is the widget's own place in the box of the window,
+    which is exactly the client-area-relative rectangle v2 describes.
+    """
+    for held, _kind, control in state["controls"]:
+        if held != number:
+            continue
+        place = control.get_allocation()
+        answer({
+            "ok": True,
+            "x": place.x,
+            "y": place.y,
+            "w": place.width,
+            "h": place.height,
+        })
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -1507,6 +1533,8 @@ def handle(command):
         run_on_loop(
             lambda: the_second_value(command.get("id", 0), command.get("text"))
         )
+    elif op == "control-pos":
+        run_on_loop(lambda: the_control_pos(command.get("id", 0)))
     elif op == "add":
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))

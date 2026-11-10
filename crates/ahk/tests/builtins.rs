@@ -42,6 +42,8 @@ struct Fake {
     tree_items: Vec<(i64, String, i64)>,
     tree_next: i64,
     tree_selected: i64,
+    /// Paths the fake has put in the trash.
+    recycled: Vec<String>,
     /// The number of the one UpDown the fake carries, shared with its buddy.
     updown_value: i64,
     /// Whether the fake's control is a date control, and its timestamp string.
@@ -476,6 +478,9 @@ impl Windows for Fake {
         }
         Ok(self.second_text.clone())
     }
+    fn gui_control_pos(&mut self, _number: u64) -> Result<(i64, i64, i64, i64), String> {
+        Ok((10, 20, 100, 30))
+    }
     fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
         self.calls.push(("resolve".into(), classnn.to_string()));
         if classnn.eq_ignore_ascii_case("ComboBox1")
@@ -489,6 +494,7 @@ impl Windows for Fake {
             || classnn.eq_ignore_ascii_case("SysMonthCal321")
             || classnn.eq_ignore_ascii_case("SysLink1")
             || classnn.eq_ignore_ascii_case("msctls_hotkey321")
+            || classnn.eq_ignore_ascii_case("Edit1")
         {
             Ok(1)
         } else {
@@ -669,6 +675,11 @@ impl Windows for Fake {
     }
 }
 impl Files for Fake {
+    fn recycle_a_file(&mut self, path: &str) -> Result<(), String> {
+        self.calls.push(("recycle".into(), path.to_string()));
+        self.recycled.push(path.to_string());
+        Ok(())
+    }
     fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
         self.calls.push(("working-dir".into(), directory.into()));
         Ok(format!("the working directory is now {directory}"))
@@ -1299,11 +1310,15 @@ fn a_name_of_windows_fails_with_the_reason() {
 }
 
 #[test]
-fn a_name_with_no_answer_to_match_says_so() {
+fn a_name_of_windows_without_a_counterpart_says_so() {
+    // The group reason was corrected on 2026-11-10: a re-measurement found the
+    // reference does NOT hang on these names -- an earlier note had mistaken
+    // one call shape for the name. The true obstacle is that they ask for
+    // Win32 resources this runtime has no counterpart for.
     let report = run("StrGet(\"a\")");
     assert_eq!(
         failure_of(&report),
-        "the reference hangs or fails on this name, so there is no answer for this runtime to match."
+        "these names ask for things of Windows that this runtime has no counterpart for: a caret's screen place, a Win32 shortcut, a COM audio interface, a string at a raw address, or a native callback thunk. Re-measured on the binary of v2.0.19 on 2026-11-10: it does NOT hang on them -- an earlier note mistook one call shape for the name."
     );
 }
 
@@ -4511,6 +4526,40 @@ fn an_up_down_shares_its_integer_value_with_the_buddy_edit() {
     assert_eq!(int_of(&report, "b"), 7);
     assert_eq!(value_of(&report, "c"), Value::Text("7".into()));
     assert_eq!(int_of(&report, "d"), 3);
+}
+
+#[test]
+fn file_recycle_answers_the_empty_text_and_remembers_the_path() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: FileRecycle answers
+    // the empty text and the file is gone. The earlier claim that the
+    // reference answers "Failed" was a path that was not there.
+    let mut desktop = Fake::default();
+    let report = run_on("r := FileRecycle(\"the-file.txt\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    assert_eq!(desktop.recycled, vec!["the-file.txt".to_string()]);
+}
+
+#[test]
+fn a_control_get_pos_writes_the_four_places_of_a_control() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: ControlGetPos with
+    // four VarRef outputs writes x, y, width and height relative to the
+    // client area, and answers the empty text. This is the GTK allocation of
+    // the control in the helper's box.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "x := y := w := h := 0\ng := Gui()\ng.Add(\"Edit\", \"\", \"x\")\nr := ControlGetPos(&x, &y, &w, &h, \"Edit1\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    assert_eq!(int_of(&report, "x"), 10);
+    assert_eq!(int_of(&report, "y"), 20);
+    assert_eq!(int_of(&report, "w"), 100);
+    assert_eq!(int_of(&report, "h"), 30);
 }
 
 #[test]

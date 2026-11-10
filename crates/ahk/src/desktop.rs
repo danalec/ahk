@@ -772,6 +772,16 @@ pub trait Windows {
         Err("this desktop has no second text slot for a control".to_string())
     }
 
+    /// The place and size of a control of the script's window, relative to its
+    /// client area: (x, y, width, height).
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `ControlGetPos` with
+    /// four VarRef outputs answers the four numbers. The reference does NOT
+    /// hang on this name -- the earlier note was a call with plain strings.
+    fn gui_control_pos(&mut self, _number: u64) -> Result<(i64, i64, i64, i64), String> {
+        Err("this desktop cannot say where a control of the window is".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())
@@ -1071,6 +1081,16 @@ pub trait Files {
     /// empty text.
     fn empty_the_trash(&mut self) -> Result<(), String> {
         Err("this desktop cannot empty the trash".to_string())
+    }
+
+    /// Put one file in the trash of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `FileRecycle(path)`
+    /// answers the empty text and the file is gone. An earlier note said the
+    /// reference answers "Failed" for a file that exists -- that was a path
+    /// that was not there, not the name.
+    fn recycle_a_file(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot put a file in the trash".to_string())
     }
 
     /// The directory the script is in.

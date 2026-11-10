@@ -1240,7 +1240,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: control_get_pos,
     },
@@ -1627,7 +1627,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: file_recycle,
     },
@@ -3866,7 +3866,7 @@ fn refusal_message(variant: u8) -> &'static str {
             "the lock lights belong to the keyboard of the machine, and this runtime does not set them."
         }
         32 => {
-            "the reference hangs or fails on this name, so there is no answer for this runtime to match."
+            "these names ask for things of Windows that this runtime has no counterpart for: a caret's screen place, a Win32 shortcut, a COM audio interface, a string at a raw address, or a native callback thunk. Re-measured on the binary of v2.0.19 on 2026-11-10: it does NOT hang on them -- an earlier note mistook one call shape for the name."
         }
         33 => "a pointer to a string would be a value at a stable address, and the values of this runtime have none.",
         // No name of the surface has this variant: the `ObjBindMethod` was
@@ -10601,23 +10601,30 @@ pub(crate) fn shutdown(
 /// `FileRecycle`: **refused, with a reason of its own.** Measured on 2026-11-09:
 /// the reference answers `Failed` for a file that exists, so there is no success
 /// to match. This has nothing to do with Windows: the tree has a trash, but it
-/// will not invent what v2 would have answered.
+/// `FileRecycle(Path)`: put one file in the trash of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty text
+/// and the file is gone. An earlier note said the reference answers `Failed`
+/// for a file that exists -- that was a path that was NOT there, not the name.
+/// On this platform the trash is the freedesktop one, and `gio trash` is the
+/// tool that both fills it and empties it.
 pub(crate) fn file_recycle(
-    _rt: &mut Runtime<'_>,
-    _values: &[Value],
+    rt: &mut Runtime<'_>,
+    values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "FileRecycle has no answer to match: the reference answers Failed for a file that exists, so a success here would be an invention".to_string(),
-        line,
-    })
+    let path = text_of(values, 0);
+    rt.desktop()
+        .recycle_a_file(&path)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
 }
 
-/// `FileGetVersion`: **refused, with a reason of its own.** Measured on 2026-11-09
-/// and again on 2026-11-10: the reference hangs on it, and an ELF has no version
-/// resource to read. An empty text for every file would look like an answer and
-/// would not be one.
+/// `FileGetVersion`: **refused, with a reason of its own.** Re-measured on
+/// 2026-11-10: the reference answers `2.0.19.0` for a real PE and does NOT hang
+/// -- the earlier hang was a path that was not there. An ELF has no version
+/// resource to read, so an empty text or a made-up number would be a lie.
 pub(crate) fn file_get_version(
     _rt: &mut Runtime<'_>,
     _values: &[Value],
@@ -10625,26 +10632,56 @@ pub(crate) fn file_get_version(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
-        message: "FileGetVersion has no answer to match: the reference hangs on it and an ELF has no version resource, so an empty text would look like an answer and would not be one".to_string(),
+        message: "FileGetVersion reads the version resource of a PE file; re-measured on 2026-11-10 the reference answers 2.0.19.0 and does NOT hang. An ELF has no version resource, so an empty text or a made-up number would be a lie rather than an answer".to_string(),
         line,
     })
 }
 
-/// `ControlGetPos`: **refused, with a reason of its own.**
+/// `ControlGetPos(&X, &Y, &W, &H, Control, WinTitle)`: the place and size of a
+/// control of the script's own window, relative to its client area.
 ///
-/// Measured on the binary of v2.0.19 on 2026-11-10: the reference hangs on it.
-/// Three coordinate spaces of this desktop answer the same numbers, so a place
-/// would be an invention even without that.
+/// Measured on the binary of v2.0.19 on 2026-11-10: with four VarRef outputs it
+/// answers the four numbers (e.g. `[10,6,31,21]` for an Edit), and the answer
+/// of the command is the empty text. **An earlier note said the reference hangs
+/// on this name** -- that was a call with plain strings in place of the VarRefs,
+/// not the name itself. This tree reports the real allocation of the control in
+/// its GTK box, which is the client-area rectangle v2 describes; the numbers
+/// differ from Windows because the toolkit and the margins differ, but they are
+/// this window's true places and not an invention.
 pub(crate) fn control_get_pos(
-    _rt: &mut Runtime<'_>,
-    _values: &[Value],
+    rt: &mut Runtime<'_>,
+    values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "the reference hangs on ControlGetPos, and the coordinate spaces of this desktop answer the same numbers, so a place would be an invention".to_string(),
-        line,
-    })
+    for index in 0..4 {
+        let Some(value) = values.get(index) else {
+            continue;
+        };
+        if !matches!(value, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(
+                    index + 1,
+                    "ControlGetPos",
+                    "a VarRef",
+                    value,
+                ),
+                line,
+            });
+        }
+    }
+    let number = the_number_of_a_combo(rt, values, 4, line)?;
+    let (x, y, width, height) = rt
+        .desktop()
+        .gui_control_pos(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    let places = [x, y, width, height];
+    for (index, place) in places.iter().enumerate() {
+        if values.get(index).is_some() {
+            rt.write_reference(&values[index], Value::Int(*place));
+        }
+    }
+    Ok(Value::Text(String::new()))
 }
 
 /// The three names that act on every window at once: **refused, with a reason of

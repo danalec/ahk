@@ -1399,6 +1399,18 @@ impl ahk::desktop::Windows for LabDesktop {
         Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
     }
 
+    fn gui_control_pos(&mut self, number: u64) -> Result<(i64, i64, i64, i64), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"control-pos\", \"id\": {}}}",
+            number
+        ))?;
+        let get = |name: &str| {
+            the_number_in(&said, name)
+                .ok_or_else(|| format!("the place of the control was not read: {said}"))
+        };
+        Ok((get("\"x\": ")?, get("\"y\": ")?, get("\"w\": ")?, get("\"h\": ")?))
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }

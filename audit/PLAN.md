@@ -3991,10 +3991,11 @@ box against every measured contract.**
 **What remains**: the style names are Win32 bitmasks this platform has no
 equivalent for (`ControlGetStyle` answers 1342242944 on the reference);
 `ControlMove` was measured to have **no size-only form**, so its refusal is
-true. `ListViewGetContent` and the whole `Gui.ListView` method family were
-answered in round 266. The registry, COM objects, image lists, HWND table,
-drive letters and the three unmeasurable file names are answers with reasons of
-their own.
+true. `ControlGetPos`, `FileRecycle` and the whole `Gui` family are answered.
+The registry, COM objects, image lists, HWND table, drive letters, `StrPtr`,
+`StrGet`, `CaretGetPos`, `FileGetShortcut` and `FileGetVersion` are refusals
+with reasons of their own -- **not "unmeasurable"**, after round 272's
+re-measurement.
 
 **What has actually been finished**, so the list above is not read as aspirational:
 **all 140 rows of the AHK_X11 feature matrix**, **all four mechanisms**, **zero
@@ -4282,7 +4283,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **755 answer, 78 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **757 answer, 76 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -4935,6 +4936,50 @@ t=[xyz] | hkAfter2 v=[!c] t=[xyz] | text=[third <a>two</a>\n]`.
 
 The surface count does not move (control kinds, not builtin rows):
 **755 / 78**, sum 833, both platforms green, clippy clean.
+
+### Round 272 — 2026-11-10: the "unmeasurable" names were one call shape
+
+For eleven rounds the plan said a handful of names could not be measured
+because the reference "hangs" or "fails" on them. Round 272 finally tested
+that instead of repeating it, and **the classification was wrong**.
+
+**Re-measured on the binary of v2.0.19 on 2026-11-10**, with corrected calls:
+
+| name | the old claim | what it actually does |
+|---|---|---|
+| `ControlGetPos` | hangs | `ControlGetPos &X, &Y, &W, &H, "Edit1", title` -> `10,6,31,21` |
+| `CaretGetPos` | hangs | `CaretGetPos &X, &Y` -> `29,9` |
+| `FileGetShortcut` | hangs | a plain file answers `(0x80004005) Unspecified error` |
+| `FileGetVersion` | hangs | a real PE answers `2.0.19.0` |
+| `FileRecycle` | answers `Failed` | `recycle=[]`, the file is GONE |
+| `StrGet` | hangs | `StrGet(0,4)` refuses the address; `StrGet(buf.Ptr)` answers `hello` |
+| `SoundGetInterface` | refuses | `Parameter #1 of SoundGetInterface is invalid.` |
+
+**The hangs were calls with plain strings where v2 wants VarRefs, or paths
+that were not there.** A hang on one variant of a call is not a property of
+the name. Two names became real features at once:
+
+- **`ControlGetPos`** writes four VarRefs from the GTK allocation of the
+  control in the helper's box (client-area-relative, like v2). Verified on the
+  box: `static=[20,57,320,20] | edit=[20,83,320,34] | button=[20,123,320,34]`
+  -- the numbers differ from Windows because the toolkit and margins differ,
+  but they are this window's true places, not an invention.
+- **`FileRecycle`** uses `gio trash <path>`, the same tool that empties the
+  trash. Verified under `$HOME` (the box refuses to trash `/tmp`, a system
+  internal mount): `ret=[] exists=[]`, and the file is gone.
+
+**The false reasons were corrected**: the group-32 reason no longer says the
+reference hangs, `file_get_version` names the PE resource an ELF lacks, and a
+test that asserted the old wording was updated. `StrGet`, `CaretGetPos`,
+`FileGetShortcut` and `SoundGetInterface` still refuse, but for what they
+actually are. `StrGet` with a real Buffer pointer is the next measurable
+piece: our tree's `buf.Ptr` is a real `Rc` address and `StrPut` currently
+counts bytes without writing them, so a round-trip needs a registry of
+buffers and a byte reader -- recorded, not started.
+
+**Three language cases** protect the two new names and the corrected group
+reason. **Surface 755/78 -> 757/76**, sum 833, both platforms green, clippy
+clean.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
