@@ -48,27 +48,27 @@ mouse	ControlClick	ControlClick	yes	refusal	GAP-controls	refusal: name of Window
 windows	WinGetTitle	WinGetTitle	yes	value	covered	measured on the box (Wayland toplevel listing)
 windows	IfWinExist / IfWinNotExist	WinExist	yes	value	covered	measured on the box
 windows	IfWinActive / IfWinNotActive	WinActive	yes	value	covered	measured on the box
-windows	WinActivate	WinActivate	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinActivate	WinActivate	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinActivateBottom	WinActivateBottom	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinClose	WinClose	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinKill	WinKill	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinClose	WinClose	yes	value	covered	answered on the script own window, rounds 193 to 199
+windows	WinKill	WinKill	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinGetPos	WinGetPos/WinGetClientPos	yes	value	covered	DONE round 4 (2026-11-09): the geometry event of zcosmic_toplevel_info_v1, which needs wl_output bound; verified on the box (214,181 1280x468)
 windows	-	WinGetMinMax	yes	value	covered	DONE round 5 (2026-11-09): the maximized/minimized entries of the same state array; 0 measured on the box, the 1 and -1 paths unit-tested against the protocol enum
 windows	WinGetText	WinGetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
 windows	WinGetClass	WinGetClass	yes	value	covered	DONE round 3 (2026-11-09): the class of the window is the application id of the toplevel; verified on the box (chromium)
 windows	WinGet	WinGetList/WinGetID/WinGetCount	yes	value	covered	DONE round 3 (2026-11-09): WinGetList/WinGetID/WinGetCount read the toplevel listing; verified on the box (2 windows, Array with Length). WinGetPID still refuses
-windows	WinMaximize	WinMaximize	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinMinimize	WinMinimize	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinMaximize	WinMaximize	yes	value	covered	answered on the script own window, rounds 193 to 199
+windows	WinMinimize	WinMinimize	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinMinimizeAll	WinMinimizeAll	yes	refusal	GAP-windows-act	refusal: name of Windows
 windows	WinMinimizeAllUndo	WinMinimizeAllUndo	yes	refusal	GAP-windows-act	refusal: name of Windows
 windows	WinMove	WinMove	yes	refusal	GAP-wayland-no-grab	refusal: name of Windows (Wayland forbids client-driven move)
-windows	WinRestore	WinRestore	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinSetTitle	WinSetTitle	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinWait	WinWait	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinWaitActive	WinWaitActive	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinWaitClose	WinWaitClose	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinWaitNotActive	WinWaitNotActive	yes	refusal	GAP-windows-act	refusal: name of Windows
-windows	WinHide/WinShow	WinHide/WinShow	yes	refusal	GAP-windows-act	refusal: name of Windows
+windows	WinRestore	WinRestore	yes	value	covered	answered on the script own window, rounds 193 to 199
+windows	WinSetTitle	WinSetTitle	yes	value	covered	answered on the script own window, rounds 193 to 199
+windows	WinWait	WinWait	yes	value	covered	answered on the script own window, rounds 193 to 199
+windows	WinWaitActive	WinWaitActive	yes	value	covered	answered on the script own window, rounds 193 to 199
+windows	WinWaitClose	WinWaitClose	yes	value	covered	answered on the script own window, rounds 193 to 199
+windows	WinWaitNotActive	WinWaitNotActive	yes	value	covered	answered on the script own window, rounds 193 to 199
+windows	WinHide/WinShow	WinHide/WinShow	yes	value	covered	answered on the script own window, rounds 193 to 199
 controls	ControlGetText	ControlGetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
 controls	ControlSetText	ControlSetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
 controls	ControlGetPos	ControlGetPos	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
@@ -139,3 +139,4 @@ events	-	CallbackCreate	yes	refusal	GAP-native	refusal: name of Windows (needed 
 env	EnvSet	EnvSet	yes	value	covered	v2 surface value
 env	EnvGet	EnvGet	yes	value	covered	v2 surface value
 env	EnvAdd/EnvSub/EnvMult/EnvDiv	(operators)	yes	value	covered	v2 uses += -= *= /=
+
