@@ -2057,6 +2057,44 @@ with** -- a script that never touches a `Gui` never starts a process.
 Steps 1 to 4 are inside `classes/gui.rs`. **The construction registers nothing
 and changes nothing**, which is smaller than round 63 said.
 
+### Round 65 — 2026-11-09: the two consequences the lazy open brings
+
+No code. Looking for the object's reserved key before writing the four steps
+turned up **two divergences that the wiring has to answer**, and answering them
+badly would be worse than not answering them yet.
+
+**1. This desktop has one window at a time.** The helper replaces its window when
+it is told to make another, and `LabDesktop` holds one `Option<TheWindow>`. A
+script that makes two `Gui`s therefore gets one window, where v2 gets two. That
+is a limitation of the channel as built -- the helper would need a map of windows
+and an identifier in the protocol -- and it is **not** something to paper over in
+the class. It is fine for the common case (a script makes one window) and it must
+be **stated in the refusal-free documentation of the member**, not discovered.
+
+**2. `Gui(options, title)` loses its title.** The construction is generic (round
+64), so the title argument never reaches a place that can open the window; the
+lazy open at the first member would open it with no title. v2's
+`Gui("", "MyTitle")` gives a titled window before anything else runs, and a script
+that reads `g.Title` back would get the empty text here.
+
+**The three ways to answer 2**, in the order of how much they cost:
+
+1. **hold the state properly** -- the object's reserved key carries both the
+   handle and the title, and the construction is reached through the generic
+   machinery to write the title it was given. It is the right answer and it needs
+   the reserved-key helper this round went looking for and did not find;
+2. **open on the first `Title` write and on the first member that needs a
+   window**, accepting that a `Gui` that is never given a title has none -- which
+   is what a `Gui` with no title has anyway;
+3. **open eagerly at the first member with the empty title**, which is the
+   cheapest and the one that silently loses the argument.
+
+**So the next round is not "pure writing" after all**, and it is worth saying so:
+the two divergences are design, and picking one under a spent budget is exactly
+how this session has gone wrong before. The plan is now: settle 1 (a documented
+single-window limitation, or a window map in the helper) and 2 (option 1 if the
+reserved-key helper is found quickly), then write the four steps.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
