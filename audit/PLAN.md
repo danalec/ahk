@@ -4283,6 +4283,36 @@ something untrue while the total was right.
 **So a successor has two re-runnable measurements and no claims that cannot be checked.**
 That is the state to hand over, and it is worth more than either number.
 
+### Round 233 — 2026-11-09: FileRecycleEmpty, and the impl block that is not where it looks
+
+`FileRecycleEmpty` is the most closable of the five desktop-integration rows: its contract
+is **measured** (`""`, round 189) and Linux has a trash that `gio trash --empty` empties.
+
+The trait method and the handler and the row were written, and the build said:
+
+```
+error[E0407]: method `empty_the_trash` is not a member of trait `ahk::desktop::Machine`
+```
+
+**The box does not implement the fifteen capabilities in fifteen `impl` blocks.** Its
+`desktop.rs` has the methods grouped by capability with no `impl Files for` or
+`impl Machine for` to find -- so **the anchor I put the method beside (`drive_space`) sits
+in the group the compiler reads as `Machine`, and a `Files` method there is not a member of
+it.**
+
+**Reverted**, and the tree is clean at **727 / 106**.
+
+**What the next attempt needs is one fact I did not get**: **where the `Files` methods of
+`ahk-box` actually live** -- not "the file", which is `desktop.rs`, but **the group within
+it**, since the compiler reads the group and not the file. A grep for `impl Files for` and
+for `fn set_working_directory` both found nothing, so the shape is something else: an
+`impl LabDesktop` with the trait named per method, or a macro, or the methods in a
+different module.
+
+**Finding that is a round of its own and it is small**, and it is the same shape as the
+variable dispatch of round 175 and the array constructor of round 219: **a mechanism this
+tree has that is not where its name suggests.**
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
