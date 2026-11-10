@@ -21,33 +21,28 @@ spelling (`Add` and every `Add*`), read and write its `Value`, `Text`, `Enabled`
 and `Visible`, set the `Title`, `Show` and `Destroy` -- each verified on the box
 against a measurement of the reference.
 
-**The events are COMPLETE** (rounds 111 and 119). Both kinds are verified on the
-box with the whole chain and not a signal fired by hand:
+**The `Gui` family is COMPLETE** (rounds 70 to 132). Every member a script of v2
+uses is answered, measured against the binary of v2.0.19 and verified on a live
+GTK3 window: the window (`Gui()`, `Show`, `Hide`, `Destroy`, `Title`, `Opt`), the
+controls (`Add` and every `Add*`, `Value`, `Text`, `Enabled`, `Visible`, `Move`,
+`Focus`), and the events of both (`Close`, `Escape`, `Click`, the last with the
+control handed to the handler).
 
-- **a window's** `Close` and `Escape` -- the handler's own lines execute between
-  the `Destroy` and the end of the `Sleep`;
-- **a control's** `Click` -- the button was clicked through the tree's own
-  `ControlClick`, which goes through the accessibility layer as an outside client
-  would, and the handler ran during the `Sleep` and was handed the control, whose
-  `__Class` it read as `Gui.Button`.
+**Two members are answered in part, and say so**: `Move` honours the size and
+refuses the place, because a box layout gives a child no place; and `Opt` honours
+four of v2's eighteen options and refuses the rest, because the title bar belongs
+to the compositor. `GetPos` is refused outright: a Wayland client is not told
+where its window is. **A refusal that names the reason is the answer; a plausible
+value that is not true is not.**
 
-The mechanism: the helper writes `close`, `click:<n>` or `escape` to a file the
-desktop derives from the process; `Sleep` drains it; the runtime finds the
-handler -- on the window for its own events, on the control (remembered on the
-window under the number that names it) for a click -- and calls it by the **name**
-the function value carries, with the control as the argument when there is one.
+**What is left of the objective** is not in this family: the `Com*` and `Reg*`
+clusters, most of `Drive*`, and some of the message-loop names -- all refused
+today with reasons that are Windows-shaped, which is to say they are about a
+system this tree does not run on.
 
-**A trap worth knowing for any future test of this family**: the names of v2 are
-case-insensitive, so a test function called `G` beside a variable `g` **is that
-variable**. That produced a feature reverted in round 114 for a defect that was in
-the probe and not in the tree, and three rounds of wrong hypotheses.
-
-**What is next in the family**: the layout members (`c.Move`, `c.Opt`), and
-`g.GetPos`, which is refused with a reason already written down (round 82: a
-Wayland client is not told where its window is).
-
-**The template for the next member**, which has now worked three times without a
-surprise (`Value` 76-77, `Enabled`/`Visible` 80-81, `Text` 84):
+**The template for the next member**, which has now worked seven times without a
+revert (`Value` 76-77, `Enabled`/`Visible` 80-81, `Text` 84, `Move` 121-122,
+`Focus` 124, `Hide` 126, `Opt` 126-132):
 
 1. **measure the reference** for the shape of the answer;
 2. **add the operation to the helper** and prove it on the box with a script
