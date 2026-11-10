@@ -43,7 +43,35 @@ pub struct TheWindow {
     /// helper ends its loop when its input closes.
     program: Child,
     input: ChildStdin,
-    output: BufReader<ChildStdout>,
+    /// The answers of the helper, read by a thread of their own so that a wait for
+    /// one can be given up on. **A helper that stops answering must not stop the
+    /// runner**: the timeout of a run is checked between statements, and a read
+    /// that never returns is inside one.
+    lines: std::sync::mpsc::Receiver<String>,
+}
+
+/// Read the answers of the helper on a thread of their own.
+///
+/// The thread owns the reader, so the wait for an answer becomes a receive with a
+/// timeout instead of a read that cannot be given up on.
+fn the_lines_of(output: ChildStdout) -> std::sync::mpsc::Receiver<String> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut reader = BufReader::new(output);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    if sender.send(line.trim_end().to_string()).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    receiver
 }
 
 impl TheWindow {
@@ -70,7 +98,7 @@ impl TheWindow {
         Ok(Self {
             program,
             input,
-            output: BufReader::new(output),
+            lines: the_lines_of(output),
         })
     }
 
@@ -86,14 +114,14 @@ impl TheWindow {
         self.input
             .flush()
             .map_err(|error| format!("the window helper took no command: {error}"))?;
-        let mut answer = String::new();
-        self.output
-            .read_line(&mut answer)
-            .map_err(|error| format!("the window helper said nothing: {error}"))?;
+        let answer = self
+            .lines
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .map_err(|_| "the window helper stopped answering".to_string())?;
         if answer.is_empty() {
             return Err("the window helper ended before it answered".to_string());
         }
-        Ok(answer.trim_end().to_string())
+        Ok(answer)
     }
 
     /// Take the window away, and let the helper go.
