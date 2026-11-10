@@ -1180,6 +1180,9 @@ pub(crate) enum Flow {
     Goto {
         name: String,
         line: u32,
+        /// Whether the name came from an expression (`goto(name)`) and the
+        /// label is resolved when the jump runs.
+        computed: bool,
     },
 }
 
@@ -1488,6 +1491,10 @@ pub struct Runtime<'a> {
     /// directive is read at the load, and every hotkey that comes after it
     /// carries it until another `#HotIf` replaces it.
     hotif_condition: Option<crate::hotkeys::Condition>,
+    /// The labels of the `finally` blocks that are running, innermost last:
+    /// a jump that leaves one of them is refused. Measured on the binary of
+    /// v2.0.19 on 2026-11-10: "Jumps cannot exit a FINALLY block.".
+    finally_labels: Vec<Vec<String>>,
     /// Whether the hotkeys of the script are suspended.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `Suspend 1` makes
@@ -1613,6 +1620,7 @@ impl<'a> Runtime<'a> {
             hotkeys: Vec::new(),
             hotkeys_are_not_watched: false,
             hotif_condition: None,
+            finally_labels: Vec::new(),
             suspended: false,
             paused: false,
             suspend_exempt: false,
@@ -1686,6 +1694,7 @@ impl<'a> Runtime<'a> {
             hotkeys: Vec::new(),
             hotkeys_are_not_watched: false,
             hotif_condition: None,
+            finally_labels: Vec::new(),
             suspended: false,
             paused: false,
             suspend_exempt: false,
@@ -2040,10 +2049,25 @@ impl<'a> Runtime<'a> {
                 Err(RuntimeFailure::Flow(Flow::Exit(code))) => exit_code = Some(code),
                 // The jump of a `Goto` that leaves the script: the label is not
                 // in the scope of the script.
-                Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
-                    let failure = self.the_label_is_not_there(&name, statements, line);
-                    error = Some(failure.message);
-                    error_line = Some(failure.line);
+                Err(RuntimeFailure::Flow(Flow::Goto {
+                    name,
+                    line,
+                    computed,
+                })) => {
+                    let failure = if computed {
+                        self.the_failure_of_a_computed_jump(&name, statements, line)
+                    } else {
+                        let error = self.the_label_is_not_there(&name, statements, line);
+                        RuntimeFailure::Error(error)
+                    };
+                    let (message, line) = match failure {
+                        RuntimeFailure::Error(error)
+                        | RuntimeFailure::Detailed(error, _)
+                        | RuntimeFailure::Fatal(error) => (error.message, error.line),
+                        _ => (String::new(), line),
+                    };
+                    error = Some(message);
+                    error_line = Some(line);
                 }
                 Err(RuntimeFailure::Fatal(failure)) => {
                     error = Some(failure.message);
@@ -2513,6 +2537,51 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// Whether the jump leaves a `finally` block that is running.
+    fn the_jump_leaves_a_finally(&self, name: &str) -> bool {
+        let Some(labels) = self.finally_labels.last() else {
+            return false;
+        };
+        !labels.iter().any(|label| label.eq_ignore_ascii_case(name))
+    }
+
+    /// The failure of a jump whose label is computed, when the blocks that
+    /// enclose the jump do not give it a place.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a label that is not in
+    /// the scope is an `Error` with "Label not found in current scope." and the
+    /// name in the `Extra`, and a label that is in the scope but in a block
+    /// that does not enclose the jump is "A Goto must not jump into a block
+    /// that doesn't enclose it.". Both are thrown and a catch takes them.
+    fn the_failure_of_a_computed_jump(
+        &self,
+        name: &str,
+        scope: &[Node],
+        line: u32,
+    ) -> RuntimeFailure {
+        if the_labels_of(scope)
+            .iter()
+            .any(|label| label.eq_ignore_ascii_case(name))
+        {
+            return RuntimeFailure::Error(RuntimeError {
+                message: self
+                    .dialect
+                    .the_refusal_of_a_jump_into_a_block()
+                    .to_string(),
+                line,
+            });
+        }
+        RuntimeFailure::Detailed(
+            RuntimeError {
+                message: "Label not found in current scope.".to_string(),
+                line,
+            },
+            Detail {
+                what: String::new(),
+                extra: name.to_string(),
+            },
+        )
+    }
     /// Whether the scope that runs holds the label.
     ///
     /// Measured on the binary of v2.0.19 on 2026-10-31: the label is asked
@@ -2541,10 +2610,20 @@ impl<'a> Runtime<'a> {
                 // The jump of a `Goto` is not a failure: the run goes on at
                 // the label when this block holds it, and it goes out of
                 // the block when it does not.
-                Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
+                Err(RuntimeFailure::Flow(Flow::Goto {
+                    name,
+                    line,
+                    computed,
+                })) => {
                     match the_place_of_the_label(statements, &name) {
                         Some(place) => index = place,
-                        None => return Err(RuntimeFailure::Flow(Flow::Goto { name, line })),
+                        None => {
+                            return Err(RuntimeFailure::Flow(Flow::Goto {
+                                name,
+                                line,
+                                computed,
+                            }))
+                        }
                     }
                 }
                 // A failure that no catch takes goes out at once.
@@ -2580,13 +2659,18 @@ impl<'a> Runtime<'a> {
                 if !self.hotkeys_are_not_watched {
                     match crate::hotkeys::run_fired(self) {
                         Ok(()) => {}
-                        Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => {
+                        Err(RuntimeFailure::Flow(Flow::Goto {
+                            name,
+                            line,
+                            computed,
+                        })) => {
                             match the_place_of_the_label(statements, &name) {
                                 Some(place) => index = place,
                                 None => {
                                     return Err(RuntimeFailure::Flow(Flow::Goto {
                                         name,
                                         line,
+                                        computed,
                                     }))
                                 }
                             }
@@ -2722,8 +2806,13 @@ impl<'a> Runtime<'a> {
             failure = self.run_block(otherwise).err();
         }
         // The `finally` always runs, and the failure it leaves is the one
-        // that is left.
-        if let Err(other) = self.run_block(finally) {
+        // that is left. The labels of the block are the ones a jump may
+        // reach from it: a jump that leaves the block is refused, the way v2
+        // refuses it.
+        self.finally_labels.push(the_labels_of(finally));
+        let in_finally = self.run_block(finally);
+        self.finally_labels.pop();
+        if let Err(other) = in_finally {
             failure = Some(other);
         }
         match failure {
@@ -3672,9 +3761,34 @@ impl<'a> Runtime<'a> {
             }
             // The jump of a `Goto`: the run goes on at the label.
             Node::Goto { name, line } => {
+                if self.the_jump_leaves_a_finally(name) {
+                    return Err(RuntimeFailure::Error(RuntimeError {
+                        message: "Jumps cannot exit a FINALLY block.".to_string(),
+                        line: *line,
+                    }));
+                }
                 return Err(RuntimeFailure::Flow(Flow::Goto {
                     name: name.clone(),
                     line: *line,
+                    computed: false,
+                }));
+            }
+            // The jump of a `Goto` whose label is computed: the label is
+            // resolved when the jump runs, among the labels of the blocks
+            // that enclose it. Measured on the binary of v2.0.19 on
+            // 2026-11-10.
+            Node::GotoComputed { value, line } => {
+                let name = self.evaluate(value)?.to_text();
+                if self.the_jump_leaves_a_finally(&name) {
+                    return Err(RuntimeFailure::Error(RuntimeError {
+                        message: "Jumps cannot exit a FINALLY block.".to_string(),
+                        line: *line,
+                    }));
+                }
+                return Err(RuntimeFailure::Flow(Flow::Goto {
+                    name,
+                    line: *line,
+                    computed: true,
                 }));
             }
             // The hotkey of the v1: the definition of it is a label, and
@@ -6189,9 +6303,21 @@ impl<'a> Runtime<'a> {
             }
             // The jump of a `Goto` that leaves the method: the label is not
             // in the scope of the method.
-            Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => Err(RuntimeFailure::Fatal(
-                self.the_label_is_not_there(&name, &method.body, line),
-            )),
+            Err(RuntimeFailure::Flow(Flow::Goto {
+                name,
+                line,
+                computed,
+            })) => {
+                if computed {
+                    Err(self.the_failure_of_a_computed_jump(&name, &method.body, line))
+                } else {
+                    Err(RuntimeFailure::Fatal(self.the_label_is_not_there(
+                        &name,
+                        &method.body,
+                        line,
+                    )))
+                }
+            }
             Err(other) => Err(other),
         }
     }
@@ -10580,9 +10706,21 @@ impl<'a> Runtime<'a> {
             }
             // The jump of a `Goto` that leaves the function: the label is
             // not in the scope of the function.
-            Err(RuntimeFailure::Flow(Flow::Goto { name, line })) => Err(RuntimeFailure::Fatal(
-                self.the_label_is_not_there(&name, &function.body, line),
-            )),
+            Err(RuntimeFailure::Flow(Flow::Goto {
+                name,
+                line,
+                computed,
+            })) => {
+                if computed {
+                    Err(self.the_failure_of_a_computed_jump(&name, &function.body, line))
+                } else {
+                    Err(RuntimeFailure::Fatal(self.the_label_is_not_there(
+                        &name,
+                        &function.body,
+                        line,
+                    )))
+                }
+            }
             Err(other) => Err(other),
         }
     }
@@ -13334,6 +13472,7 @@ impl<'a> Runtime<'a> {
             | Node::Spread { .. }
             | Node::Label { .. }
             | Node::Goto { .. }
+            | Node::GotoComputed { .. }
             | Node::HotkeyDefinition { .. }
             | Node::Return { .. }
             | Node::ExitApp { .. }
@@ -14819,6 +14958,7 @@ pub fn op_name_in<'a>(
         Node::Spread { .. } => "Spread",
         Node::Label { .. } => "Label",
         Node::Goto { .. } => "Goto",
+        Node::GotoComputed { .. } => "GotoComputed",
         Node::HotkeyDefinition { .. } => "HotkeyDefinition",
         Node::Return { .. } => "Return",
         Node::ExitApp { .. } => "ExitApp",

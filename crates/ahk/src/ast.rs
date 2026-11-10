@@ -890,6 +890,16 @@ pub enum Node {
     /// The name is not an expression: it is the text of the parameter as
     /// the script wrote it, and the quotes of a text are part of it.
     Goto { name: String, line: u32 },
+    /// `goto("label")`: the jump whose label is computed when it runs.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `goto(name)` jumps to
+    /// the label whose name the expression answers, and the label is resolved
+    /// when the jump runs -- among the labels of the blocks that enclose it --
+    /// so the load does not know it.
+    GotoComputed {
+        value: Box<Node>,
+        line: u32,
+    },
     /// A hotkey of the v1: the line that defines it, and its action.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1
@@ -1008,6 +1018,7 @@ impl Node {
             | Node::For { line, .. }
             | Node::Label { line, .. }
             | Node::Goto { line, .. }
+            | Node::GotoComputed { line, .. }
             | Node::HotkeyDefinition { line, .. } => *line,
         }
     }

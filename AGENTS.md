@@ -10477,3 +10477,25 @@ The corpus case `assign-float.ahk` passes now. `flow-loop-switch-break-goto.ahk`
 passes the label break and stops at a **computed goto** -- `goto(name)` inside a
 function, which resolves the label when it runs among the labels of the blocks
 that enclose it -- and that is the next block.
+## 270. The computed goto, and the jump that leaves a `finally`
+
+Measured on the binary of v2.0.19 on 2026-11-10: `goto(name)` -- the
+parenthesis that is not spaced -- takes an expression, and the label is
+resolved when the jump runs, among the labels of the blocks that enclose it.
+The jump takes one parameter: a second one is `"Goto" accepts at most 1
+parameter.` with the text of the line from the word. Three failures are thrown
+and a catch takes them: a label that is not there is an `Error` with "Label not
+found in current scope." and the name in the `Extra`; a label that is in the
+function but in a block that does not enclose the jump is "A Goto must not jump
+into a block that doesn't enclose it."; and a jump out of a `finally` block that
+is running is "Jumps cannot exit a FINALLY block.".
+
+The parser builds `Node::GotoComputed` (the literal `goto label` keeps its own
+node), the flow carries whether the jump was computed, and the exit of a
+function or a method turns a computed jump that no block took into the thrown
+failure -- the one that a literal goto turns into a load-time failure. The
+labels of a `finally` block that is running are kept on a stack, and a jump
+outside them is the FINALLY failure.
+
+The corpus case `flow-loop-switch-break-goto.ahk` passes: the corpus is 72 of
+162 pure scripts (44.4 %).

@@ -6161,6 +6161,79 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_goto_of_a_computed_label_is_resolved_when_it_runs() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `goto(name)` resolves
+    // the label when the jump runs, among the labels of the blocks that
+    // enclose it; a label that is not there is an Error with "Label not found
+    // in current scope." and the name in the `Extra`; a label of a block that
+    // does not enclose the jump is "A Goto must not jump into a block that
+    // doesn't enclose it."; and a jump that leaves a `finally` block is
+    // "Jumps cannot exit a FINALLY block.".
+    let (report, _desktop) = run(concat!(
+        "Jump(name) {\n",
+        "    result := \"\"\n",
+        "    if (name != \"\")\n",
+        "        goto(name)\n",
+        "    result .= \"a\"\n",
+        "first:\n",
+        "    result .= \"b\"\n",
+        "Second:\n",
+        "    result .= \"c\"\n",
+        "    return result\n",
+        "}\n",
+        "MsgBox Jump(\"\")\n",
+        "MsgBox Jump(\"first\")\n",
+        "MsgBox Jump(\"SECOND\")\n",
+        "try {\n",
+        "    Jump(\"nosuch\")\n",
+        "} catch as e {\n",
+        "    MsgBox e.Message \"|\" e.Extra\n",
+        "}\n",
+        "Into(name) {\n",
+        "    if (name != \"\")\n",
+        "        goto(name)\n",
+        "    if (name = \"\") {\n",
+        "        inside:\n",
+        "        return 1\n",
+        "    }\n",
+        "    return 0\n",
+        "}\n",
+        "try {\n",
+        "    Into(\"inside\")\n",
+        "} catch as e {\n",
+        "    MsgBox e.Message\n",
+        "}\n",
+        "JumpFinally(name, leave := false) {\n",
+        "    try {\n",
+        "        goto(name)\n",
+        "    } finally {\n",
+        "        if leave\n",
+        "            goto(name)\n",
+        "    }\n",
+        "done:\n",
+        "    return 1\n",
+        "}\n",
+        "try {\n",
+        "    JumpFinally(\"done\", true)\n",
+        "} catch as e {\n",
+        "    MsgBox e.Message\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "abc",
+            "bc",
+            "c",
+            "Label not found in current scope.|nosuch",
+            "A Goto must not jump into a block that doesn't enclose it.",
+            "Jumps cannot exit a FINALLY block.",
+        ]
+    );
+}
+
+#[test]
 fn the_break_names_a_label_of_a_loop() {
     // Measured on the binary of v2.0.19 on 2026-11-10: the break and the
     // continue may name a label that is written before a loop, and the level

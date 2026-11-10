@@ -8076,6 +8076,36 @@ impl Parser {
         if parenthesised {
             self.next();
         }
+        // Measured on the binary of v2.0.19 on 2026-11-10: the parenthesis
+        // that is not spaced holds the expression whose value is the name of
+        // the label, and the jump is resolved when it runs. The jump takes one
+        // parameter, and a second one is `"Goto" accepts at most 1 parameter.`
+        // with the text of the line from the word.
+        if parenthesised && !self.dialect.legacy_commands() {
+            self.the_expression_begins();
+            let value = self.parse_expression()?;
+            self.skip_newlines();
+            if self.at_op(&[","]) {
+                let mut end = self.position;
+                while end < self.tokens.len()
+                    && self.tokens[end].kind != TokenKind::Newline
+                    && self.tokens[end].kind != TokenKind::Eof
+                    && !(self.tokens[end].kind == TokenKind::Op && self.tokens[end].value == ")")
+                {
+                    end += 1;
+                }
+                return Err(self.error(format!(
+                    "\"Goto\" accepts at most 1 parameter.\n     Specifically: {}",
+                    the_source_of_the_tokens(self, keyword_at, end)
+                )));
+            }
+            self.expect_op(")")?;
+            self.end_of_statement()?;
+            return Ok(Node::GotoComputed {
+                value: Box::new(value),
+                line: token.line,
+            });
+        }
         let start = self.position;
         let mut end = start;
         let mut parameters = 1;
@@ -14903,11 +14933,13 @@ fn the_name_of_a_label_is_the_text_of_the_parameter() {
         error.message,
         "Label not found in current scope.\n     Specifically: \"done\""
     );
-    let error = parse("Goto(done)").expect_err("does not parse");
-    assert_eq!(
-        error.message,
-        "Label not found in current scope.\n     Specifically: done"
-    );
+    // Measured on the binary of v2.0.19 on 2026-11-10: the parenthesis that is
+    // not spaced is the expression whose value is the label, and the load does
+    // not resolve it -- `Goto(done)` is the jump of a computed label, and the
+    // `Goto (done)` of the spaced parenthesis is the literal label "(done)",
+    // which is the refusal above with the parenthesis in the name.
+    let statements = parse("Goto(done)").expect("parses");
+    assert!(matches!(statements[0], Node::GotoComputed { .. }));
 }
 
 #[test]
