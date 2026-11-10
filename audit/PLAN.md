@@ -2723,6 +2723,45 @@ object passed on.
 branch, the error message carrying the length and the class. It needs the arm
 re-added, so it belongs to a round that can also keep it.
 
+### Round 121 — 2026-11-09: Move measured, and the half of it the toolkit will not give
+
+Measured on the binary of v2.0.19 on 2026-11-09:
+
+| the call | the binary |
+|---|---|
+| `b.Move(10, 20, 100, 40)` | **`""`** |
+| `b.Move(, , 200, 80)` | **`""`** -- the two places may be left out |
+| `b.Move()` | **`""`** |
+| `b.Move("x")` | **`Parameter #2 of Gui.Control.Prototype.Move requires a Number, but received a String.`** |
+
+**The parameter is numbered 2 and not 1**, because the first is the control the
+method is asked of -- the same counting that makes `Buffer.Prototype.__New`'s
+first parameter the buffer.
+
+**Then the platform question, which decides whether this can be honoured.** A
+`Move` is a place **and** a size, and the window this tree makes is a vertical
+`Gtk.Box`: **a child of a box cannot be placed at a coordinate** -- GTK removed
+fixed positioning, and the box gives every child the place the packing order
+gives it. So:
+
+- the **size** can be honoured (`set_size_request`), and
+- the **place** cannot, at all, with no workaround that is not "stop using a
+  layout", which would break every other control of the window.
+
+**So `Move` is a member the tree must refuse, or honour in half** -- and the rule
+of this tree is that a parameter it cannot honour fails with the reason rather
+than being ignored. A `Move` that sets the size and silently ignores the two
+places would be **the worst kind of answer**: it looks right, and the control is
+not where the script asked.
+
+**The shape the refusal should take**, when it is written: a `Move` that asks for
+a place -- any call with the first or the second parameter given -- is refused
+with the reason above; a `Move` that asks only for a size is honoured. That is the
+honest half, and it needs the helper to tell the two apart.
+
+**Not written**: it is a helper operation, a desktop method and a member arm, and
+the decision of the half belongs with the writing.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
