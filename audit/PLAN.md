@@ -2762,6 +2762,42 @@ honest half, and it needs the helper to tell the two apart.
 **Not written**: it is a helper operation, a desktop method and a member arm, and
 the decision of the half belongs with the writing.
 
+### Round 128 — 2026-11-09: Opt half exists already, and the precedent for the other half
+
+Measured in round 126: `g.Opt("+AlwaysOnTop")` answers the empty text, and an
+option that is not one of v2's answers **`Invalid option.`**
+
+**Then the reading that changes the size of the job**: `classes/gui.rs:384` has
+`the_options_are_read(options, line)`, and it already does v2's validation --
+it splits on spaces and tabs, takes `+`/`-`/a bare name, matches against
+`THE_OPTIONS` by prefix, and refuses a name it does not know with
+
+> `Invalid option.`, the name in the `Extra` and **`Gui.Prototype.__New` in the `What`**
+
+which is the reference's own wording and its own member. **So `Opt` does not need
+an option reader; it needs the application of the options that are read.**
+
+**And the precedent for the rest is already there too**: the same function checks
+`THE_OPTIONS_THAT_NAME_A_WINDOW` and, for those, refuses with a reason from the
+class table rather than pretending. So this tree already has the shape of the
+honest answer: *read the option, and if it cannot be honoured, say why*.
+
+**The design that follows**, and it is the same split as `Move`:
+
+1. `Opt` runs `the_options_are_read` -- which gives v2's `Invalid option.` for a
+   name that is not v2's, for free;
+2. the options that GTK honours are applied through the helper: `AlwaysOnTop` is
+   `set_keep_above`, `Resize` is `set_resizable`, each of them with the sign the
+   script wrote;
+3. **an option that v2 has and this window cannot honour is refused with the
+   reason** -- the `THE_OPTIONS_THAT_NAME_A_WINDOW` shape, used for the same
+   purpose. Accepting it and doing nothing would be the `Move`-place lie again.
+
+**Not written**: it is a helper operation with a sign, a desktop method, an arm,
+and -- the part that needs care -- the decision of **which options are in group 2
+and which in group 3**, which wants the list of `THE_OPTIONS` read against what GTK
+can actually do. That is a round of its own, and it is the right next one.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
