@@ -1797,6 +1797,35 @@ frame name=[ahk-gui-helper-probe] role=[frame]
 helper, so no name of the surface has moved. The next slice is that wiring --
 `Gui()`, `Add`, `Show`, `Destroy` -- with the properties after it.
 
+### Round 51 — 2026-11-09: the two listings, measured
+
+Ladder item 3. Both were measured on the binary of v2.0.19, and the round ends
+with the measurements banked rather than a shipped name.
+
+| call | the binary |
+|---|---|
+| `ListVars()` | **`""`**, a String, and it does **not** block |
+| `ListLines()` | **`1`**, an Integer |
+| `ListVars(1)` | the script does not load: the name takes no argument |
+
+**`ListVars` is clean and `ListLines` is not.** The first answers the empty text,
+which is what a command that shows a window and answers nothing should answer,
+and the tree's convention for "show me" is the report's `output`. The second
+answers **1**, and what that one means is not established: it is not the line the
+call was on (the call was on line three), and it is not the number of lines. A
+name whose answer is unexplained is not one to write.
+
+**`ListVars` still did not ship**, for a reason the measurement could not give:
+the runtime has **no public way to read its own variables**. `Runtime` keeps them
+in a field and exposes `note` and nothing else that a handler of the built-in
+table can use, so the command needs a small accessor first -- `variable_names`
+or the like -- and that is a change to the runtime's public surface rather than a
+one-line handler.
+
+So the next attempt on it is: add the accessor, then the handler that writes one
+line per variable to the `output`, then a case with two variables. Small, but not
+the one-line thing the ladder promised.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
