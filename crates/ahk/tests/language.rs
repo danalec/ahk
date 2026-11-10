@@ -9055,3 +9055,19 @@ fn a_declaration_may_carry_an_operator_of_the_write() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["a11", "b8"]);
 }
+
+#[test]
+fn the_dot_that_ends_the_line_is_the_operator_of_the_concat() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the dot that ends the
+    // line and that has a space before it is the operator of the concat, and
+    // the operand of it is on the line below -- `z := x .` and then `"qwer"`
+    // is the text of x and the text of qwer.
+    let (report, _desktop) = run(concat!(
+        "x := \"asdf\"\n",
+        "z := x .\n",
+        "\"qwer\"\n",
+        "MsgBox \"a\" z\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["aasdfqwer"]);
+}

@@ -11144,3 +11144,17 @@ base dialect that the tree did not carry:
   the name and the rest of the line. The null assignment of the v2.1 is not an
   operator of the v2.0.19, and `global n ??= 1` is an "Invalid variable
   declaration." there.
+
+## 297. The dot that ends the line is the operator of the concat
+
+Measured on the binary of AutoHotkey v2.0.19 on 2026-11-11, the dot that
+ends a line and that has a space before it is the operator of the concat,
+and the operand of it is on the line below: `z := x .` and then `"qwer"` is
+the text of x and the text of qwer.
+
+The tree read the dot as the point of a member, and the line was refused
+with a "Syntax error." that named the dot. The space before the dot is what
+tells the two apart -- `x.` at the end of a line reaches into the value and
+is refused the same way the binary refuses it -- and the rule is the one the
+parser already knew for the dot that begins the line that continues the one
+above.

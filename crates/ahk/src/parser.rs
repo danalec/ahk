@@ -1763,7 +1763,29 @@ impl Parser {
     /// reaches into the value too.
     fn at_member_dot(&self) -> bool {
         let token = self.peek();
-        token.kind == TokenKind::Op && token.value == "." && !self.the_space_after_is_there()
+        if token.kind != TokenKind::Op || token.value != "." {
+            return false;
+        }
+        // Measured on the binary of v2.0.19 on 2026-11-11: the dot that ends
+        // the line and that has a space before it is the operator of the
+        // concat, and the operand of it is on the line below -- `z := x .` and
+        // then `"qwer"` is the text of x and the text of qwer.
+        if token.spaced && self.the_dot_ends_the_line() {
+            return false;
+        }
+        !self.the_space_after_is_there()
+    }
+
+    /// Whether the dot that comes next ends the line.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: the line that ends
+    /// with the dot of the concat continues on the next one, and the operand
+    /// of the concat is there.
+    fn the_dot_ends_the_line(&self) -> bool {
+        self.tokens
+            .get(self.position + 1)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
     }
 
     /// Whether a space comes after the token that is being looked at.
@@ -14181,6 +14203,15 @@ mod tests {
             error.message,
             "Invalid variable declaration.\n     Specifically: n ??= 1"
         );
+    }
+
+    #[test]
+    fn the_dot_that_ends_the_line_without_a_space_is_not_the_concat() {
+        // Measured on the binary of v2.0.19 on 2026-11-11: the dot that ends
+        // the line without a space before it reaches into the value, and the
+        // name of the member is not there.
+        let error = parse("x := \"asdf\"\nz := x.\n").expect_err("does not parse");
+        assert_eq!(error.message, "Syntax error.\n     Specifically: .");
     }
 
     #[test]
