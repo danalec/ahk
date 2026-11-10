@@ -2602,16 +2602,16 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move_bottom,
     },
     Builtin {
         name: "WinMoveTop",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move_top,
     },
     Builtin {
         name: "WinRedraw",
@@ -2645,9 +2645,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_enabled,
     },
     Builtin {
         name: "WinSetExStyle",
@@ -9803,6 +9803,58 @@ pub(crate) fn win_restore(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     the_state_of_the_window(rt, values, line, "restore")
+}
+
+/// `WinSetEnabled(Value, WinTitle)`: the sensitivity of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It goes through the
+/// `disabled` word of the option channel, which is the same state the other way up.
+pub(crate) fn win_set_enabled(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    let target = text_of(values, 1);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option("disabled", !on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinMoveTop(WinTitle)`: bring the script's window to the front.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It is the `activate`
+/// word of the option channel: presenting a window raises it.
+pub(crate) fn win_move_top(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
+/// `WinMoveBottom(WinTitle)`: **refused, with a reason of its own.**
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text. GTK 4
+/// removed the call that lowers a window -- `present` raises, and there is no
+/// counterpart -- and a compositor decides the order anyway, so this tree has no way
+/// to send a window to the back.
+pub(crate) fn win_move_bottom(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the toolkit of this desktop can raise a window and has no call that lowers one, and the order of the windows is the compositor's".to_string(),
+        line,
+    })
 }
 
 pub(crate) fn sleep(
