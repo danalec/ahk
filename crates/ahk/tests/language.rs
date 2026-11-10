@@ -8998,3 +8998,60 @@ fn the_property_that_holds_a_function_is_refused_by_the_v2() {
         Some("This value of type \"Object\" has no method named \"get\".")
     );
 }
+#[test]
+fn the_comma_at_the_level_of_a_statement_separates_statements() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the comma at the level
+    // of a statement separates statements and not expressions -- `x++, y++`
+    // runs the two increments, and `x := 3, y := 4` runs the two assignments
+    // -- and the value of the whole is the value of the last one.
+    let (report, _desktop) = run(concat!(
+        "x := 1\n",
+        "x++, x++\n",
+        "MsgBox \"a\" x\n",
+        "y := 0\n",
+        "y := 3, y := 4\n",
+        "MsgBox \"b\" y\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a3", "b4"]);
+}
+
+#[test]
+fn the_line_that_begins_with_a_comma_continues_the_statement() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: a line that begins
+    // with a comma continues the statement of the line before it -- `x := 1`
+    // and then `, ++x` is one line of two statements -- and a line that begins
+    // with a comma at the start of the script is refused.
+    let (report, _desktop) = run(concat!(
+        "x := 1\n",
+        ", ++x\n",
+        ", y := x\n",
+        "MsgBox \"a\" y\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a2"]);
+}
+
+#[test]
+fn a_declaration_may_carry_an_operator_of_the_write() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: a declaration may
+    // carry any operator of the write -- `global n += 1` adds the one to the
+    // value that is there -- and the increment and the null assignment of the
+    // v2.1 are not among them.
+    let (report, _desktop) = run(concat!(
+        "n := 10\n",
+        "F() {\n",
+        "    global n += 1\n",
+        "}\n",
+        "F()\n",
+        "MsgBox \"a\" n\n",
+        "G() {\n",
+        "    local m := 4\n",
+        "    local m *= 2\n",
+        "    MsgBox \"b\" m\n",
+        "}\n",
+        "G()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a11", "b8"]);
+}

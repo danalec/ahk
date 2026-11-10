@@ -3548,7 +3548,23 @@ impl<'a> Runtime<'a> {
                             continue;
                         }
                         let value = self.evaluate(value)?;
-                        self.assign(&declared.name, value);
+                        // Measured on the binary of v2.0.19 on 2026-11-11: the
+                        // declaration may carry any operator of the write --
+                        // `global n += 1` adds the one to the value that is there
+                        // -- and the write of the compound operator reads the
+                        // value that is there before it writes the new one.
+                        let current = match self.lookup(&declared.name) {
+                            Some(value) => Some(value),
+                            None => self.the_value_of_a_variable_of_the_runtime(&declared.name),
+                        };
+                        let stored = self.apply_assign(
+                            declared.op,
+                            &declared.name,
+                            current,
+                            value,
+                            *line,
+                        )?;
+                        self.assign(&declared.name, stored);
                         if *scope == DeclareKind::Static {
                             self.mark_the_static_as_ran(*line, &declared.name);
                         }

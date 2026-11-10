@@ -1944,6 +1944,25 @@ impl Parser {
         }
     }
 
+    /// Whether the line that comes begins with a comma.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: a line that begins
+    /// with a comma continues the statement of the line before it, and the
+    /// comma is the first thing of the line.
+    fn the_next_line_begins_with_a_comma(&self) -> bool {
+        if self.peek().kind != TokenKind::Newline {
+            return false;
+        }
+        let mut at = self.position;
+        while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline {
+            at += 1;
+        }
+        self.tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Op && token.value == ",")
+            .unwrap_or(false)
+    }
+
     /// Whether the statement ends here: at the end of the line, at the end
     /// of the script, or at the end of a block.
     fn at_end_of_statement(&self) -> bool {
@@ -3968,11 +3987,18 @@ impl Parser {
                 if let Some(message) = self.the_refusal_of_the_increment(&value) {
                     return Err(self.error(message));
                 }
+                // Measured on the binary of v2.0.19 on 2026-11-11: the comma
+                // at the level of a statement separates statements -- `x++,
+                // y++` runs the two increments -- and the rest of the line is
+                // the list of them.
+                let legacy = self.the_legacy_list()?;
                 self.end_of_statement()?;
-                return Ok(vec![Node::Expression {
+                let mut statements = vec![Node::Expression {
                     value: Box::new(value),
                     line: token.line,
-                }]);
+                }];
+                statements.extend(legacy);
+                return Ok(statements);
             }
             return self.parse_name_statement();
         }
@@ -5972,7 +5998,15 @@ impl Parser {
     /// come after the text do not run either.
     fn the_legacy_list(&mut self) -> Result<Vec<Node>, SyntaxError> {
         if !self.at_op(&[","]) {
-            return Ok(Vec::new());
+            // Measured on the binary of v2.0.19 on 2026-11-11: a line that
+            // begins with a comma continues the statement of the line before it
+            // -- `x := 1` and then `, ++x` is one line of two statements --
+            // and a line that begins with a comma at the start of the script is
+            // refused, because there is no line before it to continue.
+            if !self.dialect.a_comma_separates_statements() || !self.the_next_line_begins_with_a_comma() {
+                return Ok(Vec::new());
+            }
+            self.skip_newlines();
         }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the v1
         // reads the tail of a list as symbols, and the name of each one of
@@ -5990,8 +6024,21 @@ impl Parser {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the line
                 // that ends with a comma continues on the next one, and the
                 // empty lines between the two are not a part of it.
-                if self.peek().kind == TokenKind::Newline && self.the_line_continues() {
+                //
+                // Measured on the binary of v2.0.19 on 2026-11-11: the line
+                // that begins with a comma continues the statement of the line
+                // before it, and the comma is the first thing of it.
+                if self.peek().kind == TokenKind::Newline {
+                    let continues = self.the_line_continues()
+                        || (self.dialect.a_comma_separates_statements()
+                            && self.the_next_line_begins_with_a_comma());
+                    if !continues {
+                        break;
+                    }
                     self.skip_newlines();
+                    if self.at_op(&[","]) {
+                        self.position += 1;
+                    }
                 } else {
                     break;
                 }
@@ -6028,7 +6075,9 @@ impl Parser {
                 self.position += 1;
                 continue;
             }
-            break;
+            // The list continues on the next line when that line begins with a
+            // comma, and the loop sees it at its head.
+            continue;
         }
         // The text that is left after the last item is not read: the v1 does
         // not run it, and it does not fail.
@@ -7797,6 +7846,24 @@ impl Parser {
         Ok(token.value)
     }
 
+    /// The operator that a declaration may carry.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: the declaration
+    /// carries any operator of the write -- `global n += 1` adds the one to the
+    /// value that is there -- and the increment and the null assignment of the
+    /// v2.1 are not among them.
+    fn the_operator_of_a_declaration(&self) -> Option<String> {
+        let token = self.tokens.get(self.position)?;
+        if token.kind != TokenKind::Op {
+            return None;
+        }
+        match token.value.as_str() {
+            ":=" | "+=" | "-=" | "*=" | "/=" | "//=" | ".=" | "&=" | "|=" | "^=" | "<<="
+            | ">>=" | ">>>=" => Some(token.value.clone()),
+            _ => None,
+        }
+    }
+
     /// `global name` or `local name`: a declaration of v2.
     ///
     /// The names are read when the script is read, and the values wait for
@@ -7806,6 +7873,7 @@ impl Parser {
         let mut names = Vec::new();
         while !self.at_end_of_statement() {
             let name = self.next();
+            let name_at = self.position - 1;
             if name.kind != TokenKind::Name {
                 return Err(self.error(format!("a declaration needs a name, not {:?}", name.value)));
             }
@@ -7850,13 +7918,43 @@ impl Parser {
                     return Err(self.error(message));
                 }
             }
+            // Measured on the binary of v2.0.19 on 2026-11-11: what a
+            // declaration may carry after the name is an operator of the write
+            // and nothing else -- `global n++` is an "Invalid variable
+            // declaration.", and so are `global n 1` and `global n ? 1` -- and
+            // the refusal names the name and the rest of the line.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-11: the null
+            // assignment of the v2.1 is not an operator of the v2.0.19 --
+            // `global n ??= 1` is an "Invalid variable declaration." there --
+            // and the v2.1 carries it.
+            if self.dialect.a_comma_separates_statements()
+                && !self.at_end_of_statement()
+                && !self.at_op(&[","])
+                && self.the_operator_of_a_declaration().is_none()
+            {
+                return Err(self.error(format!(
+                    "Invalid variable declaration.\n     Specifically: {}",
+                    the_source_of_the_rest_of_the_line(self, name_at)
+                )));
+            }
             // The value of the declaration: `global g := 1`.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-11: the declaration
+            // may carry any operator of the write -- `global n += 1` adds the
+            // one to the value that is there -- and the null assignment of the
+            // v2.1 is not among them: `global n ??= 1` is an "Invalid variable
+            // declaration." too.
             let mut text = name.value.clone();
-            let value = if self.at_op(&[":="]) {
+            let mut op = AssignOp::Set;
+            let value = if let Some(operator) = self.the_operator_of_a_declaration() {
+                op = the_assignment_operator(&operator).unwrap_or(AssignOp::Set);
                 self.next();
                 let start = self.position;
                 let value = self.the_expression_of_a_statement()?;
-                text.push_str(" := ");
+                text.push(' ');
+                text.push_str(&operator);
+                text.push(' ');
                 text.push_str(&the_text_of_the_tokens(self, start, self.position));
                 Some(Box::new(value))
             } else {
@@ -7865,6 +7963,7 @@ impl Parser {
             names.push(Declared {
                 name: name.value,
                 value,
+                op,
                 text,
             });
             if !self.at_op(&[","]) {
@@ -14041,6 +14140,47 @@ mod tests {
     fn a_syntax_error_carries_the_line_and_the_column() {
         let error = parse("Send \"a\"\nif (x) { y := 1 }\n").expect_err("fails");
         assert_eq!(error.line, 2);
+    }
+
+    #[test]
+    fn the_line_that_begins_with_a_comma_at_the_start_of_the_script_is_refused() {
+        // Measured on the binary of v2.0.19 on 2026-11-11: a line that begins
+        // with a comma continues the statement of the line before it, and
+        // there is no line before it at the start of the script.
+        let error = parse(", y := 2").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Function calls require a space or \"(\".  Use comma only between parameters.\n     Specifically: , y := 2"
+        );
+    }
+
+    #[test]
+    fn what_a_declaration_may_carry_after_the_name_is_an_operator() {
+        // Measured on the binary of v2.0.19 on 2026-11-11: `global n++` is an
+        // "Invalid variable declaration.", and so are `global n 1` and
+        // `global n ? 1`, and the refusal names the name and the rest of the
+        // line.
+        for source in ["global n++", "global n 1", "global n ? 1"] {
+            let error = parse(source).expect_err("does not parse");
+            assert!(
+                error.message.starts_with("Invalid variable declaration."),
+                "{}: {}",
+                source,
+                error.message
+            );
+        }
+    }
+
+    #[test]
+    fn the_null_assignment_is_not_an_operator_of_a_declaration_of_the_v2() {
+        // Measured on the binary of v2.0.19 on 2026-11-11: the null
+        // assignment of the v2.1 is not an operator of the v2.0.19, and
+        // `global n ??= 1` is an "Invalid variable declaration." there.
+        let error = parse("global n ??= 1").expect_err("does not parse");
+        assert_eq!(
+            error.message,
+            "Invalid variable declaration.\n     Specifically: n ??= 1"
+        );
     }
 
     #[test]

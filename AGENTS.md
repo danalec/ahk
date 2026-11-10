@@ -11121,3 +11121,26 @@ is left there is `OwnPropKeys(Array.Prototype, true)`, which asks the prototype
 of a class type for its own properties and expects `__Class` alone -- the getters
 of the type have no receiver, so the one-variable form of the enumeration does
 not name them -- and the tree names all of them. That is the next block.
+
+## 296. The comma at the level of a statement, and the operator of a declaration
+
+Measured on the binary of AutoHotkey v2.0.19 on 2026-11-11, two rules of the
+base dialect that the tree did not carry:
+
+- **The comma at the level of a statement separates statements.** `x++, y++` runs
+  the two increments, and `x := 3, y := 4` runs the two assignments -- the comma
+  is not the separator of the parameters of a call there, and the value of the
+  whole is the value of the last one. The v1 reads the comma as the separator
+  of the parameters of a command, and it does not have this.
+- **A line that begins with a comma continues the statement of the line before
+  it.** `x := 1` and then `, ++x` is one line of two statements, and so is
+  `x := 1` and then `, y := x`. At the start of the script there is no line to
+  continue, and the line is refused with "Function calls require a space or
+  "(".".
+- **A declaration may carry any operator of the write.** `global n += 1` adds
+  the one to the value that is there, and `local m *= 2` multiplies it. What
+  may not follow the name is anything else: `global n++`, `global n 1` and
+  `global n ? 1` are an "Invalid variable declaration.", and the refusal names
+  the name and the rest of the line. The null assignment of the v2.1 is not an
+  operator of the v2.0.19, and `global n ??= 1` is an "Invalid variable
+  declaration." there.

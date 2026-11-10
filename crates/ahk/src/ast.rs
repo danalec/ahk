@@ -161,6 +161,13 @@ pub struct Declared {
     pub name: String,
     /// The value it starts with, when the declaration gives it one.
     pub value: Option<Box<Node>>,
+    /// The operator of the write.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: a declaration may
+    /// carry any operator of the write -- `global n += 1` adds the one to the
+    /// value that is there -- and not the null assignment of the v2.1 and not
+    /// the increment.
+    pub op: AssignOp,
     /// The text of the declaration, the way v2 writes it when it refuses.
     pub text: String,
 }

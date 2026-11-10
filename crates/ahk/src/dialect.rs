@@ -1546,6 +1546,21 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether a comma at the start of a statement separates statements.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: the comma at the
+    /// level of a statement separates statements and not expressions --
+    /// `x++, y++` runs the two increments, and `x := 1, y := 2` runs the two
+    /// assignments -- and the value of the whole is the value of the last one.
+    /// A line that begins with a comma continues the statement of the line
+    /// before it: `x := 1` and then `, ++x` is one statement of two parts.
+    ///
+    /// The v1 reads the comma as the separator of the parameters of a command,
+    /// and it does not have this.
+    fn a_comma_separates_statements(&self) -> bool {
+        false
+    }
+
     /// The message of the brace that opens the body of a construct when the
     /// content of the block is on the line of it.
     ///
@@ -2098,6 +2113,15 @@ impl Dialect for V2 {
 
     fn an_expression_may_be_the_left_of_the_maybe(&self) -> bool {
         self.extended
+    }
+
+    fn a_comma_separates_statements(&self) -> bool {
+        // Measured on the binary of v2.0.19 on 2026-11-11: the comma at the
+        // level of a statement separates statements, and a line that begins
+        // with a comma continues the statement of the line before it. The v2
+        // has it, and the v1 does not: the comma there separates the
+        // parameters of a command.
+        true
     }
 
     fn name(&self) -> &'static str {
