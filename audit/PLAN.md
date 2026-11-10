@@ -3918,6 +3918,42 @@ answering-but-counted-refused -- will miss the names that are counted-refused-by
 and answer-nothing. Round 173 checked one direction; **this round is the check of the
 other.**
 
+### Round 207 — 2026-11-09: round 206 was wrong, and the reference refuses the same way
+
+Round 206 read `obj_add_ref` returning `Err` and called it a defect: two names counted
+as answering that cannot answer. **Then the reference was measured:**
+
+```
+v2.0.19:  ObjAddRef({a: 1})  -> Parameter #1 of ObjAddRef is invalid.
+          ObjAddRef({b: 2})  -> Parameter #1 of ObjAddRef is invalid.
+
+this tree: ObjAddRef({a: 1}) -> Parameter #1 of ObjAddRef is invalid.
+```
+
+**Identical, wording and all.** A plain object is not what `ObjAddRef` takes in v2
+either, so our tree's unconditional refusal is **faithful**, the message is the
+reference's own, and **the count of 722 is correct**. Round 206's note is withdrawn.
+
+**This is the sixth time a "defect" read out of the code dissolved under measurement**
+— after the drives, the window names, the `Edit` holding lines, the one-parameter
+function, and the selection. **Six for six.**
+
+**And the two rules it re-teaches, both already in this plan**:
+
+1. **a reading of the code is a hypothesis about the behaviour** — the body said `Err`
+   and the meaning of an `Err` was not in the body;
+2. **the reference is the measurement** — one call to the binary settled what four
+   paragraphs of reasoning in round 206 got wrong.
+
+**What round 206 did get right**: the surface **does** count those two as answering
+and they **do** refuse for any plain object — which is only a defect if the reference
+answers. It does not. **A discrepancy is only a discrepancy once the second side is
+measured**, and round 206 measured only one.
+
+**`ObjPtrAddRef` and `ObjFromPtrAddRef` stay as they are** for now: the base refuses
+exactly as the reference refuses, so those two are measurable against it, and that is a
+piece of work with a known shape rather than a bug.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
