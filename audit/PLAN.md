@@ -2571,6 +2571,34 @@ bridge that, and there are three ways, in order of how much they change:
 **Nothing was written**: the third piece decides the shape of the first and
 second, and choosing it needs a round that can also carry the writing.
 
+### Round 109 — 2026-11-09: piece 2 counted exactly
+
+Piece 2 of the events -- the registry of open windows on the runtime -- is a
+`Runtime` field, and the count is now exact:
+
+| where | line | what |
+|---|---|---|
+| the struct | ~1320 | the field itself |
+| `Runtime::new` | 1337 | `variables: BTreeMap::new(),` |
+| `Runtime::with_clock` | 1401 | the same line |
+
+**Two initialisers, and they carry the identical line** -- so an edit anchored on
+`variables: BTreeMap::new(),` would match twice, which is the trap that broke
+three edits in this session. **Here `replace_all` is the right tool and not a
+workaround**: both sites need the same addition, so replacing both is exactly the
+intent.
+
+**Three edits, then the registration**: `classes::call` is the one place that has
+both the runtime and the `Gui` object (`this`), so the window is registered there
+on any `gui` member. A field with nothing reading it is a warning, which is why
+the registration is part of the same piece and not a later one.
+
+**Not attempted.** With what is left of this session, a big-struct literal edit is
+the shape that produced round 85's non-compiling commit, and the three pieces
+after it (the walk in `Sleep`, the call by name) are what would make the field
+observable. A registry that nothing walks cannot be verified, and unverifiable
+code shaped like wiring is the thing this plan has refused at every turn.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
