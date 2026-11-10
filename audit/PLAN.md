@@ -4392,6 +4392,34 @@ this runtime does not have.** Reverted, and the tree is clean at **729 / 104**.
    refused for one reason: **the script of this runtime is the standard input**, and a
    name that is about the file of a script has nothing to be about.
 
+### Round 253 — 2026-11-09: the one check that would have caught round 219
+
+Round 219 committed with the box red because the **test** still asserted the old count
+while the code answered the new one. That class of failure has a one-line check, and it
+belongs beside every other verification:
+
+```powershell
+# the numbers the test asserts against the numbers the binary prints
+$c = Get-Content crates\ahk-cli\tests\runner.rs -Raw
+[regex]::Match($c, 'number\("values"\), (\d+)\)').Groups[1].Value     # what the test says
+[regex]::Match($c, 'number\("refusals"\), (\d+)\)').Groups[1].Value
+& .\target\release\ahk.exe --surface                                   # what it is
+```
+
+**And the arithmetic that proves the instrument is whole**: the values plus the refusals
+**plus the pending must be the number of entries**, and the pending is nought, so the two
+must sum to the size of the surface:
+
+```
+values 729 + refusals 104 = 833 = the entries of v2
+```
+
+**That is the check to run after any change to the table**: if the sum is not the size of
+the surface, a row has moved without being counted, or a count has moved without a row.
+
+**Verified at round 253**: the test asserts 729 and 104, the binary answers 729 and 104,
+and they sum to 833.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
